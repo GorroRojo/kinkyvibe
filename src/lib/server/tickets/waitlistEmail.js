@@ -1,5 +1,5 @@
 /**
- * Mails de la lista de espera (docs/mails.md, «Lista de espera»; docs/tickets.md). Cinco, cada
+ * Mails de la lista de espera (docs/mails.md, «Lista de espera»; docs/tickets.md). Seis, cada
  * uno con su plantilla editable (`waitlist_*` en $lib/utils/emailTemplates.js) y la plantilla
  * común (`mailLayout`):
  *
@@ -8,6 +8,8 @@
  *   la lista a la vez (sin lugar guardado, `holdUntil` null);
  * - último aviso (`waitlist_reminder`), cuando queda poco de un lugar guardado;
  * - se venció tu lugar (`waitlist_expired`), con «Volver a anotarme»;
+ * - terminamos tu lugar (`waitlist_ended`), igual, cuando une admin lo termina desde el panel y
+ *   elige avisarle;
  * - se cerró la lista (`waitlist_closed`), poco antes del comienzo o si se cancela el evento.
  *
  * Todos llevan el link para salir de la lista en el pie (`unsubscribeUrl`). Sin nombre: la lista
@@ -19,13 +21,13 @@
 import { argDeadline } from '$lib/utils/dates.js';
 import { ARGENTINA_TIME_NOTE, expiresInText } from '$lib/utils/expiry.js';
 import { mergeTemplates, templateDef } from '$lib/utils/emailTemplates.js';
-import { MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
-import { applyTemplate, escapeHtml, formatEventDate } from './email.js';
+import { MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
+import { applyTemplate, escapeHtml, formatEventDate, formatEventWhen } from './email.js';
 
 /** @typedef {{ subject: string, html: string, text: string }} Message */
 /** @typedef {import('./email.js').Template} Template */
 /** @typedef {import('$lib/utils/emailTemplates.js').WaitlistTemplateId} WaitlistTemplateId */
-/** @typedef {{ title: string, start?: string | null }} WaitlistEvent */
+/** @typedef {{ title: string, start?: string | null, end?: string | null }} WaitlistEvent */
 
 /** El recuadro amarillo de «te lo guardamos hasta…» (como el de la transferencia). */
 const HOLD_BOX = 'background:#fff3c4;border-radius:12px;padding:12px 16px;margin:0 0 16px';
@@ -77,7 +79,7 @@ export function waitlistVars(event, typeName, holdUntil = null) {
  * @param {string | null | undefined} typeName
  */
 function eventBlock(event, typeName) {
-	const date = formatEventDate(event.start ?? undefined);
+	const date = formatEventWhen(event.start, event.end);
 	const lines = [event.title, date, typeName ? `Entrada: ${typeName}` : ''].filter(Boolean);
 	return {
 		html: `<p><strong>${escapeHtml(event.title)}</strong>${date ? `<br>${escapeHtml(date)}` : ''}${typeName ? `<br>Entrada: ${escapeHtml(typeName)}` : ''}</p>`,
@@ -111,9 +113,13 @@ const leaveHtml = (url, label = 'Salir de la lista de espera') =>
  *   unsubscribeLabel?: string,
  *   unsubscribeText?: string,
  *   origin?: string,
- *   contactEmail?: string
+ *   contactEmail?: string,
+ *   optOut?: { html: string, text: string[] },
+ *   preheader?: string
  * }} input
  * `helpHtml`/`helpText`: la ayuda del código si la plantilla no trae una (vacía = sin ayuda).
+ * `preheader`: lo que la bandeja muestra al lado del asunto (sin el título del evento).
+ * `optOut`: la línea «No fui yo» del pie (`mailOptOut`), solo en el de confirmar.
  * @returns {Message}
  */
 function buildWaitlistMail({
@@ -131,7 +137,9 @@ function buildWaitlistMail({
 	unsubscribeLabel,
 	unsubscribeText = 'Para salir de la lista de espera',
 	origin,
-	contactEmail
+	contactEmail,
+	optOut = { html: '', text: [] },
+	preheader = ''
 }) {
 	const c = applyTemplate(partsFor(id, template), vars);
 	const block = eventBlock(event, typeName);
@@ -141,6 +149,7 @@ function buildWaitlistMail({
 	const helpPlain = c.helpText ?? helpText;
 	const html = mailLayout({
 		origin,
+		preheader,
 		label,
 		titleHtml: /** @type {string} */ (c.headingHtml),
 		contentHtml: `${c.bodyHtml}
@@ -149,7 +158,8 @@ function buildWaitlistMail({
 		helpHtml: help,
 		whyHtml: /** @type {string} */ (c.whyHtml),
 		contactEmail,
-		unsubscribeHtml: leaveHtml(unsubscribeUrl, unsubscribeLabel)
+		unsubscribeHtml: leaveHtml(unsubscribeUrl, unsubscribeLabel),
+		optOutHtml: optOut.html
 	});
 	const text = [
 		c.headingText,
@@ -161,7 +171,8 @@ function buildWaitlistMail({
 		...(button && buttonLabel ? ['', `${buttonLabel}: ${button.href}`] : []),
 		...(helpPlain ? [helpPlain] : []),
 		'',
-		`${unsubscribeText}: ${unsubscribeUrl}`
+		`${unsubscribeText}: ${unsubscribeUrl}`,
+		...optOut.text
 	].join('\n');
 	return { subject: /** @type {string} */ (c.subject), html, text };
 }
@@ -170,9 +181,11 @@ function buildWaitlistMail({
  * «Confirmá tu mail»: el link para entrar a la fila (vale hasta `expiresAt`). El link del pie
  * borra el pedido.
  *
+ * `optOutUrl`: el link «No fui yo» (email/suppressions.js), en el pie.
+ *
  * @param {{ event: WaitlistEvent, typeName?: string | null, confirmUrl: string,
  *   unsubscribeUrl: string, expiresAt: number, now: number, origin?: string,
- *   contactEmail?: string, template?: Template }} input
+ *   contactEmail?: string, template?: Template, optOutUrl?: string | null }} input
  * @returns {Message}
  */
 export function buildWaitlistConfirmEmail({
@@ -184,7 +197,8 @@ export function buildWaitlistConfirmEmail({
 	now,
 	origin,
 	contactEmail,
-	template
+	template,
+	optOutUrl = null
 }) {
 	const help = `El link ${expiresInText(expiresAt, now, { lowercase: true })}. Si no lo pediste vos, ignorá este mail: sin confirmar no quedás en la lista.`;
 	return buildWaitlistMail({
@@ -200,7 +214,8 @@ export function buildWaitlistConfirmEmail({
 		unsubscribeLabel: 'Borrar el pedido ahora',
 		unsubscribeText: 'Para borrar el pedido ahora',
 		origin,
-		contactEmail
+		contactEmail,
+		optOut: mailOptOut(optOutUrl, '¿No te anotaste vos?')
 	});
 }
 
@@ -248,7 +263,10 @@ export function buildWaitlistOfferEmail({
 		helpText: help,
 		unsubscribeUrl,
 		origin,
-		contactEmail
+		contactEmail,
+		preheader: deadline
+			? 'Se liberó un lugar: confirmalo antes de que venza'
+			: 'Se liberó un lugar: se lo queda quien compre primero'
 	});
 }
 
@@ -283,7 +301,8 @@ export function buildWaitlistReminderEmail({
 		button: { href: offerUrl },
 		unsubscribeUrl,
 		origin,
-		contactEmail
+		contactEmail,
+		preheader: 'Queda poco: confirmá tu lugar antes de que venza'
 	});
 }
 
@@ -295,17 +314,32 @@ export function buildWaitlistReminderEmail({
  *   unsubscribeUrl: string, origin?: string, contactEmail?: string, template?: Template }} input
  * @returns {Message}
  */
-export function buildWaitlistExpiredEmail({
-	event,
-	typeName = null,
-	rejoinUrl,
-	unsubscribeUrl,
-	origin,
-	contactEmail,
-	template
-}) {
+export function buildWaitlistExpiredEmail(input) {
+	return rejoinMail('waitlist_expired', input);
+}
+
+/**
+ * «Se terminó tu lugar»: une admin terminó desde el panel el lugar que le ofrecimos («Terminar la
+ * reserva y pasar a la siguiente») y eligió avisarle. Como «se venció», con «Volver a anotarme».
+ *
+ * @param {Parameters<typeof buildWaitlistExpiredEmail>[0]} input
+ * @returns {Message}
+ */
+export function buildWaitlistEndedEmail(input) {
+	return rejoinMail('waitlist_ended', input);
+}
+
+/**
+ * @param {'waitlist_expired' | 'waitlist_ended'} id
+ * @param {Parameters<typeof buildWaitlistExpiredEmail>[0]} input
+ * @returns {Message}
+ */
+function rejoinMail(
+	id,
+	{ event, typeName = null, rejoinUrl, unsubscribeUrl, origin, contactEmail, template }
+) {
 	return buildWaitlistMail({
-		id: 'waitlist_expired',
+		id,
 		template,
 		vars: waitlistVars(event, typeName),
 		event,

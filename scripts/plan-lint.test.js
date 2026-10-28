@@ -58,6 +58,15 @@ describe('lintPlan', () => {
 		).toEqual([]);
 	});
 
+	it('accepts a hecho line without a PR number, and still checks the rest of it', () => {
+		expect(ok('- `a` · fase 0 · hecho · panel · Algo')).toEqual([]);
+		expect(ok('- `a` · fase 0 · hecho · panel · Algo · [panel.md](panel.md)')).toEqual([]);
+		expect(ok('- `a` · fase 0 · hecho · panel · Algo · #12')).toEqual([]);
+		expect(ok('- `a` · fase 0 · hecho · panel')).toEqual([expect.stringMatching(/falta qué es/)]);
+		expect(ok('- `a` · hecho · panel · Algo')[0]).toMatch(/falta la fase/);
+		expect(ok('- `a` · fase 0 · hecha · panel · Algo')[0]).toMatch(/estado «hecha» inválido/);
+	});
+
 	it('fails on duplicate ids', () => {
 		const out = ok('- `a` · fase 0 · sigue · x · y', '- `a` · fase 0 · sigue · x · z');
 		expect(out).toEqual([expect.stringMatching(/`a`.*id repetido \(ya está en la línea/)]);

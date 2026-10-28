@@ -130,9 +130,13 @@ export async function listPanelEvents() {
  * @returns {Promise<PanelEvent | null>}
  */
 export async function getPanelEvent(slug) {
+	// La metadata a la par de la lista (con las tandas automáticas, en la misma ida): si el evento
+	// no está, no se usa (ni su error cuenta).
+	const meta = bundleMeta(slug);
+	meta.catch(() => {});
 	const e = (await listEvents()).find((x) => x.slug === slug);
 	if (!e) return null;
-	return toPanelEvent(e, await bundleMeta(slug));
+	return toPanelEvent(e, await meta);
 }
 
 /**

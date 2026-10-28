@@ -11,8 +11,9 @@
  *   evento, la fecha, el nombre, el tipo, el código corto y si ya se usó; «🔗 Ver la entrada» (su
  *   página), «‹ 2/3 ›» entre las entradas de esa lista, «‹ Volver» e «🏠 Inicio». Sin foto (sin
  *   token), la página de la entrada tiene el QR.
- * - Un evento online no lleva QR (como en su página y en el mail): el link de la transmisión está
- *   en la página de la entrada.
+ * - Un evento online no lleva QR (como en su página y en el mail): si el link de la transmisión ya
+ *   está cargado, la tarjeta lo manda en el texto y con el botón «📺 Ver la transmisión» (la misma
+ *   regla que la página de la entrada, ver tickets.js); si no, dice que llega antes del evento.
  *
  * Una entrada queda en «próximas» hasta 12 horas después de que termina su evento (o de que
  * empieza, si no tiene fin): así se puede mostrar en la puerta aunque el evento ya haya empezado.
@@ -20,8 +21,14 @@
  * queda en «próximas» hasta 12 horas después de su última parte (sin las canceladas), y la lista
  * y la tarjeta muestran la fecha de la parte que toca, con «Parte 2 de 3».
  */
-import { eventEnd } from '$lib/utils/dates.js';
-import { partLabel } from '$lib/utils/partes.js';
+import {
+	DATE_GRACE_MS,
+	isPastDate,
+	partLabel,
+	startMs,
+	ticketDate,
+	ticketDates
+} from '$lib/utils/partes.js';
 import { qrPng } from '$lib/server/tickets/qr.js';
 import { escapeHtml } from './format.js';
 import { truncate } from './keyboards.js';
@@ -36,7 +43,10 @@ import { botText } from './texts.js';
 /** @typedef {import('./screens.js').Button} Button */
 
 /** Cuánto después del fin del evento una entrada sigue en «próximas». */
-export const TICKET_GRACE_MS = 12 * 60 * 60 * 1000;
+export const TICKET_GRACE_MS = DATE_GRACE_MS;
+
+// La fecha que toca mostrar (la regla vive en $lib/utils/partes.js; también la usa Mi rincón).
+export { ticketDate };
 
 /** Cuántas entradas pasadas se muestran, como mucho (las más nuevas). */
 export const PAST_TICKETS_MAX = 30;
@@ -56,54 +66,7 @@ const homeButton = () => ({
  */
 export const ticketQrText = (origin, token) => `${origin}/entradas/t/${token}`;
 
-/**
- * Una fecha de la entrada: la del evento o la de una parte del taller (`n`, de `total`).
- *
- * @typedef {{ start: string | null, end: string | null, n?: number, total?: number }} TicketDate
- */
-
-/** @param {{ start: string | null }} d */
-const startMs = (d) => (d.start ? Date.parse(d.start) : NaN);
-
-/**
- * ¿Esa fecha ya pasó (más las 12 horas)? Sin fecha (un evento que ya no está), sí.
- *
- * @param {TicketDate} d
- * @param {number} now
- */
-function isPastDate(d, now) {
-	if (!d.start || !Number.isFinite(startMs(d))) return true;
-	const end = eventEnd(d.start, d.end ?? undefined).getTime();
-	return (Number.isFinite(end) ? end : startMs(d)) + TICKET_GRACE_MS < now;
-}
-
-/**
- * Las fechas que cubre la entrada, de la primera a la última: las de las partes del taller (sin
- * las canceladas) o, si no es un taller (o están todas canceladas), la del evento.
- *
- * @param {BotTicket} t
- * @returns {TicketDate[]}
- */
-function ticketDates(t) {
-	const total = t.parts?.length ?? 0;
-	const parts = (t.parts ?? [])
-		.filter((p) => !p.cancelled && Number.isFinite(startMs(p)))
-		.map((p) => ({ start: p.start, end: p.end, n: p.n, total }))
-		.sort((a, b) => startMs(a) - startMs(b));
-	return parts.length ? parts : [{ start: t.start, end: t.end }];
-}
-
-/**
- * La fecha que toca mostrar: la primera parte que todavía no pasó o, si pasaron todas, la última.
- *
- * @param {BotTicket} t
- * @param {number} now
- * @returns {TicketDate}
- */
-export function ticketDate(t, now) {
-	const dates = ticketDates(t);
-	return dates.find((d) => !isPastDate(d, now)) ?? dates[dates.length - 1];
-}
+/** @typedef {import('$lib/utils/partes.js').TicketDate} TicketDate */
 
 /**
  * ¿La entrada es de un evento que ya pasó? La de un taller, cuando pasó su última parte. Sin
@@ -237,6 +200,14 @@ export function ticketsScreen(view, tickets, page, ctx) {
 	return { text: `${head}\n\n${blocks.join('\n\n')}`, keyboard: rows };
 }
 
+/**
+ * ¿Un link de la transmisión que se puede poner en un botón? Se guardan solo `https://`
+ * (`normalizeStreamLink`); esto es por las dudas.
+ * @param {unknown} link
+ * @returns {link is string}
+ */
+const isHttpsLink = (link) => typeof link === 'string' && /^https:\/\/[^\s"<>]+$/i.test(link);
+
 /** «ABC234» → «ABC 234», como en la página de la entrada. @param {string} code */
 const spacedCode = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
 
@@ -267,7 +238,9 @@ export function ticketScreen(ticket, view, list, ctx, { qr = false } = {}) {
 			: botText('entradas.tipo', { tipo })
 	);
 	lines.push('');
-	if (ticket.online) lines.push(botText('entradas.online'));
+	const streamLink = ticket.online && isHttpsLink(ticket.streamLink) ? ticket.streamLink : null;
+	if (streamLink) lines.push(botText('entradas.online_link', { link: streamLink }));
+	else if (ticket.online) lines.push(botText('entradas.online'));
 	else if (ticket.checkedInAt) {
 		const fecha = tgTime(new Date(ticket.checkedInAt).toISOString(), ctx.now);
 		lines.push(botText('entradas.usada', { fecha }));
@@ -279,6 +252,7 @@ export function ticketScreen(ticket, view, list, ctx, { qr = false } = {}) {
 
 	/** @type {Button[][]} */
 	const rows = [];
+	if (streamLink) rows.push([{ text: botText('entradas.boton_transmision'), url: streamLink }]);
 	if (https) {
 		rows.push([
 			{ text: botText('entradas.boton_ver'), url: ticketQrText(ctx.origin, ticket.token) }

@@ -9,12 +9,16 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
+	import { page } from '$app/stores';
+	import { linkPreviewOf, sectionTexts } from '$lib/utils/seo.js';
+	// El título de la pestaña, de los textos del panel (docs/compartir.md).
+	$: texts = sectionTexts('material', linkPreviewOf($page.data).texts);
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 </script>
 
 <svelte:head>
-	<title>Artículos, links y descargables · Kinky Vibe</title>
+	<title>{texts.heading} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <ListSeoHead section="material" card="material" />
@@ -34,14 +38,16 @@
 		/>).
 	</p>
 	<dl>
-		{#each $filteredTags.map($tagManager.get).filter((t) => t.parsedDescription) as termino (termino.id)}
+		{#each $filteredTags
+			.map($tagManager.get)
+			.filter((t) => t.parsedDescription) as termino (termino.id)}
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade>
 				<div>
 					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
 						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
-						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
+						{#if data.wikiKeys.includes(termino.id)}
 							<a href="/wiki/{termino.id}" class="gotowiki">
 								<span>
 									<Globe {style} />
@@ -77,9 +83,11 @@
 	</dl>
 </div>
 
+<!-- De a 24 con «Ver más» (como el inicio y /todo); con una búsqueda se ve todo. -->
 <PostList
 	heading="Todo el material"
 	posts={data.posts.filter((p) => p.meta.layout == 'material')}
+	limit={24}
 />
 
 <style lang="scss">

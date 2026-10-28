@@ -15,7 +15,10 @@ import {
 	sha256Hex,
 	undoLocal,
 	applySaleSyncResults,
+	discardQueuedSale,
 	emptyDoorState,
+	markRecentDiscarded,
+	pendingSaleId,
 	isPendingSaleTicket,
 	markRecentSynced,
 	offlineSaleLimits,
@@ -368,6 +371,18 @@ describe('ventas sin conexión', () => {
 		expect(loadDoorState(storage, 'fiesta').sales).toEqual(state.sales);
 	});
 
+	it('guarda lo que se cobró (charged_total) para compararlo al sincronizar', () => {
+		expect(queue(emptyDoorState(), 'venta-0001').sale.fields.charged_total).toBe('16000');
+		expect(queue(emptyDoorState(), 'venta-0002', { total: 0 }).sale.fields.charged_total).toBe('0');
+		// Sin un total calculado no se manda nada (no se puede comparar).
+		const none = queue(emptyDoorState(), 'venta-0003', {
+			total: null,
+			fields: { ...FIELDS, charged_total: '5' }
+		});
+		expect(none.sale.fields).not.toHaveProperty('charged_total');
+		expect(salesPayload(none.state.sales)[0].fields).not.toHaveProperty('charged_total');
+	});
+
 	it('lo guardado antes de esta versión (sin ventas) sigue cargando', () => {
 		const storage = /** @type {Storage} */ (
 			/** @type {unknown} */ ({
@@ -497,5 +512,102 @@ describe('ventas sin conexión', () => {
 		expect(offlineSaleLimits({ ...base, doorSales: false })[0].message).toContain(
 			'solo anticipadas'
 		);
+	});
+
+	// UX V12: una venta errada se descarta en la Puerta solo mientras está en la cola del celu.
+	describe('discardQueuedSale', () => {
+		it('sin confirmar no hace nada', () => {
+			const { state } = queue(emptyDoorState(), 'venta-0001');
+			const r = discardQueuedSale(state, 'venta-0001');
+			expect(r).toEqual({ ok: false, reason: 'unconfirmed' });
+			expect(discardQueuedSale(state, 'venta-0001', { confirmed: false }).ok).toBe(false);
+			expect(state.sales).toHaveLength(1);
+		});
+
+		it('confirmada: saca la venta de la cola y sus entradas locales, y nada más', () => {
+			const base = { ...emptyDoorState(), list: [ticket({})] };
+			const one = queue(base, 'venta-0001').state;
+			const two = queue(one, 'venta-0002').state;
+			const withQueue = {
+				...two,
+				queue: [
+					{ id: 'q1', ticketId: 'local:venta-0001:1', holder: 'Otra Persona', at: NOW },
+					{ id: 'q2', ticketId: 't1', holder: 'Persona de la lista', at: NOW }
+				]
+			};
+			const r = discardQueuedSale(withQueue, 'venta-0001', { confirmed: true });
+			if (!r.ok) throw new Error('debería descartarse');
+			expect(r.sale.id).toBe('venta-0001');
+			expect(r.state.sales.map((x) => x.id)).toEqual(['venta-0002']);
+			expect(r.state.list.map((t) => t.orderId)).toEqual([
+				'o1',
+				'local:venta-0002',
+				'local:venta-0002'
+			]);
+			expect(r.state.queue.map((q) => q.id)).toEqual(['q2']);
+			// No toca el estado que recibe.
+			expect(withQueue.sales).toHaveLength(2);
+		});
+
+		it('una venta que ya se sincronizó (no está en la cola) no se descarta, ni confirmando', () => {
+			const { state } = queue(emptyDoorState(), 'venta-0001');
+			const synced = applySaleSyncResults(state, [
+				{ id: 'venta-0001', result: 'ok', orderId: 'orden-de-prueba', ref: 'KV-AAAA' }
+			]).state;
+			expect(discardQueuedSale(synced, 'venta-0001', { confirmed: true })).toEqual({
+				ok: false,
+				reason: 'not-queued'
+			});
+			// Una orden del servidor tampoco (no es una venta de la cola).
+			expect(discardQueuedSale(synced, 'orden-de-prueba', { confirmed: true }).ok).toBe(false);
+			expect(discardQueuedSale(synced, '', { confirmed: true }).ok).toBe(false);
+		});
+
+		it('«Últimos escaneos»: la venta descartada deja de figurar como vendida', () => {
+			const recent = [
+				{
+					result: 'sold',
+					title: 'Persona Inventada · vendida en puerta',
+					sub: 'pendiente de sincronizar',
+					at: 2,
+					ticketId: 'local:venta-0001:0'
+				},
+				{
+					result: 'sold',
+					title: 'Otra · vendida en puerta',
+					sub: '',
+					at: 1,
+					ticketId: 'local:venta-0002:0'
+				},
+				{ result: 'ok', title: 'Alguien', sub: '', at: 0, ticketId: 't1' }
+			];
+			const out = markRecentDiscarded(recent, 'venta-0001', 'Persona Inventada');
+			expect(out[0]).toMatchObject({
+				result: 'undone',
+				title: 'Persona Inventada · venta descartada'
+			});
+			expect(out.slice(1)).toEqual(recent.slice(1));
+		});
+
+		it('pendingSaleId: el id de la venta del celu, o vacío si la entrada es del servidor', () => {
+			expect(pendingSaleId('local:venta-0001:2')).toBe('venta-0001');
+			expect(pendingSaleId('t1')).toBe('');
+			expect(pendingSaleId('')).toBe('');
+		});
+	});
+});
+
+describe('doorConnectionNote: no cerrar ni recargar sin conexión (UX V12)', () => {
+	it('sin conexión, con o sin lista, pide no cerrar ni recargar la pestaña', () => {
+		for (const saved of [true, false]) {
+			const n = doorConnectionNote({ online: false, saved, savedAt: '' });
+			expect(n?.keep).toContain('No cierres ni recargues');
+		}
+	});
+
+	it('con conexión no lo dice', () => {
+		const n = doorConnectionNote({ online: true, saved: true, savedAt: '21:40' });
+		expect(n?.keep).toBeUndefined();
+		expect(JSON.stringify(n)).not.toContain('No cierres ni recargues');
 	});
 });

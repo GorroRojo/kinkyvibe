@@ -8,10 +8,11 @@
  * no esté en la página. Los textos de Open Graph y la vista previa al compartir son de otro lado.
  */
 import { eventPlaceSchema } from './eventPlace.js';
+import { showsAddress, venuePostalAddress } from './venues.js';
 import { KINKYVIBE_TAG } from './propinas.js';
 import { contactItems } from './perfiles.js';
 import { ORG_CONTACT_EMAIL } from './organization.js';
-import { isoDateTime } from './dates.js';
+import { isoDateTime, parseSiteDate } from './dates.js';
 
 import { SITE_URL } from './site.js';
 
@@ -22,6 +23,12 @@ export const SITE_DESCRIPTION =
 	'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 /** El mismo `@id` que ya usaba la página de inicio. */
 export const ORGANIZATION_ID = `${SITE_URL}#organization`;
+/** El sitio (`WebSite`): el nombre que Google muestra arriba de cada resultado. */
+export const WEBSITE_ID = `${SITE_URL}#website`;
+/** Otros nombres con los que se busca el sitio (`WebSite.alternateName`). */
+export const SITE_ALTERNATE_NAMES = Object.freeze(['KinkyVibe', 'kinkyvibe.ar']);
+/** El idioma de las páginas (el mismo que `<html lang>` en app.html). */
+export const SITE_LANGUAGE = 'es-AR';
 export const KINKIPEDIA_ID = `${SITE_URL}/wiki#kinkipedia`;
 
 /**
@@ -70,14 +77,14 @@ function decodeSafe(s) {
  * Una fecha en ISO 8601 válido, o nada si no se puede leer. Las fechas con hora y zona del sitio
  * (`2026-10-02T22:00-03:00`) y las de solo día (`2026-10-02`) se dejan tal cual; las de
  * publicación (`2024-12-06Z-03:00`, que no es ISO 8601) pasan a `2024-12-06T00:00:00-03:00`
- * (`isoDateTime` de dates.js).
+ * (`isoDateTime` de dates.js). Un `Date` o un número (el fin calculado de un evento, la apertura
+ * de la venta) también van en hora de Argentina (`-03:00`), como `startDate`.
  * @param {unknown} d
  * @returns {string | undefined}
  */
 export function isoDate(d) {
-	if (d instanceof Date) return isNaN(d.getTime()) ? undefined : d.toISOString();
-	if (typeof d === 'number')
-		return isNaN(new Date(d).getTime()) ? undefined : new Date(d).toISOString();
+	if (d instanceof Date || typeof d === 'number')
+		return isNaN(new Date(d).getTime()) ? undefined : isoDateTime(d);
 	if (typeof d !== 'string' || !d.trim()) return undefined;
 	const s = d.trim();
 	if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return isNaN(new Date(s).getTime()) ? undefined : s;
@@ -119,15 +126,87 @@ export function organizationSchema() {
 }
 
 /**
- * Les autores (`authors:`) como personas por su nombre; KinkyVibe, la organización.
+ * El sitio, para la página de inicio: el nombre con el que Google lo muestra (`name` y
+ * `alternateName`). Sin `SearchAction`: Google ya no muestra la caja de búsqueda del sitio.
+ * @returns {JsonLd}
+ */
+export function websiteSchema() {
+	return {
+		'@context': 'https://schema.org',
+		'@type': 'WebSite',
+		'@id': WEBSITE_ID,
+		name: SITE_NAME,
+		alternateName: [...SITE_ALTERNATE_NAMES],
+		url: SITE_URL,
+		description: SITE_DESCRIPTION,
+		inLanguage: SITE_LANGUAGE,
+		publisher: organizationRef()
+	};
+}
+
+/**
+ * El perfil público de une autore, para enlazarle desde los datos estructurados: su dirección
+ * (`/amigues/<perfil>`) y su clase. Lo arma el servidor con {@link authorLinksFrom}, solo con los
+ * perfiles listados que ve cualquiera (nunca con lo que ve quien tiene sesión).
+ * @typedef {{ name: string, path: string, kind?: string }} AuthorLink
+ */
+
+/**
+ * Los perfiles públicos de les autores (`authors:`, por nombre con espacios → guiones, como
+ * `authorSlugs` en src/lib/server/amigues/asPost.js) que están en `posts`: la lista listada sin
+ * sesión (`sitePosts`). Lo que no está (perfil oculto, no listado, sin perfil) queda sin link.
  * @param {unknown} authors
+ * @param {readonly { path?: string, meta?: Record<string, any> }[] | null | undefined} posts
+ * @param {string} [selfID] el post mismo no es su autore
+ * @returns {AuthorLink[]}
+ */
+export function authorLinksFrom(authors, posts, selfID) {
+	if (!Array.isArray(authors) || !Array.isArray(posts)) return [];
+	/** @type {Map<string, { path?: string, meta?: Record<string, any> }>} */
+	const profiles = new Map();
+	for (const p of posts)
+		if (p?.meta?.category === 'amigues' && typeof p.meta.postID === 'string')
+			profiles.set(p.meta.postID, p);
+	/** @type {AuthorLink[]} */
+	const out = [];
+	for (const a of authors) {
+		if (typeof a !== 'string' || !a.trim() || a === KINKYVIBE_TAG) continue;
+		const slug = a.replaceAll(' ', '-');
+		const profile = slug === selfID ? undefined : profiles.get(slug);
+		if (!profile?.path) continue;
+		out.push({ name: a, path: profile.path, kind: profile.meta?.kind });
+	}
+	return out;
+}
+
+/**
+ * Les autores (`authors:`) por su nombre; KinkyVibe, la organización. Con perfil público
+ * (`links`, de {@link authorLinksFrom}), con su `url` y su tipo (persona → Person, proyecto o
+ * lugar → Organization); sin perfil, una persona por su nombre.
+ * @param {unknown} authors
+ * @param {readonly AuthorLink[]} [links]
  * @returns {JsonLd[]}
  */
-function authorsOf(authors) {
+function authorsOf(authors, links = []) {
 	if (!Array.isArray(authors)) return [];
+	const byName = new Map(links.map((l) => [l.name, l]));
 	return authors
 		.filter((a) => typeof a === 'string' && a.trim())
-		.map((a) => (a === KINKYVIBE_TAG ? organizationRef() : { '@type': 'Person', name: a }));
+		.map((a) => {
+			if (a === KINKYVIBE_TAG) return organizationRef();
+			const link = byName.get(a);
+			const url = link ? absoluteUrl(link.path) : undefined;
+			if (!link || !url) return { '@type': 'Person', name: a };
+			const person = link.kind !== 'proyecto' && link.kind !== 'lugar';
+			// El `@id` es el de la entidad de su página (profileSchema); un lugar es un `Place`
+			// allá, así que acá, como organización, va sin `@id`.
+			return clean({
+				'@type': person ? 'Person' : 'Organization',
+				'@id': link.kind === 'lugar' ? undefined : `${url}#perfil`,
+				name: a,
+				url
+			});
+		});
 }
 
 /** @param {unknown} tags */
@@ -135,7 +214,7 @@ const tagList = (tags) => (Array.isArray(tags) ? tags.filter((t) => typeof t ===
 
 /**
  * La oferta de un evento: la venta del sitio (si la hay) o el link de inscripción.
- * @param {{ postID?: string, tags?: unknown }} meta
+ * @param {{ postID?: string, tags?: unknown, status?: unknown }} meta
  * @param {EventTickets | null | undefined} tickets
  * @param {string | undefined} webLink
  * @returns {JsonLd | undefined}
@@ -165,9 +244,20 @@ function eventOffer(meta, tickets, webLink) {
 		'@type': 'Offer',
 		url: webLink,
 		price: free ? 0 : undefined,
-		priceCurrency: free ? 'ARS' : undefined
+		priceCurrency: free ? 'ARS' : undefined,
+		availability: LINK_AVAILABILITY[String(meta.status)]
 	});
 }
+
+/**
+ * La disponibilidad del link de inscripción según el «Estado» del evento: abierto, disponible;
+ * agotadas, agotado. «Anunciado» (todavía no abrió) y sin estado: no se dice.
+ * @type {Readonly<Record<string, string>>}
+ */
+const LINK_AVAILABILITY = Object.freeze({
+	abierto: 'https://schema.org/InStock',
+	agotadas: 'https://schema.org/SoldOut'
+});
 
 /**
  * @typedef {{ open?: boolean, reason?: string | null, priceFrom?: number | null,
@@ -182,14 +272,24 @@ function eventOffer(meta, tickets, webLink) {
  *   venue?: import('./venues.js').VenueView | null,
  *   tickets?: EventTickets | null,
  *   webLink?: string,
- *   past?: boolean
+ *   past?: boolean,
+ *   authorLinks?: readonly AuthorLink[] | null
  * }} input `venue`: el lugar ya filtrado por su privacidad; `webLink`: el link de inscripción (solo
- *   si es web); `past`: el evento ya pasó (sin oferta)
+ *   si es web); `past`: el evento ya pasó (sin oferta); `authorLinks`: los perfiles públicos de
+ *   les autores ({@link authorLinksFrom})
  */
-export function eventSchema({ meta, end, venue = null, tickets = null, webLink, past = false }) {
+export function eventSchema({
+	meta,
+	end,
+	venue = null,
+	tickets = null,
+	webLink,
+	past = false,
+	authorLinks = null
+}) {
 	const cancelled = meta.status === 'cancelado';
 	const kv = tagList(meta.tags).includes(KINKYVIBE_TAG);
-	const organizers = authorsOf(meta.authors);
+	const organizers = authorsOf(meta.authors, authorLinks ?? []);
 	if (kv && !organizers.some((o) => o['@id'] === ORGANIZATION_ID))
 		organizers.unshift(organizationRef());
 	const image = absoluteUrl(meta.featured);
@@ -210,7 +310,7 @@ export function eventSchema({ meta, end, venue = null, tickets = null, webLink, 
 		image: image ? [image] : undefined,
 		organizer: organizers.length > 1 ? organizers : organizers[0],
 		offers: cancelled || past ? undefined : eventOffer(meta, tickets, webLink),
-		inLanguage: 'es'
+		inLanguage: SITE_LANGUAGE
 	});
 }
 
@@ -223,18 +323,21 @@ export function materialType(tags) {
 }
 
 /**
- * Una publicación de material (/material/<post>).
+ * Una publicación de material (/material/<post>). Un descargable es a la vez un artículo y un
+ * documento (`['Article', 'DigitalDocument']`): así puede salir como artículo en Google.
  * @param {Record<string, any>} meta
+ * @param {readonly AuthorLink[] | null} [authorLinks] los perfiles públicos de les autores
+ *   ({@link authorLinksFrom})
  */
-export function materialSchema(meta) {
+export function materialSchema(meta, authorLinks = null) {
 	const type = materialType(meta.tags);
 	const image = absoluteUrl(meta.featured);
-	const authors = authorsOf(meta.authors);
+	const authors = authorsOf(meta.authors, authorLinks ?? []);
 	return clean({
 		'@context': 'https://schema.org',
-		'@type': type,
-		// `headline` es de Article; los demás tipos usan `name` (los dos siempre valen).
-		headline: type === 'Article' ? meta.title : undefined,
+		'@type': type === 'DigitalDocument' ? ['Article', 'DigitalDocument'] : type,
+		// `headline` es de CreativeWork (Article lo pide); `name`, el de siempre.
+		headline: meta.title,
 		name: meta.title,
 		url: `${SITE_URL}/material/${encodeURIComponent(meta.postID ?? '')}`,
 		description: meta.summary,
@@ -244,7 +347,66 @@ export function materialSchema(meta) {
 		author: authors.length > 1 ? authors : authors[0],
 		publisher: organizationRef(),
 		keywords: tagList(meta.tags).join(', ') || undefined,
-		inLanguage: 'es'
+		inLanguage: SITE_LANGUAGE
+	});
+}
+
+/**
+ * La serie de un evento (`EventSeries`), por referencia: su nombre y su página.
+ * @param {{ name?: string, href?: string } | null | undefined} series
+ * @returns {JsonLd | undefined}
+ */
+export function seriesRef(series) {
+	const url = absoluteUrl(series?.href);
+	if (!series?.name || !url) return undefined;
+	return { '@type': 'EventSeries', '@id': `${url}#serie`, name: series.name, url };
+}
+
+/**
+ * Un evento con las series de las que es edición (`superEvent`). La serie no es la canónica de
+ * las ediciones: cada fecha sigue siendo su propio `Event`.
+ * @param {JsonLd} schema lo que dio {@link eventSchema}
+ * @param {readonly { name?: string, href?: string }[] | null | undefined} series
+ * @returns {JsonLd}
+ */
+export function withSuperEvent(schema, series) {
+	const refs = (series ?? []).map(seriesRef).filter(Boolean);
+	if (!refs.length) return schema;
+	return { ...schema, superEvent: refs.length > 1 ? refs : refs[0] };
+}
+
+/**
+ * La página de una serie (/wiki/<serie>): un `EventSeries` con sus ediciones (`subEvent`). De cada
+ * edición solo el nombre, la página, la fecha y el estado; **nunca el lugar** (su privacidad se
+ * decide en la página de cada evento). Las ediciones son las que ve cualquiera.
+ * @param {{ name?: string, href?: string, description?: string, image?: string,
+ *   upcoming?: readonly Edition[], past?: readonly Edition[] } | null | undefined} series
+ * @returns {JsonLd | null}
+ * @typedef {{ title?: string, path?: string, start?: string, status?: string }} Edition
+ */
+export function seriesSchema(series) {
+	const ref = seriesRef(series);
+	if (!series || !ref) return null;
+	const editions = [...(series.upcoming ?? []), ...(series.past ?? [])];
+	return clean({
+		'@context': 'https://schema.org',
+		...ref,
+		image: absoluteUrl(series.image),
+		subEvent: editions
+			.filter((e) => e.title && absoluteUrl(e.path))
+			.sort((a, b) => parseSiteDate(a.start).getTime() - parseSiteDate(b.start).getTime())
+			.map((e) =>
+				clean({
+					'@type': 'Event',
+					name: e.title,
+					url: absoluteUrl(e.path),
+					startDate: isoDate(e.start),
+					eventStatus:
+						e.status === 'cancelado'
+							? 'https://schema.org/EventCancelled'
+							: 'https://schema.org/EventScheduled'
+				})
+			)
 	});
 }
 
@@ -271,19 +433,22 @@ export function kinkipediaSchema() {
 		...kinkipediaRef(),
 		description:
 			'Enciclopedia fetichista de Kinky Vibe: términos del BDSM, el kink y la comunidad cuir.',
-		inLanguage: 'es',
+		inLanguage: SITE_LANGUAGE,
 		publisher: organizationRef()
 	};
 }
 
 /**
  * Una entrada de la Kinkipedia (/wiki/<término>) como término definido. Sin entrada, ver
- * {@link tagTermSchema}.
- * @param {{ title?: string, summary?: string, path?: string, aka?: unknown }} entry
+ * {@link tagTermSchema}. Con `updatedAt` (el último guardado de la etiqueta, en ms), la página
+ * (`mainEntityOfPage`, un `WebPage`) lleva su `dateModified`: `DefinedTerm` no es un CreativeWork y
+ * no admite fechas propias.
+ * @param {{ title?: string, summary?: string, path?: string, aka?: unknown, updatedAt?: number | null }} entry
  * @returns {JsonLd | null}
  */
-export function wikiTermSchema({ title, summary, path, aka }) {
+export function wikiTermSchema({ title, summary, path, aka, updatedAt }) {
 	if (!title || !path) return null;
+	const modified = updatedAt ? isoDate(updatedAt) : undefined;
 	return clean({
 		'@context': 'https://schema.org',
 		'@type': 'DefinedTerm',
@@ -292,8 +457,31 @@ export function wikiTermSchema({ title, summary, path, aka }) {
 		alternateName: tagList(aka).filter((a) => a !== title),
 		url: absoluteUrl(path),
 		// Sin `inLanguage`: DefinedTerm no es un CreativeWork (validator.schema.org lo marca).
-		inDefinedTermSet: kinkipediaRef()
+		inDefinedTermSet: kinkipediaRef(),
+		mainEntityOfPage: modified
+			? {
+					'@type': 'WebPage',
+					url: absoluteUrl(path),
+					dateModified: modified,
+					inLanguage: SITE_LANGUAGE
+				}
+			: undefined
 	});
+}
+
+/**
+ * La descripción de una etiqueta en texto, en una línea: los links (`[[término]]`,
+ * `[[término:texto]]`) quedan como su texto. '' si no hay.
+ * @param {unknown} description
+ * @returns {string}
+ */
+export function plainTagDescription(description) {
+	return typeof description === 'string'
+		? description
+				.replace(/\[\[([^\]]*)\]\]/g, (_, inner) => inner.slice(inner.indexOf(':') + 1))
+				.replace(/\s+/g, ' ')
+				.trim()
+		: '';
 }
 
 /**
@@ -305,13 +493,7 @@ export function wikiTermSchema({ title, summary, path, aka }) {
  * @returns {JsonLd | null}
  */
 export function tagTermSchema({ title, description, path, aka }) {
-	const text =
-		typeof description === 'string'
-			? description
-					.replace(/\[\[([^\]]*)\]\]/g, (_, inner) => inner.slice(inner.indexOf(':') + 1))
-					.replace(/\s+/g, ' ')
-					.trim()
-			: '';
+	const text = plainTagDescription(description);
 	if (!text) return null;
 	return wikiTermSchema({ title, summary: text, path, aka });
 }
@@ -322,23 +504,6 @@ export const PROFILE_TYPES = Object.freeze({
 	proyecto: 'Organization',
 	lugar: 'Place'
 });
-
-/**
- * La dirección de un lugar, solo en los niveles que la muestran (lo demás ya no llega).
- * @param {import('./venues.js').VenueView | null | undefined} view
- * @returns {JsonLd | undefined}
- */
-function venueAddress(view) {
-	if (!view || view.level === 'hidden' || view.level === 'name') return undefined;
-	const locality = [view.area, view.city].filter(Boolean).join(', ');
-	const address = clean({
-		'@type': 'PostalAddress',
-		streetAddress: view.level === 'area' ? undefined : view.address,
-		addressLocality: locality || undefined,
-		addressCountry: 'AR'
-	});
-	return address.streetAddress || address.addressLocality ? address : undefined;
-}
 
 /**
  * La página de un perfil (/amigues/<perfil>): una ProfilePage con la persona, el proyecto o el
@@ -353,19 +518,28 @@ function venueAddress(view) {
  * }} input
  */
 export function profileSchema({ profile: p, canonical, location = null }) {
-	const type = PROFILE_TYPES[/** @type {keyof typeof PROFILE_TYPES} */ (p.kind)] ?? 'Person';
 	const url = absoluteUrl(canonical);
+	// El perfil de KinkyVibe es la organización del sitio: el mismo `@id` que la de la portada.
+	const isOrg = isOrganizationProfile(canonical);
+	const type = isOrg
+		? 'Organization'
+		: (PROFILE_TYPES[/** @type {keyof typeof PROFILE_TYPES} */ (p.kind)] ?? 'Person');
 	const contact = contactItems(p);
 	const links = contact.filter((c) => c.kind === 'link').map((c) => c.href);
 	const email = contact.find((c) => c.kind === 'email')?.label;
 	const tel = contact.find((c) => c.kind === 'tel')?.href.slice('tel:'.length);
+	// El punto del mapa, solo en los niveles que muestran el mapa (los de la calle, `showsAddress`),
+	// aunque la vista trajera otra cosa (como `venuePostalAddress`).
 	const geo =
-		location && location.lat !== undefined && location.lng !== undefined
+		location &&
+		showsAddress(location.level) &&
+		location.lat !== undefined &&
+		location.lng !== undefined
 			? { '@type': 'GeoCoordinates', latitude: location.lat, longitude: location.lng }
 			: undefined;
 	const entity = clean({
 		'@type': type,
-		'@id': url ? `${url}#perfil` : undefined,
+		'@id': isOrg ? ORGANIZATION_ID : url ? `${url}#perfil` : undefined,
 		name: p.title,
 		description: p.bio,
 		image: absoluteUrl(p.image),
@@ -373,7 +547,8 @@ export function profileSchema({ profile: p, canonical, location = null }) {
 		sameAs: links,
 		email: type === 'Place' ? undefined : email,
 		telephone: tel,
-		address: type === 'Place' ? venueAddress(location) : undefined,
+		// La misma dirección que en los eventos (venues.js), solo en los niveles que la muestran.
+		address: type === 'Place' ? venuePostalAddress(location) : undefined,
 		geo: type === 'Place' ? geo : undefined
 	});
 	return clean({
@@ -384,4 +559,15 @@ export function profileSchema({ profile: p, canonical, location = null }) {
 		dateModified: isoDate(p.updatedDate ?? p.publishedDate),
 		mainEntity: entity
 	});
+}
+
+/**
+ * ¿Es la página del perfil de KinkyVibe (`/amigues/KinkyVibe`, por su dirección, no por su
+ * nombre)?
+ * @param {unknown} canonical
+ */
+function isOrganizationProfile(canonical) {
+	if (typeof canonical !== 'string') return false;
+	const path = canonical.replace(/^https?:\/\/[^/]+/i, '').replace(/\/+$/, '');
+	return path.toLowerCase() === `/amigues/${KINKYVIBE_TAG}`.toLowerCase();
 }

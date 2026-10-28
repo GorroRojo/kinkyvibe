@@ -8,11 +8,18 @@
 		redundantTags,
 		searchText
 	} from '$lib/utils/stores';
+	import { parseSiteDate } from '$lib/utils/dates.js';
 	import { onMount, beforeUpdate, afterUpdate } from 'svelte';
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { filterPosts, readSearchParams, writeSearchParams } from '$lib/utils/postSearch';
+	import {
+		canonicalTag,
+		filterPosts,
+		readSearchParams,
+		tagCoverage,
+		writeSearchParams
+	} from '$lib/utils/postSearch';
 	import { listMotion } from '$lib/utils/listMotion';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
@@ -36,8 +43,9 @@
 	 * /calendario passes whether the month on screen has past events.
 	 * @type {boolean | undefined} */
 	export let pastEventsToggle = undefined;
-	/** Sin búsqueda, cuántos mostrar antes de «Ver más» (0 = todos). El inicio lo usa para que
-	 * el pie de página quede a mano en vez de a 40 pantallas. */
+	/** Sin texto en la búsqueda, cuántos mostrar antes de «Ver más» (0 = todos); también con
+	 * etiquetas elegidas. El inicio lo usa para que el pie de página quede a mano en vez de a 40
+	 * pantallas. */
 	export let limit = 0;
 	/** Lo que dice arriba de los resultados (por defecto «N resultados»).
 	 * @type {(n: number) => string} */
@@ -55,10 +63,10 @@
 	/**@type ProcessedPost[]*/
 	$: outerFilteredPosts = posts.filter(
 		(/**@type {ProcessedPost}*/ p) =>
-			// @ts-ignore
+			// @ts-expect-error índice con el nombre de la propiedad del filtro
 			(!filter || (filter && p[filter.prop] == filter.value)) &&
 			($userConfig.show_past_events ||
-				new Date(p.meta.start).getTime() > Date.now() ||
+				parseSiteDate(p.meta.start).getTime() > Date.now() ||
 				p.meta.category != 'calendario')
 	);
 
@@ -68,6 +76,9 @@
 	 * @returns {string[]}
 	 */
 	function getVisibleTags(posts, filteredTags) {
+		// Con cuántas quedaría cada etiqueta si se suma al filtro (ella o una hija, como filtra
+		// `filterPosts`): con todas, no cambiaría nada.
+		const coverage = tagCoverage(posts, $tagManager);
 		let presentTags = new Map();
 		for (const post of posts) {
 			for (const tag of post.meta.tags) {
@@ -81,7 +92,8 @@
 		}
 		return [...presentTags.entries()]
 			.filter(([tag, instances]) => {
-				if (instances < posts.length || filteredTags.includes(tag)) {
+				const kept = coverage.get(canonicalTag($tagManager, tag)) ?? instances;
+				if (kept < posts.length || filteredTags.includes(tag)) {
 					$redundantTags.delete(tag);
 					return true;
 				} else {
@@ -137,8 +149,11 @@
 	}
 	/** @type {Set<string>|null} */
 	let allowed = null;
-	// Con una búsqueda se ve todo lo que encontró; sin búsqueda, de a `limit`.
-	$: capped = limit > 0 && !searching;
+	// Con texto en la búsqueda se ve todo lo que encontró; sin texto (aunque haya etiquetas
+	// elegidas, también desde `?tags=`), de a `limit`. Cambiar las etiquetas vuelve a los primeros.
+	$: capped = limit > 0 && $searchText.trim() == '';
+	$: tagsKey = $filteredTags.join(',');
+	$: (tagsKey, (shownLimit = limit));
 	$: cappedPosts = capped ? tagFilteredPosts.slice(0, shownLimit) : tagFilteredPosts;
 	$: hiddenCount = tagFilteredPosts.length - cappedPosts.length;
 	$: allowed = planBatch(cappedPosts, $userConfig.display_type);
@@ -260,7 +275,7 @@
 	const motion = listMotion(() => listEl);
 
 	$: allTags.set([
-		// @ts-ignore
+		// @ts-expect-error reduce arranca con [] (never[])
 		...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
 		...$tagManager.tagIDs()
 	]);

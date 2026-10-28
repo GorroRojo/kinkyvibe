@@ -20,9 +20,9 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
 - **Las imágenes viejas siguen viéndose**: lo que en la base todavía nombra una imagen de una
   carpeta `media/` o de `src/lib/assets` se resuelve con su copia en la biblioteca
   (`src/lib/utils/legacyMedia.js`, [imagenes.md](imagenes.md)).
-- **Los PDF, el video y el documento del material** (`src/lib/archivos/`) todavía no están en la
-  biblioteca: se sirven desde el build con su dirección de siempre. No se borran hasta subirlos
-  (`scripts/subir-archivos.js`).
+- **Los PDF, el video y el documento del material** están en la biblioteca (objetos `archivo`,
+  `/media/file/…`) y sus textos ya los enlazan así; el repo no guarda copia
+  ([imagenes.md](imagenes.md#los-pdf-y-el-video-del-material)).
 - **Guardar no pisa lo de otra persona.** El panel manda el sha del texto que abrió (el del texto
   que arma la base); si cambió en el medio, avisa (`FileChangedError`) en vez de pisar. Los
   borradores locales del editor también se marcan como viejos si el texto cambió
@@ -33,6 +33,20 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
   `defaultCalendarMonth` en `src/lib/utils/allPosts.js`, con `argDate`), nunca de la del servidor
   (UTC) ni la del navegador de quien mira. Lo mismo el botón «Hoy» de la vista calendario de la
   agenda del panel (`todayInArgentina`).
+- **La página de un evento no espera de a una consulta.** La base está lejos (en el este de
+  EE. UU.): cada consulta que espera a la anterior es una ida y vuelta más. La venta, las partes
+  del taller, el lugar y el interruptor de la lista de espera salen a la par de la lectura del
+  evento (no dependen de él) y solo se muestran si quien mira puede ver el evento (si no, 404).
+  `evento-consultas.test.js` (al lado de la ruta) fija cuántas consultas y cuántas tandas en fila
+  hace (`countingDB`, con `waves`).
+- **La página de un material tampoco.** La lista de publicaciones sale a la par del material; con
+  el material ya leído (y visto: si no, 404 o la redirección, como siempre), "Más cosas de…" con
+  sus lugares, su venta, los pronombres y las personas (con los roles a la par de los perfiles)
+  salen a la par. `material-consultas.test.js` (al lado de la ruta) fija cuántas consultas y
+  tandas en fila hace, en frío y en caliente. Un material que redirige (`redirect` con `link`, por
+  ejemplo a la tienda) redirige apenas leído el objeto (`followRedirect` de `siteContent`), sin
+  leer sus relaciones, su portada ni sus autores ni armar el texto (de 7 consultas en 3 tandas a
+  2); uno oculto (solo admins) sigue el camino de siempre.
 - **`/calendario` trae los pasados de a un mes**: los próximos enteros y, de los pasados, los del
   mes que abre; los de otro mes los pide al ir a ese mes (`/api/calendario/pasados?mes=yyyy-MM`,
   `src/lib/server/eventos/pasados.js`; detalles en [seo.md](seo.md)).
@@ -43,7 +57,7 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Publicaciones                                                          | En la base (objetos `evento`, `material`, `perfil`, `etiqueta`; [objetos.md](objetos.md))                                                       |
 | Imágenes                                                               | La biblioteca (R2, [imagenes.md](imagenes.md)); las viejas, por `src/lib/utils/legacyMedia.js`                                                  |
-| PDF, video y documento viejos del material                             | `src/lib/archivos/material/<carpeta>/` (hasta subirlos a la biblioteca)                                                                         |
+| PDF, video y documento viejos del material                             | La biblioteca (objetos `archivo`, `/media/file/…`)                                                                                              |
 | Plantillas de evento, material y perfil                                | `src/lib/admin/plantillas/` (`evento.md`, `material.md`, `perfil.md`)                                                                           |
 | Árbol de etiquetas                                                     | En la base (Panel → Etiquetas, [etiquetas.md](etiquetas.md))                                                                                    |
 | Semilla de las bases locales (dev, E2E)                                | `src/lib/server/semilla/` (`npm run db:semilla`)                                                                                                |
@@ -115,6 +129,38 @@ GitHub ([etiquetas.md](etiquetas.md)).
 **Ocultar sin borrar.** «No listado» en el editor (`force_unlisted`); se ven en Panel → No
 listadas.
 
+**Importar un paquete de borradores de material.** Un paquete es una carpeta (fuera del repo:
+nunca se sube) con `manifest.json` (`{ version, generado, articulos: [...] }`; cada artículo con
+`slug`, `title`, `summary`, `tags`, `authors`, `body`, `portada: { archivo, alt }`, `notas`,
+`importar` y, opcional, `fecha` AAAA-MM-DD), las portadas y las notas. Las rutas pueden venir con
+`\` (Windows) o `/`. `scripts/importar-material.js` carga cada artículo con `importar: true` como
+material **no listado** por el mismo camino que el panel al crear uno
+(`src/lib/server/contenido/importarMaterial.js`: `mdToMaterial`, `validateData`,
+`dehydrateContent`, `saveObject()` con historial `import` y quien guarda
+`script:importar-material`):
+
+```sh
+node scripts/importar-material.js --paquete=<carpeta> --dry                       # local: qué haría
+node scripts/importar-material.js --paquete=<carpeta>                             # local
+node scripts/importar-material.js --paquete=<carpeta> --target=production --dry   # producción: qué haría
+node scripts/importar-material.js --paquete=<carpeta> --target=production --yes   # pide escribir «produccion»
+```
+
+- El texto va tal cual (como el panel, sin líneas vacías al principio ni espacios al final; si eso
+  cambia algo, lo avisa). `body_html: 'corta'` (la lista corta de HTML; decisión 0004).
+- Fecha (`--fecha`): `original` (por defecto) toma `fecha` del manifiesto o, si no está, la línea
+  `**Fuente:** <url> (AAAA-MM-DD, …)` de las notas (o los ítems de `## Fuentes`; con varias, la más
+  vieja); si no hay, la de hoy y lo avisa. `hoy`: la de hoy.
+- Autores: se buscan entre los perfiles vivos (no lugares) por dirección o nombre, sin tildes ni
+  mayúsculas; el que aparece va como edge `persona` con el rol Autore; el que no (o con más de un
+  perfil posible) queda como nombre y se avisa.
+- Etiquetas: por su `key` (también sin tildes ni mayúsculas); las que no existen se avisan y quedan
+  como texto, nunca se crean (se crean en Panel → Etiquetas y el próximo guardado las une).
+- Solo la portada va a la biblioteca (`storeImage`, con su `alt`; JPG, PNG, WebP, GIF o AVIF) y
+  se une con el edge `portada`. Las demás imágenes del paquete no se suben.
+- Idempotente: una dirección que ya existe (también borrada) no se toca. Al final dice qué creó,
+  qué salteó y qué tuvo problemas (sale con error si hubo problemas).
+
 **Arreglar un evento, un material, un perfil o una página de la wiki.** Desde el panel (se guarda en
 la base): los perfiles en Comunidad → Perfiles, la wiki en Etiquetas → cada etiqueta → «Entrada de
 la Kinkipedia» (`/admin/etiquetas/wiki/<dirección>`). No hay otra forma: no quedan archivos.
@@ -142,6 +188,17 @@ siempre los minutos de siempre y el navegador los cambia después de hidratar so
 eligió otra velocidad. Dónde se guarda (navegador y cuenta) y quién gana al entrar:
 [cuentas.md](cuentas.md), «Velocidad de lectura». También se elige en Mi rincón.
 
+**Barra de progreso de lectura** (idea de #19, decisión 0044; pedido de gorrite, 12/10). En los
+textos largos de Material y de la Kinkipedia, una línea fina (3px) arriba de todo se llena mientras
+se lee: empieza cuando el borde de arriba de la ventana llega al título y se llena cuando el de
+abajo llega al final del texto (no cuenta la propina, «Más cosas de…» ni la lista de abajo).
+«Largo» sale del tiempo de lectura: 3 minutos o más a la velocidad de siempre
+(`MIN_MINUTES_FOR_PROGRESS` y `showsReadingProgress` en `src/lib/utils/readingTime.js`, unas 600
+palabras), no a la elegida, así está o no está igual para todes y el servidor ya la dibuja. La
+dibuja `src/lib/components/ReadingProgress.svelte`: fija y con `transform`, sin correr nada; en
+violeta (`--2`), para no confundirse con la barra de carga rosa, que queda por encima; decorativa
+(`aria-hidden`); con «reducir movimiento», sigue al scroll sin el suavizado cortito.
+
 ## En la base (solo la base)
 
 **Eventos** y **material** (`material`, mismo camino; ver `src/lib/server/contenido/categories.js`).
@@ -153,6 +210,13 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   entradas y la puerta (`tickets/events.js`), el panel (lista, ficha, agenda, No listadas,
   Lugares) y los crons leen **solo la base** (convertida al mismo `ProcessedPost` que daba un
   `.md`). Una dirección que la base no tiene es 404. Sin base no hay eventos.
+- **La página de un evento o un material** (`siteContent`): la dirección, el objeto y si es una
+  parte oculta, en una consulta (lo mismo que `resolveContentSlug` + `getObject` + esa regla);
+  después, a la par, sus relaciones y su portada; y al final, a la par, los vínculos públicos de
+  la metadata y les autores con perfil, todes en una consulta (`findPublicProfiles` en
+  `src/lib/server/amigues/profiles.js`, lo mismo que `findPublicProfile` dirección por dirección).
+  La base está lejos: cada consulta que espera a otra es una ida y vuelta.
+  `siteContent-consultas.test.js` fija cuántas consultas y tandas en fila hace.
 - **Guardar** (`src/lib/server/contenido/repo.js`, `withContentDb`): todo lo que el panel escribe
   pasa por el cliente de contenido (`getRepoClient()`), que habla en rutas de los viejos `.md`
   (`src/lib/posts/<categoría>/<dirección>.md`) y las lleva a la base (editor, cargar y duplicar,
@@ -166,7 +230,7 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
 - **Cómo se ve el texto** (decisión 0004: superadmins pueden usar HTML libre). Cada texto guarda
   cómo se muestra (`data.body_html`):
   - libre (lo que vino de los `.md` y lo que guarda une superadmin): `freeHtml.js` lo arma con el
-    mismo camino que usaba mdsvex (rehype-slug, rehype-toc, `customRehype`, comillas tipográficas,
+    mismo camino que usaba mdsvex (rehype-slug, rehype-toc: el índice solo con 2 títulos o más, `customRehype`, comillas tipográficas,
     menciones y wiki). Lee el markdown como el parser de mdsvex donde CommonMark lo lee distinto
     (énfasis con `*` pegado o con espacios, una etiqueta HTML que corta el párrafo, listas) y no
     toca el HTML escrito a mano (como mdsvex: sin comillas tipográficas, menciones ni anclas
@@ -174,19 +238,38 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
     componente que mdsvex compilaba de ese `.md`; comparados uno por uno, los 571 eventos y
     materiales y las 12 páginas de la wiki dan el mismo HTML, salvo el embed de Instagram de
     `carrera-de-reyes-2025-04`, que ya no carga el script de Instagram (queda la tarjeta con el
-    link). `freeHtml.test.js` tiene un caso inventado por cada diferencia que hubo;
-  - lista corta: `amigues/sanitize.js`, como los perfiles.
-- **Imágenes y archivos que un texto importa** (`import foto from './media/<carpeta>/1.webp'`):
-  las imágenes, su copia en la biblioteca (`legacyMedia.js`); los PDF, el video y el documento, el
-  archivo de `src/lib/archivos/` (`contentMediaURL` en `render.js`).
+    link). `freeHtml.test.js` tiene un caso inventado por cada diferencia que hubo. Dos arreglos
+    de los textos viejos van en el CSS del contenido (`style.scss`, `.content`), no en los
+    datos: el `<object type="application/pdf" width="50rem">` toma el ancho del texto (el
+    atributo solo acepta píxeles) y las notas `<small class="footnote">` van una por línea
+    (`src/tests/textos-viejos.test.js`);
+  - lista corta: `amigues/sanitize.js`, como los perfiles (imágenes solo de la biblioteca propia,
+    `/media/…`; ver [amigues.md](amigues.md)). Es también lo que se usa sin valor guardado: el
+    HTML libre tiene que estar escrito (`body_html: 'libre'`; en la wiki, `wiki_body_html`).
+  - **Anidado demasiado hondo**: rehype recorre el árbol con recursión, y miles de elementos uno
+    adentro de otro (`<div>` × 5000, o `>` × 2000 en markdown) lo dejan sin pila (`RangeError`,
+    error 500 para todes en esa página). Más de 500 niveles (`$lib/utils/htmlNesting.js`, una
+    cuenta aproximada y barata) no se guardan: el campo del texto (`markup: true` en
+    `objects/fields.js`: eventos, material, perfiles y wiki) da el error en el panel. Uno que ya
+    estaba guardado se muestra vacío y deja una línea `area: 'contenido'` en los registros. Los
+    textos de la semilla no pasan de 10 niveles.
+- **Imágenes que un texto importa** (`import foto from './media/<carpeta>/1.webp'`): su copia en
+  la biblioteca (`legacyMedia.js`, `contentMediaURL` en `render.js`). Los PDF, el video y el
+  documento viejos ya no se importan: los textos los enlazan por su dirección de la biblioteca
+  (`/media/file/…`).
 - **Interactivos** (decisión 0004: «se hacen en código, como componente registrado»): en la base,
   el texto nombra un interactivo con una etiqueta propia, sola, sin atributos:
   `<kv-donde-golpear-un-cuerpo></kv-donde-golpear-un-cuerpo>`. El registro está en
   `src/lib/utils/interactivos.js` (etiquetas y su forma en los `.md` de «Descargar todo») y
   `src/lib/components/interactivos/index.js` (qué componente muestra cada una; los componentes
   viven en esa misma carpeta). Solo las registradas se muestran (también dentro de otro elemento,
-  con `ContentParts.svelte`); cualquier otra `<kv-…>` se ve escapada, como texto. Un interactivo
-  nuevo necesita un PR. Hoy hay uno: `donde-y-como-golpear-un-cuerpo`.
+  con `ContentParts.svelte`, que arma ese elemento con los atributos que ya dejó la limpieza del
+  texto, leídos uno por uno); cualquier otra `<kv-…>` se ve escapada, como texto. Un interactivo
+  nuevo necesita un PR. Hoy hay uno: `donde-y-como-golpear-un-cuerpo`. Los datos grandes de un
+  interactivo (los trazos de su SVG) no van en el componente: el servidor se los pasa como props
+  en su parte (`INTERACTIVE_PROPS` en `src/lib/server/contenido/interactive.js`, los datos en
+  `src/lib/server/contenido/interactivos/`), así viajan solo en la página que lo usa y no en el
+  JavaScript de todas las páginas con texto.
 - **Descargar todo** (botón en Contenido → En la base, `descargar.tar`,
   `src/lib/server/contenido/download.js`): los eventos, el material, los perfiles de amigues
   (`amigues/<dirección>.md`) y las páginas de la wiki (`wiki/<dirección>.md`) de la base como `.md`
@@ -209,11 +292,26 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   (cuántos hay, su último `updated_at`, el último guardado de `object_revisions`) y, las listas
   públicas, mientras no cambie el árbol de etiquetas. Esa «marca» de «¿cambió algo?» se consulta
   **una sola vez por pedido de lectura** (`GET`/`HEAD`): la lista, los no listados, los pronombres
-  y el índice de la búsqueda de un mismo pedido comparten la respuesta
-  (`src/lib/server/db/perRequest.js`). En un `POST` solo se comparte la consulta en camino, así un
+  y el índice de la búsqueda de un mismo pedido comparten la respuesta, también entre el layout y
+  la página (`src/lib/server/db/perRequest.js`; la clave es el `Request` del pedido, porque cada
+  `load` recibe su propia copia del evento). En un `POST` solo se comparte la consulta en camino, así un
   guardado del pedido se ve al toque; fuera de un pedido (scripts, crons, pruebas), una por
-  llamada. Las listas públicas leen la metadata **sin el
+  llamada. **Entre pedidos se comparte solo lo ya leído, nunca una consulta en camino**
+  (`readAndKeep` en `perRequest.js`; lo usan las listas, el panel, los interruptores, las tarjetas
+  de entradas, la vista previa de links, el índice de la búsqueda y el bot): en Workers, si el
+  pedido que empezó una consulta termina o se corta, la consulta puede no terminar nunca, y los
+  pedidos que la esperaban se colgaban minutos (gorrite, 12/10: GET /admin y GET / con ~40 ms de
+  CPU). El pedido que necesita un valor nuevo espera su propia consulta. Las listas públicas leen la metadata **sin el
   cuerpo** (`json_remove`); el cuerpo lo pide aparte solo la búsqueda (`siteBodies`).
+- Si el isolate no tiene las listas públicas armadas, las busca en la **caché de Cloudflare** del
+  centro de datos (`caches.default`, `edgeState` en `src/lib/server/contenido/posts.js`) antes de
+  armarlas de la base: la clave es la marca de arriba, más una huella del árbol de etiquetas y la
+  versión del build, así que un guardado del panel no necesita purgar nada (la clave cambia sola) y
+  lo viejo vence en un día. Se guardan solo las listas armadas (los eventos y el material listados y
+  no listados, sus direcciones y los perfiles); los cuerpos de la búsqueda y los pronombres se
+  derivan después, como siempre. Cada vez que se arman de la base queda una línea en los registros
+  del Worker (`contenido: listas armadas (marca …) en N ms`). Sin `caches` (vitest, el build,
+  `vite dev`), como antes.
 
 | Qué                                     | Dónde                                                                  |
 | --------------------------------------- | ---------------------------------------------------------------------- |
@@ -256,7 +354,8 @@ Propuestas por Claude; **confirmado por gorrite (5/10)**: las seis, tal como est
    etiqueta, tu diseño en [etiquetas.md](etiquetas.md)); no hay un tipo nuevo. La dirección de una
    página es la de su etiqueta (`tagSlug(key)`, igual a los nombres de los `.md`); un alias lleva a
    la página de la etiqueta. Dos campos nuevos (opcionales, sin migración): `wiki_tags` y
-   `wiki_body_html` (sin valor = lo importado, HTML libre).
+   `wiki_body_html` (sin valor = la lista corta; lo importado guarda `libre`, y la migración 0059
+   lo escribió en las páginas que ya estaban, que antes eran «sin valor = HTML libre»).
 2. **Editor de la wiki con campos** (título, resumen, autores, etiquetas, texto), no el texto crudo
    del `.md`; «Sacar la entrada» saca el texto y deja la etiqueta.
 3. **Las listas del sitio** (`sitePosts`: `/todo`, el sitemap, `/api/posts`, «Más cosas de…») llevan
@@ -270,8 +369,5 @@ Propuestas por Claude; **confirmado por gorrite (5/10)**: las seis, tal como est
 
 ## Lo que falta
 
-- Subir a la biblioteca los PDF, el video y el documento de `src/lib/archivos/` y reescribir los
-  textos que los importan (`scripts/subir-archivos.js`, lo corre gorrite; después se borra la
-  carpeta).
 - Que el panel guarde objetos directamente en vez de hablar en «rutas de `.md`» (el refactor
   profundo del plan de limpieza: `getRepoClient`, `withContentDb`, `commitFiles`).

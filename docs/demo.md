@@ -59,7 +59,8 @@ sin tocar el repo.
 
 ## `GET /api/preview-status`
 
-Solo en previews: cuántas filas hay en las tablas principales y si el entorno está bien armado.
+Solo en previews y con sesión de admin (la de prueba alcanza; sin sesión, 403): cuántas filas hay
+en las tablas principales y si el entorno está bien armado.
 (La vieja tabla `demo_files`, la capa de archivos del modo demo, ya no se usa: si una base de
 preview vieja la tiene, se puede borrar con `DROP TABLE demo_files;`.)
 
@@ -71,8 +72,8 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
 
 1. **Borra** los datos de prueba anteriores, y nada más: los eventos `demo-*` y lo que cuelga de
    ellos (órdenes, entradas, recordatorios, links de transmisión, avisos por mail, códigos del
-   evento, entradas del registro de actividad sobre esos eventos u
-   órdenes), las filas que puso el seed (`seed-demo`) y la «última visita» del admin de prueba.
+   evento, anotaciones de la lista de espera y sus mails, cambios de fecha y sus avisos, entradas
+   del registro de actividad sobre esos eventos u órdenes), las filas que puso el seed (`seed-demo`) y la «última visita» del admin de prueba.
    Los ajustes o códigos que alguien guardó a mano no se pisan.
 2. **Carga** todo de nuevo relativo a este momento (`src/lib/server/demo/seed.js`): un evento hoy
    a la noche (Noche Látex) con la puerta andando, eventos que vienen, eventos pasados con
@@ -183,9 +184,9 @@ archivo (`--all` suma las tablas del panel, `--chunks=dir` lo parte para la API 
 aplicarlo a mano **solo** a la base de un preview o a la local. Ese SQL no trae los eventos de
 prueba (son objetos y solo se escriben con saveObject()): los carga solo el botón.
 
-Además, en un preview la página de error muestra el mensaje del error (`handleError` en
-`src/hooks.server.js`), para diagnosticar sin los logs de Cloudflare. En producción
-`handleError` no existe y SvelteKit usa el suyo, como siempre.
+Además, en un preview la página de error muestra el mensaje del error (`handleError`, armado en
+`src/lib/server/errorLog.js`), para diagnosticar sin los logs de Cloudflare. En producción la
+página muestra el mensaje genérico de siempre (y, en los errores 5xx, el código del error).
 
 ## Cómo se bloquea en producción
 

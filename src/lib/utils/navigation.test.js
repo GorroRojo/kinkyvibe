@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { breadcrumbLd, isSectionActive, ownBackLink, sectionCrumb } from './navigation.js';
+import {
+	breadcrumbLd,
+	isSectionActive,
+	ownBackLink,
+	sectionCrumb,
+	sectionFromRouteId
+} from './navigation.js';
 
 describe('isSectionActive', () => {
 	it('la sección y lo que cuelga de ella', () => {
@@ -24,6 +30,34 @@ describe('isSectionActive', () => {
 		expect(isSectionActive('/', 'https://tienda.kinkyvibe.ar')).toBe(false);
 		expect(isSectionActive('/tienda.kinkyvibe.ar', '//tienda.kinkyvibe.ar')).toBe(false);
 		expect(isSectionActive('/calendario', '')).toBe(false);
+	});
+});
+
+describe('sectionFromRouteId: la sección de la publicación, desde la ruta', () => {
+	it('las páginas de una publicación', () => {
+		expect(sectionFromRouteId('/(content)/calendario/[event]')).toBe('calendario');
+		expect(sectionFromRouteId('/(content)/material/[post]')).toBe('material');
+		expect(sectionFromRouteId('/(content)/amigues/[profile]')).toBe('amigues');
+		expect(sectionFromRouteId('/(content)/wiki/[term]')).toBe('wiki');
+	});
+
+	it('las listas, lo que cuelga de una publicación y lo demás: nada', () => {
+		expect(sectionFromRouteId('/(content)/calendario')).toBeNull();
+		expect(sectionFromRouteId('/(content)/wiki')).toBeNull();
+		expect(sectionFromRouteId('/(content)')).toBeNull();
+		// La compra muestra su propio «Volver al evento» (ownBackLink).
+		expect(sectionFromRouteId('/(content)/calendario/[event]/entradas')).toBeNull();
+		expect(sectionFromRouteId('/(content)/calendario/[event]/compartir')).toBeNull();
+		expect(sectionFromRouteId('/(content)/mi-rincon/perfiles/[slug]')).toBeNull();
+		expect(sectionFromRouteId('/(content)/propinas/[id]')).toBeNull();
+		expect(sectionFromRouteId(null)).toBeNull();
+		expect(sectionFromRouteId(undefined)).toBeNull();
+	});
+
+	it('con la sección, las migas y su BreadcrumbList', () => {
+		const section = sectionFromRouteId('/(content)/calendario/[event]');
+		expect(sectionCrumb(section)).toEqual({ name: 'calendario', path: '/calendario' });
+		expect(breadcrumbLd(section, 'https://kinkyvibe.ar')?.itemListElement).toHaveLength(2);
 	});
 });
 

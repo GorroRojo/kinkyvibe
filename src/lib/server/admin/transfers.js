@@ -9,7 +9,9 @@
  * Una transferencia que llegó tarde (reserva vencida) cuando los lugares ya se ocuparon pasa el
  * cupo: le admin la puede confirmar igual, pero primero se contesta `needsConfirmation` (con
  * cuánto se pasa) y la página pregunta con un diálogo; si confirma, reenvía con `override` (la
- * clave de exactamente ese límite; ver tickets/overrides.js). Queda en el registro.
+ * clave de exactamente ese límite; ver tickets/overrides.js). Queda en el registro. Lo mismo si el
+ * evento está cancelado («El evento está cancelado.»): se puede confirmar (la plata entró), pero
+ * se pregunta antes; nunca se cancela ni se reembolsa sola (decisión 0044).
  *
  * Una transferencia rechazada (cancelada) se puede volver a "esperando comprobante" ("Deshacer
  * rechazo", `reopenTransferFromPanel`): solo si todavía hay lugar en su tipo y su tramo (y le queda
@@ -29,7 +31,7 @@ import {
 	reopenTransfer,
 	transferLimits
 } from '$lib/server/tickets/orders.js';
-import { checkOverride, logOverride } from '$lib/server/tickets/overrides.js';
+import { cancelledLimit, checkOverride, logOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 
@@ -43,6 +45,25 @@ import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
  *   needsConfirmation?: import('$lib/server/tickets/overrides.js').NeedsConfirmation
  * }} TransferActionResult
  */
+
+/**
+ * Qué límites se pasarían al confirmar una transferencia: los de lugar (`place`: cupo y tramo de
+ * una reserva vencida, `transferLimits`) y, si el evento está cancelado, «El evento está
+ * cancelado.» (`all` los junta, para `checkOverride`). El de cancelado solo si la orden todavía se
+ * puede confirmar: un segundo click sobre una ya confirmada no vuelve a preguntar. Al confirmar,
+ * `override` solo va a `confirmTransfer` si `place` no está vacío (confirmar «evento cancelado» no
+ * saltea el control del cupo). La usan la bandeja y la pestaña Transferencias del evento.
+ *
+ * @param {D1Database} db
+ * @param {{ order: Order, type: Parameters<typeof transferLimits>[1]['type'],
+ *   config: { status?: string } | null | undefined, now: number }} input
+ */
+export async function confirmLimits(db, { order, type, config, now }) {
+	const place = await transferLimits(db, { order, type, now });
+	const pending = order.status === 'awaiting_transfer' || order.status === 'expired';
+	const cancelled = pending ? cancelledLimit(config) : null;
+	return { place, all: cancelled ? [...place, cancelled] : place };
+}
 
 /**
  * Confirma el pago de una transferencia: aprueba, emite las entradas y registra quién. Quien
@@ -90,7 +111,9 @@ export async function confirmTransferFromPanel({
 		message: `Para confirmar ${ref} hay que pasar un límite: confirmalo en el aviso.`,
 		needsConfirmation
 	});
-	const check = checkOverride(await transferLimits(db, { order, type, now: at }), override);
+	const limitsNow = () => confirmLimits(db, { order, type, config, now: at });
+	const found = await limitsNow();
+	const check = checkOverride(found.all, override);
 	if (!check.ok) return ask(check.needsConfirmation);
 	const r = await confirmTransfer(db, {
 		orderId: order.id,
@@ -98,7 +121,9 @@ export async function confirmTransferFromPanel({
 		capacity: type.capacity,
 		tierQuantity: orderTier(order, type)?.quantity ?? null,
 		by,
-		override: check.override,
+		// Pasar el cupo solo si lo que se confirmó incluía un límite de lugar (confirmar «evento
+		// cancelado» no saltea el control del cupo).
+		override: check.override && found.place.length > 0,
 		now: at
 	});
 	if (r.result === 'confirmed' && r.order) {
@@ -139,7 +164,7 @@ export async function confirmTransferFromPanel({
 	}
 	if (r.result === 'no-capacity') {
 		// Se ocupó el último lugar entre el control y la confirmación: se vuelve a preguntar.
-		const again = checkOverride(await transferLimits(db, { order, type, now: at }), '');
+		const again = checkOverride((await limitsNow()).all, '');
 		if (!again.ok) return ask(again.needsConfirmation);
 	}
 	/** @type {Record<string, string>} */

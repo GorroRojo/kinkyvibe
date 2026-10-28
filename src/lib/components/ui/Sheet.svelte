@@ -33,7 +33,6 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions (Escape ya cierra el <dialog>) -->
 <dialog
 	bind:this={dialog}
 	class:inline
@@ -80,6 +79,10 @@
 	dialog.inline {
 		position: static;
 		margin: 0;
+	}
+	/* En la galería se ve la hoja entera, con sus cuatro esquinas (si no, parecía cortada). */
+	dialog.inline .sheet {
+		border-radius: var(--radius-l);
 	}
 	.sheet {
 		background: var(--surface);

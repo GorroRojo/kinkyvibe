@@ -199,7 +199,7 @@ export function applyFrontmatterChanges(frontmatter, changes) {
 		}
 	}
 	if (reparse) doc = parseFrontmatter(text);
-	// @ts-ignore empty frontmatter
+	// @ts-expect-error empty frontmatter
 	if (doc.contents === null) doc.contents = doc.createNode({});
 
 	/** @type {string[]} */
@@ -509,14 +509,15 @@ export function deriveSlug(sourceSlug, startDate) {
 
 /**
  * Slugs an event can't have: they're (or will be) panel pages under /admin/eventos/<slug>, and an
- * event with that name would be unreachable there. `nuevo`, `agenda`, `importar`, `series`,
- * `lugares` and `roles` exist today; `imagenes` is kept for an upcoming panel section;
+ * event with that name would be unreachable there. `nuevo`, `agenda`, `agenda-impresa`,
+ * `importar`, `series`, `lugares` and `roles` exist today; `imagenes` is kept for an upcoming panel section;
  * `lista.json` and `eventos.csv` are the list's endpoints (a slug can't have a dot anyway). A test
  * checks that every static page under /admin/eventos is listed here.
  */
 export const RESERVED_EVENT_SLUGS = Object.freeze([
 	'nuevo',
 	'agenda',
+	'agenda-impresa',
 	'importar',
 	'series',
 	'lugares',

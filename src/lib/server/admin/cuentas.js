@@ -16,10 +16,15 @@
  */
 import { getObject, saveObject, visibleWhere } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
-import { LEGACY_PROJECT_KIND, profileKindOf } from '$lib/server/objects/types/perfil.js';
+import {
+	LEGACY_PROJECT_KIND,
+	profileKindOf,
+	profileNoindex
+} from '$lib/server/objects/types/perfil.js';
 import { DELETED_ACTOR, PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { rowsOf, runQuery } from '$lib/server/db/batch.js';
 import { PROFILE_KIND_FILTERS, profileOrigin } from '$lib/admin/perfiles.js';
+import { unapproveStatement } from '$lib/server/amigues/approvals.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -66,7 +71,8 @@ export function isAccountId(/** @type {unknown} */ id) {
 /**
  * @typedef {{
  *   id: string, email: string | null, verified: boolean, hasPassword: boolean, createdAt: number,
- *   deletedAt: number | null, canHaveProfiles: boolean, profiles: number
+ *   deletedAt: number | null, canHaveProfiles: boolean, suspendedAt: number | null,
+ *   profiles: number
  * }} AdminAccount
  */
 
@@ -80,6 +86,7 @@ function toAdminAccount(r) {
 		createdAt: Number(r.created_at),
 		deletedAt: r.deleted_at == null ? null : Number(r.deleted_at),
 		canHaveProfiles: Number(r.can_have_profiles) === 1,
+		suspendedAt: r.suspended_at == null ? null : Number(r.suspended_at),
 		profiles: Number(r.profiles ?? 0)
 	};
 }
@@ -95,23 +102,24 @@ function liveProfilesCount() {
 }
 
 const ACCOUNT_SELECT = `a.id, a.email, a.email_verified_at, a.password_hash IS NOT NULL AS has_password,
-	a.created_at, a.deleted_at, a.can_have_profiles`;
+	a.created_at, a.deleted_at, a.can_have_profiles, a.suspended_at`;
 
 /**
  * Las cuentas, de la más nueva a la más vieja, con la búsqueda por mail (`q`, parte del mail) y
  * los totales.
  *
  * @param {D1Database} db
- * @param {{ q?: string, limit?: number }} [opts]
+ * @param {{ q?: string, limit?: number, sort?: import('$lib/admin/cuentas.js').AccountSort }} [opts]
+ *   `sort`: el orden que se eligió en la tabla (`parseAccountSort`); sin él, la más nueva primero.
  */
-export async function listAccounts(db, { q = '', limit = LIST_LIMIT } = {}) {
+export async function listAccounts(db, { q = '', limit = LIST_LIMIT, sort } = {}) {
 	const needle = q.trim().toLowerCase().slice(0, 254);
 	const count = liveProfilesCount();
 	const where = needle ? "WHERE a.email LIKE ? ESCAPE '\\'" : '';
 	const { results } = await db
 		.prepare(
 			`SELECT ${ACCOUNT_SELECT}, ${count.sql} AS profiles FROM accounts a ${where}
-			ORDER BY a.created_at DESC, a.id LIMIT ?`
+			ORDER BY ${accountOrderBy(sort)} LIMIT ?`
 		)
 		.bind(...count.params, ...(needle ? [`%${likeEscape(needle)}%`] : []), limit)
 		.all();
@@ -120,6 +128,7 @@ export async function listAccounts(db, { q = '', limit = LIST_LIMIT } = {}) {
 			`SELECT COUNT(*) AS total,
 				COALESCE(SUM(deleted_at IS NULL), 0) AS active,
 				COALESCE(SUM(deleted_at IS NULL AND can_have_profiles = 1), 0) AS with_profiles,
+				COALESCE(SUM(deleted_at IS NULL AND suspended_at IS NOT NULL), 0) AS suspended,
 				COALESCE(SUM(deleted_at IS NOT NULL), 0) AS deleted
 			FROM accounts`
 		)
@@ -130,6 +139,7 @@ export async function listAccounts(db, { q = '', limit = LIST_LIMIT } = {}) {
 			total: Number(totals?.total ?? 0),
 			active: Number(totals?.active ?? 0),
 			withProfiles: Number(totals?.with_profiles ?? 0),
+			suspended: Number(totals?.suspended ?? 0),
 			deleted: Number(totals?.deleted ?? 0)
 		}
 	};
@@ -446,6 +456,8 @@ export async function getProfileDetail(db, id, viewer) {
 			pronouns: typeof o.data.pronouns === 'string' ? o.data.pronouns : '',
 			links: Array.isArray(o.data.links) ? o.data.links.map(String) : [],
 			showMembers: o.data.show_members === true,
+			// «No aparecer en buscadores» (solo personas, lo eligen quienes lo gestionan).
+			noindex: profileNoindex(o.data),
 			updatedAt: o.updated_at,
 			// Quién lo creó o editó: una cuenta (`cuenta:<id>`), une admin (login) o una cuenta borrada.
 			createdBy: o.created_by,
@@ -464,7 +476,9 @@ export async function getProfileDetail(db, id, viewer) {
 
 /**
  * Oculta un perfil (visibilidad `hidden`: lo ven solo admins; quienes lo gestionan lo siguen
- * viendo en Mi rincón). Con `saveObject()` y la versión que se abrió.
+ * viendo en Mi rincón). Con `saveObject()` y la versión que se abrió. En la misma tanda le saca la
+ * aprobación (como «Sacar de Amigues»): si quien lo gestiona le vuelve a cambiar la visibilidad
+ * desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo.
  *
  * @param {D1Database} db
  * @param {number} id
@@ -476,7 +490,7 @@ export function hideProfile(db, id, version, user, { now = Date.now() } = {}) {
 	return saveObject(
 		db,
 		{ id, type: PROFILE_TYPE, version, visibility: 'hidden' },
-		{ actor: user.login, now }
+		{ actor: user.login, now, also: () => [unapproveStatement(db, id)] }
 	);
 }
 
@@ -578,3 +592,23 @@ export function countProfilesToReviewQuery() {
 		read: (results) => Number(rowsOf(results)[0]?.n ?? 0)
 	};
 }
+
+/**
+ * El ORDER BY de la lista de Cuentas: solo las columnas de `ACCOUNT_ORDER` (nunca texto de la
+ * URL) y, para desempatar, el id, así el corte de las 500 es siempre el mismo. Las cuentas
+ * borradas (sin mail) van al final al ordenar por mail, como las celdas vacías en `Table`.
+ *
+ * @param {import('$lib/admin/cuentas.js').AccountSort} [sort]
+ */
+function accountOrderBy(sort) {
+	const column = sort && Object.hasOwn(ACCOUNT_ORDER, sort.key) ? ACCOUNT_ORDER[sort.key] : null;
+	if (!column) return 'a.created_at DESC, a.id';
+	return `${column} ${sort?.dir === 'asc' ? 'ASC' : 'DESC'}, a.id`;
+}
+
+/** @type {Readonly<Record<string, string>>} */
+const ACCOUNT_ORDER = Object.freeze({
+	createdAt: 'a.created_at',
+	email: 'a.email IS NULL, a.email',
+	profiles: 'profiles'
+});

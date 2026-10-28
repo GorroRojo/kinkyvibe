@@ -1,10 +1,33 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { MAIL_LAYOUT_MARK, MAIL_LOGO_PATH, MAIL_PREHEADER_MARK, mailLayout } from './layout.js';
+import { writeGolden } from '$lib/testing/golden.js';
+import {
+	MAIL_LAYOUT_MARK,
+	MAIL_LOGO_PATH,
+	MAIL_PREHEADER_MARK,
+	mailLayout,
+	mailOptOut
+} from './layout.js';
 import { allMailCases } from './mails.fixtures.js';
+import { buildTicketEmail, buildTransferEmail } from '$lib/server/tickets/email.js';
+import { fixtureOrder, fixtureTickets } from '$lib/server/tickets/email.fixtures.js';
+import { WHY_BOUGHT, WHY_FREE } from '$lib/utils/emailTemplates.js';
 
-// Asunto y texto plano de cada mail ANTES de la plantilla común (ver mails.fixtures.js).
-const textGolden = JSON.parse(readFileSync(new URL('./mails.text.json', import.meta.url), 'utf8'));
+// Asunto y texto plano de cada mail ANTES de la plantilla común (ver mails.fixtures.js). Este
+// archivo es el único que escribe mails.text.json: con UPDATE_EMAIL_GOLDEN=1 la regenera entera
+// con los builders de hoy (docs/mails.md, «Cambiar un mail desde el código»); sin la variable,
+// compara.
+const TEXT_GOLDEN = new URL('./mails.text.json', import.meta.url);
+if (process.env.UPDATE_EMAIL_GOLDEN === '1') {
+	/** @type {Record<string, { subject: string, text: string }>} */
+	const fresh = {};
+	for (const [name, fn, input] of allMailCases()) {
+		const { subject, text } = fn(input);
+		fresh[name] = { subject, text };
+	}
+	writeGolden(TEXT_GOLDEN, fresh);
+}
+const textGolden = JSON.parse(readFileSync(TEXT_GOLDEN, 'utf8'));
 
 /** Etiqueta gris de arriba de la tarjeta. */
 const LABEL_RE = /<p style="[^"]*text-transform:uppercase[^"]*">([^<]+)<\/p>/;
@@ -32,6 +55,7 @@ describe('todos los mails usan la plantilla común', () => {
 				'buildTransferEmail',
 				'buildWaitlistClosedEmail',
 				'buildWaitlistConfirmEmail',
+				'buildWaitlistEndedEmail',
 				'buildWaitlistExpiredEmail',
 				'buildWaitlistOfferEmail',
 				'buildWaitlistReminderEmail'
@@ -56,7 +80,14 @@ describe('todos los mails usan la plantilla común', () => {
 		// Fondo lila, tarjeta con borde rosa, Lato con fallback.
 		expect(html).toContain('background:#f4eff6');
 		expect(html).toContain('max-width:560px');
-		expect(html).toContain('border-top:5px solid hsl(319,90%,60%)');
+		expect(html).toContain('border-top:5px solid #f53dbb');
+		// Sin hsl(): el Outlook de escritorio no lo entiende. Tema claro forzado («light only»).
+		expect(html).not.toContain('hsl(');
+		expect(html).toContain('<meta name="color-scheme" content="light only">');
+		// El botón, con el color también como atributo (Outlook de escritorio).
+		if (html.includes('font-size:19px;font-weight:700;color:#ffffff')) {
+			expect(html).toContain('<td align="center" bgcolor="#f53dbb" style="border-radius:999px;');
+		}
 		expect(html).toContain("font-family:Lato,'Helvetica Neue',Helvetica,Arial,sans-serif");
 		// Etiqueta, título y un solo botón como mucho.
 		expect(html.match(LABEL_RE)?.[1]).toBeTruthy();
@@ -68,6 +99,29 @@ describe('todos los mails usan la plantilla común', () => {
 		expect(html).toMatch(/(Te llega|Te escribimos) porque /);
 		expect(html).toMatch(/¿Dudas\? Escribinos a <a href="mailto:[^"]+@[^"]+"/);
 		expect(html).toContain('Kinky Vibe · Buenos Aires');
+	});
+
+	it('los mails de una compra y los de la oferta llevan preencabezado, sin el título del evento', () => {
+		const withPreheader = new Set([
+			'buildTicketEmail',
+			'buildReminderEmail',
+			'buildDateChangeEmail',
+			'buildWaitlistOfferEmail',
+			'buildWaitlistReminderEmail',
+			'buildBuyerMail'
+		]);
+		let seen = 0;
+		for (const [name, fn, input] of cases) {
+			if (!withPreheader.has(fn.name)) continue;
+			seen++;
+			const { html } = fn(input);
+			const pre = html.split(`${MAIL_PREHEADER_MARK}>`)[1]?.split('<')[0];
+			expect(pre, name).toBeTruthy();
+			// El título puede ser sensible: no va en la vista previa de la bandeja.
+			expect(pre, name).not.toContain('Fiesta');
+			expect(pre, name).not.toMatch(/https?:|@/);
+		}
+		expect(seen).toBeGreaterThanOrEqual(withPreheader.size);
 	});
 
 	it.each(cases)('%s: el asunto y el texto plano no cambian', (name, fn, input) => {
@@ -130,5 +184,73 @@ describe('mailLayout', () => {
 		expect(html).not.toContain('font-size:19px;font-weight:700');
 		// En el pie, el único link es el del contacto.
 		expect(html.slice(html.lastIndexOf('¿Dudas?')).match(/<a /g)).toHaveLength(1);
+	});
+});
+
+describe('«No fui yo» en el pie (mails a una dirección sin confirmar)', () => {
+	const URL_OPT_OUT = 'https://kinkyvibe.example/mails/no-fui-yo/abc.def';
+	const LEAD = 'Alguien escribió tu mail por error.';
+	const TAIL = 'no te mandamos más mails de Kinky Vibe a esta dirección.';
+
+	it('mailOptOut: sin link, nada; con link, la línea (escapada) y su texto plano', () => {
+		expect(mailOptOut(null, '¿No te anotaste vos?')).toEqual({ html: '', text: [] });
+		const line = mailOptOut(`${URL_OPT_OUT}?a=1&b=2`, '¿No te anotaste vos?');
+		expect(line.html).toBe(
+			`¿No te anotaste vos? ${LEAD} <a href="${URL_OPT_OUT}?a=1&amp;b=2" style="color:#570bda;">Tocá acá</a> y ${TAIL}`
+		);
+		expect(line.text.join('\n')).toContain(`¿No te anotaste vos? ${LEAD}`);
+		expect(line.text.join('\n')).toContain(`${URL_OPT_OUT}?a=1&b=2`);
+		// Va en el pie, después de la baja y antes de la firma.
+		const html = mailLayout({
+			label: 'x',
+			titleHtml: 'x',
+			whyHtml: 'Por qué',
+			unsubscribeHtml: 'BAJA',
+			optOutHtml: line.html
+		});
+		expect(html.indexOf('BAJA')).toBeLessThan(html.indexOf(LEAD));
+		expect(html.indexOf(LEAD)).toBeLessThan(html.indexOf('Kinky Vibe · Buenos Aires'));
+	});
+
+	it('entradas gratis: «se pidieron entradas gratis», nunca «compraste», y la línea con el link', () => {
+		const free = buildTicketEmail({
+			order: fixtureOrder({ payment_method: 'gratis', total: 0 }),
+			tickets: fixtureTickets(),
+			event: { title: 'Fiesta de prueba', start: '2026-10-10T22:00:00-03:00' },
+			typeName: 'Libre',
+			origin: 'https://kinkyvibe.example',
+			contactEmail: 'contacto@example.com',
+			optOutUrl: URL_OPT_OUT
+		});
+		expect(free.html).toContain(WHY_FREE);
+		expect(free.html).not.toContain(WHY_BOUGHT);
+		expect(free.html).toContain('¿No pediste vos estas entradas?');
+		expect(free.html).toContain(URL_OPT_OUT);
+		expect(free.text).toContain(URL_OPT_OUT);
+		// Una compra pagada: como siempre.
+		const paid = buildTicketEmail({
+			order: fixtureOrder(),
+			tickets: fixtureTickets(),
+			event: { title: 'Fiesta de prueba', start: '2026-10-10T22:00:00-03:00' },
+			typeName: 'General',
+			origin: 'https://kinkyvibe.example',
+			contactEmail: 'contacto@example.com'
+		});
+		expect(paid.html).toContain(WHY_BOUGHT);
+		expect(paid.html).not.toContain(LEAD);
+	});
+
+	it('reserva por transferencia: la línea con el link', () => {
+		const m = buildTransferEmail({
+			order: fixtureOrder({ payment_method: 'transferencia', status: 'awaiting_transfer' }),
+			event: { title: 'Fiesta de prueba', start: '2026-10-10T22:00:00-03:00' },
+			typeName: 'General',
+			transferInfo: 'Alias: EJEMPLO.PRUEBA',
+			contactEmail: 'contacto@example.com',
+			origin: 'https://kinkyvibe.example',
+			optOutUrl: URL_OPT_OUT
+		});
+		expect(m.html).toContain(`¿No reservaste vos? ${LEAD}`);
+		expect(m.text).toContain(URL_OPT_OUT);
 	});
 });

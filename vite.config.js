@@ -1,16 +1,30 @@
+import { readdirSync } from 'node:fs';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { deployBranchFromEnv } from './src/lib/server/deployBranch.js';
+import { commitShaFromEnv, latestMigrationName } from './src/lib/server/buildInfo.js';
+import { appServerForTests } from './scripts/vite/app-server-tests.js';
 import { lucideDeepImports } from './scripts/vite/lucide-deep-imports.js';
 import DurationSequencer from './scripts/vitest/sequencer.js';
 
 export default defineConfig({
-	// En vitest, los íconos se importan de a uno (ver scripts/vite/lucide-deep-imports.js).
-	plugins: [sveltekit(), process.env.VITEST ? lucideDeepImports() : null],
+	// En vitest, los íconos se importan de a uno (ver scripts/vite/lucide-deep-imports.js) y
+	// `$app/server` es solo `getRequestEvent` (scripts/vite/app-server-tests.js).
+	plugins: [
+		sveltekit(),
+		process.env.VITEST ? lucideDeepImports() : null,
+		process.env.VITEST ? appServerForTests() : null
+	],
 	// Rama del deploy (Workers Builds; '' en local): ver
 	// src/lib/server/deployBranch.js y src/lib/server/deploy.js.
+	// La última migración de migrations/ y el commit del build (Workers Builds; '' en local), para
+	// /api/health: ver src/lib/server/buildInfo.js.
 	define: {
-		__DEPLOY_BRANCH__: JSON.stringify(deployBranchFromEnv(process.env))
+		__DEPLOY_BRANCH__: JSON.stringify(deployBranchFromEnv(process.env)),
+		__LATEST_MIGRATION__: JSON.stringify(
+			latestMigrationName(readdirSync(new URL('./migrations', import.meta.url)))
+		),
+		__BUILD_SHA__: JSON.stringify(commitShaFromEnv(process.env))
 	},
 	assetsInclude: ['**/*.odt'],
 	build: {
@@ -19,14 +33,36 @@ export default defineConfig({
 		assetsInlineLimit: 0
 	},
 	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js'],
-		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js).
-		setupFiles: ['src/tests/setup.js'],
+		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js). Con `SHIFT_DAYS`,
+		// también el reloj adelantado (scripts/vitest/shift-clock.js; corrida semanal).
+		setupFiles: [
+			'src/tests/setup.js',
+			...(process.env.SHIFT_DAYS ? ['scripts/vitest/shift-clock.js'] : [])
+		],
 		// Reparte las partes de la CI (`--shard`) por lo que tarda cada archivo
 		// (scripts/vitest/durations.json), no por cantidad de archivos.
 		sequence: { sequencer: DurationSequencer },
 		// La plantilla de la base de prueba, migrada una vez por corrida (src/tests/globalSetup.js).
-		globalSetup: ['src/tests/globalSetup.js']
+		globalSetup: ['src/tests/globalSetup.js'],
+		// `include` va en cada proyecto: con `extends: true` las listas se suman.
+		projects: [
+			// Casi todas: en Node, y los componentes con el render del servidor (`svelte/server`).
+			{
+				extends: true,
+				test: {
+					name: 'unit',
+					include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js'],
+					exclude: [...configDefaults.exclude, 'src/**/*.dom.test.js']
+				}
+			},
+			// Componentes montados en un DOM (jsdom + @testing-library/svelte) para probar clics:
+			// `*.dom.test.js`, con el Svelte del navegador (la condición `browser`).
+			{
+				extends: true,
+				resolve: { conditions: ['browser'] },
+				test: { name: 'dom', include: ['src/**/*.dom.test.js'], environment: 'jsdom' }
+			}
+		]
 	},
 	optimizeDeps: {
 		exclude: ['svelte-codemirror-editor', 'codemirror', '@codemirror/lang-markdown']

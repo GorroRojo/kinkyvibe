@@ -10,8 +10,10 @@
  *
  * Darse de baja borra la fila. El link de baja va firmado ($lib/server/signedLinks.js), así se
  * puede poner en cada mail sin guardar otro token. Los mensajes nunca dicen si un mail ya estaba
- * suscripto. Límites con db/rateLimit.js (por conexión, por mail y el tope global de mails de
- * cuentas, que comparte la cuenta de Resend).
+ * suscripto. Límites con db/rateLimit.js (por conexión, por mail, el tope global de mails de
+ * cuentas, que comparte la cuenta de Resend, y el tope de mails a una dirección sin confirmar
+ * entre todos los formularios, email/suppressions.js). El mail de confirmar lleva el link «No fui
+ * yo» y no sale a una dirección que lo usó.
  */
 import {
 	avisameViaSigo,
@@ -26,10 +28,11 @@ import { signLink, verifyLink } from '$lib/server/signedLinks.js';
 import { emailHash, normalizeEmail } from '$lib/server/cuentas/accounts.js';
 import { randomToken } from '$lib/server/cuentas/crypto.js';
 import { accountMailAllowed } from '$lib/server/cuentas/mailCap.js';
+import { optOutUrl, unconfirmedMailAllowed } from '$lib/server/email/suppressions.js';
 import { buildSeriesConfirmEmail } from './email.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
-/** @typedef {(to: string, message: { subject: string, html: string, text: string }, idempotencyKey?: string) => Promise<'sent' | 'simulated' | 'failed'>} SeriesSend */
+/** @typedef {(to: string, message: { subject: string, html: string, text: string, headers?: Record<string, string> }, idempotencyKey?: string) => Promise<'sent' | 'simulated' | 'failed'>} SeriesSend */
 
 /** Cuánto vale el link de confirmar. */
 export const CONFIRM_TTL_MS = 48 * 60 * 60 * 1000;
@@ -90,14 +93,39 @@ export function confirmUrl(origin, token) {
  */
 
 /**
+ * Cuánto tarda como mínimo la respuesta a «Avisame» con mail en producción (lo pasa la ruta):
+ * más que lo que suele tardar mandar el mail, así un mail ya suscripto (que no manda nada)
+ * responde en el mismo tiempo que uno nuevo.
+ */
+export const SUBSCRIBE_MIN_MS = 1200;
+
+/** @param {number} ms */
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
  * Suscribe un mail (sin cuenta): manda el mail de confirmar. La respuesta es la misma si el mail
- * ya estaba suscripto (y entonces no se manda nada).
+ * ya estaba suscripto (y entonces no se manda nada): los mismos límites, y con `minDurationMs`,
+ * el mismo tiempo.
  *
+ * @param {{ db: D1Database, seriesTag: string, seriesName: string, email: unknown,
+ *   client: string, send: SeriesSend, origin: string, now?: number,
+ *   minDurationMs?: number }} input
+ * @returns {Promise<SubscribeResult>}
+ */
+export async function subscribeEmail({ minDurationMs = 0, ...input }) {
+	const started = Date.now();
+	const result = await subscribeEmailNow(input);
+	const left = minDurationMs - (Date.now() - started);
+	if (left > 0) await sleep(left);
+	return result;
+}
+
+/**
  * @param {{ db: D1Database, seriesTag: string, seriesName: string, email: unknown,
  *   client: string, send: SeriesSend, origin: string, now?: number }} input
  * @returns {Promise<SubscribeResult>}
  */
-export async function subscribeEmail({
+async function subscribeEmailNow({
 	db,
 	seriesTag,
 	seriesName,
@@ -126,11 +154,14 @@ export async function subscribeEmail({
 		)
 		.bind(seriesTag, subscriberKey)
 		.first();
-	// Ya confirmada: no se manda nada y se responde igual (no se revela quién está suscripte).
-	if (existing && existing.confirmed_at != null) return { ok: true, status: 'pending' };
+	// Los mismos límites para un mail ya suscripto que para uno nuevo: si no, el cuarto pedido del
+	// día diría quién está suscripte.
 	if (!(await allowed(db, `series:sub:e:${hash}`, SUBSCRIBE_LIMITS.email, now))) return tooMany;
+	if (!(await unconfirmedMailAllowed(db, email, now))) return tooMany;
 	if (!(await accountMailAllowed(db, now)))
 		return { ok: false, status: 429, message: SERIES_MESSAGES.mailBusy };
+	// Ya confirmada: no se manda nada y se responde igual (no se revela quién está suscripte).
+	if (existing && existing.confirmed_at != null) return { ok: true, status: 'pending' };
 
 	const token = randomToken();
 	const confirmHash = await sha256Hex(token);
@@ -160,7 +191,8 @@ export async function subscribeEmail({
 		unsubscribeUrl: await unsubscribeUrl(db, origin, id),
 		expiresAt: now + CONFIRM_TTL_MS,
 		now,
-		origin
+		origin,
+		optOutUrl: await optOutUrl(db, origin, email)
 	});
 	const result = await send(email, message);
 	if (result === 'failed') return { ok: false, status: 502, message: SERIES_MESSAGES.mailFailed };

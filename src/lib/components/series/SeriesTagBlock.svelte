@@ -1,10 +1,14 @@
 <script>
 	/**
-	 * Lo de series en la página de una etiqueta (/wiki/<etiqueta>, que puede estar prerenderizada):
-	 * lo pide a /api/series/<etiqueta> (forma slug: seriesApiPath) al cargar. Si no hay nada (404), no muestra nada. Si la etiqueta es una serie: su imagen, las próximas
-	 * ediciones primero y después las pasadas, y "Avisame si se repite". Si tiene eventos: el
-	 * calendario .ics para suscribirse.
-	 * Props: `tag` (id de la etiqueta).
+	 * Lo de series en la página de una etiqueta (/wiki/<etiqueta>). La página lo trae con la carga
+	 * (`info`: seriesTagInfo en $lib/server/series/web.js), así el bloque sale con la página y no la
+	 * mueve al llegar. Si no lo trae (`info` sin pasar), lo pide a /api/series/<etiqueta> (forma
+	 * slug: seriesApiPath) al cargar. Si no hay nada (`null` o 404), no muestra nada. Si la etiqueta
+	 * es una serie: su imagen, las próximas ediciones primero y después las pasadas, y "Avisame si se
+	 * repite". Si tiene eventos: el calendario .ics para suscribirse.
+	 * Props: `tag` (id de la etiqueta), `info` (lo de la carga, o `null` si no hay nada), `path`
+	 * (la ruta de la página, para volver después de entrar) y `origin` (el del sitio, para el link
+	 * del .ics).
 	 */
 	import { onMount } from 'svelte';
 	import EditionList from './EditionList.svelte';
@@ -15,15 +19,19 @@
 	/** @type {string} */
 	export let tag;
 
-	/** @type {null | { series: null | { id: string, name: string, image?: string, total: number, upcoming: import('$lib/utils/series.js').Edition[], past: import('$lib/utils/series.js').Edition[] }, feed: string | null, account: { member: boolean, subscribed: boolean, sigo?: boolean, invite?: boolean } }} */
-	let info = null;
-	let origin = '';
-	let here = '/';
+	/** @type {undefined | null | { series: null | { id: string, name: string, image?: string, total: number, upcoming: import('$lib/utils/series.js').Edition[], past: import('$lib/utils/series.js').Edition[] }, feed: string | null, account: { member: boolean, subscribed: boolean, sigo?: boolean, invite?: boolean } }} */
+	export let info = undefined;
+	export let path = '';
+	/** El origen del sitio (https://…), para el link absoluto del .ics desde el servidor. */
+	export let origin = '';
+	let here = path || '/';
+	$: if (path) here = path;
 
 	onMount(async () => {
 		origin = location.origin;
 		here = location.pathname;
-		if (!tag) return;
+		// Ya vino con la página (o la página sabe que no hay nada): no se pide.
+		if (info !== undefined || !tag) return;
 		try {
 			const r = await fetch(seriesApiPath(tag));
 			if (r.ok) info = await r.json();

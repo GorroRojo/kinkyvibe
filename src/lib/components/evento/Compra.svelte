@@ -3,7 +3,10 @@
 	 * El bloque «Comprar entradas» de la página de un evento: el botón grande (BotonCompra.svelte)
 	 * que lleva a la página de compra
 	 * (/calendario/<slug>/entradas), con precio, «Quedan N», cierre de la venta y puerta; con la
-	 * venta cerrada, por qué («Agotadas.», «Venta cerrada.», «Entradas: …», no disponible).
+	 * venta cerrada, por qué («Agotadas.», «Venta cerrada.», «Entradas: …», no disponible, o el texto
+	 * de la pausa de emergencia, `TICKETS_PAUSED`). Agotadas
+	 * y con dónde anotarse en la lista de espera (`tickets.waitlist`), el botón grande dice
+	 * «Agotadas · Anotate en la lista de espera» y lleva al formulario (`#lista-espera`).
 	 *
 	 * Props: `tickets` (el resumen de la venta, `summarizeTickets`, con su `slug`: en una parte de
 	 * un taller con una sola entrada es el del taller), `slug` (el evento, si `tickets` no trae el
@@ -39,17 +42,26 @@
 		{#if tickets.closesAt}
 			<p class="buy-when">{saleWindowText({ closesAt: tickets.closesAt })}.</p>
 		{/if}
+	{:else if tickets.waitlist}
+		<!-- Agotadas con lista de espera (interruptor `lista_espera`): el mismo botón grande lleva al
+		     formulario de la página de compra. -->
+		<BotonCompra
+			href="/calendario/{tickets.slug ?? slug}/entradas#lista-espera"
+			title="Agotadas · Anotate en la lista de espera"
+		/>
 	{:else}
 		<p class="buy-closed">
-			{tickets.reason === 'soldout'
-				? 'Agotadas.'
-				: tickets.reason === 'closed'
-					? 'Venta cerrada.'
-					: tickets.reason === 'notyet' && tickets.opensAt
-						? `Entradas: ${saleWindowText({ opensAt: tickets.opensAt })}.`
-						: tickets.reason === 'cancelled'
-							? 'El evento se canceló: no hay venta de entradas.'
-							: 'La venta online de entradas no está disponible en este momento.'}
+			{tickets.reason === 'paused'
+				? tickets.pausedMessage
+				: tickets.reason === 'soldout'
+					? 'Agotadas.'
+					: tickets.reason === 'closed'
+						? 'Venta cerrada.'
+						: tickets.reason === 'notyet' && tickets.opensAt
+							? `Entradas: ${saleWindowText({ opensAt: tickets.opensAt })}.`
+							: tickets.reason === 'cancelled'
+								? 'El evento se canceló: no hay venta de entradas.'
+								: 'La venta online de entradas no está disponible en este momento.'}
 		</p>
 	{/if}
 	{#if tickets.reason !== 'cancelled' && doorText(tickets.door)}

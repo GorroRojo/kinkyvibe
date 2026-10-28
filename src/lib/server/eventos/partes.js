@@ -10,7 +10,10 @@
  * Reglas que controla este archivo (el registro de tipos solo sabe de tipos):
  * - una parte es de un solo taller;
  * - no hay partes de partes (un evento con partes no puede ser parte de otro, ni al revés);
- * - un taller no es parte de sí mismo.
+ * - un taller no es parte de sí mismo;
+ * - con entradas vendidas, cambiar de qué evento es la entrada (sumar como parte un evento que ya
+ *   vendió, o prender o apagar «Entradas por parte») pregunta antes (`needsConfirm`): esas
+ *   entradas dejarían de valer en la puerta y el cupo se podría vender dos veces.
  *
  * Para afuera todo es por la dirección del evento (la de su página: la del .md importado o la del
  * objeto), como las entradas y las listas de posts. Solo imports relativos (lo usa el cron de los
@@ -30,6 +33,8 @@ import {
 	partOf
 } from '../../utils/partes.js';
 import { dehydrateTags, tagEdgesOf, withTagEdges } from '../contenido/etiquetasEdges.js';
+import { HOLDING } from '../tickets/holding.js';
+import { eventIdsWithSlugSql } from './eventSlugIds.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('../objects/visibility.js').Viewer} Viewer */
@@ -118,8 +123,11 @@ export async function findEventRow(db, slug) {
 	if (typeof slug !== 'string' || !slug) return null;
 	const row = await db
 		.prepare(
-			`SELECT ${eventCols('ev', 'cs')} FROM objects ev ${eventJoin('ev', 'cs')}
-			WHERE ev.type = ?2 AND (cs.legacy_slug = ?1 OR (cs.legacy_slug IS NULL AND ev.slug = ?1))
+			// Empieza por los ids con esa dirección (`CROSS JOIN` fija el orden): si no, SQLite
+			// recorre todos los eventos.
+			`SELECT ${eventCols('ev', 'cs')} FROM (${eventIdsWithSlugSql('?1')}) slug_ids
+			CROSS JOIN objects ev ON ev.id = slug_ids.id ${eventJoin('ev', 'cs')}
+			WHERE ev.type = ?2
 			ORDER BY cs.legacy_slug IS NULL LIMIT 1`
 		)
 		.bind(slug, EVENT_TYPE)
@@ -128,13 +136,14 @@ export async function findEventRow(db, slug) {
 }
 
 /**
- * El taller del que `id` es parte (vivo o no), o `null`.
+ * El taller del que `id` es parte (vivo o no), o `null`. Exportada para los tests (los de
+ * `readWorkshop` comparan con la lectura en tres pasos).
  *
  * @param {D1Database} db
  * @param {number} id
  * @returns {Promise<EventRow | null>}
  */
-async function parentOf(db, id) {
+export async function parentOf(db, id) {
 	const row = await db
 		.prepare(
 			`SELECT ${eventCols('ev', 'cs')} FROM edges e
@@ -148,14 +157,14 @@ async function parentOf(db, id) {
 
 /**
  * Las otras partes del taller `id`, en orden. Con `viewer`, solo las que ve; sin él, todas las
- * que no están borradas (para escribir).
+ * que no están borradas (para escribir). Exportada para los tests, como `parentOf`.
  *
  * @param {D1Database} db
  * @param {number} id
  * @param {Viewer | null} viewer
  * @returns {Promise<EventRow[]>}
  */
-async function childrenOf(db, id, viewer) {
+export async function childrenOf(db, id, viewer) {
 	const vis = viewer ? visibleWhere(viewer, 'ev') : { sql: 'ev.deleted_at IS NULL', params: [] };
 	const { results } = await db
 		.prepare(
@@ -174,19 +183,67 @@ async function childrenOf(db, id, viewer) {
  * solo con lo que `viewer` puede ver; `null` si el evento no es parte de ningún taller (o quien
  * mira no ve el taller, o no ve ninguna otra parte).
  *
+ * Corre en cada escaneo de la puerta, en la página de cada entrada y en la del estado de una
+ * compra, así que es una sola ida y vuelta a D1: una tanda con el evento, su taller y las partes
+ * (estas dos buscan el evento por su dirección adentro del SQL, con la misma regla que
+ * `findEventRow`). Da lo mismo que leer en tres pasos (`findEventRow`, `parentOf` y `childrenOf`
+ * del taller: el padre vivo o, si no hay, el evento), lo que comparan los tests.
+ *
  * @param {D1Database | null | undefined} db
  * @param {string} slug dirección del evento
  * @param {Viewer} [viewer]
  * @returns {Promise<Workshop | null>}
  */
 export async function readWorkshop(db, slug, viewer = ANON) {
-	if (!db) return null;
-	const self = await findEventRow(db, slug);
+	if (!db || typeof slug !== 'string' || !slug) return null;
+	// El id del evento en esa dirección (como `findEventRow`), con `?` sin número: la dirección y
+	// el tipo se pasan cada vez que aparece.
+	const selfId = `(SELECT sev.id FROM objects sev ${eventJoin('sev', 'scs')}
+		WHERE sev.type = ? AND (scs.legacy_slug = ? OR (scs.legacy_slug IS NULL AND sev.slug = ?))
+		ORDER BY scs.legacy_slug IS NULL LIMIT 1)`;
+	const selfParams = [EVENT_TYPE, slug, slug];
+	// El taller del que el evento es parte, si está vivo (`parentOf` pone primero los vivos).
+	const liveParentId = `(SELECT pe.from_id FROM edges pe
+		JOIN objects pev ON pev.id = pe.from_id AND pev.type = ?
+		WHERE pe.kind = ? AND pe.to_id = ${selfId} AND pev.deleted_at IS NULL
+		ORDER BY pe.id LIMIT 1)`;
+	const liveParentParams = [EVENT_TYPE, PARTE_EDGE, ...selfParams];
+	const vis = viewer ? visibleWhere(viewer, 'ev') : { sql: 'ev.deleted_at IS NULL', params: [] };
+	const [selfRes, parentRes, childrenRes] = await db.batch([
+		db
+			.prepare(
+				`SELECT ${eventCols('ev', 'cs')} FROM objects ev ${eventJoin('ev', 'cs')}
+				WHERE ev.type = ?2 AND (cs.legacy_slug = ?1 OR (cs.legacy_slug IS NULL AND ev.slug = ?1))
+				ORDER BY cs.legacy_slug IS NULL LIMIT 1`
+			)
+			.bind(slug, EVENT_TYPE),
+		db
+			.prepare(
+				`SELECT ${eventCols('ev', 'cs')} FROM edges e
+				JOIN objects ev ON ev.id = e.from_id AND ev.type = ? ${eventJoin('ev', 'cs')}
+				WHERE e.kind = ? AND e.to_id = ${selfId}
+				ORDER BY ev.deleted_at IS NOT NULL, e.id LIMIT 1`
+			)
+			.bind(EVENT_TYPE, PARTE_EDGE, ...selfParams),
+		db
+			.prepare(
+				`SELECT ${eventCols('ev', 'cs')} FROM edges e
+				JOIN objects ev ON ev.id = e.to_id AND ev.type = ? ${eventJoin('ev', 'cs')}
+				WHERE e.kind = ? AND e.from_id = coalesce(${liveParentId}, ${selfId}) AND ${vis.sql}
+				ORDER BY e.position, e.id`
+			)
+			.bind(EVENT_TYPE, PARTE_EDGE, ...liveParentParams, ...selfParams, ...vis.params)
+	]);
+	const selfRow = /** @type {Record<string, unknown>[]} */ (selfRes.results)[0];
+	const self = selfRow ? rowOf(selfRow, 'ev') : null;
 	if (!self || !canSee(self, viewer)) return null;
-	const parent = await parentOf(db, self.id);
+	const parentRow = /** @type {Record<string, unknown>[]} */ (parentRes.results)[0];
+	const parent = parentRow ? rowOf(parentRow, 'ev') : null;
 	if (parent && parent.deleted_at === null && !canSee(parent, viewer)) return null;
 	const workshop = parent && parent.deleted_at === null ? parent : self;
-	const children = await childrenOf(db, workshop.id, viewer);
+	const children = /** @type {Record<string, unknown>[]} */ (childrenRes.results).map((r) =>
+		rowOf(r, 'ev')
+	);
 	if (!children.length) return null;
 	return numberParts(workshop, children);
 }
@@ -245,9 +302,55 @@ export async function coveredPartsByWorkshop(db) {
 	return out;
 }
 
+/**
+ * Cuántas entradas vendidas tienen esos eventos (por dirección): las mismas órdenes que cuentan
+ * para el cupo (orders.js), o sea aprobadas o con la reserva todavía vigente.
+ *
+ * @param {D1Database} db
+ * @param {string[]} slugs
+ * @param {number} [now]
+ * @returns {Promise<number>}
+ */
+export async function soldCount(db, slugs, now = Date.now()) {
+	const list = [...new Set(slugs.filter((s) => typeof s === 'string' && s))];
+	if (!list.length) return 0;
+	// ?1 es `now`; las direcciones van de ?2 en adelante (como getTakenMany en orders.js).
+	const marks = list.map((_, i) => `?${i + 2}`).join(', ');
+	const row = await db
+		.prepare(
+			`SELECT COALESCE(SUM(quantity), 0) AS n FROM orders
+			WHERE event_slug IN (${marks})
+				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?1))`
+		)
+		.bind(now, ...list)
+		.first();
+	return Number(row?.n ?? 0);
+}
+
+/**
+ * «‹evento› ya tiene N entradas vendidas: …» (la pregunta antes de cambiar de qué evento es la
+ * entrada).
+ *
+ * @param {string} who «‹título›» o «Las partes de ‹título›»
+ * @param {number} n
+ * @param {boolean} [many] si `who` es plural («Las partes de…»)
+ */
+function salesQuestion(who, n, many = false) {
+	const has = many ? 'ya tienen' : 'ya tiene';
+	const sold = n === 1 ? '1 entrada vendida' : `${n} entradas vendidas`;
+	const stop = n === 1 ? 'deja de valer' : 'dejan de valer';
+	return `${who} ${has} ${sold}: si cambiás esto, ${stop} en la puerta. ¿Cambiar igual?`;
+}
+
 // --- Escrituras (panel) ---
 
-/** @typedef {{ ok: true } | { ok: false, message: string }} WriteResult */
+/**
+ * `needsConfirm`: hay entradas vendidas y no vino `confirm: true` (no se guardó nada). `sold`: se
+ * guardó igual, confirmado, con esas entradas vendidas (para el registro de actividad).
+ *
+ * @typedef {{ ok: true, sold?: number }
+ *   | { ok: false, message: string, needsConfirm?: true }} WriteResult
+ */
 
 /**
  * Guarda el taller con saveObject() (versión nueva y revisión `partes` en la misma tanda). Si el
@@ -304,11 +407,18 @@ export const NOT_IN_DB =
  * Cambia las partes de un taller (2 en adelante, en orden): agregar, sacar y reordenar es mandar
  * la lista nueva entera. `[]` deja de ser un taller (las partes quedan como eventos sueltos).
  *
+ * Sumar como parte un evento que ya vendió entradas (con una sola entrada para el taller) pregunta
+ * antes: sin `confirm`, contesta `needsConfirm` y no guarda.
+ *
  * @param {D1Database} db
- * @param {{ eventSlug: string, partSlugs: string[], by: string, now?: number }} input
+ * @param {{ eventSlug: string, partSlugs: string[], by: string, now?: number, confirm?: boolean }} input
  * @returns {Promise<WriteResult>}
  */
-export async function setWorkshopParts(db, { eventSlug, partSlugs, by, now = Date.now() }) {
+export async function setWorkshopParts(
+	db,
+	{ eventSlug, partSlugs, by, now = Date.now(), confirm = false }
+) {
+	let sold = 0;
 	if (!Array.isArray(partSlugs)) return { ok: false, message: 'Las partes no son una lista.' };
 	if (partSlugs.length + 1 > MAX_PARTS) {
 		return { ok: false, message: `Un taller puede tener como mucho ${MAX_PARTS} partes.` };
@@ -353,6 +463,33 @@ export async function setWorkshopParts(db, { eventSlug, partSlugs, by, now = Dat
 				}
 				ids.push(part.id);
 			}
+			// Las partes que se suman (no las que ya estaban): con una sola entrada, la de cada una
+			// deja de valer (vale la del taller) y su cupo se sumaría al del taller.
+			sold = 0;
+			if (!workshop.perPart) {
+				const current = new Set((await childrenOf(db, workshop.id, null)).map((p) => p.id));
+				/** @type {EventRow[]} */
+				const withSales = [];
+				for (const raw of partSlugs) {
+					const part = await findEventRow(db, String(raw ?? '').trim());
+					if (!part || current.has(part.id)) continue;
+					const n = await soldCount(db, [part.slug], now);
+					if (n > 0) {
+						sold += n;
+						withSales.push(part);
+					}
+				}
+				if (sold > 0 && !confirm) {
+					const names = withSales.map((p) => `«${p.title}»`);
+					const who =
+						names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} y ${names.at(-1)}`;
+					return {
+						ok: false,
+						needsConfirm: true,
+						message: salesQuestion(who, sold, withSales.length > 1)
+					};
+				}
+			}
 			return {
 				id: workshop.id,
 				type: EVENT_TYPE,
@@ -361,7 +498,7 @@ export async function setWorkshopParts(db, { eventSlug, partSlugs, by, now = Dat
 			};
 		},
 		{ by, now, keepImported: true }
-	);
+	).then((r) => (r.ok && sold > 0 ? { ok: true, sold } : r));
 }
 
 /**
@@ -497,16 +634,36 @@ export async function createWorkshopPart(db, { eventSlug, start, end, by, now = 
  * Prende o apaga «Entradas por parte» en el taller (`extra.entradas_por_parte`, junto con el
  * resto de la configuración de entradas).
  *
+ * Con entradas vendidas pregunta antes (sin `confirm`, contesta `needsConfirm` y no guarda): al
+ * prenderlo, las del taller (dejan de valer en la puerta de las otras partes); al apagarlo, las
+ * de las partes (pasa a valer solo la del taller).
+ *
  * @param {D1Database} db
- * @param {{ eventSlug: string, perPart: boolean, by: string, now?: number }} input
+ * @param {{ eventSlug: string, perPart: boolean, by: string, now?: number, confirm?: boolean }} input
  * @returns {Promise<WriteResult>}
  */
-export async function setPerPartTickets(db, { eventSlug, perPart, by, now = Date.now() }) {
+export async function setPerPartTickets(
+	db,
+	{ eventSlug, perPart, by, now = Date.now(), confirm = false }
+) {
+	let sold = 0;
 	return saveWorkshop(
 		db,
 		eventSlug,
 		async (row) => {
+			sold = 0;
 			if (row.perPart === perPart) return { ok: true };
+			const parts = perPart ? [] : await childrenOf(db, row.id, null);
+			sold = await soldCount(db, perPart ? [row.slug] : parts.map((p) => p.slug), now);
+			if (sold > 0 && !confirm) {
+				return {
+					ok: false,
+					needsConfirm: true,
+					message: perPart
+						? salesQuestion(`«${row.title}»`, sold)
+						: salesQuestion(`Las partes de «${row.title}»`, sold, true)
+				};
+			}
 			const full = await db.prepare('SELECT data FROM objects WHERE id = ?1').bind(row.id).first();
 			/** @type {Record<string, any>} */
 			const data = JSON.parse(String(full?.data ?? '{}'));
@@ -518,7 +675,7 @@ export async function setPerPartTickets(db, { eventSlug, perPart, by, now = Date
 			return { id: row.id, type: EVENT_TYPE, version: row.version, data };
 		},
 		{ by, now, keepImported: false }
-	);
+	).then((r) => (r.ok && sold > 0 ? { ok: true, sold } : r));
 }
 
 /**

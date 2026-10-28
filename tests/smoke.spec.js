@@ -57,11 +57,12 @@ const icsDate = (v) =>
 const MAIN_ROUTES = [
 	// The home <h1> is a hidden h-card (microformats), so check the first visible section title.
 	{ path: '/', title: /^Kinky Vibe$/, heading: 'Talleres y eventos', level: 2 },
-	{ path: '/calendario', title: /^Calendario · Kinky Vibe$/ },
-	{ path: '/material', title: /Artículos, links y descargables/ },
-	{ path: '/amigues', title: /Emprendimientos y profesionales/ },
-	{ path: '/wiki', title: /Kinkipedia/, heading: 'Kinkipedia' },
-	{ path: '/todo', title: /^Kinky Vibe$/ },
+	// The list titles are the panel texts (`<lista>.heading`, previewTexts.js) plus « · Kinky Vibe».
+	{ path: '/calendario', title: /^Calendario · .+ · Kinky Vibe$/ },
+	{ path: '/material', title: /^Material · .+ · Kinky Vibe$/ },
+	{ path: '/amigues', title: /^Amigues · .+ · Kinky Vibe$/ },
+	{ path: '/wiki', title: /^Kinkipedia · .+ · Kinky Vibe$/, heading: 'Kinkipedia' },
+	{ path: '/todo', title: /^Todo el contenido · .+ · Kinky Vibe$/ },
 	{ path: '/calendario/someter-2026-09', title: /Someter/, heading: /Someter/ },
 	{ path: '/material/6-tips-para-tops', title: /6 tips para tops/, heading: '6 tips para tops' },
 	{ path: '/amigues/AUCH', title: /AUCH/, heading: /AUCH/ },
@@ -168,10 +169,15 @@ test.describe('calendario', () => {
 		// changing month is client-only: the loads don't read the query string
 		const dataRequests = [];
 		page.on('request', (r) => r.url().includes('__data.json') && dataRequests.push(r.url()));
-		await page.getByRole('button', { name: 'Next Month' }).click();
+		// Dentro del rango de meses con eventos las flechas son links rastreables (docs/seo.md). Hay
+		// eventos pasados en la semilla, así que el mes anterior siempre está en el rango (el
+		// siguiente depende de la fecha: puede no haber eventos después).
+		const prev = page.getByRole('link', { name: 'Mes anterior' });
+		await expect(prev).toHaveAttribute('href', /^\/calendario\?viewdate=\d{4}-\d{2}$/);
+		await prev.click();
 		await expect(page).toHaveURL(/[?&]viewdate=\d{4}-\d{2}/);
 		await expect(month).not.toHaveText(first);
-		await page.getByRole('button', { name: 'Previous Month' }).click();
+		await page.getByRole('link', { name: 'Mes siguiente' }).click();
 		await expect(month).toHaveText(first);
 		await expect(page).not.toHaveURL(/viewdate/);
 		await page.goBack();
@@ -179,6 +185,10 @@ test.describe('calendario', () => {
 		await page.goBack();
 		await expect(month).toHaveText(first);
 		expect(dataRequests).toEqual([]);
+		// Fuera del rango, la flecha sigue siendo un botón: no hay links a meses vacíos sin fin.
+		await page.goto('/calendario?viewdate=1999-01');
+		await expect(page.getByRole('button', { name: 'Mes anterior' })).toBeVisible();
+		await expect(page.locator('a[href*="viewdate=1998-12"]')).toHaveCount(0);
 	});
 
 	test('/calendario.ics es un iCalendar válido con VEVENTs', async ({ request }) => {
@@ -190,7 +200,23 @@ test.describe('calendario', () => {
 		const { lines, events } = parseIcs(text);
 		expect(lines[0]).toBe('BEGIN:VCALENDAR');
 		expect(lines.at(-1)).toBe('END:VCALENDAR');
-		expect(events.length).toBeGreaterThan(10);
+		expect(text).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT1H');
+		// De los pasados van solo los de los últimos 90 días (docs/seo.md). La semilla es fija y el
+		// tiempo corre, así que en vez de un número fijo de eventos: están todos los eventos listados
+		// (no cancelados) que empezaron en esa ventana, y ninguno que haya terminado antes.
+		const DAY = 24 * 60 * 60 * 1000;
+		const since = Date.now() - 90 * DAY;
+		const posts = await (await request.get('/api/posts')).json();
+		const recent = posts
+			.filter((/** @type {any} */ p) => p.meta.category === 'calendario')
+			.filter((/** @type {any} */ p) => p.meta.status !== 'cancelado')
+			// un día de margen por la zona horaria (el .ics lleva la hora sin zona)
+			.filter((/** @type {any} */ p) => Date.parse(p.meta.start) >= since + DAY)
+			.map((/** @type {any} */ p) => `https://kinkyvibe.ar${p.path}`);
+		const urls = events.map((ev) => ev.URL);
+		for (const url of recent) expect(urls, url).toContain(url);
+		for (const ev of events) expect(icsDate(ev.DTEND), ev.URL).toBeGreaterThan(since - DAY);
+		expect(events.length).toBeGreaterThanOrEqual(recent.length);
 		for (const ev of events) {
 			expect(ev.SUMMARY, JSON.stringify(ev)).toBeTruthy();
 			expect(ev.URL).toMatch(/^https:\/\/kinkyvibe\.ar\/calendario\//);
@@ -436,24 +462,23 @@ test.describe('feeds', () => {
 	});
 });
 
-test.describe('errores', () => {
-	test('/wiki/<término inexistente> no rompe', async ({ request }) => {
-		const res = await request.get('/wiki/esto-no-existe-xyz');
-		expect(res.status()).toBeLessThan(500);
+test.describe('salud', () => {
+	test('/api/health responde 200 con ok true y sin caché', async ({ request }) => {
+		const res = await request.get('/api/health');
+		expect(res.status()).toBe(200);
+		expect(res.headers()['cache-control']).toBe('no-store');
+		const body = await res.json();
+		expect(body.ok).toBe(true);
+		expect(body.db).toBe('ok');
 	});
+});
 
-	// Los prototipos (/estilo/prototipos, docs/estilo.md) tampoco existen fuera de un preview.
-	for (const path of [
-		'/estilo/prototipos',
-		'/estilo/prototipos/filtros-celu',
-		'/estilo/prototipos/filtros-celu-v2',
-		'/estilo/prototipos/lista-de-espera'
-	]) {
-		test(`${path} (prototipo) devuelve 404 fuera de un preview`, async ({ request }) => {
-			const res = await request.get(path);
-			expect(res.status()).toBe(404);
-		});
-	}
+test.describe('errores', () => {
+	test('/wiki/<término inexistente> devuelve 404', async ({ request }) => {
+		// Ninguna etiqueta se llama así: 404 de verdad, no una página vacía con 200.
+		const res = await request.get('/wiki/esto-no-existe-xyz');
+		expect(res.status()).toBe(404);
+	});
 
 	// Regression test: missing posts used to bubble up as a 500 instead of a 404.
 	for (const path of ['/calendario/no-existe', '/material/no-existe', '/amigues/no-existe']) {
@@ -467,12 +492,6 @@ test.describe('errores', () => {
 	// tiene rama de deploy, como producción.
 	test('/estilo (galería de componentes) devuelve 404 fuera de un preview', async ({ request }) => {
 		const res = await request.get('/estilo');
-		expect(res.status()).toBe(404);
-	});
-
-	// El borrador legal, lo mismo hasta que se publique (docs/legales.md).
-	test('/legales (borrador legal) devuelve 404 fuera de un preview', async ({ request }) => {
-		const res = await request.get('/legales');
 		expect(res.status()).toBe(404);
 	});
 });
@@ -505,6 +524,54 @@ test.describe('auth', () => {
 });
 
 test.describe('experiencia', () => {
+	// Las dos Lato latin (400 y 700) se piden con la respuesta de la página: la precarga de SvelteKit
+	// ($lib/server/preload.js) las pone en la cabecera `Link` (en las páginas que no se prerenderizan
+	// no va un `<link>` en el HTML), antes que el JS y con la misma URL con hash que el @font-face del
+	// CSS: si no coinciden, el navegador baja cada letra dos veces.
+	test('las letras Lato latin se precargan con la URL del CSS', async ({ page, request }) => {
+		const res = await request.get('/material');
+		const links = (res.headers()['link'] ?? '').split(/,\s*(?=<)/);
+		const preloads = links.filter((l) => /rel="preload"/.test(l) && /as="font"/.test(l));
+		expect(preloads).toHaveLength(2);
+		const hrefs = preloads.map((l) => {
+			expect(l).toContain('type="font/woff2"');
+			expect(l).toMatch(/;\s*crossorigin\b/);
+			return /^<([^>]+)>/.exec(l)?.[1] ?? '';
+		});
+		expect(hrefs.map((h) => /lato-latin-(\d+)-normal\.[\w-]+\.woff2$/.exec(h)?.[1])).toEqual([
+			'400',
+			'700'
+		]);
+		// antes que el JS (si van después, en Chrome esperan detrás de los ~80 módulos)
+		const firstModule = links.findIndex((l) => /rel="modulepreload"/.test(l));
+		expect(firstModule).toBeGreaterThan(-1);
+		expect(links.indexOf(preloads[1])).toBeLessThan(firstModule);
+
+		const fonts = [];
+		page.on('request', (r) => {
+			if (r.url().endsWith('.woff2')) fonts.push(new URL(r.url()).pathname);
+		});
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		await page.evaluate(() => document.fonts.ready);
+		// las precargadas son las que usa la página, y cada una se pide una sola vez
+		for (const href of hrefs)
+			expect(fonts.filter((f) => f === new URL(href, page.url()).pathname)).toHaveLength(1);
+		const usedByCss = await page.evaluate(() =>
+			[...document.styleSheets].flatMap((sheet) => {
+				try {
+					return [...sheet.cssRules]
+						.filter((r) => r instanceof CSSFontFaceRule)
+						.map((r) => /url\("?([^")]+)"?\)/.exec(r.style.getPropertyValue('src'))?.[1] ?? '')
+						.map((u) => new URL(u, sheet.href ?? location.href).pathname);
+				} catch {
+					return [];
+				}
+			})
+		);
+		for (const href of hrefs) expect(usedByCss).toContain(new URL(href, page.url()).pathname);
+	});
+
 	test('el aviso de +18 aparece en la primera visita y se puede cerrar', async ({ page }) => {
 		await page.goto('/');
 		const modal = page.getByRole('heading', { name: '¿Sos mayor de 18 años?' });
@@ -514,6 +581,37 @@ test.describe('experiencia', () => {
 		await page.reload();
 		await expect(page.getByRole('heading', { level: 2, name: 'Talleres y eventos' })).toBeVisible();
 		await expect(modal).toBeHidden();
+	});
+
+	// Al navegar, la página nueva aparece con un fundido corto y sin espera (antes eran 300 ms de
+	// espera más 300 ms de fundido: más de medio segundo en blanco). Svelte arma la espera como una
+	// animación vacía que dura lo que la espera y después el fundido, las dos con
+	// `Element.animate`: se anotan las de <main> en vez de mirar el reloj, así no depende del
+	// tiempo.
+	test('al navegar, la página aparece enseguida (fundido corto y sin espera)', async ({ page }) => {
+		await acceptAgeGate(page);
+		await page.addInitScript(() => {
+			window.__mainAnimations = [];
+			const original = Element.prototype.animate;
+			Element.prototype.animate = function (keyframes, options) {
+				if (this.tagName === 'MAIN')
+					window.__mainAnimations.push(typeof options === 'number' ? options : options?.duration);
+				return original.call(this, keyframes, options);
+			};
+		});
+		await page.goto('/', { waitUntil: 'networkidle' });
+		await page
+			.locator('header')
+			.getByRole('link', { name: /Calendario/ })
+			.first()
+			.click();
+		await expect(page).toHaveURL(/\/calendario$/);
+		await expect(page).toHaveTitle(/^Calendario · .+ · Kinky Vibe$/);
+		await expect.poll(() => page.evaluate(() => window.__mainAnimations.length)).toBe(2);
+		const [delay, duration] = await page.evaluate(() => window.__mainAnimations);
+		expect(delay).toBe(0);
+		expect(duration).toBeGreaterThan(0);
+		expect(duration).toBeLessThanOrEqual(200);
 	});
 
 	test('la home no tira errores de consola', async ({ page, baseURL }) => {

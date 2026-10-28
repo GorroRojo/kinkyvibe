@@ -9,6 +9,8 @@
 	<link rel="manifest" href="%sveltekit.assets%/site.webmanifest" />
 	<link rel="alternate" type="application/rss+xml" title="Kinky Vibe" href="/rss" />
 	<meta name="viewport" content="width=device-width" />
+	<!-- Imágenes grandes en Google y Discover; convive con el noindex de cada página (docs/compartir.md). -->
+	<meta name="robots" content="max-image-preview:large" />
 	%sveltekit.head%
 </head>
 
@@ -16,7 +18,7 @@
 	<div style="display: contents">%sveltekit.body%</div>
 
 	<!-- Cloudflare Web Analytics -->
-	<script defer src="https://static.cloudflareinsights.com/beacon.min.js"
+	<script defer nonce="%sveltekit.nonce%" src="https://static.cloudflareinsights.com/beacon.min.js"
 		data-cf-beacon='{"token": "eb67d1991a6e47079e98bc624a13020d"}'></script>
 	<!-- End Cloudflare Web Analytics -->
 </body>

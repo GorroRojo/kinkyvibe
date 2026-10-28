@@ -82,7 +82,7 @@ describe('components render frontmatter as text', () => {
 			}
 		});
 		expect(body).not.toContain('<img src=x');
-		expect(body).toContain('Casa\u00a0&lt;img');
+		expect(body).toContain('Casa &lt;img');
 	});
 
 	it('Carrousel: online o el lugar con la regla de la página (eventPlace.js)', () => {
@@ -98,22 +98,22 @@ describe('components render frontmatter as text', () => {
 					])
 				}
 			});
-			// Sin los comentarios de Svelte (`<!---->`), cortando por `<!--` (sin regex sobre HTML).
-			return (body.match(/<h2[^>]*>([\s\S]*?)<\/h2>/)?.[1] ?? '')
-				.split('<!--')
-				.map((s, i) => (i ? s.slice(s.indexOf('-->') + 3) : s))
+			// La línea de la fecha y el lugar (`.when`), sin etiquetas ni los comentarios de Svelte
+			// (`<!---->`), cortando por `<` (sin regex sobre HTML).
+			return (body.match(/<p class="when[^>]*>([\s\S]*?)<\/p>/)?.[1] ?? '')
+				.split('<')
+				.map((s, i) => (i ? s.slice(s.indexOf('>') + 1) : s))
 				.join('')
 				.trim();
 		};
-		expect(heading({ tags: ['Online'] })).toMatch(/ - Online$/);
-		expect(heading({ modalidad: 'online', tags: [] })).toMatch(/ - Online$/);
+		expect(heading({ tags: ['Online'] })).toMatch(/ · Online$/);
+		expect(heading({ modalidad: 'online', tags: [] })).toMatch(/ · Online$/);
 		// Solo la dirección (antes: «Online», porque no tenía nombre).
-		expect(heading({ location: 'Calle Falsa 123', tags: [] })).toMatch(
-			/ - Calle\u00a0Falsa\u00a0123$/
-		);
+		expect(heading({ location: 'Calle Falsa 123', tags: [] })).toMatch(/ · Calle Falsa 123$/);
 		// Sin nada: solo la fecha (antes: «- Online»).
 		const bare = heading({ tags: ['AMBA'] });
 		expect(bare).not.toContain('Online');
-		expect(bare).not.toContain(' - ');
+		// (la fecha ya trae su « · » antes de la hora: termina en la hora, sin lugar)
+		expect(bare).toMatch(/ · 20:00$/);
 	});
 });

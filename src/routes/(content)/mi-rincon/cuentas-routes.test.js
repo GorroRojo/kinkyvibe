@@ -136,7 +136,13 @@ describe('cuentas', () => {
 			cookies: { [m.session.SESSION_COOKIE]: token }
 		});
 		await m.web.loadMember(event);
-		expect(event.locals.member).toEqual({ id: account.id, email: EMAIL });
+		// Con la velocidad de lectura y el permiso de perfiles de la sesión; nada más de la cuenta.
+		expect(event.locals.member).toEqual({
+			id: account.id,
+			email: EMAIL,
+			readingSpeed: null,
+			canHaveProfiles: false
+		});
 		// No toca la sesión de admins.
 		expect(event.locals.user).toBeUndefined();
 		const data = /** @type {any} */ (await m.root.load(event));
@@ -253,8 +259,62 @@ describe('cuentas', () => {
 			email: EMAIL,
 			hasPassword: false,
 			orders: [],
+			unconfirmed: [],
 			ordersError: false
 		});
+	});
+
+	it('«¿Son tuyas?»: la gratis pedida sin sesión espera; «Sí» la suma y «No es mía» la saca', async () => {
+		const m = await modules();
+		const { ev } = await signedIn(m);
+		/** @param {string} id @param {string} slug */
+		const freeOrder = (id, slug) =>
+			t.db
+				.prepare(
+					`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal, total,
+						buyer_name, buyer_email, status, created_at, updated_at, expires_at, payment_method,
+						fondo_option)
+					VALUES (?1, ?2, 'general', 1, 0, 0, 0, 'Persona Inventada', ?3, 'approved', 1, 1, 1,
+						'gratis', 'gorra')`
+				)
+				.bind(id, slug, EMAIL)
+				.run();
+		// Desde cuándo se pregunta (lo escribe la migración 0061): antes de estas órdenes.
+		await t.db
+			.prepare(
+				`INSERT INTO ticket_settings (key, value, updated_at, updated_by)
+				VALUES ('free_order_choices_since', '0', 1, 'test')`
+			)
+			.run();
+		const ONE = '00000000-0000-4000-8000-0000000000f1';
+		const TWO = '00000000-0000-4000-8000-0000000000f2';
+		await freeOrder(ONE, 'evento-uno');
+		await freeOrder(TWO, 'evento-dos');
+		const before = /** @type {any} */ (await m.rincon.load(ev()));
+		expect(before.orders).toEqual([]);
+		expect(before.unconfirmed.map((/** @type {any} */ o) => o.id).sort()).toEqual([ONE, TWO]);
+
+		expect(await m.rincon.actions.elegirOrden(ev({ orden: ONE, mine: '1' }))).toEqual({
+			action: 'elegirOrden',
+			message: 'Listo: las sumamos a tus compras y entradas.'
+		});
+		expect(await m.rincon.actions.elegirOrden(ev({ orden: TWO, mine: '0' }))).toEqual({
+			action: 'elegirOrden',
+			message: 'Listo: no te las mostramos más.'
+		});
+		const after = /** @type {any} */ (await m.rincon.load(ev()));
+		expect(after.orders.map((/** @type {any} */ o) => o.id)).toEqual([ONE]);
+		expect(after.unconfirmed).toEqual([]);
+
+		// Una orden que no es de este mail, o un valor raro: nada.
+		const bad = /** @type {any} */ (
+			await m.rincon.actions.elegirOrden(ev({ orden: 'no-existe', mine: '1' }))
+		);
+		expect(bad.status).toBe(404);
+		const odd = /** @type {any} */ (
+			await m.rincon.actions.elegirOrden(ev({ orden: ONE, mine: 'x' }))
+		);
+		expect(odd.status).toBe(400);
 	});
 
 	it('contraseña: sin código fresco no se pone, cambia ni saca', async () => {
@@ -338,6 +398,114 @@ describe('cuentas', () => {
 		expect(await m.session.getSessionAccount(t.db, strangerToken)).not.toBeNull();
 	});
 
+	it('«Dónde tenés la sesión abierta»: solo las de la cuenta, esta primero, sin tokens', async () => {
+		const m = await modules();
+		const { account, token, ev } = await signedIn(m);
+		const other = await m.session.createSession(t.db, account.id, 'password', {
+			device: 'Firefox en Android'
+		});
+		const stranger = await m.accounts.upsertVerifiedAccount(t.db, 'otra.persona@example.com');
+		await m.session.createSession(t.db, stranger.id, 'code', { device: 'Safari en iPhone' });
+		const page = /** @type {any} */ (await m.rincon.load(ev()));
+		expect(page.sessions).toHaveLength(2);
+		expect(page.sessions[0]).toMatchObject({ current: true, method: 'code', device: null });
+		expect(page.sessions[1]).toMatchObject({
+			current: false,
+			method: 'password',
+			device: 'Firefox en Android'
+		});
+		const json = JSON.stringify(page.sessions);
+		expect(json).not.toContain('Safari en iPhone');
+		const hashes = (await t.db.prepare('SELECT token_hash FROM account_sessions').all()).results;
+		for (const secret of [token, other, ...hashes.map((r) => String(r.token_hash))])
+			expect(json).not.toContain(secret);
+	});
+
+	it('«Cerrar esta»: no cierra una sesión de otra cuenta', async () => {
+		const m = await modules();
+		const { token, ev } = await signedIn(m);
+		const stranger = await m.accounts.upsertVerifiedAccount(t.db, 'otra.persona@example.com');
+		const strangerToken = await m.session.createSession(t.db, stranger.id, 'code');
+		// El id que vería la otra cuenta en su propio Mi rincón.
+		const strangerId = await m.session.sessionIdOfToken(strangerToken);
+		const r = await m.rincon.actions.cerrarSesion(ev({ sesion: String(strangerId) }));
+		expect(r).toMatchObject({ status: 404 });
+		expect(await m.session.getSessionAccount(t.db, strangerToken)).not.toBeNull();
+		expect(await m.session.getSessionAccount(t.db, token)).not.toBeNull();
+		// Basura o vacío: tampoco.
+		for (const sesion of ['', 'x'.repeat(32), "' OR 1=1 --"])
+			expect(await m.rincon.actions.cerrarSesion(ev({ sesion }))).toMatchObject({ status: 404 });
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM account_sessions').first())?.n).toBe(2);
+	});
+
+	it('«Cerrar esta» en otra sesión propia la invalida al toque; esta sigue', async () => {
+		const m = await modules();
+		const { account, token, ev } = await signedIn(m);
+		const other = await m.session.createSession(t.db, account.id, 'code');
+		const page = /** @type {any} */ (await m.rincon.load(ev()));
+		const target = page.sessions.find((/** @type {any} */ s) => !s.current);
+		const event = ev({ sesion: target.id });
+		expect(await m.rincon.actions.cerrarSesion(event)).toEqual({
+			action: 'dispositivos',
+			message: 'Listo: cerramos esa sesión.'
+		});
+		// En el pedido siguiente con esa cookie ya no hay cuenta.
+		expect(await m.session.getSessionAccount(t.db, other)).toBeNull();
+		const stale = fakeEvent({ cookies: { [m.session.SESSION_COOKIE]: other } });
+		await m.web.loadMember(stale);
+		expect(stale.locals.member).toBeUndefined();
+		expect(await m.session.getSessionAccount(t.db, token)).not.toBeNull();
+		expect(event.jar[m.session.SESSION_COOKIE]).toBe(token);
+		// Cerrarla de nuevo: ya no está.
+		expect(await m.rincon.actions.cerrarSesion(ev({ sesion: target.id }))).toMatchObject({
+			status: 404
+		});
+	});
+
+	it('«Cerrar esta» en la sesión de este navegador es salir', async () => {
+		const m = await modules();
+		const { account, token, ev } = await signedIn(m);
+		const other = await m.session.createSession(t.db, account.id, 'code');
+		const event = ev({ sesion: String(await m.session.sessionIdOfToken(token)) });
+		const r = await thrown(() => m.rincon.actions.cerrarSesion(event));
+		expect(r).toMatchObject({ status: 303, location: '/?salida=1' });
+		expect(event.jar[m.session.SESSION_COOKIE]).toBeUndefined();
+		expect(await m.session.getSessionAccount(t.db, token)).toBeNull();
+		expect(await m.session.getSessionAccount(t.db, other)).not.toBeNull();
+	});
+
+	it('«Cerrar todas las demás»: queda solo esta, y las de otra cuenta no se tocan', async () => {
+		const m = await modules();
+		const { account, token, ev } = await signedIn(m);
+		const a = await m.session.createSession(t.db, account.id, 'code');
+		const b = await m.session.createSession(t.db, account.id, 'password');
+		const stranger = await m.accounts.upsertVerifiedAccount(t.db, 'otra.persona@example.com');
+		const strangerToken = await m.session.createSession(t.db, stranger.id, 'code');
+		const event = ev({});
+		expect(await m.rincon.actions.cerrarOtras(event)).toEqual({
+			action: 'dispositivos',
+			message: 'Listo: cerramos todas tus otras sesiones.'
+		});
+		expect(await m.session.getSessionAccount(t.db, a)).toBeNull();
+		expect(await m.session.getSessionAccount(t.db, b)).toBeNull();
+		expect(await m.session.getSessionAccount(t.db, token)).not.toBeNull();
+		expect(event.jar[m.session.SESSION_COOKIE]).toBe(token);
+		expect(await m.session.getSessionAccount(t.db, strangerToken)).not.toBeNull();
+	});
+
+	it('al entrar se guarda solo el nombre corto del navegador, no el user agent', async () => {
+		const m = await modules();
+		const account = await m.accounts.upsertVerifiedAccount(t.db, EMAIL);
+		const ua =
+			'Mozilla/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0 SerialInventado/12345';
+		const event = fakeEvent({ path: '/ingresar' });
+		event.request = new Request(event.url, { headers: { 'user-agent': ua } });
+		await m.web.startSession(event, t.db, account.id, 'code');
+		const row = await t.db.prepare('SELECT * FROM account_sessions').first();
+		expect(row?.device).toBe('Firefox en Android');
+		expect(JSON.stringify(row)).not.toContain('SerialInventado');
+	});
+
 	it('borrar: pide «borrar» y un código fresco de borrar', async () => {
 		const m = await modules();
 		const { account, token, ev, confirmCode } = await signedIn(m);
@@ -386,7 +554,9 @@ describe('cuentas', () => {
 			status: 400
 		});
 		const { RATE_LIMITS } = await import('$lib/server/cuentas/index.js');
-		for (let i = 0; i < RATE_LIMITS.codeRequestEmail.limit; i++) await confirmCode('password');
+		// Misma conexión: el tope de mail + conexión (más bajo que el del mail solo).
+		for (let i = 0; i < RATE_LIMITS.codeRequestEmailClient.limit; i++)
+			await confirmCode('password');
 		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 		try {
 			expect(await m.rincon.actions.confirmar(ev({ para: 'delete' }))).toMatchObject({
@@ -411,5 +581,93 @@ describe('cuentas', () => {
 		expect(r).toMatchObject({ status: 303, location: '/?salida=1' });
 		expect(event.jar[m.session.SESSION_COOKIE]).toBeUndefined();
 		expect(await m.session.getSessionAccount(t.db, token)).toBeNull();
+	});
+
+	it('cuenta suspendida: con el código o la contraseña correctos no entra; ve el aviso con el contacto y nunca el motivo', async () => {
+		const m = await modules();
+		const { suspendAccount, unsuspendAccount, suspendedMessage } =
+			await import('$lib/server/cuentas/suspension.js');
+		const { DEFAULT_CONTACT_EMAIL } = await import('$lib/utils/tickets.js');
+		const SECRET = 'MOTIVO-PRIVADO-INVENTADO';
+		const account = await m.accounts.upsertVerifiedAccount(t.db, EMAIL);
+		expect(await m.accounts.setPassword(t.db, account.id, PW, { iterations: 1000 })).toBeNull();
+		await suspendAccount(t.db, account.id, { by: 'admin-de-prueba', reason: SECRET });
+
+		const loginCode = async () =>
+			(await m.codes.createLoginCode(t.db, await m.accounts.emailHash(EMAIL))).code;
+		const sessions = async () =>
+			(
+				await t.db
+					.prepare('SELECT COUNT(*) AS n FROM account_sessions WHERE account_id = ?1')
+					.bind(account.id)
+					.first()
+			)?.n;
+		const expected = {
+			status: 403,
+			data: {
+				suspended: true,
+				contact: DEFAULT_CONTACT_EMAIL,
+				error: suspendedMessage(DEFAULT_CONTACT_EMAIL)
+			}
+		};
+		expect(expected.data.error).toBe(
+			`Tu cuenta está suspendida. Si creés que es un error, escribinos a ${DEFAULT_CONTACT_EMAIL}.`
+		);
+
+		// Con código por mail.
+		const byCode = fakeEvent({
+			path: '/ingresar',
+			form: { email: EMAIL, next: '/mi-rincon', code: await loginCode() }
+		});
+		const r1 = /** @type {any} */ (await m.ingresar.actions.verificar(byCode));
+		expect(r1).toMatchObject(expected);
+		expect(r1.data.step).toBe('email');
+		expect(JSON.stringify(r1)).not.toContain(SECRET);
+		expect(byCode.jar[m.session.SESSION_COOKIE]).toBeUndefined();
+
+		// Con contraseña.
+		const byPassword = fakeEvent({
+			path: '/ingresar',
+			form: { email: EMAIL, next: '/mi-rincon', password: PW }
+		});
+		const r2 = /** @type {any} */ (await m.ingresar.actions.contrasena(byPassword));
+		expect(r2).toMatchObject(expected);
+		expect(JSON.stringify(r2)).not.toContain(SECRET);
+		expect(byPassword.jar[m.session.SESSION_COOKIE]).toBeUndefined();
+		expect(await sessions()).toBe(0);
+
+		// Sin probar que es su mail, el aviso no sale: nadie se entera de que está suspendida.
+		const wrong = /** @type {any} */ (
+			await m.ingresar.actions.contrasena(
+				fakeEvent({ path: '/ingresar', form: { email: EMAIL, password: 'otra frase cualquiera' } })
+			)
+		);
+		expect(wrong.status).toBe(400);
+		expect(wrong.data.suspended).toBeUndefined();
+		const wrongCode = /** @type {any} */ (
+			await m.ingresar.actions.verificar(
+				fakeEvent({ path: '/ingresar', form: { email: EMAIL, code: '000000' } })
+			)
+		);
+		expect(wrongCode.data.suspended).toBeUndefined();
+
+		// Al levantar la suspensión, vuelve a entrar.
+		expect(await unsuspendAccount(t.db, account.id)).toBe('unsuspended');
+		const again = fakeEvent({
+			path: '/ingresar',
+			form: { email: EMAIL, next: '/mi-rincon', code: await loginCode() }
+		});
+		expect(await thrown(() => m.ingresar.actions.verificar(again))).toMatchObject({
+			status: 303,
+			location: '/mi-rincon'
+		});
+		expect(again.jar[m.session.SESSION_COOKIE]).toBeTruthy();
+		const withPassword = fakeEvent({
+			path: '/ingresar',
+			form: { email: EMAIL, next: '/mi-rincon', password: PW }
+		});
+		expect(await thrown(() => m.ingresar.actions.contrasena(withPassword))).toMatchObject({
+			status: 303
+		});
 	});
 });

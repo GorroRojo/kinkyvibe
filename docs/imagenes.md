@@ -21,12 +21,30 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 | Selector de los editores | `src/lib/components/admin/ImagePicker.svelte`                                                             |
 | Enlazar un archivo       | `src/lib/components/admin/LibraryLinkPicker.svelte`, `src/lib/utils/libraryFiles.js` (editor de material) |
 | Achicar en el navegador  | `src/lib/utils/imageResize.js`                                                                            |
+| Copias chicas (tarjetas) | `src/lib/utils/mediaCopies.js`; la pasada por las viejas: `scripts/copias-chicas.js` + `media/copias.js`  |
+| Copia nocturna y bloqueo | `src/lib/server/backup/media.js` (binding `MEDIA_COPIA`, solo producción); ver «Copia de la biblioteca»   |
 | Imágenes viejas del repo | `src/lib/utils/legacyMedia.js` (mapa fijo a su copia en la biblioteca)                                    |
-| PDF y video del material | `scripts/subir-archivos.js` + `src/lib/server/media/archivosViejos.js` (sin correr en producción)         |
+| PDF y video del material | En la biblioteca (`archivo`); ya no hay copia en el repo (ver abajo)                                      |
 
 - **Clave por contenido**: `img/<sha-256>.<ext>`. El mismo archivo subido dos veces es la misma
   imagen (el `slug` del objeto es el hash). Como un archivo nunca cambia, `/media/…` responde con
-  `Cache-Control: public, max-age=31536000, immutable`, `ETag` y el tipo correcto.
+  `Cache-Control: public, max-age=31536000, immutable`, `ETag` y el tipo correcto. La excepción son
+  las imágenes de perfiles (abajo, «Fotos de perfiles»).
+- **Fotos de perfiles** (edge `avatar`): se guardan **un día** (`public, max-age=86400`, sin
+  `immutable`; también sus copias chicas) y se sirven solo mientras algún objeto vivo que se
+  muestra las use (un perfil visible y aprobado, un evento, un texto que la nombra). Si el perfil
+  se oculta, se borra o todavía no se aprobó, `/media` da 404 a cualquiera y la sirve solo a quien
+  ve ese perfil (admins, quien lo gestiona, quien subió la imagen; una cuenta si el perfil es
+  «solo con cuenta») con `private, max-age=3600`, que la caché del borde no guarda
+  (`servableImage`/`servableCopy` en `src/lib/server/media/library.js`). Lo que ya estaba en la
+  caché del borde o de un navegador se sigue viendo hasta un día. Las portadas de eventos, material
+  y series siguen inmutables (nada cambia para el rendimiento de las tarjetas).
+- **Sin metadatos**: antes de calcular el hash, `storeImage` le saca a un JPEG los segmentos Exif,
+  XMP, IPTC y los comentarios (de Exif deja solo la orientación) y a un PNG los bloques eXIf,
+  tEXt, zTXt, iTXt y tIME (`src/lib/server/media/metadata.js`). Ahí pueden ir el GPS de donde se
+  sacó la foto, la fecha o el modelo del celu. WEBP, GIF y AVIF van tal cual (lo que sube el
+  navegador ya pasó por el canvas, que no copia metadatos). Una imagen subida antes de este cambio
+  y subida de nuevo da otro hash: es otra imagen.
 - **Objeto `imagen`**: `title` (nombre para buscarla), `key`, `mime`, `size`, `width`, `height`,
   `alt` (texto alternativo), `original_name` y, si vino del repo, `source_path`. Quién la subió y
   cuándo: `created_by`/`created_at` (solo les admins lo ven).
@@ -36,11 +54,71 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
   ediciones o solo esta?»: para que todas las ediciones usen la misma imagen, se elige la misma
   imagen en cada una (pestaña «De este evento» → las de la serie).
 
+## Copias chicas para las tarjetas
+
+Las tarjetas (13rem × 15em, unos 208 × 240 px), las filas de las listas (~128 px) y el encabezado
+de un perfil mostraban el original (hasta 2000 px y 1,7 MB). Ahora cada imagen tiene, **al lado de
+su original en R2**, dos copias WEBP (calidad 80) con el lado más corto de **360** y **720** px
+(misma proporción; nunca se agranda): `img/<sha-256 del original>-360.webp` y `-720.webp`. Sin el
+cupo de transformaciones de Cloudflare (decidido por gorrite: nada de `/cdn-cgi/image` para esto).
+
+- **Cuándo se hacen**: al subir, en el navegador, del mismo dibujo que la de 2000 px
+  (`prepareImage` en `imageResize.js`; viajan como `copy360` y `copy720`). El servidor
+  (`storeImage`) las guarda solo si el original llegó a R2 recién en esa subida, si son WEBP y si
+  miden lo que tienen que medir (`validCopy`, ±1 px); si no, las ignora sin frenar la subida. Nunca
+  pisa nada que ya esté en R2. Un GIF no tiene copias (puede ser animado).
+- **Por qué el lado más corto**: la tarjeta recorta al centro (`object-fit: cover`) en un recuadro
+  fijo, así que lo que importa es el lado corto, sea la imagen vertical o apaisada. 360 alcanza
+  para 1× (y 1,5×), 720 para 2× y 3×.
+- **Cómo las usan las páginas**: `Card.svelte` lleva `srcset="…-360.webp 1x, …-720.webp 2x"`
+  (`cardSrcset`); `PostListItem.svelte` y `amigues/ProfileHeader.svelte`, solo la de 360 px
+  (`smallSrcset`: alcanza para pantallas de hasta ~2,5× en ~128–160 px, y con una sola densidad la
+  imagen mide lo mismo, así la fila, que se acomoda a la imagen, queda igual). El afiche de la
+  página de un evento (cuadrado, `object-fit: cover`, su LCP) lleva `srcset` con anchos
+  (`posterSrcset`: `-360.webp 360w`, `-720.webp 720w` y el original con su lado corto si la portada
+  tiene medidas; se anota el lado corto porque el cuadrado recorta al centro) y un `sizes` sacado
+  de su CSS (`(min-width: 900px) 24rem, calc(100vw - 1.75rem)`). El `src` sigue siendo el original
+  y el CSS no cambia. Solo para direcciones de la biblioteca del mismo sitio
+  (`/media/img/…`); una imagen de otro sitio, un GIF o la dirección entera al sitio público (las
+  de local y los previews) quedan solo con `src`.
+- **Si una copia no existe** (una imagen de antes de la pasada, o una que el navegador no pudo
+  achicar), `/media/img/<hash>-360.webp` responde **302 al original** con
+  `Cache-Control: public, max-age=3600`: se ve igual que antes y, apenas existe la copia, se usa
+  (como mucho una hora después). Una copia que existe se sirve como el original: caché para
+  siempre, `ETag`, `nosniff` y el `sandbox`. Una imagen borrada: 404 también para sus copias
+  (salvo lo que ya estaba en caché: ver «Borrar»).
+- **Cuánto ahorra**: ver «Velocidad» en [seo.md](seo.md).
+
+### La pasada por las imágenes que ya estaban (una vez, la corre gorrite)
+
+`scripts/copias-chicas.js` hace las copias que faltan de todo lo que hay en el bucket (con sharp,
+en Node; la misma versión que ya instalaba wrangler por miniflare, ahora declarada).
+
+- **Solo suma**: lista las claves `img/…`, calcula las copias que faltan (`missingCopies`, que
+  nunca devuelve una clave que ya está) y escribe **solo** `img/<hash>-360.webp` e
+  `img/<hash>-720.webp` nuevas (WEBP, `Cache-Control` para siempre). Antes de cada escritura vuelve
+  a mirar que no esté. No borra ni pisa nada, no toca la base. Idempotente: la segunda vez dice
+  «0 copias que faltan».
+- **Sin `--yes` no escribe**: lista cada copia que escribiría y de qué original.
+
+```sh
+node scripts/copias-chicas.js --target=production         # vista previa: qué escribiría
+node scripts/copias-chicas.js --target=production --yes   # escribe; pide escribir «produccion»
+```
+
+`--target=local` (el R2 de `.wrangler/state`) y `--target=preview` (necesita `wrangler login`)
+sirven para probarlo antes. Si una imagen falla, lo dice y sigue con las demás; correrlo de nuevo
+hace solo lo que faltó.
+
+**Para volver atrás**: las páginas vuelven al original con revertir el PR (las copias en R2 quedan
+sin usar, no molestan). Si hiciera falta borrarlas, son exactamente las claves que terminan en
+`-360.webp` o `-720.webp` dentro de `img/` (los originales nunca tienen guion); borrarlas solo hace
+que `/media` redirija al original.
+
 ## Documentos y video
 
-gorrite decidió (5/10) que los PDF, el video y el ODT del material vayan a la biblioteca. Este
-paso prepara la biblioteca; **pasar los archivos del repo a R2 y reescribir los textos que los
-enlazan es otro paso** (lo corre gorrite: «Los PDF y el video del material», abajo).
+gorrite decidió (5/10) que los PDF, el video y el ODT del material vayan a la biblioteca. Ya
+están ahí, y los textos que los enlazan, reescritos («Los PDF y el video del material», abajo).
 
 | Tipo                         | Se detecta por los bytes                                            | Se sirve                           |
 | ---------------------------- | ------------------------------------------------------------------- | ---------------------------------- |
@@ -77,16 +155,17 @@ enlazan es otro paso** (lo corre gorrite: «Los PDF y el video del material», a
   `filename`, el nombre con tildes en `filename*`). Todas las respuestas de `/media` dicen
   `Accept-Ranges: bytes` y atienden **un rango** (`Range: bytes=…`): 206 con `Content-Range`,
   416 si el rango está fuera del archivo; varios rangos o uno raro se ignoran (200 con todo). Un
-  archivo borrado da 404, como una imagen.
+  archivo borrado da 404, como una imagen (y como una imagen, lo que ya estaba en caché se sigue
+  sirviendo hasta que se purgue: ver «Borrar»).
 - **Buscar con filtro por tipo**: `GET /imagenes?q=…&tipo=todo|imagen|documento|video` (solo
   admins; cada cosa con `kind`, `typeLabel` y dónde se usa). Sin `tipo`, `/imagenes` sigue
   trayendo solo imágenes (es lo que usa el selector de imágenes).
 - **Enlazar en el material**: en el editor de material, debajo del texto, «📎 Enlazar un archivo de
   la biblioteca»: subir un documento o video (con su nombre) o buscarlo (filtro Todo / Imágenes /
   Documentos / Videos; los documentos y videos con un ícono y su nombre, las imágenes con su
-  miniatura) y «Enlazar» suma `[Nombre](/media/file/<hash>.pdf)` al final del texto. Hoy el
-  material viejo enlaza sus PDF con un `<script>` que importa el archivo del repo y
-  `<a href={guia}>`; `scripts/subir-archivos.js` los reescribe a este enlace. Al guardar, el material queda con su edge
+  miniatura) y «Enlazar» suma `[Nombre](/media/file/<hash>.pdf)` al final del texto. El material
+  viejo, que enlazaba sus PDF con un `<script>` que importaba el archivo del repo, ya usa este
+  enlace (ver «Los PDF y el video del material»). Al guardar, el material queda con su edge
   `adjunto` hacia el archivo (ver arriba).
 - **Borrar**: les admins, con el mismo borrado suave (`DELETE /imagenes/<id>`); el archivo queda en
   R2. «Dónde se usa» (`imageUsage`) cuenta el edge `adjunto` de cada material vivo y, como con las
@@ -105,7 +184,10 @@ recorrer toda la biblioteca está Contenido → Biblioteca (abajo). Pestañas:
 
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
-  largo 2000 px) y la pasa a WEBP; si no puede (o un GIF, que puede ser animado), sube el original.
+  largo 2000 px) y la pasa a WEBP, y hace sus dos copias chicas para las tarjetas (arriba). Si el
+  navegador no sabe hacer WEBP (Safari), una foto JPEG la pasa a JPEG, y un PNG, WEBP o AVIF lo
+  sube como está (puede tener transparencias, que en JPEG saldrían negras); si no puede dibujarla
+  (o un GIF, que puede ser animado), sube el original, y el servidor le saca los metadatos (arriba).
 - **Buscar**: por nombre o texto alternativo (búsqueda de la base, sin tildes).
 - **De este evento** (o «De este material/serie/perfil»): las imágenes que ya usa ese objeto; en un
   evento, también las de su serie (la etiqueta y las otras ediciones).
@@ -114,6 +196,9 @@ Lo elegido viaja en un campo oculto `imageId` (`''` = no se tocó, `none` = se s
 servidor crea el edge **en el mismo guardado** del objeto (eventos y material: `commitFiles` con
 `edges`; perfiles: `updateProfile` con `avatar`; series: después de guardar la etiqueta, con
 `linkImage`). Al elegir o sacar una imagen se saca también el campo viejo (`featured` / `image`).
+La portada que el selector muestra de entrada en esos editores (y la del original en «Cargar
+evento» desde otro) sale de un solo helper, `libraryCoverOf` (`src/lib/server/contenido/posts.js`):
+la dirección, su edge `portada` como la ve el panel, o null si no hay o no se pudo leer.
 
 ## Contenido → Biblioteca (la página del panel)
 
@@ -154,17 +239,57 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 
 - **Admins**: subir (imágenes, documentos y video), buscar en toda la biblioteca, elegir
   cualquiera y sacar imágenes y archivos.
-- **Cuentas que gestionan un perfil** (Mi rincón): subir y buscar **solo entre las que subieron**;
+- **Cuentas que gestionan un perfil** (Mi rincón, con el permiso «puede tener perfiles»; sin él,
+  `/imagenes` da 404 como a cualquiera): subir y buscar **solo entre las que subieron**;
   en su perfil solo pueden poner una imagen que subieron o la que el perfil ya tenía. **Borran una
   imagen que subieron, solo si nada la usa** (decisión de gorrite; ver «Borrar»).
+  **Tope por cuenta**: 30 subidas y 200 MB en las últimas 24 horas
+  (`src/lib/server/media/uploadCap.js`, tabla `rate_limits`); pasado eso, `POST /imagenes`
+  responde 429 con «Subiste muchas imágenes en las últimas horas. Probá de nuevo más tarde.». Les
+  admins no tienen tope.
 - Nadie más: `/imagenes` responde 404 (como si no existiera).
 
 ## Borrar
 
 «Sacar de la biblioteca» (admins, en Buscar) es el **borrado suave** del objeto `imagen`:
-deja de aparecer en el selector, las páginas dejan de mostrarla y `/media/…` da 404. **El archivo
-queda en R2** (es barato y permite deshacer: subir el mismo archivo la vuelve a la vida, con sus
-edges). Ojo: los navegadores que ya la tenían en caché la pueden seguir mostrando un tiempo.
+deja de aparecer en el selector y las páginas dejan de mostrarla. **El archivo queda en R2** (es
+barato y permite deshacer: subir el mismo archivo la vuelve a la vida, con sus edges).
+
+**`/media/…` no da 404 al toque en todos lados.** El worker del adapter de SvelteKit busca cada
+pedido en la caché del borde de Cloudflare (`caches.default`, por URL) **antes** de llegar a la
+app, y guarda ahí toda respuesta que no diga `private`/`no-cache`/`no-store`
+(`node_modules/@sveltejs/adapter-cloudflare/files/worker.js`). Así que en cada centro de datos
+donde alguien ya pidió la imagen, la respuesta guardada se sigue sirviendo sin preguntarle a la
+base: **hasta un año** una portada o un archivo (`immutable`), **hasta un día** la foto de un
+perfil. Probado con `wrangler dev` (que emula esa caché): después de borrar, la misma URL sigue
+dando 200 y con `Cache-Control: no-cache` en el pedido (que saltea la caché) da 404. Los
+navegadores que ya la tenían también la guardan ese tiempo, y eso no se puede borrar.
+
+Para que deje de verse en el borde, **purgar a mano** después de sacarla (no hay purga
+automática): panel de Cloudflare → zona `kinkyvibe.ar` → **Caching** → **Configuration** →
+**Custom Purge** → **URL**, y pegar estas direcciones (`<hash>.<ext>` es lo que muestra «Abrir»):
+
+```text
+https://kinkyvibe.ar/media/img/<hash>.<ext>
+https://kinkyvibe.ar/media/img/<hash>-360.webp
+https://kinkyvibe.ar/media/img/<hash>-720.webp
+```
+
+- Las dos copias chicas existen para todo menos un GIF (`copyKey` en `src/lib/utils/mediaCopies.js`);
+  purgarlas aunque no estén no hace daño. Un documento o video es una sola:
+  `https://kinkyvibe.ar/media/file/<hash>.<ext>`.
+- Las variantes `/cdn-cgi/image/…` (vistas previas de links, miniaturas del panel y de Telegram)
+  **no se purgan por su dirección**: Cloudflare las guarda bajo la URL del original y las purga
+  junto con ella (docs de Cloudflare Images, «Caching»). Alcanza con la primera línea.
+- `www.kinkyvibe.ar` redirige al dominio sin `www`, así que no hace falta purgarlo.
+- Cada URL con algo después de `?` (`…webp?x=1`) es otra entrada de la caché, y la purga por URL
+  no la toca. El sitio nunca pide imágenes así, pero si alguien lo hizo, **Custom Purge → Prefix**
+  con `kinkyvibe.ar/media/img/<hash>` saca de una vez el original, las copias y cualquier `?…`.
+- Para comprobar: `curl -sI https://kinkyvibe.ar/media/img/<hash>.<ext>` tiene que dar `404`
+  (mira solo el centro de datos más cercano; la purga es para todos).
+
+Para borrar los bytes de verdad (el pedido de una persona), ver «Si una persona pide que saquemos
+su foto», abajo: hay que borrarlos también de la copia nocturna.
 
 **Las cuentas** (Mi rincón, «Borrar imágenes sin usar…» en Buscar) borran igual (el mismo borrado
 suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` en
@@ -197,20 +322,115 @@ dirección es `/media/img/…`; en local, en las pruebas y en los previews, la d
 
 ### Los PDF y el video del material
 
-Los 13 PDF, el video y el documento del material **todavía no están en R2**: siguen en el repo, en
-`src/lib/archivos/material/<carpeta>/<archivo>`, con la misma dirección pública que antes (Vite
-los nombra por su contenido; `render.js` los resuelve para el texto que los importa). Subirlos es
-una escritura en producción, así que lo corre gorrite:
+Los 13 PDF, el video y el documento del material **están en la biblioteca** (R2, objetos `archivo`
+con su `source_path`). Los subió una vez un script (corrido en preview y producción el 12/10) que
+además reescribió el texto de cada material que los importaba a `/media/file/<hash>.<ext>` (con su
+revisión, fuente `migracion`), y el edge `adjunto` salió solo. Después se chequeó que los SHA-256
+de los archivos del repo coincidían con los 15 `archivo` de producción, que `/media/file/…` los
+servía y que ningún texto ni la semilla seguían nombrando `$lib/archivos`, así que un PR borró
+`src/lib/archivos/`, su glob en `render.js` y el script (que ya no tenía nada que hacer). Un texto
+viejo que todavía importara `./media/<carpeta>/1.pdf` ya no se resuelve: solo las imágenes tienen
+mapa fijo.
 
-```sh
-node scripts/subir-archivos.js --target=production --dry   # qué haría
-node scripts/subir-archivos.js --target=production --yes   # pide escribir «produccion»
-```
+## Copia de la biblioteca y bloqueo contra borrados
 
-Sube cada archivo a R2 (objeto `archivo` con su `source_path`), reescribe el texto de cada
-material que lo importa a `/media/file/<hash>.<ext>` (con su revisión, fuente `migracion`) y el
-edge `adjunto` sale solo. Idempotente. Después, un PR borra `src/lib/archivos/` y el glob de
-`render.js`. `--target=local` y `--target=preview` lo prueban antes.
+El borrado del panel es suave (el archivo queda en R2), pero un borrado en R2 mismo (por error, un
+script, un token con permiso de escritura, una regla de ciclo de vida mal puesta) no tiene vuelta
+atrás: R2 no guarda versiones y el backup de la base trae las filas, no los bytes. Contra eso hay
+dos cosas (decisión de gorrite, 26/10):
+
+- **Copia nocturna** a un segundo bucket, `kinkyvibe-media-copia` (binding `MEDIA_COPIA`, solo en
+  producción). La hace el cron de las 03:00 de Argentina, después del backup de la base
+  (`runMediaCopy` en `src/lib/server/scheduled.js`, `copyMedia` en
+  `src/lib/server/backup/media.js`):
+  - Copia `img/` y `file/` (originales, copias chicas y documentos). `og/` no: son las vistas
+    previas, que se vuelven a dibujar solas.
+  - **Solo suma**: copia lo que falta en la copia o lo que cambió (otro tamaño u otro etag; en la
+    copia guarda el etag del original, `kv-etag-origen`). **Nunca borra nada de la copia**: lo
+    que se borra del original sigue en la copia. Esa es la idea.
+  - **Trabajo acotado por noche**: como mucho 200 objetos, 200 MB y 40 páginas de listado
+    (`DEFAULT_LIMITS`). Si no llega, anota por dónde iba (`_estado/copia-medios.json`, en la copia)
+    y sigue la noche siguiente; cuando termina una vuelta entera, la próxima empieza de nuevo. Los
+    dos buckets se recorren a la par, de a 1000 claves, así que la memoria no crece con la
+    biblioteca. Hoy (unos 900 objetos, ~0,15 GB) la primera noche copia 200 y en unas cinco
+    noches está todo; después, cada noche copia solo lo nuevo.
+  - **Nunca hace fallar la corrida** (el backup ya se hizo). En el log (Observability → Logs) queda
+    una línea que empieza con `copia de medios:` y dice cuántos copió, cuántos revisó y cuántos
+    fallaron, y al final «vuelta completa» o «sigue mañana después de …». Un objeto que no se pudo
+    copiar sale en el log y se reintenta en la vuelta siguiente.
+  - Sin el binding (Previews, local sin el bucket) no hace nada. Los Previews no corren crons.
+  - Protege de un borrado en el bucket de la biblioteca; **no** de perder la cuenta de Cloudflare
+    (los dos buckets están en la misma cuenta).
+- **Bucket lock de 30 días** en `img/` y `file/` de los dos buckets (lo pone gorrite en el panel,
+  abajo). Cada objeto queda protegido **sus primeros 30 días desde que se escribió**: en ese tiempo
+  R2 no deja borrarlo ni pisarlo. Pasados los 30 días se puede borrar (así se puede cumplir un
+  pedido de borrar una foto). El código nunca pisa ni borra nada de `img/` ni de `file/` (claves por
+  contenido, `put` solo si no existe), así que el bloqueo no rompe ninguna subida. Lo viejo lo
+  protege la copia, que no borra nunca.
+
+### Tu lista (gorrite, en el panel de Cloudflare)
+
+1. **Crear el bucket de la copia, antes de mergear el PR que la agrega** (si no existe, la
+   publicación falla): R2 object storage → **Create bucket** → nombre `kinkyvibe-media-copia`,
+   ubicación automática, clase Standard → **Create bucket**. No hace falta acceso público ni
+   dominio: nadie lo sirve.
+2. **Mirar que no haya reglas que borren solas**: R2 object storage → `kinkyvibe-media` →
+   **Settings** → **Object lifecycle rules**: ninguna regla tiene que borrar `img/` ni `file/` (la
+   de subidas a medias, si algún día se pone, está bien).
+3. **Bloqueo en la biblioteca**: R2 object storage → `kinkyvibe-media` → **Settings** → tarjeta
+   **Bucket lock rules** → **Add rule**:
+   - Rule name `img-30-dias`, prefix `img/`, retención **30 days** → **Save changes**.
+   - De nuevo **Add rule**: `file-30-dias`, prefix `file/`, **30 days** → **Save changes**.
+   - **Nunca una regla sin prefijo** (todo el bucket): bloquearía `og/`, que se reescribe.
+4. **Bloqueo en la copia** (recomendado, igual que el de arriba): `kinkyvibe-media-copia` →
+   **Settings** → **Bucket lock rules** → las mismas dos reglas (`img/` y `file/`, 30 días).
+   **Nunca sin prefijo**: la copia anota por dónde va en `_estado/copia-medios.json` y lo pisa cada
+   noche. Con el bloqueo, lo que se copió no se puede borrar ni pisar por 30 días, aunque alguien
+   tenga un token; lo que tiene más de 30 días lo protege solo que nada lo borra. Un bloqueo
+   **indefinido** en la copia protegería todo para siempre, pero entonces un pedido de borrar una
+   foto obliga a sacar la regla entera, borrar y volver a ponerla: por eso 30 días.
+5. **Comprobar**, la mañana siguiente al merge: en Workers → `kinkyvibe` → Observability → Logs,
+   buscar `copia de medios`; y en R2, `kinkyvibe-media-copia` tiene objetos en `img/` y `file/`.
+   En unas noches, la línea dice `vuelta completa` y la cantidad de objetos de `img/` y `file/` de
+   los dos buckets coincide.
+
+Con un bloqueo puesto, un bucket no se puede vaciar ni borrar hasta sacar las reglas
+(R2 → bucket → Settings → Bucket lock rules → `...` → **Delete**).
+
+### Si una persona pide que saquemos su foto
+
+1. **En el momento: sacarla del sitio.** Contenido → Biblioteca → buscarla → **Sacar** (el borrado
+   suave): deja de aparecer en las páginas. Sacarla también de donde se use (portada, perfil) si
+   hace falta otra imagen. **`/media/…` no da 404 al toque**: donde ya estaba en la caché del
+   borde se sigue sirviendo hasta un año (un día si es la foto de un perfil). Enseguida, **purgar
+   en Cloudflare** sus tres direcciones (original, `-360.webp`, `-720.webp`), como dice «Borrar»
+   arriba, y comprobar con `curl -sI` que da 404. Lo que quedó en el navegador de alguien no se
+   puede borrar.
+2. **Anotar la clave** (antes de sacarla, «Abrir» muestra `/media/img/<hash>.<ext>`): la clave en
+   R2 es `img/<hash>.<ext>`, y sus copias chicas, `img/<hash>-360.webp` e `img/<hash>-720.webp`
+   (un GIF no tiene). Un documento: `file/<hash>.<ext>`.
+3. **Borrar los bytes de los dos buckets**, con la cuenta de Cloudflare (una persona con acceso),
+   cuando el bloqueo lo deje: **30 días después de que se subió al original, y 30 días después de
+   que se copió a la copia** (la copia la hace la noche siguiente a la subida, así que en la
+   práctica, 31 días después de subida). Antes, R2 responde que el objeto está bloqueado: esperar
+   y volver a intentar. Desde la compu, en la carpeta del repo:
+
+   ```sh
+   npx wrangler r2 object delete kinkyvibe-media/img/<hash>.<ext> --remote
+   npx wrangler r2 object delete kinkyvibe-media/img/<hash>-360.webp --remote
+   npx wrangler r2 object delete kinkyvibe-media/img/<hash>-720.webp --remote
+   npx wrangler r2 object delete kinkyvibe-media-copia/img/<hash>.<ext> --remote
+   npx wrangler r2 object delete kinkyvibe-media-copia/img/<hash>-360.webp --remote
+   npx wrangler r2 object delete kinkyvibe-media-copia/img/<hash>-720.webp --remote
+   ```
+
+   (O en el panel: R2 → bucket → **Objects** → buscar `img/<hash>` → seleccionar → **Delete**.)
+   **Borrar siempre de los dos**: la copia nunca borra sola lo que se borró del original. Si se
+   borra solo de la copia, la noche siguiente la vuelve a copiar del original.
+
+4. Las vistas previas ya dibujadas que la usaban (`og/…`) dejan de usarse solas (la dirección
+   depende del contenido) y se pueden borrar sin problema: no están bloqueadas.
+5. Los backups de la base guardan la fila de la imagen (nombre, texto alternativo), no los bytes.
 
 ## Configuración en Cloudflare (gorrite)
 
@@ -224,7 +444,7 @@ edge `adjunto` sale solo. Idempotente. Después, un PR borra `src/lib/archivos/`
 ## Cómo probar
 
 ```sh
-npx vitest run src/lib/server/media src/routes/imagenes src/lib/utils/imageResize.test.js src/lib/utils/libraryFiles.test.js
+npx vitest run src/lib/server/media src/routes/imagenes src/lib/utils/imageResize.test.js src/lib/utils/libraryFiles.test.js src/lib/utils/mediaCopies.test.js src/lib/components/CardRow.test.js src/lib/components/PostListItem.test.js
 npm run dev:admin   # el bucket MEDIA local lo simula miniflare (.wrangler/state)
 ```
 
@@ -244,8 +464,9 @@ aclara en cada punto.
   que confirmó gorrite): solo edges y menciones desde objetos **vivos** (un
   objeto borrado que la tenía no la frena; si se restaura, queda sin esa imagen hasta que se
   suba de nuevo). Sin sesión o sin perfiles, 404 como el resto de `/imagenes` (no 401/403).
-- **/media sirve solo imágenes vivas** (una consulta a D1 por pedido, con caché inmutable en el
-  navegador). Una imagen borrada da 404 aunque el archivo siga en R2.
+- **/media sirve solo imágenes vivas** (dos consultas a D1 por pedido que no está en caché, con caché
+  inmutable en el navegador salvo las fotos de perfiles, arriba). Una imagen borrada da 404 aunque
+  el archivo siga en R2.
 - **Al elegir o sacar una imagen se borra el campo viejo** (`featured` del evento/material,
   `image` de la serie): el edge pasa a ser lo único.
 - **Duplicar un evento**: si el original tiene imagen de la biblioteca, la copia usa la misma

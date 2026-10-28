@@ -1,6 +1,6 @@
 <script>
 	import { userConfig } from '$lib/utils/stores.js';
-	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
+	import { pastPostsLoader, relatedPostsFor } from '$lib/utils/allPosts';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import { materialSchema } from '$lib/utils/jsonLd.js';
@@ -9,47 +9,61 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
+	import LoQueEnlaza from '$lib/components/LoQueEnlaza.svelte';
 	import Note from '$lib/components/Note.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
-	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { argDateLong, isoDateTime, isoDay } from '$lib/utils/dates.js';
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
-	import { readingTimeLabel } from '$lib/utils/readingTime.js';
+	import ReadingProgress from '$lib/components/ReadingProgress.svelte';
+	import { readingTimeLabel, showsReadingProgress } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { articleAuthors, updatedDay } from '$lib/utils/autoria.js';
 	import { linkPreviewOf, materialDescription } from '$lib/utils/seo.js';
 	import { tagManager } from '$lib/utils/stores.js';
 	export let data;
+	// «actualizado el …»: solo si es de un día posterior a la publicación.
+	$: updated = updatedDay(data.meta.published_date, data.meta.updated_date);
+	// `article:author`: la dirección del perfil de cada autore que tiene uno (el mismo link que
+	// muestra la página); si no, su nombre.
+	$: authorsMeta = articleAuthors(data.meta.authors, data.authorsProfiles, $page.url.origin);
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
 	$: readingTime = readingTimeLabel(data.readingMinutes);
+	// Los materiales en inglés (etiqueta «inglés»): el título y el resumen con lang="en", así un
+	// lector de pantalla los pronuncia en inglés. El resto de la página sigue en castellano.
+	$: contentLang = (data.meta.tags ?? []).some((/** @type {string} */ t) => /^ingl[eé]s$/i.test(t))
+		? 'en'
+		: undefined;
+	// La barra de progreso de lectura, solo en los textos largos (ReadingProgress.svelte).
+	$: longText = showsReadingProgress(data.readingMinutes);
+	/** @type {HTMLElement | undefined} */
+	let articleEl;
+	/** @type {HTMLElement | undefined} */
+	let textEl;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
 	// bloque de estilos del componente.
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
-	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)));
+	$: if ($userConfig.show_past_events && data.relatedPastCount > 0) loadPast();
 </script>
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
-<LDTag schema={materialSchema(data.meta)} />
+<LDTag schema={materialSchema(data.meta, data.authorLinks)} />
 <svelte:head>
 	<title>{data.meta.title} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
 	<meta property="article:published_time" content={isoDateTime(data.meta.published_date)} />
-	<meta property="article:modified_time" content={isoDateTime(data.meta.updated_date)} />
-	<meta property="article:author" content={data.meta.authors?.join(', ')} />
+	{#if data.meta.updated_date}
+		<meta property="article:modified_time" content={isoDateTime(data.meta.updated_date)} />
+	{/if}
+	{#each authorsMeta as author}<meta property="article:author" content={author} />{/each}
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
@@ -63,9 +77,12 @@
 	type="article"
 	noindex={Boolean(data.meta.force_unlisted || data.meta.force_unpublished)}
 />
-<article class="h-entry">
+{#if longText}
+	<ReadingProgress from={articleEl} text={textEl} />
+{/if}
+<article class="h-entry" bind:this={articleEl}>
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
-	<h1 id="title" class="p-name">{data.meta.title}</h1>
+	<h1 id="title" class="p-name" lang={contentLang}>{data.meta.title}</h1>
 	{#if data.meta.authors && data.meta.authors.length > 0}
 		{@const authors = data.meta.authors}
 		<address>
@@ -91,6 +108,13 @@
 			<time datetime={isoDay(data.meta.published_date)} class="dt-published">
 				{argDateLong(data.meta.published_date?.toString())}
 			</time>
+			{#if updated}
+				<span class="updated"
+					>·&ThickSpace;actualizado el <time datetime={updated} class="dt-updated"
+						>{argDateLong(updated)}</time
+					></span
+				>
+			{/if}
 			{#if readingTime}
 				<!-- El «·» va con el texto: en el celu bajan juntos de línea. -->
 				<span class="reading-time"
@@ -108,7 +132,7 @@
 	{/if}
 	{#if data.meta.tags}
 		<div id="tags">
-			<Tags tags={data.meta.tags} />
+			<Tags tags={data.meta.tags} wikiTags={data.wikiTags ?? []} />
 		</div>
 	{/if}
 	{#if data.personas}
@@ -116,7 +140,7 @@
 	{/if}
 	{#if data.meta.summary}
 		<div class="content">
-			<p class="p-summary">
+			<p class="p-summary" lang={contentLang}>
 				{data.meta.summary}
 			</p>
 		</div>
@@ -135,7 +159,7 @@
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
 		<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
 		     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
-		<div class="kv-texto-libre">
+		<div class="kv-texto-libre" bind:this={textEl}>
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			{@html ownStyle}
 			{#if data.parts}
@@ -167,20 +191,25 @@
 	{/await}
 {/if}
 
+<!-- «Lo que enlaza acá» (interruptor `lo_que_enlaza`): apagado o sin nada, `null` o vacío y no se ve. -->
+<LoQueEnlaza links={data.linksHere} />
+
 {#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	<div class="content">
-		<h3>
+		<h2 class="like-h3">
 			Más cosas de
 			{data.meta.authors.length == 1
 				? data.meta.authors[0]
 				: [data.meta.authors.slice(0, -1).join(', '), data.meta.authors.slice(-1)[0]].join(' o ')}
-		</h3>
+		</h2>
 	</div>
 	<PostList posts={relatedPosts} />
 {/if}
 
 <style lang="scss">
-	.reading-time {
+	/* «actualizado el …», como el tiempo de lectura: no se parte y va en gris */
+	.reading-time,
+	.updated {
 		color: var(--muted);
 		white-space: nowrap;
 	}

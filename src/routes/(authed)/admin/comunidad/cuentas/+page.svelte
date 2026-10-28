@@ -5,7 +5,11 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { CircleUser } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { DEFAULT_ACCOUNT_SORT, accountSortParam } from '$lib/admin/cuentas.js';
 	import { fmtDate } from '$lib/admin/format.js';
+	import { argDate } from '$lib/utils/dates.js';
 	import { accountHref } from '$lib/admin/links.js';
 	import { PROFILES_HREF } from '$lib/admin/perfiles.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -15,11 +19,36 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
+	import { Table } from '$lib/components/ui';
 
 	export let data;
 
 	/** @param {number | null | undefined} ms */
-	const day = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
+	// El día en hora de Argentina (no UTC: lo de desde las 21:00 caía al día siguiente).
+	const day = (ms) => (ms ? argDate(ms) : '');
+	// El orden lo hace el servidor (`?orden=`): con 500 cuentas o más no llegan todas, y ordenar
+	// solo las que llegaron sería un orden falso. Tocar un encabezado pide la lista en ese orden.
+	$: sort = data.sort ?? DEFAULT_ACCOUNT_SORT;
+	$: sortParam = accountSortParam(sort);
+	/** @type {import('$lib/components/ui/tableSort.js').TableColumn[]} */
+	const tableColumns = [
+		{ key: 'email', label: 'Cuenta', sort: 'text' },
+		{ key: 'createdAt', label: 'Creada', class: 'small', nowrap: true, sort: 'date' },
+		{ key: 'verified', label: 'Mail verificado', class: 'hide-sm small' },
+		{ key: 'hasPassword', label: 'Contraseña', class: 'hide-sm small' },
+		{ key: 'profiles', label: 'Perfiles', align: 'right', sort: 'number' },
+		{ key: 'canHaveProfiles', label: 'Permiso', title: 'Puede tener perfiles' }
+	];
+	/** @param {CustomEvent<{ key: string, dir: 'asc' | 'desc' }>} event */
+	function changeSort(event) {
+		const url = new URL($page.url);
+		const param = accountSortParam(event.detail);
+		if (param) url.searchParams.set('orden', param);
+		else url.searchParams.delete('orden');
+		// El foco se queda en el encabezado que se tocó (se puede seguir con el teclado).
+		goto(url, { keepFocus: true, noScroll: true });
+	}
+
 	/** @type {import('$lib/admin/csv.js').CsvColumn<(typeof data.accounts)[number]>[]} */
 	const columns = [
 		{ label: 'email', value: (a) => a.email ?? '' },
@@ -49,6 +78,7 @@
 <div class="kv-stats">
 	<Stat label="Cuentas" value={data.totals.active} sub="sin contar las borradas" />
 	<Stat label="Pueden tener perfiles" value={data.totals.withProfiles} />
+	<Stat label="Suspendidas" value={data.totals.suspended} />
 	<Stat label="Borradas" value={data.totals.deleted} />
 </div>
 
@@ -64,8 +94,12 @@
 				autocomplete="off"
 			/>
 		</label>
+		{#if sortParam}<input type="hidden" name="orden" value={sortParam} />{/if}
 		<button class="kv-btn" type="submit">Buscar</button>
-		{#if data.q}<a class="kv-btn ghost" href="/admin/comunidad/cuentas">Ver todas</a>{/if}
+		{#if data.q}<a
+				class="kv-btn ghost"
+				href="/admin/comunidad/cuentas{sortParam ? `?orden=${sortParam}` : ''}">Ver todas</a
+			>{/if}
 	</form>
 	<p class="kv-note" aria-live="polite">
 		{data.accounts.length}
@@ -78,41 +112,41 @@
 			title={data.q ? 'No hay cuentas con ese mail' : 'Todavía no hay cuentas'}
 		/>
 	{:else}
-		<div class="kv-table-wrap">
-			<table class="kv-table">
-				<thead>
-					<tr>
-						<th>Cuenta</th>
-						<th>Creada</th>
-						<th class="hide-sm">Mail verificado</th>
-						<th class="hide-sm">Contraseña</th>
-						<th class="r">Perfiles</th>
-						<th><abbr title="Puede tener perfiles">Permiso</abbr></th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.accounts as a (a.id)}
-						<tr class:gone={a.deletedAt}>
-							<td>
-								<a class="name" href={accountHref(a.id)}>{a.email ?? 'Cuenta borrada'}</a>
-								{#if a.deletedAt}<Badge tone="bad">borrada {fmtDate(a.deletedAt)}</Badge>{/if}
-							</td>
-							<td class="small">{fmtDate(a.createdAt)}</td>
-							<td class="hide-sm small">{a.verified ? 'Sí' : 'No'}</td>
-							<td class="hide-sm small">{a.hasPassword ? 'Sí' : 'No'}</td>
-							<td class="r num">{a.profiles}</td>
-							<td>
-								{#if a.canHaveProfiles}<Badge tone="ok">sí</Badge>{:else}<span class="muted"
-										>no</span
-									>{/if}
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+		<div class="accounts">
+			<Table
+				columns={tableColumns}
+				rows={data.accounts}
+				{sort}
+				presorted
+				on:sort={changeSort}
+				rowKey="id"
+				rowClass={(a) => (a.deletedAt ? 'gone' : '')}
+			>
+				<svelte:fragment slot="cell" let:row={a} let:column>
+					{#if column.key === 'email'}
+						<a class="name" href={accountHref(a.id)}>{a.email ?? 'Cuenta borrada'}</a>
+						{#if a.deletedAt}<Badge tone="bad">borrada {fmtDate(a.deletedAt)}</Badge>{/if}
+						{#if a.suspendedAt && !a.deletedAt}<Badge tone="bad">Suspendida</Badge>{/if}
+					{:else if column.key === 'createdAt'}
+						{fmtDate(a.createdAt)}
+					{:else if column.key === 'verified'}
+						{a.verified ? 'Sí' : 'No'}
+					{:else if column.key === 'hasPassword'}
+						{a.hasPassword ? 'Sí' : 'No'}
+					{:else if column.key === 'profiles'}
+						{a.profiles}
+					{:else if column.key === 'canHaveProfiles'}
+						{#if a.canHaveProfiles}<Badge tone="ok">sí</Badge>{:else}<span class="muted">no</span
+							>{/if}
+					{/if}
+				</svelte:fragment>
+			</Table>
 		</div>
 		{#if data.accounts.length >= 500}
-			<p class="kv-note">Se muestran las 500 más nuevas; buscá por mail para encontrar otras.</p>
+			<p class="kv-note">
+				Se muestran las primeras 500 {sortParam ? 'en este orden' : '(las más nuevas)'}; buscá por
+				mail o cambiá el orden para encontrar otras.
+			</p>
 		{/if}
 	{/if}
 </Card>
@@ -132,14 +166,14 @@
 		overflow-wrap: anywhere;
 		margin-right: 0.3rem;
 	}
-	.gone .name {
+	.accounts :global(.gone .name) {
 		color: var(--muted);
 	}
-	.small {
+	.accounts :global(td.small) {
 		font-size: var(--text-sm);
 	}
 	@media (max-width: 700px) {
-		.hide-sm {
+		.accounts :global(.hide-sm) {
 			display: none;
 		}
 	}

@@ -19,7 +19,7 @@ const { default: Rincon } = await import('./+page.svelte');
 const { default: Calendario } = await import('./calendario/+page.svelte');
 const { default: Sigo } = await import('./sigo/+page.svelte');
 
-/** @param {{ sigoOn: boolean, readingSpeed?: number | null }} flags */
+/** @param {{ sigoOn: boolean, readingSpeed?: number | null, unconfirmed?: any[], canHaveProfiles?: boolean, sessions?: any[] | null, now?: number }} flags */
 const rincon = (flags) =>
 	render(Rincon, {
 		props: /** @type {any} */ ({
@@ -32,6 +32,9 @@ const rincon = (flags) =>
 				saved: { name: '', pronouns: '', hasDni: false, dniMasked: '' },
 				savedError: false,
 				orders: [],
+				unconfirmed: [],
+				sessions: [],
+				now: 0,
 				...flags
 			},
 			form: null
@@ -64,16 +67,95 @@ const count = (html, href) => hrefs(html).filter((h) => h === href).length;
 /** Las tarjetas de Mi rincón (sus títulos). @param {string} html */
 const cards = (html) => [...html.matchAll(/<h2 id="[^"]+"[^>]*>([^<]+)<\/h2>/g)].map((m) => m[1]);
 
+describe('Mi rincón: «Dónde tenés la sesión abierta»', () => {
+	const NOW = Date.parse('2026-10-20T18:00:00Z');
+	const DAY = 24 * 60 * 60 * 1000;
+	const here = {
+		id: 'a'.repeat(32),
+		method: 'code',
+		device: 'Firefox en Android',
+		createdAt: NOW - 30 * DAY,
+		lastSeenAt: NOW - 2 * DAY,
+		current: true
+	};
+	const other = {
+		id: 'b'.repeat(32),
+		method: 'password',
+		device: null,
+		createdAt: Date.parse('2026-10-01T15:00:00Z'),
+		lastSeenAt: NOW - DAY,
+		current: false
+	};
+
+	it('cada sesión con su navegador, cómo y cuándo se entró, y «Cerrar esta»', () => {
+		const html = rincon({ sigoOn: false, sessions: [here, other], now: NOW });
+		expect(html).toContain('Firefox en Android');
+		expect(html).toContain('>esta<');
+		// La de este navegador está pasando ahora; la otra, con el día aproximado.
+		expect(html).toContain('última vez: ahora');
+		expect(html).toContain('Navegador sin identificar');
+		expect(html).toContain('Entraste el 1 de octubre de 2026 con tu contraseña · última vez: ayer');
+		expect(html.match(/action="\?\/cerrarSesion"/g)).toHaveLength(2);
+		expect(html).toContain(`value="${other.id}"`);
+		expect(html).toContain('Cerrar esta (salís acá)');
+		expect(html).toContain('action="?/cerrarOtras"');
+		expect(html).toContain('Cerrar todas las demás');
+		expect(html).toContain('No guardamos tu IP ni dónde estás.');
+	});
+
+	it('con solo la de este navegador, sin «Cerrar todas las demás»; si no se pudo leer, lo dice', () => {
+		const solo = rincon({ sigoOn: false, sessions: [here], now: NOW });
+		expect(solo).not.toContain('Cerrar todas las demás');
+		const failed = rincon({ sigoOn: false, sessions: null, now: NOW });
+		expect(failed).toContain('No pudimos leer tus sesiones.');
+		expect(failed).not.toContain('?/cerrarSesion');
+	});
+});
+
+describe('Mi rincón: «¿Son tuyas?» («No fui yo», parte 2)', () => {
+	it('sin órdenes gratis por confirmar, no aparece', () => {
+		expect(rincon({ sigoOn: false })).not.toContain('¿Son tuyas?');
+	});
+	it('con una, el bloque con «Sí, son mías» y «No es mía» (una sola acción, con la orden)', () => {
+		const html = rincon({
+			sigoOn: false,
+			unconfirmed: [
+				{
+					id: 'orden-inventada',
+					reference: 'ABC123',
+					event: 'Fiesta inventada',
+					eventStart: null,
+					quantity: 2,
+					total: 0,
+					status: 'approved',
+					createdAt: 0
+				}
+			]
+		});
+		expect(html).toContain('¿Son tuyas?');
+		expect(html).toContain('Fiesta inventada');
+		expect(html).toContain('2 entradas gratis');
+		expect(html).toContain('action="?/elegirOrden"');
+		expect(html).toContain('value="orden-inventada"');
+		expect(html).toContain('Sí, son mías');
+		expect(html).toContain('No es mía');
+		// Va dentro de «Tus compras y entradas», no es otra tarjeta.
+		expect(cards(html)[0]).toBe('Tus compras y entradas');
+	});
+});
+
 describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
 	it('la tarjeta «Tu calendario» lleva a Mi rincón → Calendario; nada de Lo que sigo', () => {
 		const html = rincon({ sigoOn: false });
 		expect(cards(html)).toEqual([
 			'Tus compras y entradas',
 			'Tu calendario',
+			'¿Ya estás en Amigues?',
 			'Mis datos',
 			'Velocidad de lectura',
 			'Contraseña',
 			'Tu cuenta',
+			'Dónde tenés la sesión abierta',
 			'Borrar tu cuenta'
 		]);
 		expect(html).toContain('Tus eventos en tu calendario y los avisos de series que pediste.');
@@ -84,16 +166,38 @@ describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
 	});
 });
 
+describe('Mi rincón: perfiles con y sin el permiso', () => {
+	it('sin el permiso: cómo reclamar un perfil que ya está en Amigues (lo revisa el equipo)', () => {
+		const html = rincon({ sigoOn: false });
+		expect(html).toContain('¿Ya estás en Amigues?');
+		const text = html.replace(/\s+/g, ' ');
+		expect(text).toContain('«¿Es tu perfil?»');
+		expect(text).toContain('Lo revisa el equipo');
+		expect(count(html, '/amigues')).toBe(1);
+		expect(count(html, '/mi-rincon/perfiles')).toBe(0);
+		// Nada de pedir el permiso (gorrite, 26/10).
+		expect(html).not.toMatch(/permiso/i);
+	});
+	it('con el permiso: «Tus perfiles», sin la tarjeta de Amigues', () => {
+		const html = rincon({ sigoOn: false, canHaveProfiles: true });
+		expect(cards(html)).toContain('Tus perfiles');
+		expect(cards(html)).not.toContain('¿Ya estás en Amigues?');
+		expect(count(html, '/mi-rincon/perfiles')).toBe(1);
+	});
+});
+
 describe('Mi rincón con «Lo que sigo» prendido: una sola tarjeta', () => {
 	it('«Lo que seguís y tu calendario» lleva a /mi-rincon/sigo', () => {
 		const html = rincon({ sigoOn: true });
 		expect(cards(html)).toEqual([
 			'Tus compras y entradas',
 			'Lo que seguís y tu calendario',
+			'¿Ya estás en Amigues?',
 			'Mis datos',
 			'Velocidad de lectura',
 			'Contraseña',
 			'Tu cuenta',
+			'Dónde tenés la sesión abierta',
 			'Borrar tu cuenta'
 		]);
 		expect(count(html, '/mi-rincon/sigo')).toBe(1);

@@ -10,18 +10,21 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/stores';
+	import { linkPreviewOf, sectionTexts } from '$lib/utils/seo.js';
+	// El título de la pestaña, de los textos del panel (docs/compartir.md).
+	$: texts = sectionTexts('amigues', linkPreviewOf($page.data).texts);
 	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe', 'AUCH'];
 	let amiguesPosts = data.posts
 		.filter((p) => p.meta.layout == 'amigues')
-		.sort((a, b) => {
-			if (pinned.includes(a.meta.postID)) {
-				if (pinned.includes(b.meta.postID)) {
-					return pinned.indexOf(a.meta.postID) - pinned.indexOf(b.meta.postID);
-				} else {
-					return -1;
-				}
-			} else return 0;
-		});
+		// Los fijados primero, en su orden; el resto como vino. (Antes devolvía 0 cuando solo `b`
+		// era fijado, y según cómo ordenara el navegador un fijado podía quedar más abajo: con la
+		// lista de a 24 quedaría escondido detrás de «Ver más».)
+		.sort((a, b) => pinRank(a) - pinRank(b));
+	/** @param {{ meta: { postID?: string } }} p */
+	function pinRank(p) {
+		const i = pinned.indexOf(p.meta.postID ?? '');
+		return i < 0 ? pinned.length : i;
+	}
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 	// Con los perfiles de la base: filtro por tipo (`?tipo=`).
@@ -30,10 +33,20 @@
 		tipo && data.kinds && tipo in data.kinds
 			? amiguesPosts.filter((p) => p.meta.kind === tipo)
 			: amiguesPosts;
+	// Los botones del filtro: sin los tipos que no tienen ningún perfil que quien mira pueda ver
+	// (hoy, «Lugares» sin lugares públicos mostraba una lista vacía), salvo el elegido. `?tipo=`
+	// sigue andando con todos (`data.kinds`).
+	$: filterKinds = data.kinds
+		? Object.fromEntries(
+				Object.entries(data.kinds).filter(
+					([value]) => value === tipo || amiguesPosts.some((p) => p.meta.kind === value)
+				)
+			)
+		: null;
 </script>
 
 <svelte:head>
-	<title>Emprendimientos y profesionales · Kinky Vibe</title>
+	<title>{texts.heading} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <ListSeoHead section="amigues" card="amigues" kinds={data.kinds} />
@@ -59,7 +72,7 @@
 					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
 						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
-						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
+						{#if data.wikiKeys.includes(termino.id)}
 							<a href="/wiki/{termino.id}" class="gotowiki">
 								<span>
 									<Globe {style} />
@@ -95,12 +108,13 @@
 	</dl>
 </div>
 
-{#if data.kinds}
-	<KindFilter kinds={data.kinds} current={tipo} />
+{#if filterKinds}
+	<KindFilter kinds={filterKinds} current={tipo} />
 {/if}
 
 {#key tipo}
-	<PostList heading="Todos los perfiles" posts={shownPosts} />
+	<!-- De a 24 con «Ver más» (como el inicio y /todo); con una búsqueda se ve todo. -->
+	<PostList heading="Todos los perfiles" posts={shownPosts} limit={24} />
 {/key}
 
 <style lang="scss">

@@ -1,38 +1,63 @@
+<script context="module">
+	/** Para que cada buscador tenga sus propios ids (label, campo, menú y sugerencias). */
+	let instances = 0;
+</script>
+
 <script>
-	import { createCombobox, melt } from '@melt-ui/svelte';
-	import { tick } from 'svelte';
+	/*
+	 * El buscador de las listas: un combobox (ARIA 1.2) con sugerencias de etiquetas, propio. Antes
+	 * era el de @melt-ui; este hace lo mismo con mucho menos JavaScript (el menú flotante y el
+	 * «tocar afuera» viven en $lib/utils/popover.js):
+	 * - un clic en el campo abre o cierra las sugerencias; cualquier tecla que escribe las abre
+	 *   (no las flechas a los costados, Escape, Enter, Tab, las modificadoras ni las F; tampoco
+	 *   Backspace con el campo vacío, que saca la última etiqueta elegida);
+	 * - con las sugerencias abiertas: ↓/↑ recorren la lista (y dan la vuelta), Inicio/Fin van a la
+	 *   primera y a la última, AvPág/RePág saltan de a 10; Enter suma la resaltada (y la lista
+	 *   sigue abierta para sumar otra); Escape, Tab o Alt+↑ las cierran;
+	 * - con texto escrito, la primera sugerencia queda resaltada (Enter la suma); sin texto, ninguna;
+	 * - con el mouse: pasar por encima resalta, un clic suma; tocar fuera del menú lo cierra.
+	 */
+	import { onDestroy, tick } from 'svelte';
 	import { writable } from 'svelte/store';
 	import { Search, X } from '@lucide/svelte';
 	import TagChip from './ui/TagChip.svelte';
 	import { filteredTags, searchText, tagManager } from '$lib/utils/stores';
 	import { filterPosts, suggestTags, aliasIndex, canonicalTag } from '$lib/utils/postSearch';
+	import { floatingMenu, outsidePress } from '$lib/utils/popover.js';
 
 	/** Posts the search runs over (before tag/text filtering).
 	 * @type {Array<{meta: {tags?: string[]}}>} */
 	export let posts = [];
 
-	/** @type {import('svelte/store').Writable<Array<{value: string, label?: string}>>} */
-	const selected = writable([]);
+	const uid = `tag-search-${++instances}`;
+	const labelId = `${uid}-label`;
+	const inputId = `${uid}-input`;
+	const menuId = `${uid}-menu`;
 
-	const {
-		elements: { menu, input, option, label },
-		states: { open, inputValue, highlightedItem }
-	} = createCombobox({
-		multiple: true,
-		selected,
-		preventScroll: false,
-		positioning: { placement: 'bottom-start', sameWidth: false, gutter: 6 },
-		// Selecting a suggestion adds it to the filter and clears the typed text.
-		onSelectedChange: ({ next }) => {
-			const ids = (next ?? []).map((o) => canonicalTag($tagManager, o.value));
-			filteredTags.set([...new Set(ids)]);
-			inputValue.set('');
-			return next;
-		}
-	});
+	const open = writable(false);
+	const inputValue = writable('');
+	/** The highlighted suggestion (its tag id), or null.
+	 * @type {import('svelte/store').Writable<string | null>} */
+	const highlightedItem = writable(null);
 
-	// Keep Melt's selection mirrored from the shared store (FilterBar, inline tags and the URL write it too).
-	$: selected.set($filteredTags.map((t) => ({ value: t, label: t })));
+	/** Un id estable por sugerencia (para `aria-activedescendant`).
+	 * @type {Map<string, string>} */
+	const optionIds = new Map();
+	/** @param {string} value */
+	function optionId(value) {
+		let id = optionIds.get(value);
+		if (!id) optionIds.set(value, (id = `${uid}-option-${optionIds.size}`));
+		return id;
+	}
+
+	/** Suma (o, si ya estaba, saca) una etiqueta del filtro y borra el texto escrito.
+	 * @param {string} value */
+	function select(value) {
+		const current = $filteredTags;
+		const next = current.includes(value) ? current.filter((t) => t != value) : [...current, value];
+		filteredTags.set([...new Set(next.map((t) => canonicalTag($tagManager, t)))]);
+		inputValue.set('');
+	}
 
 	// The typed text doubles as the free-text search.
 	$: searchText.set($inputValue);
@@ -44,6 +69,7 @@
 		{ selected: $filteredTags, text: $inputValue, aliases },
 		$tagManager
 	);
+	$: values = suggestions.map((s) => s.id);
 	// The list re-renders on every keystroke; never keep a highlight on a removed option.
 	// Whenever the list changes or opens: with a query, highlight the top suggestion so
 	// Enter picks it; with an empty query, highlight nothing so Enter adds no tag.
@@ -54,9 +80,8 @@
 	let menuEl;
 	async function highlightFirst() {
 		await tick();
-		const first = menuEl?.querySelector('[role=option]:not([data-disabled])');
-		if ($open && $inputValue.trim() != '' && first instanceof HTMLElement) {
-			highlightedItem.set(first);
+		if ($open && $inputValue.trim() != '' && values.length > 0) {
+			highlightedItem.set(values[0]);
 			// the first option sits at the top of the menu: resetting the menu's own scroll is
 			// enough, and unlike scrollIntoView() it can't scroll the page or force a layout
 			// of the whole document on every keystroke
@@ -64,10 +89,64 @@
 		} else highlightedItem.set(null);
 	}
 
+	/** @type {(() => void) | null} */
+	let stopOutside = null;
+	async function openMenu() {
+		open.set(true);
+		await tick();
+		// La lista abre siempre desde arriba (melt-ui la sacaba de la página al cerrarse).
+		if ($open && menuEl.scrollTop != 0) menuEl.scrollTop = 0;
+		// Tocar fuera del menú (salvo el campo y su etiqueta) lo cierra.
+		stopOutside?.();
+		stopOutside = null;
+		if (!$open) return;
+		stopOutside = outsidePress(menuEl, {
+			ignore: (t) => inputEl.contains(t) || !!t.closest(`label[for="${inputId}"]`),
+			onOutside: closeMenu
+		});
+	}
+	function closeMenu() {
+		open.set(false);
+		highlightedItem.set(null);
+		stopOutside?.();
+		stopOutside = null;
+	}
+	onDestroy(() => stopOutside?.());
+
+	/** Escape, desde cualquier lado, mientras está abierto.
+	 * @param {KeyboardEvent} e */
+	function onDocumentKeydown(e) {
+		if (!$open || e.key != 'Escape' || !(e.target instanceof HTMLElement)) return;
+		e.preventDefault();
+		closeMenu();
+	}
+
+	/** Resalta una sugerencia y la muestra en la lista.
+	 * @param {string} value */
+	function highlight(value) {
+		highlightedItem.set(value);
+		document.getElementById(optionId(value))?.scrollIntoView({ block: 'nearest' });
+	}
+
 	/** @param {string} id */
 	function removeTag(id) {
 		filteredTags.update((tags) => tags.filter((t) => t != id));
 	}
+
+	/** Keys that never open the suggestions. */
+	const PASSIVE_KEYS = new Set([
+		'ArrowLeft',
+		'ArrowRight',
+		'Escape',
+		'Shift',
+		'CapsLock',
+		'Control',
+		'Alt',
+		'Meta',
+		'Enter',
+		'Tab',
+		...Array.from({ length: 12 }, (_, i) => `F${i + 1}`)
+	]);
 
 	/** @param {KeyboardEvent} e */
 	function onKeydown(e) {
@@ -76,6 +155,33 @@
 			e.preventDefault();
 			removeTag($filteredTags[$filteredTags.length - 1]);
 		}
+		const wasOpen = $open;
+		if (!wasOpen) {
+			if (PASSIVE_KEYS.has(e.key) || (e.key == 'Backspace' && el.value == '')) return;
+			openMenu();
+		}
+		if (e.key == 'Tab') return closeMenu();
+		if (e.key == 'Enter' && !e.isComposing) {
+			e.preventDefault();
+			if ($highlightedItem !== null) select($highlightedItem);
+			return;
+		}
+		if (e.key == 'ArrowUp' && e.altKey) return closeMenu();
+		const n = values.length;
+		const i = $highlightedItem === null ? -1 : values.indexOf($highlightedItem);
+		/** @type {Record<string, number>} El índice al que lleva cada tecla (y da la vuelta). */
+		const moves = {
+			ArrowDown: i == n - 1 ? 0 : i + 1,
+			ArrowUp: i <= 0 ? n - 1 : i - 1,
+			PageDown: i + 10 > n - 1 ? 0 : i + 10,
+			PageUp: i - 10 <= 0 ? n - 1 : i - 10,
+			Home: 0,
+			End: n - 1
+		};
+		if (!(e.key in moves)) return;
+		e.preventDefault();
+		// Recién abierta: sin resaltar (con texto, highlightFirst resalta la primera).
+		if (wasOpen && n > 0) highlight(values[moves[e.key]]);
 	}
 
 	/** @type {HTMLInputElement} */
@@ -96,9 +202,10 @@
 	$: ($filteredTags.length, showLastChip());
 </script>
 
+<svelte:document on:keydown={onDocumentKeydown} />
+
 <div class="tag-search">
-	<!-- svelte-ignore a11y-label-has-associated-control -->
-	<label class="visually-hidden" use:melt={$label}>Buscar por etiquetas o texto</label>
+	<label class="visually-hidden" id={labelId} for={inputId}>Buscar por etiquetas o texto</label>
 	<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
 	<div class="field" on:click={() => inputEl?.focus()}>
 		<Search size="1.1em" aria-hidden="true" class="search-icon" />
@@ -129,8 +236,22 @@
 		{/if}
 		<input
 			bind:this={inputEl}
-			use:melt={$input}
+			id={inputId}
+			role="combobox"
+			aria-autocomplete="list"
+			aria-controls={menuId}
+			aria-expanded={$open}
+			aria-labelledby={labelId}
+			aria-activedescendant={$highlightedItem === null ? undefined : optionId($highlightedItem)}
+			data-state={$open ? 'open' : 'closed'}
+			value={$inputValue}
+			on:input={(e) => inputValue.set(e.currentTarget.value)}
 			on:keydown={onKeydown}
+			on:click={() => {
+				inputEl.focus();
+				if ($open) closeMenu();
+				else openMenu();
+			}}
 			type="text"
 			autocomplete="off"
 			spellcheck="false"
@@ -152,15 +273,32 @@
 		{/if}
 	</div>
 	<!-- Picking a suggestion with the mouse used to move focus to <body>; keep it in the
-	input so the next keystroke still searches. -->
-	<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-	<ul class="menu" bind:this={menuEl} use:melt={$menu} on:mousedown|preventDefault>
+	input so the next keystroke still searches. The menu floats at the end of <body>
+	($lib/utils/popover.js), so no container clips it. -->
+	<ul
+		class="menu"
+		id={menuId}
+		role="listbox"
+		hidden={!$open}
+		style:display={$open ? null : 'none'}
+		bind:this={menuEl}
+		use:floatingMenu={{ anchor: () => inputEl, open: $open }}
+		on:mousedown|preventDefault
+	>
 		{#each suggestions as s (s.id)}
 			{@const tag = $tagManager.get(s.id)}
+			<!-- The keyboard goes through the input (aria-activedescendant), as in any combobox. -->
+			<!-- svelte-ignore a11y-click-events-have-key-events a11y-mouse-events-have-key-events -->
 			<li
 				class="suggestion"
+				id={optionId(s.id)}
+				role="option"
+				aria-selected="false"
+				data-highlighted={$highlightedItem === s.id ? '' : undefined}
 				style:--tag-color={tag?.getColor() ?? 'var(--1)'}
-				use:melt={$option({ value: s.id, label: s.name })}
+				on:click={() => select(s.id)}
+				on:mouseover={() => highlightedItem.set(s.id)}
+				on:mouseleave={() => highlightedItem.set(null)}
 			>
 				<span class="name">
 					<span class="icon" aria-hidden="true">{tag?.icon ?? '#'}</span>
@@ -301,6 +439,9 @@
 		padding: 0.3em;
 		max-height: min(18rem, 50vh);
 		overflow-y: auto;
+		/* la lista cambia entera con cada etiqueta elegida: que el navegador no la corra para
+		   «seguir» una sugerencia que ya no está (como hacía con melt-ui) */
+		overflow-anchor: none;
 		background: white;
 		border-radius: var(--radius-m);
 		outline: 1px solid var(--1-light);

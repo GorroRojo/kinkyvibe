@@ -11,17 +11,37 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   direcciones** (`/amigues/Gorro_Rojo` sigue andando). **Solo la base**: los `.md` ya no están en
   el repo ([0032](decisiones/0032-borrar-los-md.md); el último commit con ellos tiene el tag
   `posts-md-final`).
-- `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
-- **"Es mi perfil"**: una cuenta con el permiso "puede tener perfiles" pide hacerse cargo; une
-  admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza.
+- `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`, que conserva las
+  etiquetas `?tags=` y la búsqueda elegidas) y página de cada uno. El filtro no muestra el botón de
+  un tipo sin ningún perfil que quien mira pueda ver (por ejemplo «Lugares» sin lugares públicos),
+  salvo el elegido; `?tipo=` anda igual con todos.
+- **"Es mi perfil"**: cualquier cuenta pide hacerse cargo de un perfil que ya existe, tenga o no
+  el permiso "puede tener perfiles" (gorrite, 26/10: en vez de un canal para pedir el permiso,
+  reclamar un perfil). Pedir no da nada: une admin lo revisa en el panel y lo aprueba (la cuenta
+  pasa a ser dueñe) o lo rechaza; para aprobarlo, la cuenta tiene que tener el permiso (el panel
+  lo avisa y une admin se lo da antes). Mi rincón, sin el permiso, tiene la tarjeta «¿Ya estás en
+  Amigues?» que lo explica, y a cualquier cuenta que pidió alguno le lista sus pedidos con su estado
+  (pendiente, aprobado, no aprobado; [cuentas.md](cuentas.md)). Si el último no se aprobó, la
+  página del perfil dice «no aprobado» en vez de volver a ofrecer el botón.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
+- **Ocultar desde el panel** (la ficha del perfil, `hideProfile` en
+  `src/lib/server/admin/cuentas.js`): lo pone oculto y, en la misma tanda de `saveObject()`, le
+  saca la aprobación (la misma sentencia que «Sacar de Amigues», `unapproveStatement` en
+  `src/lib/server/amigues/approvals.js`). Quien lo gestiona lo sigue editando en Mi rincón, pero si
+  le vuelve a cambiar la visibilidad no reaparece hasta que une admin lo apruebe de nuevo (queda
+  «para aprobar»).
+- **Suspender la cuenta** de quien gestiona un perfil (la ficha de la cuenta, ver
+  [cuentas.md](cuentas.md#suspender-una-cuenta)) no oculta sus perfiles: siguen como estaban
+  hasta que une admin los oculta o los borra desde acá.
 - **Lugares desde las cuentas** (decisión de gorrite,
   [0022](decisiones/0022-lugares-desde-cuentas.md)): una cuenta con el permiso de perfiles crea un
   lugar en Mi rincón → Perfiles y completa su dirección. No aparece en el sitio (ni en `/amigues`,
   ni en su página, ni en los eventos) hasta que une admin lo aprueba en **Eventos → Lugares →
   "Para aprobar"** (lista con CSV; aprobar o rechazar, que lo borra). Los que crea une admin y los
-  importados nacen aprobados. Código: `src/lib/server/amigues/pendingVenues.js`.
+  importados nacen aprobados. Un lugar oculto no está en "Para aprobar" ni en "Rechazados" (ocultar
+  le saca la aprobación, pero aprobarlo ahí no lo volvería a mostrar). Código:
+  `src/lib/server/amigues/pendingVenues.js`.
 - **Lugares**: dirección, barrio, ciudad, ubicación (lat/lng), accesibilidad, cómo llegar, mapa de
   OpenStreetMap y sus eventos. **Privacidad de la dirección** por lugar con cambio por evento.
 - Panel: **Perfiles** (`/admin/comunidad/perfiles`) es la única lista de perfiles (decisión de gorrite del
@@ -86,8 +106,9 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   nunca el objeto. **El contacto se muestra** (decisión de gorrite,
   [0023](decisiones/0023-contacto-publico.md)): los links, el mail y el teléfono de la ficha
   (públicos a propósito, están en el repo) salen en "Contacto" de la página del perfil o del lugar
-  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). El
-  cumpleaños y la identidad de género se importan pero no se muestran, como antes.
+  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). Los links
+  web (y el botón del primero) llevan `rel="nofollow ugc noopener noreferrer"`: los escribe quien
+  gestiona el perfil, como el texto. El cumpleaños y la identidad de género se importan pero no se muestran, como antes.
 - **Quienes gestionan no se muestran nunca**; integrantes de un proyecto, solo con `show_members`,
   solo aceptades, aprobades y visibles para quien mira.
 - **«Se muestra al público» es una sola regla** para perfiles y lugares: quien mira lo puede ver
@@ -102,15 +123,64 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   perfiles, aprobaciones, importaciones e imágenes) y el árbol de etiquetas: un pedido que no
   cambia nada hace una sola consulta (antes, dos). Con sesión se arma cada vez (una cuenta o une
   admin pueden ver más).
+- **La página de un perfil no espera de a una consulta** (la base está lejos: cada consulta que
+  espera a otra es una ida y vuelta). La dirección (primero la vieja de una ficha importada,
+  después la del objeto), el perfil, si está aprobado, su imagen y el rol de la cuenta salen en
+  una consulta (`findPublicProfile`, que es `findPublicProfiles` con una dirección); la lista de
+  publicaciones, a la par. Después, a la par: les autores (todes en una consulta), los
+  integrantes (con su aprobación, en una), los eventos de un lugar, "Es mi perfil", «Participa
+  en» y lo demás. Quién ve qué no cambia. `perfil-consultas.test.js` (al lado de la ruta) fija
+  cuántas consultas y tandas en fila hace, sin sesión, con cuenta y como admin.
 - **"Es mi perfil" no revela nada**: la misma respuesta haya o no otros pedidos o dueñes; cada
   cuenta ve solo su pedido. Límites: 5 por día por cuenta y 10 por conexión.
 - **El HTML del texto se limpia en el servidor** con `rehype-sanitize` (el esquema de GitHub,
   ajustado en `src/lib/server/amigues/sanitize.js`, el único lugar que lo decide): lista corta de
-  etiquetas; sin scripts, estilos, `on…`, `javascript:` ni `data:`; `id`/`name` con prefijo.
+  etiquetas; sin scripts, estilos, `on…`, `javascript:`, `data:`, `accesskey` ni `tabindex`;
+  `id`/`name` con prefijo. Las imágenes (`<img src>`) solo de la biblioteca propia, como la imagen
+  del perfil: `/media/…` (fuera de producción, también la misma imagen en
+  `https://kinkyvibe.ar/media/img/…`, como las imágenes viejas de `legacyMedia.js`); una imagen
+  de otro sitio queda sin `src`.
 - **La dirección de un lugar nunca sale de su nivel** (abajo).
 - **Los datos estructurados y la tarjeta de contacto tampoco**: el JSON-LD (`ProfilePage`), la
   h-card y `/amigues/<perfil>/contacto.vcf` usan solo lo que muestra la página (el contacto de
   `contactItems()` y la dirección según el nivel). Ver [seo.md](seo.md).
+- **La dirección estructurada** (`venuePostalAddress` en `src/lib/utils/venues.js`) es una sola
+  para el perfil del lugar y para sus eventos: calle (`streetAddress`) solo en «Nombre +
+  dirección» y «Sólo dirección»; barrio y ciudad (`addressLocality`) también en «Sólo barrio»;
+  nada en «Sólo Nombre» y «Nada». En un evento, el `Place` lleva el link al lugar (`url`, `@id`)
+  solo en los niveles que lo muestran. Si al evento le falta la dirección, va la ciudad o el país
+  de su etiqueta de región (AMBA, Córdoba, Montevideo…; `regionAddress` en `eventPlace.js`), que la
+  página ya muestra; con el lugar oculto, ese `Place` va sin nombre. Las pruebas por nivel están en
+  `venues.test.js` y `eventPlace.test.js`.
+
+## Buscadores: «No aparecer en buscadores»
+
+Decisión de gorrite (auditoría de comunidad, octubre de 2026): los perfiles de persona públicos
+**aparecen en Google por defecto**, pero quienes gestionan el perfil pueden sacarlo de los
+buscadores sin esconderlo del sitio. Es `data.noindex` del perfil (sin migración: va en el JSON
+del objeto; apagado no se guarda), y la única regla que lo lee es `profileNoindex()`
+(`src/lib/server/objects/types/perfil.js`): **solo perfiles de persona**. Un proyecto o un lugar
+quiere que lo encuentren, y un lugar ya tiene la privacidad de su dirección y «No listado»; el
+tipo `perfil` rechaza el campo en los otros.
+
+- **Dónde se elige**: Mi rincón → Perfiles → el perfil → «Buscadores» (una casilla, con el texto de
+  qué hace y qué no). Les admins lo ven y lo cambian en el editor del panel y lo ven en la ficha
+  del perfil (Comunidad → Cuentas → Perfiles: «Buscadores»).
+- **Qué hace**: la página lleva `<meta name="robots" content="noindex">` y la cabecera
+  `X-Robots-Tag: noindex` (también `contacto.vcf`); sale del sitemap y nunca va a IndexNow (las dos
+  usan `inSitemap` de `src/lib/utils/seo.js`, que mira `meta.noindex` del post del perfil); no lleva
+  datos estructurados (ni el `ProfilePage` con `sameAs`, mail y teléfono); y la vista previa al
+  compartir (Open Graph y Twitter) va sin la foto ni la presentación: la tarjeta del sitio y
+  «<nombre> en Amigues de Kinky Vibe».
+- **Qué no cambia**: para quien entra, la página es la misma (foto, texto, contacto, h-card), el
+  perfil sigue en /amigues, en «Más cosas de…», en el buscador del sitio y en `/api/posts`. Quienes
+  lo gestionan y les admins ven en la página el aviso «No aparece en buscadores». El modo inline
+  del bot de Telegram tampoco cambia (decisión de gorrite).
+- **Qué no puede hacer** (lo dice el editor): Google tarda en sacar una página que ya tenía; las
+  copias que guardaron otros sitios (archivos, capturas, vistas previas ya mandadas) no se borran.
+  «Solo personas con cuenta» u «Oculto» ya sacan el perfil de todo lo público.
+- Lo prueban `perfil-noindex.test.js` (al lado de la ruta del perfil), `sitemap.test.js` e
+  `indexnow.test.js`.
 
 ## Privacidad de los lugares
 
@@ -144,7 +214,9 @@ En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada" 
 entradas en el sitio; si no (no hay entrada que la lleve), no aparece ningún aviso (decisión de
 gorrite, 9/10). En todos los
 niveles **quien compró recibe el lugar completo** (nombre y dirección) en el mail de confirmación,
-en los recordatorios y en la página de su entrada (con la compra aprobada).
+en los recordatorios y en la página de su entrada (con la compra aprobada). «Cómo llegar» y
+«Accesibilidad» van en esos mails solo cuando la página del evento se los muestra a cualquiera
+(nivel «Nombre + dirección»; `venueNotesForMail`, [mails.md](mails.md)).
 
 La página del lugar muestra su ubicación según su nivel por defecto (el mapa, solo con
 "Nombre + dirección").
@@ -185,7 +257,9 @@ evento los muestra («Ver en el mapa»; con nombre `location_name` y dirección,
 Dirección», o lo que haya de los dos) y el `.ics` lleva el texto en `LOCATION` y el link en la
 descripción. «Online» solo si el evento es online; sin nada cargado no dice nada (antes decía
 «Online»). Los datos estructurados de schema.org siguen lo mismo (`eventPlaceSchema`). Si el evento
-tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto ni el link de `location`. Todo en
+tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto ni el link de `location`. Si la
+base falla al leer el lugar, las páginas del evento hacen como con un lugar oculto («Lugar a
+confirmar», a lo sumo la región) y tampoco usan el «Dónde» del .md (`eventPageVenue`). Todo en
 `src/lib/utils/eventPlace.js` (`eventPlace`, `eventPlaceSchema`, `checkMapLink`).
 
 **Online o presencial: una sola regla**, `eventMode(meta, { hasVenue })` en `eventPlace.js`
@@ -363,7 +437,7 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
   «Dejar como texto».
 - **Qué se ve**: con el lugar elegido, la página dice qué eventos se van a ver distinto y por qué
   (`eventFit`, la misma lista blanca que la página del evento).
-- **Privacidad** (decidido por Claude, a confirmar): cada evento queda con el nivel del lugar,
+- **Privacidad** (decidido por Claude, **A CONFIRMAR**): cada evento queda con el nivel del lugar,
   salvo que el evento mostraba menos (por ejemplo, solo el nombre): entonces lleva ese nivel como
   propio en el edge (`linkPrivacy`). Nunca muestra del lugar más de lo que el lugar deja ver por
   defecto, aunque el evento mostrara más en su texto.

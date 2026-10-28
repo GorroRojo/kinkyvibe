@@ -15,6 +15,7 @@ import {
 } from './panelList.js';
 import { listPanelEventsWithMeta } from './panel.js';
 import { listEventVenues } from '$lib/server/amigues/venues.js';
+import { MP_FEE_ESTIMATED_SQL, MP_FEE_SQL, REVENUE_SQL } from '$lib/utils/salesGoal.js';
 
 // Para `panelEventRows`: los eventos y sus lugares vinculados, inventados (sin base de contenido).
 vi.mock('./panel.js', () => ({ listPanelEventsWithMeta: vi.fn() }));
@@ -195,13 +196,14 @@ describe('ventas de la lista', () => {
 			['uno', 3, 1],
 			['sin-ventas', 0, 0]
 		]);
-		// Lo recaudado (para el avance contra una meta de venta en plata), en la misma consulta.
-		expect(calls[0].sql).toMatch(/THEN total ELSE 0 END\) AS revenue/);
+		// Lo recaudado (para el avance contra una meta de venta en plata; sin los reembolsos parciales
+		// hechos en MP), en la misma consulta.
+		expect(calls[0].sql).toContain(`THEN ${REVENUE_SQL} ELSE 0 END) AS revenue`);
 		expect(out.map((e) => e.revenue)).toEqual([30000, 0]);
 		// Y la comisión de Mercado Pago (solo de lo pagado con MP), para lo neto de la meta.
-		expect(calls[0].sql).toMatch(
-			/THEN CASE WHEN payment_method = 'mercadopago' THEN surcharge_amount ELSE 0 END ELSE 0 END\) AS mp_fee/
-		);
+		// (la que informó MP o, si no, la estimada; y aparte la parte estimada).
+		expect(calls[0].sql).toContain(`THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee,`);
+		expect(calls[0].sql).toContain(`THEN ${MP_FEE_ESTIMATED_SQL} ELSE 0 END) AS mp_fee_estimated`);
 		expect(out.map((e) => e.mpFee)).toEqual([600, 0]);
 	});
 

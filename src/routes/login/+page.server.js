@@ -4,6 +4,15 @@ import { authCookieOptions, safeRedirect } from '$lib/server/auth';
 const target = 'https://github.com/login/oauth/authorize';
 /** Seconds the user has to complete the GitHub authorization. */
 const OAUTH_COOKIE_MAX_AGE = 10 * 60;
+
+/**
+ * La entrada de quienes editan: que los buscadores no la guarden (está enlazada desde el pie). Sin
+ * `Disallow` en robots.txt, para que puedan leer el `noindex`.
+ * @type {import("./$types").PageServerLoad}
+ */
+export const load = ({ setHeaders }) => {
+	setHeaders({ 'x-robots-tag': 'noindex' });
+};
 /** @type {import("./$types").Actions} */
 export const actions = {
 	default: async ({ request, cookies, url }) => {
@@ -17,9 +26,9 @@ export const actions = {
 		cookies.set('oauthRedirectTo', redirectTo, opts);
 		const params = new URLSearchParams({
 			client_id: env.GITHUB_CLIENT_ID ?? '',
-			state,
-			// The site only reads and commits to the public GorroRojo/kinkyvibe repo.
-			scope: 'public_repo'
+			// No `scope`: the token is only used to read the user's id (GET /user). Since decision
+			// 0032 the panel never writes to GitHub, so it asks for no permissions.
+			state
 		});
 		redirect(302, `${target}?${params}`);
 	}

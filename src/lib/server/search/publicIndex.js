@@ -11,6 +11,7 @@
  */
 import { dev } from '$app/environment';
 import { getDB } from '$lib/server/db';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
 import { ANON } from '$lib/server/objects/visibility.js';
 import { siteBodies, siteContentStamp, sitePosts } from '$lib/server/contenido/posts.js';
 import {
@@ -18,7 +19,8 @@ import {
 	listPublicProfiles,
 	profilesStamp
 } from '$lib/server/amigues/profiles.js';
-import { eventVenuesStamp, linkedVenues } from '$lib/server/amigues/venues.js';
+import { eventVenuesStamp, feedVenues, linkedVenues } from '$lib/server/amigues/venues.js';
+import { isOnlinePlace, ONLINE_PLACE_TEXT } from '$lib/utils/eventPlace.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { buildSearchIndex } from '$lib/server/search/siteIndex.js';
 import { siteTagSource } from '$lib/server/etiquetas/source.js';
@@ -39,7 +41,11 @@ import { siteWikiBodies, siteWikiPosts } from '$lib/server/wiki/site.js';
  * }} BuiltIndex
  */
 
-/** @type {WeakMap<TagManager, { key: string, built: Promise<BuiltIndex> }>} */
+/**
+ * Solo índices ya armados: lo que está en camino se comparte solo dentro del pedido
+ * (`readAndKeep`, src/lib/server/db/perRequest.js).
+ * @type {WeakMap<TagManager, { key: string, built: BuiltIndex }>}
+ */
 const indexCache = new WeakMap();
 
 /**
@@ -65,28 +71,26 @@ function wikiStamp(list) {
 export async function publicSearchIndex(platform) {
 	const tagManager = currentSiteTags();
 	const db = getDB(platform);
-	const contentStamp = await siteContentStamp(platform);
 	const profiles = Boolean(db);
-	const wiki = (await siteTagSource(platform)).wiki ?? [];
-	const key = JSON.stringify([
-		contentStamp,
-		wikiStamp(wiki),
-		profiles ? await profilesStamp(/** @type {any} */ (db)) : null,
-		profiles ? await eventVenuesStamp(/** @type {any} */ (db)) : null
+	// Las marcas, a la par: cada una es una ida y vuelta a la base y ninguna depende de otra.
+	const [contentStamp, source, profileStamp, venueStamp] = await Promise.all([
+		siteContentStamp(platform),
+		siteTagSource(platform),
+		profiles ? profilesStamp(/** @type {any} */ (db)) : null,
+		profiles ? eventVenuesStamp(/** @type {any} */ (db)) : null
 	]);
-	let entry = dev ? undefined : indexCache.get(tagManager);
-	if (!entry || entry.key !== key) {
-		const built = buildIndex(tagManager, platform, { profiles });
-		const fresh = { key, built };
-		entry = fresh;
-		if (!dev) {
-			indexCache.set(tagManager, fresh);
-			built.catch(() => {
-				if (indexCache.get(tagManager) === fresh) indexCache.delete(tagManager);
-			});
+	const wiki = source.wiki ?? [];
+	const key = JSON.stringify([contentStamp, wikiStamp(wiki), profileStamp, venueStamp]);
+	const entry = dev ? undefined : indexCache.get(tagManager);
+	if (entry && entry.key === key) return entry.built;
+	return readAndKeep(
+		tagManager,
+		`public-index\n${key}`,
+		() => buildIndex(tagManager, platform, { profiles }),
+		(built) => {
+			if (!dev) indexCache.set(tagManager, { key, built });
 		}
-	}
-	return entry.built;
+	);
 }
 
 /**
@@ -114,6 +118,28 @@ async function buildIndex(tagManager, platform, { profiles }) {
 		)
 		.map(({ meta }) => String(meta.postID));
 	const venues = profiles && db ? await linkedVenues(db, reachableEvents) : [];
+	// El lugar de cada evento como lo muestra su página a cualquiera (`feedVenues`, como las listas):
+	// el lugar vinculado según su nivel o, sin lugar, el nombre del «Dónde». Nunca la calle. Si la
+	// base falla, sin lugares (mejor que uno que debía estar oculto, como `withVenuePlaces`).
+	/** @type {Map<string, import('$lib/utils/venues.js').VenueView>} */
+	let places = new Map();
+	let mdPlaces = true;
+	if (db) {
+		try {
+			places = await feedVenues(db, reachableEvents);
+		} catch (e) {
+			console.error('[buscar] no se pudieron leer los lugares de los eventos', e);
+			mdPlaces = false;
+		}
+	}
+	/** @param {Record<string, any>} meta */
+	const eventPlace = (meta) => {
+		const view = places.get(String(meta.postID));
+		if (view) return [view.name, view.area, view.city].filter(Boolean).join(', ');
+		if (!mdPlaces) return '';
+		if (isOnlinePlace(meta)) return ONLINE_PLACE_TEXT;
+		return typeof meta.location_name === 'string' ? meta.location_name : '';
+	};
 	const raw = await buildSearchIndex({
 		posts,
 		wikiPosts,
@@ -121,7 +147,9 @@ async function buildIndex(tagManager, platform, { profiles }) {
 		// El cuerpo de lo que sale de la base (`siteBodies`, leído una vez por cambio; la wiki, con
 		// las etiquetas). Los .md de amigues y la wiki ya no se leen.
 		body: ({ path }) => bodies.get(path) ?? wikiBodies.get(path),
-		profiles: profileList && imported ? { list: profileList, imported, linkedVenues: venues } : null
+		profiles:
+			profileList && imported ? { list: profileList, imported, linkedVenues: venues } : null,
+		eventPlace
 	});
 	return {
 		raw,

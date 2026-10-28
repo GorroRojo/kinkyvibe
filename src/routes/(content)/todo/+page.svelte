@@ -10,36 +10,47 @@
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 	import { userConfig } from '$lib/utils/stores';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { pastPostsLoader } from '$lib/utils/allPosts';
+	import { page } from '$app/stores';
+	import { linkPreviewOf, sectionTexts } from '$lib/utils/seo.js';
+	// El título de la pestaña y el h1, de los textos del panel (docs/compartir.md).
+	$: texts = sectionTexts('todo', linkPreviewOf($page.data).texts);
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (allPosts = posts))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (allPosts = posts));
+	$: if ($userConfig.show_past_events) loadPast();
 </script>
 
 <svelte:head>
-	<title>Kinky Vibe</title>
+	<title>{texts.heading} · Kinky Vibe</title>
 </svelte:head>
+<h1 class="visually-hidden">{texts.title}</h1>
 <!-- La vista previa al compartir (docs/compartir.md). -->
-<ListSeoHead section="todo" />
+<!-- Junta las otras tres listas: los buscadores siguen sus links pero no la guardan (docs/seo.md, «Sitemap»). -->
+<ListSeoHead section="todo" noindex />
 <div class="glosario">
 	<p>
-		Acá vas a poder ver todo el contenido del sitio en un mismo lugar, tanto cosas del <InlineTag tag="calendario" />, como <InlineTag tag="material" /> y <InlineTag tag="amigues" />. Entonces si te interesa, por ejemplo, el <InlineTag tag="shibari" /> vas a poder ver tanto <InlineTag tag="libros" internalTag="libro" /> y <InlineTag tag="talleres" internalTag="taller" /> como les profesionales que dan <InlineTag tag="clases" /> u ofrecen <InlineTag tag="sesiones" />.
+		Acá vas a poder ver todo el contenido del sitio en un mismo lugar, tanto cosas del <InlineTag
+			tag="calendario"
+		/>, como <InlineTag tag="material" /> y <InlineTag tag="amigues" />. Entonces si te interesa,
+		por ejemplo, el <InlineTag tag="shibari" /> vas a poder ver tanto <InlineTag
+			tag="libros"
+			internalTag="libro"
+		/> y <InlineTag tag="talleres" internalTag="taller" /> como les profesionales que dan <InlineTag
+			tag="clases"
+		/> u ofrecen <InlineTag tag="sesiones" />.
 	</p>
 	<dl>
-		{#each $filteredTags.map($tagManager.get).filter(i=>i.parsedDescription) as termino (termino.id)}
+		{#each $filteredTags
+			.map($tagManager.get)
+			.filter((i) => i.parsedDescription) as termino (termino.id)}
 			{@const name = termino.visible_name ?? termino.id}
 			<div animate:flip in:fade>
 				<div>
 					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
 						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
-						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
+						{#if data.wikiKeys.includes(termino.id)}
 							<a href="/wiki/{termino.id}" class="gotowiki">
 								<span>
 									<Globe {style} />
@@ -74,9 +85,11 @@
 		{/each}
 	</dl>
 </div>
-<PostList heading="Todo lo publicado" posts={allPosts} />
+<!-- De a 24 tarjetas con «Ver más», como el inicio: con todas juntas (casi 100, con cientos de
+     etiquetas) la página tardaba en responder al cargar. Con una búsqueda se ve todo. -->
+<PostList heading="Todo lo publicado" posts={allPosts} limit={24} />
 
-	<style lang="scss">
+<style lang="scss">
 	.glosario {
 		max-width: 60rem;
 		margin-inline: auto;

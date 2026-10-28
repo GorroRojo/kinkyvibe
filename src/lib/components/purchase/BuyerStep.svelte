@@ -9,6 +9,7 @@
 	 * próxima» (nombre y pronombres) y, aparte, «Recordar mi DNI» (docs/cuentas.md).
 	 */
 	import SignupFieldInputs from '$lib/components/SignupFieldInputs.svelte';
+	import EmailTypoHint from './EmailTypoHint.svelte';
 
 	export let buyerName = '';
 	export let buyerPronouns = '';
@@ -35,6 +36,15 @@
 	export let errors = {};
 
 	$: indexes = Array.from({ length: count }, (_, n) => n);
+	/** El mail como quedó al salir del campo: recién ahí se mira si parece mal escrito. */
+	let emailChecked = email;
+
+	/**
+	 * `aria-describedby` con los ids que van (el error solo si hay error).
+	 *
+	 * @param {...(string | false | undefined)} ids
+	 */
+	const describedBy = (...ids) => ids.filter(Boolean).join(' ') || undefined;
 </script>
 
 <fieldset class="group">
@@ -76,27 +86,41 @@
 				required
 				bind:value={buyerPronouns}
 				aria-invalid={errors.pronouns ? 'true' : undefined}
+				aria-describedby={describedBy(errors.pronouns && 'entradas-tus-pronombres-error')}
 			/>
-			{#if errors.pronouns}<span class="field-error">{errors.pronouns}</span>{/if}
+			{#if errors.pronouns}<span class="field-error" id="entradas-tus-pronombres-error"
+					>{errors.pronouns}</span
+				>{/if}
 		</div>
 	</div>
 	<div class="row">
-		<label class="field">
-			<span>Email (ahí mandamos {count === 1 ? 'la entrada' : 'las entradas'})</span>
+		<div class="field">
+			<label for="entradas-tu-email"
+				>Email (ahí mandamos {count === 1 ? 'la entrada' : 'las entradas'})</label
+			>
 			<input
+				id="entradas-tu-email"
 				type="email"
 				name="email"
 				autocomplete="email"
 				maxlength="254"
 				required
 				bind:value={email}
+				on:change={() => (emailChecked = email)}
 				aria-invalid={errors.email ? 'true' : undefined}
+				aria-describedby={describedBy(
+					errors.email && 'entradas-tu-email-error',
+					'entradas-comprador-ayuda'
+				)}
 			/>
-			{#if errors.email}<span class="field-error">{errors.email}</span>{/if}
-		</label>
-		<label class="field">
-			<span>DNI (número de documento)</span>
+			<EmailTypoHint bind:email bind:checked={emailChecked} />
+			{#if errors.email}<span class="field-error" id="entradas-tu-email-error">{errors.email}</span
+				>{/if}
+		</div>
+		<div class="field">
+			<label for="entradas-dni">DNI (número de documento)</label>
 			<input
+				id="entradas-dni"
 				type="text"
 				name="dni"
 				inputmode="numeric"
@@ -106,11 +130,15 @@
 				placeholder="Ej.: 12.345.678"
 				bind:value={dni}
 				aria-invalid={errors.dni ? 'true' : undefined}
+				aria-describedby={describedBy(
+					errors.dni && 'entradas-dni-error',
+					'entradas-comprador-ayuda'
+				)}
 			/>
-			{#if errors.dni}<span class="field-error">{errors.dni}</span>{/if}
-		</label>
+			{#if errors.dni}<span class="field-error" id="entradas-dni-error">{errors.dni}</span>{/if}
+		</div>
 	</div>
-	<small class="hint">
+	<small class="hint" id="entradas-comprador-ayuda">
 		El email y el DNI son datos administrativos de la compra: el DNI no aparece en las entradas ni
 		en los mails.
 	</small>
@@ -150,9 +178,10 @@
 				>Entrada {i + 1}{#if i === 0}&nbsp;(vos){/if}</legend
 			>
 			<div class="row">
-				<label class="field">
-					<span>Nombre</span>
+				<div class="field">
+					<label for="entradas-nombre-{i}">Nombre</label>
 					<input
+						id="entradas-nombre-{i}"
 						type="text"
 						name="holder_name_{i}"
 						autocomplete="off"
@@ -163,11 +192,16 @@
 							if (i === 0) firstHolderEdited = true;
 						}}
 						aria-invalid={errors[`holder_name_${i}`] ? 'true' : undefined}
+						aria-describedby={describedBy(
+							errors[`holder_name_${i}`] && `entradas-nombre-${i}-error`
+						)}
 					/>
 					{#if errors[`holder_name_${i}`]}
-						<span class="field-error">{errors[`holder_name_${i}`]}</span>
+						<span class="field-error" id="entradas-nombre-{i}-error"
+							>{errors[`holder_name_${i}`]}</span
+						>
 					{/if}
-				</label>
+				</div>
 				<div class="field">
 					<span class="label-row">
 						<label for="entradas-pronombres-{i}">Pronombres</label>
@@ -193,9 +227,14 @@
 							if (i === 0) firstPronounsEdited = true;
 						}}
 						aria-invalid={errors[`holder_pronouns_${i}`] ? 'true' : undefined}
+						aria-describedby={describedBy(
+							errors[`holder_pronouns_${i}`] && `entradas-pronombres-${i}-error`
+						)}
 					/>
 					{#if errors[`holder_pronouns_${i}`]}
-						<span class="field-error">{errors[`holder_pronouns_${i}`]}</span>
+						<span class="field-error" id="entradas-pronombres-{i}-error"
+							>{errors[`holder_pronouns_${i}`]}</span
+						>
 					{/if}
 				</div>
 			</div>
@@ -237,7 +276,8 @@
 		gap: 0.25em;
 		min-width: 0;
 	}
-	.field > span:first-child {
+	.field > span:first-child,
+	.field > label:first-child {
 		font-weight: bold;
 		font-size: var(--step--1);
 	}

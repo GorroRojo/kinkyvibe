@@ -8,7 +8,7 @@
 	 */
 	import PostList from '$lib/components/PostList.svelte';
 	import { userConfig } from '$lib/utils/stores.js';
-	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
+	import { pastPostsLoader, relatedPostsFor } from '$lib/utils/allPosts';
 
 	/** @type {any} */
 	export let meta;
@@ -17,24 +17,19 @@
 	export let relatedPastCount = 0;
 
 	let posts = relatedPosts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && relatedPastCount > 0 && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((all) => (posts = relatedPostsFor(meta, all)))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((all) => (posts = relatedPostsFor(meta, all)));
+	$: if ($userConfig.show_past_events && relatedPastCount > 0) loadPast();
 	$: relatedAuthors = [...new Set([meta.postID, ...(meta.authors ?? [])])];
 </script>
 
 {#if posts.length > 0 || relatedPastCount > 0}
 	<div class="content">
-		<h3>
+		<h2 class="like-h3">
 			Más cosas de
 			{relatedAuthors.length == 1
 				? relatedAuthors[0]
 				: [relatedAuthors.slice(0, -1).join(', '), relatedAuthors.slice(-1)[0]].join(' o ')}
-		</h3>
+		</h2>
 	</div>
 	<PostList {posts} />
 {/if}

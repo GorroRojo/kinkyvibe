@@ -10,6 +10,7 @@ import { saveObject } from '$lib/server/objects/save.js';
 import { setContentDB } from '$lib/server/contenido/repo.js';
 import { setPerPartTickets, setWorkshopParts } from '$lib/server/eventos/partes.js';
 import { applyPayment, reserveOrder } from '$lib/server/tickets/orders.js';
+import { signedOrderEntry } from '$lib/server/tickets/checkout.js';
 import { load } from './+page.server.js';
 import Page from './+page.svelte';
 
@@ -78,8 +79,13 @@ async function orderFor(eventSlug, { approve = true } = {}) {
 	return /** @type {string} */ (r.order.id);
 }
 
-/** @param {string} id */
-async function page(id) {
+/**
+ * @param {string} id
+ * @param {string} [cookie] la cookie de las compras de este navegador; por defecto, la que el
+ *   servidor firma para esta compra (es de quien mira)
+ */
+async function page(id, cookie) {
+	const value = cookie ?? (await signedOrderEntry(t.db, id));
 	const data = /** @type {any} */ (
 		await load(
 			/** @type {any} */ ({
@@ -90,8 +96,8 @@ async function page(id) {
 				fetch: () => {
 					throw new Error('no debería llamar afuera');
 				},
-				// La cookie de las compras de este navegador: esta compra es de quien mira.
-				cookies: { get: () => id }
+				cookies: { get: () => value },
+				depends: () => {}
 			})
 		)
 	);
@@ -149,5 +155,24 @@ describe('/entradas/<orden>/estado: las partes del taller', () => {
 		const porParte = await page(await orderFor('taller-inventado'));
 		expect(porParte.data.event.parts).toBeNull();
 		expect(porParte.body).not.toMatch(/<dt[^>]*>Partes<\/dt>/);
+	});
+});
+
+describe('/entradas/<orden>/estado: la cookie de las compras de este navegador', () => {
+	it('con la entrada firmada por el servidor: email completo y entradas', async () => {
+		await event('evento-suelto', '2026-10-02T22:00-03:00', 'Espacio Inventado');
+		const { data } = await page(await orderFor('evento-suelto'));
+		expect(data.order.email).toBe('p@example.com');
+		expect(data.tickets).toHaveLength(1);
+	});
+
+	it('con el id sin firmar (cookie vieja o escrita a mano): como si no fuera de quien mira', async () => {
+		await event('evento-suelto', '2026-10-02T22:00-03:00', 'Espacio Inventado');
+		const id = await orderFor('evento-suelto');
+		for (const cookie of [id, `${id}.AAAAAAAAAAAAAAAA`]) {
+			const { data } = await page(id, cookie);
+			expect(data.order.email).not.toBe('p@example.com');
+			expect(data.tickets).toEqual([]);
+		}
 	});
 });

@@ -11,12 +11,15 @@
 		Home,
 		LogIn,
 		UserRound,
-		HandCoins
+		HandCoins,
+		Mail,
+		Users
 	} from '@lucide/svelte';
 	import { siTiktok, siInstagram, siTwitter, siYoutube, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
-	import { supportLink } from '$lib/utils/footer.js';
+	import { contactLink, supportLink } from '$lib/utils/footer.js';
+	import { ORG_PROFILE_PATH } from '$lib/utils/organization.js';
 	/**
 	 * Datos del layout raíz (`member`).
 	 * @type {{ member?: boolean }}
@@ -24,6 +27,7 @@
 	export let data = {};
 	$: cuenta = accountLink(data);
 	const apoyo = supportLink();
+	const contacto = contactLink();
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);`;
 </script>
@@ -44,7 +48,7 @@
 	y software libre.
 	<ul>
 		<li>
-			<h3>Contenido</h3>
+			<h2>Contenido</h2>
 			<ul class="contenido">
 				<li><a href="/" rel="home"><Home {style} />Inicio</a></li>
 				<li><a href="/material"><BookOpen {style} />Material</a></li>
@@ -55,10 +59,16 @@
 			</ul>
 		</li>
 		<li>
-			<h3>Sobre nosotres</h3>
+			<h2>Sobre nosotres</h2>
 			<ul>
 				<li>
-					<a href="https://fondo.kinkyvibe.ar"><ArrowRight {style} />Fondo de Kinky Vibe</a>
+					<a href={ORG_PROFILE_PATH}><Users {style} />Quiénes somos</a>
+				</li>
+				<li>
+					<a href={contacto.href}><Mail {style} />{contacto.label}</a>
+				</li>
+				<li>
+					<a href="https://fondo.kinkyvibe.ar"><ArrowRight {style} />Fondo Kinky Vibe</a>
 				</li>
 				<li>
 					<a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a>
@@ -69,7 +79,7 @@
 			</ul>
 		</li>
 		<li>
-			<h3>Redes</h3>
+			<h2>Redes</h2>
 			<!-- rel="me": las cuentas oficiales (las mismas que OFFICIAL_PROFILES de jsonLd.js, en el
 			     JSON-LD de la organización): así los sitios que verifican perfiles las reconocen. -->
 			<ul class="redes">
@@ -108,7 +118,7 @@
 		{#if cuenta}
 			<!-- Cuentas del público (docs/cuentas.md) -->
 			<li>
-				<h3>Tu cuenta</h3>
+				<h2>Tu cuenta</h2>
 				<ul>
 					<li>
 						<a href={cuenta.href}>
@@ -166,8 +176,11 @@
 	a:focus-visible {
 		outline-color: white;
 	}
-	h3 {
+	/* h2 (el pie va después del h1 de la página, sin saltar a h3) con el aspecto que tenía como h3:
+	   el margen de arriba del h3 del navegador. */
+	h2 {
 		font-size: var(--step-0);
+		margin-top: 1em;
 		margin-bottom: 0.6em;
 	}
 	footer > ul {

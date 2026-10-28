@@ -14,13 +14,18 @@
 
 	$: links = subscribeLinks(url);
 	let copied = false;
+	/** Lo que oye un lector de pantalla al copiar (el botón cambia solo a la vista). */
+	let copyStatus = '';
 	async function copy() {
+		copyStatus = '';
 		try {
 			await navigator.clipboard.writeText(links.https);
 			copied = true;
+			copyStatus = 'Link copiado';
 			setTimeout(() => (copied = false), 2500);
 		} catch {
 			copied = false;
+			copyStatus = `No se pudo copiar. El link es: ${links.https}`;
 		}
 	}
 </script>
@@ -37,6 +42,7 @@
 			><Copy size={16} aria-hidden="true" />{copied ? 'Copiado' : 'Copiar link'}</button
 		>
 	</div>
+	<p class="visually-hidden" role="status">{copyStatus}</p>
 </div>
 
 <style>

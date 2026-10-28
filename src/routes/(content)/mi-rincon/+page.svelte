@@ -1,8 +1,10 @@
 <script>
+	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { Trash2 } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { argDateList, argDateLong } from '$lib/utils/dates.js';
+	import { lastSeenText, loginMethodText } from '$lib/utils/sessionInfo.js';
 	import {
 		READING_SPEEDS,
 		READING_SPEED_MAX,
@@ -18,6 +20,13 @@
 		approved: 'Confirmada',
 		awaiting_transfer: 'Esperando la transferencia',
 		refunded: 'Reembolsada'
+	};
+
+	/** El estado de un pedido «¿Es tu perfil?». @type {Record<string, string>} */
+	const CLAIM_STATUS = {
+		pending: 'Pendiente',
+		approved: 'Aprobado',
+		rejected: 'No aprobado'
 	};
 
 	let confirmDelete = '';
@@ -40,6 +49,24 @@
 		() =>
 		async ({ update }) =>
 			update({ reset: false });
+
+	/** @type {HTMLInputElement | undefined} */
+	let pwCode;
+	/** @type {HTMLInputElement | undefined} */
+	let deleteCode;
+	/**
+	 * «Mandame un código»: al volver, el foco va al campo del código (si no, cae en el body y un
+	 * lector de pantalla no se entera de que ahora hay que escribirlo).
+	 * @type {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const sendCode =
+		() =>
+		async ({ update }) => {
+			await update({ reset: false });
+			await tick();
+			if (form?.codeSentFor === 'password') pwCode?.focus();
+			else if (form?.codeSentFor === 'delete') deleteCode?.focus();
+		};
 </script>
 
 <svelte:head>
@@ -52,6 +79,41 @@
 
 	<section class="surface-card" aria-labelledby="compras-title">
 		<h2 id="compras-title">Tus compras y entradas</h2>
+		{#if form?.action === 'elegirOrden'}
+			{#if form.error}
+				<p class="error" role="alert">{form.error}</p>
+			{:else if form.message}
+				<p class="ok" role="status">{form.message}</p>
+			{/if}
+		{/if}
+		{#if !data.ordersError && data.unconfirmed?.length}
+			<!-- «No fui yo», parte 2: entradas gratis pedidas con este mail sin tu sesión. -->
+			<div class="unconfirmed" role="group" aria-labelledby="son-tuyas-title">
+				<h3 id="son-tuyas-title">¿Son tuyas?</h3>
+				<p class="hint">
+					Alguien pidió estas entradas gratis con tu mail sin entrar a tu cuenta. Si las pediste
+					vos, las sumamos a tu lista; si no, no te las mostramos más.
+				</p>
+				<ul class="orders">
+					{#each data.unconfirmed as o (o.id)}
+						<li>
+							<strong>{o.event}</strong>
+							<span>
+								{o.quantity === 1 ? '1 entrada gratis' : `${o.quantity} entradas gratis`}
+								{#if o.eventStart}· {argDateList(o.eventStart)}{/if}
+							</span>
+							<span class="hint">Pedido {o.reference}, del {argDateLong(o.createdAt)}</span>
+							<form method="POST" action="?/elegirOrden" class="choices" use:enhance={keep}>
+								<input type="hidden" name="orden" value={o.id} />
+								<button class="pill-btn" type="submit" name="mine" value="1">Sí, son mías</button>
+								<button class="pill-btn ghost" type="submit" name="mine" value="0">No es mía</button
+								>
+							</form>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 		{#if data.ordersError}
 			<p class="error" role="alert">No pudimos cargar tus compras. Probá de nuevo en un rato.</p>
 		{:else if data.orders.length === 0}
@@ -75,7 +137,8 @@
 			</ul>
 		{/if}
 		<p class="hint">
-			Acá aparecen las compras hechas con tu mail, también las de antes de tener cuenta.
+			Acá aparecen las compras hechas con tu mail, también las de antes de tener cuenta. Las
+			entradas gratis pedidas sin entrar a tu cuenta te las preguntamos antes.
 		</p>
 	</section>
 
@@ -102,6 +165,53 @@
 			<h2 id="perfiles-title">Tus perfiles</h2>
 			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
 			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
+		</section>
+		{#if data.organizoOn}
+			<!-- Prototipo, interruptor `rol_organizadore` (docs/cuentas.md). -->
+			<section class="surface-card" aria-labelledby="organizo-title">
+				<h2 id="organizo-title">Eventos que organizás</h2>
+				<p class="hint">
+					Cómo va la venta, la lista para la puerta y el texto de los eventos donde tu perfil figura
+					con el rol «Organiza».
+				</p>
+				<a class="pill-btn ghost start" href="/mi-rincon/organizo">Ver tus eventos</a>
+			</section>
+		{/if}
+	{:else}
+		<!-- Sin el permiso de perfiles: reclamar uno que ya existe sí se puede (lo revisa el equipo). -->
+		<section class="surface-card" aria-labelledby="amigues-title">
+			<h2 id="amigues-title">¿Ya estás en Amigues?</h2>
+			<p class="hint">
+				Si ya hay un perfil tuyo (o de tu proyecto o lugar) en Amigues, abrilo y tocá «¿Es tu
+				perfil?». Lo revisa el equipo a mano y, si lo aprobamos, lo vas a poder editar desde acá.
+			</p>
+			<a class="pill-btn ghost start" href="/amigues">Ir a Amigues</a>
+		</section>
+	{/if}
+
+	{#if data.claims?.length}
+		<!-- Los pedidos «¿Es tu perfil?» de la cuenta: solo los suyos, con su estado. -->
+		<section class="surface-card" aria-labelledby="pedidos-title">
+			<h2 id="pedidos-title">Tus pedidos de perfiles</h2>
+			<ul class="orders">
+				{#each data.claims as c (c.id)}
+					<li>
+						{#if c.href}<a href={c.href}><strong>{c.profileTitle}</strong></a>{:else}<strong
+								>{c.profileTitle}</strong
+							>{/if}
+						<span>{CLAIM_STATUS[c.status] ?? c.status}</span>
+						<span class="hint"
+							>Pedido el {argDateLong(c.createdAt)}{#if c.decidedAt}, resuelto el {argDateLong(
+									c.decidedAt
+								)}{/if}</span
+						>
+					</li>
+				{/each}
+			</ul>
+			<p class="hint">
+				Los perfiles que pediste con «¿Es tu perfil?». Lo revisa el equipo a mano; si lo aprobamos,
+				lo editás desde Tus perfiles.
+			</p>
 		</section>
 	{/if}
 
@@ -132,41 +242,49 @@
 						<div>
 							<dt>Nombre</dt>
 							<dd>{data.saved.name}</dd>
-							<form method="POST" action="?/borrarDato" use:enhance={keep}>
-								<input type="hidden" name="campo" value="name" />
-								<button class="link" type="submit" aria-label="Borrar tu nombre">Borrar</button>
-							</form>
+							<dd class="actions">
+								<form method="POST" action="?/borrarDato" use:enhance={keep}>
+									<input type="hidden" name="campo" value="name" />
+									<button class="link" type="submit" aria-label="Borrar tu nombre">Borrar</button>
+								</form>
+							</dd>
 						</div>
 					{/if}
 					{#if data.saved.pronouns}
 						<div>
 							<dt>Pronombres</dt>
 							<dd>{data.saved.pronouns}</dd>
-							<form method="POST" action="?/borrarDato" use:enhance={keep}>
-								<input type="hidden" name="campo" value="pronouns" />
-								<button class="link" type="submit" aria-label="Borrar tus pronombres">Borrar</button
-								>
-							</form>
+							<dd class="actions">
+								<form method="POST" action="?/borrarDato" use:enhance={keep}>
+									<input type="hidden" name="campo" value="pronouns" />
+									<button class="link" type="submit" aria-label="Borrar tus pronombres"
+										>Borrar</button
+									>
+								</form>
+							</dd>
 						</div>
 					{/if}
 					{#if data.saved.hasDni}
 						<div>
 							<dt>DNI</dt>
 							<dd class="dni">{shownDni || data.saved.dniMasked}</dd>
-							{#if shownDni}
-								<button class="link" type="button" on:click={() => (hideDni = true)}>Ocultar</button
-								>
-							{:else}
-								<form method="POST" action="?/mostrarDni" use:enhance={keep}>
-									<button class="link" type="submit" aria-label="Mostrar tu DNI completo"
-										>Mostrar</button
+							<dd class="actions">
+								{#if shownDni}
+									<button class="link" type="button" on:click={() => (hideDni = true)}
+										>Ocultar</button
 									>
+								{:else}
+									<form method="POST" action="?/mostrarDni" use:enhance={keep}>
+										<button class="link" type="submit" aria-label="Mostrar tu DNI completo"
+											>Mostrar</button
+										>
+									</form>
+								{/if}
+								<form method="POST" action="?/borrarDato" use:enhance={keep}>
+									<input type="hidden" name="campo" value="dni" />
+									<button class="link" type="submit" aria-label="Borrar tu DNI">Borrar</button>
 								</form>
-							{/if}
-							<form method="POST" action="?/borrarDato" use:enhance={keep}>
-								<input type="hidden" name="campo" value="dni" />
-								<button class="link" type="submit" aria-label="Borrar tu DNI">Borrar</button>
-							</form>
+							</dd>
 						</div>
 					{/if}
 				</dl>
@@ -175,19 +293,23 @@
 				<summary>{savedEmpty ? 'Guardar mis datos' : 'Cambiar mis datos'}</summary>
 				<form method="POST" action="?/datos" use:enhance={keep}>
 					<label>
-						<span>Tu nombre</span>
+						<span id="datos-name-label">Tu nombre</span>
 						<input
 							name="name"
 							type="text"
 							autocomplete="name"
 							maxlength="80"
 							value={form?.action === 'datos' && form.values ? form.values.name : data.saved.name}
+							aria-labelledby="datos-name-label"
+							aria-describedby={datosErrors.name ? 'datos-name-error' : undefined}
 							aria-invalid={datosErrors.name ? 'true' : undefined}
 						/>
-						{#if datosErrors.name}<span class="field-error">{datosErrors.name}</span>{/if}
+						{#if datosErrors.name}<span id="datos-name-error" class="field-error"
+								>{datosErrors.name}</span
+							>{/if}
 					</label>
 					<label>
-						<span>Tus pronombres</span>
+						<span id="datos-pronouns-label">Tus pronombres</span>
 						<input
 							name="pronouns"
 							type="text"
@@ -197,12 +319,16 @@
 							value={form?.action === 'datos' && form.values
 								? form.values.pronouns
 								: data.saved.pronouns}
+							aria-labelledby="datos-pronouns-label"
+							aria-describedby={datosErrors.pronouns ? 'datos-pronouns-error' : undefined}
 							aria-invalid={datosErrors.pronouns ? 'true' : undefined}
 						/>
-						{#if datosErrors.pronouns}<span class="field-error">{datosErrors.pronouns}</span>{/if}
+						{#if datosErrors.pronouns}<span id="datos-pronouns-error" class="field-error"
+								>{datosErrors.pronouns}</span
+							>{/if}
 					</label>
 					<label>
-						<span>{data.saved.hasDni ? 'DNI nuevo' : 'DNI'}</span>
+						<span id="datos-dni-label">{data.saved.hasDni ? 'DNI nuevo' : 'DNI'}</span>
 						<input
 							name="dni"
 							type="text"
@@ -210,9 +336,13 @@
 							autocomplete="off"
 							maxlength="12"
 							placeholder="Ej.: 12.345.678"
+							aria-labelledby="datos-dni-label"
+							aria-describedby={datosErrors.dni ? 'datos-dni-error' : undefined}
 							aria-invalid={datosErrors.dni ? 'true' : undefined}
 						/>
-						{#if datosErrors.dni}<span class="field-error">{datosErrors.dni}</span>{/if}
+						{#if datosErrors.dni}<span id="datos-dni-error" class="field-error"
+								>{datosErrors.dni}</span
+							>{/if}
 					</label>
 					<p class="hint">
 						Si dejás el nombre o los pronombres vacíos, se borran.{#if data.saved.hasDni}
@@ -300,6 +430,7 @@
 						type="text"
 						inputmode="numeric"
 						autocomplete="one-time-code"
+						bind:this={pwCode}
 						maxlength="9"
 						required
 					/>
@@ -313,6 +444,7 @@
 						minlength="10"
 						maxlength="200"
 						required
+						aria-describedby="pw-ayuda"
 					/>
 				</label>
 				<label>
@@ -324,9 +456,12 @@
 						minlength="10"
 						maxlength="200"
 						required
+						aria-describedby="pw-ayuda"
 					/>
 				</label>
-				<p class="hint">Al menos 10 caracteres. Una frase larga es más fácil de recordar.</p>
+				<p class="hint" id="pw-ayuda">
+					Al menos 10 caracteres. Una frase larga es más fácil de recordar.
+				</p>
 				<button class="pill-btn" type="submit"
 					>{data.hasPassword ? 'Cambiar contraseña' : 'Poner contraseña'}</button
 				>
@@ -336,12 +471,12 @@
 					>
 				{/if}
 			</form>
-			<form method="POST" action="?/confirmar" use:enhance={keep}>
+			<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 				<input type="hidden" name="para" value="password" />
 				<button class="link" type="submit">Mandame otro código</button>
 			</form>
 		{:else}
-			<form method="POST" action="?/confirmar" use:enhance={keep}>
+			<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 				<input type="hidden" name="para" value="password" />
 				<button class="pill-btn ghost" type="submit"
 					>{data.hasPassword ? 'Cambiar o sacar la contraseña' : 'Poner contraseña'}</button
@@ -367,7 +502,54 @@
 		</div>
 		<p class="hint">
 			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo donde
-			hayas entrado. Usalo si entraste en una compu ajena o si perdiste el celu.
+			hayas entrado, desconecta el Telegram vinculado y anula el link de tu calendario personal (si
+			lo usás, después creá uno nuevo). Usalo si entraste en una compu ajena, si perdiste el celu o
+			si otra persona pudo usar tu cuenta.
+		</p>
+	</section>
+
+	<section class="surface-card" id="sesiones" aria-labelledby="sesiones-title">
+		<h2 id="sesiones-title">Dónde tenés la sesión abierta</h2>
+		{#if form?.action === 'dispositivos'}
+			{#if form.error}
+				<p class="error" role="alert">{form.error}</p>
+			{:else if form.message}
+				<p class="ok" role="status">{form.message}</p>
+			{/if}
+		{/if}
+		{#if !data.sessions}
+			<p class="error">No pudimos leer tus sesiones. Probá de nuevo en un rato.</p>
+		{:else}
+			<ul class="sessions">
+				{#each data.sessions as s (s.id)}
+					<li>
+						<div>
+							<strong>{s.device ?? 'Navegador sin identificar'}</strong>
+							{#if s.current}<span class="this">esta</span>{/if}
+							<span class="hint">
+								Entraste el {argDateLong(s.createdAt)} con {loginMethodText(s.method)} · última vez: {s.current
+									? 'ahora'
+									: lastSeenText(s.lastSeenAt, data.now)}
+							</span>
+						</div>
+						<form method="POST" action="?/cerrarSesion" use:enhance={keep}>
+							<input type="hidden" name="sesion" value={s.id} />
+							<button class="pill-btn ghost" type="submit"
+								>{s.current ? 'Cerrar esta (salís acá)' : 'Cerrar esta'}</button
+							>
+						</form>
+					</li>
+				{/each}
+			</ul>
+			{#if data.sessions.some((s) => !s.current)}
+				<form method="POST" action="?/cerrarOtras" use:enhance={keep}>
+					<button class="pill-btn ghost" type="submit">Cerrar todas las demás</button>
+				</form>
+			{/if}
+		{/if}
+		<p class="hint">
+			Si ves una que no reconocés, cerrala; si tenés contraseña, cambiala. La última vez es
+			aproximada: la anotamos como mucho una vez por día. No guardamos tu IP ni dónde estás.
 		</p>
 	</section>
 
@@ -381,8 +563,9 @@
 		<details open={form?.action === 'borrar'}>
 			<summary>Quiero borrar mi cuenta</summary>
 			<p>
-				Se borra tu cuenta con tu mail y tu contraseña, y se cierran todas tus sesiones. Tus compras
-				y entradas siguen valiendo: quedan en el sistema, sin cuenta.{#if data.canHaveProfiles}
+				Se borra tu cuenta con tu mail y tu contraseña, lo que seguís, el link de tu calendario y
+				las invitaciones que te llegaron, y se cierran todas tus sesiones. Tus compras y entradas
+				siguen valiendo: quedan en el sistema, sin cuenta.{#if data.canHaveProfiles}
 					Tus perfiles de persona se vacían y se borran; los proyectos que gestionás con otras
 					personas quedan para elles.{/if} No se puede deshacer.
 			</p>
@@ -395,6 +578,7 @@
 							type="text"
 							inputmode="numeric"
 							autocomplete="one-time-code"
+							bind:this={deleteCode}
 							maxlength="9"
 							required
 						/>
@@ -410,12 +594,12 @@
 						><Trash2 size={18} aria-hidden="true" /> Borrar mi cuenta</button
 					>
 				</form>
-				<form method="POST" action="?/confirmar" use:enhance={keep}>
+				<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 					<input type="hidden" name="para" value="delete" />
 					<button class="link" type="submit">Mandame otro código</button>
 				</form>
 			{:else}
-				<form method="POST" action="?/confirmar" use:enhance={keep}>
+				<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 					<input type="hidden" name="para" value="delete" />
 					<button class="pill-btn ghost" type="submit">Mandame un código para confirmar</button>
 				</form>
@@ -493,6 +677,52 @@
 		padding-bottom: 0.8em;
 		border-bottom: 1px solid var(--line);
 	}
+	.sessions {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: grid;
+		gap: 0.8em;
+	}
+	.sessions li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5em 1em;
+		padding-bottom: 0.8em;
+		border-bottom: 1px solid var(--line);
+	}
+	.sessions li > div {
+		display: grid;
+		gap: 0.15em;
+		min-width: 0;
+	}
+	.sessions .this {
+		justify-self: start;
+		font-size: 0.8em;
+		font-weight: 600;
+		padding: 0.05em 0.6em;
+		border-radius: 999px;
+		border: 1px solid currentColor;
+	}
+	.unconfirmed {
+		display: grid;
+		gap: 0.5em;
+		margin-bottom: 1.2em;
+		padding: 0.8em;
+		border: 1px solid var(--line);
+		border-radius: var(--round-sm);
+	}
+	.unconfirmed h3 {
+		margin: 0;
+	}
+	.choices {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		margin-top: 0.3em;
+	}
 	.orders a {
 		display: flex;
 		flex-wrap: wrap;
@@ -526,6 +756,9 @@
 		font-variant-numeric: tabular-nums;
 		letter-spacing: 0.05em;
 	}
+	/* Los botones van en su propio <dd> (en un <dl> solo valen dt y dd), sin caja: se acomodan
+	   en la fila igual que antes. */
+	.saved .actions,
 	.saved form {
 		display: contents;
 	}

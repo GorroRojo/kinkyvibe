@@ -32,9 +32,14 @@ import {
 import { tagIssuesOf, tagRecordsQuery, tagUsageAndWiki } from '$lib/server/etiquetas/review.js';
 import { editEventHref, orderHref, streamHref, transfersHref } from '$lib/admin/links.js';
 import { eventHref } from '$lib/admin/nav.js';
+import { formatARS } from '$lib/utils/money.js';
 import { failedWaitlistMailsQuery } from '$lib/server/tickets/waitlistAdmin.js';
+import { emergencyPauses } from '$lib/server/emergencia.js';
+import { resendQuotaItem, resendQuotaQuery } from '$lib/server/tickets/resendQuota.js';
+import { webhookHealthItem, webhookHealthQuery } from '$lib/server/telegram/webhookHealth.js';
 import {
 	arDay,
+	cancelledLeftoversQuery,
 	claimReviewItems,
 	failedRemindersQuery,
 	groupReviewItems,
@@ -132,7 +137,11 @@ export function reviewQueries(now, { login = '' } = {}) {
 		// Las etiquetas de la base, para lo que Etiquetas tiene «Para revisar».
 		tagRecords: login ? tagRecordsQuery(login) : noQuery(null),
 		// Mails de la lista de espera que no salieron después de los reintentos (null sin la 0053).
-		waitlistFailed: failedWaitlistMailsQuery()
+		waitlistFailed: failedWaitlistMailsQuery(),
+		// El último 429 de Resend por cupo terminado, si fue hace menos de un día (resendQuota.js).
+		resendQuota: resendQuotaQuery(now),
+		// El último chequeo del webhook del bot, si encontró un problema (webhookHealth.js).
+		webhookHealth: webhookHealthQuery(now)
 	};
 }
 
@@ -161,7 +170,12 @@ export function reviewEventContext({ events, ticketedList, now, skip = skipRevie
 			? [{ slug, start, reminders: c.reminders, cancelled: c.status === 'cancelado' }]
 			: [];
 	});
-	return { ticketed, titles, today, soonTicketed, reminderEvents };
+	// Los cancelados, sin mirar la fecha: lo que quede por devolver sigue a la vista aunque el
+	// evento ya haya pasado (decisión 0044).
+	const cancelledSlugs = ticketedList
+		.filter((t) => t.config.status === 'cancelado' && !skip(t.slug))
+		.map((t) => t.slug);
+	return { ticketed, titles, today, soonTicketed, reminderEvents, cancelledSlugs };
 }
 
 /**
@@ -171,11 +185,20 @@ export function reviewEventContext({ events, ticketedList, now, skip = skipRevie
  *   soonTicketed: string[],
  *   reminderEvents: ReturnType<typeof reviewEventContext>['reminderEvents'],
  *   settings: Awaited<ReturnType<typeof getSalesSettings>> | null,
+ *   cancelledSlugs?: string[],
  *   now: number
  * }} input
  */
-export function reviewEventQueries({ soonTicketed, reminderEvents, settings, now }) {
+export function reviewEventQueries({
+	soonTicketed,
+	reminderEvents,
+	settings,
+	cancelledSlugs = [],
+	now
+}) {
 	return {
+		// Eventos cancelados con órdenes aprobadas o transferencias vigentes (sin cancelados, nada).
+		cancelled: cancelledLeftoversQuery(cancelledSlugs, now),
 		totals: ticketTotalsQuery(soonTicketed, now),
 		streamLinks: streamLinkSlugsQuery(soonTicketed),
 		stuck: stuckSendsQuery(soonTicketed),
@@ -251,8 +274,14 @@ export function tagReviewItem(tags) {
  *   tagRecords: import('$lib/server/etiquetas/editor.js').StoredTag[] | null,
  *   tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null,
  *   waitlistFailed?: { count: number, slugs: string[] } | null,
+ *   resendQuota?: import('$lib/server/tickets/resendQuota.js').ResendQuotaHit | null,
+ *   webhookHealth?: import('$lib/server/telegram/webhookHealth.js').WebhookHealth | null,
+ *   brokenTickets?: import('$lib/server/tickets/events.js').BrokenTicketConfig[],
+ *   cancelled?: import('./inicio.js').CancelledLeftovers[],
+ *   pauses?: { tickets: string | null, mails: string | null },
  *   now: number
- * }} facts
+ * }} facts `pauses`: las pausas de emergencia (por defecto, las variables del Worker); van
+ *   primero, en rojo
  * @returns {ReviewRow[]}
  */
 export function reviewRows(facts) {
@@ -278,10 +307,18 @@ export function reviewRows(facts) {
 	const onlineItem = onlineMismatchItem(facts.onlineMismatch);
 	const tagItem = tagReviewItem(tagIssuesOf(facts.tagRecords, facts.tagUsage));
 	const waitlistItem = waitlistFailedItem(facts.waitlistFailed ?? null, titles);
+	const cancelledItems = cancelledEventItems(facts.cancelled ?? [], titles);
+	const quotaItem = resendQuotaItem(facts.resendQuota, { formatWhen });
+	const botItem = webhookHealthItem(facts.webhookHealth);
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const rows = groupReviewItems(
 		[
+			...pauseItems(facts.pauses ?? emergencyPauses()),
+			...(quotaItem ? [quotaItem] : []),
+			...(botItem ? [botItem] : []),
 			...(transferMissing ? [transferMissing] : []),
+			...brokenTicketItems(facts.brokenTickets ?? []),
+			...cancelledItems,
 			...todoItems,
 			...(onlineItem ? [onlineItem] : []),
 			...(waitlistItem ? [waitlistItem] : []),
@@ -295,6 +332,67 @@ export function reviewRows(facts) {
 	const integrityRow = integrityReviewRow(facts.integrity, { formatWhen });
 	if (integrityRow) rows.push(integrityRow);
 	return rows;
+}
+
+/**
+ * «Para revisar»: una fila por evento próximo con entradas cuya configuración ya no se puede leer
+ * (`listTicketedEvents({ broken })`): no vende y la ficha lo muestra como «no vende» (auditoría de
+ * confiabilidad, O19). Lleva a editar el evento.
+ *
+ * @param {import('$lib/server/tickets/events.js').BrokenTicketConfig[]} broken
+ * @returns {ReviewItem[]}
+ */
+export function brokenTicketItems(broken) {
+	return broken.map((b) => ({
+		id: `broken-tickets-${b.slug}`,
+		tone: 'bad',
+		icon: 'ticket',
+		title: `«${b.title}» no puede vender entradas: su configuración tiene un error`,
+		text: b.message
+			? `Al leerla: ${b.message}. Corregila en el editor del evento.`
+			: 'Corregila en el editor del evento.',
+		action: 'Editar',
+		href: editEventHref(b.slug)
+	}));
+}
+
+/** Dónde se explican las pausas de emergencia en el panel. */
+export const PAUSES_HREF = '/admin/ajustes/interruptores#pausas';
+
+/**
+ * «Para revisar»: una fila por pausa de emergencia prendida (`TICKETS_PAUSED`, `MAILS_PAUSED`;
+ * $lib/server/emergencia.js), para que nadie se olvide de sacarla. Se van solas cuando se saca la
+ * variable.
+ *
+ * @param {{ tickets: string | null, mails: string | null }} pauses
+ * @returns {ReviewItem[]}
+ */
+export function pauseItems(pauses) {
+	/** @type {ReviewItem[]} */
+	const items = [];
+	if (pauses.tickets) {
+		items.push({
+			id: 'pause-tickets',
+			tone: 'bad',
+			icon: 'ticket',
+			title: 'La venta online de entradas está en pausa',
+			text: `Les compradores ven: «${pauses.tickets}». La puerta y la carga a mano siguen. Se saca borrando TICKETS_PAUSED en Cloudflare`,
+			action: 'Ver',
+			href: PAUSES_HREF
+		});
+	}
+	if (pauses.mails) {
+		items.push({
+			id: 'pause-mails',
+			tone: 'bad',
+			icon: 'mail',
+			title: 'Los mails en tanda están en pausa',
+			text: 'Recordatorios, avisos y la lista de espera esperan; los de cada compra salen. Se saca borrando MAILS_PAUSED en Cloudflare',
+			action: 'Ver',
+			href: PAUSES_HREF
+		});
+	}
+	return items;
 }
 
 /**
@@ -322,6 +420,48 @@ export function waitlistFailedItem(failed, titles) {
 		action: 'Ver',
 		href: eventHref(slug, 'lista-espera')
 	};
+}
+
+/**
+ * «Para revisar»: una fila por evento cancelado al que le queda algo por devolver (decisión 0044:
+ * se devuelve todo desde el panel, orden por orden). Solo avisa: no reembolsa ni cancela nada.
+ * Lleva a la pestaña Órdenes del evento (a Transferencias si solo quedan transferencias). Se va sola cuando no queda ninguna orden aprobada ni
+ * transferencia vigente (también si llega un pago después de cancelar, vuelve a aparecer).
+ *
+ * @param {import('./inicio.js').CancelledLeftovers[]} cancelled
+ * @param {Map<string, string>} titles
+ * @returns {ReviewItem[]}
+ */
+export function cancelledEventItems(cancelled, titles) {
+	/** @param {number} n @param {string} one @param {string} many */
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	return cancelled
+		.filter((c) => c.approved > 0 || c.transfers > 0)
+		.map((c) => {
+			const parts = [
+				c.approved
+					? `${plural(c.approved, 'orden aprobada', 'órdenes aprobadas')} (${formatARS(c.approvedTotal)})`
+					: '',
+				c.transfers
+					? plural(c.transfers, 'transferencia pendiente', 'transferencias pendientes')
+					: ''
+			].filter(Boolean);
+			return {
+				id: `cancelled-${c.slug}`,
+				tone: 'bad',
+				icon: 'alert',
+				title: `${titles.get(c.slug) ?? c.slug} está cancelado: ${parts.join(' y ')}`,
+				text: [
+					c.approved ? 'Reembolsá cada orden aprobada desde Órdenes' : '',
+					c.transfers ? 'cancelá las transferencias que esperan comprobante' : ''
+				]
+					.filter(Boolean)
+					.join(' y ')
+					.replace(/^c/, 'C'),
+				action: c.approved ? 'Ver órdenes' : 'Ver transferencias',
+				href: c.approved ? orderHref(c.slug) : transfersHref(c.slug)
+			};
+		});
 }
 
 /**

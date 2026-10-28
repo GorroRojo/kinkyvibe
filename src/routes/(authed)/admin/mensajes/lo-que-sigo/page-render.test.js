@@ -1,7 +1,8 @@
 /**
  * Mensajes › Lo que sigo (la página): los interruptores, los números, los avisos, «Avisame»,
- * Telegram, «Lo más seguido» con su link al panel y los links a donde se configura. Con el
- * interruptor apagado explica qué pasa al prenderlo. Datos inventados.
+ * Telegram, «Lo más seguido» (arriba, debajo de Estado) con su link al panel y «Quiénes» lo siguen,
+ * «Por persona» y los links a donde se configura. Con el interruptor apagado explica qué pasa al
+ * prenderlo. Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
@@ -11,6 +12,13 @@ const NOW = Date.parse('2026-06-01T12:00:00-03:00');
 
 /** @param {number} total */
 const counts = (total) => ({ d7: total, d30: total, total });
+
+/** @param {number} i */
+const fakeFollower = (i) => ({
+	id: `cuenta-inventada-${i}`,
+	email: `persona-${i}@example.com`,
+	href: `/admin/comunidad/cuentas/cuenta-inventada-${i}#sigue`
+});
 
 /** @param {any} [over] */
 function data(over = {}) {
@@ -58,6 +66,24 @@ function data(over = {}) {
 				lugar: []
 			}
 		},
+		followers: {
+			byTarget: {
+				'etiqueta:shibari': [fakeFollower(1), fakeFollower(2)],
+				'perfil:41': [fakeFollower(2)]
+			},
+			people: [
+				{
+					...fakeFollower(2),
+					count: 2,
+					items: [
+						{ group: 'etiqueta', title: '🪢 Shibari' },
+						{ group: 'perfil', title: 'Perfil Inventado' }
+					]
+				},
+				{ ...fakeFollower(1), count: 1, items: [{ group: 'etiqueta', title: '🪢 Shibari' }] }
+			],
+			truncated: false
+		},
 		...over
 	};
 }
@@ -91,6 +117,45 @@ describe('/admin/mensajes/lo-que-sigo (página)', () => {
 		expect(body).toContain('Perfil Inventado');
 		expect(body).toContain('persona · oculto');
 		expect(body).toContain('Nadie sigue ninguno todavía.');
+	});
+
+	it('«Lo más seguido» va arriba, justo debajo de Estado', () => {
+		const body = html(data());
+		// Los títulos de las tarjetas, solos (no «Bot de Telegram» de Estado).
+		const at = (/** @type {string} */ t) => body.indexOf(`>${t}<`);
+		expect(at('Estado')).toBeGreaterThan(-1);
+		expect(at('Lo más seguido')).toBeGreaterThan(at('Estado'));
+		expect(at('Por persona')).toBeGreaterThan(at('Lo más seguido'));
+		for (const later of ['En números', 'Avisos mandados', 'Telegram'])
+			expect(at(later)).toBeGreaterThan(at('Por persona'));
+	});
+
+	it('cada cosa de «Lo más seguido» se abre y lista quiénes la siguen, con link a su ficha', () => {
+		const body = html(data());
+		expect(body).toContain('Quiénes (2)');
+		expect(body).toContain('Quiénes (1)');
+		expect(body).toContain('href="/admin/comunidad/cuentas/cuenta-inventada-1#sigue"');
+		expect(body).toContain('persona-1@example.com');
+		expect(body).toContain('Solo lo ven les admins');
+		expect(body).not.toMatch(/nunca quiénes/i);
+	});
+
+	it('«Por persona»: cada cuenta con cuántas cosas y cuáles; «Ver más» si son muchas', () => {
+		const body = html(data());
+		expect(body).toContain('2 cosas');
+		expect(body).toContain('1 cosa<');
+		expect(body).toContain('🪢 Shibari · Perfil Inventado');
+		expect(body).not.toContain('Ver 0 más');
+
+		const people = Array.from({ length: 23 }, (_, i) => ({
+			...fakeFollower(i + 10),
+			count: 1,
+			items: [{ group: 'etiqueta', title: '🪢 Shibari' }]
+		}));
+		const many = html(data({ followers: { byTarget: {}, people, truncated: true } }));
+		expect(many).toContain('Ver 3 más');
+		expect(many).toContain('persona-32@example.com');
+		expect(many).toContain('muestran solo una parte');
 	});
 
 	it('los links a donde se configura cada cosa', () => {
@@ -130,7 +195,8 @@ describe('/admin/mensajes/lo-que-sigo (página)', () => {
 					avisame: { migrated: null, pendingWithAccount: null, withoutAccount: null },
 					telegram: null,
 					ranking: null
-				}
+				},
+				followers: null
 			})
 		);
 		expect(body).toContain('No hay base de datos disponible');

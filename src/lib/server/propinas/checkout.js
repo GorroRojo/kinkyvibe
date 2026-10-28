@@ -71,7 +71,7 @@ export function readTipForm(form) {
  *   values: TipFormValues,
  *   client: string,
  *   origin: string,
- *   findPost: (category: 'material' | 'calendario', slug: string) => Promise<{ title: string } | null>,
+ *   findPost: (category: import('$lib/utils/propinas.js').TipCategory, slug: string) => Promise<{ title: string } | null>,
  *   fondoEnabled?: boolean,
  *   now?: number
  * }} input

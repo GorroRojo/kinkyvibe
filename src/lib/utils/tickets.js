@@ -4,6 +4,8 @@
  */
 import { argDateParts, argDayMonth, argDeadline, argTime } from './dates.js';
 import { transferRuleText } from './transferDeadline.js';
+import { formatARS } from './money.js';
+import { doorPrice } from './ticketTiers.js';
 
 /**
  * Cuántos bloques de datos por entrada se muestran como máximo en el formulario. No es un
@@ -26,6 +28,12 @@ export function remainingOf(type, counts) {
 
 /** Por debajo de cuántas entradas disponibles la página pública dice cuántas quedan. */
 export const LOW_STOCK = 10;
+
+/**
+ * Un tipo con precio 0 en la puerta (no a la gorra): la puerta no lo vende (`sellAtDoor` da
+ * `free-door`), con y sin conexión se dice esto.
+ */
+export const FREE_DOOR_MESSAGE = 'Esta entrada es sin cargo en la puerta: cargala a mano.';
 
 /**
  * Lo que se muestra en público de lo que queda: el número solo si el tipo tiene cupo y quedan
@@ -54,16 +62,46 @@ export function leftText(n) {
  * Qué dice la página pública sobre las entradas en la puerta (`door` de la configuración:
  * `puerta` / `puerta_precio`). `null` (nada) en los eventos online y en los que no tienen
  * `puerta` en el frontmatter (los de antes: se sigue vendiendo en la puerta, sin aviso).
+ * El precio: la nota `puerta_precio` si la hay (manda, es lo que dice el editor que se muestra);
+ * si no, `typesPrice`, el que sale del «Precio en puerta» de los tipos ({@link doorPricesText}).
  *
- * @param {{ on: boolean, explicit?: boolean, price: string } | null | undefined} door
+ * @param {{ on: boolean, explicit?: boolean, price: string, typesPrice?: string }
+ *   | null | undefined} door
  * @returns {string | null}
  */
 export function doorText(door) {
 	if (!door || !door.explicit) return null;
 	if (!door.on) return 'Solo anticipadas: no hay entradas en la puerta.';
-	return door.price
-		? `También hay entradas en la puerta: ${door.price}.`
+	const price = door.price || door.typesPrice;
+	return price
+		? `También hay entradas en la puerta: ${price}.`
 		: 'También hay entradas en la puerta.';
+}
+
+/**
+ * El precio en la puerta para la página pública, sacado de los tipos con `doorPrice` (el mismo
+ * que cobran la puerta y la carga a mano, así no pueden decir cosas distintas): un solo precio,
+ * «$ 12.000»; varios, «desde $ 10.000»; los tipos a la gorra suman «a la gorra» («$ 12.000 o a
+ * la gorra», o solo «a la gorra»). Un único precio 0 (`door_price: 0`), «sin cargo». Sin tipos, ''.
+ *
+ * @param {Parameters<typeof doorPrice>[0][]} types
+ * @returns {string}
+ */
+export function doorPricesText(types) {
+	const prices = [
+		...new Set(types.flatMap((t) => (t.gorra ? [] : [doorPrice(t)?.price ?? t.price])))
+	];
+	const gorra = types.some((t) => t.gorra);
+	const fixed =
+		prices.length === 0
+			? ''
+			: prices.length > 1
+				? `desde ${formatARS(Math.min(...prices))}`
+				: prices[0] === 0
+					? 'sin cargo'
+					: formatARS(prices[0]);
+	if (!gorra) return fixed;
+	return fixed ? `${fixed} o a la gorra` : 'a la gorra';
 }
 
 /** Medios de pago que puede habilitar un evento en su frontmatter. */
@@ -194,6 +232,17 @@ export function defaultFondoOption(fondo) {
 }
 
 /**
+ * Lo que cubre el Fondo de una entrada de `price` con el porcentaje del Fondo (redondeado al peso);
+ * 0 sin porcentaje (evento sin Fondo).
+ *
+ * @param {number} price
+ * @param {number | null} fondoPercent
+ */
+export function fondoFor(price, fondoPercent) {
+	return fondoPercent !== null ? Math.round((price * fondoPercent) / 100) : 0;
+}
+
+/**
  * Opciones que se ofrecen para un tipo de entrada (sin fondo, no aparece "Con el descuento del
  * fondo").
  *
@@ -201,6 +250,106 @@ export function defaultFondoOption(fondo) {
  */
 export function fondoOptionsFor(fondo) {
 	return FONDO_OPTIONS.filter((o) => o.id !== 'fondo' || fondo > 0);
+}
+
+/**
+ * La página de compra con otro porcentaje del Fondo: el que contestó el servidor al comprar
+ * (`form.buy.fondoPercent`), por si cambió desde que se cargó la página. Recalcula lo que cubre
+ * el fondo en cada tipo con precio (como `config.js`: `round(precio × % / 100)`), así el
+ * formulario muestra y vuelve a mandar el porcentaje que se va a cobrar sin recargar. Sin un
+ * porcentaje válido, sin Fondo o con el mismo, devuelve la vista como estaba.
+ *
+ * @template {{ fondoEnabled: boolean, fondoPercent: number | null,
+ *   types: { price: number, fondo: number, gorra: unknown }[] }} V
+ * @param {V} view
+ * @param {unknown} percent
+ * @returns {V}
+ */
+export function withFondoPercent(view, percent) {
+	if (
+		!view.fondoEnabled ||
+		typeof percent !== 'number' ||
+		!Number.isInteger(percent) ||
+		percent < 0 ||
+		percent > 100 ||
+		percent === view.fondoPercent
+	)
+		return view;
+	return {
+		...view,
+		fondoPercent: percent,
+		types: view.types.map((t) =>
+			t.gorra ? t : { ...t, fondo: Math.round((t.price * percent) / 100) }
+		)
+	};
+}
+
+/**
+ * El tramo vigente de un tipo, como lo contesta `?/buy` con error (`form.buy.tier`; ver
+ * `buyAction`): el tipo y el tramo con su precio y lo que cubre el fondo.
+ *
+ * @typedef {{ type: string, id: string, name: string, until: number | null, price: number,
+ *   fondo: number }} CurrentTier
+ */
+
+/** @param {unknown} n */
+const isAmount = (n) => typeof n === 'number' && Number.isInteger(n) && n >= 0;
+
+/**
+ * La página de compra con el tramo de preventa que contestó el servidor al comprar, por si cambió
+ * desde que se cargó la página (otra compra llenó el tramo o pasó su fecha): ese tipo pasa a
+ * mostrar el tramo y el precio de ahora, así confirmar de nuevo manda ese tramo sin recargar. El
+ * "a este precio" del "Quedan N" era del tramo anterior: se saca. Sin un tramo válido, para un
+ * tipo sin tramos o con el mismo, devuelve la vista como estaba.
+ *
+ * @template {{ types: { id: string, price: number, fondo: number,
+ *   tier?: { id: string, name: string, until: number | null } | null,
+ *   tierLeft?: boolean }[] }} V
+ * @param {V} view
+ * @param {unknown} tier
+ * @returns {V}
+ */
+export function withCurrentTier(view, tier) {
+	if (!tier || typeof tier !== 'object') return view;
+	const t = /** @type {Record<string, unknown>} */ (tier);
+	if (
+		typeof t.type !== 'string' ||
+		typeof t.id !== 'string' ||
+		!t.id ||
+		typeof t.name !== 'string' ||
+		!(t.until === null || typeof t.until === 'number') ||
+		!isAmount(t.price) ||
+		!isAmount(t.fondo) ||
+		Number(t.fondo) > Number(t.price)
+	)
+		return view;
+	const current = view.types.find((x) => x.id === t.type);
+	if (!current?.tier) return view;
+	if (current.tier.id === t.id && current.price === t.price && current.fondo === t.fondo)
+		return view;
+	const next = {
+		price: Number(t.price),
+		fondo: Number(t.fondo),
+		tier: { id: t.id, name: t.name, until: /** @type {number | null} */ (t.until) },
+		tierLeft: false
+	};
+	return { ...view, types: view.types.map((x) => (x === current ? { ...x, ...next } : x)) };
+}
+
+/**
+ * Lo que muestra la página de compra después de un `?/buy` con error (SvelteKit no vuelve a
+ * cargar la página): el tramo y el porcentaje del Fondo que contestó el servidor.
+ *
+ * @template {{ fondoEnabled: boolean, fondoPercent: number | null,
+ *   types: { id: string, price: number, fondo: number, gorra: unknown,
+ *     tier?: { id: string, name: string, until: number | null } | null,
+ *     tierLeft?: boolean }[] }} V
+ * @param {V} view
+ * @param {Record<string, unknown> | null | undefined} buy `form.buy` (usa `tier` y `fondoPercent`)
+ * @returns {V}
+ */
+export function ticketsAfterBuy(view, buy) {
+	return withFondoPercent(withCurrentTier(view, buy?.tier), buy?.fondoPercent);
 }
 
 /**

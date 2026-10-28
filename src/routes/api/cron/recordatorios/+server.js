@@ -5,10 +5,25 @@
  * la lista de espera de las entradas (interruptor `lista_espera`: primero avanza la lista de cada
  * evento con `runWaitlistCron` y sus mails van primero en la tanda; ver
  * $lib/server/tickets/waitlistEngine.js),
- * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), el resumen diario de
+ * la conciliación con Mercado Pago de las órdenes cuyo webhook no llegó (ver
+ * $lib/server/tickets/reconcile.js),
+ * el reintento del mail con las entradas de las órdenes aprobadas cuyo envío falló (ver
+ * $lib/server/tickets/unsentOrders.js),
+ * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), una vez por hora la salud
+ * del webhook del bot (ver $lib/server/telegram/webhookHealth.js), el resumen diario de
  * ventas para admins por Telegram (ver $lib/server/telegram/adminNotify.js) y el registro automático
- * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js). Lo llama cada 15 minutos el cron
+ * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js) y borra las filas
+ * por persona de las estadísticas de uso del bot de más de 180 días (ver
+ * $lib/server/telegram/uso.js) y avisa por IndexNow las páginas públicas que cambiaron (ver
+ * $lib/server/seo/indexnow.js) y, en prototipo (interruptor `encuesta_post_evento`), manda la
+ * encuesta de después de cada evento (ver $lib/server/encuesta/send.js). Lo llama cada 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
+ *
+ * Pausas de emergencia ($lib/server/emergencia.js, docs/interruptores.md): con `MAILS_PAUSED`
+ * no sale ningún mail en tanda (la tanda, las series y «Lo que sigo» se saltean y quedan para
+ * después; el reintento del mail de las entradas sigue, es de una compra) y la lista de espera no
+ * avanza (no se guardan lugares que nadie se entera); con `TICKETS_PAUSED`, la lista tampoco
+ * avanza (no se podría comprar). La respuesta suma `paused: { tickets, mails }`.
  *
  * Protegido con un secreto compartido: header `x-cron-secret` = CRON_SECRET (comparado en
  * tiempo constante, sobre los SHA-256 para no revelar el largo). Sin CRON_SECRET configurado
@@ -18,13 +33,29 @@ import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
 import { runMailQueue, siteOrigin } from '$lib/server/tickets/index.js';
+import { mailBudgetLeft } from '$lib/server/tickets/mailQueue.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
-import { listaEsperaEnabled } from '$lib/server/flags.js';
+import { runSurveyCron } from '$lib/server/encuesta/send.js';
+import { isFlagOn, listaEsperaEnabled } from '$lib/server/flags.js';
 import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
-import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
+import { checkWebhookHealth } from '$lib/server/telegram/webhookHealth.js';
+import {
+	notifyMailQuota,
+	runAdminEventDayCron,
+	runAdminNoticesCron
+} from '$lib/server/telegram/adminNotify.js';
+import { pruneUso } from '$lib/server/telegram/uso.js';
+import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
+import { reconcilePendingPayments } from '$lib/server/tickets/reconcile.js';
+import { runIndexNow } from '$lib/server/seo/indexnow.js';
+import { sitePosts } from '$lib/server/contenido/posts.js';
+import { logMailsPaused, mailsPaused, ticketsPausedMessage } from '$lib/server/emergencia.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { seriesTagIds } from '$lib/utils/series.js';
+import { sitemapWikiPosts } from '../../../(content)/sitemap.xml/series.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform, url, fetch }) {
@@ -37,14 +68,18 @@ export async function POST({ request, platform, url, fetch }) {
 	}
 	const db = getDB(platform);
 	if (!db) return json({ error: 'sin base de datos' }, { status: 503 });
+	// Las pausas de emergencia: se leen una vez por corrida.
+	const mailsOff = mailsPaused();
+	const ticketsOff = ticketsPausedMessage() !== null;
 	try {
 		// La lista de espera, antes de la tanda (así las ofertas nuevas salen en esta misma
-		// corrida) y aparte: si falla, los demás mails salen igual.
+		// corrida) y aparte: si falla, los demás mails salen igual. Con una pausa no avanza: un
+		// lugar guardado sin mail (o que no se puede comprar) se vencería sin que nadie se entere.
 		let waitlistOn = false;
 		let waitlist = null;
 		try {
 			waitlistOn = await listaEsperaEnabled(platform);
-			waitlist = await runWaitlistCron(db, { enabled: waitlistOn });
+			waitlist = await runWaitlistCron(db, { enabled: waitlistOn && !mailsOff && !ticketsOff });
 		} catch (error) {
 			logDBError('cron lista de espera', error);
 		}
@@ -56,19 +91,76 @@ export async function POST({ request, platform, url, fetch }) {
 				? { sendWaitlist: waitlistMailBatch({ db, origin: siteOrigin(url), fetch }) }
 				: {})
 		});
-		// Las series van aparte: si fallan, los recordatorios ya salieron y la corrida no se cae.
-		let series = null;
+		// Conciliación con MP: órdenes cuyo webhook no llegó. Antes del reintento de mails y aparte:
+		// si falla, lo demás sale igual. Sigue con las pausas (es plata que ya entró).
+		let reconciled = null;
 		try {
-			series = await runSeriesCron({ db, origin: siteOrigin(url), fetch });
+			const c = await reconcilePendingPayments({ db, origin: siteOrigin(url), fetch, platform });
+			if (!('skipped' in c)) reconciled = c;
 		} catch (error) {
-			logDBError('cron series', error);
+			logDBError('cron conciliación con MP', error);
 		}
-		// «Lo que sigo» también aparte (interruptor `lo_que_sigo`).
-		let sigo = null;
+		// El mail con las entradas que no salió al aprobarse la orden: aparte de la tanda (tiene su
+		// propio tope) y si falla, lo demás sale igual.
+		let unsentOrders = null;
+		/** @type {{ sent: number, failed: number, stopped?: unknown } | null} */
+		let unsentRun = null;
 		try {
-			sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch });
+			const u = await resendUnsentOrderEmails({ db, origin: siteOrigin(url), fetch });
+			unsentRun = u;
+			unsentOrders = {
+				sent: u.sent,
+				failed: u.failed,
+				...(u.stopped ? { stopped: u.stopped } : {})
+			};
 		} catch (error) {
-			logDBError('cron lo que sigo', error);
+			logDBError('cron mails de entradas sin enviar', error);
+		}
+		// Si el reintento chocó con el cupo de Resend, aviso a les admins por Telegram (como mucho
+		// uno por hora). Aparte: si falla, lo demás sale igual.
+		if (unsentRun?.stopped === 'quota') {
+			try {
+				await notifyMailQuota({
+					db,
+					origin: siteOrigin(url),
+					token: env.TELEGRAM_BOT_TOKEN,
+					fetch
+				});
+			} catch (error) {
+				logDBError('cron aviso de cupo de mails', error);
+			}
+		}
+		// Las series van aparte: si fallan, los recordatorios ya salieron y la corrida no se cae.
+		// Con MAILS_PAUSED, ni las series ni «Lo que sigo» (sus avisos quedan para después).
+		let series = null;
+		let sigo = null;
+		let survey = null;
+		if (mailsOff) {
+			logMailsPaused('los avisos de series, los de «Lo que sigo» ni la encuesta');
+		} else {
+			// Series y «Lo que sigo» salen con lo que sobró de la tanda («de a cuántos»): la corrida
+			// entera no la pasa y las entradas y los recordatorios van primero. Con la tanda gastada
+			// (o Resend diciendo «ahora no») igual corren con límite 0: anotan las ediciones nuevas y
+			// los avisos por Telegram, y los mails quedan para la próxima corrida.
+			let left = mailBudgetLeft(r, [unsentRun]);
+			try {
+				series = await runSeriesCron({ db, origin: siteOrigin(url), fetch, limit: left });
+				if (series) left = Math.max(0, left - series.sent - series.failed);
+			} catch (error) {
+				logDBError('cron series', error);
+			}
+			// «Lo que sigo» también aparte (interruptor `lo_que_sigo`).
+			try {
+				sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch, limit: left });
+			} catch (error) {
+				logDBError('cron lo que sigo', error);
+			}
+			// La encuesta después del evento (prototipo), también aparte.
+			try {
+				survey = await runSurveyCron({ db, platform, origin: siteOrigin(url), fetch });
+			} catch (error) {
+				logDBError('cron encuesta', error);
+			}
 		}
 		// Los avisos de admins por Telegram (decisión 0041): el resumen diario desde las 9 (hora
 		// de Argentina), solo a quien lo prendió. Aparte: si falla, lo demás ya salió.
@@ -83,20 +175,75 @@ export async function POST({ request, platform, url, fetch }) {
 		} catch (error) {
 			logDBError('cron avisos de admins', error);
 		}
+		// El día del evento y los recordatorios (el evento de mañana, falta el lugar o el link), a
+		// la misma hora y solo a quien los prendió. Aparte del resumen diario.
+		let telegramAdminDia = null;
+		try {
+			telegramAdminDia = await runAdminEventDayCron({
+				db,
+				origin: siteOrigin(url),
+				token: env.TELEGRAM_BOT_TOKEN,
+				fetch
+			});
+		} catch (error) {
+			logDBError('cron día del evento de admins', error);
+		}
+		// Estadísticas de uso del bot: las filas por persona duran 180 días (también con el
+		// interruptor apagado: lo ya guardado se borra igual). Aparte: si falla, lo demás ya salió.
+		let telegramUsoBorradas = null;
+		try {
+			telegramUsoBorradas = await pruneUso(db, Date.now());
+		} catch (error) {
+			logDBError('cron estadísticas del bot', error);
+		}
+		// IndexNow (docs/seo.md): avisa a los buscadores qué páginas públicas cambiaron. Apagado sin
+		// INDEXNOW_KEY y fuera de producción. Nunca tira.
+		const indexNow = await runIndexNow({
+			db,
+			key: env.INDEXNOW_KEY,
+			origin: siteOrigin(url),
+			fetch,
+			// Las mismas listas que el sitemap: el grupo «wiki» trae también las páginas de las
+			// series con ediciones públicas (sitemap.xml/series.js).
+			lists: async () => {
+				const [posts, wikiPosts, tags] = await Promise.all([
+					sitePosts(platform),
+					sitemapWikiPosts(platform),
+					siteTagManager(platform)
+				]);
+				return { posts, wikiPosts, seriesIds: seriesTagIds(tags) };
+			}
+		});
 		// El menú «/» del bot: solo si cambió la lista y hay token. Nunca tira.
 		const telegramCommands = await syncBotCommands({
 			db,
 			token: env.TELEGRAM_BOT_TOKEN,
 			fetch
 		});
+		// La salud del webhook del bot, una vez por hora (en la corrida de los minutos 0 a 14). Nunca
+		// tira.
+		const telegramWebhook = await checkWebhookHealth({
+			db,
+			token: env.TELEGRAM_BOT_TOKEN,
+			enabled: () => isFlagOn(db, 'telegram_bot'),
+			fetch
+		});
 		return json(
 			{
 				...r,
+				...(mailsOff || ticketsOff ? { paused: { tickets: ticketsOff, mails: mailsOff } } : {}),
 				...(waitlist ? { waitlistAdvance: waitlist } : {}),
+				...(reconciled ? { reconciled } : {}),
+				...(unsentOrders ? { unsentOrders } : {}),
 				...(series ? { series } : {}),
 				...(sigo ? { sigo } : {}),
+				...(survey ? { survey } : {}),
 				...(telegramAdmin ? { telegramAdmin } : {}),
-				telegramCommands
+				...(telegramAdminDia ? { telegramAdminDia } : {}),
+				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),
+				...('skipped' in indexNow ? {} : { indexNow }),
+				telegramCommands,
+				...(telegramWebhook === 'skipped' ? {} : { telegramWebhook })
 			},
 			{ headers: { 'cache-control': 'no-store' } }
 		);

@@ -3,9 +3,9 @@
 	import { linkPreviewOf, upcomingDescription } from '$lib/utils/seo.js';
 	import { userConfig } from '$lib/utils/stores.js';
 	import {
+		calendarMonthHref,
 		currentMonth,
 		defaultCalendarMonth,
-		fetchAllPostsClient,
 		isCalendarMonth,
 		isCurrent,
 		monthCountLabel,
@@ -14,49 +14,59 @@
 	import { browser } from '$app/environment';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { format, isSameMonth, isPast } from 'date-fns';
+	import { addMonths, format, isSameMonth, isPast } from 'date-fns';
 	import { page } from '$app/stores';
-	import { toArgentina } from '$lib/utils/dates.js';
+	import { goto } from '$app/navigation';
+	import { toArgentina, parseSiteDate } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
-	import { partLabel, withPartLabel } from '$lib/utils/partes.js';
+	import { partLabel } from '$lib/utils/partes.js';
 	export let data;
+	/**
+	 * El día de una barra de la grilla, para lectores de pantalla («viernes 30 de octubre»). Al
+	 * mediodía, así ninguna zona horaria lo corre de día.
+	 * @param {string} date yyyy-MM-dd
+	 */
+	const dayLabel = (date) =>
+		new Date(`${date}T12:00:00`).toLocaleDateString('es-AR', {
+			weekday: 'long',
+			day: 'numeric',
+			month: 'long'
+		});
 	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
 	// «Parte N de M» de los talleres en varias partes (lo agrega el servidor, también a los pasados
-	// de cada mes; los enteros de /api/posts vienen sin ella y se les vuelve a poner).
+	// de cada mes).
 	const partLabels = new Map(
 		calendarioPosts
 			.filter((p) => p.meta.parte)
 			.map((p) => [String(p.meta.postID), /** @type {{ n: number, m: number }} */ (p.meta.parte)])
 	);
-	// past events come with just what the calendar grid needs; the list only gets
-	// them once they've been loaded in full
-	let loadedPast = false;
-	let fullPosts = false;
-	$: listPosts = fullPosts ? calendarioPosts : calendarioPosts.filter((p) => isCurrent(p));
-	$: if ($userConfig.show_past_events && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => {
-				calendarioPosts = posts
-					.filter((p) => p.meta.layout == 'calendario')
-					.map((p) => withPartLabel(p, partLabels));
-				fullPosts = true;
-			})
-			.catch(() => (loadedPast = false));
-	}
-	// De los pasados viene solo el mes que se abrió (data.pastMonth); los de otro mes se piden al ir
-	// a ese mes (docs/seo.md). Después de un mes futuro no hay nada que pedir.
+	// De los pasados viene solo el mes que se abrió (data.pastMonth), con lo que usa la grilla; los
+	// de otro mes se piden al ir a ese mes (docs/seo.md). Con «Mostrar eventos pasados», la lista
+	// los necesita enteros: también de a un mes, el que se está viendo (?enteros=1), en vez de
+	// todos juntos. Después de un mes futuro no hay nada que pedir.
 	const this_month = currentMonth();
+	/** Meses cuyos pasados ya llegaron (o se están pidiendo), para la grilla. */
 	const pastMonths = new Set([data.pastMonth]);
-	$: if (browser && view_month <= this_month && !pastMonths.has(view_month)) {
-		loadPastMonth(view_month);
+	/** Meses cuyos pasados ya llegaron enteros (o se están pidiendo), para la lista. */
+	const fullMonths = new Set();
+	/** Los pasados que ya llegaron enteros: los únicos pasados que muestra la lista. */
+	let fullPast = new Set();
+	$: listPosts = calendarioPosts.filter((p) => isCurrent(p) || fullPast.has(p.path));
+	$: if (browser && view_month <= this_month) {
+		if ($userConfig.show_past_events) {
+			if (!fullMonths.has(view_month)) loadPastMonth(view_month, true);
+		} else if (!pastMonths.has(view_month)) loadPastMonth(view_month, false);
 	}
-	/** @param {string} month yyyy-MM */
-	function loadPastMonth(month) {
-		pastMonths.add(month);
-		fetch(`/api/calendario/pasados?mes=${month}`)
+	/**
+	 * @param {string} month yyyy-MM
+	 * @param {boolean} full enteros (para la lista) o solo lo de la grilla
+	 */
+	function loadPastMonth(month, full) {
+		const marks = full ? [pastMonths, fullMonths] : [pastMonths];
+		for (const m of marks) m.add(month);
+		fetch(`/api/calendario/pasados?mes=${month}${full ? '&enteros=1' : ''}`)
 			.then((r) => {
 				if (!r.ok) throw new Error('/api/calendario/pasados: ' + r.status);
 				return r.json();
@@ -65,26 +75,27 @@
 				for (const p of posts) {
 					if (p.meta.parte) partLabels.set(String(p.meta.postID), p.meta.parte);
 				}
-				if (fullPosts) {
-					// ya están todos (enteros): solo falta su «Parte N de M»
-					calendarioPosts = calendarioPosts.map((p) => withPartLabel(p, partLabels));
-					return;
-				}
-				const known = new Set(calendarioPosts.map((p) => p.path));
-				calendarioPosts = [...calendarioPosts, ...posts.filter((p) => !known.has(p.path))];
+				const arrived = new Map(posts.map((p) => [p.path, p]));
+				// Enteros reemplazan a los de la grilla; los de la grilla no pisan a los enteros.
+				calendarioPosts = [
+					...calendarioPosts.map((p) =>
+						full && arrived.has(p.path) ? /** @type {ProcessedPost} */ (arrived.get(p.path)) : p
+					),
+					...posts.filter((p) => !calendarioPosts.some((c) => c.path === p.path))
+				];
+				if (full) fullPast = new Set([...fullPast, ...arrived.keys()]);
 			})
-			.catch(() => pastMonths.delete(month));
+			.catch(() => {
+				for (const m of marks) m.delete(month);
+			});
 	}
 	/** @param {ProcessedPost[]} posts */
 	const daysOf = (posts) =>
 		posts.reduce((dates, post, i) => {
 			let start_date = format(toArgentina(post.meta.start), 'yyyy-MM-dd');
-			// @ts-ignore
 			if (dates[start_date]) {
-				// @ts-ignore
 				dates[start_date].push({ i, ...post });
 			} else {
-				// @ts-ignore
 				dates[start_date] = [{ i, ...post }];
 			}
 			return dates;
@@ -104,6 +115,23 @@
 	$: view_date = new Date(view_month + '-01T00:00');
 	// "Mostrar/Ocultar eventos pasados" only when this month has past events (gorrite's call)
 	$: month_has_past = monthHasPastEvents(calendarioPosts, view_month);
+	// Con los pasados a la vista, abajo de la lista se sigue con el mes anterior (hasta el del
+	// evento más viejo). La dirección es la de siempre (?viewdate=yyyy-MM, como las flechas).
+	$: prev_month = format(addMonths(view_date, -1), 'yyyy-MM');
+	$: show_prev =
+		$userConfig.show_past_events &&
+		view_month <= this_month &&
+		!!data.firstMonth &&
+		prev_month >= data.firstMonth;
+	/** @param {string} month yyyy-MM */
+	const monthHref = (month) => calendarMonthHref($page.url, month, default_month);
+	/** @param {MouseEvent} e */
+	async function showPrevMonth(e) {
+		if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+		e.preventDefault();
+		await goto(monthHref(prev_month), { noScroll: true, keepFocus: true });
+		document.getElementById('postlist')?.scrollIntoView({ block: 'start' });
+	}
 	// En el celu primero la lista; la grilla del mes, si la piden (en la compu, siempre al lado).
 	let showGrid = false;
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
@@ -111,7 +139,7 @@
 </script>
 
 <svelte:head>
-	<title>Calendario · Kinky Vibe</title>
+	<title>{previewTexts['calendario.heading']} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <ListSeoHead
@@ -127,22 +155,29 @@
 
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Calendario</h1>
-<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
+<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" ics="/calendario.ics" />
 
-<!-- Los próximos eventos en una fila arriba del calendario, como antes (pedido de gorrite, 5/10). -->
+<!-- Los próximos eventos en una fila arriba del calendario, como antes (pedido de gorrite, 5/10).
+     La imagen de la primera tarjeta es el LCP: las dos primeras cargan enseguida (docs/seo.md). -->
 <div class="cardrow">
 	<CardRow
 		items={calendarioPosts
-			.filter((p) => !isPast(new Date(p.meta.start)))
+			.filter((p) => !isPast(parseSiteDate(p.meta.start)))
 			.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}
 		--color-1="transparent"
 		setId={false}
+		eager={2}
 	/>
 </div>
 
 <div id="container">
 	<div id="calendar">
-		<CalendarHeader {view_date} {default_month} />
+		<CalendarHeader
+			{view_date}
+			{default_month}
+			first_month={data.firstMonth}
+			last_month={data.lastMonth}
+		/>
 		<button
 			type="button"
 			class="pill-btn ghost small grid-toggle tap-target"
@@ -174,7 +209,7 @@
 					{#if events}
 						<div class="dot"></div>
 						<!-- sort a copy: sorting `events` in place made featuredEvent depend on render order -->
-						{#each [...events].sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
+						{#each [...events].sort( (a, b) => (parseSiteDate(a.meta.start).getTime() > parseSiteDate(b.meta.start).getTime() ? 1 : -1) ) as event}
 							{@const start = toArgentina(event.meta.start)}
 							<a
 								href={event.path}
@@ -184,6 +219,8 @@
 									? 'var(--1)'
 									: 'var(--2)'}
 							>
+								<!-- El nombre del link empieza por el día: sin esto, la barra no dice de qué día es. -->
+								<span class="visually-hidden">{dayLabel(date) + ': '}</span>
 								<span>
 									{event.meta.title ?? ' '}
 									{#if event.meta.parte}
@@ -216,6 +253,16 @@
 				}))
 				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}
 		/>
+		{#if show_prev}
+			<p class="prev-month">
+				<a
+					class="pill-btn ghost"
+					href={monthHref(prev_month)}
+					data-sveltekit-noscroll
+					on:click={showPrevMonth}>Mostrar el mes anterior</a
+				>
+			</p>
+		{/if}
 		<p class="subscribe">
 			También podés
 			<a
@@ -234,6 +281,10 @@
 </div>
 
 <style lang="scss">
+	.prev-month {
+		text-align: center;
+		margin: var(--space-s) auto 0;
+	}
 	.series-link {
 		font-size: var(--step-1);
 		line-height: 1.6;

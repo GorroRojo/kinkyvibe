@@ -21,6 +21,9 @@ de página y dónde se arma. (La **imagen para compartir** que se descarga desde
 - **No listado no es oculto**: un evento, material o perfil no listado (o un borrador) se puede
   compartir por link y tiene su tarjeta, pero lleva `robots: noindex` para que los buscadores no lo
   guarden.
+- **«No aparecer en buscadores»** (perfiles de persona, lo eligen quienes los gestionan): además
+  del `noindex`, la tarjeta va sin la foto ni la presentación (la del sitio y «<nombre> en Amigues
+  de Kinky Vibe»). Ver [amigues.md](amigues.md).
 
 ## Dónde está
 
@@ -46,34 +49,42 @@ de página y dónde se arma. (La **imagen para compartir** que se descarga desde
 
 Todas: `description`, `og:site_name` (Kinky Vibe), `og:locale` (`es_AR`), `og:type`, `og:url` y
 `<link rel="canonical">` (la dirección sin `?…`), `og:title`, `og:description`, `og:image` (con
-`og:image:width`/`height`/`alt` cuando se saben), `twitter:card` (`summary_large_image`),
+`og:image:width`/`height`/`alt` cuando se saben), `twitter:card` (`summary_large_image`; `summary`
+si la imagen es cuadrada o de menos de 600 px de ancho, que X y Bluesky recortarían a 2:1),
 `twitter:site`, `twitter:title`, `twitter:description`, `twitter:image` y `twitter:image:alt`.
+Cada una va una sola vez. Aparte, `app.html` pone en todas las páginas
+`<meta name="robots" content="max-image-preview:large">` (vistas previas grandes en Google y
+Discover); convive con el `noindex` de las páginas que lo llevan (Google junta las dos).
 
-| Página                                            | `og:type` | Título                       | Descripción                                                               | Imagen                                            |
-| ------------------------------------------------- | --------- | ---------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------- |
-| Inicio                                            | `website` | `home.title` (Kinky Vibe)    | `home.description` (la frase oficial, `SITE_TAGLINE`)                     | tarjeta por defecto                               |
-| Calendario (`/calendario`)                        | `website` | `heading` de `LIST_SECTIONS` | «Próximos: A (3/10), B (5/10) y C (12/10).» + la de la sección            | tarjeta «Calendario»                              |
-| Material (`/material`)                            | `website` | `heading` de `LIST_SECTIONS` | la de la sección                                                          | tarjeta «Material»                                |
-| Amigues (`/amigues`)                              | `website` | `heading` de `LIST_SECTIONS` | la de la sección                                                          | tarjeta «Amigues»                                 |
-| Kinkipedia (`/wiki`)                              | `website` | `wiki.title`                 | `wiki.description`                                                        | tarjeta «Kinkipedia»                              |
-| Todo (`/todo`)                                    | `website` | `heading` de `LIST_SECTIONS` | la de la sección                                                          | tarjeta por defecto                               |
-| Evento (`/calendario/<evento>`)                   | `event`   | el título                    | «Viernes 2 de octubre de 2026, 15:00 · Lugar · resumen»                   | la portada (*) o la tarjeta por defecto           |
-| Material (`/material/<post>`)                     | `article` | el título                    | «Guía descargable · resumen» (formato y «descargable», por sus etiquetas) | la portada (*) o la tarjeta por defecto           |
-| Entrada de la Kinkipedia (`/wiki/<entrada>`)      | `article` | el título                    | el resumen                                                                | tarjeta «Kinkipedia»                              |
-| Etiqueta o serie sin entrada (`/wiki/<etiqueta>`) | `website` | el nombre                    | «Material, amigues y eventos de «X» en Kinky Vibe.»                       | tarjeta «Kinkipedia»                              |
-| Perfil (`/amigues/<perfil>`)                      | `profile` | el nombre                    | la bio (sin bio, «X en Amigues de Kinky Vibe.»)                           | la imagen del perfil (*) o la tarjeta por defecto |
+| Página                                            | `og:type` | Título                        | Descripción                                                                                             | Imagen                                            |
+| ------------------------------------------------- | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Inicio                                            | `website` | `home.title` (Kinky Vibe)     | `home.description` (la frase oficial, `SITE_TAGLINE`)                                                   | tarjeta por defecto                               |
+| Calendario (`/calendario`)                        | `website` | `heading` de `LIST_SECTIONS`  | «Próximos: A (3/10), B (5/10) y C (12/10).» + la de la sección                                          | tarjeta «Calendario»                              |
+| Material (`/material`)                            | `website` | `heading` de `LIST_SECTIONS`  | la de la sección                                                                                        | tarjeta «Material»                                |
+| Amigues (`/amigues`)                              | `website` | `heading` de `LIST_SECTIONS`  | la de la sección                                                                                        | tarjeta «Amigues»                                 |
+| Kinkipedia (`/wiki`)                              | `website` | `wiki.title`                  | `wiki.description`                                                                                      | tarjeta «Kinkipedia»                              |
+| Todo (`/todo`)                                    | `website` | `heading` de `LIST_SECTIONS`  | la de la sección                                                                                        | tarjeta por defecto                               |
+| Evento (`/calendario/<evento>`)                   | `event`   | el título                     | «Viernes 2 de octubre de 2026, 15:00 · Lugar · resumen»                                                 | la portada (*) o la tarjeta por defecto           |
+| Material (`/material/<post>`)                     | `article` | el título                     | «Guía descargable · resumen» (formato y «descargable», por sus etiquetas)                               | la portada (*) o la tarjeta por defecto           |
+| Entrada de la Kinkipedia (`/wiki/<entrada>`)      | `article` | el título                     | el resumen                                                                                              | tarjeta «Kinkipedia»                              |
+| Etiqueta o serie sin entrada (`/wiki/<etiqueta>`) | `website` | el nombre (mayúscula inicial) | su descripción en texto o, sin descripción, «Material, amigues y eventos de «X» en Kinky Vibe.»         | tarjeta «Kinkipedia»                              |
+| Serie con ediciones, sin entrada                  | `website` | el nombre (mayúscula inicial) | su descripción en texto o, sin descripción, «Ediciones de «X» en Kinky Vibe: N fechas, la próxima el …» | tarjeta «Kinkipedia»                              |
+| Perfil (`/amigues/<perfil>`)                      | `profile` | el nombre                     | la bio (sin bio, «X en Amigues de Kinky Vibe.»)                                                         | la imagen del perfil (*) o la tarjeta por defecto |
 
 - Las secciones dicen qué son, no solo cómo se llaman: el título (`heading`) y la descripción de
   cada una son textos editables (abajo), con originales sacados del texto de presentación de cada
   página («Amigues · Emprendimientos y profesionales de la comunidad»). En el calendario, los
   próximos eventos van adelante («Próximos:», `calendario.upcomingPrefix`), así entran aunque la
-  app corte la descripción.
+  app corte la descripción. Ese mismo título, con « · Kinky Vibe», es el `<title>` de la página
+  (lo que muestran los buscadores); el del inicio es `home.title`.
 - La fecha del evento va a la argentina con `argDateTimeLong` (`dates.js`), como «Cuándo y dónde».
   Un evento cancelado empieza con «Cancelado ·». La descripción se corta en 200 caracteres.
 - El material no tiene subtipos propios: qué es sale de sus etiquetas de «formato de material»
   (guía, artículo, libro, fanzine, checklist, video) y de «descargable» (`MATERIAL_FORMATS`).
 - La portada de la biblioteca trae sus medidas y su texto alternativo; una imagen vieja del repo,
-  no (sin `og:image:width`, y el título como texto alternativo).
+  no (sin `og:image:width`, y el título como texto alternativo). El texto genérico «Imagen de
+  «Título»» que les puso el importador a muchas imágenes no cuenta (nombraría otra edición si la
+  portada se reusa): va el título de la página. Para un texto mejor, se corrige en la biblioteca.
 - (*) En producción, una portada pesada va achicada por Cloudflare (abajo).
 
 ## Listas filtradas
@@ -94,6 +105,9 @@ Amigues, `?tipo=persona|proyecto|lugar`) y la vista previa los nombra:
   no es un filtro (`utm_*`, `viewdate` del calendario) no va.
 - **La canónica, no**: para los buscadores la lista filtrada es la misma página que la lista (si no,
   serían miles de páginas casi iguales).
+  Por eso, en las páginas de detalle (evento, material, perfil) el chip de una etiqueta con algo
+  propio en la Kinkipedia lleva a `/wiki/<etiqueta>` y no a `/todo?tags=` ([seo.md](seo.md),
+  «Chips de etiqueta»).
 - Estas páginas no se prerenderizan (se arman en cada pedido, ver `+page.server.js`), así que el
   servidor ve los filtros y no hace falta nada más. Los `load` no leen `url` (para no volver a
   correr con cada filtro); la vista previa lo lee en el componente.
@@ -144,7 +158,10 @@ y páginas sin imagen propia), Calendario, Material, Amigues y Kinkipedia.
 - **Dirección**: `/og/<tarjeta>/<hash>.jpg`. El hash (16 caracteres del SHA-256) es de lo que va
   en la imagen: el nombre, el subtítulo, las portadas y la versión del dibujo
   (`COLLAGE_VERSION`). Si cambia un texto de la imagen o una portada, cambia la dirección y las
-  apps piden la nueva. Un hash viejo redirige (302) al de ahora.
+  apps piden la nueva. Un hash viejo redirige (302) al de ahora, salvo que esa misma dirección
+  siga en la caché de Cloudflare: lo primero que mira la ruta es la caché, con la dirección pedida,
+  y si está la manda sin leer la base (es la imagen de ese hash, la que se compartió con esa
+  dirección).
 - **Se dibuja una vez**: la respuesta lleva `Cache-Control: public, max-age=31536000, immutable`,
   se guarda en R2 (`og/<tarjeta>-<hash>.jpg` en el bucket `MEDIA`, fuera de `img/` y `file/`, así
   que `/media/…` no la sirve) y en la caché de Cloudflare. Si una portada no se pudo leer, la
@@ -161,8 +178,20 @@ y páginas sin imagen propia), Calendario, Material, Amigues y Kinkipedia.
   wrangler. Vite (que arma el Worker de SvelteKit) no lo puede importar, así que el dibujante vive
   en `worker/og.js` y `worker/index.js` se lo pasa a SvelteKit en `platform.env.OG_RENDER`, solo
   en los pedidos a `/og/…`. Suma unos 3,4 MB al Worker (sin comprimir; 1,2 MB comprimido; el
-  límite es 64 MB) y unos 60–110 ms al arranque medido en local con `wrangler check startup` (el
-  límite es 1 s).
+  límite es 64 MB). `worker/index.js` lo importa recién al dibujar la primera tarjeta (import
+  dinámico, en el mismo archivo): antes se inicializaba al arrancar cada isolate, unos 15 ms de CPU
+  medidos en local con `wrangler check startup` (el límite es 1 s).
+- **satori queda fijo en 0.32.0** (`package.json`, sin `^`, y en el `ignore` de
+  `.github/dependabot.yml`). Desde la 0.33, satori trae harfbuzzjs (otro WebAssembly) y cambia
+  `satori/yoga.wasm` por `satori/layout.wasm`. Probado en local con la 0.63.2 (el salto del PR de
+  Dependabot #421) y `npx wrangler dev` con la semilla, en octubre de 2026: tal cual, wrangler no
+  arma el Worker (`ENOENT … worker/satori/yoga.wasm`); cambiando el import a `layout.wasm`, arma,
+  pero la tarjeta no se dibuja y redirige a la de respaldo con
+  `x-og-fallback: render-error: TypeError: Cannot read properties of undefined (reading 'href')`:
+  harfbuzzjs busca su `hb.wasm` por URL al cargarse, y en Workers el WebAssembly tiene que llegar
+  como módulo. Para subir satori hay que pasarle harfbuzz como módulo (si alguna versión lo
+  permite) y repetir esta prueba: `npm run build`, `npx wrangler dev`, pedir la dirección de
+  `og:image` de la portada y mirar que responda 200 con un JPEG (no 302 con `x-og-fallback`).
 - **Cupo del binding de imágenes**: cada miniatura distinta cuenta una vez por mes dentro de las
   5000 transformaciones gratis (las mismas que las portadas achicadas, abajo). Son 16 por cambio
   de portadas, como mucho.
@@ -193,6 +222,17 @@ Cloudflare: `https://kinkyvibe.ar/cdn-cgi/image/width=800,format=jpeg,quality=80
   casi no se achican, y en JPEG pesan más que el WEBP (se probó: 6 de las 7 seguían arriba de
   300 KB). Con 800 px, todas quedan debajo (entre 100 y 294 KB) y se ve el afiche entero, sin
   recortar.
+- **Google Discover sí ve la grande**: Discover pide imágenes de 1200 px de ancho o más y
+  `max-image-preview:large` (en `app.html`). Google lee el JSON-LD de la página, y su `image`
+  (`eventSchema` y `materialSchema` en `jsonLd.js`) es siempre el **original** de la biblioteca
+  (`https://kinkyvibe.ar/media/img/<hash>.<ext>`), lo más grande que hay; og:image sigue con la de
+  800 px para WhatsApp y Telegram. No hace falta ninguna copia nueva en R2: las copias de
+  `mediaCopies.js` son más chicas (360 y 720 de lado corto) y el original ya es la de 1200 cuando
+  mide eso. Una portada más angosta que 1200 px **no se agranda** (ni con `/cdn-cgi/image`, que no
+  se usa para esto): queda tal cual y Discover la puede mostrar chica. En octubre de 2026, 49 de
+  152 portadas de eventos y 6 de 50 de material medían 1200 px o más de ancho; para que una entre
+  grande, hay que subir un original más grande (el navegador lo deja en 2000 px de lado largo).
+  Lo prueba `link-previews.test.js` («Google Discover»).
 - **Medidas**: `fit` por defecto (`scale-down`) no agranda y mantiene la proporción. Las medidas
   se calculan igual (`resizedSize`); si el alto no da exacto, no se ponen.
 - **`onerror=redirect`**: si Cloudflare no puede transformarla (por ejemplo, pasado el cupo), la

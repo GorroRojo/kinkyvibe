@@ -1,21 +1,24 @@
 <script>
 	/**
 	 * Mensajes › Lo que sigo: para mirar, nada de acá cambia lo que sigue la gente. Arriba los dos
-	 * interruptores; después los números (solo totales), los avisos que salieron, el paso de
-	 * «Avisame si se repite», Telegram y «Lo más seguido» (cuántas cuentas siguen cada cosa, nunca
-	 * quiénes). Abajo, los links a donde se configura cada cosa.
+	 * interruptores; después «Lo más seguido» (cuántas cuentas siguen cada cosa y, al abrir
+	 * «Quiénes», cuáles, con link a su ficha), «Por persona», los números, los avisos que salieron,
+	 * el paso de «Avisame si se repite» y Telegram. Abajo, los links a donde se configura cada cosa.
+	 * Quién sigue qué solo lo ven les admins (decisión 0043).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { Badge, Card, Notice, PageHeader } from '$lib/components/ui';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import BarList from '$lib/components/admin/panel/BarList.svelte';
 	import { fmtDateTime, fmtRelative } from '$lib/admin/format.js';
-	import { Bot, Link, Power, Repeat, Send, Sigma, Trophy } from '@lucide/svelte';
+	import { Bot, Link, Power, Repeat, Send, Sigma, Trophy, Users } from '@lucide/svelte';
 
 	export let data;
 
 	/** Cuántos de cada grupo se ven antes de «Ver todo». */
 	const TOP = 10;
+	/** Cuántas cuentas se ven en «Por persona» antes de «Ver más». */
+	const PEOPLE_TOP = 20;
 
 	$: s = data.stats;
 	$: sigoOn = data.flags.lo_que_sigo;
@@ -68,8 +71,14 @@
 			text: num(r.count),
 			title: `${r.title}: ${plural(r.count, 'cuenta lo sigue', 'cuentas lo siguen')}`,
 			href: r.href ?? undefined,
-			sub: sub(r)
+			sub: sub(r),
+			id: `${r.group}:${r.key}`
 		}));
+
+	/** @type {Record<string, import('$lib/server/sigo/stats.js').Follower[]>} */
+	$: byTarget = data.followers?.byTarget ?? {};
+	// Reactiva: así se rehace si cambia `data` (navegar a la misma página).
+	$: whoOf = (/** @type {string | undefined} */ id) => (id && byTarget[id]) || [];
 
 	$: groups = s.ranking
 		? [
@@ -82,7 +91,7 @@
 
 <PageHeader
 	title="Lo que sigo"
-	subtitle="Qué sigue la gente con cuenta y qué avisos salieron, en números. Es para mirar: nada de acá cambia lo que sigue alguien."
+	subtitle="Qué sigue la gente con cuenta, quién sigue cada cosa y qué avisos salieron. Es para mirar: nada de acá cambia lo que sigue alguien."
 />
 
 <div class="kv-stack sigo">
@@ -119,6 +128,113 @@
 			</p>
 		{/if}
 		<p class="config"><a href="/admin/ajustes/interruptores">Se cambian en Interruptores →</a></p>
+	</Card>
+
+	<Card title="Lo más seguido" icon={Trophy}>
+		<p class="kv-note">
+			Cuántas cuentas siguen cada cosa, aunque sea una. En «Quiénes» están las cuentas que la
+			siguen, con link a su ficha. Solo lo ven les admins: no sale del panel.
+		</p>
+		{#if !s.ranking}
+			<p class="muted">No se pudo armar la lista.</p>
+		{:else}
+			<div class="ranking">
+				{#each groups as g (g.id)}
+					<section class="group" aria-labelledby="rank-{g.id}">
+						<h3 id="rank-{g.id}">{g.title}</h3>
+						{#if g.rows.length === 0}
+							<p class="muted">Nadie sigue ninguno todavía.</p>
+						{:else}
+							<BarList items={bars(g.rows.slice(0, TOP))} label={g.title}>
+								<svelte:fragment slot="detail" let:item>
+									{@const who = whoOf(item.id)}
+									{#if who.length}
+										<details class="who">
+											<summary>Quiénes ({num(who.length)})</summary>
+											<ul>
+												{#each who as f (f.id)}
+													<li><a href={f.href}>{f.email}</a></li>
+												{/each}
+											</ul>
+										</details>
+									{/if}
+								</svelte:fragment>
+							</BarList>
+							{#if g.rows.length > TOP}
+								<details>
+									<summary>Ver {g.rows.length - TOP} más</summary>
+									<BarList
+										items={bars(g.rows.slice(TOP))}
+										max={g.rows[0].count}
+										label="{g.title} (el resto)"
+									>
+										<svelte:fragment slot="detail" let:item>
+											{@const who = whoOf(item.id)}
+											{#if who.length}
+												<details class="who">
+													<summary>Quiénes ({num(who.length)})</summary>
+													<ul>
+														{#each who as f (f.id)}
+															<li><a href={f.href}>{f.email}</a></li>
+														{/each}
+													</ul>
+												</details>
+											{/if}
+										</svelte:fragment>
+									</BarList>
+								</details>
+							{/if}
+						{/if}
+					</section>
+				{/each}
+			</div>
+		{/if}
+	</Card>
+
+	<Card title="Por persona" icon={Users}>
+		<p class="kv-note">
+			Cada cuenta con cuántas cosas sigue y cuáles (las que más siguen, primero). El mail lleva a su
+			ficha, donde están también sus avisos. Solo lo ven les admins.
+		</p>
+		{#if !data.followers}
+			<p class="muted">No se pudo armar la lista.</p>
+		{:else if data.followers.people.length === 0}
+			<p class="muted">Nadie sigue nada todavía.</p>
+		{:else}
+			<ul class="people" aria-label="Cuentas que siguen algo">
+				{#each data.followers.people.slice(0, PEOPLE_TOP) as p (p.id)}
+					<li>
+						<div class="row">
+							<a href={p.href}>{p.email}</a>
+							<b class="num">{plural(p.count, 'cosa', 'cosas')}</b>
+						</div>
+						<small class="muted">{p.items.map((it) => it.title).join(' · ')}</small>
+					</li>
+				{/each}
+			</ul>
+			{#if data.followers.people.length > PEOPLE_TOP}
+				<details>
+					<summary>Ver {data.followers.people.length - PEOPLE_TOP} más</summary>
+					<ul class="people" aria-label="Cuentas que siguen algo (el resto)">
+						{#each data.followers.people.slice(PEOPLE_TOP) as p (p.id)}
+							<li>
+								<div class="row">
+									<a href={p.href}>{p.email}</a>
+									<b class="num">{plural(p.count, 'cosa', 'cosas')}</b>
+								</div>
+								<small class="muted">{p.items.map((it) => it.title).join(' · ')}</small>
+							</li>
+						{/each}
+					</ul>
+				</details>
+			{/if}
+			{#if data.followers.truncated}
+				<p class="kv-note">
+					Hay muchas cosas seguidas: estas listas (y «Quiénes») muestran solo una parte. Lo de cada
+					persona, completo, está en su ficha.
+				</p>
+			{/if}
+		{/if}
 	</Card>
 
 	<Card title="En números" icon={Sigma}>
@@ -267,39 +383,6 @@
 		</p>
 	</Card>
 
-	<Card title="Lo más seguido" icon={Trophy}>
-		<p class="kv-note">
-			Cuántas cuentas siguen cada cosa, aunque sea una. Nunca quiénes: lo que sigue cada persona se
-			ve solo en su ficha.
-		</p>
-		{#if !s.ranking}
-			<p class="muted">No se pudo armar la lista.</p>
-		{:else}
-			<div class="ranking">
-				{#each groups as g (g.id)}
-					<section class="group" aria-labelledby="rank-{g.id}">
-						<h3 id="rank-{g.id}">{g.title}</h3>
-						{#if g.rows.length === 0}
-							<p class="muted">Nadie sigue ninguno todavía.</p>
-						{:else}
-							<BarList items={bars(g.rows.slice(0, TOP))} label={g.title} />
-							{#if g.rows.length > TOP}
-								<details>
-									<summary>Ver {g.rows.length - TOP} más</summary>
-									<BarList
-										items={bars(g.rows.slice(TOP))}
-										max={g.rows[0].count}
-										label="{g.title} (el resto)"
-									/>
-								</details>
-							{/if}
-						{/if}
-					</section>
-				{/each}
-			</div>
-		{/if}
-	</Card>
-
 	<Card title="Dónde se configura" icon={Link}>
 		<ul class="links">
 			<li>
@@ -376,6 +459,45 @@
 		cursor: pointer;
 		font-size: 0.9rem;
 		margin-bottom: 0.4rem;
+	}
+	.who {
+		margin: 0.2rem 0 0.3rem;
+	}
+	.who summary {
+		font-size: var(--text-xs);
+		margin-bottom: 0.2rem;
+	}
+	.who ul {
+		margin: 0;
+		padding-left: 1.1rem;
+		font-size: 0.88rem;
+		display: grid;
+		gap: 0.15rem;
+	}
+	.who a,
+	.people a {
+		overflow-wrap: anywhere;
+	}
+	.people {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 0.5rem;
+	}
+	.people .row {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.6rem;
+		align-items: baseline;
+	}
+	.people .num {
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+	.people small {
+		display: block;
+		font-size: var(--text-xs);
 	}
 	.links {
 		margin: 0;

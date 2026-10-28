@@ -43,6 +43,8 @@ import {
 } from '$lib/utils/venues.js';
 import { isApproved, isShownProfile, urlSlugOf, viewerFor } from './profiles.js';
 import { textOrNull as s } from '$lib/utils/text.js';
+import { eventIdsWithSlugSql } from '$lib/server/eventos/eventSlugIds.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -101,7 +103,7 @@ export async function eventVenue(db, eventSlug) {
 	const row = await db
 		.prepare(
 			`SELECT ${cols}, l.privacy AS ev_privacy, s.legacy_slug AS legacy_slug
-			FROM (${lugarLinksSql(`${EVENT_POST_SLUG} = ?1`)}) l
+			FROM (${lugarLinksSql(`ev.id IN (${eventIdsWithSlugSql('?1')})`)}) l
 			JOIN objects o ON o.id = l.venue_id
 			LEFT JOIN profile_sources s ON s.profile_id = o.id
 			WHERE o.type = ?2 AND o.deleted_at IS NULL`
@@ -202,9 +204,19 @@ function linkedVenueView(link, visible, approved) {
 }
 
 /**
+ * Lo que muestran las páginas de un evento cuando no se pudo leer su lugar: como un lugar oculto
+ * («Lugar a confirmar» y, en los datos estructurados, a lo sumo la región de sus etiquetas). Así
+ * no sale el «Dónde» del .md, que en un evento con lugar puede tener una dirección que el nivel
+ * del lugar esconde.
+ * @type {Readonly<VenueView>}
+ */
+export const VENUE_UNREADABLE = Object.freeze({ level: 'hidden' });
+
+/**
  * "Sucede en" para las páginas de un evento (la del evento, /entradas y /compartir): el lugar
- * según su privacidad para quien mira. `null` sin base, si no tiene lugar (o si la base falla):
- * la página muestra lo de su .md.
+ * según su privacidad para quien mira. `null` sin base o si no tiene lugar: la página muestra lo
+ * de su .md. Si la base falla, {@link VENUE_UNREADABLE} (nunca `null`: no se sabe si el evento
+ * tiene un lugar que esconde su dirección, así que tampoco sale el «Dónde» del .md).
  *
  * @param {D1Database | null | undefined} db
  * @param {string} eventSlug
@@ -214,10 +226,23 @@ function linkedVenueView(link, visible, approved) {
 export async function eventPageVenue(db, eventSlug, locals) {
 	try {
 		if (!db) return null;
-		return await publicVenueForEvent(db, eventSlug, viewerFor(locals));
+		const viewer = viewerFor(locals);
+		// Sin sesión, en una vuelta: el vínculo, el lugar y si está aprobado, por la dirección del
+		// evento (lo mismo que decide `publicVenueForEvent` para ANON, sin esperar a leer el vínculo
+		// para leer el lugar).
+		if (viewer === ANON) {
+			if (!isEventSlug(eventSlug)) return null;
+			const [first] = await anonVenuesWhere(
+				db,
+				`ev.id IN (${eventIdsWithSlugSql('?1')})`,
+				eventSlug
+			);
+			return first?.view ?? null;
+		}
+		return await publicVenueForEvent(db, eventSlug, viewer);
 	} catch (e) {
 		console.error('[calendario] no se pudo leer el lugar del evento', e);
-		return null;
+		return { ...VENUE_UNREADABLE };
 	}
 }
 
@@ -259,6 +284,33 @@ export async function buyerLocation(db, eventSlug) {
 		return { location_name: venue.name, location: venue.address || undefined };
 	} catch (e) {
 		console.error('[lugares] no se pudo leer el lugar para quien compró', e);
+		return null;
+	}
+}
+
+/**
+ * «Cómo llegar» y «Accesibilidad» del lugar de un evento para los mails de quien compró (entradas y
+ * recordatorios): **solo lo que la página del evento le muestra a cualquiera** (ANON), o sea solo
+ * en el nivel «Nombre + dirección» y con el lugar visible y aprobado (`venueView`). En los demás
+ * niveles son textos libres que pueden nombrar el lugar, y el sitio tampoco se los muestra a quien
+ * compró (a quien compró solo le da además el nombre y la dirección: {@link buyerLocation}).
+ * `null` sin base, sin lugar, sin ninguno de los dos textos o si algo falla (nunca tira: el mail
+ * sale sin el recuadro).
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} eventSlug
+ * @returns {Promise<{ howTo: string | null, accessibility: string | null } | null>}
+ */
+export async function venueNotesForMail(db, eventSlug) {
+	if (!db) return null;
+	try {
+		const view = await publicVenueForEvent(db, eventSlug, ANON);
+		if (view?.level !== 'public') return null;
+		const howTo = view.howTo ?? null;
+		const accessibility = view.accessibility ?? null;
+		return howTo || accessibility ? { howTo, accessibility } : null;
+	} catch (e) {
+		console.error('[lugares] no se pudo leer cómo llegar para el mail', e);
 		return null;
 	}
 }
@@ -333,30 +385,39 @@ export async function eventVenuesStamp(db) {
  * @param {Iterable<string>} slugs
  */
 async function anonEventVenues(db, slugs) {
+	const want = [...new Set(slugs)].filter(isEventSlug);
+	if (!want.length) return [];
+	return anonVenuesWhere(
+		db,
+		`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`,
+		JSON.stringify(want)
+	);
+}
+
+/**
+ * {@link anonEventVenues} de los eventos que elige `where` (sobre `lugarLinksSql`, con un solo
+ * parámetro `?1`).
+ *
+ * @param {D1Database} db
+ * @param {string} where
+ * @param {string} wanted el valor de `?1`
+ */
+async function anonVenuesWhere(db, where, wanted) {
 	/** @type {{ eventSlug: string, view: VenueView, found: { venue: StoredObject, legacySlug: string | null, visible: StoredObject | null, approved: boolean } }[]} */
 	const out = [];
-	const want = [...new Set(slugs)].filter(isEventSlug);
-	if (!want.length) return out;
 	const cols = OBJECT_COLUMNS.split(', ')
 		.map((c) => `o.${c}`)
 		.join(', ');
-	const wanted = JSON.stringify(want);
 	/** @type {import('@cloudflare/workers-types').D1Result<Record<string, unknown>>[]} */
 	const [links, venues] = await db.batch([
-		db
-			.prepare(
-				`${lugarLinksSql(`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`)}
-				ORDER BY event_slug`
-			)
-			.bind(wanted),
+		db.prepare(`${lugarLinksSql(where)} ORDER BY event_slug`).bind(wanted),
 		db
 			.prepare(
 				`SELECT ${cols}, s.legacy_slug AS legacy_slug,
 					EXISTS (SELECT 1 FROM profile_approvals a WHERE a.profile_id = o.id) AS approved
 				FROM objects o LEFT JOIN profile_sources s ON s.profile_id = o.id
-				WHERE o.id IN (
-					SELECT venue_id FROM (${lugarLinksSql(`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`)})
-				) AND o.type = ?2 AND o.deleted_at IS NULL`
+				WHERE o.id IN (SELECT venue_id FROM (${lugarLinksSql(where)}))
+					AND o.type = ?2 AND o.deleted_at IS NULL`
 			)
 			.bind(wanted, PROFILE_TYPE)
 	]);
@@ -413,7 +474,7 @@ export async function withVenuePlaces(db, posts) {
 	/** @type {Map<string, VenueView>} */
 	let venues;
 	try {
-		venues = await feedVenues(db, slugs);
+		venues = await placesOf(db, slugs);
 	} catch (e) {
 		console.error('[lugares] no se pudieron leer los lugares de los eventos', e);
 		return posts.map((p) => (isEvent(p) ? { ...p, meta: stripMdPlace(p.meta) } : p));
@@ -423,6 +484,43 @@ export async function withVenuePlaces(db, posts) {
 		const venue = isEvent(p) ? venues.get(String(p.meta.postID)) : undefined;
 		return venue ? { ...p, meta: venuePlaceMeta(p.meta, venue) } : p;
 	});
+}
+
+/**
+ * Los lugares de esos eventos como los ve cualquiera ({@link feedVenues}). Los de los eventos de las
+ * listas salen de lo recordado con la marca del contenido (src/lib/server/contenido/posts.js,
+ * `fromContentState`: un vínculo nuevo, un cambio del lugar o de su aprobación mueven la marca), sin
+ * consultas mientras no cambie; los demás, de la base.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string[]} slugs
+ * @returns {Promise<Map<string, VenueView>>}
+ */
+async function placesOf(db, slugs) {
+	if (!db) return new Map();
+	const { fromContentState } = await import('$lib/server/contenido/posts.js');
+	const known = await fromContentState(db, 'eventVenues', async (events) => ({
+		asked: new Set(events),
+		views: await feedVenues(db, events)
+	}));
+	if (!known) return feedVenues(db, slugs);
+	const missing = slugs.filter((slug) => !known.asked.has(slug));
+	const out = new Map([...known.views].filter(([slug]) => slugs.includes(slug)));
+	if (missing.length) for (const [slug, view] of await feedVenues(db, missing)) out.set(slug, view);
+	return out;
+}
+
+/**
+ * Para las páginas que van a poner los lugares de sus eventos ({@link withVenuePlaces}) después de
+ * leer la lista: si este isolate tiene listas pero todavía no armó los lugares de sus eventos, los
+ * pide ya, a la par de la marca del contenido (con las tandas automáticas, en la misma ida), en vez
+ * de esperar a la lista. Se usan solo si la marca no cambió (`fromContentState`). Nunca decide qué
+ * se muestra. Solo con las tandas automáticas (sin ellas, adelantar es consultar de más).
+ *
+ * @param {D1Database | null | undefined} db
+ */
+export function askVenuePlacesEarly(db) {
+	if (db && batchesReads(db)) placesOf(db, []).catch(() => {});
 }
 
 /**

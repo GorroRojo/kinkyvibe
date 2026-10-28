@@ -6,6 +6,7 @@
  * en $lib/server/search/siteIndex.js; se recuerda por árbol de etiquetas mientras la base no
  * cambie) y el cliente lo descarga recién al abrir el buscador (ver SearchPalette.svelte).
  */
+import { allowedTypes, arDay, dayInWhen, parseSearch } from './searchSyntax.js';
 
 /**
  * @typedef {Object} SearchDoc
@@ -21,6 +22,8 @@
  * @prop {string} [b] - cuerpo en texto plano (truncado)
  * @prop {string[]} [k] - otros nombres (aka) para entradas de la Kinkipedia
  * @prop {string} [i] - ícono (emoji) de la etiqueta, para entradas de la Kinkipedia y series
+ * @prop {string} [l] - lugar de un evento: nombre, barrio y ciudad, lo que muestra su página
+ *   (nunca la calle)
  */
 
 /**
@@ -28,6 +31,8 @@
  * @prop {number} v - versión del formato
  * @prop {SearchDoc[]} docs
  * @prop {Record<string, string[]>} tags - tag id -> [nombre visible, ...alias]
+ * @prop {Record<string, string[]>} [p] - tag id -> sus madres (sin `root`), para buscar una
+ *   etiqueta con su árbol (`#cuerdas` trae lo de sus hijas)
  */
 
 /* ------------------------------------------------------------------ */
@@ -191,6 +196,8 @@ function fieldsWeight(mask) {
  * @prop {Map<string, Map<number, number>>} postings - palabra -> (doc -> máscara de campos)
  * @prop {string[]} vocab
  * @prop {Record<string, string[]>} tags
+ * @prop {Record<string, string[]>} parents - tag id -> sus madres
+ * @prop {string[]} [texts] - el texto entero de cada doc, armado al usarlo (frases y exclusiones)
  */
 
 /**
@@ -220,9 +227,11 @@ export function prepareIndex(raw) {
 		add(i, (d.g ?? []).map((id) => [id, ...(tags[id] ?? [])].join(' ')).join(' '), TAGS);
 		add(i, (d.a ?? []).join(' '), AUTHORS);
 		add(i, d.s ?? '', SUMMARY);
+		// el lugar de un evento pesa como el resumen
+		add(i, d.l ?? '', SUMMARY);
 		add(i, d.b ?? '', BODY);
 	});
-	return { docs: raw.docs, postings, vocab: [...postings.keys()], tags };
+	return { docs: raw.docs, postings, vocab: [...postings.keys()], tags, parents: raw.p ?? {} };
 }
 
 /**
@@ -295,15 +304,13 @@ export function queryTerms(q) {
  */
 
 /**
- * Busca `q` en el índice. Todos los términos tienen que aparecer (en cualquier campo).
+ * Puntaje de cada doc que tiene todos los términos (en cualquier campo), y las palabras del índice
+ * que coincidieron. `allowed`: solo esos docs (por los filtros). `null` si alguno no está.
  * @param {PreparedIndex} index
- * @param {string} q
- * @param {{limit?: number}} [opts]
- * @returns {SearchHit[]}
+ * @param {string[]} terms
+ * @param {((i: number) => boolean) | null} [allowed]
  */
-export function search(index, q, { limit = 1000 } = {}) {
-	const terms = queryTerms(q);
-	if (terms.length === 0) return [];
+function scoreTerms(index, terms, allowed = null) {
 	/** @type {Map<number, number>} */
 	let scores = new Map();
 	/** @type {Map<number, Set<string>>} */
@@ -315,9 +322,10 @@ export function search(index, q, { limit = 1000 } = {}) {
 		for (const word of index.vocab) {
 			const quality = matchQuality(term, word);
 			if (quality === 0) continue;
-			// @ts-ignore
+			// @ts-expect-error toda palabra de vocab está en postings
 			for (const [doc, mask] of index.postings.get(word)) {
 				if (ti > 0 && !scores.has(doc)) continue;
+				if (ti === 0 && allowed && !allowed(doc)) continue;
 				const s = quality * fieldsWeight(mask);
 				if (s > (termScores.get(doc) ?? 0)) termScores.set(doc, s);
 				let m = matched.get(doc);
@@ -329,29 +337,285 @@ export function search(index, q, { limit = 1000 } = {}) {
 		const next = new Map();
 		for (const [doc, s] of termScores) next.set(doc, (ti > 0 ? (scores.get(doc) ?? 0) : 0) + s);
 		scores = next;
-		if (scores.size === 0) return [];
+		if (scores.size === 0) break;
 	}
+	return { scores, matched };
+}
+
+/**
+ * Lo que suma el título: qué parte de él coincide ("Bondage" le gana a "Edición Bondage de ...") y
+ * si es lo buscado entero.
+ * @param {SearchDoc} doc
+ * @param {Set<string>} words
+ * @param {string} phrase lo buscado, sin tildes
+ */
+function titleBonus(doc, words, phrase) {
+	let bonus = 0;
+	const title = fold(doc.t);
+	const titleWords = tokenize(doc.t);
+	if (titleWords.length > 0) {
+		bonus += (3 * titleWords.filter((w) => words.has(w)).length) / titleWords.length;
+	}
+	if (!phrase) return bonus;
+	if (title === phrase) bonus += 8;
+	else if (title.startsWith(phrase)) bonus += 4;
+	else if (phrase.length > 2 && title.includes(phrase)) bonus += 2;
+	return bonus;
+}
+
+/** @param {SearchHit} a @param {SearchHit} b */
+const byScore = (a, b) => b.score - a.score || a.doc.t.localeCompare(b.doc.t);
+
+/**
+ * Busca `q` en el índice como texto: todos los términos tienen que aparecer (en cualquier campo).
+ * Sin operadores (para eso, {@link find}).
+ * @param {PreparedIndex} index
+ * @param {string} q
+ * @param {{limit?: number}} [opts]
+ * @returns {SearchHit[]}
+ */
+export function search(index, q, { limit = 1000 } = {}) {
+	const terms = queryTerms(q);
+	if (terms.length === 0) return [];
+	const { scores, matched } = scoreTerms(index, terms);
 	const phrase = fold(q).trim();
 	/** @type {SearchHit[]} */
 	const hits = [];
 	for (const [i, score] of scores) {
 		const doc = index.docs[i];
-		let bonus = 0;
-		const title = fold(doc.t);
 		const words = matched.get(i) ?? new Set();
-		// qué parte del título coincide: "Bondage" le gana a "Edición Bondage de ..."
-		const titleWords = tokenize(doc.t);
-		if (titleWords.length > 0) {
-			bonus += (3 * titleWords.filter((w) => words.has(w)).length) / titleWords.length;
-		}
-		if (title === phrase) bonus += 8;
-		else if (title.startsWith(phrase)) bonus += 4;
-		else if (phrase.length > 2 && title.includes(phrase)) bonus += 2;
-		// @ts-ignore
-		hits.push({ i, doc, score: score + bonus, words });
+		hits.push({ i, doc, score: score + titleBonus(doc, words, phrase), words });
 	}
-	hits.sort((a, b) => b.score - a.score || a.doc.t.localeCompare(b.doc.t));
+	hits.sort(byScore);
 	return hits.slice(0, limit);
+}
+
+/* ------------------------------------------------------------------ */
+/* Búsqueda con la sintaxis (docs/buscar.md)                            */
+/* ------------------------------------------------------------------ */
+
+/** Cuánto suben los docs del tipo que nombra una palabra suelta (`evento cuerdas`). */
+const HINT_BONUS = 6;
+
+/**
+ * Todo el texto de un doc, sin tildes, con espacios simples (para frases y exclusiones): título,
+ * otros nombres, etiquetas (con sus nombres), autores, resumen, lugar y cuerpo.
+ * @param {PreparedIndex} index
+ * @param {number} i
+ */
+function docText(index, i) {
+	index.texts ??= [];
+	let t = index.texts[i];
+	if (t === undefined) {
+		const d = index.docs[i];
+		const tags = (d.g ?? []).map((id) => [id, ...(index.tags[id] ?? [])].join(' '));
+		t = ` ${tokenize([d.t, ...(d.k ?? []), ...tags, ...(d.a ?? []), d.s, d.l, d.b].join(' ')).join(' ')} `;
+		index.texts[i] = t;
+	}
+	return t;
+}
+
+/** ¿Una palabra o frase (sin tildes) está en el texto, como palabras enteras? @param {string} text @param {string} f */
+const hasWords = (text, f) => {
+	const w = tokenize(f).join(' ');
+	return Boolean(w) && text.includes(` ${w} `);
+};
+
+/**
+ * Las etiquetas (ids) que se llaman así, por su id, su nombre visible o sus otros nombres.
+ * @param {PreparedIndex} index
+ * @param {string} name sin tildes
+ * @returns {string[]}
+ */
+export function tagsNamed(index, name) {
+	const n = tokenize(name).join(' ');
+	if (!n) return [];
+	const ids = new Set([...Object.keys(index.parents), ...Object.keys(index.tags)]);
+	for (const d of index.docs) for (const g of d.g ?? []) ids.add(g);
+	/** @param {string} s */
+	const same = (s) => tokenize(s).join(' ') === n;
+	return [...ids].filter((id) => same(id) || (index.tags[id] ?? []).some(same));
+}
+
+/**
+ * ¿El doc tiene alguna de esas etiquetas, o una hija de alguna?
+ * @param {PreparedIndex} index
+ * @param {SearchDoc} doc
+ * @param {Set<string>} ids
+ */
+function hasTagIn(index, doc, ids) {
+	/** @type {Set<string>} */
+	const seen = new Set();
+	const stack = [...(doc.g ?? [])];
+	while (stack.length) {
+		const id = /** @type {string} */ (stack.pop());
+		if (ids.has(id)) return true;
+		if (seen.has(id)) continue;
+		seen.add(id);
+		stack.push(...(index.parents[id] ?? []));
+	}
+	return false;
+}
+
+/**
+ * ¿Es la ficha de esa persona, o lo firma u organiza ella? Por su nombre como autore, o por el
+ * nombre o la dirección de su ficha de amigues (el comienzo alcanza).
+ * @param {PreparedIndex} index
+ * @param {string} who sin tildes
+ * @returns {(doc: SearchDoc) => boolean}
+ */
+function byPerson(index, who) {
+	const w = fold(who);
+	/** @type {Set<string>} */
+	const names = new Set();
+	for (const d of index.docs) {
+		if (d.c !== 'amigues') continue;
+		const slug = fold(decodeURIComponent(d.h.split('/').pop() ?? ''));
+		if (slug.startsWith(w) || fold(d.t).startsWith(w)) names.add(fold(d.t));
+	}
+	return (doc) =>
+		(doc.c === 'amigues' && names.has(fold(doc.t))) ||
+		(doc.a ?? []).some((a) => {
+			const f = fold(a);
+			return names.has(f) || f.startsWith(w) || f.replace(/\s+/g, '-').startsWith(w);
+		});
+}
+
+/**
+ * El día (Argentina) de una fecha ISO del índice, o ''.
+ * @param {string | undefined} iso
+ */
+function docDay(iso) {
+	const t = iso ? Date.parse(iso) : NaN;
+	return Number.isFinite(t) ? arDay(t) : '';
+}
+
+/**
+ * Busca con la sintaxis de búsqueda (docs/buscar.md): palabras, `"frases"`, `-exclusiones`,
+ * `#etiquetas`, `@personas`, tipos (`evento:`…), `lugar:` y fechas. Lo usan el buscador del sitio
+ * y el bot, así lo mismo escrito da lo mismo. Sin operadores, lo mismo que {@link search}, salvo
+ * las palabras que nombran un tipo (suben ese tipo sin ser obligatorias) y las de fecha (`finde`,
+ * `noviembre`), que filtran eventos y, si no dejan nada, vuelven a ser texto.
+ * @param {PreparedIndex} index
+ * @param {string} q
+ * @param {{ limit?: number, now?: number, types?: readonly SearchDoc['c'][] | null }} [opts]
+ * `types`: los tipos de un operador de tipo que se sacó antes de lo escrito (el bot,
+ * `parseInlineQuery`), como si siguiera ahí (así también vale la regla de respaldo).
+ * @returns {SearchHit[]}
+ */
+export function find(index, q, { limit = 1000, now = Date.now(), types = null } = {}) {
+	/** @param {import('./searchSyntax.js').ParsedSearch} pq */
+	const typed = (pq) => {
+		if (types?.length) pq.types = [...new Set([...(pq.types ?? []), ...types])];
+		return pq;
+	};
+	const pq = typed(parseSearch(q, 'sitio'));
+	let hits = findParsed(index, pq, now);
+	if (hits.length === 0 && pq.dates.some((d) => d.soft)) {
+		hits = findParsed(index, typed(parseSearch(q, 'sitio', { datesAsText: true })), now);
+	}
+	return hits.slice(0, limit);
+}
+
+/**
+ * @param {PreparedIndex} index
+ * @param {import('./searchSyntax.js').ParsedSearch} pq
+ * @param {number} now
+ * @returns {SearchHit[]}
+ */
+export function findParsed(index, pq, now = Date.now()) {
+	// Las palabras como las parte el índice (`20:30` → `20`, `30`).
+	const words = pq.words.flatMap((w) => tokenize(w));
+	/** @type {((doc: SearchDoc, i: number) => boolean)[]} */
+	const checks = [];
+
+	const types = allowedTypes(pq);
+	if (types) checks.push((d) => types.includes(d.c));
+	// Un `-evento:` solo saca: no cuenta como pedir algo (ver `asks`).
+	const typesOnlyExclude = Boolean(types) && !pq.types && !pq.implied;
+
+	// Etiquetas: una que no existe se busca como texto.
+	for (const name of pq.tags) {
+		const ids = new Set(tagsNamed(index, name));
+		if (ids.size) checks.push((d) => hasTagIn(index, d, ids));
+		else words.push(...tokenize(name));
+	}
+	for (const who of pq.people) checks.push(byPerson(index, who));
+	for (const place of pq.places) checks.push((d) => fold(d.l ?? '').includes(place));
+	for (const { when } of pq.dates) {
+		checks.push((d) => {
+			const start = docDay(d.d);
+			return Boolean(start) && dayInWhen(start, docDay(d.e) || start, when, now);
+		});
+	}
+	for (const phrase of pq.phrases) checks.push((_, i) => hasWords(docText(index, i), phrase));
+	// Hasta acá, lo que pide algo; las exclusiones solo sacan. Las palabras vacías (`de`, `el`…)
+	// no piden nada: «el taller» es como «taller» (docs/buscar.md, «Palabras vacías»).
+	const meaningfulWords = words.filter((w) => !STOPWORDS.has(w));
+	const asks = meaningfulWords.length > 0 || checks.length > (typesOnlyExclude ? 1 : 0);
+	for (const x of pq.exclude) checks.push((_, i) => !hasWords(docText(index, i), x));
+	for (const name of pq.excludeTags) {
+		const ids = new Set(tagsNamed(index, name));
+		if (ids.size) checks.push((d) => !hasTagIn(index, d, ids));
+	}
+	for (const who of pq.excludePeople) {
+		const is = byPerson(index, who);
+		checks.push((d) => !is(d));
+	}
+	for (const place of pq.excludePlaces) checks.push((d) => !fold(d.l ?? '').includes(place));
+
+	// Las palabras que nombran un tipo son obligatorias solo si no se pide nada más.
+	const onlyHints = !asks;
+	// Sin nada más pedido, todo lo escrito es obligatorio, como en `search` (las palabras vacías se
+	// sacan abajo, salvo que sean todo).
+	const required = onlyHints ? [...pq.hints, ...words] : meaningfulWords;
+	let terms = [...new Set(required)];
+	const meaningful = terms.filter((t) => !STOPWORDS.has(t));
+	if (meaningful.length) terms = meaningful;
+	// Las palabras de las frases también cuentan para el puntaje y el resaltado.
+	const phraseTerms = pq.phrases.flatMap((p) => tokenize(p));
+	terms = [...new Set([...terms, ...phraseTerms])];
+	if (terms.length === 0 && checks.length === 0) return [];
+
+	/** @param {number} i */
+	const passes = (i) => checks.every((c) => c(index.docs[i], i));
+	/** @type {Map<number, number>} */
+	let scores;
+	/** @type {Map<number, Set<string>>} */
+	let matched;
+	if (terms.length) {
+		({ scores, matched } = scoreTerms(index, terms, passes));
+	} else {
+		scores = new Map();
+		matched = new Map();
+		index.docs.forEach((_, i) => passes(i) && scores.set(i, 0));
+	}
+
+	// Las palabras de tipo que no son obligatorias: suman si están y suben ese tipo.
+	const hints = onlyHints ? [] : pq.hints;
+	const textPhrase = onlyHints ? fold(pq.text) : words.join(' ');
+	/** @type {SearchHit[]} */
+	const hits = [];
+	for (const [i, score] of scores) {
+		const doc = index.docs[i];
+		const found = matched.get(i) ?? new Set();
+		let bonus = titleBonus(doc, found, textPhrase);
+		if (hints.length && pq.hintTypes.includes(doc.c)) bonus += HINT_BONUS;
+		hits.push({ i, doc, score: score + bonus, words: found });
+	}
+	if (hints.length) {
+		const hintWords = index.vocab.filter((w) => hints.some((t) => matchQuality(t, w) >= 0.8));
+		for (const h of hits) {
+			for (const word of hintWords) {
+				const mask = index.postings.get(word)?.get(h.i);
+				if (!mask) continue;
+				h.score += fieldsWeight(mask) * 0.5;
+				h.words.add(word);
+			}
+		}
+	}
+	hits.sort(byScore);
+	return hits;
 }
 
 /* ------------------------------------------------------------------ */

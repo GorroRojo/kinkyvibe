@@ -7,10 +7,13 @@
  * prendido (tests E2E, `vite dev`), `0` lo fuerza apagado (para cortarlo de golpe desde el panel
  * de Cloudflare si algo sale mal). Vacía o ausente = lo que diga la base.
  *
- * Para no consultar la base en cada página, el valor se recuerda unos segundos por isolate.
+ * Para no consultar la base en cada página, el valor se recuerda unos segundos por isolate. Entre
+ * pedidos se comparten solo valores ya leídos; la lectura en camino, solo dentro del pedido
+ * (`readAndKeep`, src/lib/server/db/perRequest.js: una lectura de otro pedido puede colgar).
  */
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -66,6 +69,34 @@ export const FLAGS = Object.freeze({
 			'0054 para «Mis avisos».',
 		envVar: 'TELEGRAM_ADMIN_ENABLED'
 	},
+	telegram_enriquecido: {
+		label: 'Telegram: mensajes enriquecidos y compartir',
+		description:
+			'Cuando el bot manda algo del sitio (una entrada de la Kinkipedia, un material, un evento), ' +
+			'el contenido se lee adentro del chat, con «Ver en el sitio» abajo. En la Mini App del ' +
+			'calendario, cada evento tiene «Mandar a un chat», y el evento mandado trae un botón que ' +
+			'abre el calendario justo en ese evento. Solo lo público, lo mismo que el sitio sin cuenta. ' +
+			'Necesita el bot prendido. Apagado, el bot manda las tarjetas de siempre.',
+		tech:
+			'docs/telegram.md («Mensajes enriquecidos y compartir»). Los mensajes enriquecidos (Bot API ' +
+			'10.1–10.3) salen solo con TELEGRAM_BOT_TOKEN; si Telegram los rechaza, sale la tarjeta de ' +
+			'siempre. Compartir usa savePreparedInlineMessage + shareMessage (Bot API 8.0). «Abrir en el ' +
+			'calendario» necesita TELEGRAM_BOT_USERNAME y la Main Mini App registrada en @BotFather.',
+		envVar: 'TELEGRAM_ENRIQUECIDO_ENABLED'
+	},
+	telegram_estadisticas: {
+		label: 'Telegram: estadísticas de uso',
+		description:
+			'Cuenta cómo se usa el bot, para Estadísticas → Bot de Telegram: quién lo usa y cuánto (un ' +
+			'número por persona y por día) y, aparte y sumado por semana, qué pantallas, búsquedas y ' +
+			'cosas se usan. Nunca se guarda qué buscó o miró cada persona. Necesita el bot prendido. ' +
+			'Apagado, no se cuenta nada.',
+		tech:
+			'docs/telegram.md («Estadísticas de uso»), decisión 0045. Necesita la migración 0057 ' +
+			'(tablas telegram_uso_personas y telegram_uso_totales). Los resultados inline elegidos ' +
+			'necesitan /setinlinefeedback en @BotFather y volver a registrar el webhook.',
+		envVar: 'TELEGRAM_ESTADISTICAS_ENABLED'
+	},
 	propinas_fondo: {
 		label: 'Donaciones únicas al Fondo',
 		description:
@@ -89,6 +120,99 @@ export const FLAGS = Object.freeze({
 			'docs/tickets.md, «Lista de espera». Antes de prenderlo: migración 0053. Tablas ' +
 			'waitlist_entries y waitlist_sends; clave `lista_espera` del evento.',
 		envVar: 'LISTA_ESPERA_ENABLED'
+	},
+	combo_codigos: {
+		label: 'Códigos combo entre eventos',
+		description:
+			'En la pestaña Códigos de un evento se puede armar un combo con otro evento: quien compra ' +
+			'una entrada del primero (online, en la puerta o cargada a mano) recibe en el mail de sus entradas un código de descuento ' +
+			'para el segundo, de un solo uso y solo para su mail. Si la compra se reembolsa, el código ' +
+			'deja de valer. Apagado, no se arman combos ni se generan códigos nuevos (los que ya se ' +
+			'mandaron siguen valiendo).',
+		tech:
+			'docs/tickets.md, «Códigos combo». Antes de prenderlo: migración 0056 (tabla ' +
+			'ticket_combos y columnas buyer_email y source_order_id de discount_codes). ' +
+			'src/lib/server/tickets/combos.js.',
+		envVar: 'COMBO_CODIGOS_ENABLED'
+	},
+	gastos_reparto: {
+		label: 'Gastos y reparto (prototipo)',
+		description:
+			'En la ficha de cada evento que vende entradas, Ventas → «Gastos y reparto»: lo que entró ' +
+			'(sin la comisión de Mercado Pago ni lo del Fondo), los gastos con quién pagó cada uno y ' +
+			'el reparto de lo que queda entre les organizadores, con «quién le pasa a quién». Es un ' +
+			'prototipo: lo que se carga no se guarda en la base (queda en ese navegador y se puede ' +
+			'exportar). Apagado, no se ve.',
+		tech:
+			'docs/tickets.md, «Gastos y reparto». Sin migración: lee las órdenes del evento ' +
+			'(src/lib/admin/reparto.js); gastos y personas en localStorage. Apagado, ' +
+			'/admin/eventos/<slug>/gastos da 404.',
+		envVar: 'GASTOS_REPARTO_ENABLED'
+	},
+	carrusel_portada: {
+		label: 'Carrusel en la portada',
+		description:
+			'Arriba de la portada, un carrusel con los próximos eventos de Kinky Vibe que tienen imagen ' +
+			'(hasta 5, por fecha): pasa solo cada unos segundos, se puede pausar y se mueve con las ' +
+			'flechas o deslizando en el celu. Sin eventos así, no aparece. Apagado, la portada se ve ' +
+			'como siempre.',
+		tech:
+			'src/lib/components/Carrousel.svelte, la regla en src/lib/utils/carrusel.js (docs/estilo.md, ' +
+			'«Carrusel de la portada»). Con `?carrousel` en la dirección se ve aunque esté apagado (para ' +
+			'revisarlo en un preview). Sin migración.',
+		envVar: 'CARRUSEL_PORTADA_ENABLED'
+	},
+	lo_que_enlaza: {
+		label: 'Lo que enlaza acá',
+		description:
+			'Al pie de cada evento, material, perfil y entrada de la Kinkipedia, la lista de las ' +
+			'páginas cuyo texto la enlaza (con [[…]], @ o #). Cada persona ve solo lo que puede ver: ' +
+			'nada oculto, «solo con cuenta» o sin aprobar a quien no le corresponde. Apagado, no se ' +
+			've nada de esto.',
+		tech:
+			'docs/enlaces.md («Lo que enlaza acá»). Lee los edges `enlaza` que se guardan al guardar ' +
+			'cada cuerpo: lo guardado antes de eso aparece recién cuando se vuelve a guardar (o con ' +
+			'scripts/enlaces-backfill.js). Sin migración.',
+		envVar: 'LO_QUE_ENLAZA_ENABLED'
+	},
+	conector_claude: {
+		label: 'Conector de Claude (solo lectura)',
+		description:
+			'Les admins pueden sumar el sitio como conector en claude.ai y pedirle a Claude que busque ' +
+			'y lea eventos, material, perfiles y etiquetas, que muestre las ventas de un evento y los ' +
+			'próximos eventos. Solo lee: no cambia nada. Cada admin entra con su cuenta y cada pedido ' +
+			'queda en Actividad a su nombre. Apagado, el conector no contesta.',
+		tech:
+			'docs/conector-claude.md. Servidor MCP en /mcp con OAuth propio (/mcp/autorizar, /mcp/token, ' +
+			'/mcp/registro y los /.well-known/oauth-*). Sin migraciones. Apagado, todo eso da 404.',
+		envVar: 'CONECTOR_CLAUDE_ENABLED'
+	},
+	encuesta_post_evento: {
+		label: 'Encuesta después del evento (prototipo)',
+		description:
+			'Un día después de que termina un evento con entradas, les llega a quienes tenían entrada ' +
+			'un mail con una encuesta corta y anónima. Cada evento la puede apagar en su editor ' +
+			'(«Mandar la encuesta después del evento») y las respuestas se ven en la ficha del evento → ' +
+			'Mails → Encuesta. Es un prototipo: todavía no guarda las respuestas en la base, así que ' +
+			'solo anda en desarrollo (prendido en producción no manda nada).',
+		tech:
+			'docs/mails.md, «Encuesta después del evento (prototipo)». src/lib/server/encuesta/. Los ' +
+			'envíos usan reminder_sends (clave `encuesta`); las respuestas, un almacén en memoria solo ' +
+			'en `vite dev` hasta que haya migración. Clave `encuesta` del evento (false = no se manda).',
+		envVar: 'ENCUESTA_POST_EVENTO_ENABLED'
+	},
+	rol_organizadore: {
+		label: 'Organizadores: sus eventos en Mi rincón (prototipo)',
+		description:
+			'Quien gestiona un perfil que figura con el rol «Organiza» en un evento ve en Mi rincón → ' +
+			'«Eventos que organizás» cómo va la venta de ESE evento (entradas, cupo y lo recaudado), ' +
+			'la lista para la puerta (solo nombres) y puede cambiar el texto del evento. Nada de mails ' +
+			'ni teléfonos de quienes compraron. Es un prototipo para mirar y decidir. Apagado, no se ve.',
+		tech:
+			'docs/cuentas.md, «Organizadores (prototipo)». Sin migración: organizar sale del rol ' +
+			'Organiza del evento y de profile_managers (src/lib/server/personas/organizadore.js, ' +
+			'canManageEvent). Apagado, /mi-rincon/organizo da 404.',
+		envVar: 'ROL_ORGANIZADORE_ENABLED'
 	}
 });
 
@@ -100,16 +224,12 @@ export const FLAG_CACHE_MS = 30_000;
 /** @type {Map<string, { value: boolean, expires: number }>} */
 const cache = new Map();
 
-/** La lectura de todos los interruptores en curso (la comparten los pedidos que llegan juntos). */
-/** @type {{ db: D1Database, read: Promise<Map<string, boolean>> } | null} */
-let reading = null;
 /** Sube con cada `clearFlagCache`: una lectura que empezó antes no se guarda. */
 let generation = 0;
 
 /** Olvida los valores recordados (al guardar desde el panel, y en los tests). */
 export function clearFlagCache() {
 	cache.clear();
-	reading = null;
 	generation++;
 }
 
@@ -183,24 +303,51 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
 		cache.set(key, { value: false, expires: now + FLAG_CACHE_MS });
 		return false;
 	}
+	const all = await readFlagsAndKeep(db, now);
+	return all.get(key) ?? false;
+}
+
+/**
+ * Lee todos los interruptores (una lectura, compartida solo dentro del pedido) y los recuerda para
+ * los demás pedidos.
+ *
+ * @param {D1Database} db
+ * @param {number} now
+ */
+function readFlagsAndKeep(db, now) {
 	const gen = generation;
-	if (reading?.db !== db) {
-		const read = readAllFlags(db);
-		reading = { db, read };
-		read.finally(() => {
-			if (reading?.read === read) reading = null;
-		});
-	}
-	const all = await reading.read;
-	const value = all.get(key) ?? false;
-	if (gen === generation) {
-		for (const k of Object.keys(FLAGS)) {
-			const fresh = cache.get(k);
-			if (!fresh || fresh.expires <= now)
-				cache.set(k, { value: all.get(k) ?? false, expires: now + FLAG_CACHE_MS });
+	return readAndKeep(
+		db,
+		'feature-flags',
+		() => readAllFlags(db),
+		(read) => {
+			if (gen !== generation) return;
+			for (const k of Object.keys(FLAGS)) {
+				const fresh = cache.get(k);
+				if (!fresh || fresh.expires <= now)
+					cache.set(k, { value: read.get(k) ?? false, expires: now + FLAG_CACHE_MS });
+			}
 		}
-	}
-	return value;
+	);
+}
+
+/**
+ * Al empezar un pedido que va a esperar a la base de todos modos (src/lib/server/adelantarPedido.js):
+ * si algún interruptor que manda la base ya no está recordado, pide la lectura de todos ahora, así
+ * sale en esa misma ida y no después (la de `isFlagOn` recibe la misma lectura, compartida dentro
+ * del pedido). No cambia qué se lee ni cuánto se recuerda.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {{ now?: number }} [opts]
+ */
+export function askFlagsEarly(db, { now = Date.now() } = {}) {
+	if (!db) return;
+	const stale = /** @type {FlagKey[]} */ (Object.keys(FLAGS)).some((k) => {
+		if (envOverride(env[FLAGS[k].envVar]) !== null) return false;
+		const hit = cache.get(k);
+		return !hit || hit.expires <= now;
+	});
+	if (stale) readFlagsAndKeep(db, now).catch(() => {});
 }
 
 /**
@@ -230,6 +377,61 @@ export function propinasFondoEnabled(platform) {
  */
 export function listaEsperaEnabled(platform) {
 	return isFlagOn(getDB(platform), 'lista_espera');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los códigos combo entre eventos? (docs/tickets.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function comboCodigosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'combo_codigos');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el prototipo de gastos y reparto? (docs/tickets.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function gastosRepartoEnabled(platform) {
+	return isFlagOn(getDB(platform), 'gastos_reparto');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el carrusel de la portada? (docs/estilo.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function carruselPortadaEnabled(platform) {
+	return isFlagOn(getDB(platform), 'carrusel_portada');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el conector de Claude? (docs/conector-claude.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function conectorClaudeEnabled(platform) {
+	return isFlagOn(getDB(platform), 'conector_claude');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendida la encuesta después del evento (prototipo)?
+ * (docs/mails.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function encuestaEnabled(platform) {
+	return isFlagOn(getDB(platform), 'encuesta_post_evento');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el prototipo de organizadores en Mi rincón? (docs/cuentas.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function rolOrganizadoreEnabled(platform) {
+	return isFlagOn(getDB(platform), 'rol_organizadore');
 }
 
 /**

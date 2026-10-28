@@ -5,7 +5,7 @@
 	import { Search, X, LoaderCircle } from '@lucide/svelte';
 	import { searchOpen, searchPrefill } from '$lib/utils/stores';
 	import { get } from 'svelte/store';
-	import { argDateList } from '$lib/utils/dates.js';
+	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
 	const PER_GROUP = 5;
@@ -69,7 +69,7 @@
 	function compute(q, idx, exp) {
 		if (!engine || !idx || q.trim().length < 2) return [];
 		const t0 = performance.now();
-		const grouped = engine.groupHits(engine.search(idx, q));
+		const grouped = engine.groupHits(engine.find(idx, q));
 		lastMs = performance.now() - t0;
 		const limit = grouped.length === 1 ? PER_GROUP * 2 : PER_GROUP;
 		return grouped.map((g) => {
@@ -93,6 +93,28 @@
 	$: total = groups.reduce((n, g) => n + g.total, 0);
 	$: if (active >= flat.length) active = Math.max(0, flat.length - 1);
 	$: activeId = flat[active]?.id;
+
+	// Lo que se anuncia a los lectores de pantalla en una región fija (role="status"): cargando,
+	// sin resultados o cuántos hay. Un rato después de dejar de tipear, para no leer cada letra.
+	$: statusText = error
+		? error
+		: query.trim().length < 2
+			? ''
+			: !index
+				? 'Cargando el índice…'
+				: flat.length === 0
+					? `No encontramos nada para «${query.trim()}».`
+					: `${total} resultado${total === 1 ? '' : 's'}`;
+	let liveStatus = '';
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let statusTimer;
+	/** @param {string} text */
+	function scheduleStatus(text) {
+		if (typeof window === 'undefined') return;
+		clearTimeout(statusTimer);
+		statusTimer = setTimeout(() => (liveStatus = text), 400);
+	}
+	$: scheduleStatus(statusText);
 
 	/** @param {string} _q */
 	function resetSelection(_q) {
@@ -131,6 +153,7 @@
 		});
 		return () => {
 			unsubscribe();
+			clearTimeout(statusTimer);
 			document.body.style.overflow = '';
 		};
 	});
@@ -208,7 +231,7 @@
 	}
 
 	/** @param {string} d */
-	const formatDate = (d) => argDateList(new Date(d));
+	const formatDate = (d) => argDateList(parseSiteDate(d));
 </script>
 
 <svelte:window on:keydown={onWindowKeydown} />
@@ -260,11 +283,12 @@
 				</button>
 			</div>
 
+			<!-- Listbox solo con resultados: los avisos («No encontramos nada…») no son opciones. -->
 			<div
 				class="results"
 				id="search-results"
-				role="listbox"
-				aria-label="Resultados"
+				role={flat.length > 0 ? 'listbox' : undefined}
+				aria-label={flat.length > 0 ? 'Resultados' : undefined}
 				data-ms={lastMs.toFixed(1)}
 			>
 				{#if error}
@@ -343,6 +367,7 @@
 				{/if}
 			</div>
 
+			<p class="visually-hidden" role="status">{liveStatus}</p>
 			<div class="footer" aria-hidden="true">
 				<span><kbd>↑</kbd><kbd>↓</kbd> moverse</span>
 				<span><kbd>Enter</kbd> abrir</span>

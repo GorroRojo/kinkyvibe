@@ -1,7 +1,14 @@
 /**
  * Email con las entradas, enviado con la API REST de Resend (POST https://api.resend.com/emails).
  */
-import { argDateTimeLong, argDeadline, argTime, eventEnd } from '$lib/utils/dates.js';
+import {
+	argDateList,
+	argDateTimeLong,
+	argDeadline,
+	argTime,
+	eventEnd,
+	parseSiteDate
+} from '$lib/utils/dates.js';
 import { ARGENTINA_TIME_NOTE } from '$lib/utils/expiry.js';
 import { TRANSFER_HOLD_AFTER, transferHoldText } from '$lib/utils/transferDeadline.js';
 import { formatARS } from '$lib/utils/money.js';
@@ -9,13 +16,15 @@ import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/
 import { salePlaceText } from '$lib/utils/eventPlace.js';
 import {
 	WHY_BOUGHT,
+	WHY_FREE,
 	WHY_RESERVED,
 	renderBlockHtml,
 	renderInlineHtml,
 	renderPlain,
 	templateDef
 } from '$lib/utils/emailTemplates.js';
-import { MAIL_COLORS, MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
+import { MAIL_COLORS, MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
+import { escapeHtml } from '$lib/utils/escape.js';
 import {
 	eventReservationScript,
 	googleCalendarUrl,
@@ -58,7 +67,11 @@ function calendarExtras({ order, event, online, origin, markup = false }) {
 	}
 	const googleUrl = googleCalendarUrl(calEvent);
 	const reservation = markup
-		? eventReservationScript({ orderId: order.id, buyerName: order.buyer_name, event: calEvent })
+		? eventReservationScript({
+				orderId: orderReference(order.id),
+				buyerName: order.buyer_name,
+				event: calEvent
+			})
 		: null;
 	const line = `Agregalo a tu calendario: abrí el archivo ${calendar.filename} que va adjunto.`;
 	return {
@@ -75,8 +88,41 @@ function calendarExtras({ order, event, online, origin, markup = false }) {
 	};
 }
 
-/** Línea chica del final de la tarjeta (número de orden, ayuda). */
+/**
+ * «Por qué te llega» de los mails de una orden: una orden gratis no se compró.
+ * @param {{ payment_method: string }} order
+ */
+function whyFor(order) {
+	return order.payment_method === 'gratis' ? WHY_FREE : WHY_BOUGHT;
+}
+
+/** Línea chica del final de la tarjeta (número de compra, ayuda). */
 const SMALL = `margin:16px 0 0;font-size:13px;line-height:1.5;color:${MAIL_COLORS.muted}`;
+
+/**
+ * «Número de compra: KV-…»: la referencia corta, la misma que muestran la página de la compra, el
+ * mail de la transferencia y el panel (y que el buscador del panel encuentra), en vez del id entero.
+ *
+ * @param {{ id: string }} order
+ */
+const purchaseNumber = (order) => `Número de compra: ${orderReference(order.id)}`;
+
+/**
+ * El botón de los mails de una compra ya pagada (entradas, recordatorio, cambio de fecha), cuando
+ * no lleva a la transmisión. Con una sola entrada, a esa entrada con su QR: su link se abre en
+ * cualquier navegador y ya está en el cuerpo del mail. Con varias, a la página de la compra (que
+ * muestra las entradas solo en el navegador donde se compró; cada una tiene además su link en el
+ * mail).
+ *
+ * @param {{ id: string }} order
+ * @param {{ token: string }[]} tickets
+ * @param {string} origin
+ */
+function ticketsButton(order, tickets, origin) {
+	return tickets.length === 1
+		? { href: `${origin}/entradas/t/${tickets[0].token}`, label: 'Ver mi entrada' }
+		: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' };
+}
 
 /**
  * Plantilla guardada en el panel (ver emailTemplates.js): la general y, encima, la del evento,
@@ -126,6 +172,22 @@ export function applyTemplate(template, vars) {
 		helpText: help === null ? null : plain(help),
 		whyHtml: why === null ? null : renderInlineHtml(why, vars)
 	};
+}
+
+/**
+ * El preencabezado de los mails de una compra (lo que la bandeja muestra al lado del asunto):
+ * `lead`, el día y la hora cortos y el nombre del lugar. Nunca el título del evento (puede ser
+ * sensible y ya está en el asunto), datos personales, links ni códigos.
+ *
+ * @param {string} lead
+ * @param {{ start?: string, online?: boolean, location_name?: string }} event
+ */
+function eventPreheader(lead, event) {
+	const d = event.start ? parseSiteDate(event.start) : null;
+	// `now` = la misma fecha: sin el año («sáb 10 oct · 22:00»), igual en todos los mails.
+	const day = d && !Number.isNaN(d.getTime()) ? argDateList(d, { now: d }) : '';
+	const place = event.online ? '' : (event.location_name?.trim() ?? '');
+	return [lead, day, place].filter(Boolean).join(' · ');
 }
 
 /**
@@ -200,15 +262,8 @@ export function priceLines(order, typeName) {
 	return lines;
 }
 
-/** @param {string} s */
-export function escapeHtml(s) {
-	return s
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#39;');
-}
+// El escape de siempre ($lib/utils/escape.js); se reexporta para los mails que lo importan de acá.
+export { escapeHtml };
 
 /**
  * Fecha y hora del evento en horario de Argentina.
@@ -217,7 +272,7 @@ export function escapeHtml(s) {
  */
 export function formatEventDate(start) {
 	if (!start) return '';
-	const d = new Date(start);
+	const d = parseSiteDate(start);
 	if (Number.isNaN(d.getTime())) return String(start);
 	return argDateTimeLong(d);
 }
@@ -251,6 +306,43 @@ function streamLinkBlock(link) {
 }
 
 /**
+ * Lo que la página del evento le muestra a cualquiera del lugar, además de la dirección: «Cómo
+ * llegar» y «Accesibilidad» (`venueNotesForMail`, amigues/venues.js: solo en el nivel en que la
+ * página los muestra), en un recuadro después de la fecha y el lugar, y el link a la página del
+ * evento. Solo en eventos presenciales; sin nada de eso (o sin `event.slug`, como en las vistas
+ * previas y la golden), nada: el mail sale como siempre. Los textos vienen del CMS: van escapados.
+ *
+ * @param {{ slug?: string, howTo?: string | null, accessibility?: string | null }} event
+ * @param {boolean} online
+ * @param {string} origin
+ * @returns {{ linkHtml: string, boxHtml: string, text: string[] }}
+ */
+function venueBlocks(event, online, origin) {
+	const url = event.slug ? `${origin}/calendario/${event.slug}` : null;
+	const notes = online
+		? []
+		: /** @type {[string, string][]} */ (
+				[
+					['Cómo llegar', event.howTo],
+					['Accesibilidad', event.accessibility]
+				].filter(([, v]) => typeof v === 'string' && v.trim())
+			);
+	return {
+		linkHtml: url
+			? `<br><a href="${escapeHtml(url)}" style="${MAIL_STYLES.link}" data-kv-mail="evento">Ver la página del evento</a>`
+			: '',
+		boxHtml: notes.length
+			? `
+		<div style="${MAIL_STYLES.box}" data-kv-mail="lugar">${notes.map(([t, v], i) => `<p style="margin:${i ? '10px' : '0'} 0 4px;font-weight:bold">${t}</p><p style="margin:0;white-space:pre-line">${escapeHtml(v.trim())}</p>`).join('')}</div>`
+			: '',
+		text: [
+			...(url ? [`Página del evento: ${url}`] : []),
+			...notes.flatMap(([t, v]) => ['', `${t}:`, v.trim()])
+		]
+	};
+}
+
+/**
  * La lista «Las N partes del taller» de un taller con una sola entrada para todas sus partes
  * (docs/talleres-partes.md), dentro de la tarjeta, después de los datos del evento. Sin lista,
  * nada: el mail sale igual que siempre, byte a byte.
@@ -268,6 +360,32 @@ function partsBlocks(parts) {
 }
 
 /**
+ * Bloque «Un descuento para otro evento» con los códigos combo de la compra (combos.js), al
+ * final de las entradas. Sin códigos, nada: el mail sale igual que siempre, byte a byte.
+ *
+ * @param {string} title el evento de esta compra (A)
+ * @param {import('./combos.js').ComboMailItem[] | null | undefined} combos
+ * @returns {{ html: string, text: string[] }}
+ */
+export function comboBlocks(title, combos) {
+	if (!combos?.length) return { html: '', text: [] };
+	const until = (/** @type {import('./combos.js').ComboMailItem} */ c) =>
+		c.until ? `, hasta el ${c.until}` : '';
+	const html = combos
+		.map(
+			(c) => `
+		<div style="${MAIL_STYLES.box}" data-kv-mail="combo"><p style="margin:0 0 6px;font-weight:bold">Un descuento para otro evento</p><p style="margin:0">Con tu entrada a <strong>${escapeHtml(title)}</strong> tenés ${escapeHtml(c.discount)} en <a href="${escapeHtml(c.targetUrl)}" style="${MAIL_STYLES.link}">${escapeHtml(c.targetTitle)}</a>: usá el código</p><p style="margin:8px 0;font-family:'Courier New',monospace;font-size:22px;font-weight:bold;letter-spacing:2px">${escapeHtml(c.code)}</p><p style="margin:0;font-size:13px;color:${MAIL_COLORS.muted}">Es personal: vale para una compra con este mismo email${escapeHtml(until(c))}. Completá tus datos con este email antes de aplicarlo.</p></div>`
+		)
+		.join('');
+	const text = combos.flatMap((c) => [
+		'',
+		`Un descuento para otro evento: con tu entrada a ${title} tenés ${c.discount} en ${c.targetTitle}. Usá el código ${c.code} (${c.targetUrl}).`,
+		`Es personal: vale para una compra con este mismo email${until(c)}. Completá tus datos con este email antes de aplicarlo.`
+	]);
+	return { html, text };
+}
+
+/**
  * Mail con las entradas. En los eventos presenciales, un QR por entrada con su código corto en
  * grande (para tipearlo en la puerta si el QR no se puede escanear). En los online, el link de
  * la transmisión (si ya está cargado; si no, avisa que llega antes del evento).
@@ -277,13 +395,20 @@ function partsBlocks(parts) {
  *   tickets: import('./orders.js').Ticket[],
  *   event: { title: string, start?: string, location?: string, location_name?: string,
  *     online?: boolean, streamLink?: string | null, parts?: PartsList | null,
- *     slug?: string, end?: string | null, status?: string, stamp?: number },
+ *     slug?: string, end?: string | null, status?: string, stamp?: number,
+ *     howTo?: string | null, accessibility?: string | null },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
- *   template?: Template
+ *   template?: Template,
+ *   combos?: import('./combos.js').ComboMailItem[] | null,
+ *   optOutUrl?: string | null
  * }} input
  * `event.parts`: la lista de partes si es un taller con una sola entrada.
+ * `event.howTo`/`event.accessibility`: «Cómo llegar» y «Accesibilidad» del lugar, solo si la página
+ * del evento se los muestra a cualquiera (`venueNotesForMail`).
+ * `optOutUrl`: el link «No fui yo» (entradas gratis; email/suppressions.js), en el pie.
+ * `combos`: los códigos combo de la compra (combos.js), en un bloque después de las entradas.
  * `event.slug`: con él, el mail lleva adjunto `<slug>.ics` (calendarFile.js), una línea
  * «Agregalo a tu calendario» con el link a Google Calendar y el marcado `EventReservation` para
  * Gmail; sin él (vistas previas, golden), sale como siempre. Un evento
@@ -297,14 +422,18 @@ export function buildTicketEmail({
 	typeName,
 	origin,
 	contactEmail,
-	template
+	template,
+	combos,
+	optOutUrl = null
 }) {
 	const title = event.title;
-	const when = formatEventDate(event.start);
+	const optOut = mailOptOut(optOutUrl, '¿No pediste vos estas entradas?');
+	const when = formatEventWhen(event.start, event.end);
 	const online = Boolean(event.online);
 	const where = salePlaceText(online, event);
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
 	const subject = custom.subject ?? `Tus entradas para ${title}`;
+	const combo = comboBlocks(title, combos);
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 
 	// Nombre y pronombres de cada entrada (nunca el DNI: los mails se reenvían y quedan guardados).
@@ -315,6 +444,7 @@ export function buildTicketEmail({
 	const policy = policyBlocks(contactEmail);
 	const parts = partsBlocks(event.parts);
 	const cal = calendarExtras({ order, event, online, origin, markup: true });
+	const venue = venueBlocks(event, online, origin);
 
 	const ticketBlocks = tickets
 		.map((t, i) => {
@@ -353,24 +483,29 @@ export function buildTicketEmail({
 
 	const html = mailLayout({
 		origin,
+		preheader: eventPreheader(
+			online ? 'Tu entrada para el evento online' : 'Tu QR para la puerta',
+			event
+		),
 		label: custom.label ?? 'Tus entradas',
 		titleHtml: custom.headingHtml ?? '¡Ya tenés tus entradas!',
-		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>`}
-		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${cal.html}
+		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por ${order.payment_method === 'gratis' ? 'anotarte' : 'tu compra'}.</p>`}
+		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}${venue.linkHtml}</p>${venue.boxHtml}${parts.html}${cal.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		${online && event.streamLink ? streamLinkBlock(event.streamLink) : ''}`,
 		button: withLabel(
 			online && event.streamLink
 				? { href: event.streamLink, label: 'Entrar a la transmisión' }
-				: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' },
+				: ticketsButton(order, tickets, origin),
 			custom.button
 		),
 		helpHtml: custom.helpHtml ?? intro,
-		afterHtml: `${ticketBlocks}
-		<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		afterHtml: `${ticketBlocks}${combo.html}
+		<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
-		contactEmail
+		whyHtml: custom.whyHtml ?? whyFor(order),
+		contactEmail,
+		optOutHtml: optOut.html
 	});
 
 	const text = [
@@ -380,6 +515,7 @@ export function buildTicketEmail({
 		`${title}`,
 		when,
 		where,
+		...venue.text,
 		...parts.text,
 		...cal.text,
 		'',
@@ -394,11 +530,19 @@ export function buildTicketEmail({
 		...(online && event.streamLink && custom.helpText !== null ? [custom.helpText] : []),
 		...links.map(
 			(l, i) =>
-				`Entrada ${i + 1} (${holder(tickets[i])})${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
+				`Entrada ${i + 1} · ${holder(tickets[i])}${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
 		),
+		...combo.text,
 		'',
-		`Número de orden: ${order.id}`,
-		policy.text
+		purchaseNumber(order),
+		'Si tenés algún problema, respondé este mail.',
+		policy.text,
+		...optOut.text,
+		'',
+		// Como en los demás mails, lo que se cambia en la plantilla (etiqueta, botón, pie) es solo
+		// del HTML: el texto plano dice siempre el «por qué te llega» de siempre.
+		whyFor(order),
+		`¿Dudas? Escribinos a ${contactEmail}`
 	]
 		.filter((l) => l !== undefined)
 		.join('\n');
@@ -459,9 +603,9 @@ export function buildStreamLinkEmail({
 		button: withLabel({ href: link, label: 'Entrar a la transmisión' }, custom.button),
 		// Con una línea de ayuda propia, los links a cada entrada pasan al final de la tarjeta.
 		helpHtml: custom.helpHtml ?? ticketLinksHtml,
-		afterHtml: `${custom.helpHtml !== null && ticketLinksHtml ? `<p style="${SMALL}">${ticketLinksHtml}</p>` : ''}<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		afterHtml: `${custom.helpHtml !== null && ticketLinksHtml ? `<p style="${SMALL}">${ticketLinksHtml}</p>` : ''}<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail
 	});
 	const text = [
@@ -475,7 +619,7 @@ export function buildStreamLinkEmail({
 		'',
 		...ticketLinks.map((l, i) => `Entrada ${i + 1}: ${l}`),
 		'',
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		policy.text
 	].join('\n');
 	return cal.finish({ subject, html, text });
@@ -491,14 +635,16 @@ export function buildStreamLinkEmail({
  *   reminder: import('./reminders.js').Reminder,
  *   event: { title: string, start?: string, location?: string, location_name?: string,
  *     online?: boolean, streamLink?: string | null, parts?: PartsList | null,
- *     slug?: string, end?: string | null, status?: string, stamp?: number },
+ *     slug?: string, end?: string | null, status?: string, stamp?: number,
+ *     howTo?: string | null, accessibility?: string | null },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
  *   template?: Template
  * }} input
  * `event.slug`: con él, el recordatorio lleva el `.ics` adjunto y el link a Google Calendar (como
- * el mail de las entradas, sin el marcado para Gmail).
+ * el mail de las entradas, sin el marcado para Gmail) y el link a la página del evento.
+ * `event.howTo`/`event.accessibility`: como en el mail de las entradas.
  * @returns {{ subject: string, html: string, text: string, attachments?: MailAttachment[] }}
  */
 export function buildReminderEmail({
@@ -511,12 +657,14 @@ export function buildReminderEmail({
 	contactEmail,
 	template
 }) {
-	const when = formatEventDate(event.start);
+	const when = formatEventWhen(event.start, event.end);
 	const online = Boolean(event.online);
 	const where = salePlaceText(online, event);
 	const soon =
 		reminder.kind === 'day_at' && reminder.days === 0
-			? 'es hoy'
+			? reminder.eve
+				? 'es mañana'
+				: 'es hoy'
 			: reminder.kind === 'hours_before' && reminder.hours < 24
 				? 'es en unas horas'
 				: 'se acerca';
@@ -529,6 +677,7 @@ export function buildReminderEmail({
 	const parts = partsBlocks(event.parts);
 	// Con `event.slug`: el .ics adjunto y el link a Google Calendar, como en el mail de las entradas.
 	const cal = calendarExtras({ order, event, online, origin });
+	const venue = venueBlocks(event, online, origin);
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 	/** @param {import('./orders.js').Ticket} t */
 	const holder = (t) =>
@@ -546,22 +695,27 @@ export function buildReminderEmail({
 		: '<p>Llevá el QR de cada entrada (en el celu o impreso). Si no se puede escanear, alcanza con el código.</p>';
 	const html = mailLayout({
 		origin,
+		// Distinto del de «Tus entradas»: según cuándo sale.
+		preheader: eventPreheader(
+			`${soon[0].toUpperCase()}${soon.slice(1)}${online ? '' : ': tené a mano tu QR'}`,
+			event
+		),
 		label: custom.label ?? 'Recordatorio',
 		titleHtml: custom.headingHtml ?? `¡${escapeHtml(event.title)} ${soon}!`,
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>`}
-		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${cal.html}
+		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}${venue.linkHtml}</p>${venue.boxHtml}${parts.html}${cal.html}
 		${intro}
 		<ul style="margin:0 0 16px;padding-left:20px">${list}</ul>`,
 		button: withLabel(
 			online && event.streamLink
 				? { href: event.streamLink, label: 'Entrar a la transmisión' }
-				: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' },
+				: ticketsButton(order, tickets, origin),
 			custom.button
 		),
 		helpHtml: custom.helpHtml ?? '',
-		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		afterHtml: `<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail
 	});
 	const text = [
@@ -571,6 +725,7 @@ export function buildReminderEmail({
 		`${event.title}`,
 		when,
 		where,
+		...venue.text,
 		...parts.text,
 		...cal.text,
 		'',
@@ -585,7 +740,7 @@ export function buildReminderEmail({
 		),
 		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		policy.text
 	].join('\n');
 	return cal.finish({ subject, html, text });
@@ -602,12 +757,26 @@ export function buildReminderEmail({
 export function formatEventSchedule(start, end) {
 	const when = formatEventDate(start ?? undefined);
 	if (!start || !end) return when;
-	const s = new Date(start);
+	const s = parseSiteDate(start);
 	const e = eventEnd(start, end);
 	if (Number.isNaN(s.getTime()) || e.getTime() <= s.getTime()) return when;
 	return e.getTime() - s.getTime() < 24 * 60 * 60 * 1000
 		? `${when} a ${argTime(e)}`
 		: `${when} al ${argDateTimeLong(e)}`;
+}
+
+/**
+ * La fecha del evento para el cuerpo de los mails: inicio, fin (si se sabe) y el huso, «sábado 14
+ * de noviembre de 2026, 22:00 a 03:00 (hora de Argentina y Uruguay)». Vacía sin inicio. No va en
+ * los asuntos ni en la variable `{{fecha}}` de las plantillas, que sigue siendo solo el inicio (hay
+ * textos propios escritos alrededor).
+ *
+ * @param {string | undefined | null} start
+ * @param {string | undefined | null} [end]
+ */
+export function formatEventWhen(start, end) {
+	const when = formatEventSchedule(start, end);
+	return when ? `${when} (${ARGENTINA_TIME_NOTE})` : '';
 }
 
 /**
@@ -644,8 +813,8 @@ export function buildDateChangeEmail({
 }) {
 	const online = Boolean(event.online);
 	const where = salePlaceText(online, event);
-	const when = formatEventSchedule(event.start, event.end);
-	const before = previous?.start ? formatEventSchedule(previous.start, previous.end) : '';
+	const when = formatEventWhen(event.start, event.end);
+	const before = previous?.start ? formatEventWhen(previous.start, previous.end) : '';
 	const custom = applyTemplate(template, {
 		...templateVars({ ...order, quantity: tickets.length || order.quantity }, event, typeName),
 		fecha_anterior: previous?.start ? formatEventDate(previous.start) : ''
@@ -659,6 +828,7 @@ export function buildDateChangeEmail({
 	const help = def?.extras.help?.default ?? '';
 	const html = mailLayout({
 		origin,
+		preheader: eventPreheader('Fecha nueva', event),
 		label: custom.label ?? 'Cambio de fecha',
 		titleHtml: custom.headingHtml ?? 'Cambió la fecha',
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, cambió la fecha de <strong>${escapeHtml(event.title)}</strong>. Lo que compraste sigue valiendo para la fecha nueva: no tenés que hacer nada.</p>`}
@@ -672,13 +842,13 @@ export function buildDateChangeEmail({
 		button: withLabel(
 			stream
 				? { href: stream, label: 'Entrar a la transmisión' }
-				: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' },
+				: ticketsButton(order, tickets, origin),
 			custom.button
 		),
 		helpHtml: custom.helpHtml ?? escapeHtml(help),
-		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		afterHtml: `<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail
 	});
 	const text = [
@@ -696,7 +866,7 @@ export function buildDateChangeEmail({
 		custom.helpText ?? help,
 		...(links.length ? ['', ...links.map((l, i) => `Entrada ${i + 1}: ${l}`)] : []),
 		'',
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		policy.text
 	].join('\n');
 	return cal.finish({ subject, html, text });
@@ -718,14 +888,16 @@ export function buildDateChangeEmail({
 export function buildRefundEmail({ order, event, typeName, contactEmail, origin, template }) {
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
 	const subject = custom.subject ?? `Reembolso de tu compra · ${event.title}`;
-	const how =
-		order.payment_method === 'mercadopago'
+	// «Sin cargo» solo si no se cobró nada: una carga a mano con medio «otro» y monto sí se cobró.
+	const how = !order.total
+		? 'Era una compra sin cargo: no hay dinero para devolver.'
+		: order.payment_method === 'mercadopago'
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
 			: order.payment_method === 'transferencia'
 				? 'Te devolvimos el dinero por transferencia.'
 				: order.payment_method === 'efectivo'
 					? 'Te devolvimos el dinero en efectivo.'
-					: 'Era una compra sin cargo: no hay dinero para devolver.';
+					: 'Te devolvimos el dinero.';
 	const amount = order.total ? ` de ${formatARS(order.total)}` : '';
 	const html = mailLayout({
 		origin,
@@ -734,7 +906,7 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, hicimos el reembolso${escapeHtml(amount)} de tu compra de ${order.quantity} × ${escapeHtml(typeName)} para <strong>${escapeHtml(event.title)}</strong>${event.start ? ` (${escapeHtml(formatEventDate(event.start))})` : ''}.</p>`}
 		<p>${escapeHtml(how)}</p>
 		<p>${order.quantity === 1 ? 'La entrada ya no es válida' : 'Las entradas ya no son válidas'} para ingresar.</p>`,
-		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés alguna duda, respondé este mail o escribinos a ${escapeHtml(contactEmail)}.</p>`,
+		afterHtml: `<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés alguna duda, respondé este mail o escribinos a ${escapeHtml(contactEmail)}.</p>`,
 		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
 		contactEmail
 	});
@@ -746,7 +918,7 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
 		how,
 		order.quantity === 1 ? 'La entrada ya no es válida.' : 'Las entradas ya no son válidas.',
 		'',
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		`Dudas: respondé este mail o escribinos a ${contactEmail}.`
 	].join('\n');
 	return { subject, html, text };
@@ -762,14 +934,16 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
  *
  * @param {{
  *   order: import('./orders.js').Order,
- *   event: { title: string, start?: string, parts?: PartsList | null },
+ *   event: { title: string, start?: string, end?: string | null, parts?: PartsList | null },
  *   typeName: string,
  *   transferInfo: string,
  *   replyTo?: string,
  *   contactEmail: string,
  *   origin: string,
- *   template?: Template
+ *   template?: Template,
+ *   optOutUrl?: string | null
  * }} input
+ * `optOutUrl`: el link «No fui yo» (email/suppressions.js), en el pie.
  */
 export function buildTransferEmail({
 	order,
@@ -779,12 +953,14 @@ export function buildTransferEmail({
 	replyTo,
 	contactEmail,
 	origin,
-	template
+	template,
+	optOutUrl = null
 }) {
 	const policy = policyBlocks(contactEmail);
 	const prices = priceLines(order, typeName);
 	const parts = partsBlocks(event.parts);
 	const ref = orderReference(order.id);
+	const optOut = mailOptOut(optOutUrl, '¿No reservaste vos?');
 	const deadline = argDeadline(order.expires_at);
 	const statusUrl = `${origin}/entradas/${order.id}/estado`;
 	const custom = applyTemplate(template, {
@@ -801,7 +977,7 @@ export function buildTransferEmail({
 	const intro =
 		custom.bodyHtml ??
 		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmar tus entradas transferí <strong>${formatARS(order.total)}</strong>.</p>`;
-	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>${parts.html}
+	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventWhen(event.start, event.end))}</p>${parts.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="${MAIL_STYLES.box};white-space:pre-line">${escapeHtml(transferInfo)}</div>
 		<p>En el concepto o la descripción de la transferencia poné: <strong style="font-size:18px">${ref}</strong></p>
@@ -815,10 +991,11 @@ export function buildTransferEmail({
 		${details}`,
 		button: withLabel({ href: statusUrl, label: 'Ver el estado de tu compra' }, custom.button),
 		helpHtml: custom.helpHtml ?? '',
-		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}</p>
+		afterHtml: `<p style="${SMALL}">${purchaseNumber(order)}</p>
 		${policy.html}`,
 		whyHtml: custom.whyHtml ?? WHY_RESERVED,
-		contactEmail
+		contactEmail,
+		optOutHtml: optOut.html
 	});
 	const text = [
 		custom.headingText ?? 'Reservamos tus entradas',
@@ -829,7 +1006,7 @@ export function buildTransferEmail({
 		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
 		`${event.title}`,
-		formatEventDate(event.start),
+		formatEventWhen(event.start, event.end),
 		...parts.text,
 		...(parts.text.length ? [''] : []),
 		...prices,
@@ -840,8 +1017,9 @@ export function buildTransferEmail({
 		`Después mandanos el comprobante: ${where}, con la referencia ${ref}.`,
 		'',
 		`Estado de tu compra: ${statusUrl}`,
-		`Número de orden: ${order.id}`,
-		policy.text
+		purchaseNumber(order),
+		policy.text,
+		...optOut.text
 	].join('\n');
 	return { subject, html, text };
 }
@@ -857,8 +1035,92 @@ export function buildTransferEmail({
  */
 export const MAIL_HEADERS = Object.freeze({ 'Content-Language': 'es' });
 
+/**
+ * Cabecera de los mails que manda el sitio solo, en tanda (recordatorios, cambio de fecha, link de
+ * la transmisión, lista de espera, series, «Lo que sigo»): las respuestas automáticas («estoy de
+ * vacaciones») no vuelven a la casilla de respuesta, donde llegan los comprobantes. RFC 3834. No va
+ * en «Tus entradas» ni en la transferencia, donde se espera que respondan.
+ */
+export const AUTO_SUBMITTED_HEADERS = Object.freeze({ 'Auto-Submitted': 'auto-generated' });
+
+/**
+ * El mismo mensaje con {@link AUTO_SUBMITTED_HEADERS}.
+ * @template {{ subject: string, html: string, text: string, headers?: Record<string, string> }} M
+ * @param {M} message
+ * @returns {M & { headers: Record<string, string> }}
+ */
+export function autoSubmitted(message) {
+	return { ...message, headers: { ...message.headers, ...AUTO_SUBMITTED_HEADERS } };
+}
+
 /** Cuánto se espera la respuesta de Resend (un envío colgado no puede trabar la request). */
 export const RESEND_TIMEOUT_MS = 10_000;
+
+/** Los `name` del 429 de Resend cuando se terminó el cupo (y no el límite por segundo). */
+export const RESEND_QUOTA_ERRORS = Object.freeze([
+	'daily_quota_exceeded',
+	'monthly_quota_exceeded'
+]);
+/** Tope de la espera del reintento corto después de un 429 por tasa (`retry-after`). */
+export const RESEND_RETRY_MAX_WAIT_MS = 2_000;
+
+/**
+ * Una respuesta de error de Resend: `status` HTTP, `code` (el `name` del cuerpo, como
+ * `rate_limit_exceeded` o `daily_quota_exceeded`) y `retryAfter` en segundos (o `null`).
+ */
+export class ResendError extends Error {
+	/**
+	 * @param {{ status: number, code: string, retryAfter: number | null, body: string }} input
+	 */
+	constructor({ status, code, retryAfter, body }) {
+		super(`Resend → ${status}: ${body}`);
+		this.name = 'ResendError';
+		this.status = status;
+		this.code = code;
+		this.retryAfter = retryAfter;
+	}
+}
+
+/**
+ * Si un error de envío es un «ahora no» de Resend, que no tiene que gastar intentos: `'quota'`
+ * (se terminó el cupo diario o mensual), `'rate'` (demasiados por segundo) o `'server'` (un 5xx).
+ * `null` para cualquier otro error (dirección rechazada, clave mala, timeout…).
+ *
+ * @param {unknown} error
+ * @returns {'quota' | 'rate' | 'server' | null}
+ */
+export function resendBackoff(error) {
+	if (!(error instanceof ResendError)) return null;
+	if (error.status === 429) return RESEND_QUOTA_ERRORS.includes(error.code) ? 'quota' : 'rate';
+	return error.status >= 500 ? 'server' : null;
+}
+
+/** Lo que Resend acepta como valor de un tag. */
+const RESEND_TAG_VALUE = /^[A-Za-z0-9_-]{1,256}$/;
+
+/** @param {number} ms */
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * El error de una respuesta de Resend que no es 2xx.
+ * @param {Response} res
+ */
+async function resendError(res) {
+	const body = (await res.text().catch(() => '')).slice(0, 300);
+	let code = '';
+	try {
+		code = String(JSON.parse(body)?.name ?? '');
+	} catch {
+		// Sin JSON: queda solo el status.
+	}
+	const seconds = Number(res.headers.get('retry-after'));
+	return new ResendError({
+		status: res.status,
+		code,
+		retryAfter: Number.isFinite(seconds) && seconds >= 0 ? seconds : null,
+		body
+	});
+}
 
 /**
  * @param {{
@@ -867,10 +1129,19 @@ export const RESEND_TIMEOUT_MS = 10_000;
  *   from: string,
  *   to: string,
  *   replyTo?: string,
- *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[] },
+ *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[],
+ *     headers?: Record<string, string> },
  *   idempotencyKey?: string,
- *   timeoutMs?: number
- * }} input
+ *   kind?: string,
+ *   timeoutMs?: number,
+ *   wait?: (ms: number) => Promise<unknown>
+ * }} input `message.headers`: cabeceras de este mail, sobre {@link MAIL_HEADERS}. `wait`: la
+ *   espera del reintento corto (para los tests). `kind`: el tipo de mail (`entradas`, `codigo`,
+ *   `serie`…), que va como tag `tipo` de Resend para filtrar por tipo en Resend → Emails y en los
+ *   eventos del webhook. Solo letras ASCII, números, `_` y `-` (lo que acepta Resend).
+ * @throws {ResendError} si Resend responde con un error (ver {@link resendBackoff}).
+ *   Un 429 por tasa se reintenta una sola vez antes, esperando lo que diga `retry-after` (como
+ *   mucho {@link RESEND_RETRY_MAX_WAIT_MS}): Resend no lo aceptó, así que no se duplica.
  */
 export async function sendWithResend({
 	fetch,
@@ -880,29 +1151,38 @@ export async function sendWithResend({
 	replyTo,
 	message,
 	idempotencyKey,
-	timeoutMs = RESEND_TIMEOUT_MS
+	kind,
+	timeoutMs = RESEND_TIMEOUT_MS,
+	wait = sleep
 }) {
 	/** @type {Record<string, string>} */
 	const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 	if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
-	const res = await fetch('https://api.resend.com/emails', {
-		method: 'POST',
-		signal: AbortSignal.timeout(timeoutMs),
-		headers,
-		body: JSON.stringify({
-			from,
-			to: [to],
-			subject: message.subject,
-			html: message.html,
-			text: message.text,
-			...(message.attachments?.length ? { attachments: message.attachments } : {}),
-			...(replyTo ? { reply_to: replyTo } : {}),
-			headers: MAIL_HEADERS
-		})
+	const body = JSON.stringify({
+		from,
+		to: [to],
+		subject: message.subject,
+		html: message.html,
+		text: message.text,
+		...(message.attachments?.length ? { attachments: message.attachments } : {}),
+		...(replyTo ? { reply_to: replyTo } : {}),
+		headers: { ...MAIL_HEADERS, ...message.headers },
+		...(kind && RESEND_TAG_VALUE.test(kind) ? { tags: [{ name: 'tipo', value: kind }] } : {})
 	});
+	const post = () =>
+		fetch('https://api.resend.com/emails', {
+			method: 'POST',
+			signal: AbortSignal.timeout(timeoutMs),
+			headers,
+			body
+		});
+	let res = await post();
 	if (!res.ok) {
-		const body = (await res.text().catch(() => '')).slice(0, 300);
-		throw new Error(`Resend → ${res.status}: ${body}`);
+		const error = await resendError(res);
+		if (resendBackoff(error) !== 'rate') throw error;
+		await wait(Math.min((error.retryAfter ?? 1) * 1000, RESEND_RETRY_MAX_WAIT_MS));
+		res = await post();
+		if (!res.ok) throw await resendError(res);
 	}
 	return /** @type {{ id?: string }} */ (await res.json().catch(() => ({})));
 }

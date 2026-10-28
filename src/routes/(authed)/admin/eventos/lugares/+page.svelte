@@ -5,6 +5,7 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import { Ban, Clock, MapPin } from '@lucide/svelte';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { VISIBILITY_LABELS } from '$lib/admin/cuentas.js';
@@ -310,8 +311,8 @@
 									{#if !ev}<Badge tone="bad">el evento ya no existe</Badge>{/if}
 									{#if ev?.mdAddress && l.privacy !== 'public'}
 										<Notice tone="warn" compact role={null}
-											>Su archivo tiene la dirección escrita (el repo es público): sacala del
-											evento.</Notice
+											>El evento tiene la dirección escrita en su «Dónde» y este lugar no la
+											muestra: sacala del evento.</Notice
 										>
 									{/if}
 								</td>
@@ -321,7 +322,19 @@
 								</td>
 								<td class="small">{linkPrivacyText(l)}</td>
 								<td>
-									<form method="POST" action="?/desvincular" use:enhance>
+									<form
+										method="POST"
+										action="?/desvincular"
+										use:enhance={async ({ cancel }) => {
+											const ok = await askConfirm({
+												title: `¿Sacar el lugar de «${ev?.title ?? l.eventSlug}»?`,
+												text: 'La página del evento vuelve a mostrar el «Dónde» escrito en el evento. Lo podés volver a elegir desde acá.',
+												confirmLabel: 'Sacar',
+												tone: 'danger'
+											});
+											if (!ok) cancel();
+										}}
+									>
 										<input type="hidden" name="evento" value={l.eventSlug} />
 										<button class="kv-btn ghost small" type="submit">Sacar</button>
 									</form>

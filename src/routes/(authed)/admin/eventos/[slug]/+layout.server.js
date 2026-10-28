@@ -39,6 +39,68 @@ async function workshopChip(db, slug) {
 }
 
 /**
+ * Los contadores de las pestañas de venta (órdenes aprobadas, transferencias vigentes, para
+ * revisar), en una consulta. En 0 si la base falla.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function orderCounts(db, slug) {
+	const counts = { orders: 0, transfers: 0, review: 0 };
+	try {
+		const row = await db
+			.prepare(
+				`SELECT
+					SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS orders,
+					SUM(CASE WHEN status = 'awaiting_transfer' AND expires_at > ?2 THEN 1 ELSE 0 END) AS transfers,
+					SUM(CASE WHEN needs_review IS NOT NULL OR offline_review IS NOT NULL THEN 1 ELSE 0 END) AS review
+				FROM orders WHERE event_slug = ?1`
+			)
+			.bind(slug, Date.now())
+			.first();
+		counts.orders = Number(row?.orders ?? 0);
+		counts.transfers = Number(row?.transfers ?? 0);
+		counts.review = Number(row?.review ?? 0);
+	} catch (e) {
+		logDBError('contadores de la ficha del evento', e);
+	}
+	return counts;
+}
+
+/**
+ * El aviso de «Cambiaste la fecha» (`dateChangeOffer`), o null (también si la base falla).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ * @param {import('$lib/server/tickets/config.js').EventTickets} config
+ * @returns {Promise<Awaited<ReturnType<typeof dateChangeOffer>>>}
+ */
+async function dateChangeOf(db, slug, config) {
+	try {
+		return await dateChangeOffer(db, slug, { cancelled: config.status === 'cancelado' });
+	} catch (e) {
+		logDBError('cambio de fecha en la ficha del evento', e);
+		return null;
+	}
+}
+
+/**
+ * Las anotaciones vivas de la lista de espera del evento; 0 si la base falla (o sin la migración
+ * 0053).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function waitlistCount(db, slug) {
+	try {
+		return Object.values(await waitlistLiveByScope(db, slug)).reduce((a, b) => a + b, 0);
+	} catch (e) {
+		logDBError('contador de la lista de espera', e);
+		return 0;
+	}
+}
+
+/**
  * Un evento que no está en este deploy (recién creado, o el sitio todavía no se publicó): se lee
  * su archivo del repo (`getRepoClient()`: GitHub, el mock o la capa demo). null si no existe.
  * @param {App.Locals} locals
@@ -74,57 +136,28 @@ export async function load({ locals, url, params, platform }) {
 	const event = found ?? (await eventFromRepo(locals, params.slug));
 	if (!event) error(404, 'No encontramos ese evento.');
 	const db = getDB(platform);
-	const counts = { orders: 0, transfers: 0, review: 0, waitlist: 0 };
-	if (db && config) {
-		try {
-			const row = await db
-				.prepare(
-					`SELECT
-						SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS orders,
-						SUM(CASE WHEN status = 'awaiting_transfer' AND expires_at > ?2 THEN 1 ELSE 0 END) AS transfers,
-						SUM(CASE WHEN needs_review IS NOT NULL OR offline_review IS NOT NULL THEN 1 ELSE 0 END) AS review
-					FROM orders WHERE event_slug = ?1`
-				)
-				.bind(params.slug, Date.now())
-				.first();
-			counts.orders = Number(row?.orders ?? 0);
-			counts.transfers = Number(row?.transfers ?? 0);
-			counts.review = Number(row?.review ?? 0);
-		} catch (e) {
-			logDBError('contadores de la ficha del evento', e);
-		}
-	}
-	// «Cambiaste la fecha»: el aviso de arriba de todas las pestañas (dateChange.js), con
-	// «Avisar a les compradores». Solo si hay a quién avisar.
-	/** @type {Awaited<ReturnType<typeof dateChangeOffer>>} */
-	let dateChange = null;
-	if (db && config) {
-		try {
-			dateChange = await dateChangeOffer(db, params.slug, {
-				cancelled: config.status === 'cancelado'
-			});
-		} catch (e) {
-			logDBError('cambio de fecha en la ficha del evento', e);
-		}
-	}
-	// Lista de espera: la pestaña (con el interruptor, o si el evento ya tiene lista o gente
-	// anotada) y su contador (las anotaciones vivas). Sin la migración 0053, nada.
-	let waitlistTab = false;
-	if (config) {
-		const flagOn = await isFlagOn(db, 'lista_espera');
-		if (db) {
-			try {
-				counts.waitlist = Object.values(await waitlistLiveByScope(db, params.slug)).reduce(
-					(a, b) => a + b,
-					0
-				);
-			} catch (e) {
-				logDBError('contador de la lista de espera', e);
-			}
-		}
-		waitlistTab = flagOn || Boolean(config.waitlist) || counts.waitlist > 0;
-	}
-	const workshop = await workshopChip(db, params.slug);
+	// Ya con el evento y su venta: lo demás no depende entre sí, a la par (con las tandas
+	// automáticas, en una ida). Cada parte con su manejo de errores de siempre.
+	const [tabCounts, dateChange, waitlist, workshop, gastosTab, surveyOn] = await Promise.all([
+		db && config ? orderCounts(db, params.slug) : { orders: 0, transfers: 0, review: 0 },
+		// «Cambiaste la fecha»: el aviso de arriba de todas las pestañas (dateChange.js), con
+		// «Avisar a les compradores». Solo si hay a quién avisar.
+		db && config ? dateChangeOf(db, params.slug, config) : null,
+		// Lista de espera: la pestaña (con el interruptor, o si el evento ya tiene lista o gente
+		// anotada) y su contador (las anotaciones vivas). Sin la migración 0053, nada.
+		config
+			? Promise.all([isFlagOn(db, 'lista_espera'), db ? waitlistCount(db, params.slug) : 0])
+			: null,
+		workshopChip(db, params.slug),
+		// Gastos y reparto (prototipo): la vista de Ventas, solo con el interruptor.
+		config ? isFlagOn(db, 'gastos_reparto') : false,
+		// Encuesta después del evento (prototipo): la vista Mails › Encuesta, solo con el interruptor.
+		config ? isFlagOn(db, 'encuesta_post_evento') : false
+	]);
+	const counts = { ...tabCounts, waitlist: waitlist ? waitlist[1] : 0 };
+	const waitlistTab = config
+		? Boolean(waitlist?.[0]) || Boolean(config.waitlist) || counts.waitlist > 0
+		: false;
 	return {
 		event: { ...event, sellsTickets: Boolean(config), online: config?.online ?? event.online },
 		workshop,
@@ -133,6 +166,8 @@ export async function load({ locals, url, params, platform }) {
 		dbAvailable: Boolean(db),
 		// Pestaña Preguntas (preguntas de inscripción).
 		signupFieldsTab: Boolean(db && config),
-		waitlistTab
+		waitlistTab,
+		gastosTab,
+		surveyTab: Boolean(surveyOn)
 	};
 }

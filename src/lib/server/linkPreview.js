@@ -15,6 +15,9 @@
  * src/lib/server/flags.js): las páginas no consultan la base por esto en cada pedido.
  */
 import { getDB, logDBError } from '$lib/server/db';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isMediaPath, isPublicMediaUrl } from '$lib/utils/media.js';
 import { mergePreviewTexts, previewTextOverrides } from '$lib/utils/previewTexts.js';
@@ -96,7 +99,7 @@ export async function savePreviewTextOverrides(db, overrides, { by, now = Date.n
 export function collageCovers(posts, now = Date.now()) {
 	const events = posts
 		.filter((p) => p.meta?.layout === 'calendario' && p.meta?.status !== 'cancelado')
-		.map((p) => ({ src: p.meta.featured, at: new Date(p.meta.start).getTime() }))
+		.map((p) => ({ src: p.meta.featured, at: parseSiteDate(p.meta.start).getTime() }))
 		.filter((e) => (isMediaPath(e.src) || isPublicMediaUrl(e.src)) && Number.isFinite(e.at));
 	const upcoming = events.filter((e) => e.at >= now).sort((a, b) => a.at - b.at);
 	const past = events.filter((e) => e.at < now).sort((a, b) => b.at - a.at);
@@ -131,7 +134,11 @@ export async function cardHash(spec) {
  * @property {Partial<Record<OgCardKey, { spec: ReturnType<typeof cardSpec>, hash: string, url: string }>>} cards
  */
 
-/** @type {{ db: D1Database, expires: number, state: Promise<LinkPreviewState> } | null} */
+/**
+ * Lo recordado (solo el estado ya leído: lo que está en camino se comparte solo dentro del pedido,
+ * `readAndKeep` de src/lib/server/db/perRequest.js).
+ * @type {{ db: D1Database, expires: number, state: LinkPreviewState } | null}
+ */
 let cached = null;
 
 /** Olvida lo recordado (al guardar desde el panel, y en las pruebas). */
@@ -175,14 +182,29 @@ async function readState(platform, db) {
 export async function linkPreviewState(platform, now = Date.now()) {
 	const db = getDB(platform);
 	if (!db) return { texts: mergePreviewTexts(), covers: [], cards: {} };
-	if (!cached || cached.db !== db || cached.expires <= now) {
-		const state = readState(platform, db);
-		cached = { db, expires: now + LINK_PREVIEW_CACHE_MS, state };
-		state.catch(() => {
-			if (cached?.state === state) cached = null;
-		});
-	}
-	return cached.state;
+	if (cached && cached.db === db && cached.expires > now) return cached.state;
+	return readAndKeep(
+		db,
+		'link-preview',
+		() => readState(platform, db),
+		(state) => {
+			cached = { db, expires: now + LINK_PREVIEW_CACHE_MS, state };
+		}
+	);
+}
+
+/**
+ * Al empezar un pedido que va a esperar a la base de todos modos (src/lib/server/adelantarPedido.js):
+ * si lo recordado venció, pide ya la fila de los textos, así sale en esa misma ida y no en la
+ * siguiente. Es la misma sentencia que lee {@link readPreviewTextOverrides}: con las tandas
+ * automáticas (src/lib/server/db/autoBatch.js), la de después recibe lo ya leído. Solo con tandas.
+ * @param {D1Database | null | undefined} db
+ * @param {number} [now]
+ */
+export function askLinkPreviewEarly(db, now = Date.now()) {
+	if (!db || !batchesReads(db)) return;
+	if (cached && cached.db === db && cached.expires > now) return;
+	readPreviewTextOverrides(db).catch(() => {});
 }
 
 /**

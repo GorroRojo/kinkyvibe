@@ -8,7 +8,7 @@
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { fmtDateTime } from '$lib/admin/format.js';
-	import { accountHref } from '$lib/admin/links.js';
+	import { sigoRankingHref, accountHref } from '$lib/admin/links.js';
 	import { PROFILES_HREF } from '$lib/admin/perfiles.js';
 	import { VISIBILITY_LABELS, actorLabel } from '$lib/admin/cuentas.js';
 	import { KIND_LABELS, ROLE_LABELS } from '$lib/utils/perfiles.js';
@@ -64,10 +64,9 @@
 </PageHeader>
 
 {#if deleted && p.deletedAt}
-	<form method="POST" action="?/deshacer" use:enhance={submit('deshacer')}>
+	<form class="undo-form" method="POST" action="?/deshacer" use:enhance={submit('deshacer')}>
 		<input type="hidden" name="id" value={deleted.id} />
-		<!-- El botón Deshacer de UndoToast no tiene `type`: dentro del form, lo envía. -->
-		<UndoToast busy={busy === 'deshacer'} message="Borraste «{deleted.title}»." />
+		<UndoToast submit busy={busy === 'deshacer'} message="Borraste «{deleted.title}»." />
 	</form>
 	<p class="kv-note">
 		Si te arrepentís más tarde, lo podés recuperar desde <a href="/admin/ajustes/actividad"
@@ -95,9 +94,28 @@
 				<dt>Pronombres</dt>
 				<dd>{p.pronouns}</dd>
 			{/if}
+			{#if p.kind === 'persona'}
+				<dt>Buscadores</dt>
+				<dd>
+					{p.noindex
+						? 'Pidió no aparecer (noindex, fuera del sitemap); en el sitio se ve igual'
+						: 'Puede aparecer, si es público (lo de siempre)'}
+				</dd>
+			{/if}
 			{#if p.kind === 'proyecto'}
 				<dt>Integrantes</dt>
 				<dd>{p.showMembers ? 'Se muestran' : 'No se muestran'}</dd>
+			{/if}
+			{#if data.followers !== null && data.followers !== undefined}
+				<dt>Lo siguen</dt>
+				<dd>
+					{data.followers === 0
+						? 'Ninguna cuenta lo sigue'
+						: `${data.followers} ${data.followers === 1 ? 'cuenta lo sigue' : 'cuentas lo siguen'}`}{#if data.followers > 0}{' · '}<a
+							href={sigoRankingHref(p.kind === 'lugar' ? 'lugar' : 'perfil')}
+							>quiénes, en Mensajes › Lo que sigo</a
+						>{/if}
+				</dd>
 			{/if}
 			<dt>Amigues</dt>
 			<dd>
@@ -190,8 +208,9 @@
 		</div>
 		<p class="kv-note">
 			Aprobar lo muestra en /amigues (si su visibilidad lo deja) y lo saca de "Para revisar".
-			Ocultar o borrar también lo saca de "Para revisar". Oculto, lo ven solo les admins y quienes
-			lo gestionan (en Mi rincón, donde pueden volver a cambiar la visibilidad).
+			Ocultar o borrar también lo saca de "Para revisar". Ocultar lo saca del sitio y de Amigues:
+			oculto, lo ven solo les admins y quienes lo gestionan (en Mi rincón). Si quien lo gestiona le
+			cambia la visibilidad, no vuelve a aparecer hasta que une admin lo apruebe de nuevo.
 		</p>
 		<!-- Borrar: uno solo, el de la página del perfil (se recupera desde Actividad). -->
 		<DeleteLink kind="amigues" slug={data.urlSlug} label="Borrar el perfil…" />
@@ -199,6 +218,9 @@
 {/if}
 
 <style>
+	.undo-form {
+		margin-bottom: var(--space-xs);
+	}
 	.layout {
 		margin-bottom: 1rem;
 	}

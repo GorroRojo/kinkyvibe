@@ -23,7 +23,9 @@ export const REVISION_SOURCES = /** @type {const} */ ([
 	'partes',
 	'migracion',
 	// Los eventos de prueba del modo demo (src/lib/server/demo/seedEvents.js), solo en un preview.
-	'demo'
+	'demo',
+	// Lo que guarda una cuenta desde Mi rincón (sus perfiles: src/lib/server/cuentas/perfiles.js).
+	'cuenta'
 ]);
 
 /**

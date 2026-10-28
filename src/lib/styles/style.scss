@@ -101,9 +101,10 @@
 	/* foco: anillo violeta para teclado en todo; borde rosa en los campos de texto */
 	--focus-ring: 2px solid var(--2-dark);
 	--focus-field: var(--1);
-	/* placeholder text in inputs: neutral grey (never pink/violet), ~3.1:1 on white, far below
-	   the value text (--ink, ~12.6:1), so an empty field never looks filled */
-	--placeholder: #929292;
+	/* placeholder text in inputs: neutral grey (never pink/violet), 4.6:1 on white (legible,
+	   AA; gorrite 12/10), still far below the value text (--ink, ~12.6:1) and in italics, so an
+	   empty field never looks filled */
+	--placeholder: #757575;
 	/* borde de los campos de texto, casillas y selects: gris neutro (el foco lo pone rosa) */
 	--field: color-mix(in srgb, var(--2) 10%, #b9b9b9);
 	/* minimum size of anything tappable on phones */
@@ -157,12 +158,62 @@
 		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
 		U+A720-A7FF;
 }
+// Respaldo con las medidas de Lato: mientras llega Lato (`font-display: swap`) el texto sale en
+// Arial (o Roboto en Android) agrandada o achicada para ocupar lo mismo, así al cambiar de letra
+// las líneas no se corren (docs/estilo.md, «Lo que no se rompe»). Los números salen de los
+// archivos: el ancho promedio de las letras de Lato y del respaldo (pesado por cuánto aparece cada
+// letra en los textos de la semilla) da `size-adjust`; el alto de Lato (hhea: 1974 y 426 de 2000,
+// sin interlineado extra) dividido por ese `size-adjust`, los `*-override`. Arial se midió con
+// Liberation Sans, que tiene sus mismas medidas. Un peso por cara: Lato Bold es más angosta que
+// Arial Bold.
+@font-face {
+	font-family: 'Lato Fallback';
+	font-style: normal;
+	font-weight: 400;
+	src: local('Arial'), local('ArialMT'), local('Liberation Sans'), local('LiberationSans');
+	size-adjust: 95.86%;
+	ascent-override: 102.96%;
+	descent-override: 22.22%;
+	line-gap-override: 0%;
+}
+@font-face {
+	font-family: 'Lato Fallback';
+	font-style: normal;
+	font-weight: 700;
+	src:
+		local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'),
+		local('LiberationSans-Bold');
+	size-adjust: 91.53%;
+	ascent-override: 107.83%;
+	descent-override: 23.27%;
+	line-gap-override: 0%;
+}
+@font-face {
+	font-family: 'Lato Fallback Roboto';
+	font-style: normal;
+	font-weight: 400;
+	src: local('Roboto'), local('Roboto-Regular');
+	size-adjust: 96.74%;
+	ascent-override: 102.03%;
+	descent-override: 22.02%;
+	line-gap-override: 0%;
+}
+@font-face {
+	font-family: 'Lato Fallback Roboto';
+	font-style: normal;
+	font-weight: 700;
+	src: local('Roboto Bold'), local('Roboto-Bold');
+	size-adjust: 97.37%;
+	ascent-override: 101.37%;
+	descent-override: 21.88%;
+	line-gap-override: 0%;
+}
 body {
 	scroll-behavior: smooth;
 	margin: 0;
 	background: var(--bg);
 	color: var(--ink);
-	font-family: 'Lato', sans-serif;
+	font-family: 'Lato', 'Lato Fallback', 'Lato Fallback Roboto', sans-serif;
 	// font-size: var(--step-0);
 	position: relative;
 	min-height: 99vh;
@@ -490,6 +541,9 @@ textarea {
 	border: 1px solid var(--accent, var(--1));
 	border-radius: var(--radius-pill);
 	max-width: 100%;
+	/* Fondo de una opción con el mouse encima: rosa pálido de la marca (no el «malo» --bad-bg).
+	   La galería /estilo usa esta misma variable para su hover forzado. */
+	--seg-hover: color-mix(in srgb, var(--accent, var(--1)) 18%, var(--surface, #fff));
 	> label,
 	> button,
 	> a {
@@ -508,7 +562,7 @@ textarea {
 		cursor: pointer;
 		transition: background 150ms;
 		&:hover {
-			background: var(--bad-bg, var(--1-tint));
+			background: var(--seg-hover);
 			color: var(--accent-text, var(--1-ink));
 		}
 	}
@@ -569,13 +623,25 @@ textarea {
 	align-items: flex-start;
 	min-width: 0;
 	padding: 0.55em 0.8em;
-	border-radius: var(--radius-s);
+	/* es una tarjeta: el radio de las tarjetas (gorrite, 12/10) */
+	border-radius: var(--card-round, var(--radius-l));
 	background: var(--surface);
 	box-shadow: 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
 	cursor: pointer;
 	&:has(input:checked) {
 		box-shadow: 0 0 0 3px var(--2);
 		background: color-mix(in srgb, var(--2) 6%, var(--surface));
+	}
+	/* Apagada: se nota que no se puede elegir (borde punteado y todo más claro). */
+	&:has(input:disabled) {
+		opacity: 0.55;
+		cursor: not-allowed;
+		box-shadow: none;
+		outline: 2px dashed color-mix(in srgb, var(--muted) 45%, transparent);
+		outline-offset: -2px;
+		> input {
+			cursor: not-allowed;
+		}
 	}
 	> input {
 		flex: none;
@@ -708,6 +774,12 @@ article.wiki {
 	h3 {
 		font-size: var(--step-2);
 	}
+	// Un h2 que se ve igual que un h3 (tamaño y margen del navegador): para los títulos de sección
+	// que van después del h1 sin saltar niveles (perfil, material).
+	h2.like-h3 {
+		font-size: var(--step-2);
+		margin-block: 1em;
+	}
 	h4 {
 		font-size: var(--step-1);
 	}
@@ -738,12 +810,16 @@ article.wiki {
 			position: absolute;
 			left: -1em;
 			content: '+ ';
+			/* Viñeta dibujada: el lector no la lee (texto alternativo vacío; el primero queda para
+			   los navegadores que no entienden la forma con «/»). */
+			content: '+ ' / '';
 			color: var(--2);
 		}
 		li {
 			margin-block: 0.4em;
 			&::before {
 				content: '|';
+				content: '|' / '';
 				color: var(--1);
 			}
 		}
@@ -824,6 +900,24 @@ article.wiki {
 	figure {
 		margin-bottom: 3rem;
 	}
+	/* PDFs embebidos en textos viejos: `<object … type="application/pdf" width="50rem"
+	   height="1000px">`. El atributo `width` solo acepta píxeles y el navegador leía «50rem» como
+	   50px (el visor quedaba en una tira). El CSS le gana al atributo. Sin `display`: si el
+	   navegador no muestra el PDF (los celus) el <object> muestra su contenido de respaldo («Ir al
+	   pdf») como texto común, y ahí el alto no se aplica (no queda un hueco vacío). */
+	object[type='application/pdf' i],
+	embed[type='application/pdf' i] {
+		width: 100%;
+		max-width: 50rem;
+		height: min(1000px, 80vh);
+	}
+	/* Notas al pie de textos viejos: `<small class="footnote">`, una debajo de la otra. El propio
+	   texto les pone borde y relleno en su <style>; como <small> es inline, las cajas se pisaban
+	   entre sí y con el texto. */
+	.footnote {
+		display: block;
+		margin-block: 0.75em;
+	}
 	blockquote {
 		font-size: var(--step-0);
 		opacity: 0.9;
@@ -864,6 +958,7 @@ article.wiki {
 				left: -1.2em;
 				top: -0.2em;
 				content: '┗ ';
+				content: '┗ ' / '';
 				color: var(--1);
 				opacity: 0.5;
 			}

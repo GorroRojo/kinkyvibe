@@ -20,7 +20,8 @@
 	 *
 	 * Lo que se va completando se guarda en `sessionStorage` (solo esta pestaña; se
 	 * borra al cerrarla) para no perderlo si la página se recarga, y se borra cuando la compra sale
-	 * bien. Incluye el DNI a propósito: sessionStorage no se comparte con otras pestañas ni
+	 * bien (con Mercado Pago, recién cuando la página de estado ve la compra aprobada: si el pago
+	 * se rechaza, el formulario vuelve con los datos). Incluye el DNI a propósito: sessionStorage no se comparte con otras pestañas ni
 	 * sobrevive a cerrar la pestaña, y es lo que la persona ya escribió en esta misma página. Nunca
 	 * se usa localStorage para estos datos. No se guarda la casilla de +18 (hay que volver a
 	 * marcarla).
@@ -501,7 +502,9 @@
 		notyet: tickets.opensAt
 			? `${saleWindowText({ opensAt: tickets.opensAt })}.`
 			: 'La venta todavía no abrió.',
-		unavailable: 'La venta online no está disponible en este momento.'
+		unavailable: 'La venta online no está disponible en este momento.',
+		// Pausa de emergencia (TICKETS_PAUSED): el texto que cargaron les admins.
+		paused: tickets.pausedMessage || 'La venta de entradas está en pausa por un rato.'
 	};
 
 	$: submitText = pending
@@ -599,14 +602,16 @@
 						pending = true;
 					}
 					return async ({ result: res, update }) => {
-						// La compra salió bien (vamos a pagar, a los datos para transferir o a las
-						// entradas): ya no hace falta el borrador.
-						if (res.type === 'redirect') clearDraft();
 						if (res.type === 'redirect' && /^https?:/.test(res.location)) {
-							// El checkout de Mercado Pago es otro sitio: navegación completa.
+							// El checkout de Mercado Pago es otro sitio: navegación completa. El borrador
+							// queda: si el pago se rechaza, «Volver a comprar» abre el formulario con los
+							// datos cargados (la página de estado lo borra cuando la compra se aprueba).
 							window.location.href = res.location;
 							return;
 						}
+						// La compra salió bien (datos para transferir o entradas gratis): ya no hace
+						// falta el borrador.
+						if (res.type === 'redirect') clearDraft();
 						await update({ reset: false });
 						pending = false;
 					};
@@ -678,7 +683,14 @@
 								{errors}
 								{submitText}
 								submitDisabled={pending || !selected || (Boolean(gorra) && gorraAmount === null)}
+								{email}
 							>
+								<button
+									slot="edit-email"
+									type="button"
+									class="edit-email js-only"
+									on:click={() => goTo(STEP_BUYER)}>Cambiarlo</button
+								>
 								<button
 									slot="back"
 									type="button"
@@ -803,6 +815,14 @@
 		background: none;
 		color: var(--2-dark);
 		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
+	}
+	/* «Cambiarlo», al lado del mail en el paso Pagar: un link, no un botón grande. */
+	button.edit-email {
+		background: none;
+		color: var(--2-dark);
+		text-decoration: underline;
+		padding: 0.2em 0.1em;
+		min-height: 44px;
 	}
 	button.back:hover {
 		background: color-mix(in srgb, var(--2) 10%, white);

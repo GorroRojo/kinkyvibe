@@ -1,0 +1,50 @@
+# Headers de los archivos estáticos de static/ (docs/workers-migracion.md, «Caché de los archivos
+# estáticos»). Va en la raíz y no en static/: @sveltejs/adapter-cloudflare lo copia a
+# .svelte-kit/cloudflare/_headers y le suma sus reglas de /_app/ (si está en static/, el build falla).
+#
+# Cloudflare aplica estas reglas solo a los archivos estáticos que sirve sin pasar por el Worker:
+# nunca a las páginas ni a las rutas de SvelteKit, aunque la ruta coincida
+# (https://developers.cloudflare.com/workers/static-assets/headers/).
+#
+# Sin esto salen con `public, max-age=0, must-revalidate` y el navegador pregunta cada vez. Sus
+# nombres no llevan hash (el contenido puede cambiar con el mismo nombre), así que nunca algo
+# largo ni `immutable`: 1 día. Lo de /_app/immutable/ lo pone el adapter (1 año, con hash).
+# Lo verifica src/lib/server/staticHeaders.test.js.
+
+# `/*`: los dos headers de seguridad que hooks.server.js (securityHeaders.js) pone en las páginas,
+# también en los estáticos, que no pasan por el Worker. Solo esos dos: nada de caché acá.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/favicon.ico
+  Cache-Control: public, max-age=86400
+/favicon-16x16.png
+  Cache-Control: public, max-age=86400
+/favicon-32x32.png
+  Cache-Control: public, max-age=86400
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400
+/android-chrome-192x192.png
+  Cache-Control: public, max-age=86400
+/android-chrome-512x512.png
+  Cache-Control: public, max-age=86400
+/maskable-512x512.png
+  Cache-Control: public, max-age=86400
+/site.webmanifest
+  Cache-Control: public, max-age=86400
+/og-amigues.jpg
+  Cache-Control: public, max-age=86400
+/og-calendario.jpg
+  Cache-Control: public, max-age=86400
+/og-default.jpg
+  Cache-Control: public, max-age=86400
+/og-kinkipedia.jpg
+  Cache-Control: public, max-age=86400
+/og-material.jpg
+  Cache-Control: public, max-age=86400
+/fonts/*
+  Cache-Control: public, max-age=86400
+/agenda-impresa/*
+  Cache-Control: public, max-age=86400

@@ -4,7 +4,7 @@
 	import GlosarioTree from './GlosarioTree.svelte';
 	import { tagManager, wikiTagManager, query } from '$lib/utils/stores';
 	import { page } from '$app/stores';
-	import { createCollapsible, melt } from '@melt-ui/svelte';
+	import { writable } from 'svelte/store';
 	import { tagPagePath } from '$lib/utils/series.js';
 </script>
 
@@ -13,10 +13,10 @@
 	export let item = 'root';
 	export let single = false;
 	export let title = false;
-	const {
-		elements: { root, content, trigger },
-		states: { open }
-	} = createCollapsible();
+	/** @type {TagID[]} las madres de esta rama (ver GlosarioTree) */
+	export let path = [];
+	// Desplegado o no (lo abre el botón «N más...»; buscando en la Kinkipedia, todo abierto).
+	const open = writable(false);
 	query.subscribe((q) => {
 		if (q != '') {
 			open.set(true);
@@ -44,9 +44,13 @@
 	let isVisible = isVisibleFn(item);
 	/**
 	 * @param {TagID} tagID
+	 * @param {Set<TagID>} [seen] las ya vistas
 	 * @returns {boolean}
 	 */
-	function isVisibleFn(tagID) {
+	function isVisibleFn(tagID, seen = new Set()) {
+		// Cada etiqueta una vez: un ciclo de madres en los datos no la cuelga.
+		if (seen.has(tagID)) return false;
+		seen.add(tagID);
 		let t = $wikiTagManager.get(tagID);
 		if (
 			(t.description && t.description != '') ||
@@ -57,7 +61,7 @@
 		} else {
 			let children = t.getAllChildren();
 			if (children.length > 0) {
-				return children.some((s) => isVisibleFn(s));
+				return children.some((s) => isVisibleFn(s, seen));
 			} else {
 				return false;
 			}
@@ -72,7 +76,7 @@
 
 {#if isVisible}
 	<div
-		use:melt={$root}
+		data-state={$open ? 'open' : 'closed'}
 		class="all"
 		class:single
 		class:title
@@ -145,7 +149,15 @@
 					</div>
 				{/if}
 				{#if hasSub && !single}
-					<button class:open={$open} use:melt={$trigger} class="expand">
+					<button
+						type="button"
+						class:open={$open}
+						class="expand"
+						data-state={$open ? 'open' : 'closed'}
+						aria-expanded={$open}
+						aria-label={$open ? 'Mostrar menos' : undefined}
+						on:click={() => open.update((o) => !o)}
+					>
 						{#if $open}
 							<ChevronDown {style} />
 						{:else}
@@ -156,13 +168,26 @@
 						{/if}
 					</button>
 					{#if $open}
-						<dl use:melt={$content}>
-							<GlosarioTree root={item} />
+						<dl data-state="open">
+							<GlosarioTree root={item} {path} />
 						</dl>
 					{/if}
 				{/if}
 			</dd>
 		{/if}
+	</div>
+{:else if title}
+	<!-- Sin nada más que mostrar (una serie sin descripción, por ejemplo), la página igual tiene su
+	     título visible, igual que el de arriba pero sin descripción, alias ni «Ver también». -->
+	<div class="all" class:single class:title style:--color={'var(--1)'}>
+		<dt id={name} class="onlyTitle">
+			<div class="itemtitle">
+				<h1>
+					{tag?.icon ?? ''}
+					<MiniMarkup value={name[0].toLocaleUpperCase() + name.slice(1)} />
+				</h1>
+			</div>
+		</dt>
 	</div>
 {/if}
 

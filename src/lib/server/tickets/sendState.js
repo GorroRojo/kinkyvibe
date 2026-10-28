@@ -18,10 +18,20 @@
  * un valor; con varias, una lista en el mismo orden ({@link TABLES}).
  */
 
+import { hitRateLimit } from '../db/rateLimit.js';
+import { resendBackoff } from './email.js';
+
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 /** Intentos por orden antes de dejarlo como 'failed'. */
 export const MAX_ATTEMPTS = 3;
+/**
+ * Cuántas veces por día (UTC) un envío puede volver a la cola sin gastar el intento porque Resend
+ * dijo «ahora no» (cupo, tasa o un 5xx; ver {@link deferSend}). Pasado esto cuenta como un intento
+ * más: un 429 que no se va nunca no deja el envío dando vueltas para siempre. Con el cron de cada
+ * 15 minutos y la tanda que se corta en el primer 429, son unas 12 horas seguidas.
+ */
+export const MAX_DEFERRALS_PER_DAY = 48;
 /** Una reserva "mandando" más vieja que esto se considera cortada. */
 export const STALE_CLAIM_MS = 10 * 60 * 1000;
 
@@ -147,6 +157,36 @@ export async function finishSend(db, table, { ok, now = Date.now(), ...ref }) {
 }
 
 /**
+ * Devuelve una reserva a la cola sin gastar el intento (Resend dijo «ahora no»: ver
+ * `resendBackoff` en email.js), como mucho {@link MAX_DEFERRALS_PER_DAY} veces por día por envío
+ * (`rate_limits`; la clave lleva la tabla y el id de la orden o la anotación, que no son datos
+ * personales). `false` si ya no se puede: quien llama la cierra con {@link finishSend}.
+ *
+ * @param {D1Database} db
+ * @param {SendTable} table
+ * @param {SendRef & { now?: number }} input
+ */
+export async function deferSend(db, table, { now = Date.now(), ...ref }) {
+	const values = rowValues(table, ref);
+	const allowed = await hitRateLimit(
+		db,
+		`mail:diferido:${table}:${values.join(':')}`,
+		{ limit: MAX_DEFERRALS_PER_DAY, windowSeconds: 24 * 60 * 60 },
+		now
+	);
+	if (!allowed.allowed) return false;
+	const n = values.length;
+	const res = await db
+		.prepare(
+			`UPDATE ${table} SET status = 'retry', sent_at = ?${n + 1}, attempts = MAX(attempts - 1, 0)
+			WHERE ${whereKey(table)} AND status = 'sending'`
+		)
+		.bind(...values, now)
+		.run();
+	return res.meta.changes === 1;
+}
+
+/**
  * Reservas colgadas que ya usaron todos sus intentos → 'failed' (si no, quedarían "mandando"
  * para siempre y no aparecerían en "Para revisar").
  *
@@ -168,6 +208,10 @@ export async function expireStaleClaims(db, table, now = Date.now()) {
 /**
  * Manda una tanda: reserva y manda a cada candidato hasta `limit` intentos.
  *
+ * Si Resend dice «ahora no» (`resendBackoff` en email.js), el envío vuelve a la cola sin gastar el
+ * intento ({@link deferSend}) y, con el cupo terminado o el límite por segundo, la tanda se corta
+ * ahí (`stopped`): seguir solo daría más 429. Con dos 5xx en la misma tanda, también.
+ *
  * @template T
  * @param {D1Database} db
  * @param {SendTable} table
@@ -179,14 +223,18 @@ export async function expireStaleClaims(db, table, now = Date.now()) {
  *   send: (item: T) => Promise<boolean>,
  *   label: string
  * }} input
- * @returns {Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {Promise<BatchResult>}
  *   `remaining`: candidatos que quedaron para la próxima tanda.
  */
 export async function sendBatch(db, table, { items, limit, now, claim, send, label }) {
 	let sent = 0;
 	let failed = 0;
+	let deferred = 0;
+	let serverErrors = 0;
 	let tried = 0;
 	let seen = 0;
+	/** @type {BatchResult['stopped']} */
+	let stopped;
 	for (const item of items) {
 		if (tried >= limit) break;
 		seen++;
@@ -194,15 +242,44 @@ export async function sendBatch(db, table, { items, limit, now, claim, send, lab
 		if (!(await claimSend(db, table, { ...ref, now }))) continue;
 		tried++;
 		let ok = false;
+		/** @type {ReturnType<typeof resendBackoff>} */
+		let backoff = null;
 		try {
 			ok = await send(item);
 		} catch (error) {
+			backoff = resendBackoff(error);
 			const who = ref.orderId ? `a la orden ${ref.orderId}` : `a la anotación ${ref.entryId}`;
 			console.error(`[tickets] no se pudo mandar ${label} ${who}:`, error);
 		}
-		await finishSend(db, table, { ...ref, ok, now });
-		if (ok) sent++;
-		else failed++;
+		if (!ok && backoff && (await deferSend(db, table, { ...ref, now }))) {
+			deferred++;
+		} else {
+			await finishSend(db, table, { ...ref, ok, now });
+			if (ok) sent++;
+			else failed++;
+		}
+		if (
+			backoff === 'quota' ||
+			backoff === 'rate' ||
+			(backoff === 'server' && ++serverErrors >= 2)
+		) {
+			stopped = backoff;
+			break;
+		}
 	}
-	return { sent, failed, remaining: items.length - seen };
+	return {
+		sent,
+		failed,
+		remaining: items.length - seen,
+		...(deferred ? { deferred } : {}),
+		...(stopped ? { stopped } : {})
+	};
 }
+
+/**
+ * Lo que devuelve una tanda. `deferred`: envíos que volvieron a la cola sin gastar el intento;
+ * `stopped`: la tanda se cortó porque Resend dijo «ahora no» (ver {@link sendBatch}). Los dos
+ * solo están si pasó.
+ * @typedef {{ sent: number, failed: number, remaining: number, deferred?: number,
+ *   stopped?: 'quota' | 'rate' | 'server' }} BatchResult
+ */

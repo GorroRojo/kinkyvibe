@@ -32,7 +32,16 @@ import { cp, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'no
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
-import { unstable_getMiniflareWorkerOptions, unstable_splitSqlQuery } from 'wrangler';
+
+/**
+ * wrangler, cargado solo si hace falta: importarlo cuesta más de un segundo de CPU por proceso (su
+ * bundle tiene ~15 MB) y cada archivo de pruebas con base es un proceso nuevo. Con la plantilla y
+ * las opciones del worker que arma el globalSetup (`startTemplateDB`), un archivo de pruebas no lo
+ * carga nunca: solo lo usan las migraciones (partir los `.sql`) y leer `wrangler.toml`.
+ * @type {Promise<typeof import('wrangler')> | undefined}
+ */
+let wranglerModule;
+const loadWrangler = () => (wranglerModule ??= import('wrangler'));
 
 const MIGRATIONS_DIR = path.resolve('migrations');
 
@@ -48,11 +57,20 @@ async function readMigrations(dir) {
 	});
 	const files = entries.filter((f) => f.endsWith('.sql')).sort();
 	const sqls = await Promise.all(files.map((file) => readFile(path.join(dir, file), 'utf8')));
-	const batches = sqls.map((sql) => unstable_splitSqlQuery(sql).filter((s) => s.trim()));
 	// Huella de los archivos (nombre y contenido), para saber si la plantilla es de estas migraciones.
 	const hash = createHash('sha256');
 	files.forEach((file, i) => hash.update(`${file}\0${sqls[i]}\0`));
-	return { files, batches, hash: hash.digest('hex') };
+	/** @type {Promise<string[][]> | undefined} */
+	let split;
+	return {
+		files,
+		hash: hash.digest('hex'),
+		/** Las sentencias de cada archivo (parte con wrangler, solo cuando se van a aplicar). */
+		batches: () =>
+			(split ??= loadWrangler().then(({ unstable_splitSqlQuery }) =>
+				sqls.map((sql) => unstable_splitSqlQuery(sql).filter((s) => s.trim()))
+			))
+	};
 }
 
 /** Las migraciones del repo, leídas una sola vez por proceso (los tests no las cambian). */
@@ -77,7 +95,7 @@ export async function applyMigrations(db, dir = MIGRATIONS_DIR) {
 	// Solo se cachea el directorio del repo: los tests que arman uno temporal lo pueden cambiar.
 	const migrations =
 		dir === MIGRATIONS_DIR ? await readRepoMigrations() : await readMigrations(dir);
-	const batches = migrations.batches.filter((statements) => statements.length);
+	const batches = (await migrations.batches()).filter((statements) => statements.length);
 	if (db instanceof TestD1Database) {
 		// Lo mismo, pero en un solo pedido al worker: allá corre un `batch` por archivo, en orden, y
 		// frena en el primero que falle (los anteriores quedan aplicados, como en el loop de abajo).
@@ -430,18 +448,48 @@ const TEMPLATE_DATA = 'data';
 const TEMPLATE_HASH = 'migrations.sha256';
 
 /**
+ * Variable de entorno con las opciones de miniflare que salen de `wrangler.toml` (en JSON): las
+ * lee una vez por corrida el globalSetup (`startTemplateDB`), así los procesos de las pruebas no
+ * cargan wrangler para leer el mismo archivo cada uno.
+ */
+export const WORKER_OPTIONS_ENV = 'KINKYVIBE_TEST_DB_WORKER_OPTIONS';
+
+/** Los bindings de `wrangler.toml` como opciones de miniflare, leídos con wrangler. */
+async function readWorkerOptions() {
+	const { unstable_getMiniflareWorkerOptions } = await loadWrangler();
+	// `envFiles: []`: sin leer `.dev.vars`/`.env` (como antes con getPlatformProxy). wrangler lo
+	// acepta en tiempo de ejecución aunque sus tipos todavía no lo declaren.
+	const options = /** @type {Parameters<typeof unstable_getMiniflareWorkerOptions>[2]} */ (
+		/** @type {unknown} */ ({ envFiles: [] })
+	);
+	return unstable_getMiniflareWorkerOptions('wrangler.toml', undefined, options).workerOptions;
+}
+
+/**
+ * Las opciones del worker: las que dejó el globalSetup en `WORKER_OPTIONS_ENV` o, si no hay (o no
+ * se pueden leer), las de `wrangler.toml` leídas acá.
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function testWorkerOptions() {
+	const json = process.env[WORKER_OPTIONS_ENV];
+	if (json) {
+		try {
+			return JSON.parse(json);
+		} catch {
+			// se leen de nuevo abajo
+		}
+	}
+	return /** @type {Record<string, unknown>} */ (await readWorkerOptions());
+}
+
+/**
  * Levanta miniflare con el worker de prueba sobre `dir` (lo que ya haya ahí, se usa).
  *
  * @param {string} dir
  */
 async function openTestDB(dir) {
 	const { Miniflare, convertV4MiniflareOptions } = loadMiniflare();
-	// `envFiles: []`: sin leer `.dev.vars`/`.env` (como antes con getPlatformProxy). wrangler lo
-	// acepta en tiempo de ejecución aunque sus tipos todavía no lo declaren.
-	const options = /** @type {Parameters<typeof unstable_getMiniflareWorkerOptions>[2]} */ (
-		/** @type {unknown} */ ({ envFiles: [] })
-	);
-	const { workerOptions } = unstable_getMiniflareWorkerOptions('wrangler.toml', undefined, options);
+	const workerOptions = await testWorkerOptions();
 	const d1 = /** @type {Record<string, unknown> | string[] | undefined} */ (
 		workerOptions.d1Databases
 	);
@@ -659,6 +707,10 @@ export async function buildTemplateDB(target) {
 export async function startTemplateDB() {
 	const target = await mkdtemp(path.join(storageRoot(), 'kinkyvibe-test-db-template-'));
 	process.env[TEMPLATE_ENV] = target;
+	// Las opciones del worker también se leen una vez acá (ver WORKER_OPTIONS_ENV). Si falla, cada
+	// proceso las lee solo, como antes.
+	const workerOptions = await readWorkerOptions().catch(() => null);
+	if (workerOptions) process.env[WORKER_OPTIONS_ENV] = JSON.stringify(workerOptions);
 	const building = buildTemplateDB(target).catch((error) => {
 		console.warn(
 			`testing.js: no se pudo armar la plantilla de la base (se migra en cada archivo): ${error}`
@@ -667,6 +719,7 @@ export async function startTemplateDB() {
 	return async () => {
 		await building;
 		delete process.env[TEMPLATE_ENV];
+		delete process.env[WORKER_OPTIONS_ENV];
 		await rm(target, { recursive: true, force: true });
 	};
 }
@@ -786,11 +839,43 @@ export async function restoreDB(db, snapshot) {
  * `all`, `run` o `raw` es una, y cada `batch` también es una (una sola vuelta a la base). Guarda
  * el SQL y lo que devolvió cada una, para ver cuánto viaja desde la base.
  *
+ * `waves`: cuántas tandas en fila (cada consulta que sale después de que terminó otra está una
+ * tanda más atrás; las que salen a la par, en la misma). En D1 lejos, cada tanda es una ida y
+ * vuelta que se espera. Con `delayMs`, cada consulta tarda eso de más, para que lo que sale a la
+ * par no se cuente como en fila por el ruido del D1 local.
+ *
+ * `trace`: cada consulta guarda en `from` las funciones de la app que la pidieron (`describe()`).
+ *
  * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {{ delayMs?: number, trace?: boolean }} [opts]
  */
-export function countingDB(db) {
-	/** @type {{ sql: string, result: unknown }[]} */
+export function countingDB(db, { delayMs = 0, trace = false } = {}) {
+	/** @type {{ sql: string, result: unknown, wave: number, from?: string }[]} */
 	const log = [];
+	// Las sentencias (una tanda, `batch`, lleva varias en una ida).
+	let statements = 0;
+	// La tanda más honda de las consultas que ya terminaron, y la más honda de todas.
+	let doneWave = 0;
+	let maxWave = 0;
+	/**
+	 * @template T
+	 * @param {string} sql
+	 * @param {() => Promise<T>} run
+	 * @returns {Promise<T>}
+	 */
+	const timed = async (sql, run) => {
+		const wave = doneWave + 1;
+		maxWave = Math.max(maxWave, wave);
+		const from = trace ? callers(new Error().stack) : undefined;
+		if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+		try {
+			const result = await run();
+			log.push({ sql, result, wave, ...(from ? { from } : {}) });
+			return result;
+		} finally {
+			doneWave = Math.max(doneWave, wave);
+		}
+	};
 	const RAW = Symbol('statement');
 	/** @type {WeakMap<object, string>} */
 	const sqlOf = new WeakMap();
@@ -807,10 +892,9 @@ export function countingDB(db) {
 					return (/** @type {unknown[]} */ ...args) => wrap(target.bind(...args), sql);
 				}
 				if (prop === 'first' || prop === 'all' || prop === 'run' || prop === 'raw') {
-					return async (/** @type {unknown[]} */ ...args) => {
-						const result = await target[prop](...args);
-						log.push({ sql, result });
-						return result;
+					return (/** @type {unknown[]} */ ...args) => {
+						statements++;
+						return timed(sql, () => target[prop](...args));
 					};
 				}
 				const value = target[prop];
@@ -827,10 +911,11 @@ export function countingDB(db) {
 					return (/** @type {string} */ sql) => wrap(target.prepare(sql), sql);
 				}
 				if (prop === 'batch') {
-					return async (/** @type {any[]} */ statements) => {
-						const result = await target.batch(statements.map((s) => s[RAW] ?? s));
-						log.push({ sql: statements.map((s) => sqlOf.get(s) ?? '?').join(';\n'), result });
-						return result;
+					return (/** @type {any[]} */ list) => {
+						statements += list.length;
+						return timed(list.map((s) => sqlOf.get(s) ?? '?').join(';\n'), () =>
+							target.batch(list.map((s) => s[RAW] ?? s))
+						);
 					};
 				}
 				const value = /** @type {any} */ (target)[prop];
@@ -841,14 +926,51 @@ export function countingDB(db) {
 	return {
 		db: counted,
 		log,
-		/** Cuántas consultas desde el último `reset`. */
+		/** Cuántas consultas desde el último `reset` (una tanda, `batch`, es una: una ida). */
 		get queries() {
 			return log.length;
 		},
+		/** Cuántas sentencias (las de una tanda, cada una). */
+		get statements() {
+			return statements;
+		},
 		/** Cuánto devolvieron (largo del JSON de los resultados). */
 		bytes: () => log.reduce((n, q) => n + JSON.stringify(q.result ?? null).length, 0),
+		/** Cuántas tandas en fila desde el último `reset` (ver arriba). */
+		get waves() {
+			return maxWave;
+		},
 		reset: () => {
 			log.length = 0;
-		}
+			statements = 0;
+			doneWave = 0;
+			maxWave = 0;
+		},
+		/** Las consultas por tanda, una línea cada una (con `trace`, quién la pidió). */
+		describe: () =>
+			log
+				.slice()
+				.sort((a, b) => a.wave - b.wave)
+				.map(
+					(q) =>
+						`  ${q.wave}. ${q.sql.replace(/\s+/g, ' ').slice(0, 90)}${q.from ? `\n       ← ${q.from}` : ''}`
+				)
+				.join('\n')
 	};
+}
+
+/**
+ * Las funciones de la app que pidieron una consulta (de la pila), sin las de este archivo ni las
+ * de node_modules: «quién la pidió», para {@link countingDB} con `trace`.
+ * @param {string | undefined} stack
+ */
+function callers(stack) {
+	return (stack ?? '')
+		.split('\n')
+		.slice(1)
+		.map((line) => line.match(/at (?:async )?(\S+) \((?:.*?\/)?(src\/.+?):\d+:\d+\)$/))
+		.filter((m) => m && !m[2].endsWith('db/testing.js'))
+		.slice(0, 4)
+		.map((m) => `${m?.[1]} (${m?.[2]?.split('/').pop()})`)
+		.join(' ← ');
 }

@@ -1,5 +1,5 @@
 /**
- * "Es mi perfil": permiso, límites, que no revela pedidos ajenos, un pedido por cuenta y perfil,
+ * "Es mi perfil": cualquier cuenta lo pide (aprobar sigue pidiendo el permiso), límites, que no revela pedidos ajenos, un pedido por cuenta y perfil,
  * aprobar (la cuenta pasa a ser dueñe) y rechazar, y los resguardos al aprobar. D1 de miniflare;
  * datos inventados.
  */
@@ -36,11 +36,52 @@ const claim = (accountId, profileId, connection = 'conexion-a') =>
 	createClaim(t.db, { accountId, profileId, message: 'Soy yo, lo juro', connection });
 
 describe('pedir un perfil', () => {
-	it('sin el permiso de perfiles, como si no existiera (y no guarda nada)', async () => {
+	it('sin el permiso de perfiles también se pide; queda pendiente y no da nada solo', async () => {
 		const p = await makeProfile(t.db, { title: 'Ficha Inventada' });
 		const a = await makeAccount(t.db, 'sin-permiso', { profiles: false });
-		expect(await claim(a.id, p.id)).toMatchObject({ ok: false, status: 404 });
-		expect(await countPendingClaims(t.db)).toBe(0);
+		expect(await claim(a.id, p.id)).toEqual({ ok: true, message: CLAIM_MESSAGES.sent });
+		expect(await claimState(t.db, a.id, p.id)).toBe('pending');
+		expect(await countPendingClaims(t.db)).toBe(1);
+		// Pedir no la hace dueñe (ni con el permiso: hace falta que une admin lo apruebe).
+		await t.db.prepare('UPDATE accounts SET can_have_profiles = 1 WHERE id = ?1').bind(a.id).run();
+		expect(await getManagedProfile(t.db, a.id, p.slug)).toBeNull();
+	});
+
+	it('la misma cuenta dos veces: un solo pedido pendiente (aunque cambie la conexión)', async () => {
+		const p = await makeProfile(t.db, { title: 'Ficha Inventada' });
+		const a = await makeAccount(t.db, 'repite', { profiles: false });
+		expect(await claim(a.id, p.id, 'conexion-a')).toEqual({
+			ok: true,
+			message: CLAIM_MESSAGES.sent
+		});
+		expect(await claim(a.id, p.id, 'conexion-b')).toEqual({
+			ok: true,
+			message: CLAIM_MESSAGES.already
+		});
+		const n = await t.db
+			.prepare('SELECT COUNT(*) AS n FROM profile_claims WHERE account_id = ?1')
+			.bind(a.id)
+			.first();
+		expect(n?.n).toBe(1);
+	});
+
+	it('un perfil de persona que ya tiene dueñe: la misma respuesta (no revela nada) y nunca se aprueba', async () => {
+		const owned = await makeProfile(t.db, { title: 'Con Duene' });
+		const free = await makeProfile(t.db, { title: 'Sin Duene' });
+		const owner = await makeAccount(t.db, 'duene');
+		await addManager(t.db, owned.id, owner.id);
+		const a = await makeAccount(t.db, 'pide', { profiles: false });
+		const onOwned = await claim(a.id, owned.id, 'c-1');
+		expect(onOwned).toEqual(await claim(a.id, free.id, 'c-2'));
+		expect(await claimState(t.db, a.id, owned.id)).toBe('pending');
+		await t.db.prepare('UPDATE accounts SET can_have_profiles = 1 WHERE id = ?1').bind(a.id).run();
+		const pending = (await listClaims(t.db)).find((c) => c.profileId === owned.id);
+		expect(await decideClaim(t.db, Number(pending?.id), true, { by: 'a' })).toMatchObject({
+			ok: false,
+			status: 409
+		});
+		expect(await getManagedProfile(t.db, a.id, owned.slug)).toBeNull();
+		expect((await getManagedProfile(t.db, owner.id, owned.slug))?.role).toBe('owner');
 	});
 
 	it('guarda el pedido; la misma respuesta haya o no pedidos de otras cuentas', async () => {
@@ -135,7 +176,8 @@ describe('resolver un pedido (admins)', () => {
 			claim: { status: 'rejected' }
 		});
 		expect(await getManagedProfile(t.db, a.id, p.slug)).toBeNull();
-		expect(await claimState(t.db, a.id, p.id)).toBe('none');
+		// rincon-pedidos: la página del perfil dice «no aprobado» en vez de volver a ofrecer el botón.
+		expect(await claimState(t.db, a.id, p.id)).toBe('rejected');
 	});
 
 	it('una persona tiene una sola dueñe; un proyecto puede sumar otra', async () => {
@@ -158,6 +200,25 @@ describe('resolver un pedido (admins)', () => {
 			ok: true
 		});
 		expect((await getManagedProfile(t.db, second.id, grupo.slug))?.role).toBe('owner');
+	});
+
+	it('una cuenta que pidió sin el permiso: une admin se lo da y recién ahí lo aprueba', async () => {
+		const p = await makeProfile(t.db, { title: 'Ficha Inventada' });
+		const a = await makeAccount(t.db, 'sin-permiso', { profiles: false });
+		await claim(a.id, p.id);
+		const [pending] = await listClaims(t.db);
+		expect(pending.canHaveProfiles).toBe(false);
+		expect(await decideClaim(t.db, pending.id, true, { by: 'admin-de-prueba' })).toMatchObject({
+			ok: false,
+			status: 409
+		});
+		expect(await claimState(t.db, a.id, p.id)).toBe('pending');
+		await t.db.prepare('UPDATE accounts SET can_have_profiles = 1 WHERE id = ?1').bind(a.id).run();
+		expect(await decideClaim(t.db, pending.id, true, { by: 'admin-de-prueba' })).toMatchObject({
+			ok: true,
+			claim: { status: 'approved' }
+		});
+		expect((await getManagedProfile(t.db, a.id, p.slug))?.role).toBe('owner');
 	});
 
 	it('si la cuenta perdió el permiso, no se aprueba (y se avisa)', async () => {

@@ -27,7 +27,7 @@ import { capacityLimit, discountUsesLimit, tierLimit } from './overrides.js';
 import { answersStatement } from './signupFields.js';
 import { markPurchasedStatement } from './waitlist.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
-import { MP_FEE_SQL } from '$lib/utils/salesGoal.js';
+import { MP_FEE_ESTIMATED_SQL, MP_FEE_SQL, REVENUE_SQL } from '$lib/utils/salesGoal.js';
 
 // El código corto se normaliza también en el navegador (modo puerta sin conexión).
 export { TICKET_CODE_LENGTH, normalizeTicketCode };
@@ -47,11 +47,15 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   buyer_dni: string | null, holders: string | null, status: OrderStatus,
  *   mp_preference_id: string | null, mp_payment_id: string | null, confirmed_by: string | null,
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
+ *   email_id?: string | null, email_problem?: 'bounced' | 'complained' | 'suppressed' | null,
+ *   email_problem_at?: number | null,
  *   refunded_at?: number | null, refunded_by?: string | null,
+ *   mp_fee_amount?: number | null, refunded_amount?: number | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
  *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
  *   admin_note?: string | null, ticket_tier?: string | null,
- *   client_sale_id?: string | null, offline_review?: string | null
+ *   client_sale_id?: string | null, offline_review?: string | null,
+ *   door_list_price?: number | null
  * }} Order
  */
 /**
@@ -156,9 +160,13 @@ export function newToken() {
  *   clientHash?: string | null,
  *   limits?: typeof HOLD_LIMITS,
  *   answers?: import('$lib/utils/signupFields.js').Answer[],
- *   waitlist?: import('./waitlistPurchase.js').WaitlistGuard | null
+ *   waitlist?: import('./waitlistPurchase.js').WaitlistGuard | null,
+ *   freeOnce?: boolean
  * }} input
  * Con `type.capacity` `null` (sin cupo) no hay límite de entradas del tipo.
+ * `freeOnce` (entradas gratis con un mail que no es el de la cuenta con sesión): la MISMA
+ * sentencia controla que ese mail no tenga otra orden gratis aprobada o reservada en el evento; si
+ * la tiene, `reason: 'free'`.
  * `answers`: respuestas a las preguntas de inscripción (ya validadas), en la misma tanda.
  *
  * Lista de espera (`waitlist`, solo con el interruptor `lista_espera` prendido y el evento con
@@ -178,6 +186,7 @@ export function newToken() {
  *   | { ok: false, reason: 'limit', message: string }
  *   | { ok: false, reason: 'code', message: string }
  *   | { ok: false, reason: 'tier' }
+ *   | { ok: false, reason: 'free' }
  *   | { ok: false, reason: 'method' }>}
  */
 export async function reserveOrder(db, input) {
@@ -246,8 +255,8 @@ export async function reserveOrder(db, input) {
 					WHERE event_slug = ?2 AND ticket_type = ?3 AND ticket_tier = ?31
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
 				) + ?4 <= ?32)
-				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9' })}
-				${guard ? `${WAITLIST_GUARD_SQL}\n\t\t\t\t` : ''}RETURNING *`
+				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9', qty: '?4', email: '?8' })}
+				${input.freeOnce ? `${FREE_ONCE_SQL}\n\t\t\t\t` : ''}${guard ? `${WAITLIST_GUARD_SQL}\n\t\t\t\t` : ''}RETURNING *`
 			)
 			.bind(
 				id,
@@ -289,6 +298,8 @@ export async function reserveOrder(db, input) {
 	]);
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
 	if (order) return { ok: true, order };
+	if (input.freeOnce && (await hasFreeOrder(db, { eventSlug, email: buyer.email, now })))
+		return { ok: false, reason: 'free' };
 	const limited = await holdLimitMessage(db, {
 		eventSlug,
 		email: buyer.email,
@@ -299,7 +310,13 @@ export async function reserveOrder(db, input) {
 	});
 	if (limited) return { ok: false, reason: 'limit', message: limited };
 	if (discount) {
-		const check = await checkDiscountCode(db, { code: discount.code, eventSlug, now });
+		const check = await checkDiscountCode(db, {
+			code: discount.code,
+			eventSlug,
+			now,
+			email: buyer.email,
+			quantity
+		});
 		if (!check.ok) return { ok: false, reason: 'code', message: check.message };
 		if (check.discount.kind !== discount.kind || check.discount.value !== discount.value) {
 			return { ok: false, reason: 'code', message: 'El código cambió: aplicalo de nuevo.' };
@@ -364,6 +381,15 @@ const WAITLIST_GUARD_SQL = `AND ${waitlistFreeSql(RESERVE_PARAMS)} - ?4 >= ${wai
 					WHERE w.id = ?33 AND w.status = 'offered' AND w.event_slug = ?2
 						AND (w.hold_until IS NULL OR w.hold_until > ?9)
 						AND (w.ticket_type IS NULL OR w.ticket_type = ?3)))`;
+
+/**
+ * La condición de `freeOnce` en la sentencia de `reserveOrder`: el mail (`?8`) no tiene otra orden
+ * gratis aprobada o reservada vigente en el evento (`?2`, ahora `?9`). En la misma sentencia, así
+ * dos pedidos a la vez no sacan dos.
+ */
+const FREE_ONCE_SQL = `AND NOT EXISTS (SELECT 1 FROM orders o
+					WHERE o.event_slug = ?2 AND o.buyer_email = ?8 AND o.payment_method = 'gratis'
+						AND (o.status = 'approved' OR (o.status IN ${HOLDING} AND o.expires_at > ?9)))`;
 
 /**
  * Cuántas podría comprar ahora quien compra en el alcance de la lista: el lugar libre menos la
@@ -486,6 +512,26 @@ export async function getTakenMany(db, eventSlugs, now = Date.now()) {
 function openHoldsSql(where, what) {
 	return `(SELECT COALESCE(${what}, 0) FROM orders
 		WHERE event_slug = ?2 AND ${where} AND status IN ${HOLDING} AND expires_at > ?9)`;
+}
+
+/**
+ * ¿Este mail ya tiene una orden gratis aprobada o reservada en el evento? Lo mismo que mira
+ * {@link FREE_ONCE_SQL} (para decir por qué no entró la reserva).
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, email: string, now: number }} input
+ */
+async function hasFreeOrder(db, { eventSlug, email, now }) {
+	const row = await db
+		.prepare(
+			`SELECT 1 AS x FROM orders
+			WHERE event_slug = ?1 AND buyer_email = ?2 AND payment_method = 'gratis'
+				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?3))
+			LIMIT 1`
+		)
+		.bind(eventSlug, email, now)
+		.first();
+	return Boolean(row);
 }
 
 /**
@@ -620,7 +666,10 @@ function expireStatement(db, eventSlug, now) {
  * `mpFee`: la comisión de Mercado Pago de las órdenes aprobadas (MP_FEE_SQL en
  * $lib/utils/salesGoal.js), para lo neto de la meta de venta.
  *
- * @returns {Promise<Map<string, { sold: number, held: number, revenue: number, fondo: number, contribution: number, surcharge: number, mpFee: number }>>}
+ * `revenue`: lo cobrado menos los reembolsos parciales hechos en MP (REVENUE_SQL);
+ * `mpFeeEstimated`: la parte de `mpFee` que es estimada (MP no informó la comisión).
+ *
+ * @returns {Promise<Map<string, { sold: number, held: number, revenue: number, fondo: number, contribution: number, surcharge: number, mpFee: number, mpFeeEstimated: number }>>}
  */
 export async function getCounts(db, eventSlug, now = Date.now()) {
 	const { results } = await db
@@ -628,11 +677,12 @@ export async function getCounts(db, eventSlug, now = Date.now()) {
 			`SELECT ticket_type,
 				SUM(CASE WHEN status = 'approved' THEN quantity ELSE 0 END) AS sold,
 				SUM(CASE WHEN status IN ${HOLDING} AND expires_at > ?2 THEN quantity ELSE 0 END) AS held,
-				SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS revenue,
+				SUM(CASE WHEN status = 'approved' THEN ${REVENUE_SQL} ELSE 0 END) AS revenue,
 				SUM(CASE WHEN status = 'approved' THEN fondo_amount ELSE 0 END) AS fondo,
 				SUM(CASE WHEN status = 'approved' THEN fondo_contribution ELSE 0 END) AS contribution,
 				SUM(CASE WHEN status = 'approved' THEN surcharge_amount ELSE 0 END) AS surcharge,
-				SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee
+				SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee,
+				SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_ESTIMATED_SQL} ELSE 0 END) AS mp_fee_estimated
 			FROM orders WHERE event_slug = ?1 GROUP BY ticket_type`
 		)
 		.bind(eventSlug, now)
@@ -647,7 +697,8 @@ export async function getCounts(db, eventSlug, now = Date.now()) {
 				fondo: Number(r.fondo ?? 0),
 				contribution: Number(r.contribution ?? 0),
 				surcharge: Number(r.surcharge ?? 0),
-				mpFee: Number(r.mp_fee ?? 0)
+				mpFee: Number(r.mp_fee ?? 0),
+				mpFeeEstimated: Number(r.mp_fee_estimated ?? 0)
 			}
 		])
 	);
@@ -759,9 +810,90 @@ export function nextStatus(current, currentPaymentId, incoming, paymentId) {
  *   status: string,
  *   external_reference?: string | null,
  *   transaction_amount?: number,
- *   currency_id?: string
+ *   currency_id?: string,
+ *   transaction_amount_refunded?: number,
+ *   fee_details?: { type?: string, fee_payer?: string, amount?: number }[]
  * }} MPPayment
+ *
+ * `transaction_amount_refunded` y `fee_details` son campos del pago de `GET /v1/payments/{id}`
+ * (verificados en la documentación de MP con su búsqueda de documentación, 2026-10-26: ejemplo de
+ * respuesta con `transaction_amount_refunded`, `transaction_details.net_received_amount` y
+ * `fee_details: [{ type: 'mercadopago_fee', fee_payer: 'collector', amount }]`). Solo se usan
+ * para los reportes del panel ({@link paymentAmounts}).
  */
+
+/**
+ * Lo que dice un pago de MP para los reportes del panel, en pesos enteros (redondeados):
+ * - `fee`: la comisión que cobró MP a la cuenta (la suma de `fee_details[].amount` con
+ *   `fee_payer = 'collector'`; las que paga quien compra, como la financiación de las cuotas, no
+ *   son nuestras), o `null` si el pago no trae `fee_details` (entonces el panel la estima);
+ * - `refunded`: lo reembolsado (`transaction_amount_refunded`), o `null` si no viene.
+ * Valores raros (negativos, no numéricos) cuentan como que no vinieron.
+ *
+ * @param {MPPayment} payment
+ * @returns {{ fee: number | null, refunded: number | null }}
+ */
+export function paymentAmounts(payment) {
+	/** @type {number | null} */
+	let fee = null;
+	if (Array.isArray(payment.fee_details)) {
+		let sum = 0;
+		let valid = true;
+		for (const f of payment.fee_details) {
+			if (!f || f.fee_payer !== 'collector') continue;
+			const amount = Number(f.amount);
+			if (!Number.isFinite(amount) || amount < 0) valid = false;
+			else sum += amount;
+		}
+		fee = valid ? Math.round(sum) : null;
+	}
+	const raw = payment.transaction_amount_refunded;
+	const refundedNumber = raw === undefined || raw === null ? NaN : Number(raw);
+	const refunded =
+		Number.isFinite(refundedNumber) && refundedNumber >= 0 ? Math.round(refundedNumber) : null;
+	return { fee, refunded };
+}
+
+/**
+ * Guarda en la orden la comisión real de MP y el reembolso parcial de un pago (solo reportes:
+ * no cambia el estado, ni las entradas, ni manda nada). Solo si el pago es el de la orden
+ * (`mp_payment_id`) y la orden está aprobada; el reembolso parcial solo mientras el pago sigue
+ * aprobado (un reembolso total pasa la orden a `refunded`, como siempre, y no se anota acá).
+ * Idempotente: si ya estaba igual no escribe. Nunca tira: si falla (por ejemplo, sin la migración
+ * 0069) se loguea y el pago sigue su curso.
+ *
+ * @param {D1Database} db
+ * @param {string} orderId
+ * @param {MPPayment} payment
+ * @returns {Promise<boolean>} si cambió algo
+ */
+export async function recordPaymentAmounts(db, orderId, payment) {
+	try {
+		const { fee, refunded } = paymentAmounts(payment);
+		const partial = payment.status === 'approved' && refunded !== null ? refunded : null;
+		if (fee === null && partial === null) return false;
+		const res = await db
+			.prepare(
+				`UPDATE orders SET mp_fee_amount = COALESCE(?3, mp_fee_amount),
+					refunded_amount = CASE WHEN ?4 IS NULL THEN refunded_amount
+						WHEN ?4 > 0 THEN MIN(?4, total) ELSE NULL END
+				WHERE id = ?1 AND mp_payment_id = ?2 AND status = 'approved'
+					AND payment_method = 'mercadopago'
+					AND (mp_fee_amount IS NOT COALESCE(?3, mp_fee_amount)
+						OR refunded_amount IS NOT (CASE WHEN ?4 IS NULL THEN refunded_amount
+							WHEN ?4 > 0 THEN MIN(?4, total) ELSE NULL END))`
+			)
+			.bind(orderId, String(payment.id), fee, partial)
+			.run();
+		return res.meta.changes === 1;
+	} catch (error) {
+		console.error(
+			`[tickets] no se pudo guardar la comisión o el reembolso parcial del pago ${payment.id} (orden ${orderId}):`,
+			error
+		);
+		return false;
+	}
+}
 
 /**
  * Aplica un pago (ya obtenido de la API de MP, nunca del body del webhook) a su orden.
@@ -771,6 +903,9 @@ export function nextStatus(current, currentPaymentId, incoming, paymentId) {
  *   (la plata entró), pero si con eso el tipo de entrada pasa su cupo queda como `late_payment`
  *   (`capacityOf` dice el cupo; si no se sabe, también se marca);
  * - otro pago aprobado para una orden ya aprobada queda como `duplicate_payment`.
+ *
+ * Después, solo para los reportes, guarda la comisión que cobró MP y lo reembolsado en un pago que
+ * sigue aprobado (reembolso parcial hecho desde MP): {@link recordPaymentAmounts}.
  *
  * @param {D1Database} db
  * @param {MPPayment} payment
@@ -782,7 +917,23 @@ export function nextStatus(current, currentPaymentId, incoming, paymentId) {
  *   tickets: Ticket[]
  * }>}
  */
-export async function applyPayment(db, payment, { now = Date.now(), capacityOf } = {}) {
+export async function applyPayment(db, payment, options = {}) {
+	const result = await applyPaymentStatus(db, payment, options);
+	// Solo reportes (comisión real y reembolso parcial): no cambia el resultado ni el estado.
+	if (result.order && (result.outcome === 'updated' || result.outcome === 'unchanged')) {
+		await recordPaymentAmounts(db, result.order.id, payment);
+	}
+	return result;
+}
+
+/**
+ * El estado de {@link applyPayment} (todo lo que decide la orden y las entradas).
+ * @param {D1Database} db
+ * @param {MPPayment} payment
+ * @param {{ now?: number, capacityOf?: (order: Order) => Promise<number | null> }} [options]
+ * @returns {ReturnType<typeof applyPayment>}
+ */
+async function applyPaymentStatus(db, payment, { now = Date.now(), capacityOf } = {}) {
 	const paymentId = String(payment.id);
 	const order = await getOrder(db, String(payment.external_reference ?? ''));
 	if (!order) return { outcome: 'unknown-order', order: null, newlyApproved: false, tickets: [] };
@@ -854,24 +1005,7 @@ export async function applyPayment(db, payment, { now = Date.now(), capacityOf }
 			// Aprobar y emitir las entradas en la misma transacción.
 			const [res] = await db.batch([update, ...issueTicketsStatements(db, order)]);
 			if (res.meta.changes === 1) {
-				let updated = /** @type {Order} */ (await getOrder(db, order.id));
-				const late =
-					current.status === 'expired' ||
-					current.status === 'cancelled' ||
-					(current.status !== 'approved' && current.expires_at <= now);
-				if (late && (await overCapacity(db, updated, capacityOf, now))) {
-					console.error(
-						`[tickets] la orden ${order.id} se pagó con la reserva vencida y ya no había cupo: queda para revisar`
-					);
-					await flagOrder(db, order.id, 'late_payment', paymentId, now);
-					updated = /** @type {Order} */ (await getOrder(db, order.id));
-				}
-				return {
-					outcome: 'updated',
-					order: updated,
-					newlyApproved: true,
-					tickets: await getOrderTickets(db, order.id)
-				};
+				return afterApproval(db, current, { paymentId, now, capacityOf });
 			}
 		}
 		const fresh = await getOrder(db, order.id);
@@ -879,6 +1013,71 @@ export async function applyPayment(db, payment, { now = Date.now(), capacityOf }
 		current = fresh;
 	}
 	return { outcome: 'unchanged', order: current, newlyApproved: false, tickets: [] };
+}
+
+/**
+ * Lo que sigue a aprobar una orden en {@link applyPayment}: releerla, revisar el cupo si el pago
+ * llegó tarde y leer las entradas. La orden ya quedó aprobada y con sus entradas (en la misma
+ * transacción), así que si una de estas lecturas falla se loguea y se devuelve igual el resultado
+ * de la aprobación: el webhook contesta 2xx y Mercado Pago no reintenta algo que ya se hizo. Sin
+ * la orden releída, va la de antes con el estado nuevo; sin las entradas, `[]` (el mail las lee
+ * solo, y si tampoco puede, lo reintenta el cron: unsentOrders.js). Si no se pudo revisar el cupo
+ * de un pago tardío, se marca para revisar (como cuando no se sabe el cupo).
+ *
+ * @param {D1Database} db
+ * @param {Order} previous la orden como estaba antes de aprobarla
+ * @param {{ paymentId: string, now: number, capacityOf?: (order: Order) => Promise<number | null> }} options
+ * @returns {Promise<{ outcome: 'updated', order: Order, newlyApproved: true, tickets: Ticket[] }>}
+ */
+async function afterApproval(db, previous, { paymentId, now, capacityOf }) {
+	const id = previous.id;
+	/** @type {Order} */
+	let updated = { ...previous, status: 'approved', mp_payment_id: paymentId, updated_at: now };
+	try {
+		updated = (await getOrder(db, id)) ?? updated;
+	} catch (error) {
+		console.error(`[tickets] la orden ${id} quedó aprobada pero no se pudo releer:`, error);
+	}
+	const late =
+		previous.status === 'expired' ||
+		previous.status === 'cancelled' ||
+		(previous.status !== 'approved' && previous.expires_at <= now);
+	if (late) {
+		let flag = false;
+		try {
+			flag = await overCapacity(db, updated, capacityOf, now);
+			if (flag) {
+				console.error(
+					`[tickets] la orden ${id} se pagó con la reserva vencida y ya no había cupo: queda para revisar`
+				);
+			}
+		} catch (error) {
+			console.error(
+				`[tickets] la orden ${id} se pagó con la reserva vencida y no se pudo revisar el cupo: queda para revisar`,
+				error
+			);
+			flag = true;
+		}
+		if (flag) {
+			try {
+				await flagOrder(db, id, 'late_payment', paymentId, now);
+				updated = (await getOrder(db, id)) ?? updated;
+			} catch (error) {
+				console.error(`[tickets] no se pudo marcar la orden ${id} para revisar:`, error);
+			}
+		}
+	}
+	/** @type {Ticket[]} */
+	let tickets = [];
+	try {
+		tickets = await getOrderTickets(db, id);
+	} catch (error) {
+		console.error(
+			`[tickets] la orden ${id} quedó aprobada pero no se pudieron leer las entradas:`,
+			error
+		);
+	}
+	return { outcome: 'updated', order: updated, newlyApproved: true, tickets };
 }
 
 /**
@@ -978,12 +1177,78 @@ export async function getOrderTickets(db, orderId) {
 }
 
 /**
+ * Marca que salió el mail de las entradas. Guarda el id de Resend de ese envío (o `null` si no
+ * salió de verdad: simulado) y limpia el rebote o la queja del envío anterior: si el nuevo también
+ * rebota, el webhook de Resend lo vuelve a marcar (docs/mails.md, «Rebotes y quejas»).
+ *
+ * @param {D1Database} db
+ * @param {string} orderId
+ * @param {number} [now]
+ * @param {string | null} [emailId] el id que devolvió Resend
+ */
+export async function markEmailSent(db, orderId, now = Date.now(), emailId = null) {
+	await db
+		.prepare(
+			`UPDATE orders SET email_sent_at = ?2, email_id = ?3, email_problem = NULL,
+				email_problem_at = NULL
+			WHERE id = ?1`
+		)
+		.bind(orderId, now, emailId)
+		.run();
+}
+
+/**
+ * El mail de las entradas no se mandó porque el dominio de la dirección no recibe correo
+ * (`domainAcceptsMail`, email/mx.js): la orden queda como si Resend hubiera avisado un rebote
+ * (`email_problem = 'bounced'`, sin id de Resend). Queda como enviada para que el reintento del cron
+ * no la vuelva a tomar; «Corregir el mail…» limpia la marca y la manda a la dirección nueva.
+ *
  * @param {D1Database} db
  * @param {string} orderId
  * @param {number} [now]
  */
-export async function markEmailSent(db, orderId, now = Date.now()) {
-	await db.prepare('UPDATE orders SET email_sent_at = ?2 WHERE id = ?1').bind(orderId, now).run();
+export async function markEmailUndeliverable(db, orderId, now = Date.now()) {
+	await db
+		.prepare(
+			`UPDATE orders SET email_sent_at = ?2, email_id = NULL, email_problem = 'bounced',
+				email_problem_at = ?2
+			WHERE id = ?1`
+		)
+		.bind(orderId, now)
+		.run();
+}
+
+/**
+ * Corrige el mail de quien compró una orden aprobada de un evento (Órdenes → «Corregir el mail y
+ * reenviar»). El mail queda como no enviado hasta que salga a la dirección nueva. `false` si la
+ * orden no es de ese evento, no está aprobada o ya tenía esa dirección. Los códigos combo de la
+ * orden (combos.js, atados al mail de quien compró) pasan a la dirección nueva, que es la que los
+ * recibe. Limpia el id de Resend y el rebote o la queja (`email_problem`, webhook de Resend): eran
+ * de la dirección vieja, y un aviso tardío de aquel envío no tiene que marcar la nueva. No toca
+ * `updated_at` (es la hora de la aprobación para el reintento del cron y el Inicio).
+ *
+ * @param {D1Database} db
+ * @param {{ orderId: string, eventSlug: string, email: string }} input `email` ya normalizado
+ * @returns {Promise<boolean>}
+ */
+export async function updateBuyerEmail(db, { orderId, eventSlug, email }) {
+	const [r] = await db.batch([
+		db
+			.prepare(
+				`UPDATE orders SET buyer_email = ?3, email_sent_at = NULL, email_id = NULL,
+					email_problem = NULL, email_problem_at = NULL
+				WHERE id = ?1 AND event_slug = ?2 AND status = 'approved' AND buyer_email != ?3`
+			)
+			.bind(orderId, eventSlug, email),
+		db
+			.prepare(
+				`UPDATE discount_codes SET buyer_email = ?2
+				WHERE source_order_id = ?1
+					AND EXISTS (SELECT 1 FROM orders WHERE id = ?1 AND buyer_email = ?2)`
+			)
+			.bind(orderId, email)
+	]);
+	return (r.meta?.changes ?? 0) > 0;
 }
 
 /**
@@ -1375,7 +1640,7 @@ export async function reopenLimits(db, { order, type, now = Date.now() }) {
 			await db
 				.prepare(
 					`SELECT d.max_uses, ${usesSql('d.code', '?2')} AS uses FROM discount_codes d
-					WHERE d.code = ?1 AND d.max_uses IS NOT NULL`
+					WHERE d.code = ?1 COLLATE NOCASE AND d.max_uses IS NOT NULL`
 				)
 				.bind(order.discount_code, now)
 				.first()
@@ -1519,7 +1784,7 @@ export async function reopenTransfer(
 						AND (o3.status = 'approved' OR (o3.status IN ${HOLDING} AND o3.expires_at > ?2))
 				) + orders.quantity <= ?6) AND (orders.discount_code IS NULL OR NOT EXISTS (
 					SELECT 1 FROM discount_codes d
-					WHERE d.code = orders.discount_code AND d.max_uses IS NOT NULL
+					WHERE d.code = orders.discount_code COLLATE NOCASE AND d.max_uses IS NOT NULL
 						AND ${usesSql('d.code', '?2')} >= d.max_uses
 				)))
 			)`

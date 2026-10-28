@@ -5,6 +5,10 @@
 	 * sacan las otras partes (edges `parte`), se crea una parte nueva copiando el taller y se elige
 	 * si cada parte vende su entrada.
 	 *
+	 * Si el cambio toca entradas ya vendidas (sumar como parte un evento que vendió, prender o
+	 * apagar «Entradas por parte»), el servidor no guarda y pregunta: «Cambiar igual» lo vuelve a
+	 * mandar con `confirm`; si no, la casilla vuelve a como estaba.
+	 *
 	 * Va por su cuenta (fetch a las acciones `partes_*` de la página): no manda el formulario del
 	 * evento ni pierde lo que no se guardó ahí.
 	 *
@@ -36,6 +40,9 @@
 	let busy = false;
 	let message = '';
 	let ok = true;
+	// La pregunta antes de cambiar algo con entradas vendidas: qué acción y qué se mandó.
+	/** @type {{ name: string, body: FormData, done?: () => void } | null} */
+	let pending = null;
 	// «Sumar un evento que ya existe»: buscador por título (el mismo de la lista de eventos,
 	// `/admin/eventos/lista.json?q=`), en vez de escribir la dirección a mano.
 	let query = '';
@@ -104,10 +111,12 @@
 	/**
 	 * @param {string} name
 	 * @param {FormData} body
+	 * @param {() => void} [done] lo que se hace si se guardó (también después de «Cambiar igual»)
 	 */
-	async function post(name, body) {
+	async function post(name, body, done) {
 		busy = true;
 		message = '';
+		pending = null;
 		try {
 			const res = await fetch(`?/${name}`, {
 				method: 'POST',
@@ -120,6 +129,8 @@
 			ok = result.type === 'success' && Boolean(r?.ok);
 			message = r?.message ?? 'No se pudo guardar.';
 			if (ok && r.state) state = r.state;
+			if (ok) done?.();
+			else if (r?.needsConfirm) pending = { name, body, done };
 			return ok;
 		} catch {
 			ok = false;
@@ -130,11 +141,27 @@
 		}
 	}
 
-	/** @param {string[]} slugs */
-	function saveList(slugs) {
+	/**
+	 * @param {string[]} slugs
+	 * @param {() => void} [done]
+	 */
+	function saveList(slugs, done) {
 		const body = new FormData();
 		for (const s of slugs) body.append('parte', s);
-		return post('partes_guardar', body);
+		return post('partes_guardar', body, done);
+	}
+
+	// «Cambiar igual»: lo mismo de antes, con `confirm`.
+	function confirmPending() {
+		if (!pending) return;
+		const { name, body, done } = pending;
+		body.set('confirm', '1');
+		post(name, body, done);
+	}
+
+	function cancelPending() {
+		pending = null;
+		message = '';
 	}
 
 	/**
@@ -158,10 +185,10 @@
 	async function addExisting(s) {
 		const value = s.trim();
 		if (!value) return;
-		if (await saveList([...order.map((p) => p.slug), value])) {
+		await saveList([...order.map((p) => p.slug), value], () => {
 			query = '';
 			results = [];
-		}
+		});
 	}
 
 	async function create() {
@@ -175,10 +202,13 @@
 	}
 
 	/** @param {Event} e */
-	function togglePerPart(e) {
+	async function togglePerPart(e) {
+		const input = /** @type {HTMLInputElement} */ (e.currentTarget);
 		const body = new FormData();
-		if (/** @type {HTMLInputElement} */ (e.currentTarget).checked) body.set('por_parte', 'on');
-		post('partes_entradas', body);
+		if (input.checked) body.set('por_parte', 'on');
+		// Si no se guardó (o falta confirmar), la casilla vuelve a como está guardada: `checked`
+		// solo se actualiza cuando cambia `perPart`.
+		if (!(await post('partes_entradas', body))) input.checked = perPart;
 	}
 
 	/** @param {Event} e */
@@ -390,7 +420,19 @@
 		</div>
 	{/if}
 
-	{#if message}
+	{#if pending}
+		<div class="confirm" role="alert">
+			<p>{message}</p>
+			<p class="save-row">
+				<button type="button" class="kv-btn small" on:click={confirmPending} disabled={busy}
+					>Cambiar igual</button
+				>
+				<button type="button" class="kv-btn small ghost" on:click={cancelPending} disabled={busy}
+					>No cambiar</button
+				>
+			</p>
+		</div>
+	{:else if message}
 		<p class={ok ? 'ok' : 'error'} role={ok ? 'status' : 'alert'}>{message}</p>
 	{/if}
 </section>
@@ -403,6 +445,10 @@
 		flex-direction: column;
 		gap: 0.8rem;
 		scroll-margin-top: var(--form-sticky-top, 1rem);
+	}
+	/* En el celu, parte la pone el scroll-padding del panel (admin/+layout.svelte). */
+	:global(.kv-panel) .partes {
+		scroll-margin-top: calc(var(--form-sticky-top) - var(--panel-scroll-top, 0px));
 	}
 	/* el título (SectionHeading, como en el índice) */
 	.partes > :global(h2) {
@@ -545,6 +591,17 @@
 	}
 	.error {
 		color: var(--bad);
+		font-weight: 700;
+	}
+	.confirm {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding: 0.7rem 0.8rem;
+		border: 1px solid var(--bad);
+		border-radius: 0.8rem;
+	}
+	.confirm > p:first-child {
 		font-weight: 700;
 	}
 	@media (max-width: 640px) {

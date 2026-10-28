@@ -12,18 +12,17 @@ import {
 } from '$lib/server/eventos';
 import { FileChangedError, PathExistsError } from '$lib/server/contenido/cliente.js';
 import { legacyNumberedURL } from '$lib/utils/legacyMedia.js';
-import { findImage, imageOf } from '$lib/server/media/library.js';
+import { findImage } from '$lib/server/media/library.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
-import { resolveEventSlug } from '$lib/server/contenido/posts.js';
+import { libraryCoverOf } from '$lib/server/contenido/posts.js';
+import { EVENT_CATEGORY } from '$lib/server/contenido/eventos.js';
 import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
-import { placeFileErrors } from '$lib/utils/eventPlace.js';
-import { linkFileErrors } from '$lib/utils/eventLink.js';
+import { linkFileErrors, placeFileErrors } from '$lib/server/eventos/fileErrors.js';
 import { transferReady } from '$lib/server/tickets/index.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
-import { panelSavesToDb } from '$lib/server/contenido/saving.js';
-import { commitSavedToDb, saveCopy } from '$lib/admin/saveCopy.js';
+import { saveCopy } from '$lib/admin/saveCopy.js';
 import { siteTags, tagExists } from '$lib/server/series/index.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { seriesTagIds } from '$lib/utils/series.js';
@@ -42,6 +41,7 @@ import {
 } from '$lib/server/amigues/eventFormVenue.js';
 import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { duplicableEvents } from '$lib/server/eventos/drafts.js';
+import { inOrder } from '$lib/utils/inOrder.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/admin/plantillas/evento.md?raw';
 import {
@@ -85,16 +85,33 @@ export async function load({ locals, url, platform }) {
 	let source = null;
 	/** @type {ReturnType<typeof seriesPromptFor>} */
 	let seriesPrompt = null;
-	// El evento nuevo va a la base (se ve enseguida) y los textos lo dicen.
-	const savesToDb = await panelSavesToDb(platform, 'calendario');
+	if (desde && validateSlug(desde)) throw error(400, 'Ese evento no existe.');
+	const db = getDB(platform);
+	// Lo que no depende del archivo del original sale a la par de él (cada lectura en fila es una
+	// ida); se espera después, así que sus errores (404, 422, 502) salen primero, como antes. Si hay
+	// `desde`, al llegar abajo el original existe (si no, ya salió el error): su lugar, su imagen y
+	// sin «¿Es otra edición…?».
+	const imageP = desde ? sourceImage(db, locals, desde) : null;
+	const rest = inOrder([
+		// Tag usage, amigues profiles and past organizers for the pickers.
+		editorData('calendario'),
+		// Personas con rol: roles y perfiles públicos (sin base, null).
+		editorPersonas(platform),
+		// «¿Es otra edición de un evento que ya existe?» (solo al cargar uno de cero)
+		desde ? [] : duplicableEvents(),
+		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (su edge `lugar`).
+		venuePickerData(db, desde || null),
+		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
+		transferReady(db)
+	]);
+	rest.catch(() => {});
 	if (desde) {
-		if (validateSlug(desde)) throw error(400, 'Ese evento no existe.');
 		const client = await getRepoClient();
 		let raw;
 		try {
 			raw = await client.getFile(admin.token, eventPath(desde));
 		} catch (e) {
-			throw error(502, saveCopy(savesToDb).eventReadFailed + describeError(e));
+			throw error(502, saveCopy().eventReadFailed + describeError(e));
 		}
 		if (raw === null) throw error(404, `No encontramos el evento “${desde}”.`);
 		let fields;
@@ -109,7 +126,7 @@ export async function load({ locals, url, platform }) {
 			);
 		}
 		// La imagen de la biblioteca del original (edge `portada`), si tiene; si no, la del repo.
-		const image = await sourceImage(getDB(platform), locals, desde);
+		const image = await imageP;
 		source = {
 			slug: desde,
 			raw,
@@ -121,25 +138,22 @@ export async function load({ locals, url, platform }) {
 		// Si el original no está en una serie, «¿Es parte de una serie?».
 		seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
 	}
+	const [editor, personas, duplicables, venuePicker, transfer] = await rest;
 	return {
 		source,
 		seriesPrompt,
-		// Tag usage, amigues profiles and past organizers for the pickers.
-		...(await editorData('calendario')),
-		// Personas con rol: roles y perfiles públicos (sin base, null).
-		personas: await editorPersonas(platform),
+		...editor,
+		personas,
 		template: usableTemplate(eventTemplate) ?? NEW_EVENT_TEMPLATE,
 		today: todayInArgentina(),
 		// ?fecha=&hora=&hasta= (tocar un día en el calendario de la agenda)
 		prefill: readNewEventPrefill(url.searchParams),
-		// «¿Es otra edición de un evento que ya existe?» (solo al cargar uno de cero)
-		duplicables: source ? [] : await duplicableEvents(),
-		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (su edge `lugar`).
-		venuePicker: await venuePickerData(getDB(platform), source?.slug ?? null),
-		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
-		transferReady: await transferReady(getDB(platform)),
+		duplicables,
+		venuePicker,
+		transferReady: transfer,
 		takenSlugs: takenSlugsInBundle(),
-		savesToDb,
+		// Todo se guarda en la base (decisión 0032); la clave queda mientras el formulario la lea.
+		savesToDb: true,
 		mock: isMockMode()
 	};
 }
@@ -157,14 +171,8 @@ const adminViewer = (locals) =>
  * @param {App.Locals} locals
  * @param {string} slug
  */
-async function sourceImage(db, locals, slug) {
-	if (!db) return null;
-	try {
-		const ref = await resolveEventSlug(db, slug);
-		return ref ? await imageOf(db, ref.id, 'portada', adminViewer(locals)) : null;
-	} catch {
-		return null;
-	}
+function sourceImage(db, locals, slug) {
+	return libraryCoverOf(db, EVENT_CATEGORY, slug, adminViewer(locals));
 }
 
 /**
@@ -212,7 +220,7 @@ async function suggestFreeSlug(client, token, slug) {
 /** @type {import('./$types').Actions} */
 export const actions = {
 	/** Checks the slug right before showing the preview. */
-	verificar: async ({ locals, request, platform }) => {
+	verificar: async ({ locals, request }) => {
 		const admin = getEventAdmin(locals);
 		if (!admin) return fail(403, { error: NO_PERMISSION });
 		const data = await request.formData();
@@ -227,8 +235,7 @@ export const actions = {
 				suggestion: await suggestFreeSlug(client, admin.token, slug)
 			});
 		} catch (e) {
-			const copy = saveCopy(await panelSavesToDb(platform, 'calendario'));
-			return fail(502, { error: copy.slugCheckFailed + describeError(e) });
+			return fail(502, { error: saveCopy().slugCheckFailed + describeError(e) });
 		}
 	},
 
@@ -454,8 +461,8 @@ export const actions = {
 				venueSaved: venueSaved.ok && venueSaved.changed,
 				commitUrl: commit.url,
 				publish: commit.pr ?? null,
-				// El evento se guardó en la base (ya se ve).
-				savedToDb: commitSavedToDb(commit),
+				// Todo se guarda en la base (ya se ve).
+				savedToDb: true,
 				eventUrl: `/calendario/${slug}`,
 				files: files.filter((f) => !f.delete).map((f) => f.path),
 				deleted,
@@ -478,8 +485,7 @@ export const actions = {
 					suggestion: await suggestFreeSlug(client, admin.token, slug).catch(() => undefined)
 				});
 			}
-			const copy = saveCopy(await panelSavesToDb(platform, 'calendario').catch(() => false));
-			return fail(502, { error: copy.saveFailed + describeError(e) });
+			return fail(502, { error: saveCopy().saveFailed + describeError(e) });
 		}
 	}
 };

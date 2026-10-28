@@ -77,7 +77,7 @@ así que **`cuentas` y `propinas` parecen prendidos**. El resto, confirmarlo en
 
 | Interruptor          | Qué hace                                                                                         | Antes de prenderlo                                                                                                                                      | Cómo verificarlo                                                                                    | Volver atrás (apagarlo)                                                                                                     |
 | -------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `cuentas`            | «Ingresar» y «Mi rincón»: código por mail o contraseña, compras de cada mail                     | `RESEND_API_KEY`; en preview, tu mail en `EMAIL_ALLOWLIST`                                                                                              | `/ingresar` → pedir código → llega el mail → `/mi-rincon`                                           | `/ingresar` y `/mi-rincon` dan 404. Las cuentas y sesiones quedan en la base                                                |
+| `cuentas`            | «Entrar» y «Mi rincón»: código por mail o contraseña, compras de cada mail                       | `RESEND_API_KEY`; en preview, tu mail en `EMAIL_ALLOWLIST`                                                                                              | `/ingresar` → pedir código → llega el mail → `/mi-rincon`                                           | `/ingresar` y `/mi-rincon` dan 404. Las cuentas y sesiones quedan en la base                                                |
 | `propinas`           | Bloque de propina con MP al pie de lo de KinkyVibe; «Dejá una propina» en el pie                 | MP andando (abajo)                                                                                                                                      | Una publicación con la etiqueta KinkyVibe → propina de prueba en preview; `/admin/ajustes/propinas` | Vuelve la nota del cafecito y `/propinas` da 404. Las propinas quedan                                                       |
 | `series`             | «Edición N de…», páginas de serie, «Avisame si se repite», `.ics` por etiqueta, Eventos → Series | Mails andando (doble confirmación) y el cron de recordatorios (manda los avisos)                                                                        | `/wiki/<serie>` muestra ediciones; `/ics/etiqueta/<serie>.ics` da 200; `/admin/eventos/series`      | Todo eso desaparece y las direcciones nuevas dan 404. Las suscripciones quedan                                              |
 | `borrar_desde_panel` | Botón «Borrar» con confirmación, «Deshacer» y «Recuperar» en Actividad                           | Nada más                                                                                                                                                | Borrar y deshacer un evento de prueba en preview                                                    | El botón desaparece. **Lo ya borrado sigue borrado**: para recuperarlo, prenderlo de nuevo un momento                       |
@@ -88,6 +88,13 @@ así que **`cuentas` y `propinas` parecen prendidos**. El resto, confirmarlo en
 
 Para cortar de golpe sin entrar al panel: la variable `<NOMBRE>_ENABLED=0` en Cloudflare (Worker →
 Settings → Variables and Secrets). Después, borrarla para que vuelva a mandar el panel.
+
+**Pausas de emergencia** (no son interruptores): para frenar la venta online o los mails en tanda
+sin PR, en Cloudflare → Workers & Pages → `kinkyvibe` → Settings → Variables and Secrets → + Add →
+Text: `TICKETS_PAUSED` = el texto que ve el público (p. ej. `Volvemos en un rato`) o
+`MAILS_PAUSED` = `1` → Deploy. Para sacarlas, borrar la variable → Deploy. La puerta, la carga a
+mano, los pagos ya empezados, los reembolsos y los mails de cada compra siguen. Qué frena cada una
+y qué pasa con lo pendiente: [interruptores.md](interruptores.md#pausas-de-emergencia).
 
 ### Importadores
 
@@ -123,6 +130,7 @@ Solo nombres; los valores nunca van al repo. Sacados del código (`$env/dynamic/
 | `TICKETS_CLIENT_SALT`, `TICKETS_TRANSFER_INFO`                                                                                                                                                 | Secret        | Si se usan                               | Opcional              | Sal fija / datos de Ajustes de venta          |
 | `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL`                                                                               | Text          | Opcionales                               | Opcionales            | Valores por defecto                           |
 | `CUENTAS_ENABLED`, `SERIES_ENABLED`, `BORRAR_DESDE_PANEL_ENABLED`, `PERFILES_PUBLICOS_ENABLED`, `PERSONAS_EVENTOS_ENABLED`, `PROPINAS_ENABLED`, `ETIQUETAS_DB_ENABLED`, `CONTENIDO_DB_ENABLED` | Text          | **Ausentes** (solo para cortar de golpe) | Ausentes              | Manda el panel                                |
+| `TICKETS_PAUSED`, `MAILS_PAUSED` (pausas de emergencia, [interruptores.md](interruptores.md#pausas-de-emergencia))                                                                             | Text          | **Ausentes** (solo en una emergencia)    | Ausentes              | La venta y los mails andan                    |
 
 Bindings (vienen de `wrangler.toml`, no del panel): `DB` (D1) y `BACKUPS` (R2, solo producción).
 `WORKERS_CI_BRANCH` la pone Workers Builds sola. En un preview, `GET /api/preview-status` dice qué
@@ -137,6 +145,10 @@ está configurado.
 | Cron de recordatorios              | `*/15 * * * *` en `wrangler.toml`, `CRON_SECRET` cargado                                                                              | Worker → Settings → Trigger Events: corridas OK cada 15 min                                                          |
 | Cron de backup e integridad        | `0 6 * * *` (03:00 en Argentina)                                                                                                      | Archivo del día en R2; «Para revisar» del Inicio del panel muestra el chequeo de objetos                             |
 | Worker viejo del cron              | `kinkyvibe-cron` borrado (paso 10 de [workers-migracion.md](workers-migracion.md))                                                    | Workers & Pages: no aparece                                                                                          |
+
+Si alguien dice que no le llegó la entrada: [mails.md](mails.md#alguien-dice-que-no-le-llegó-la-entrada).
+Antes de la primera preventa grande:
+[la lista de control de mails](mails.md#antes-de-la-primera-preventa-grande).
 
 ### Backups y vuelta atrás
 
@@ -182,6 +194,10 @@ tardó 0,37 s, así que los tiempos sirven para comparar entre sí, no como núm
   en un Custom Domain y la CDN no guarda lo que responde un Worker; para eso hay que usar la Cache
   API (`caches.default`) desde el Worker. Hoy cada pedido lo arma el Worker de cero (salvo lo que
   recuerda el isolate, abajo).
+  _Actualización (auditoría de comunidad, T32): ya no es así. El worker de `adapter-cloudflare`
+  guarda en `caches.default` toda respuesta GET con `Cache-Control` público y estado menor a 400,
+  y la responde desde ahí antes de llegar a la app (sin `cf-cache-status`, porque es la Cache API).
+  Es una caché por centro de datos; ver `docs/moderacion.md`._
 - Los tiempos más altos (≈1 s) coinciden con el primer pedido: probablemente un isolate nuevo, que
   tiene que cargar y procesar ~600 `.md` compilados (`fetchMarkdownPosts`, en serie) antes de
   responder.
@@ -235,5 +251,3 @@ No están implementadas. Cada una es un PR chico aparte.
 - **Docs desactualizadas**: [etiquetas.md](etiquetas.md) dice que RSS y sitemap «siguen
   prerenderizados» (ya no); el comentario de
   `src/lib/server/etiquetas/cache.js` dice «en la CDN», y la CDN no guarda respuestas del Worker.
-- **Recordatorio**: el ítem de disculpas del RSS (`FEED_ONLY_ITEMS`) sale solo el 27/10, pero el
-  código queda; borrarlo después.

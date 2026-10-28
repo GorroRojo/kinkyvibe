@@ -19,8 +19,10 @@ import { ANON, canSee, visibleWhere } from '../objects/visibility.js';
 import { MEDIA_KEY } from '../objects/types/imagen.js';
 import { FILE_KEY } from '../objects/types/archivo.js';
 import { fileKey, mediaKey, mediaPath, sha256Hex, sniffDocument, sniffImage } from './sniff.js';
+import { stripImageMetadata } from './metadata.js';
 import { usageText } from '../../utils/imageChoice.js';
 import { MAX_FILE_BYTES, fileSizeProblem } from '../../utils/libraryFiles.js';
+import { MAX_COPY_BYTES, copyKey, copySize, parseCopyKey } from '../../utils/mediaCopies.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').R2Bucket} R2Bucket */
@@ -40,6 +42,24 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 /** Cómo se guarda en caché un archivo: para siempre (la clave cambia si cambia el contenido). */
 export const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
+
+/**
+ * La imagen de un perfil (avatar) se guarda un día, no para siempre: si el perfil se oculta o se
+ * borra, la foto deja de servirse (ver {@link servableImage}) y la caché del borde y de los
+ * navegadores la sueltan como mucho al día siguiente (docs/imagenes.md, docs/moderacion.md).
+ */
+export const AVATAR_CACHE = 'public, max-age=86400';
+
+/**
+ * La imagen de un perfil que no ve cualquiera (oculto, sin aprobar, solo con cuenta), servida a
+ * quien sí lo ve (admins, quien lo gestiona): nunca en la caché compartida del borde.
+ */
+export const PRIVATE_CACHE = 'private, max-age=3600';
+
+/**
+ * Quién pide un archivo de `/media`, para las imágenes de perfiles que no ve cualquiera.
+ * @typedef {{ viewer?: Viewer, accountId?: string | null }} MediaViewer
+ */
 
 /** Los usos de una imagen: qué edge, desde qué tipo. */
 export const IMAGE_USES = Object.freeze({
@@ -193,19 +213,25 @@ async function findBySlug(db, slug, type = IMAGE_TYPE) {
  * subido otra vez es la misma imagen (si estaba borrada, vuelve; si no tenía texto alternativo y
  * ahora lo trae, se le suma).
  *
+ * Las copias chicas para las tarjetas (`copies`, hechas en el navegador; $lib/utils/mediaCopies.js)
+ * se guardan solo si el original llegó a R2 recién ahora (la primera subida de ese archivo) y si
+ * son WEBP con las medidas que corresponden; una copia que no cumple se ignora sin frenar la subida
+ * (la tarjeta usa el original). Nunca se pisa nada que ya esté en R2.
+ *
  * @param {D1Database} db
  * @param {R2Bucket | undefined | null} bucket
  * @param {{ bytes: Uint8Array, name?: string, alt?: string, title?: string, width?: number,
- *   height?: number, sourcePath?: string }} file
+ *   height?: number, sourcePath?: string, copies?: { side: number, bytes: Uint8Array }[] }} file
  * @param {{ actor: string, now?: number }} ctx
- * @returns {Promise<{ image: PublicImage, created: boolean }>}
+ * @returns {Promise<{ image: PublicImage, created: boolean, copies: number[] }>}
  */
 export async function storeImage(db, bucket, file, { actor, now = Date.now() }) {
 	if (!bucket) throw new ImageError(503, 'Todavía no hay dónde guardar imágenes en este sitio.');
-	const bytes = file.bytes;
-	if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
+	if (!(file.bytes instanceof Uint8Array) || file.bytes.length === 0) {
 		throw new ImageError(400, 'No llegó ningún archivo. Volvé a elegir la imagen.');
 	}
+	// Sin GPS, fecha ni comentarios (media/metadata.js), antes del hash: lo guardado nunca los lleva.
+	const bytes = stripImageMetadata(file.bytes);
 	if (bytes.length > MAX_UPLOAD_BYTES) {
 		throw new ImageError(
 			413,
@@ -221,10 +247,15 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 	const key = mediaKey(hash, sniffed.ext);
 	const alt = String(file.alt ?? '').trim();
 
+	const width = sniffed.width ?? positive(file.width);
+	const height = sniffed.height ?? positive(file.height);
+	/** @type {number[]} */
+	let copies = [];
 	if (!(await bucket.head(key))) {
 		await bucket.put(key, bytes, {
 			httpMetadata: { contentType: sniffed.mime, cacheControl: IMMUTABLE_CACHE }
 		});
+		copies = await storeCopies(bucket, key, { width, height }, file.copies ?? []);
 	}
 
 	const existing = await findBySlug(db, hash);
@@ -232,7 +263,7 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 		const d = /** @type {Record<string, any>} */ (existing.data);
 		const addAlt = alt && !d.alt;
 		if (existing.deleted_at === null && !addAlt)
-			return { image: publicImage(existing), created: false };
+			return { image: publicImage(existing), created: false, copies };
 		const saved = await saveObject(
 			db,
 			{
@@ -244,11 +275,9 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 			},
 			{ actor, now }
 		);
-		return { image: publicImage(saved), created: false };
+		return { image: publicImage(saved), created: false, copies };
 	}
 
-	const width = sniffed.width ?? positive(file.width);
-	const height = sniffed.height ?? positive(file.height);
 	const saved = await saveObject(
 		db,
 		{
@@ -268,7 +297,53 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 		},
 		{ actor, now }
 	);
-	return { image: publicImage(saved), created: true };
+	return { image: publicImage(saved), created: true, copies };
+}
+
+/**
+ * ¿Es esta copia chica la que corresponde al original? Un WEBP de las medidas de
+ * `copySize(original, side)` (±1 px, por cómo redondea cada navegador) y de peso razonable.
+ * @param {Uint8Array} bytes
+ * @param {number} side
+ * @param {{ width?: number, height?: number }} original
+ */
+export function validCopy(bytes, side, original) {
+	if (!(bytes instanceof Uint8Array) || bytes.length === 0 || bytes.length > MAX_COPY_BYTES)
+		return false;
+	if (!original.width || !original.height) return false;
+	const sniffed = sniffImage(bytes);
+	if (sniffed?.mime !== 'image/webp' || !sniffed.width || !sniffed.height) return false;
+	const want = copySize(original.width, original.height, side);
+	return Math.abs(sniffed.width - want.width) <= 1 && Math.abs(sniffed.height - want.height) <= 1;
+}
+
+/**
+ * Guarda las copias chicas que llegaron con la subida de un original nuevo (las que valen y no
+ * están ya en R2). Devuelve los lados guardados.
+ * @param {R2Bucket} bucket
+ * @param {string} originalKey
+ * @param {{ width?: number, height?: number }} original
+ * @param {{ side: number, bytes: Uint8Array }[]} copies
+ * @returns {Promise<number[]>}
+ */
+async function storeCopies(bucket, originalKey, original, copies) {
+	/** @type {number[]} */
+	const stored = [];
+	for (const c of copies) {
+		const key = copyKey(originalKey, c.side);
+		if (!key || stored.includes(c.side) || !validCopy(c.bytes, c.side, original)) continue;
+		try {
+			if (await bucket.head(key)) continue;
+			await bucket.put(key, c.bytes, {
+				httpMetadata: { contentType: 'image/webp', cacheControl: IMMUTABLE_CACHE }
+			});
+			stored.push(c.side);
+		} catch (e) {
+			// Sin la copia, la tarjeta usa el original: la subida sigue.
+			console.log('imagenes: no se pudo guardar una copia chica', e);
+		}
+	}
+	return stored;
 }
 
 /** @param {unknown} n */
@@ -609,16 +684,30 @@ export async function contextImages(db, objectId, viewer, { seriesKeys = [] } = 
  * @param {Viewer} viewer
  * @returns {Promise<PublicImage | null>}
  */
-export async function imageOf(db, objectId, kind, viewer) {
+export function imageOf(db, objectId, kind, viewer) {
+	return imageOfFrom(db, { sql: '?', params: [objectId] }, kind, viewer);
+}
+
+/**
+ * {@link imageOf} del objeto que da una subconsulta (`from.sql`, un id; solo `?` sin número): para
+ * pedirla a la par de la lectura del objeto, por su dirección.
+ *
+ * @param {D1Database} db
+ * @param {{ sql: string, params: unknown[] }} from
+ * @param {string} kind
+ * @param {Viewer} viewer
+ * @returns {Promise<PublicImage | null>}
+ */
+export async function imageOfFrom(db, from, kind, viewer) {
 	const vi = visibleWhere(viewer, 'i');
 	const row = await db
 		.prepare(
 			`SELECT ${OBJECT_COLUMNS.split(', ')
 				.map((c) => `i.${c}`)
 				.join(', ')} FROM edges e JOIN objects i ON i.id = e.to_id AND i.type = ?
-			WHERE e.from_id = ? AND e.kind = ? AND ${vi.sql} ORDER BY e.position LIMIT 1`
+			WHERE e.from_id = (${from.sql}) AND e.kind = ? AND ${vi.sql} ORDER BY e.position LIMIT 1`
 		)
-		.bind(IMAGE_TYPE, objectId, kind, ...vi.params)
+		.bind(IMAGE_TYPE, ...from.params, kind, ...vi.params)
 		.first();
 	return row ? publicImage(forViewer(rowToObject(row), viewer)) : null;
 }
@@ -707,43 +796,164 @@ export async function seriesImages(db, viewer) {
 }
 
 /**
- * Para servir `/media/<clave>`: el objeto de esa clave si cualquiera lo puede ver (no borrado).
+ * Para servir `/media/<clave>`: el objeto de esa clave si cualquiera lo puede ver (no borrado) y,
+ * si es la imagen de un perfil, si quien pide la puede ver (ver {@link imageAccess}).
  *
  * @param {D1Database} db
  * @param {string} key
+ * @param {MediaViewer} [who] quien pide (por defecto, anónime)
  * @returns {Promise<PublicImage | null>}
  */
-export async function servableImage(db, key) {
+export async function servableImage(db, key, who = {}) {
+	return (await servableImageAccess(db, key, who))?.image ?? null;
+}
+
+/**
+ * @param {D1Database} db
+ * @param {string} key
+ * @param {MediaViewer} who
+ * @returns {Promise<{ image: PublicImage, cacheControl: string } | null>}
+ */
+async function servableImageAccess(db, key, who) {
 	const slug = slugOfKey(key);
 	if (!slug) return null;
 	const o = await findBySlug(db, slug);
 	if (!o || o.data.key !== key || !canSee(o, ANON)) return null;
-	return publicImage(o);
+	const cacheControl = await imageAccess(db, o, who);
+	return cacheControl ? { image: publicImage(o), cacheControl } : null;
+}
+
+/** Que un perfil `s` se muestre al público: no oculto y aprobado (como amigues/profiles.js). */
+const SHOWN_PROFILE = `(s.type != 'perfil' OR (s.visibility != 'hidden'
+	AND EXISTS (SELECT 1 FROM profile_approvals pa WHERE pa.profile_id = s.id)))`;
+
+/**
+ * Si una imagen (viva y pública) se puede servir a quien la pide, y con qué caché; `null` si no.
+ *
+ * Una imagen que es la imagen de algún perfil (edge `avatar`, aunque el perfil esté borrado) se
+ * sirve solo si algún objeto vivo que se muestra la usa (un perfil visible y aprobado, un evento,
+ * un texto que la nombra), con {@link AVATAR_CACHE}. Si no (el perfil se ocultó, se borró o
+ * todavía no se aprobó), solo a quien ve ese perfil: admins, quien lo gestiona, quien subió la
+ * imagen o una cuenta si el perfil es «solo con cuenta», con {@link PRIVATE_CACHE}. Las demás
+ * imágenes (portadas, series) siguen con {@link IMMUTABLE_CACHE}: nada cambia para ellas.
+ *
+ * @param {D1Database} db
+ * @param {StoredObject} image
+ * @param {MediaViewer} who
+ * @returns {Promise<string | null>}
+ */
+async function imageAccess(db, image, { viewer = ANON, accountId = null }) {
+	const vs = visibleWhere(ANON, 's');
+	const row = await db
+		.prepare(
+			`SELECT
+				EXISTS (SELECT 1 FROM edges e JOIN objects p ON p.id = e.from_id AND p.type = 'perfil'
+					WHERE e.to_id = ? AND e.kind = 'avatar') AS avatar,
+				EXISTS (SELECT 1 FROM edges e JOIN objects s ON s.id = e.from_id
+					WHERE e.to_id = ? AND ${vs.sql} AND ${SHOWN_PROFILE}) AS shown`
+		)
+		.bind(image.id, image.id, ...vs.params)
+		.first();
+	if (!row?.avatar) return IMMUTABLE_CACHE;
+	if (row.shown || (await namedByShownText(db, image, ANON))) return AVATAR_CACHE;
+	if (viewer.role === 'anon') return null;
+	if (viewer.role === 'admin') return PRIVATE_CACHE;
+	if (image.created_by && image.created_by === viewer.id) return PRIVATE_CACHE;
+	const vm = visibleWhere(viewer, 's');
+	const mine = await db
+		.prepare(
+			`SELECT 1 FROM edges e JOIN objects s ON s.id = e.from_id AND s.deleted_at IS NULL
+			WHERE e.to_id = ? AND e.kind = 'avatar' AND s.type = 'perfil'
+				AND ((${vm.sql} AND ${SHOWN_PROFILE})
+					OR s.id IN (SELECT profile_id FROM profile_managers WHERE account_id = ?))
+			LIMIT 1`
+		)
+		.bind(image.id, ...vm.params, accountId ?? '')
+		.first();
+	return mine ? PRIVATE_CACHE : null;
+}
+
+/**
+ * ¿Algún objeto vivo que ve quien mira (y, si es un perfil, que se muestra) nombra la imagen en
+ * sus datos (un texto con la imagen adentro)? Como `libraryUses`; solo se pregunta para la imagen
+ * de un perfil que dejó de mostrarse, que es raro.
+ * @param {D1Database} db
+ * @param {StoredObject} image
+ * @param {Viewer} viewer
+ */
+async function namedByShownText(db, image, viewer) {
+	const vs = visibleWhere(viewer, 's');
+	const row = await db
+		.prepare(
+			`SELECT 1 FROM objects s
+			WHERE s.type NOT IN (?, ?) AND s.id != ? AND instr(s.data, ?) > 0
+				AND ${vs.sql} AND ${SHOWN_PROFILE}
+			LIMIT 1`
+		)
+		.bind(IMAGE_TYPE, FILE_TYPE, image.id, image.slug, ...vs.params)
+		.first();
+	return Boolean(row);
+}
+
+/**
+ * Para servir la copia chica `img/<hash>-<lado>.webp` (docs/imagenes.md): la clave del original si
+ * su imagen se puede servir a quien la pide (como {@link servableImage}) y puede tener copias (no
+ * es un GIF), con la caché del original; `null` si no.
+ * @param {D1Database} db
+ * @param {string} key
+ * @param {MediaViewer} [who]
+ * @returns {Promise<{ original: string, cacheControl: string } | null>}
+ */
+export async function servableCopy(db, key, who = {}) {
+	const copy = parseCopyKey(key);
+	if (!copy) return null;
+	const o = await findBySlug(db, copy.hash);
+	if (!o || !canSee(o, ANON)) return null;
+	const original = String(o.data.key ?? '');
+	if (copyKey(original, copy.side) !== key) return null;
+	const cacheControl = await imageAccess(db, o, who);
+	return cacheControl ? { original, cacheControl } : null;
 }
 
 /**
  * Para servir `/media/<clave>`: una imagen (`img/…`) o un documento o video (`file/…`) si
- * cualquiera lo puede ver (no borrado); `null` si no.
+ * cualquiera lo puede ver (no borrado), con su `Cache-Control`; `null` si no. La imagen de un
+ * perfil sigue la regla de {@link servableImage}.
  *
  * @param {D1Database} db
  * @param {string} key
+ * @param {MediaViewer} [who]
  * @returns {Promise<{ kind: 'imagen' | 'documento' | 'video', mime: string, size: number,
- *   title: string, ext: string } | null>}
+ *   title: string, ext: string, cacheControl: string } | null>}
  */
-export async function servableMedia(db, key) {
+export async function servableMedia(db, key, who = {}) {
 	const ext = key.slice(key.lastIndexOf('.') + 1);
 	if (MEDIA_KEY.test(key)) {
-		const image = await servableImage(db, key);
-		return image
-			? { kind: 'imagen', mime: image.mime, size: image.size, title: image.title, ext }
-			: null;
+		const found = await servableImageAccess(db, key, who);
+		if (!found) return null;
+		const { image, cacheControl } = found;
+		return {
+			kind: 'imagen',
+			mime: image.mime,
+			size: image.size,
+			title: image.title,
+			ext,
+			cacheControl
+		};
 	}
 	const slug = slugOfFileKey(key);
 	if (!slug) return null;
 	const o = await findBySlug(db, slug, FILE_TYPE);
 	if (!o || o.data.key !== key || !canSee(o, ANON)) return null;
 	const f = publicFile(o);
-	return { kind: f.kind, mime: f.mime, size: f.size, title: f.title, ext };
+	return {
+		kind: f.kind,
+		mime: f.mime,
+		size: f.size,
+		title: f.title,
+		ext,
+		cacheControl: IMMUTABLE_CACHE
+	};
 }
 
 /**

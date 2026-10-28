@@ -1,5 +1,5 @@
 <script>
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { deserialize, enhance } from '$app/forms';
 	import { CircleCheck, ReceiptText, Search, TicketPlus, TriangleAlert } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -8,17 +8,28 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import OrderAnswers from '$lib/components/admin/OrderAnswers.svelte';
 	import DniReveal from '$lib/components/admin/DniReveal.svelte';
+	import { announce, announceResult } from '$lib/admin/announce.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { foldSearch } from '$lib/admin/eventFormat.js';
 	import {
+		EMAIL_PROBLEM,
 		ORDER_STATUS,
 		ORDER_STATUS_TONE,
 		PAYMENT_METHOD,
 		dniQueryDigits,
+		orderFilterFor,
+		orderIdFromHash,
 		shortTime
 	} from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
+	import { replaceState } from '$app/navigation';
+	import {
+		DEFAULT_ORDER_SORT,
+		ORDER_SORTS,
+		orderSortOf,
+		sortOrders
+	} from '$lib/admin/orderSort.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -90,6 +101,90 @@
 				return words.every((w) => matches(w, hay, o.id));
 			})
 		: byStatus;
+	// «Ordenar» (tarjetas, no una tabla): llegan todas las órdenes del evento, así que se ordenan
+	// acá. Queda en la URL (`?orden=total`) sin volver a cargar la página; se lee al montar.
+	let orderBy = DEFAULT_ORDER_SORT;
+	onMount(() => (orderBy = orderSortOf(new URL(location.href).searchParams.get('orden'))));
+	$: shown = sortOrders(visible, orderBy);
+	function writeSortUrl() {
+		const url = new URL(location.href);
+		if (orderBy === DEFAULT_ORDER_SORT) url.searchParams.delete('orden');
+		else url.searchParams.set('orden', orderBy);
+		replaceState(url, {});
+	}
+	// Link a una orden (`#orden-<id>`, por ejemplo «¿Te equivocaste? Ver la orden» de la Puerta):
+	// si el filtro la esconde, pasa a «Todas»; baja hasta ella y la marca (`:target` no siempre se
+	// aplica después de una navegación del lado del cliente).
+	let linked = '';
+	onMount(async () => {
+		const id = orderIdFromHash(location.hash);
+		const o = id ? data.orders.find((x) => x.id === id) : null;
+		if (!o) return;
+		filter = orderFilterFor(filter, o.status);
+		linked = o.id;
+		await tick();
+		document.getElementById(`orden-${o.id}`)?.scrollIntoView({ block: 'start' });
+	});
+	// «Reembolsar todas» (evento cancelado): se abre, se escribe la palabra y recién ahí se manda.
+	let confirmingAll = false;
+	let typedAll = '';
+	let sendingAll = false;
+	$: ra = data.refundAll;
+	// Las respuestas con error de `?/refundAll` no traen `results`: se lee sin el tipo de la unión.
+	/** @type {any} */
+	$: rr = /** @type {any} */ (form)?.refundAll;
+	$: rrDone = rr?.results ? rr.results.filter((/** @type {any} */ r) => r.ok) : [];
+	$: rrFailed = rr?.results ? rr.results.filter((/** @type {any} */ r) => !r.ok) : [];
+	/**
+	 * `use:enhance` que, al volver, lee en voz alta el mensaje de la acción (`form[key].message`):
+	 * el `role="status"` de cada aviso nace junto con su texto y no siempre se lee.
+	 *
+	 * @param {string} key
+	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const announced =
+		(key) =>
+		() =>
+		async ({ result, update }) => {
+			await update();
+			announceResult(result, key);
+		};
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const submitAll = () => {
+		sendingAll = true;
+		return async ({ result, update }) => {
+			await update();
+			announceResult(result, 'refundAll');
+			// La tanda que salió bien no trae mensaje: se lee el resumen.
+			const done = /** @type {any} */ (result).data?.refundAll?.results;
+			if (result.type === 'success' && Array.isArray(done)) {
+				const failed = done.filter((/** @type {any} */ r) => !r.ok).length;
+				announce(
+					`Reembolsadas: ${done.length - failed}${failed ? `. Sin reembolsar: ${failed}` : ''}.`,
+					{ force: true }
+				);
+			}
+			sendingAll = false;
+			confirmingAll = false;
+			typedAll = '';
+		};
+	};
+	// «Reembolsar…» de una orden: mientras se pide, el botón queda apagado y dice «Reembolsando…»
+	// (como «Reembolsar todas»), para que un segundo toque no mande otro pedido. Al volver, lee el
+	// mensaje de la acción en voz alta, como `announced('refund')`.
+	let refunding = '';
+	/**
+	 * @param {string} id
+	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const submitRefund = (id) => () => {
+		refunding = id;
+		return async ({ result, update }) => {
+			await update();
+			refunding = '';
+			announceResult(result, 'refund');
+		};
+	};
 	$: counts = {
 		approved: data.orders.filter((o) => o.status === 'approved').length,
 		pending: data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
@@ -115,13 +210,15 @@
 						Pago aprobado con la reserva ya vencida y sin cupo libre: puede haber más entradas
 						vendidas que el cupo. Decidí si se acepta o se reembolsa.
 					{:else if o.needsReview === 'duplicate_payment'}
-						Llegó otro pago aprobado (Mercado Pago n.° {o.reviewDetail}) para esta orden, que ya
-						estaba pagada: posible cobro doble. Revisalo en Mercado Pago y reembolsá el que sobre.
+						Llegó otro pago aprobado de {formatARS(o.total)} (Mercado Pago n.° {o.reviewDetail})
+						para esta orden, que ya estaba pagada: posible cobro doble. Revisalo en Mercado Pago y
+						reembolsá el que sobre.
 					{:else if o.needsReview === 'door_offline'}
-						Venta en la puerta hecha sin conexión: al sincronizarse pasó un límite ({o.reviewDetail}).
-						Se guardó igual; decidí si queda así o se reembolsa.
+						Venta en la puerta hecha sin conexión: al sincronizarse pasó un límite o quedó
+						registrada con otro total que el que se cobró ({o.reviewDetail}). Se guardó igual;
+						decidí si queda así o se reembolsa.
 					{/if}
-					<form method="POST" action="?/reviewed" use:enhance>
+					<form method="POST" action="?/reviewed" use:enhance={announced('review')}>
 						<input type="hidden" name="order" value={o.id} />
 						<button type="submit" class="kv-btn ghost small">Marcar como revisada</button>
 					</form>
@@ -134,8 +231,123 @@
 {#if form?.resend}
 	<p class="flash" class:error={!form.resend.ok} role="status">{form.resend.message}</p>
 {/if}
+{#if form?.emailFix}
+	<p class="flash" class:error={!form.emailFix.ok} role="status">{form.emailFix.message}</p>
+{/if}
 {#if form?.refund}
 	<p class="flash" class:error={!form.refund.ok} role="status">{form.refund.message}</p>
+{/if}
+
+{#if ra && (ra.mp.count || ra.manual.length || ra.free || rr)}
+	<section class="refund-all" aria-labelledby="reembolsar-todas">
+		<h2 id="reembolsar-todas">El evento está cancelado: devolver lo vendido</h2>
+		{#if rr?.message}
+			<p class="flash" class:error={!rr.ok} role="status">{rr.message}</p>
+		{/if}
+		{#if rr?.results}
+			<div class="refund-summary" role="status">
+				<p>
+					<strong>Reembolsadas: {rrDone.length}</strong>{#if rrFailed.length}
+						· <strong class="bad">Sin reembolsar: {rrFailed.length}</strong> (quedaron como estaban; antes
+						de devolverlas a mano, revisá cada pago en Mercado Pago: si figura reembolsado, no lo devuelvas
+						de nuevo){/if}{#if rr.remaining}
+						· faltan {rr.remaining}{/if}.
+				</p>
+				{#if rr.results.length}
+					<ul>
+						{#each rr.results as r (r.id)}
+							<li class:bad={!r.ok}>
+								<span class="ref">{r.reference}</span> · {r.name} · {formatARS(r.total)} · {r.reason}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				{#if rr.remaining !== 0 && rr.after}
+					<form method="POST" action="?/refundAll" use:enhance={submitAll}>
+						<input type="hidden" name="after" value={rr.after} />
+						<input type="hidden" name="confirm" value={ra.word} />
+						<button type="submit" class="refund-confirm" disabled={sendingAll}>
+							{sendingAll
+								? 'Reembolsando…'
+								: rr.remaining
+									? `Seguir con las ${rr.remaining} que faltan`
+									: 'Seguir con las que falten'}
+						</button>
+					</form>
+				{/if}
+			</div>
+		{/if}
+		{#if ra.mp.count}
+			<p>
+				<strong>{ra.mp.count} {ra.mp.count === 1 ? 'orden' : 'órdenes'} de Mercado Pago</strong>
+				sin reembolsar, por <strong>{formatARS(ra.mp.total)}</strong> en total.
+			</p>
+			{#if !confirmingAll}
+				<button type="button" class="kv-btn small" on:click={() => (confirmingAll = true)}
+					>Reembolsar todas…</button
+				>
+			{:else}
+				<form method="POST" action="?/refundAll" class="refund-panel" use:enhance={submitAll}>
+					<input type="hidden" name="count" value={ra.mp.count} />
+					<input type="hidden" name="total" value={ra.mp.total} />
+					<p>
+						Se le pide a Mercado Pago el reembolso TOTAL de cada una, de a {ra.batch} por vez (si son
+						más, después aparece «Seguir»). Cada orden reembolsada queda anulada, sale de los totales
+						y le avisamos a quien compró por mail, como con «Reembolsar…». Las que Mercado Pago no acepte
+						quedan como están, para hacerlas a mano. Lo ya reembolsado no se vuelve a pedir.
+					</p>
+					<label class="confirm-word">
+						<span>Para confirmar, escribí <strong>{ra.word}</strong></span>
+						<input name="confirm" bind:value={typedAll} autocomplete="off" spellcheck="false" />
+					</label>
+					<div class="refund-actions">
+						<button
+							type="submit"
+							class="refund-confirm"
+							disabled={sendingAll || typedAll.trim().toUpperCase() !== ra.word}
+						>
+							{sendingAll
+								? 'Reembolsando…'
+								: `Reembolsar ${ra.mp.count} ${ra.mp.count === 1 ? 'orden' : 'órdenes'} por ${formatARS(ra.mp.total)}`}
+						</button>
+						<button
+							type="button"
+							class="kv-btn ghost small"
+							on:click={() => ((confirmingAll = false), (typedAll = ''))}>Cancelar</button
+						>
+					</div>
+				</form>
+			{/if}
+		{:else}
+			<p>No queda ninguna orden de Mercado Pago para reembolsar.</p>
+		{/if}
+		{#if ra.manual.length}
+			<h3>Para devolver a mano</h3>
+			<p class="note">
+				No pasan por Mercado Pago (puerta, carga a mano o transferencia): devolvé la plata por fuera
+				y después marcá cada una con «Reembolsar…» en su orden.
+			</p>
+			<ul>
+				{#each ra.manual as o (o.id)}
+					<li>
+						<a href="#orden-{o.id}" class="ref">{o.reference}</a> · {o.name} · {PAYMENT_METHOD[
+							o.method
+						] ?? o.method}{o.channel === 'puerta'
+							? ' (puerta)'
+							: o.channel === 'manual'
+								? ' (carga a mano)'
+								: ''} · {formatARS(o.total)}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		{#if ra.free}
+			<p class="note">
+				{ra.free === 1 ? '1 orden sin cargo' : `${ra.free} órdenes sin cargo`}: no hay plata que
+				devolver; si hace falta, anulalas desde su orden.
+			</p>
+		{/if}
+	</section>
 {/if}
 
 <Card title="Órdenes">
@@ -156,6 +368,12 @@
 				<option value="all">Todas ({counts.all})</option>
 			</select>
 		</label>
+		<label class="filter">
+			<span>Ordenar</span>
+			<select bind:value={orderBy} on:change={writeSortUrl}>
+				{#each ORDER_SORTS as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
+			</select>
+		</label>
 		<label class="search">
 			<Search size={16} aria-hidden="true" />
 			<span class="sr-only">Buscar una orden</span>
@@ -174,8 +392,8 @@
 		<EmptyState icon={ReceiptText} title="No hay órdenes para mostrar" />
 	{/if}
 	<ul class="orders">
-		{#each visible as o (o.id)}
-			<li class="order status-{o.status}" id="orden-{o.id}">
+		{#each shown as o (o.id)}
+			<li class="order status-{o.status}" class:linked={o.id === linked} id="orden-{o.id}">
 				<div class="who">
 					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}
 					<DniReveal orderId={o.id} tail={o.dniTail} {form} />
@@ -197,11 +415,22 @@
 							>(código {o.discountCode}, −{formatARS(o.discountAmount)})</small
 						>{/if}
 					{#if o.surcharge}<small>(recargo MP +{formatARS(o.surcharge)})</small>{/if}
+					{#if o.mpFee !== null}<small>(comisión de MP {formatARS(o.mpFee)})</small>{/if}
 					· {PAYMENT_METHOD[o.method]}
 					{#if o.status === 'approved'}
 						· ingresaron {o.checkedIn}/{o.quantity}
 					{/if}
 				</div>
+				{#if o.refundedAmount}<p class="admin-note">
+						Reembolso parcial en Mercado Pago: {formatARS(o.refundedAmount)} (quedan {formatARS(
+							Math.max(0, o.total - o.refundedAmount)
+						)})
+					</p>{/if}
+				{#if o.priceChange}<p class="admin-note">{o.priceChange}</p>{/if}
+				{#if o.note}
+					<!-- Nota de la carga a mano o de la venta en la puerta (solo en el panel). -->
+					<p class="admin-note"><strong>Nota:</strong> <span class="pre">{o.note}</span></p>
+				{/if}
 				{#if o.holders.length}
 					<div class="kv-table-wrap">
 						<table class="kv-table holders">
@@ -232,8 +461,10 @@
 						· pago MP {o.paymentId}{/if}{#if o.confirmedBy}
 						· {o.status === 'cancelled' ? 'canceló' : 'confirmó'} {o.confirmedBy}{/if}
 					{#if o.status === 'approved'}
-						· {o.emailSent ? 'mail enviado' : 'mail NO enviado'}
-						<form method="POST" action="?/resend" use:enhance>
+						· {#if o.emailProblem}<strong class="mail-problem"
+								>{EMAIL_PROBLEM[o.emailProblem] ?? 'mail enviado'}</strong
+							>{:else}{o.emailSent ? 'mail enviado' : 'mail NO enviado'}{/if}
+						<form method="POST" action="?/resend" use:enhance={announced('resend')}>
 							<input type="hidden" name="order" value={o.id} />
 							<button type="submit" class="kv-btn ghost small">Reenviar mail</button>
 						</form>
@@ -245,12 +476,42 @@
 					{/if}
 				</div>
 				{#if o.status === 'approved'}
+					<!-- Quien compró escribió mal su mail: se corrige y las entradas salen a la nueva. -->
+					<details class="email-fix" open={form?.emailFix?.order === o.id && !form.emailFix.ok}>
+						<summary>Corregir el mail…</summary>
+						<form
+							method="POST"
+							action="?/email"
+							use:enhance={announced('emailFix')}
+							class="email-fix-form"
+						>
+							<input type="hidden" name="order" value={o.id} />
+							<label>
+								<span>Mail nuevo</span>
+								<input
+									type="email"
+									name="email"
+									required
+									maxlength="254"
+									autocomplete="off"
+									spellcheck="false"
+								/>
+							</label>
+							<button type="submit" class="kv-btn small">Corregir el mail y reenviar</button>
+						</form>
+						<p class="note">
+							Las entradas salen a la dirección nueva; a la anterior no le mandamos nada más.
+						</p>
+					</details>
+				{/if}
+				{#if o.status === 'approved'}
 					<!-- Paso de confirmación: se abre, se revisa y recién ahí se reembolsa. -->
 					<details class="refund">
 						<summary>Reembolsar…</summary>
 						<div class="refund-panel">
 							<p>
-								<strong>{formatARS(o.total)}</strong> a <strong>{o.name}</strong> ({o.email}) ·
+								<strong>{formatARS(Math.max(0, o.total - o.refundedAmount))}</strong> a
+								<strong>{o.name}</strong> ({o.email}) ·
 								{o.quantity}
 								{o.quantity === 1 ? 'entrada' : 'entradas'}{#if o.holders.length}:
 									{o.holders.map((h) => h.name).join(', ')}{/if}.
@@ -268,14 +529,21 @@
 								Las entradas quedan anuladas (el control de ingreso las rechaza), se libera el cupo y
 								el uso del código, sale de los totales y le avisamos por mail.
 							</p>
-							<form method="POST" action="?/refund" use:enhance>
+							<form method="POST" action="?/refund" use:enhance={submitRefund(o.id)}>
 								<input type="hidden" name="order" value={o.id} />
-								<button type="submit" class="refund-confirm">
-									{o.method === 'mercadopago'
-										? `Confirmar reembolso de ${formatARS(o.total)}`
-										: o.method === 'transferencia'
-											? 'Marcar como reembolsada (transferencia devuelta a mano)'
-											: 'Anular las entradas'}
+								<button
+									type="submit"
+									class="refund-confirm"
+									disabled={refunding === o.id}
+									aria-busy={refunding === o.id}
+								>
+									{refunding === o.id
+										? 'Reembolsando…'
+										: o.method === 'mercadopago'
+											? `Confirmar reembolso de ${formatARS(Math.max(0, o.total - o.refundedAmount))}`
+											: o.method === 'transferencia'
+												? 'Marcar como reembolsada (transferencia devuelta a mano)'
+												: 'Anular las entradas'}
 								</button>
 							</form>
 						</div>
@@ -296,6 +564,59 @@
 	.flash.error {
 		background: var(--error-bg);
 		color: var(--error);
+	}
+	.refund-all {
+		border: 2px solid var(--bad);
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-s);
+		margin: 0 0 1rem;
+		font-size: var(--text-sm);
+	}
+	.refund-all h2 {
+		font-size: var(--text-sm);
+		margin: 0.3rem 0;
+	}
+	.refund-all h3 {
+		font-size: var(--text-sm);
+		margin: 0.8rem 0 0.2rem;
+	}
+	.refund-all ul {
+		padding-left: 1.2em;
+		overflow-wrap: anywhere;
+	}
+	.refund-all .bad {
+		color: var(--bad);
+	}
+	.refund-summary {
+		background: var(--surface);
+		border-radius: var(--radius-m);
+		padding: var(--space-3xs) var(--space-xs);
+		margin-bottom: 0.6rem;
+	}
+	.confirm-word {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		max-width: 20rem;
+		margin-bottom: 0.6rem;
+	}
+	.confirm-word input {
+		min-height: 2.5rem;
+		padding: 0 var(--space-2xs);
+		border: 1px solid var(--field);
+		border-radius: var(--radius-m);
+		background: var(--surface);
+		color: var(--text);
+	}
+	.refund-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2xs);
+		align-items: center;
+	}
+	.refund-confirm:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 	.review {
 		background: var(--warn-bg);
@@ -365,9 +686,11 @@
 		outline-offset: 2px;
 	}
 	.order {
-		scroll-margin-top: 5rem;
+		/* 5rem en total: en el celu, parte la pone el scroll-padding del panel. */
+		scroll-margin-top: calc(5rem - var(--panel-scroll-top, 0px));
 	}
-	.order:target {
+	.order:target,
+	.order.linked {
 		box-shadow: 0 0 0 3px var(--link);
 	}
 	.orders {
@@ -419,6 +742,9 @@
 	.meta form {
 		display: inline;
 	}
+	.mail-problem {
+		color: var(--bad);
+	}
 	.small {
 		padding: var(--space-3xs) var(--space-2xs);
 		font-size: var(--text-xs);
@@ -433,8 +759,38 @@
 	.holders .inside {
 		background: var(--ok-bg);
 	}
+	.email-fix,
 	.refund {
 		font-size: var(--text-sm);
+	}
+	.email-fix summary {
+		cursor: pointer;
+		font-weight: 700;
+	}
+	.email-fix-form {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2xs);
+		align-items: end;
+		margin-top: 0.4rem;
+	}
+	.email-fix-form label {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		flex: 1 1 14rem;
+		max-width: 22rem;
+	}
+	.email-fix-form input {
+		min-height: 2.5rem;
+		padding: 0 var(--space-2xs);
+		border: 1px solid var(--field);
+		border-radius: var(--radius-m);
+		background: var(--surface);
+		color: var(--text);
+	}
+	.email-fix .note {
+		margin: 0.3em 0 0;
 	}
 	.refund summary {
 		cursor: pointer;
@@ -449,6 +805,14 @@
 	}
 	.refund-panel p {
 		margin: 0.2em 0 0.5em;
+	}
+	.admin-note {
+		margin: 0;
+		font-size: var(--text-sm);
+	}
+	.admin-note .pre {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 	.note {
 		color: var(--muted);

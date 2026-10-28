@@ -8,6 +8,7 @@
 import { json } from '@sveltejs/kit';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
+import { readJsonCapped } from '$lib/server/http/body.js';
 import { geocodeVenue } from './nominatim.js';
 import { logDBError } from '$lib/server/db';
 
@@ -22,7 +23,7 @@ export const GEOCODE_MESSAGES = Object.freeze({
 	unavailable: 'No pudimos buscar en el mapa ahora. Probá en un rato o cargá los números a mano.',
 	accountRateLimited:
 		'Hiciste muchas búsquedas seguidas. Esperá unos minutos y probá de nuevo, o cargá los números a mano.',
-	noSession: 'Tu sesión se cerró. Volvé a ingresar para buscar en el mapa.',
+	noSession: 'Tu sesión se cerró. Volvé a entrar para buscar en el mapa.',
 	noVenue: 'Buscar en el mapa es para quienes gestionan un lugar.'
 });
 
@@ -45,12 +46,11 @@ export const GEOCODE_HEADERS = Object.freeze({ 'cache-control': 'private, no-sto
 export async function readGeocodeInput(request) {
 	/** @type {Record<string, unknown>} */
 	let body = {};
-	try {
-		const parsed = await request.json();
-		if (parsed && typeof parsed === 'object') body = parsed;
-	} catch {
-		// cuerpo vacío o roto: se trata como dirección vacía
-	}
+	// Tres campos de texto: 4 KB alcanzan (también sin content-length). Un cuerpo vacío, roto o
+	// más grande se trata como dirección vacía.
+	const read = await readJsonCapped(request, 4096);
+	if (read.ok && read.value && typeof read.value === 'object')
+		body = /** @type {Record<string, unknown>} */ (read.value);
 	return { address: body.address, area: body.area, city: body.city };
 }
 

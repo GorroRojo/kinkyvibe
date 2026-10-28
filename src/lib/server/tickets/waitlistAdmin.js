@@ -335,20 +335,33 @@ export async function closeWaitlist(db, eventSlug, { by, now = Date.now() }) {
  * «Volver a probar»: borra las marcas de los mails de la lista de este evento que no salieron
  * (`waitlist_sends.status = 'failed'`), así la próxima tanda los vuelve a mandar si todavía
  * corresponden (una oferta vigente, una reserva vencida o un cierre de las últimas 48 h). Los que
- * ya no corresponden dejan de contar en «Para revisar». Devuelve cuántas marcas borró.
+ * ya no corresponden dejan de contar en «Para revisar». Devuelve cuántas marcas cambió.
+ *
+ * La marca de «se terminó tu lugar» (una reserva terminada por admin, `queueEndedMail` en
+ * waitlistEngine.js) no se borra, porque es lo que pide ese mail: vuelve a `retry`, sin intentos.
  *
  * @param {D1Database} db
  * @param {string} eventSlug
+ * @param {number} [now]
  */
-export async function retryFailedWaitlistMails(db, eventSlug) {
-	const r = await db
-		.prepare(
-			`DELETE FROM waitlist_sends WHERE status = 'failed'
-			AND entry_id IN (SELECT id FROM waitlist_entries WHERE event_slug = ?1)`
-		)
-		.bind(eventSlug)
-		.run();
-	return Number(r.meta?.changes ?? 0);
+export async function retryFailedWaitlistMails(db, eventSlug, now = Date.now()) {
+	const ended = `kind = 'expired' AND entry_id IN (SELECT id FROM waitlist_entries
+		WHERE event_slug = ?1 AND end_reason = 'admin')`;
+	const [reset, removed] = await db.batch([
+		db
+			.prepare(
+				`UPDATE waitlist_sends SET status = 'retry', attempts = 0, sent_at = ?2
+				WHERE status = 'failed' AND ${ended}`
+			)
+			.bind(eventSlug, now),
+		db
+			.prepare(
+				`DELETE FROM waitlist_sends WHERE status = 'failed'
+				AND entry_id IN (SELECT id FROM waitlist_entries WHERE event_slug = ?1)`
+			)
+			.bind(eventSlug)
+	]);
+	return Number(reset.meta?.changes ?? 0) + Number(removed.meta?.changes ?? 0);
 }
 
 /**

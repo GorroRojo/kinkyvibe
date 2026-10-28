@@ -11,6 +11,11 @@ en el repo. Hay tres copias separadas de la base: la de tu compu, la de los prev
 producción. La de tu compu y la de las pruebas E2E arrancan con la semilla de contenido público
 (`npm run db:semilla`, `src/lib/server/semilla/`).
 
+**El respaldo de verdad** son los backups nocturnos de la base en R2 y Time Travel de D1 (30 días;
+[workers-migracion.md](workers-migracion.md#backups-de-la-base)). La semilla es una foto pública
+para desarrollar, no un backup. «Descargar todo» (Contenido › Base) baja los eventos y el material
+como `.md`, pero no trae imágenes, archivos, perfiles, órdenes ni nada de lo que pasa en el sitio.
+
 ## Lo que nunca se tiene que romper
 
 - **Las migraciones son solo para agregar.** Una migración que pudo haberse aplicado (en
@@ -29,41 +34,44 @@ producción. La de tu compu y la de las pruebas E2E arrancan con la semilla de c
 
 ## Las tres bases
 
-| Dónde                     | Qué base                                                                                      | Cómo se le aplican las migraciones                                                   |
-| ------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Tu compu (`npm run dev`)  | copia simulada en `.wrangler/state/`                                                          | solas, antes de cada `npm run dev*` (`scripts/db-migrate-local.js`)                  |
-| Previews de cada PR       | `kinkyvibe-preview` (el binding `DB` de los Previews está en `[previews]` de `wrangler.toml`) | a mano, cuando un PR trae una migración nueva                                        |
-| Producción (kinkyvibe.ar) | `kinkyvibe` (su id está en `wrangler.toml`)                                                   | a mano, `npm run db:migrate:remote`, **antes** de deployar el código que la necesita |
-| Pruebas (vitest)          | una nueva en memoria por archivo de pruebas                                                   | solas: `createTestDB()` aplica todas                                                 |
+| Dónde                     | Qué base                                                                                      | Cómo se le aplican las migraciones                                                                                     |
+| ------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Tu compu (`npm run dev`)  | copia simulada en `.wrangler/state/`                                                          | solas, antes de cada `npm run dev*` (`scripts/db-migrate-local.js`)                                                    |
+| Previews de cada PR       | `kinkyvibe-preview` (el binding `DB` de los Previews está en `[previews]` de `wrangler.toml`) | a mano, `npm run db:migrate:preview`, cuando un PR trae una migración nueva (es una sola base para todos los Previews) |
+| Producción (kinkyvibe.ar) | `kinkyvibe` (su id está en `wrangler.toml`)                                                   | a mano, `npm run db:migrate:remote`, **antes** de deployar el código que la necesita                                   |
+| Pruebas (vitest)          | una nueva en memoria por archivo de pruebas                                                   | solas: `createTestDB()` aplica todas                                                                                   |
 
-Las migraciones `0001` a `0010` ya están aplicadas en producción (30/9/2026, antes de mergear el
-panel, #115). Con la migración a Workers los bindings pasan a configurarse distinto: ver
-[workers-migracion.md](workers-migracion.md) cuando esté.
+Este doc no lleva la cuenta de qué migraciones están aplicadas en cada base: wrangler la lleva en
+cada base, por nombre de archivo (tabla `d1_migrations`), y aplica solo las que faltan. Los
+bindings del Worker: [workers-migracion.md](workers-migracion.md).
 
 ## Las tablas y quién las usa
 
-| Tabla                                             | Migración                            | Para qué                                                                                                                    | Código                                                     |
-| ------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `rate_limits`                                     | 0001                                 | límites de intentos (sin IPs)                                                                                               | `src/lib/server/db/rateLimit.js`                           |
-| `orders`, `tickets`                               | 0002 (+0003, 0005, 0010, 0013, 0016) | órdenes y entradas; canal `online` / `puerta` / `manual`; `ticket_tier`; venta sin conexión (0051: `client_sale_id`)        | `src/lib/server/tickets/orders.js`, `door.js`, `manual.js` |
-| `discount_codes`                                  | 0002                                 | códigos de descuento                                                                                                        | `src/lib/server/tickets/discounts.js`                      |
-| `ticket_settings`                                 | 0002                                 | Ajustes del panel (cobros, Fondo, mails, recordatorios; `link_preview_texts`: textos de la vista previa, docs/compartir.md) | `src/lib/server/tickets/settings.js`                       |
-| `event_ticket_settings`, `stream_link_sends`      | 0002                                 | link de transmisión por evento y a quién se le mandó                                                                        | `src/lib/server/tickets/stream.js`                         |
-| `reminder_sends`                                  | 0002                                 | recordatorios ya mandados (no repetir)                                                                                      | `src/lib/server/tickets/reminders.js`                      |
-| `admin_audit`                                     | 0004                                 | registro de actividad del panel                                                                                             | `src/lib/server/admin/audit.js`                            |
-| `event_mail_sends`, `event_mail_recipients`       | 0006                                 | "Mail a compradores" de un evento, en tandas                                                                                | `src/lib/server/tickets/buyerMail.js`                      |
-| `admin_last_seen`                                 | 0007                                 | "Desde tu última visita" del Inicio                                                                                         | `src/lib/server/admin/lastSeen.js`                         |
-| `email_templates`                                 | 0008, 0034                           | textos de los mails cambiados desde el panel                                                                                | `src/lib/server/tickets/templates.js`                      |
-| `event_email_templates`                           | 0034                                 | textos de los mails cambiados solo para un evento                                                                           | `src/lib/server/tickets/templates.js`                      |
-| `person_notes`                                    | 0009, 0045, 0049                     | notas internas sobre personas (por mail; las de una cuenta borrada, por `account_id`)                                       | `src/lib/server/admin/people.js`                           |
-| `object_types`, `objects`, `edges`, `objects_fts` | 0012                                 | objetos y relaciones (todavía sin uso en páginas; ver [objetos.md](objetos.md))                                             | `src/lib/server/objects/` (solo `saveObject()` escribe)    |
-| `integrity_runs`                                  | 0012                                 | resultado del chequeo nocturno de los objetos ("Para revisar")                                                              | `src/lib/server/objects/integrity.js`                      |
-| `feature_flags`                                   | 0013                                 | interruptores de funciones nuevas (Ajustes → Interruptores)                                                                 | `src/lib/server/flags.js`                                  |
-| `accounts`, `account_sessions`, `login_codes`     | 0013                                 | cuentas del público, sesiones y códigos por mail (ver [cuentas.md](cuentas.md))                                             | `src/lib/server/cuentas/`                                  |
-| `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)                                  | `src/lib/server/admin/dayNotes.js`                         |
-| `review_snapshots`                                | 0047                                 | sin uso desde la decisión 0032 (era la última revisión del importador de contenido)                                         | ninguno                                                    |
-| `event_date_changes`, `date_change_sends`         | 0048                                 | último cambio de fecha de cada evento y a qué orden se le avisó (por versión)                                               | `src/lib/server/tickets/dateChange.js`                     |
-| `waitlist_entries`, `waitlist_sends`              | 0053                                 | lista de espera de las entradas (por evento o tipo) y sus mails por ronda; interruptor `lista_espera`, en construcción      | `src/lib/server/tickets/waitlist.js`                       |
+| Tabla                                             | Migración                            | Para qué                                                                                                                                                                                                                                                                                | Código                                                     |
+| ------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `rate_limits`                                     | 0001                                 | límites de intentos (sin IPs)                                                                                                                                                                                                                                                           | `src/lib/server/db/rateLimit.js`                           |
+| `orders`, `tickets`                               | 0002 (+0003, 0005, 0010, 0013, 0016) | órdenes y entradas; canal `online` / `puerta` / `manual`; `ticket_tier`; venta sin conexión (0051: `client_sale_id`); precio cambiado en la puerta (0063: `door_list_price`); comisión que cobró MP y reembolso parcial en MP (0069: `mp_fee_amount`, `refunded_amount`, solo reportes) | `src/lib/server/tickets/orders.js`, `door.js`, `manual.js` |
+| `discount_codes`                                  | 0002 (+0056, 0058)                   | códigos de descuento; los combo (0056) con `buyer_email` y `source_order_id`; `max_tickets` (0058): entradas por compra                                                                                                                                                                 | `src/lib/server/tickets/discounts.js`                      |
+| `ticket_settings`                                 | 0002                                 | Ajustes del panel (cobros, Fondo, mails, recordatorios; `link_preview_texts`: textos de la vista previa, docs/compartir.md)                                                                                                                                                             | `src/lib/server/tickets/settings.js`                       |
+| `event_ticket_settings`, `stream_link_sends`      | 0002                                 | link de transmisión por evento y a quién se le mandó                                                                                                                                                                                                                                    | `src/lib/server/tickets/stream.js`                         |
+| `reminder_sends`                                  | 0002                                 | recordatorios ya mandados (no repetir)                                                                                                                                                                                                                                                  | `src/lib/server/tickets/reminders.js`                      |
+| `admin_audit`                                     | 0004                                 | registro de actividad del panel                                                                                                                                                                                                                                                         | `src/lib/server/admin/audit.js`                            |
+| `event_mail_sends`, `event_mail_recipients`       | 0006                                 | "Mail a compradores" de un evento, en tandas                                                                                                                                                                                                                                            | `src/lib/server/tickets/buyerMail.js`                      |
+| `admin_last_seen`                                 | 0007                                 | "Desde tu última visita" del Inicio                                                                                                                                                                                                                                                     | `src/lib/server/admin/lastSeen.js`                         |
+| `email_templates`                                 | 0008, 0034                           | textos de los mails cambiados desde el panel                                                                                                                                                                                                                                            | `src/lib/server/tickets/templates.js`                      |
+| `event_email_templates`                           | 0034                                 | textos de los mails cambiados solo para un evento                                                                                                                                                                                                                                       | `src/lib/server/tickets/templates.js`                      |
+| `person_notes`                                    | 0009, 0045, 0049                     | notas internas sobre personas (por mail; las de una cuenta borrada, por `account_id`)                                                                                                                                                                                                   | `src/lib/server/admin/people.js`                           |
+| `object_types`, `objects`, `edges`, `objects_fts` | 0012                                 | objetos y relaciones (todavía sin uso en páginas; ver [objetos.md](objetos.md))                                                                                                                                                                                                         | `src/lib/server/objects/` (solo `saveObject()` escribe)    |
+| `integrity_runs`                                  | 0012                                 | resultado del chequeo nocturno de los objetos ("Para revisar")                                                                                                                                                                                                                          | `src/lib/server/objects/integrity.js`                      |
+| `feature_flags`                                   | 0013                                 | interruptores de funciones nuevas (Ajustes → Interruptores)                                                                                                                                                                                                                             | `src/lib/server/flags.js`                                  |
+| `accounts`, `account_sessions`, `login_codes`     | 0013                                 | cuentas del público, sesiones y códigos por mail (ver [cuentas.md](cuentas.md))                                                                                                                                                                                                         | `src/lib/server/cuentas/`                                  |
+| `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)                                                                                                                                                                                              | `src/lib/server/admin/dayNotes.js`                         |
+| `review_snapshots`                                | 0047                                 | sin uso desde la decisión 0032 (era la última revisión del importador de contenido)                                                                                                                                                                                                     | ninguno                                                    |
+| `event_date_changes`, `date_change_sends`         | 0048                                 | último cambio de fecha de cada evento y a qué orden se le avisó (por versión)                                                                                                                                                                                                           | `src/lib/server/tickets/dateChange.js`                     |
+| `waitlist_entries`, `waitlist_sends`              | 0053                                 | lista de espera de las entradas (por evento o tipo) y sus mails por ronda; interruptor `lista_espera`, en construcción                                                                                                                                                                  | `src/lib/server/tickets/waitlist.js`                       |
+| `ticket_combos`                                   | 0056                                 | combos entre eventos (la compra de A genera un código para B); interruptor `combo_codigos`                                                                                                                                                                                              | `src/lib/server/tickets/combos.js`                         |
+| `email_suppressions`                              | 0060                                 | «No fui yo»: hash de las direcciones que no quieren más mails (solo los que no son de una compra pagada; ver mails.md)                                                                                                                                                                  | `src/lib/server/email/suppressions.js`                     |
+| `resend_webhook_events`                           | 0064                                 | avisos de Resend ya procesados (rebotes y quejas; también `orders.email_id` y `email_problem`; ver mails.md)                                                                                                                                                                            | `src/lib/server/email/resendWebhook.js`                    |
 
 **Borrados suaves (0049, decisión [0033](decisiones/0033-borrados-recuperables.md)).**
 `signup_fields`, `persona_roles` y `person_notes` tienen `deleted_at` (NULL = está). Borrar desde el
@@ -100,6 +108,14 @@ del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en e
   `snapshotDB()`/`restoreDB()` (copia de las filas para reusar datos caros) para las pruebas;
   `startTemplateDB()` arma la plantilla migrada que copian las bases de prueba (globalSetup de
   vitest, ver [pruebas-y-ci.md](pruebas-y-ci.md)).
+- `src/lib/server/db/consistency.js`: chequeo nocturno de **solo lectura** de las órdenes y las
+  entradas (auditoría de plata, D16 y D36), en la misma corrida que el de los objetos
+  ([objetos.md](objetos.md), «Chequeo de integridad»): aprobadas (o reembolsadas con alguna
+  entrada) con otra cantidad de entradas que `quantity` (`db_ticket_count`), entradas con otro
+  evento o tipo que su orden (`db_ticket_mismatch`), recargo sin Mercado Pago
+  (`db_surcharge_not_mp`), `gratis` con total distinto de 0 (`db_free_total`) y entradas sin
+  código corto (`db_ticket_no_code`). Lo que encuentra sale en «Para revisar» como «Chequeo
+  nocturno»; nunca arregla nada.
 - `wrangler.toml`: el binding `DB`, con `kinkyvibe` en producción y `kinkyvibe-preview` en los
   Previews (bloque `[previews]`). **No tiene `pages_build_output_dir` a propósito**; no se agrega.
 
@@ -120,7 +136,10 @@ en el runtime de Workers con la base local: `npm run build && npm run preview:wo
 
 1. `npm run db:migrations:new -- nombre_descriptivo` (crea `migrations/00NN_nombre_descriptivo.sql`).
 2. Escribí el SQL con un comentario arriba que diga para qué es. Valores por defecto que
-   mantengan cómo funciona hoy (decisión 0006).
+   mantengan cómo funciona hoy (decisión 0006). Toda columna nueva que guarda JSON lleva
+   `CHECK (json_valid(col))` (o `col IS NULL OR json_valid(col)`), como las de las tablas nuevas
+   desde 0012; las viejas sin el CHECK (`orders.holders`, `order_answers.answers`…) se leen con
+   `try/catch` (auditoría de plata, D37).
 3. Si reconstruye una tabla (SQLite no deja cambiar un `CHECK` sin copiar la tabla), sumá una
    prueba con datos como `src/lib/server/db/migration0010.test.js`: que no se pierdan filas y
    que las claves foráneas sigan valiendo.
@@ -128,8 +147,16 @@ en el runtime de Workers con la base local: `npm run build && npm run preview:wo
 5. En el PR, avisá que trae migración: quien tiene acceso a Cloudflare (hoy gorrite) la aplica en
    preview y, **antes** del deploy, en producción (`npm run db:migrate:remote`). Wrangler solo
    aplica las que faltan.
-6. Si más de un PR agrega migraciones a la vez, el segundo en mergearse renumera la suya (nunca
-   dos con el mismo número).
+6. Las migraciones son **append-only**: una que ya está en main no se edita, no se borra y no se
+   renombra; si algo quedó mal, va una migración nueva. Lo chequea la CI
+   (`node scripts/migrations-lint.js`, en el job `plan`), que también falla si dos archivos tienen
+   el mismo número.
+7. **Nunca se renumera una migración que puede estar aplicada** en alguna base remota (producción
+   o la de los Previews): wrangler la registra por nombre, así que con otro nombre la intenta
+   aplicar de nuevo y las que hacen `ADD COLUMN` fallan. Si dos PRs abiertos tomaron el mismo
+   número, el segundo en mergearse renumera la suya solo si no se aplicó en ninguna base remota;
+   ante la duda, se pregunta a gorrite. Si ya se aplicó, el número repetido se acepta: se suma a
+   `ALLOWED_DUPLICATES` en `scripts/migrations-lint.js`, con los dos nombres.
 
 ### Mirar datos
 

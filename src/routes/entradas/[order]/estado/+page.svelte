@@ -1,25 +1,68 @@
 <script>
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { formatARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
 	import { TRANSFER_HOLD_AFTER } from '$lib/utils/transferDeadline.js';
+	import { nextOrderPollDelay } from '$lib/utils/orderPolling.js';
 
 	let { data } = $props();
 
 	let order = $derived(data.order);
 	let waiting = $derived(order.status === 'pending');
 
-	// Mientras esperamos la confirmación, volvemos a consultar cada 5 segundos (hasta 2 minutos).
+	// Cuando la orden cambia de estado mientras se mira (pendiente → aprobada), se lee el título
+	// nuevo en una región viva aparte: si toda la tarjeta fuera la región, el lector recibiría la
+	// tarjeta entera.
+	/** @type {HTMLElement | undefined} */
+	let card = $state();
+	let liveText = $state('');
+	let lastStatus = data.order.status;
+	$effect(() => {
+		const status = order.status;
+		if (status === lastStatus) return;
+		lastStatus = status;
+		liveText = card?.querySelector('h1')?.textContent?.trim() ?? '';
+	});
+
+	// Compra aprobada: se borra el borrador del formulario de compra (TicketPurchase, en
+	// sessionStorage de esta pestaña). Con Mercado Pago queda hasta acá para que un pago rechazado
+	// vuelva al formulario con los datos cargados.
+	$effect(() => {
+		if (order.status !== 'approved') return;
+		try {
+			for (const key of Object.keys(sessionStorage)) {
+				if (key.startsWith('kv-entradas:')) sessionStorage.removeItem(key);
+			}
+		} catch {
+			// sin sessionStorage: no hay nada que borrar
+		}
+	});
+
+	// Mientras esperamos la confirmación, volvemos a consultar cada vez más espaciado (5, 10, 20 y
+	// después 30 segundos; 8 veces, unos 3 minutos: `nextOrderPollDelay`). Solo se recarga la orden
+	// (`kv:orden`), no el layout del sitio.
 	$effect(() => {
 		if (!waiting) return;
-		let tries = 0;
-		const id = setInterval(() => {
-			tries++;
-			if (tries > 24) clearInterval(id);
-			else invalidateAll();
-		}, 5000);
-		return () => clearInterval(id);
+		let done = 0;
+		let stopped = false;
+		/** @type {ReturnType<typeof setTimeout> | undefined} */
+		let id;
+		const schedule = () => {
+			const delay = nextOrderPollDelay(done);
+			if (stopped || delay === null) return;
+			id = setTimeout(async () => {
+				done++;
+				// Si una consulta falla (sin conexión), sigue con la próxima.
+				await invalidate('kv:orden').catch(() => {});
+				schedule();
+			}, delay);
+		};
+		schedule();
+		return () => {
+			stopped = true;
+			clearTimeout(id);
+		};
 	});
 </script>
 
@@ -27,7 +70,7 @@
 	<title>Tu compra · Kinky Vibe</title>
 </svelte:head>
 
-<section class="estado estado-{order.status}" aria-live="polite">
+<section class="estado estado-{order.status}" bind:this={card}>
 	{#if order.status === 'approved'}
 		<h1>¡Listo, ya tenés tus entradas! 🎉</h1>
 		<p>
@@ -44,6 +87,14 @@
 					</li>
 				{/each}
 			</ul>
+		{:else}
+			<!-- Las entradas se muestran solo con la cookie de la compra (otro navegador o vencida: no). -->
+			<p>
+				Acá las entradas se ven solo en el navegador donde hiciste la compra. Desde otro, abrilas
+				con {order.quantity === 1
+					? 'el link de la entrada que te mandamos por mail'
+					: 'los links del mail: cada entrada tiene el suyo'}.
+			</p>
 		{/if}
 	{:else if order.status === 'awaiting_transfer'}
 		<h1>Reservamos tus entradas: falta la transferencia</h1>
@@ -63,7 +114,9 @@
 			</p>
 		{/if}
 		{#if data.transfer?.info}
-			<div class="transfer-info" aria-label="Datos para transferir">{data.transfer.info}</div>
+			<div class="transfer-info" role="group" aria-label="Datos para transferir">
+				{data.transfer.info}
+			</div>
 		{:else}
 			<p>Los datos para transferir te llegaron por email.</p>
 		{/if}
@@ -96,7 +149,7 @@
 		<h1>Esta compra se canceló</h1>
 		<p>
 			No se emitieron entradas. Si pagaste igual, respondé el email o escribinos con el número de
-			orden.
+			compra, {order.reference}.
 		</p>
 	{:else if order.status === 'refunded'}
 		<h1>Esta compra fue reembolsada</h1>
@@ -105,7 +158,7 @@
 		<h1>Esta reserva venció</h1>
 		<p>
 			No recibimos el pago a tiempo y el lugar se liberó. Si te cobraron igual, respondé el email o
-			escribinos con el número de orden.
+			escribinos con el número de compra, {order.reference}.
 		</p>
 	{/if}
 
@@ -145,7 +198,7 @@
 			<dd>−{formatARS(order.discountAmount)} (código {order.discountCode})</dd>
 		{/if}
 		{#if order.surcharge}
-			<dt>Recargo MP</dt>
+			<dt>Recargo Mercado Pago</dt>
 			<dd>+{formatARS(order.surcharge)}</dd>
 		{/if}
 		<dt>Total</dt>
@@ -158,13 +211,14 @@
 					? 'Sin cargo'
 					: 'Mercado Pago'}
 		</dd>
-		<dt>Orden</dt>
-		<dd><code>{order.id}</code></dd>
+		<dt>Número de compra</dt>
+		<dd><code>{order.reference}</code></dd>
 	</dl>
 
 	{#if order.status !== 'approved' && order.status !== 'pending' && order.status !== 'awaiting_transfer'}
 		<a class="button" href="/calendario/{data.event.slug}/entradas">Volver a comprar</a>
 	{/if}
+	<div class="visually-hidden" role="status">{liveText}</div>
 </section>
 
 <style>

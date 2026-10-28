@@ -35,10 +35,14 @@ export const WIKI_FIELDS = Object.freeze([
  *   authors: string[],
  *   tags: string[],
  *   body: string,
- *   bodyHtml: 'libre' | 'corta'
+ *   bodyHtml: 'libre' | 'corta',
+ *   updatedAt?: number
  * }} WikiEntry
  *   `slug`: la dirección de la página (`tagSlug(key)`: espacios → guiones, como los nombres de los
- *   .md de la wiki). `bodyHtml`: sin valor guardado, `libre` (lo importado del repo).
+ *   .md de la wiki). `bodyHtml`: sin valor guardado, `corta` (la lista corta; el HTML libre tiene que
+ *   estar guardado: lo importado lo guarda el importador y la migración 0059 lo puso en las páginas
+ *   que ya estaban). `updatedAt`: el último guardado de la etiqueta (ms), si se sabe: el
+ *   `dateModified` de la página en los datos estructurados.
  */
 
 /**
@@ -56,9 +60,10 @@ export function hasWikiPage(data) {
  * @param {string} key
  * @param {string} title el título de la etiqueta (si la página no tiene uno propio)
  * @param {Record<string, unknown>} data
+ * @param {number} [updatedAt] el último guardado de la etiqueta (ms)
  * @returns {WikiEntry}
  */
-export function wikiEntryOf(key, title, data) {
+export function wikiEntryOf(key, title, data, updatedAt) {
 	return {
 		key,
 		slug: tagSlug(key),
@@ -67,20 +72,21 @@ export function wikiEntryOf(key, title, data) {
 		authors: strList(data.wiki_authors),
 		tags: strList(data.wiki_tags),
 		body: String(data.body ?? '').trimEnd(),
-		bodyHtml: data.wiki_body_html === 'corta' ? 'corta' : 'libre'
+		bodyHtml: data.wiki_body_html === 'libre' ? 'libre' : 'corta',
+		...(updatedAt ? { updatedAt } : {})
 	};
 }
 
 /**
  * Las páginas de la wiki de las etiquetas leídas (los alias no tienen), por dirección.
  *
- * @param {readonly { key: string, title: string, data: Record<string, unknown>, aliasOf?: string | null }[]} records
+ * @param {readonly { key: string, title: string, data: Record<string, unknown>, aliasOf?: string | null, updatedAt?: number }[]} records
  * @returns {WikiEntry[]}
  */
 export function wikiEntriesOf(records) {
 	return records
 		.filter((r) => !r.aliasOf && hasWikiPage(r.data))
-		.map((r) => wikiEntryOf(r.key, r.title, r.data))
+		.map((r) => wikiEntryOf(r.key, r.title, r.data, r.updatedAt))
 		.sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
 }
 
@@ -172,7 +178,8 @@ export function withWikiPage(current, page, bodyHtml) {
 
 /**
  * Cómo se muestra el texto que se guarda (como `bodyHtmlFor` de los eventos): si el texto no
- * cambió, como estaba; si cambió, HTML libre si lo guarda une superadmin y la lista corta si no.
+ * cambió, como estaba (sin valor guardado: la lista corta); si cambió, HTML libre si lo guarda une
+ * superadmin y la lista corta si no.
  *
  * @param {Record<string, unknown>} current los datos de la etiqueta antes de guardar
  * @param {string} body el texto nuevo
@@ -183,8 +190,8 @@ export function wikiBodyHtmlFor(current, body, superadmin) {
 	const text = str(body);
 	if (!text) return undefined;
 	if (str(current.body) === text) {
-		const kept = current.wiki_body_html;
-		return kept === 'corta' || kept === 'libre' ? kept : undefined;
+		// Sin valor guardado es la lista corta (como se muestra): queda escrito.
+		return current.wiki_body_html === 'libre' ? 'libre' : 'corta';
 	}
 	return superadmin ? 'libre' : 'corta';
 }

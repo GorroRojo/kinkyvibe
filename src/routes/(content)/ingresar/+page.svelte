@@ -1,4 +1,5 @@
 <script>
+	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
 	import { durationText } from '$lib/utils/expiry.js';
@@ -10,6 +11,12 @@
 	$: email = form?.email ?? '';
 	$: next = form?.next ?? data.next;
 	let busy = false;
+	/** @type {HTMLInputElement | undefined} */
+	let codeInput;
+	// «Mandame un código» / «Mandame otro código» dicen «Mandando…» mientras sale el mail (puede
+	// tardar unos segundos).
+	let sendingCode = false;
+	$: if (!busy) sendingCode = false;
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const submit = () => {
@@ -17,6 +24,10 @@
 		return async ({ update }) => {
 			await update({ reset: false });
 			busy = false;
+			// En el paso del código, el foco va al campo (el botón que se tocó se deshabilita o
+			// desaparece y el foco caía en el body: un lector de pantalla no se enteraba del paso).
+			await tick();
+			if (form?.step === 'code') codeInput?.focus();
 		};
 	};
 </script>
@@ -29,7 +40,13 @@
 <section class="ingresar surface-card" aria-labelledby="ingresar-title">
 	<h1 id="ingresar-title">Entrar</h1>
 
-	{#if form?.error}
+	{#if form?.suspended && form?.contact}
+		<p class="error" role="alert">
+			Tu cuenta está suspendida. Si creés que es un error, escribinos a <a
+				href="mailto:{form.contact}">{form.contact}</a
+			>.
+		</p>
+	{:else if form?.error}
 		<p class="error" role="alert">{form.error}</p>
 	{:else if data.deleted && !form}
 		<p class="ok" role="status">Borramos tu cuenta. Tus compras siguen valiendo.</p>
@@ -38,13 +55,17 @@
 	{/if}
 
 	{#if step === 'code'}
-		<p>
+		<p id="codigo-envio">
 			{#if form?.sent}Si el mail está bien, en un ratito te llega un código a <strong
 					>{email}</strong
 				>.{:else}Escribí el código que te mandamos a <strong>{email}</strong>.{/if}
 			Vence en {durationText(data.codeTtlMs)}{#if form?.expiresAt}{' '}(<ExpiryTime
 					at={form.expiresAt}
 				/>){/if}.
+		</p>
+		<p class="hint" id="codigo-ayuda">
+			Puede tardar un par de minutos. Si no lo ves, revisá spam o promociones y buscá «Tu código
+			para entrar a Kinky Vibe». Si pedís otro, vale solo el último que te llegó.
 		</p>
 		<form method="POST" action="?/verificar" use:enhance={submit}>
 			<input type="hidden" name="email" value={email} />
@@ -59,19 +80,34 @@
 					autocomplete="one-time-code"
 					maxlength="9"
 					required
+					bind:this={codeInput}
+					aria-describedby="codigo-envio codigo-ayuda"
 				/>
 			</label>
 			<button class="pill-btn" type="submit" disabled={busy}>Entrar</button>
 		</form>
-		<form method="POST" action="?/codigo" use:enhance={submit} class="again">
+		<form
+			method="POST"
+			action="?/codigo"
+			use:enhance={submit}
+			on:submit={() => (sendingCode = true)}
+			class="again"
+		>
 			<input type="hidden" name="email" value={email} />
 			<input type="hidden" name="next" value={next} />
-			<button class="link" type="submit" disabled={busy}>Mandame otro código</button>
+			<button class="link" type="submit" disabled={busy} aria-busy={sendingCode}
+				>{sendingCode ? 'Mandando…' : 'Mandame otro código'}</button
+			>
 			<a href="/ingresar?next={encodeURIComponent(next)}" data-sveltekit-reload>Usar otro mail</a>
 		</form>
 	{:else}
 		<p>Te mandamos un código por mail para entrar. Si es la primera vez, así se crea tu cuenta.</p>
-		<form method="POST" action="?/codigo" use:enhance={submit}>
+		<form
+			method="POST"
+			action="?/codigo"
+			use:enhance={submit}
+			on:submit={() => (sendingCode = true)}
+		>
 			<input type="hidden" name="next" value={next} />
 			<label>
 				<span>Tu mail</span>
@@ -84,7 +120,9 @@
 					required
 				/>
 			</label>
-			<button class="pill-btn" type="submit" disabled={busy}>Mandame un código</button>
+			<button class="pill-btn" type="submit" disabled={busy} aria-busy={sendingCode}
+				>{sendingCode ? 'Mandando…' : 'Mandame un código'}</button
+			>
 		</form>
 
 		<details open={step === 'password'}>

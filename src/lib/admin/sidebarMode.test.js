@@ -6,6 +6,7 @@ import {
 	parseSidebarMode,
 	readSidebarMode,
 	saveSidebarMode,
+	SIDEBAR_SCRIPT_BODY,
 	sidebarHeadScript,
 	sidebarKey
 } from './sidebarMode.js';
@@ -114,7 +115,10 @@ describe('panel lateral: preferencia de cada admin', () => {
 
 	it('el script del head lee la clave del login y solo marca los modos que cambian algo', () => {
 		const script = sidebarHeadScript('ana');
-		expect(script).toContain('localStorage.getItem("kv-panel-lateral:ana")');
+		// La clave va en un atributo; el cuerpo es fijo (la CSP lo permite por su hash).
+		expect(script).toContain('data-k="kv-panel-lateral:ana"');
+		expect(script).toContain(`>${SIDEBAR_SCRIPT_BODY}</script>`);
+		expect(script).toContain('localStorage.getItem(document.currentScript.dataset.k)');
 		expect(script).toContain("m==='iconos'||m==='oculto'");
 		expect(script).not.toContain("'abierto'");
 		expect(script).toContain('catch(e){}');

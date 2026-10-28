@@ -11,18 +11,32 @@
  *    esa edición, le manda uno. La fila de `series_notifications` se toma antes de mandar (si dos
  *    corridas coinciden, solo una la consigue) y se suelta si el mail falla, así se reintenta en
  *    la próxima. Además, Resend recibe una clave de idempotencia por suscripción y edición.
+ *    Cada aviso se intenta como mucho {@link NOTIFY_ATTEMPTS} veces por día (`rate_limits`, la
+ *    clave lleva el id de la suscripción y el slug, ningún dato personal), como el reintento del
+ *    mail de las entradas (tickets/unsentOrders.js). Los que ya los gastaron no entran en la
+ *    tanda: una dirección que falla siempre no frena a las que vienen después.
  *
  * Quien se suscribe cuando la próxima edición ya estaba anunciada no recibe aviso de esa (la
  * página ya se la muestra); sí de las siguientes.
  */
 import { seriesEditions, seriesTagIds, splitEditions } from '$lib/utils/series.js';
 import { buildNewEditionEmail } from './email.js';
+import { autoSubmitted } from '$lib/server/tickets/email.js';
 import { deleteExpiredPending, unsubscribeUrl } from './subscriptions.js';
+import { oneClickHeaders } from '$lib/server/email/oneClick.js';
+import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 /** Avisos por corrida, como mucho (el resto sale en las siguientes). */
 export const NOTIFY_BATCH = 50;
+
+/** Intentos por aviso (suscripción y edición) y por día. */
+export const NOTIFY_ATTEMPTS = 3;
+const ATTEMPT_RULE = Object.freeze({ limit: NOTIFY_ATTEMPTS, windowSeconds: 24 * 60 * 60 });
+/** La clave de los intentos de un aviso en `rate_limits` (la misma que arma la consulta). */
+const attemptBucket = (/** @type {string} */ id, /** @type {string} */ slug) =>
+	`series:aviso:${id}:${slug}`;
 
 /**
  * Anota ediciones como vistas (si no lo estaban). Lo usa el cron y también la suscripción: así
@@ -90,7 +104,9 @@ export async function runSeriesNotifications({
 	if (!upcoming.size) return { seen, sent: 0, failed: 0, expired };
 
 	// Solo ediciones que siguen siendo próximas en este deploy (una que se canceló o se borró
-	// no avisa). Las claves van como JSON para no armar SQL con datos.
+	// no avisa). Las claves van como JSON para no armar SQL con datos. Afuera, los avisos que ya
+	// gastaron sus intentos del día (la ventana en curso de `hitRateLimit`; quien decide es
+	// `hitRateLimit`, esto solo los saca de la tanda para que no ocupen el lugar de los demás).
 	const keys = JSON.stringify([...upcoming.values()].map((e) => [e.series, e.slug]));
 	const { results: due } = await db
 		.prepare(
@@ -107,10 +123,13 @@ export async function runSeriesNotifications({
 			LEFT JOIN series_notifications n
 				ON n.subscription_id = s.id AND n.event_slug = e.event_slug
 			WHERE n.subscription_id IS NULL AND COALESCE(s.email, a.email) IS NOT NULL
+				AND COALESCE((SELECT SUM(r.hits) FROM rate_limits r
+					WHERE r.bucket = 'series:aviso:' || s.id || ':' || e.event_slug
+						AND r.window_start > ?3), 0) < ?4
 			ORDER BY e.first_seen_at, s.confirmed_at
 			LIMIT ?2`
 		)
-		.bind(keys, limit)
+		.bind(keys, limit, Math.floor(now / 1000) - ATTEMPT_RULE.windowSeconds, NOTIFY_ATTEMPTS)
 		.all();
 
 	let sent = 0;
@@ -120,6 +139,7 @@ export async function runSeriesNotifications({
 		const slug = String(row.event_slug);
 		const edition = upcoming.get(`${row.series_tag}\u0000${slug}`);
 		if (!edition) continue;
+		if (!(await hitRateLimit(db, attemptBucket(id, slug), ATTEMPT_RULE, now)).allowed) continue;
 		const claim = await db
 			.prepare(
 				`INSERT INTO series_notifications (subscription_id, event_slug, sent_at)
@@ -128,18 +148,23 @@ export async function runSeriesNotifications({
 			.bind(id, slug, now)
 			.run();
 		if (Number(claim.meta?.changes ?? 0) !== 1) continue;
-		const message = buildNewEditionEmail({
-			seriesName: edition.seriesName,
-			title: edition.title,
-			start: edition.start,
-			eventUrl: origin + edition.path,
-			unsubscribeUrl: await unsubscribeUrl(db, origin, id),
-			origin
-		});
+		const unsubscribe = await unsubscribeUrl(db, origin, id);
+		const message = {
+			...buildNewEditionEmail({
+				seriesName: edition.seriesName,
+				title: edition.title,
+				start: edition.start,
+				eventUrl: origin + edition.path,
+				unsubscribeUrl: unsubscribe,
+				origin
+			}),
+			// Baja en un clic (RFC 8058): el mismo link del pie (email/oneClick.js).
+			headers: oneClickHeaders(unsubscribe)
+		};
 		/** @type {'sent' | 'simulated' | 'failed'} */
 		let result = 'failed';
 		try {
-			result = await send(String(row.email), message, `series-${id}-${slug}`);
+			result = await send(String(row.email), autoSubmitted(message), `series-${id}-${slug}`);
 		} catch (error) {
 			console.error('[series] no se pudo mandar un aviso:', error);
 		}

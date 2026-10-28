@@ -23,7 +23,9 @@ import { workshopPartsList } from '$lib/server/tickets/workshopParts.js';
 const RECHECK_LIMIT = { limit: 10, windowSeconds: 60 };
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ params, url, platform, fetch, cookies }) {
+export async function load({ params, url, platform, fetch, cookies, depends }) {
+	// El sondeo de la página (+page.svelte) recarga solo esto, no el layout (ver `pollDelays`).
+	depends('kv:orden');
 	if (!isValidOrderId(params.order)) error(404, 'No encontramos esa compra.');
 	const db = getDB(platform);
 	if (!db) error(503, 'No disponible en este momento.');
@@ -64,12 +66,36 @@ export async function load({ params, url, platform, fetch, cookies }) {
 	}
 
 	const current = order;
-	const config = await getEventTickets(current.event_slug);
-	const mine = rememberedOrders(cookies).includes(current.id);
-	const tickets =
-		mine && current.status === 'approved'
-			? (await getOrderTickets(db, current.id)).map((t) => ({ token: t.token }))
-			: [];
+	// Lo que sigue no depende entre sí (o solo de la cookie): va todo junto, en vez de una ida y
+	// vuelta a D1 por consulta. Las entradas esperan solo a la cookie; las partes, además, a la
+	// ficha del evento (si es online).
+	const configP = getEventTickets(current.event_slug);
+	const mineP = rememberedOrders(db, cookies).then((ids) => ids.includes(current.id));
+	const [config, mine, tickets, parts, transfer] = await Promise.all([
+		configP,
+		mineP,
+		mineP.then(async (mine) =>
+			mine && current.status === 'approved'
+				? (await getOrderTickets(db, current.id)).map((t) => ({ token: t.token }))
+				: []
+		),
+		Promise.all([configP, mineP]).then(([config, mine]) =>
+			// Taller en varias partes con una sola entrada: la fecha (y el lugar) de cada parte, como
+			// en los mails y en la página de cada entrada (docs/talleres-partes.md). El lugar completo
+			// solo para quien hizo esta compra y ya está aprobada; si no, el que se ve en el sitio.
+			workshopPartsList(db, current.event_slug, {
+				online: Boolean(config?.online),
+				buyer: mine && current.status === 'approved'
+			})
+		),
+		// Datos para transferir: solo mientras se espera la transferencia.
+		current.status === 'awaiting_transfer'
+			? Promise.all([transferInfo(db), replyToAddress(db)]).then(([info, replyTo]) => ({
+					info,
+					replyTo
+				}))
+			: null
+	]);
 	const online = Boolean(config?.online);
 	return {
 		order: {
@@ -99,19 +125,9 @@ export async function load({ params, url, platform, fetch, cookies }) {
 			slug: current.event_slug,
 			title: config?.title ?? current.event_slug,
 			online,
-			// Taller en varias partes con una sola entrada: la fecha (y el lugar) de cada parte, como
-			// en los mails y en la página de cada entrada (docs/talleres-partes.md). El lugar completo
-			// solo para quien hizo esta compra y ya está aprobada; si no, el que se ve en el sitio.
-			parts: await workshopPartsList(db, current.event_slug, {
-				online,
-				buyer: mine && current.status === 'approved'
-			})
+			parts
 		},
 		tickets,
-		// Datos para transferir: solo mientras se espera la transferencia.
-		transfer:
-			current.status === 'awaiting_transfer'
-				? { info: await transferInfo(db), replyTo: await replyToAddress(db) }
-				: null
+		transfer
 	};
 }

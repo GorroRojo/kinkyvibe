@@ -5,6 +5,7 @@
 	 * Props: `title`, `image`, `pronoun` (link o texto; "…/evitar" no muestra nada).
 	 */
 	import { pronounDisplay } from '$lib/utils/mentions';
+	import { smallSrcset } from '$lib/utils/mediaCopies.js';
 
 	export let title = '';
 	/** @type {string | null | undefined} */
@@ -15,7 +16,13 @@
 
 <div class="profile-header h-card p-contact">
 	{#if image}
-		<img src={image} class="profile-pic u-photo" alt="" />
+		<!-- la copia chica de 360 px si la imagen es de la biblioteca (docs/imagenes.md) -->
+		<img
+			src={image}
+			srcset={smallSrcset(image) || undefined}
+			class="profile-pic u-photo"
+			alt={title ? `Foto de perfil de ${title}` : ''}
+		/>
 	{:else}
 		<span class="profile-pic initial" aria-hidden="true"
 			>{title.trim().charAt(0).toUpperCase()}</span

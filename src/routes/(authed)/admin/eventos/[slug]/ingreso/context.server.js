@@ -6,6 +6,7 @@
  */
 import { error } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { doorSeries, priorAttendance } from '$lib/server/tickets/series.js';
@@ -15,7 +16,11 @@ import { PANEL_VIEWER, readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug, partLabel, partOf } from '$lib/utils/partes.js';
 
 const PRIOR_TTL_MS = 60 * 1000;
-/** @type {Map<string, { at: number, value: Promise<import('$lib/server/tickets/series.js').PriorAttendance> }>} */
+/**
+ * Solo lo ya leído: lo que está en camino se comparte solo dentro del pedido (`readAndKeep`,
+ * src/lib/server/db/perRequest.js).
+ * @type {Map<string, { at: number, value: import('$lib/server/tickets/series.js').PriorAttendance }>}
+ */
 const priorCache = new Map();
 
 /**
@@ -28,16 +33,17 @@ const priorCache = new Map();
 export function cachedPrior(db, slug, platform) {
 	const now = Date.now();
 	const hit = priorCache.get(slug);
-	if (hit && now - hit.at < PRIOR_TTL_MS) return hit.value;
-	const value = sitePosts(platform)
-		.then((posts) => priorAttendance(db, { slug, posts, tags: siteTags() }))
-		.catch((e) => {
-			console.error('[puerta] primera vez en la serie:', e);
-			priorCache.delete(slug);
-			return null;
-		});
-	priorCache.set(slug, { at: now, value: /** @type {any} */ (value) });
-	return value;
+	if (hit && now - hit.at < PRIOR_TTL_MS) return Promise.resolve(hit.value);
+	return readAndKeep(
+		db,
+		`prior-attendance\n${slug}`,
+		() =>
+			sitePosts(platform).then((posts) => priorAttendance(db, { slug, posts, tags: siteTags() })),
+		(value) => priorCache.set(slug, { at: now, value })
+	).catch((e) => {
+		console.error('[puerta] primera vez en la serie:', e);
+		return null;
+	});
 }
 
 /**
@@ -81,9 +87,19 @@ export async function doorScope(db, slug) {
 export async function doorContext({ params, platform, fetch }, { fondo = false } = {}) {
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const fondoPercent = fondo ? (await resolveFondoPercent({ db, fetch })).percent : undefined;
+	// La venta del evento se lee junto con las partes del taller, sin esperarlas: casi siempre las
+	// entradas son las del mismo evento. Solo en una parte de un taller con una sola entrada se lee
+	// después la del taller (y la propia no se usa).
+	const fondoP = fondo
+		? resolveFondoPercent({ db, fetch }).then((r) => r.percent)
+		: Promise.resolve(undefined);
+	const ownP = fondoP.then((fondoPercent) => getEventTickets(params.slug, { fondoPercent }));
+	ownP.catch(() => {}); // si no se usa, que un error ahí no quede sin atender
 	const { ticketSlug, part } = await doorScope(db, params.slug);
-	const config = await getEventTickets(ticketSlug, { fondoPercent });
+	const config =
+		ticketSlug === params.slug
+			? await ownP
+			: await getEventTickets(ticketSlug, { fondoPercent: await fondoP });
 	if (!config) error(404, 'Ese evento no vende entradas.');
 	if (config.online) error(404, 'Es un evento online: no tiene control de ingreso.');
 	/** @type {Record<string, string>} */

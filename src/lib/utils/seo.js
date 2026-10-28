@@ -3,7 +3,7 @@
  * Open Graph y las de Twitter que arma `SeoHead.svelte`. Sin dependencias del servidor: corre en
  * el servidor, en el navegador y en vitest. Ver docs/compartir.md.
  */
-import { argDayMonth } from './dates.js';
+import { argDateLong, argDayMonth, parseSiteDate } from './dates.js';
 import { eventLead } from './eventText.js';
 import { placeShort, venuePlaceMeta } from './eventPlace.js';
 import { isMediaPath } from './media.js';
@@ -218,6 +218,43 @@ export function tagDescription(name) {
 }
 
 /**
+ * El texto alternativo guardado en la biblioteca, salvo el genérico que les puso el importador al
+ * pasar las imágenes a la biblioteca («Imagen de «Título»»): si la imagen se reusa en otra
+ * publicación (otra edición) nombra la primera, así que vale más el título de la página.
+ * @param {unknown} alt
+ */
+function usefulAlt(alt) {
+	if (typeof alt !== 'string') return '';
+	return /^\s*Imagen de «.*»\s*$/s.test(alt) ? '' : alt;
+}
+
+/**
+ * Para X y Bluesky: tarjeta chica (`summary`) si la imagen es cuadrada o angosta (menos de 600 px
+ * de ancho), que la grande la recortaría a 2:1; si no se saben las medidas, la grande.
+ * @param {PreviewImage} image
+ */
+function twitterCard(image) {
+	const { width, height } = image;
+	if (!width || !height) return 'summary_large_image';
+	return width === height || width < 600 ? 'summary' : 'summary_large_image';
+}
+
+/**
+ * La descripción de la página de una serie (sin entrada de la Kinkipedia): cuántas fechas tiene y
+ * la próxima (o, si no hay próxima, la última). Las ediciones son las que ve cualquiera
+ * (`seriesPage` con la lista pública).
+ * @param {{ name: string, total?: number, upcoming?: readonly { start?: string }[],
+ *   past?: readonly { start?: string }[] }} series
+ */
+export function seriesDescription({ name, total = 0, upcoming = [], past = [] }) {
+	const count = total === 1 ? '1 fecha' : `${total} fechas`;
+	const next = argDateLong(upcoming[0]?.start);
+	const last = argDateLong(past[0]?.start);
+	const when = next ? `, la próxima el ${next}` : last ? `, la última el ${last}` : '';
+	return `Ediciones de «${name}» en ${SITE_NAME}: ${count}${when}.`;
+}
+
+/**
  * La imagen de la vista previa: la de la página (dirección entera, con sus medidas y su texto
  * alternativo si se conocen; en producción, achicada si es grande: {@link resizedImageUrl}) o,
  * sin imagen, `fallback` (por defecto {@link DEFAULT_IMAGE}).
@@ -234,7 +271,7 @@ export function previewImage(src, origin, info, fallbackAlt = '', fallback = DEF
 	const known = Number.isSafeInteger(info?.width) && Number.isSafeInteger(info?.height);
 	const width = known ? Number(info?.width) : null;
 	const height = known ? Number(info?.height) : null;
-	const alt = (info?.alt || fallbackAlt || '').trim();
+	const alt = (usefulAlt(info?.alt) || fallbackAlt || '').trim();
 	const resized = resizedImageUrl(url, info?.size);
 	if (resized) return { url: resized, ...resizedSize(width, height), alt };
 	return { url, width, height, alt };
@@ -273,7 +310,7 @@ export function seoTags({ title, description, url, image, type = 'website', noin
 		['property', 'og:image:width', image.width ? String(image.width) : ''],
 		['property', 'og:image:height', image.height ? String(image.height) : ''],
 		['property', 'og:image:alt', alt],
-		['name', 'twitter:card', 'summary_large_image'],
+		['name', 'twitter:card', twitterCard(image)],
 		['name', 'twitter:site', TWITTER_SITE],
 		['name', 'twitter:title', title],
 		['name', 'twitter:description', desc],
@@ -284,6 +321,14 @@ export function seoTags({ title, description, url, image, type = 'website', noin
 		tags.filter(([, , content]) => typeof content === 'string' && content !== '')
 	);
 }
+
+/**
+ * ¿Va al sitemap? No las publicaciones que redirigen a otro sitio (responden 307: no hay nada que
+ * indexar) ni los perfiles de persona que pidieron no aparecer en buscadores (`meta.noindex`,
+ * docs/amigues.md). IndexNow usa la misma regla (src/lib/server/seo/indexnow.js).
+ * @param {{ meta: { redirect?: unknown, noindex?: unknown } }} post
+ */
+export const inSitemap = (post) => !post.meta.redirect && !post.meta.noindex;
 
 /** «a», «a y b», «a, b y c». @param {string[]} items */
 export function joinList(items) {
@@ -343,7 +388,7 @@ export function upcomingDescription(
 ) {
 	const next = posts
 		.filter((p) => p.meta?.title && p.meta?.status !== 'cancelado')
-		.map((p) => ({ title: String(p.meta.title), at: new Date(p.meta.start).getTime() }))
+		.map((p) => ({ title: String(p.meta.title), at: parseSiteDate(p.meta.start).getTime() }))
 		.filter((p) => Number.isFinite(p.at) && p.at >= now)
 		.sort((a, b) => a.at - b.at)
 		.slice(0, 3)

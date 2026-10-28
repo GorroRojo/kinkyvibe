@@ -51,6 +51,7 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { logProfileCreated, logVenueResubmitted } from '$lib/server/admin/accountEvents.js';
 import { clearRejectionStatement } from '$lib/server/amigues/approvals.js';
+import { revisionStatement } from '$lib/server/contenido/revisions.js';
 import { parseCoordinate, reviewState } from '$lib/utils/venues.js';
 import {
 	canHaveProfiles,
@@ -238,6 +239,8 @@ function parseLinks(value) {
  * @prop {string | string[]} [links]
  * @prop {string} [visibility]
  * @prop {boolean} [show_members] solo proyectos
+ * @prop {boolean} [noindex] solo personas: «No aparecer en buscadores» (sin el campo, queda como
+ *   estaba)
  * @prop {Record<string, string>} [venue] solo lugares: {@link ACCOUNT_VENUE_FIELDS},
  *   {@link ACCOUNT_VENUE_COORDINATES} y `venue_privacy` ('' = sin elegir: la dirección completa)
  */
@@ -291,6 +294,11 @@ function profileData(kind, input, current = {}) {
 	};
 	if (kind === 'proyecto') data.show_members = input.show_members === true;
 	else delete data.show_members;
+	// «No aparecer en buscadores»: solo personas; apagado no se guarda (el valor por defecto, decisión
+	// de gorrite: los perfiles aparecen en Google salvo que lo pidan).
+	if (kind !== 'persona') delete data.noindex;
+	else if (input.noindex === true) data.noindex = true;
+	else if (input.noindex === false) delete data.noindex;
 	if (kind === 'lugar') return accountVenueData(input.venue, data);
 	return data;
 }
@@ -466,7 +474,9 @@ export async function createProfile(db, accountId, input, { now = Date.now() } =
 								`INSERT INTO profile_managers (profile_id, account_id, role, created_at)
 								SELECT id, ?1, 'owner', ?2 FROM objects WHERE type = ?3 AND slug = ?4`
 							)
-							.bind(accountId, now, self.type, self.slug)
+							.bind(accountId, now, self.type, self.slug),
+						// Historial (T31): cada guardado desde Mi rincón deja su versión.
+						revisionStatement(db, self, 'cuenta')
 					]
 				}
 			);
@@ -514,7 +524,12 @@ export async function updateProfile(db, accountId, slug, input, { now = Date.now
 					? { edges: { avatar: input.avatar ? [input.avatar] : [] } }
 					: {})
 			},
-			{ actor: accountActor(accountId), now }
+			{
+				actor: accountActor(accountId),
+				now,
+				// Historial: si alguien escribe algo y después lo borra, les admins ven qué decía.
+				also: (self) => [revisionStatement(db, self, 'cuenta')]
+			}
 		);
 		return { ok: true, profile: saved };
 	} catch (error) {
@@ -1658,6 +1673,10 @@ export async function releaseAccountProfiles(db, accountId, { now = Date.now() }
 					createdBy: DELETED_ACTOR,
 					also: () => [
 						db.prepare('DELETE FROM profile_managers WHERE profile_id = ?1').bind(p.id),
+						// Las versiones que guardó la persona desde Mi rincón se van con su perfil.
+						db
+							.prepare("DELETE FROM object_revisions WHERE object_id = ?1 AND source = 'cuenta'")
+							.bind(p.id),
 						db.prepare('DELETE FROM profile_member_blocks WHERE persona_id = ?1').bind(p.id),
 						db.prepare('DELETE FROM profile_member_invites WHERE persona_id = ?1').bind(p.id)
 					]

@@ -3,7 +3,53 @@
 // has. These helpers make displayed dates independent of the runtime timezone.
 
 export const TIMEZONE = 'America/Argentina/Buenos_Aires';
-const OFFSET_MS = -3 * 60 * 60 * 1000;
+
+/**
+ * Argentina está siempre en UTC−3 (sin horario de verano desde 2009): **hora de Argentina = UTC +
+ * esto** (un número negativo). Es el único lugar con el desfasaje: para contar días o meses de
+ * Argentina usá las funciones de abajo (`arClock`, `arDayKey`, `arMidnight`, `arMonthWindow`) en
+ * vez de otra constante con `3 * 60 * 60 * 1000` (las copias tenían signos distintos).
+ */
+export const AR_UTC_OFFSET_MS = -3 * 60 * 60 * 1000;
+const OFFSET_MS = AR_UTC_OFFSET_MS;
+
+/**
+ * El instante `ms` corrido a la hora de Argentina, para leerlo con `getUTC…` o `toISOString()`
+ * (`arClock(ms).getUTCDate()` es el día en Argentina). No es un instante real: no lo compares.
+ * @param {number} ms
+ * @returns {Date}
+ */
+export const arClock = (ms) => new Date(ms + AR_UTC_OFFSET_MS);
+
+/**
+ * El día de Argentina (`YYYY-MM-DD`) de un instante.
+ * @param {number} ms
+ * @returns {string}
+ */
+export const arDayKey = (ms) => arClock(ms).toISOString().slice(0, 10);
+
+/**
+ * El instante de las 00:00 de Argentina del día `d` del mes `m0` (0 = enero) de `y`. Como
+ * `Date.UTC`, se desborda: `arMidnight(2026, 12, 1)` es el 1/1/2027 y `arMidnight(y, m0, 0)` el
+ * último día del mes anterior.
+ * @param {number} y
+ * @param {number} m0
+ * @param {number} d
+ * @returns {number}
+ */
+export const arMidnight = (y, m0, d) => Date.UTC(y, m0, d) - AR_UTC_OFFSET_MS;
+
+/**
+ * El mes `m0` (0 = enero) de `y` en Argentina como ventana `[start, end)` en ms: desde las 00:00
+ * del día 1 hasta las 00:00 del día 1 del mes siguiente (exclusivo).
+ * @param {number} y
+ * @param {number} m0
+ * @returns {{ start: number, end: number }}
+ */
+export const arMonthWindow = (y, m0) => ({
+	start: arMidnight(y, m0, 1),
+	end: arMidnight(y, m0 + 1, 1)
+});
 
 /**
  * Returns a Date whose *local* fields (getDate, getHours..., and so what
@@ -13,7 +59,7 @@ const OFFSET_MS = -3 * 60 * 60 * 1000;
  * @returns {Date}
  */
 export function toArgentina(d) {
-	const shifted = new Date(new Date(d).getTime() + OFFSET_MS);
+	const shifted = new Date(parseSiteDate(d).getTime() + OFFSET_MS);
 	return new Date(
 		shifted.getUTCFullYear(),
 		shifted.getUTCMonth(),
@@ -49,8 +95,8 @@ export function argFormat(options = {}) {
  * @returns {Date}
  */
 export function eventEnd(start, end) {
-	const s = new Date(start);
-	const e = new Date(end ?? start);
+	const s = parseSiteDate(start);
+	const e = parseSiteDate(end ?? start);
 	if (isNaN(e.getTime())) return s;
 	if (e.getTime() < s.getTime() && toArgentina(e).toDateString() == toArgentina(s).toDateString()) {
 		return new Date(e.getTime() + 24 * 60 * 60 * 1000);
@@ -297,13 +343,37 @@ export function eventDateList(start, { now } = {}) {
 /** A full ISO 8601 date-time with a zone, as these helpers and the site's event dates write it. */
 const ISO_DATETIME_RE =
 	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
-/** The site's date-only format, `2024-12-06Z-03:00` (also `2024-12-06-03:00` or a bare `2024-12-06`). */
-const SITE_DATE_RE = /^(\d{4}-\d{2}-\d{2})Z?([+-]\d{2}:\d{2})?$/;
+/**
+ * Every shape a site date is stored in, read field by field so no string ever reaches
+ * `Date.parse` (whose leniency outside the ES date-time format is engine-specific: V8 reads
+ * `2024-12-06Z-03:00`, JavaScriptCore doesn't):
+ * - publication dates: `2024-12-06Z-03:00` (date, a stray `Z` and the offset), also
+ *   `2024-12-06-03:00`, `2024-12-06Z` and a bare `2024-12-06`;
+ * - event dates: `2026-10-02T22:00-03:00`, with or without seconds (`:00`, `:00.000`), a space
+ *   instead of the `T`, a one-digit hour, a `Z` or a `-0300` offset, or no offset at all.
+ * Groups: year, month, day, hours, minutes, seconds, fraction, zone.
+ */
+const SITE_DATE_RE =
+	/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?(?:Z(?=[+-]))?(Z|[+-]\d{2}(?::?\d{2})?)?$/;
+
+/**
+ * Minutes east of UTC for a zone as `SITE_DATE_RE` captures it (`Z`, `-03:00`, `-0300`, `-03`).
+ * @param {string} zone
+ */
+function zoneMinutes(zone) {
+	if (zone === 'Z') return 0;
+	const sign = zone[0] === '-' ? -1 : 1;
+	const digits = zone.slice(1).replace(':', '');
+	return sign * (Number(digits.slice(0, 2)) * 60 + Number(digits.slice(2) || 0));
+}
 
 /**
  * Reads a site date (`2024-12-06Z-03:00`, `2026-10-02T22:00-03:00`, a bare `2026-10-02`, a
- * timestamp or a `Date`) as a `Date`, the same in every JS engine. A date without a time is
- * midnight at its offset (Argentina when it has none). Invalid `Date` if it can't be read.
+ * timestamp or a `Date`) as a `Date`, the same in every JS engine: the stored shapes (see
+ * `SITE_DATE_RE`) are read field by field, never with `Date.parse`. A date without a time is
+ * midnight at its offset; a date or date-time without an offset (or a date with only the stray
+ * `Z`) is Argentina time, like everything the site writes. Anything else (an ISO string from
+ * another source, say) goes to `new Date()`. Invalid `Date` if it can't be read.
  * @param {unknown} d
  * @returns {Date}
  */
@@ -312,8 +382,25 @@ export function parseSiteDate(d) {
 	if (typeof d === 'number') return new Date(d);
 	const s = String(d ?? '').trim();
 	const m = s.match(SITE_DATE_RE);
-	if (m) return new Date(`${m[1]}T00:00:00${m[2] ?? '-03:00'}`);
-	return new Date(s ? s : NaN);
+	if (!m) return new Date(s ? s : NaN);
+	const [, y, mo, day, h = '0', mi = '0', sec = '0', frac = '', zone] = m;
+	const [year, month, date, hours, minutes, seconds] = [y, mo, day, h, mi, sec].map(Number);
+	const ms = Number(frac.slice(0, 3).padEnd(3, '0'));
+	// A lone `Z` on a date without a time is the stray `Z` of `2024-12-06Z-03:00`: Argentina.
+	const offset = zone && !(zone === 'Z' && m[4] === undefined) ? zoneMinutes(zone) : -180;
+	const utc = Date.UTC(year, month - 1, date, hours, minutes, seconds, ms);
+	const check = new Date(utc);
+	// Rejects 2026-02-30, 25:00 and the like instead of rolling them over.
+	if (
+		check.getUTCFullYear() !== year ||
+		check.getUTCMonth() !== month - 1 ||
+		check.getUTCDate() !== date ||
+		check.getUTCHours() !== hours ||
+		check.getUTCMinutes() !== minutes ||
+		check.getUTCSeconds() !== seconds
+	)
+		return new Date(NaN);
+	return new Date(utc - offset * 60 * 1000);
 }
 
 /**
@@ -349,5 +436,5 @@ export function isoDay(d) {
  * @param {number} [now]
  */
 export function startsAfter(start, now = Date.now()) {
-	return new Date(/** @type {any} */ (start)).getTime() > now;
+	return parseSiteDate(/** @type {any} */ (start)).getTime() > now;
 }

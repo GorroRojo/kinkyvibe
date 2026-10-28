@@ -279,6 +279,83 @@ describe('applyQueuedSales (ventas sin conexión)', () => {
 		expect(await allOrders()).toHaveLength(0);
 	});
 
+	describe('el total que cobró el celu', () => {
+		// Con Fondo 10 %: el celu cobró $ 16.800 con el precio de cuando se vendió; ahora el
+		// servidor la registra con el precio de ahora.
+		const CON_FONDO = { ...LIBRE, id: 'con-fondo', name: 'Con Fondo', price: 15000, fondo: 10 };
+		const FONDO_CONFIG = { ...CONFIG, types: [...CONFIG.types, CON_FONDO] };
+		/** @param {Record<string, string>} f */
+		const fondoSale = (f) => sale('venta-0001', { type: 'con-fondo', option: 'fondo', ...f });
+
+		it('si se registra con otro total, queda para revisar con los dos montos (sin corregirlo)', async () => {
+			const [r] = await apply([fondoSale({ charged_total: '16800' })], { config: FONDO_CONFIG });
+			const [o] = await allOrders();
+			expect(o.total).not.toBe(16800);
+			expect(r.result).toBe('ok');
+			expect(r.review).toHaveLength(1);
+			expect(r.review?.[0]).toMatch(/^Se cobró \$\s16\.800; quedó registrada en \$\s/);
+			expect(o.offline_review).not.toBeNull();
+			expect(JSON.parse(o.offline_review)).toEqual([
+				{ kind: 'price', charged: 16800, recorded: o.total }
+			]);
+			expect(await reviewOrders(t.db)).toEqual([
+				expect.objectContaining({ id: o.id, reason: 'door_offline' })
+			]);
+			// Un reintento devuelve el mismo aviso.
+			const [again] = await apply([fondoSale({ charged_total: '16800' })], {
+				config: FONDO_CONFIG
+			});
+			expect(again).toMatchObject({ result: 'duplicate', review: r.review });
+		});
+
+		it('se suma a los límites que pasó', async () => {
+			await apply([sale('venta-0001', { quantity: '3' })]);
+			const [r] = await apply([sale('venta-0002', { charged_total: '7000' })]);
+			expect(r.review).toHaveLength(2);
+			const [, o] = await allOrders();
+			expect(JSON.parse(o.offline_review).map((/** @type {any} */ l) => l.kind)).toEqual([
+				'capacity',
+				'price'
+			]);
+		});
+
+		it('si es el mismo total, no avisa', async () => {
+			const first = await apply([fondoSale({})], { config: FONDO_CONFIG });
+			const total = String(first[0].total);
+			await resetDB(t.db);
+			const [r] = await apply([fondoSale({ charged_total: total })], { config: FONDO_CONFIG });
+			expect(r).toMatchObject({ result: 'ok', review: [] });
+			expect((await allOrders())[0].offline_review).toBeNull();
+		});
+
+		it('sin el campo (un celu con la versión anterior) o con algo que no es un monto: como siempre', async () => {
+			const r = await apply(
+				[
+					fondoSale({}),
+					sale('venta-0002', { type: 'con-fondo', option: 'fondo', charged_total: 'mucho' })
+				],
+				{ config: FONDO_CONFIG }
+			);
+			expect(r.map((x) => x.review)).toEqual([[], []]);
+			expect((await allOrders()).map((o) => o.offline_review)).toEqual([null, null]);
+		});
+	});
+
+	it('un tipo con precio 0 en la puerta: no la registra y dice que se cargue a mano', async () => {
+		const sinCargo = { ...LIBRE, id: 'invitade', name: 'Invitade', door: { price: 0, fondo: 0 } };
+		const r = await apply([sale('venta-0001', { type: 'invitade' })], {
+			config: { ...CONFIG, types: [...CONFIG.types, sinCargo] }
+		});
+		expect(r).toEqual([
+			{
+				id: 'venta-0001',
+				result: 'rejected',
+				message: 'Esta entrada es sin cargo en la puerta: cargala a mano.'
+			}
+		]);
+		expect(await allOrders()).toHaveLength(0);
+	});
+
 	it('la hora del celu se acota: nunca en el futuro ni más vieja que el máximo', async () => {
 		await apply([
 			sale('venta-0001', {}, NOW + 3_600_000),
@@ -322,5 +399,53 @@ describe('sin cambios con conexión', () => {
 		expect((await sellAtDoor(t.db, { ...base, quantity: 3 })).ok).toBe(true);
 		const r = await sellAtDoor(t.db, { ...base, quantity: 1, holders: [base.holders[0]] });
 		expect(r).toMatchObject({ ok: false, reason: 'soldout' });
+	});
+});
+
+describe('parseDoorSale: el monto a la gorra se lee como en la compra online', () => {
+	const GORRA = {
+		...LIBRE,
+		id: 'gorra',
+		name: 'A la gorra',
+		gorra: { min: 1000, suggested: 5000 }
+	};
+	const GORRA_CONFIG = /** @type {any} */ ({ types: [GORRA], door: { on: true }, status: '' });
+	/** @param {string} amount @param {string} [quantity] */
+	const parse = (amount, quantity = '1') =>
+		parseDoorSale(
+			GORRA_CONFIG,
+			(name) =>
+				/** @type {Record<string, string>} */ ({
+					type: 'gorra',
+					quantity,
+					method: 'efectivo',
+					name: 'Persona Inventada',
+					amount
+				})[name]
+		);
+
+	it('«5.000», «$ 5.000», «5000» y «5000,00» son $ 5.000', () => {
+		for (const amount of ['5.000', '$ 5.000', '5000', '5000,00']) {
+			const r = parse(amount);
+			expect(r.ok, amount).toBe(true);
+			if (r.ok) expect(r.sale.unitPrice, amount).toBe(5000);
+		}
+	});
+
+	it('«5000.00» y «5.5» no se adivinan (antes «5000.00» quedaba en $ 500.000)', () => {
+		for (const amount of ['5000.00', '5.5']) {
+			const r = parse(amount);
+			expect(r.ok, amount).toBe(false);
+			if (!r.ok) expect(r.message).toMatch(/sin centavos/);
+		}
+	});
+
+	it('respeta el mínimo y el tope técnico de la compra', () => {
+		const low = parse('500');
+		expect(low.ok).toBe(false);
+		if (!low.ok) expect(low.message).toMatch(/al menos/);
+		const huge = parse('60.000.000', '2');
+		expect(huge.ok).toBe(false);
+		if (!huge.ok) expect(huge.message).toMatch(/error de tipeo/);
 	});
 });

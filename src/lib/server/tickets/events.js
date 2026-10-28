@@ -163,20 +163,41 @@ export async function getEventInfo(slug) {
  * `options.fondoPercent`: el porcentaje del Fondo (`resolveFondoPercent`), que usan los eventos
  * con la etiqueta KinkyVibe. Hace falta donde se muestran o cobran precios.
  *
+ * `options.fondo`: en vez del porcentaje, quién lo busca si hace falta (`eventTicketsWithFondo`
+ * en ./checkout.js). Se llama solo si el evento vende entradas y su configuración es válida, con
+ * esa configuración sin el lugar (solo cambia `online`) y sin porcentaje, y corre a la par de la
+ * lectura del lugar: el evento se lee una sola vez. Lo que devuelve es el `fondoPercent`.
+ *
  * @param {string} slug
- * @param {{ fondoPercent?: number | null }} [options]
+ * @param {{ fondoPercent?: number | null,
+ *   fondo?: (config: import('./config.js').EventTickets) => Promise<number | null | undefined> }} [options]
  * @returns {Promise<import('./config.js').EventTickets | null>}
  */
-export async function getEventTickets(slug, options = {}) {
+export async function getEventTickets(slug, { fondo, ...options } = {}) {
+	// Si tiene lugar, a la par del evento (con las tandas automáticas, en la misma ida): solo se usa
+	// si vende entradas (si no, ni su error cuenta).
+	const venue = speculative(eventsWithVenue(slug));
 	const meta = await loadMeta(slug);
-	const withVenue = sellsTickets(meta) ? await eventsWithVenue(slug) : new Set();
-	return ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
+	if (!sellsTickets(meta)) return ticketsOf(slug, meta, { ...options, hasVenue: false });
+	if (!fondo) {
+		const withVenue = await venue;
+		return ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
+	}
+	// `parseTicketConfig` es pura: sin el lugar alcanza para saber si es válida y si usa el Fondo.
+	const draft = ticketsOf(slug, meta, options);
+	if (!draft) return null;
+	const [withVenue, fondoPercent] = await Promise.all([venue, fondo(draft)]);
+	return ticketsOf(slug, meta, {
+		...options,
+		...(fondoPercent === undefined ? {} : { fondoPercent }),
+		hasVenue: withVenue.has(slug)
+	});
 }
 
 /**
  * {@link getEventTickets} de varios eventos a la vez (las tarjetas de una lista,
  * ./listStates.js): por evento, lo mismo que `getEventTickets`, pero con dos consultas para todos
- * (los eventos y cuáles tienen lugar) en vez de dos por evento.
+ * (los eventos y cuáles tienen lugar, a la par) en vez de dos por evento.
  *
  * @param {readonly string[]} slugs
  * @param {{ fondoPercent?: number | null }} [options] ver `getEventTickets`
@@ -186,14 +207,17 @@ export async function getEventTicketsMany(slugs, options = {}) {
 	const unique = [...new Set(slugs)];
 	// Los mismos que `loadMeta` buscaría en la base (los demás dan `null` sin consultar).
 	const wanted = unique.filter((slug) => isValidEventSlug(slug) && !slug.startsWith('_'));
-	const content = wanted.length
-		? await (await import('../contenido/repo.js')).dbEventMetasFor(wanted)
-		: new Map();
+	// Los eventos y cuáles tienen lugar, a la par (con las tandas automáticas, en una ida): el lugar
+	// se pregunta de todos, aunque después solo importe en los que venden.
+	const [content, withVenue] = wanted.length
+		? await Promise.all([
+				import('../contenido/repo.js').then((repo) => repo.dbEventMetasFor(wanted)),
+				eventsWithVenueAmong(wanted)
+			])
+		: [new Map(), new Set()];
 	/** @type {Map<string, Record<string, any> | null>} */
 	const metas = new Map();
 	for (const slug of unique) metas.set(slug, await loadMeta(slug, content));
-	const selling = unique.filter((slug) => sellsTickets(metas.get(slug) ?? null));
-	const withVenue = selling.length ? await eventsWithVenueAmong(selling) : new Set();
 	/** @type {Map<string, import('./config.js').EventTickets | null>} */
 	const out = new Map();
 	for (const slug of unique) {
@@ -218,6 +242,18 @@ async function eventsWithVenueAmong(slugs) {
 	return (await import('../amigues/venues.js')).eventsWithVenueAmong(db, slugs);
 }
 
+/**
+ * Una lectura que sale antes de saber si hace falta: si falla y nadie la espera, no queda como
+ * rechazo sin atender; quien la espera recibe el mismo error que antes.
+ * @template T
+ * @param {Promise<T>} promise
+ * @returns {Promise<T>}
+ */
+function speculative(promise) {
+	promise.catch(() => {});
+	return promise;
+}
+
 /** @param {Record<string, any> | null} meta */
 const sellsTickets = (meta) => meta?.tickets !== undefined && meta?.tickets !== null;
 
@@ -232,6 +268,30 @@ async function eventsWithVenue(slug) {
 	const db = (await import('../contenido/repo.js')).activeContentDB();
 	if (!db) return new Set();
 	return (await import('../amigues/venues.js')).eventsWithVenue(db, slug);
+}
+
+/** @typedef {{ slug: string, title: string, message: string }} BrokenTicketConfig */
+
+/**
+ * Si un evento próximo y no cancelado tiene entradas pero su configuración no se puede leer: su
+ * dirección, título y el error de validación (corto). `null` si no.
+ *
+ * @param {string} slug
+ * @param {Record<string, any>} meta
+ * @param {number} now
+ * @returns {BrokenTicketConfig | null}
+ */
+export function brokenTicketConfig(slug, meta, now) {
+	if (!sellsTickets(meta) || meta.status === 'cancelado') return null;
+	const start = Date.parse(String(meta.start ?? ''));
+	if (Number.isFinite(start) && start < now) return null;
+	try {
+		parseTicketConfig(meta, {});
+		return null;
+	} catch (error) {
+		const message = String(/** @type {Error} */ (error)?.message ?? error).slice(0, 200);
+		return { slug, title: String(meta.title ?? slug), message };
+	}
 }
 
 /**
@@ -255,16 +315,29 @@ function ticketsOf(slug, meta, options) {
 /**
  * Todos los eventos publicados que venden entradas.
  *
- * @param {{ fondoPercent?: number | null }} [options] ver `getEventTickets`
+ * `broken` (opcional): una lista donde se anotan los eventos próximos y no cancelados que tienen
+ * entradas pero cuya configuración ya no se puede leer (una regla endurecida después, un dato
+ * editado a mano): no venden y la ficha los muestra como «no vende», así que «Para revisar» los
+ * avisa (auditoría de confiabilidad, O19). Solo la dirección, el título y el error de validación.
+ *
+ * @param {{ fondoPercent?: number | null, broken?: BrokenTicketConfig[], now?: number }} [options]
+ *   ver `getEventTickets`; `now`, para decidir qué evento es próximo
  * @returns {Promise<{ slug: string, config: import('./config.js').EventTickets }[]>}
  */
-export async function listTicketedEvents(options = {}) {
+export async function listTicketedEvents({ broken, now = Date.now(), ...options } = {}) {
 	const out = [];
+	// Los eventos con lugar, a la par de la lista (ver {@link getEventTickets}): solo se usan si
+	// alguno vende entradas.
+	const venues = speculative(eventsWithVenue());
 	const metas = await listEventMetas();
-	const withVenue = metas.some((e) => sellsTickets(e.meta)) ? await eventsWithVenue() : new Set();
+	const withVenue = metas.some((e) => sellsTickets(e.meta)) ? await venues : new Set();
 	for (const { slug, meta } of metas) {
 		const config = ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
 		if (config) out.push({ slug, config });
+		else if (broken) {
+			const b = brokenTicketConfig(slug, meta, now);
+			if (b) broken.push(b);
+		}
 	}
 	out.sort((a, b) => String(b.config.start ?? '').localeCompare(String(a.config.start ?? '')));
 	return out;

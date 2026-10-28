@@ -15,6 +15,7 @@
  * estado de la venta (`ticketStatesFor` + `ticketCta`, como las tarjetas del calendario).
  */
 import { sitePosts } from '$lib/server/contenido/posts.js';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { getDB } from '$lib/server/db';
 import { feedVenues } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
@@ -34,7 +35,7 @@ export function toUpcomingEvents(posts, now) {
 	return posts
 		.filter((p) => p.meta?.category === 'calendario' && p.meta?.postID)
 		.filter((p) => startsAfter(p.meta.start, now))
-		.sort((a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime())
+		.sort((a, b) => parseSiteDate(a.meta.start).getTime() - parseSiteDate(b.meta.start).getTime())
 		.map((p) => ({
 			slug: String(p.meta.postID),
 			title: String(p.meta.title ?? p.meta.postID),

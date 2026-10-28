@@ -5,7 +5,7 @@
  * tope por persona. Datos inventados.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { groupHits, prepareIndex, search } from '$lib/utils/search';
+import { find, groupHits, prepareIndex } from '$lib/utils/search';
 import {
 	EMPTY_MATERIAL,
 	INLINE_CACHE_SECONDS,
@@ -132,10 +132,12 @@ describe('selectInline', () => {
 		expect(hrefs.length).toBe(2 + EMPTY_MATERIAL);
 	});
 
-	it('con texto: el mismo orden que la búsqueda del sitio (search + groupHits)', () => {
+	it('con texto: el mismo orden que la búsqueda del sitio (find + groupHits)', () => {
 		const prepared = prepareIndex({ v: 1, docs, tags: {} });
 		for (const q of ['cuerdas', 'evento', 'material nota', 'persona']) {
-			const site = groupHits(search(prepared, q), NOW).flatMap((g) => g.hits.map((h) => h.doc.h));
+			const site = groupHits(find(prepared, q, { now: NOW }), NOW).flatMap((g) =>
+				g.hits.map((h) => h.doc.h)
+			);
 			expect(
 				selectInline(source, { types: null, text: q }, NOW).map((d) => d.h),
 				q
@@ -276,12 +278,12 @@ describe('planInlineQuery', () => {
 		]);
 	});
 
-	it('el mensaje mandado lleva la vista previa grande de la página, arriba del texto', async () => {
+	it('el mensaje mandado lleva la vista previa chica de la página, arriba del texto', async () => {
 		const source = sourceOf([materialDoc('con-foto')]);
 		const [r] = (await answer({ query: 'material:' }, source)).results;
 		expect(r.input_message_content.link_preview_options).toEqual({
 			url: `${PROD}/material/con-foto`,
-			prefer_large_media: true,
+			prefer_small_media: true,
 			show_above_text: true
 		});
 		// Sin https (dev local) Telegram no arma la vista previa: va apagada.

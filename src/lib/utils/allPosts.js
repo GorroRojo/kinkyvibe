@@ -1,7 +1,7 @@
 // Kept apart from $lib/utils/index.js so list pages can import it without
 // pulling in that module's lookup tables for every post and image.
 import '$lib/types.d.js';
-import { argDate, startsAfter, toArgentina } from './dates.js';
+import { argDate, startsAfter, toArgentina, parseSiteDate } from './dates.js';
 
 /**
  * false for calendar events that already started (PostList hides them unless
@@ -22,7 +22,7 @@ export const isCurrent = (post, now = Date.now()) =>
 export function monthHasPastEvents(posts, month, now = Date.now()) {
 	return posts.some((post) => {
 		if (post.meta.category != 'calendario') return false;
-		const start = new Date(post.meta.start);
+		const start = parseSiteDate(post.meta.start);
 		if (isNaN(start.getTime()) || start.getTime() > now) return false;
 		const local = toArgentina(start);
 		const m = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}`;
@@ -60,6 +60,32 @@ export function shiftCalendarMonth(month, n) {
 }
 
 /**
+ * La dirección de /calendario en `month`: la misma URL con `?viewdate=yyyy-MM` (sin él si es el mes
+ * con el que abre igual) y sin el ancla.
+ * @param {URL} url la de la página
+ * @param {string} month yyyy-MM
+ * @param {string} defaultMonth el mes con el que abre sin `?viewdate`
+ * @returns {string} path y query
+ */
+export function calendarMonthHref(url, month, defaultMonth) {
+	const next = new URL(url);
+	next.hash = '';
+	if (month === defaultMonth) next.searchParams.delete('viewdate');
+	else next.searchParams.set('viewdate', month);
+	return next.pathname + next.search;
+}
+
+/**
+ * true si la flecha a `month` va como link: solo entre el mes del primer evento y el del último,
+ * así los buscadores llegan a cada mes con eventos y no a infinitos meses vacíos (docs/seo.md).
+ * @param {string} month yyyy-MM
+ * @param {string | null | undefined} first
+ * @param {string | null | undefined} last
+ */
+export const isLinkedCalendarMonth = (month, first, last) =>
+	!!first && !!last && month >= first && month <= last;
+
+/**
  * El mes con el que abre /calendario sin `?viewdate`: el de hoy (en Argentina), o el siguiente si
  * todos los eventos de este mes ya empezaron.
  * @param {Record<string, ProcessedPost[]>} days eventos por día de inicio (yyyy-MM-dd, Argentina)
@@ -69,7 +95,7 @@ export function defaultCalendarMonth(days, now = Date.now()) {
 	const month = currentMonth(now);
 	const hasUpcoming = Object.entries(days).some(
 		([date, posts]) =>
-			date.slice(0, 7) === month && posts.some((p) => new Date(p.meta.start).getTime() >= now)
+			date.slice(0, 7) === month && posts.some((p) => parseSiteDate(p.meta.start).getTime() >= now)
 	);
 	return hasUpcoming ? month : shiftCalendarMonth(month, 1);
 }
@@ -120,6 +146,25 @@ export const fetchAllPostsClient = () =>
 			allPosts = undefined;
 			throw e;
 		}));
+
+/**
+ * «Mostrar eventos pasados»: una función que pide todo (fetchAllPostsClient) la primera vez que se
+ * llama y después no hace nada, aunque el pedido haya fallado. Se puede llamar desde un `$:` sin
+ * miedo: un `/api/posts` caído no se vuelve a pedir sin pausa (antes, cada fallo volvía a disparar
+ * el `$:` y el pedido). Una por componente: al volver a entrar a la página se intenta de nuevo.
+ * @param {(posts: ProcessedPost[]) => void} onPosts
+ * @return {() => void}
+ */
+export function pastPostsLoader(onPosts) {
+	let started = false;
+	return () => {
+		if (started) return;
+		started = true;
+		fetchAllPostsClient()
+			.then(onPosts)
+			.catch(() => {});
+	};
+}
 
 /**
  * Posts shown under "Más cosas de…" on calendario/material/amigues pages.

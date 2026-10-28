@@ -579,10 +579,10 @@
 <UnsavedChanges dirty={unsaved} saving={submitting} />
 
 <svelte:head>
-	<title>Importar desde la planilla · KV Admin</title>
+	<title>Importar desde la planilla · Panel</title>
 </svelte:head>
 
-<main class="importar">
+<div class="importar">
 	<p class="back"><a href="/admin/eventos/agenda">← Agenda</a></p>
 
 	<h1>Importar eventos desde la planilla</h1>
@@ -745,7 +745,7 @@
 											search={(q) => sourceOptions(item, q)}
 											add={(_, value) => [value]}
 											chip={(value) => ({ label: eventLabel(value) })}
-											removeLabel="Quitar (crear desde cero):"
+											removeLabel="Sacar (crear desde cero):"
 											addedMessage={(label) => `Se duplica ${label}`}
 											onChange={(values) => setSource(item, values[0] ?? '')}
 										/>
@@ -969,7 +969,7 @@
 			</section>
 		{/if}
 	{/if}
-</main>
+</div>
 
 <style lang="scss">
 	.importar {

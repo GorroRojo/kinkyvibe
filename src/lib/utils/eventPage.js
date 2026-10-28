@@ -1,11 +1,9 @@
 /**
  * Piezas puras de la página de un evento (/calendario/<evento>) y de las listas que lo rodean:
- * si el evento ya pasó, la serie que se puede seguir, el menú «Agregar a mi calendario» y cómo se
- * ordenan «Más cosas de…» y «Participa en» (próximos primero, en orden de fecha; los pasados
- * aparte).
+ * si el evento ya pasó, la serie que se puede seguir y cómo se ordenan «Más cosas de…» y
+ * «Participa en» (próximos primero, en orden de fecha; los pasados aparte).
  */
-import { format } from 'date-fns';
-import { argDateParts, eventEnd, parseSiteDate, toArgentina } from './dates.js';
+import { argDateParts, eventEnd, parseSiteDate } from './dates.js';
 
 /**
  * ¿El evento ya terminó? (Sin fin, el que calcula `eventEnd`.) Una fecha que no se entiende
@@ -41,20 +39,49 @@ export function mainSeries(series) {
 
 /**
  * El título de la pestaña (y de los buscadores) de un evento, sin «· Kinky Vibe»: el de siempre
- * o, si es parte de una serie, con el mes y el año de esa edición («Jamarada Kinky · octubre
- * 2026»), para que las ediciones no tengan todas el mismo título (docs/seo.md). Si el título ya
- * nombra el mes («Picantearla de octubre»), o la fecha no se entiende, queda como está.
+ * con el día de esa fecha, en hora de Argentina («Jamarada Kinky · 24 de febrero de 2026»), para
+ * que las ediciones de un evento que se repite (sea o no de una serie, aunque caigan en el mismo
+ * mes) no tengan todas el mismo título (docs/seo.md). No mira la serie: sale solo de este evento.
+ * Si el título ya dice ese día («Fiesta del 24 de febrero»), o la fecha no se entiende, queda como
+ * está.
  *
  * @param {{ title?: string, start?: string | number | Date | null }} meta
- * @param {{ list?: SeriesInfo[] } | null | undefined} series
  */
-export function eventPageTitle(meta, series) {
+export function eventPageTitle(meta) {
 	const title = String(meta?.title ?? '');
-	if (!mainSeries(series) || !meta?.start) return title;
+	if (!meta?.start) return title;
 	const parts = argDateParts(parseSiteDate(meta.start));
 	if (!parts) return title;
-	if (title.toLocaleLowerCase('es').includes(parts.monthLong)) return title;
-	return `${title} · ${parts.monthLong} ${parts.year}`;
+	const day = `${parts.day} de ${parts.monthLong}`;
+	if (title.toLocaleLowerCase('es').includes(day)) return title;
+	return `${title} · ${day} de ${parts.year}`;
+}
+
+/** El largo máximo del `<title>` de un evento: Google muestra unos 60 caracteres. */
+export const EVENT_TAB_TITLE_MAX = 65;
+
+/**
+ * El `<title>` de un evento: {@link eventPageTitle} con «· Kinky Vibe» si entra en
+ * {@link EVENT_TAB_TITLE_MAX} caracteres; si no, sin la marca; y si el título solo ya es más
+ * largo, recortado en una palabra con «…», conservando el día. Solo la pestaña y los buscadores:
+ * el `h1` y `og:title` llevan el título entero.
+ *
+ * @param {{ title?: string, start?: string | number | Date | null }} meta
+ */
+export function eventTabTitle(meta) {
+	const base = eventPageTitle(meta);
+	const branded = `${base} · Kinky Vibe`;
+	if (branded.length <= EVENT_TAB_TITLE_MAX) return branded;
+	if (base.length <= EVENT_TAB_TITLE_MAX) return base;
+	const title = String(meta?.title ?? '');
+	// Lo que agrega eventPageTitle después del título (« · 24 de febrero de 2026», o nada).
+	const suffix = base.startsWith(title) ? base.slice(title.length) : '';
+	const room = EVENT_TAB_TITLE_MAX - suffix.length - 1;
+	if (room < 10) return `${base.slice(0, EVENT_TAB_TITLE_MAX - 1).trimEnd()}…`;
+	const cut = title.slice(0, room);
+	const space = cut.lastIndexOf(' ');
+	const short = (space > room / 2 ? cut.slice(0, space) : cut).replace(/[\s,;:·–—-]+$/, '');
+	return `${short}…${suffix}`;
 }
 
 /**
@@ -66,53 +93,6 @@ export function eventPageTitle(meta, series) {
 export function nextEdition(series) {
 	for (const s of series?.list ?? []) if (s.nextUpcoming) return s.nextUpcoming;
 	return null;
-}
-
-/**
- * Las opciones del menú «Agregar a mi calendario» (add-to-calendar-button): Google, el archivo
- * .ics (que abre Apple Calendar y el calendario del celu) y Outlook, con nombres claros (la
- * librería decía «iCal Ficha»). `Apple` y no `iCal`: en iPhone la librería suma Apple si ve
- * iCal, y quedaban dos opciones iguales.
- */
-export const CALENDAR_OPTIONS = Object.freeze([
-	'Google',
-	'Apple|Apple / celu (.ics)',
-	'Outlook.com|Outlook'
-]);
-
-/** @type {Record<string, 'CONFIRMED' | 'CANCELLED' | 'TENTATIVE'>} */
-const CALENDAR_STATUS = {
-	abierto: 'CONFIRMED',
-	cancelado: 'CANCELLED',
-	anunciado: 'TENTATIVE',
-	agotadas: 'CONFIRMED'
-};
-
-/**
- * Los datos de «Agregar a mi calendario» para add-to-calendar-button, en hora argentina. El menú
- * es un diálogo (`listStyle: 'modal'`) con «Cerrar».
- *
- * @param {{ title: string, summary?: string, start: string | number | Date,
- *   end?: string | number | Date | null, status?: string, postID?: string }} meta
- */
-export function calendarButtonEvent(meta) {
-	const end = eventEnd(/** @type {any} */ (meta.start), /** @type {any} */ (meta.end ?? undefined));
-	return {
-		name: meta.title,
-		description: meta.summary,
-		startDate: format(toArgentina(meta.start), 'yyyy-MM-dd'),
-		startTime: format(toArgentina(meta.start), 'HH:mm'),
-		endDate: format(toArgentina(end), 'yyyy-MM-dd'),
-		endTime: format(toArgentina(end), 'HH:mm'),
-		status: CALENDAR_STATUS[meta.status ?? ''] ?? 'CONFIRMED',
-		timeZone: 'America/Buenos_Aires',
-		options: [...CALENDAR_OPTIONS],
-		language: /** @type {const} */ ('es'),
-		customLabels: { close: 'Cerrar' },
-		iCalFileName: meta.postID || meta.title || 'evento',
-		listStyle: /** @type {const} */ ('modal'),
-		organizer: 'Mel|kinkyvibe@gmail.com'
-	};
 }
 
 /**

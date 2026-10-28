@@ -14,6 +14,7 @@
  */
 import { env } from '$env/dynamic/private';
 import { DEFAULT_FONDO_PERCENT_URL } from './fondo.js';
+import { arClock, arDayKey, arMidnight } from '$lib/utils/dates.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
@@ -27,8 +28,6 @@ const LAST_KEY = 'fondo_status_last';
 const MEMO_MS = 10 * 60 * 1000;
 const FAILURE_MEMO_MS = 60 * 1000;
 const TIMEOUT_MS = 3000;
-/** Argentina: UTC-3 todo el año (sin horario de verano). */
-const AR_OFFSET_MS = -3 * 60 * 60 * 1000;
 /** Día del mes en que se reinician las suscripciones. */
 export const FONDO_RESET_DAY = 5;
 
@@ -42,11 +41,6 @@ export function resetFondoMonthMemo() {
 	failedAt = -Infinity;
 }
 
-/** @param {number} y @param {number} m0 @param {number} d */
-const arMidnight = (y, m0, d) => Date.UTC(y, m0, d) - AR_OFFSET_MS;
-/** @param {number} ms */
-const isoDay = (ms) => new Date(ms + AR_OFFSET_MS).toISOString().slice(0, 10);
-
 /**
  * Ventana del "mes" del Fondo que contiene `now`: desde el día 5 a las 00:00 (Argentina) hasta
  * el 5 del mes siguiente (exclusivo). `endDate` es el último día incluido (el 4).
@@ -55,7 +49,7 @@ const isoDay = (ms) => new Date(ms + AR_OFFSET_MS).toISOString().slice(0, 10);
  * @returns {FondoWindow}
  */
 export function fondoMonthWindow(now = Date.now()) {
-	const ar = new Date(now + AR_OFFSET_MS);
+	const ar = arClock(now);
 	let y = ar.getUTCFullYear();
 	let m = ar.getUTCMonth();
 	if (ar.getUTCDate() < FONDO_RESET_DAY) m -= 1;
@@ -65,7 +59,7 @@ export function fondoMonthWindow(now = Date.now()) {
 	}
 	const start = arMidnight(y, m, FONDO_RESET_DAY);
 	const end = arMidnight(m === 11 ? y + 1 : y, (m + 1) % 12, FONDO_RESET_DAY);
-	return { start, end, startDate: isoDay(start), endDate: isoDay(end - 1) };
+	return { start, end, startDate: arDayKey(start), endDate: arDayKey(end - 1) };
 }
 
 /** @param {unknown} v */

@@ -15,6 +15,12 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   solo las partes de un evento importado de un `.md` no lo marca como editado (como el lugar).
 - Los dos eventos tienen que estar en la base. Las lecturas públicas solo muestran las partes que
   quien mira puede ver (`visibleWhere`); un taller oculto no muestra sus partes.
+- `readWorkshop` (el taller de un evento con sus partes numeradas) corre en cada escaneo de la
+  puerta, en la página de cada entrada y en la del estado de una compra: es **una sola ida y
+  vuelta a D1** (una tanda con el evento, su taller y las partes, que buscan el evento por su
+  dirección adentro del SQL). Da lo mismo que leerlo en tres pasos; lo comparan los tests de
+  `partes-una-vuelta.test.js`. El lugar de cada parte (en mails y páginas) se lee para todas a la
+  vez.
 - **«Si ocultás el taller, ocultar también sus partes»** (casilla en la sección Partes):
   `ocultar_partes: true` en el `extra` del taller (como `entradas_por_parte`). Prendida, una parte
   se ve solo si quien mira también ve el taller: con el taller oculto, sus partes no salen en las
@@ -33,7 +39,17 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   `/calendario/<parte>/entradas` redirige ahí.
 - **«Entradas por parte»** (casilla en la sección Partes): `entradas_por_parte: true` en el `extra`
   del taller, junto con el resto de la configuración de entradas. Cada parte vende la suya (se
-  configura en su ficha) y nada de lo de abajo aplica.
+  configura en su ficha) y nada de lo de abajo aplica, salvo la pregunta con entradas vendidas.
+- **Con entradas vendidas, pregunta antes.** Prender «Entradas por parte» con entradas vendidas
+  del taller, apagarlo con entradas vendidas de las partes, o sumar como parte (con una sola
+  entrada) un evento que ya vendió, deja entradas pagas que no valen en la puerta y cupo que se
+  podría vender dos veces. Sin `confirm: true`, `setPerPartTickets` y `setWorkshopParts`
+  contestan `needsConfirm` con «‹evento› ya tiene N entradas vendidas: si cambiás esto, dejan de
+  valer en la puerta. ¿Cambiar igual?» y no guardan; la sección Partes lo muestra con «Cambiar
+  igual» (vuelve a mandar con `confirm`) o «No cambiar» (la casilla vuelve a como estaba). Lo
+  confirmado queda en la actividad (`event.parts_with_sales`). Cuenta `soldCount`, con la misma
+  regla del cupo: órdenes aprobadas o con la reserva vigente (`HOLDING`,
+  `src/lib/server/tickets/holding.js`). Reordenar o sacar partes no pregunta.
 - **Ingreso por parte:** el modo puerta de cada parte (2 en adelante) usa las entradas del taller y
   marca el ingreso en `ticket_part_checkins` (migración `0039`, una fila por entrada y parte;
   `src/lib/server/tickets/partCheckins.js`). El de la parte 1 sigue siendo
@@ -52,8 +68,14 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   la compra aprobada (en el de transferencia, el que se ve en el sitio). Lo arma
   `src/lib/server/tickets/workshopParts.js`; con «Entradas por parte», o en un evento suelto, no
   hay lista y los mails salen byte a byte como siempre.
+- **Vista previa en el panel:** en la ficha del taller → Mails → Plantillas, la vista previa (y
+  «Mandarme una prueba») de esos tres mails lleva la misma lista. En el recordatorio, «Parte»
+  elige de qué parte se ve (con su título, su fecha y su lugar, como sale el de verdad;
+  `workshopPreview` en `mails/[id]/context.server.js`).
 - **Mis entradas en el bot:** la entrada del taller sigue en «próximas» hasta la última parte y
   muestra la fecha de la parte que toca («· Parte 2 de 3»); ver [telegram.md](telegram.md).
+- **Mis compras en Mi rincón:** la compra del taller muestra la fecha de la parte que toca, con la
+  misma regla (`ticketDate` en `src/lib/utils/partes.js`); ver [cuentas.md](cuentas.md).
 - **Estado de la compra** (`/entradas/<orden>/estado`, la página de vuelta del pago): en el
   resumen, «Partes» con la misma lista, en cualquier estado de la compra. El lugar completo solo
   si quien mira hizo esa compra (la cookie) y ya está aprobada; si no, el que se ve en el sitio.

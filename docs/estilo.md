@@ -10,6 +10,24 @@ El panel de admin redefine los de color y sombra para su tema oscuro en
 - En los componentes no van px/rem sueltos para letra, `gap` o `padding`: usá un token. Si ningún
   token sirve, mejor preguntar antes que inventar un tamaño.
 - Pesos de letra: **400 y 700**, nada más (Lato no tiene 600; el navegador lo dibuja como 700).
+- Lato es propia (`src/lib/styles/fonts/`, los `@font-face` de `style.scss`). Las dos latin
+  (400 y 700) se precargan con la opción `preload` de SvelteKit (`src/lib/server/preload.js`, en
+  `hooks.server.js`): van en la cabecera `Link` de cada página, antes que el JS y con la URL con
+  hash del CSS. Un `<link rel="preload">` en el `<svelte:head>` del layout quedaba después de los
+  ~80 módulos de JS, con su misma prioridad, y en Chrome las letras llegaban más tarde que sin
+  precarga. Si cambiás un archivo de letra o agregás un peso, revisá `PRELOADED_FONT` (lo controla
+  una prueba de `tests/smoke.spec.js`).
+- Mientras llega Lato (`font-display: swap`) el texto sale en una **letra de respaldo con las
+  medidas de Lato**: `'Lato Fallback'` (Arial, o Liberation Sans, que mide igual) y
+  `'Lato Fallback Roboto'` (Android), con `size-adjust`, `ascent-override`, `descent-override` y
+  `line-gap-override` por peso (400 y 700) en `style.scss`. Así, cuando llega Lato, las líneas no
+  cambian y la página no salta (en `/material` a 390px: CLS 0,41 → 0,05 con la letra demorada
+  1,5 s). Donde pidas Lato, poné la lista entera:
+  `'Lato', 'Lato Fallback', 'Lato Fallback Roboto', sans-serif` (lo controla
+  `src/tests/fuente-respaldo.test.js`). Si cambiás los archivos de Lato, recalculá los números: el
+  ancho promedio de las letras (pesado por cuánto aparece cada una en los textos de la semilla)
+  de Lato dividido por el del respaldo da `size-adjust`, y el alto de Lato (hhea) dividido por
+  `size-adjust`, los `*-override`.
 - Colores nuevos no: mezclá los del sitio con `color-mix` o usá los alias de abajo.
 - Si agregás un token de color o sombra, dale también su valor oscuro en `@mixin dark` del panel.
 - Los textos del contenido (en la base, y la semilla `src/lib/server/semilla/*.json`) no se
@@ -96,10 +114,16 @@ son sombras: esos quedan como están.
   permanentes que no se pueden deshacer (borrar para siempre). «Guardado ✓» y «Deshacer» **no**
   van en rojo: siguen en verde (`--ok`) o neutro.
 - **`--placeholder`**: el texto de ejemplo de los inputs. Gris, bastante más claro que el texto
-  real y en cursiva, para que un campo vacío nunca parezca lleno. La regla está una sola vez en
+  real y en cursiva, para que un campo vacío nunca parezca lleno, pero legible: 4.5:1 o más en
+  claro y en oscuro (gorrite, 12/10). La regla está una sola vez en
   `style.scss`; los componentes no la pisan (lo controla `src/tests/placeholders.test.js`).
 - En el panel hay alias propios (`--text`, `--accent`, `--ok`, `--warn`, `--bad`, `--info`…),
-  listados al principio de `panel.scss`.
+  listados al principio de `panel.scss`. Un **estado malo** (agotadas, borrada, error) va en
+  `--error`, también en `Badge` y `Card` con `bad`: un solo color para «malo». `--bad` (rosa
+  oscuro) queda para el botón destructivo y lo que combina con él; el rosa de la marca, para
+  la marca (gorrite, 12/10).
+- **`--scrim`**: el fondo detrás de diálogos y hojas, violeta translúcido en los dos temas (en
+  oscuro, más oscuro).
 
 ## Foco
 
@@ -108,6 +132,42 @@ son sombras: esos quedan como están.
   (`--focus-field`) cuando tienen el foco, también con el mouse, así se ve dónde se está
   escribiendo o eligiendo. En el sitio y en el panel.
 - No saques el `outline` sin poner otra señal de foco igual de visible.
+
+## Lectores de pantalla
+
+Lo que no se ve pero se oye. Nada de esto cambia cómo se ve la página.
+
+- **Errores de un campo**: el texto del error lleva un `id` y el campo lo nombra en
+  `aria-describedby` (solo cuando hay error; en un grupo de radios, cada radio). El error no va
+  dentro del `<label>`: si no, pasa a ser parte del nombre del campo («Tu nombre Escribí tu
+  nombre.»). Con un label que envuelve, o se usa `<label for>` con el error afuera, o el campo se
+  nombra con `aria-labelledby` hacia el texto del label (así no se mueve nada de lugar).
+- **Avisos que aparecen**: un `role="status"` que nace junto con su texto no siempre se lee. Va
+  una región fija (vacía al principio, con `visually-hidden` si no se tiene que ver) y se le
+  cambia el texto: el buscador («No encontramos nada…», «N resultados»), «Copiar link» del
+  calendario, el estado de la compra. En el panel, `announce()` (ver [panel.md](panel.md)).
+- **Texto solo para lectores**: `<span class="visually-hidden">`, nunca `aria-label` en un
+  elemento sin rol (`<s>`, `<span>`, `<div>`). Si el texto empieza o termina con espacio, va como
+  expresión (`{'precio completo '}`): Svelte recorta los espacios de las puntas.
+- **Foco**: cuando lo que se tocó desaparece (un paso nuevo, un formulario que se abre), el foco
+  va al primer campo nuevo (/ingresar, «¿Es tu perfil?»). Los diálogos (modal de edad, hoja «Más»
+  del panel) reciben el foco, no dejan salir con Tab y lo devuelven al cerrarse.
+- **Una sola forma de decir un estado**: un botón que cambia su texto («Seguir» / «Dejar de
+  seguir») no lleva además `aria-pressed`; uno con texto fijo que se prende y se apaga, sí.
+- **Estructura**: un solo `<main>` (el del layout); cada `<nav>` con nombre; `<dl>` solo con `dt`
+  y `dd` adentro (los botones de una fila, en un `<dd>` con `display: contents`); la grilla del
+  mes es una tabla (`role="table"`, filas con `display: contents`).
+- Los íconos decorativos (`SimpleIcon`, Lucide) llevan `aria-hidden`; las viñetas dibujadas con
+  `content` llevan texto alternativo vacío (`content: '+ ' / ''`).
+
+## Toque
+
+- En el celu, todo lo que se toca mide al menos 44px (`--tap`). Para algo chico (un chip, un
+  link suelto), `.tap-target` (`style.scss`): agranda la zona sin cambiar lo que se ve.
+- Si esa zona invisible taparía a un vecino, crece el control mismo: «Comprar entradas» en las
+  tarjetas de las listas (`PostListItem`) mide 44px de alto y va centrado cuando tiene su
+  fila, abajo de las etiquetas; en pantalla ancha queda como estaba (gorrite,
+  `areas-toque-restos`).
 
 ## Piezas
 
@@ -131,16 +191,27 @@ armar una variante nueva en un componente.
 | Chip de etiqueta     | `<TagChip tag="…">` (o `.kv-tag` con `--tag-color`): emoji y nombre de la etiqueta con **su color** (`getColor()`; sin color, rosa de la marca). Borde en el color, texto en el color oscurecido, sobre blanco. Elegido (filtros, selectores): lleno con el color oscurecido y texto blanco (`selected`). En todos lados: panel, página del evento, listas del sitio (`PostListItem`, `Card`), sus filtros (`TagGroup`, el buscador `TagSearch`) y las etiquetas dentro de un texto (`InlineTag`). En un filtro, `<TagChip checkbox>`: una casilla de verdad (Tab, Espacio, lector de pantalla) con el foco dibujado en el chip. El viejo `Tag.svelte` ya no existe. Decisión de gorrite, 4/10 (abajo). |
 | Avisos               | `Notice.svelte` (`tone`: `ok`, `warn`, `error`): fondo del tono **con su ícono de Lucide**, así el texto no lleva «⚠️» ni «✅». `compact` (letra normal, más chico) para avisos largos o junto a un campo; `inline` (con `<span>`) dentro de un `<label>`. `role`: `alert` solo para errores o lo que aparece después de una acción y no puede pasar de largo; `status` (el de siempre) para avisos que cambian mientras se edita; `role={null}` para notas fijas. `.kv-flash` sigue para los mensajes sueltos del panel: verde por defecto («Guardado ✓»), `.bad` rojo (`--error`), `.warn` amarillo. `UndoToast` con `error` también va en rojo; «Deshacer» sigue verde.                              |
 | Falta para guardar   | `FormProblems.svelte` (`$lib/components/admin/event-form/`), el mismo en crear un evento («Falta completar:»), editarlo y material / amigues («Antes de guardar:»): la caja roja `.problems` con un link por problema (`Problem[]` de `$lib/admin/formProblems.js`: texto + id del campo). El link lleva al campo y le pone el foco (abre el `<details>` si está cerrado); mientras se ve, los campos con problema llevan `aria-invalid`. El «guardado» de esos editores es un `Notice` verde (sin «✅»).                                                                                                                                                                                               |
-| Confirmación         | Diálogo centrado: `askConfirm({ title, text, confirmLabel, tone })` de `$lib/admin/confirm.js` (nunca `window.confirm`). `tone`: `primary`, `danger` o `permanent`. La página de borrar del panel (`/admin/borrar/…`) mantiene su escribir para confirmar, con el botón `.danger` (se recupera desde Actividad); rojo solo lo que no tiene vuelta atrás (borrar tu cuenta, una nota de la agenda).                                                                                                                                                                                                                                                                                                      |
+| Confirmación         | Diálogo centrado: `askConfirm({ title, text, confirmLabel, tone })` de `$lib/admin/confirm.js` (nunca `window.confirm`). `tone`: `primary`, `danger` o `permanent`. Con una casilla (`check: { label, checked }`), `askConfirmCheck` devuelve `{ ok, checked }`. La página de borrar del panel (`/admin/borrar/…`) mantiene su escribir para confirmar, con el botón `.danger` (se recupera desde Actividad); rojo solo lo que no tiene vuelta atrás (borrar tu cuenta, una nota de la agenda).                                                                                                                                                                                                         |
 | Diálogo propio       | `<dialog class="kv-dialog">` con `<div class="kv-dialog-btns">`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Lista vacía          | `EmptyState.svelte`: ícono de Lucide + título + una línea gris (sin emoji). «Próximamente» sigue con su caja punteada.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Hoja del celu        | Se cierra arrastrando hacia abajo **y** con una X: `use:sheetDrag` de `$lib/admin/sheetDragAction.js`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Acción de texto      | `.kv-link`: violeta, subrayado, con ícono adelante. Los «ver más» tienen su propio estilo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Tabla                | `.kv-table` para leer; el estilo de planilla editable solo donde se edita.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Tabla                | `Table.svelte` (`.kv-table`) para leer; el estilo de planilla editable solo donde se edita. Columnas que se ordenan con `sort` (abajo, «Revisión del 12/10»).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Encabezado de página | El de la ficha de evento (imagen, título, fecha, chips, acciones); sin imagen, el ícono grande del tipo, rosa (`--accent`) sobre un cuadrado blanco (`--surface`) con borde `--line` (gorrite, 11/10).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 Una excepción a los avisos: los carteles de la Puerta (`ingreso`) no son `Notice`. Tienen su
 estilo oscuro propio, el mismo que los de «sin conexión» y «pendientes».
+
+**Barra de carga.** Mientras llega la página siguiente al navegar, una barrita de 3px arriba de
+todo: en el sitio, rosa de la marca (`--1`, `LoadingBar.svelte` en el layout del sitio); en el
+panel, violeta (`--link`, en `admin/+layout.svelte`). Aparece solo si la navegación tarda (más de
+150 ms en el sitio), así una rápida no parpadea. Crece rápido y cada vez más lento, sin llegar al
+final; con «reducir movimiento», queda quieta y entera. Es un `progressbar` sin valor con
+`aria-label="Cargando la página"`.
+
+**Barra de progreso de lectura.** En los textos largos de Material y Kinkipedia, otra línea de 3px
+arriba de todo, en violeta (`--2`), que se llena con el scroll (`ReadingProgress.svelte`; ver
+[contenido.md](contenido.md)). Decorativa (`aria-hidden`), por debajo de la barra de carga.
 
 ### Ajustes del 4/10 (decisión de gorrite)
 
@@ -163,6 +234,65 @@ viejo en tres cosas (ya están en la tabla de arriba):
      (`SECTION_LABELS` / `formSections` en `$lib/admin/eventForm.js` y `SECTION_ICONS`, con
      `SectionHeading.svelte`): el mismo ícono de Lucide y el mismo nombre («Fecha y hora», no
      «¿Cuándo es?»), sin emoji.
+
+### Revisión de componentes del 12/10 (decisión de gorrite, paso 3)
+
+gorrite revisó los 9 grupos de `/estilo`. Los botones quedaron aprobados como están (el rosa de la
+marca y su contraste no se tocan). En el resto:
+
+- **Etiquetas y badges.** El `Chip` que se toca mide y pesa lo mismo que los otros (`--text-xs`,
+  negrita). `Badge`: radio `--radius-pill`; `bad` en `--error` (el mismo rojo que `Notice` con
+  error) y un tono nuevo, `accent`, para el rosa de la marca cuando se destaca algo que no es malo
+  («Hoy»). En el panel oscuro, la etiqueta elegida va llena del color aclarado con texto oscuro
+  (el relleno oscuro de antes casi no se distinguía del fondo).
+- **Campos.** `Field size="large"` mide ~54px con letra `--text-base` también en el panel. Un
+  campo apagado tiene fondo gris, borde punteado y texto y etiqueta en `--muted`; una casilla o un
+  interruptor apagado, su texto en `--muted`. La etiqueta del interruptor va en letra normal,
+  como la de la casilla. `--placeholder` llega a 4.5:1 en los dos temas.
+- **Selectores.** `ChoiceCard` conserva el violeta de lo elegido; usa el radio de las tarjetas
+  (`--card-round`) y, apagada, se ve clara y con borde punteado. El hover del segmentado es
+  `--seg-hover` (rosa pálido de la marca, no `--bad-bg`), y la galería usa la misma variable.
+- **Pestañas.** En el celu, **todas** las barras de `Tabs` pasan a la lista ▾ (`menu` es lo de
+  siempre; `menu={false}` deja la tira). Las no elegidas en `--accent-text` (5.4:1 sobre el gris),
+  radios de la escala (`--radius-m`, `--radius-s`), sin hueco abajo cuando la barra es lo último
+  de su caja, contador en `--info-bg` / `--info` (no un amarillo más; el de la barra lateral
+  sigue con `--counter`). El «← Eventos» de `PageHeader` lleva `ArrowLeft` de Lucide y se toca
+  en 44px (`.tap-target`).
+- **Tarjetas.** En `Card`, las acciones van a la derecha del título (el título se parte antes de
+  mandar el botón abajo; baja solo si la tarjeta es angosta). El borde de estado es una sombra de
+  adentro: el título queda alineado con el de las tarjetas lisas.
+- **Avisos.** `UndoToast` se ve como `Notice`: su ícono, `--radius-m`, texto en negrita del tono
+  y sin margen propio (el espacio lo pone la página). El texto de `Notice` ok y aviso pasa 4.5:1
+  en claro (`--ok` es `--3-ink`; `--warn`, más oscuro). `SaveStatus` dice «Guardado» con el
+  ícono `Check` de Lucide. «Deshacer» es `type="button"` (dentro de un form no lo envía);
+  con `submit`, envía el form que lo rodea (deshacer un borrado, también sin JS).
+- **Diálogos y hojas.** La galería muestra `Dialog` en los tres tonos sin tocar nada, y la hoja
+  entera. `--scrim` del mismo violeta en los dos temas.
+- **Tablas: se pueden ordenar.** En `Table`, una columna con `sort` (`'text'`, `'number'` o
+  `'date'`) se ordena tocando su encabezado o con Enter: de menor a mayor, y otra vez al revés,
+  con `aria-sort` y una flechita de Lucide (`ChevronUp`/`ChevronDown`; `ChevronsUpDown` apagada
+  si no está ordenada). Números, fechas y plata se ordenan como valores (`sortValue(row)` da el
+  número de la plata, no el texto «$ 24.000»), el texto en castellano con los números adentro en
+  orden («KV-2» antes que «KV-10»), las celdas vacías al final y el orden es estable
+  (`tableSort.js`). **Solo las filas que ya están en la página**: una lista que se pagina o se
+  corta en el servidor no se ordena en el navegador. Lo usan Comunidad › Personas, Comunidad ›
+  Cuentas y Ventas › Códigos.
+- **Listas que se ordenan en el servidor.** Con `presorted`, `Table` no reordena las filas: el
+  encabezado (el mismo botón, con `aria-sort`) cambia `sort` y avisa con `on:sort`, y la página
+  pide el orden nuevo. Comunidad › Cuentas (500 como mucho) lo lleva en la URL
+  (`?orden=mail-asc`, `creada-…`, `perfiles-…`; sin `?orden`, la más nueva primero, como
+  siempre): el servidor lo valida contra esas columnas (`parseAccountSort` en
+  `src/lib/admin/cuentas.js`; otro valor da el de siempre), desempata por id y la búsqueda y
+  «Ver todas» lo conservan. El foco queda en el encabezado (`goto` con `keepFocus`).
+- **Listas de tarjetas.** Ventas › Órdenes no es una tabla: lleva un selector «Ordenar» al lado
+  de «Mostrar» (más nuevas o más viejas primero, nombre, total, entradas), con `?orden=` en la
+  URL (sin volver a cargar la página). Trae todas las órdenes del evento, así que se ordenan en
+  el navegador con el comparador de `tableSort.js` y desempate por id (`src/lib/admin/orderSort.js`). Las columnas a la derecha
+  (números) y las `nowrap` no se cortan: si no entran, la tabla se desliza de costado. Con
+  `width` en las columnas, la tabla vacía conserva los anchos de la llena.
+
+Las capturas por grupo (`/estilo?grupo=<grupo>`, los de `GRUPOS` en `src/lib/estilo/secciones.js`)
+están en el informe de impacto visual ([ui-impacto.md](ui-impacto.md)).
 
 Íconos: los de [Lucide](https://lucide.dev) (`@lucide/svelte`) en la interfaz. Los emoji quedan
 para el contenido y las etiquetas.
@@ -191,13 +321,50 @@ elección de gorrite sobre el prototipo «Filtros en el celu» (#283):
   va en la hoja. El buscador y la barra van con la columna de la lista.
 - **El buscador** queda siempre en una línea con su forma de píldora: con muchas etiquetas
   elegidas, se deslizan de costado en su fila (fundido a la izquierda, la última a la vista) y el
-  campo de texto no baja de 10.5em.
+  campo de texto no baja de 10.5em. Es un combobox propio, sin librerías (antes @melt-ui, que
+  sumaba unos 23 KB gz a cada lista): las teclas y el mouse están descritos al principio de
+  `TagSearch.svelte`; el menú flota al final de `<body>` con la ubicación de siempre (abajo a la
+  izquierda del campo, a 6 px; si no entra, a la derecha o arriba) y se cierra al tocar afuera
+  (`src/lib/utils/popover.js`).
 - Todo lee y escribe `$filteredTags` y `?tags=` como antes (la URL la escribe PostList; el árbol
   tilda desde ahí).
+- **Sin etiquetas que no cambian nada** (#17): ni la barra ni el árbol ofrecen una etiqueta que
+  tienen todas las publicaciones a la vista, contando sus hijas como filtra `filterPosts` («BDSM»
+  después de «seguridad», si todo lo de seguridad es de BDSM; `tagCoverage` de
+  `$lib/utils/postSearch.js`). Salvo las elegidas y, en el árbol, las hijas de una elegida y las
+  madres con hijas a la vista (abren su grupo, aunque sumarlas no cambie nada). Con un solo
+  resultado, la barra sigue mostrando sus etiquetas.
 
 Lo controlan `src/lib/components/PostList.test.js`, `TagSearch.test.js`,
-`src/lib/utils/tagBar.test.js`, `src/lib/styles/segmented.test.js` y `tests/smoke.spec.js`
-(«barra de filtros de las listas», en un celu y en pantalla ancha).
+`src/lib/utils/tagBar.test.js`, `src/lib/utils/popover.test.js`, `src/lib/styles/segmented.test.js`,
+`tests/smoke.spec.js` («barra de filtros de las listas», en un celu y en pantalla ancha) y
+`tests/buscador-etiquetas.spec.js` (el buscador con el teclado y con el mouse, y el glosario).
+
+### Carrusel de la portada
+
+Detrás del interruptor `carrusel_portada` ([interruptores.md](interruptores.md); con `?carrousel`
+en la dirección se ve aunque esté apagado, para revisarlo en un preview). Lo pidió gorrite (#15);
+el diseño está para que lo revise.
+
+- **Qué eventos** (`carruselPosts` en `$lib/utils/carrusel.js`): los del calendario que todavía
+  no empezaron, con la etiqueta `KinkyVibe`, con imagen y sin cancelar, por fecha, hasta 5. Sin
+  ninguno, no hay carrusel. Los colores `carrousel_background` y `carrousel_color` de un evento
+  (hex) mandan sobre los de la paleta.
+- **Qué muestra**: la imagen, el título, la fecha corta de las tarjetas (`argDateList`), el lugar
+  (`placeShort`, como el lugar vinculado de la portada), el resumen (no en el celu) y la venta de
+  entradas de las listas (`ticketCta`: «Comprar entradas», «Agotadas»…) más «Saber más». El precio
+  no: tampoco está en las tarjetas.
+- **Accesible** (patrón de carrusel de WAI-ARIA): grupo con nombre, diapositivas «N de M», pausa
+  primero en el orden del foco, «Evento anterior» / «Evento siguiente» y un punto por evento (una
+  sola parada del Tab; entre ellos, con las flechas). Las flechas ← → también andan con el foco en
+  la diapositiva. Las que no se ven quedan `inert`.
+- **Pasa sola** cada 7 s, salvo con «reducir movimiento» (ahí no hay botón de pausa: no se mueve).
+  Se frena con el mouse encima o el foco adentro, y se para del todo al elegir otra diapositiva
+  (botones, flechas o deslizando en el celu) o con «Pausar».
+- **Sin saltos** (CLS): todas las diapositivas ocupan la misma celda de la grilla, así que el alto
+  es el de la más alta desde el HTML del servidor, y la imagen tiene su cuadrado reservado. La
+  imagen de la primera va `eager` con `fetchpriority="high"`; las demás, recién después de
+  hidratar, de a una por delante de la que se ve, y `lazy`. Con `posterSrcset` (copias chicas).
 
 ## Componentes
 
@@ -205,26 +372,22 @@ Un componente por concepto, en [`src/lib/components/ui/`](../src/lib/components/
 import: `import { Button, Card } from '$lib/components/ui';`. Envuelven las clases y los tokens de
 arriba (el aspecto es el aprobado; no los rediseñes de paso).
 
+**En las páginas públicas, cada componente por su archivo**:
+`import Button from '$lib/components/ui/Button.svelte';`. El barril (`$lib/components/ui`) trae
+todos los componentes, sus estilos y partes del panel; en el panel da igual, pero en una página
+pública es JavaScript y CSS que se baja y no se usa. ESLint (`no-restricted-imports` en
+`eslint.config.js`) no deja usar el barril en `src/routes/(content)/` ni en `src/lib/components/`
+(salvo `admin/` y `ui/`).
+
 **Antes de crear un componente nuevo, mirá `/estilo` y preguntale a gorrite.** `/estilo` es la
 galería: cada componente con su import, cuándo usarlo y cuándo no, y sus estados (normal, hover y
 foco forzados, apagado, error, elegido, vacío), en el aspecto del panel y del sitio, claro y
 oscuro, celu y compu (también por la URL: `?superficie=sitio&tema=oscuro&ancho=celu`), con datos
-inventados. Solo existe en `npm run dev` y en los deploys de preview (como el modo demo,
+inventados (`?grupo=campos` muestra solo un grupo de la revisión). Solo existe en `npm run dev` y en los deploys de preview (como el modo demo,
 [demo.md](demo.md); que también esté en `vite dev`: confirmado por gorrite, 5/10): en producción da 404 y no está en el bundle (lo controlan
 `src/lib/estilo/estiloGuard.test.js`, `tests/smoke.spec.js` y `node scripts/demo/guard.js bundle`).
 El informe de impacto visual ([ui-impacto.md](ui-impacto.md)) la fotografía, así un cambio en un
 componente se ve aunque ninguna página principal lo use.
-
-**Prototipos** (`/estilo/prototipos`): pantallas clickeables para mirar y decidir antes de hacer
-algo de verdad (la lista de [hoja-de-ruta.md](hoja-de-ruta.md), «Prototipos»), con los
-componentes de acá, datos inventados y estado local (sin base ni servidor). Misma regla que la
-galería: solo en dev y en previews, cada `+page.js` con la condición de compilación de
-`src/routes/estilo/+page.js` y el prototipo importado adentro. Cada uno va en su carpeta de
-`src/routes/estilo/prototipos/`, dentro de `Marco.svelte` (lleva la marca del guard del bundle),
-anotado en `prototipos.js` y con una caja «Para decidir» con las preguntas abiertas; lo
-controlan `src/routes/estilo/prototipos/prototipos.test.js` y `tests/smoke.spec.js`. Cuando
-gorrite contesta y hace falta otra vuelta, la nueva va en otra carpeta (`filtros-celu-v2`), la
-anterior queda para comparar (las dos se linkean) y la caja «Para decidir» lista solo lo abierto.
 
 | Concepto                                                                        | Componente                                                                         |
 | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -272,7 +435,7 @@ el dominio no cambian.
 
 | Qué                 | Cómo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Iniciar sesión      | **«Entrar»** («Entrar con GitHub», «Entrá a tu cuenta…»). Nunca «Iniciar sesión» ni «Ingresar».                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Iniciar sesión      | **«Entrar»** («Entrar con GitHub», «Entrá a tu cuenta…»). Nunca «Iniciar sesión» ni «Ingresar» ([0050](decisiones/0050-entrar-no-ingresar.md)); la dirección `/ingresar` no cambia. «Ingresar» e «ingreso» quedan solo para entrar a un evento (la entrada «ya no es válida para ingresar», «Ya ingresó»).                                                                                                                                                                                                                                                                                                                |
 | Modo puerta         | **«Puerta»**: la sección del menú (`/admin/checkin`), la pestaña de la ficha del evento y la pantalla de escanear. No «Check-in», «Ingreso» ni «Modo puerta».                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | La marca            | **«Kinky Vibe»** (dos palabras), también en los asuntos de los mails (los que cambió une admin en Plantillas quedan como están). No en la etiqueta `KinkyVibe`, las URLs, el dominio, el código ni el remitente.                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Verbos              | «Borrar» (contenido), «Sacar» (de una lista o relación), «Apagar»/«Prender» (interruptores, códigos), «Guardar» (lo que ya existe), «Crear» (lo nuevo).                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |

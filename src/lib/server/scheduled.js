@@ -6,9 +6,11 @@
  * Solo usa imports relativos: worker/index.js lo importa sin pasar por Vite.
  */
 import { nightlyBackup } from './backup/index.js';
+import { copyMedia } from './backup/media.js';
 import { deleteStaleSessions } from './cuentas/sessionAge.js';
 import { SITE_URL, siteOriginFrom } from '../utils/site.js';
 import { runAnalyticsRollup } from './analytics/report.js';
+import { checkOrdersConsistency } from './db/consistency.js';
 import {
 	checkObjectsIntegrity,
 	hasObjectsSchema,
@@ -27,6 +29,8 @@ export const DEFAULT_ORIGIN = SITE_URL;
  * @typedef {{
  *   DB?: import('@cloudflare/workers-types').D1Database,
  *   BACKUPS?: import('@cloudflare/workers-types').R2Bucket,
+ *   MEDIA?: import('@cloudflare/workers-types').R2Bucket,
+ *   MEDIA_COPIA?: import('@cloudflare/workers-types').R2Bucket,
  *   CRON_SECRET?: string,
  *   SITE_URL?: string,
  *   CF_ACCOUNT_ID?: string,
@@ -65,24 +69,32 @@ export async function runReminders(env, ctx, appFetch) {
 	const body = (await response.text()).slice(0, 300);
 	if (!response.ok) {
 		// Tirar el error hace que la corrida figure como fallida en Cloudflare (Cron Events).
-		throw new Error(`recordatorios: ${response.status} ${body}`);
+		throw new Error(`[recordatorios] ${response.status} ${body}`);
 	}
-	console.log(`recordatorios: ${body}`);
+	console.log(`[recordatorios] ${body}`);
 	return body;
 }
 
 /**
- * Backup nocturno de D1 a R2 y limpieza de los viejos.
+ * Backup nocturno de D1 a R2 y limpieza de los viejos. Si falla el backup, la corrida falla; si
+ * falla solo la limpieza, no (ver `nightlyBackup`).
  *
  * @param {ScheduledEnv} env
  * @param {Date} now
  */
 export async function runBackup(env, now) {
-	if (!env.DB) throw new Error('backup: falta el binding DB');
-	if (!env.BACKUPS) throw new Error('backup: falta el binding BACKUPS (bucket de R2)');
+	if (!env.DB) throw new Error('[backup] falta el binding DB');
+	if (!env.BACKUPS) throw new Error('[backup] falta el binding BACKUPS (bucket de R2)');
 	const result = await nightlyBackup({ db: env.DB, bucket: env.BACKUPS, now });
+	const deleted = result.pruneError
+		? `la poda falló (${result.pruneError}); se reintenta mañana`
+		: result.pruneSkipped
+			? `ninguno (poda salteada: ${result.pruneSkipped})`
+			: result.deleted.length
+				? result.deleted.join(', ')
+				: 'ninguno';
 	console.log(
-		`backup: ${result.key} (${result.bytes} bytes, ${result.tables} tablas, ${result.rows} filas); borrados: ${result.deleted.length ? result.deleted.join(', ') : 'ninguno'}`
+		`[backup] ${result.key} (${result.bytes} bytes comprimido, ${result.sqlBytes} bytes de SQL, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
 	);
 	return result;
 }
@@ -91,8 +103,9 @@ export async function runBackup(env, now) {
 const MAX_LOGGED_PROBLEMS = 50;
 
 /**
- * Chequeo nocturno de integridad de los objetos (src/lib/server/objects/integrity.js), después
- * del backup. **Nunca hace fallar la corrida**: guarda el resultado en `integrity_runs` (el
+ * Chequeo nocturno de integridad de los objetos (src/lib/server/objects/integrity.js) y de
+ * consistencia de las órdenes y las entradas (src/lib/server/db/consistency.js), después del
+ * backup. **Nunca hace fallar la corrida**: guarda el resultado en `integrity_runs` (el
  * Inicio del panel lo muestra en "Para revisar") y escribe en el log los códigos e ids (sin
  * datos). Si el chequeo mismo falla, lo escribe en el log y sigue. No arregla nada solo.
  *
@@ -112,7 +125,17 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 			);
 			return null;
 		}
-		const problems = await checkObjectsIntegrity(env.DB);
+		// El bucket de medios (binding MEDIA de wrangler.toml), para ver que no falten archivos.
+		const media = /** @type {{ MEDIA?: import('@cloudflare/workers-types').R2Bucket }} */ (env)
+			.MEDIA;
+		const problems = await checkObjectsIntegrity(env.DB, { bucket: media ?? null });
+		// Y la consistencia de las órdenes y las entradas (db/consistency.js; solo lee, nunca
+		// tira): sus problemas van en la misma corrida, a «Para revisar».
+		problems.push(
+			.../** @type {import('./objects/integrity.js').Problem[]} */ (
+				/** @type {unknown} */ (await checkOrdersConsistency(env.DB))
+			)
+		);
 		await recordIntegrityRun(env.DB, problems, now.getTime());
 		if (!problems.length) console.log('integridad de objetos: sin problemas');
 		for (const p of problems.slice(0, MAX_LOGGED_PROBLEMS)) {
@@ -131,6 +154,41 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 }
 
 /**
+ * Copia nocturna de la biblioteca (MEDIA) al bucket de la copia (MEDIA_COPIA): solo suma, nunca
+ * borra de la copia, con topes por noche (src/lib/server/backup/media.js; docs/imagenes.md).
+ * **Nunca hace fallar la corrida**. Solo en producción: los Previews no corren crons ni tienen
+ * MEDIA_COPIA; sin el binding no hace nada.
+ *
+ * @param {ScheduledEnv} env
+ * @param {Partial<import('./backup/media.js').MediaCopyLimits>} [limits]
+ * @returns {Promise<import('./backup/media.js').MediaCopyResult | null>} null si no corrió
+ */
+export async function runMediaCopy(env, limits) {
+	try {
+		if (!env.MEDIA_COPIA) {
+			console.log('copia de medios: sin el binding MEDIA_COPIA; no se copió');
+			return null;
+		}
+		if (!env.MEDIA) {
+			console.error('copia de medios: falta el binding MEDIA; no se copió');
+			return null;
+		}
+		const result = await copyMedia({ source: env.MEDIA, target: env.MEDIA_COPIA, limits });
+		const mb = (result.copiedBytes / 1024 / 1024).toFixed(1);
+		const rest = result.done
+			? 'vuelta completa'
+			: `sigue mañana después de ${result.resumeAfter || 'el principio'}`;
+		const line = `copia de medios: ${result.copied} copiado(s) (${mb} MB), ${result.checked} revisado(s), ${result.failed.length} con error, ${result.listPages} página(s) listadas; ${rest}`;
+		if (result.failed.length) console.error(line);
+		else console.log(line);
+		return result;
+	} catch (error) {
+		console.error('copia de medios: falló (el backup ya se hizo)', error);
+		return null;
+	}
+}
+
+/**
  * Limpieza nocturna de las sesiones de las cuentas que ya no tienen cookie en ningún navegador
  * (src/lib/server/cuentas/sessionAge.js): no cierra la sesión de nadie. **Nunca hace fallar la
  * corrida**: si falla, lo escribe en el log y sigue. En el log va solo cuántas borró.
@@ -142,14 +200,14 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 export async function runSessionCleanup(env, now = new Date()) {
 	try {
 		if (!env.DB) {
-			console.error('sesiones viejas: falta el binding DB; no se limpió');
+			console.error('[sesiones] sesiones viejas: falta el binding DB; no se limpió');
 			return null;
 		}
 		const deleted = await deleteStaleSessions(env.DB, now.getTime());
-		console.log(`sesiones viejas: ${deleted} borrada(s)`);
+		console.log(`[sesiones] sesiones viejas: ${deleted} borrada(s)`);
 		return deleted;
 	} catch (error) {
-		console.error('sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
+		console.error('[sesiones] sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
 		return null;
 	}
 }
@@ -170,11 +228,12 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 			// Primero el backup (si falla, la corrida falla). El chequeo, el resumen mensual de las
 			// visitas y la limpieza de sesiones sin cookie después, y nunca la hacen fallar: lo que
 			// encuentra el chequeo queda en "Para revisar"; el resumen, en `analytics_monthly` (meses
-			// de Argentina, docs/analiticas.md).
+			// de Argentina, docs/analiticas.md). Al final, la copia de la biblioteca al segundo bucket.
 			const backup = await runBackup(env, new Date(controller.scheduledTime));
 			await runObjectsIntegrity(env, new Date(controller.scheduledTime));
 			await runAnalyticsRollup(env, { now: new Date(controller.scheduledTime) });
 			await runSessionCleanup(env, new Date(controller.scheduledTime));
+			await runMediaCopy(env);
 			return backup;
 		}
 		default:

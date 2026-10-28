@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { searchRows } from './checkin.js';
 import { buildPreference } from './mercadopago.js';
 import {
 	HOLD_MS,
@@ -160,7 +161,8 @@ describe('reserva de cupo', () => {
 			fondo: 0,
 			contribution: 0,
 			surcharge: 0,
-			mpFee: 0
+			mpFee: 0,
+			mpFeeEstimated: 0
 		});
 		// Vencida la reserva del rechazo, vuelve a haber lugar; la aprobada nunca vence.
 		expect((await reserve({ quantity: 2, now: NOW + HOLD_MS + 1 })).ok).toBe(true);
@@ -491,6 +493,70 @@ describe('applyPayment', () => {
 		});
 		expect((await getOrderTickets(t.db, o.id)).length).toBe(1);
 	});
+
+	/**
+	 * La base de prueba, pero desde que se aprueba (el `batch`) toda lectura (SELECT) tira, como
+	 * si D1 se cayera justo después de la transacción.
+	 *
+	 * @param {any} db
+	 */
+	function readsFailAfterApproval(db) {
+		let approved = false;
+		return /** @type {any} */ (
+			new Proxy(db, {
+				get(target, prop) {
+					if (prop === 'batch') {
+						return async (/** @type {any[]} */ statements) => {
+							const r = await target.batch(statements);
+							approved = true;
+							return r;
+						};
+					}
+					if (prop === 'prepare') {
+						return (/** @type {string} */ sql) => {
+							if (approved && /^\s*SELECT/i.test(sql)) throw new Error('D1 no responde');
+							return target.prepare(sql);
+						};
+					}
+					const value = target[prop];
+					return typeof value === 'function' ? value.bind(target) : value;
+				}
+			})
+		);
+	}
+
+	it('si una lectura falla después de aprobar, devuelve igual la aprobación (el webhook contesta 2xx)', async () => {
+		const o = /** @type {any} */ (await reserve({ quantity: 2 })).order;
+		const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const r = await applyPayment(
+			readsFailAfterApproval(t.db),
+			payment(o.id, { transaction_amount: 16000 })
+		);
+		expect(err).toHaveBeenCalled();
+		err.mockRestore();
+		expect(r).toMatchObject({ outcome: 'updated', newlyApproved: true, tickets: [] });
+		expect(r.order).toMatchObject({ id: o.id, status: 'approved', mp_payment_id: '111' });
+		// La aprobación y las entradas quedaron hechas, y el mismo pago otra vez no cambia nada.
+		expect((await getOrder(t.db, o.id))?.status).toBe('approved');
+		expect(await getOrderTickets(t.db, o.id)).toHaveLength(2);
+		const again = await applyPayment(t.db, payment(o.id, { transaction_amount: 16000 }));
+		expect(again).toMatchObject({ outcome: 'unchanged', newlyApproved: false });
+	});
+
+	it('pago tardío y el cupo no se puede leer: se aprueba igual y queda para revisar', async () => {
+		const o = /** @type {any} */ (await reserve()).order;
+		const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const r = await applyPayment(readsFailAfterApproval(t.db), payment(o.id), {
+			now: NOW + HOLD_MS + 1,
+			capacityOf: async () => GENERAL.capacity
+		});
+		err.mockRestore();
+		expect(r).toMatchObject({ outcome: 'updated', newlyApproved: true });
+		expect(await getOrder(t.db, o.id)).toMatchObject({
+			status: 'approved',
+			needs_review: 'late_payment'
+		});
+	});
 });
 
 describe('check-in', () => {
@@ -650,6 +716,22 @@ describe('buscador del control de ingreso', () => {
 		expect(byCode[0]).toMatchObject({ id: tickets[1].id, match: { field: 'code', value: code } });
 		// Comienzo del código (3 o más).
 		expect((await searchTickets(t.db, EVENT, code.slice(0, 3)))[0].match?.field).toBe('code');
+	});
+
+	it('las sugerencias (searchRows) traen solo los últimos 3 del DNI, también buscando por el completo', async () => {
+		const tickets = await seed();
+		for (const q of ['31222333', '31.222.333', '31.222']) {
+			const rows = searchRows(await searchTickets(t.db, EVENT, q), {});
+			expect(rows.map((r) => r.id).sort()).toEqual(tickets.map((tk) => tk.id).sort());
+			for (const r of rows) {
+				expect(r.match).toEqual({ field: 'dni', label: 'DNI', value: '333' });
+				expect(r).not.toHaveProperty('dni');
+				// Ningún tramo de 4 dígitos seguidos del DNI en lo que viaja al celu. Sin `id` ni `token`:
+				// son al azar (UUID y base64) y a veces traen esos dígitos de casualidad.
+				const sent = JSON.stringify({ ...r, id: undefined, token: undefined });
+				for (let i = 0; i + 4 <= 8; i++) expect(sent).not.toContain('31222333'.slice(i, i + 4));
+			}
+		}
 	});
 
 	it('pocos resultados con `limit`, y nada de órdenes no aprobadas', async () => {

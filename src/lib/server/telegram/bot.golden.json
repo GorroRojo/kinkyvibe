@@ -1142,7 +1142,7 @@
 		]
 	},
 	"fondo sin números": {
-		"text": "<b>💗 Fondo Kinky Vibe</b>\n\nAhora no pude leer los números del Fondo. Mirálos en fondo.kinkyvibe.ar",
+		"text": "<b>💗 Fondo Kinky Vibe</b>\n\nAhora no pude leer los números del Fondo. Miralos en fondo.kinkyvibe.ar",
 		"keyboard": [
 			[
 				{
@@ -1322,7 +1322,7 @@
 		]
 	},
 	"seguir opciones": {
-		"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+		"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 		"keyboard": [
 			[
 				{
@@ -1725,7 +1725,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/calendario/taller-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1783,7 +1783,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/calendario/cuerdas-pasadas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1843,7 +1843,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/material/guia-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1904,7 +1904,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/material/cuerdas-sin-resumen",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1962,7 +1962,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/wiki/cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2020,7 +2020,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/wiki/cuerdas-sin-resumen",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2078,7 +2078,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/amigues/persona-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2136,7 +2136,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/wiki/noche-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2529,7 +2529,7 @@
 		]
 	},
 	"admin: mis avisos": {
-		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
+		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y las fallas en compras, en el momento. Solo cantidades y links, nunca datos de quienes compran.",
 		"keyboard": [
 			[
 				{
@@ -2559,6 +2559,12 @@
 				{
 					"text": "⬜ Recordatorios",
 					"callback_data": "an:r"
+				}
+			],
+			[
+				{
+					"text": "⬜ Fallas en compras",
+					"callback_data": "an:f"
 				}
 			],
 			[
@@ -3571,7 +3577,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4279,7 +4285,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4322,7 +4328,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4378,7 +4384,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4421,7 +4427,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4471,7 +4477,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4514,7 +4520,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4564,7 +4570,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4607,7 +4613,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4657,7 +4663,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4700,7 +4706,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4750,7 +4756,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4793,7 +4799,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4843,7 +4849,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4886,7 +4892,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7022,7 +7028,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7047,7 +7053,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/guia-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7075,7 +7081,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7113,7 +7119,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7138,7 +7144,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/noche-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7163,7 +7169,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7188,7 +7194,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/guia-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7216,7 +7222,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/amigues/persona-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7241,7 +7247,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7266,7 +7272,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7291,7 +7297,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/cuerdas-pasadas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7329,7 +7335,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7354,7 +7360,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/noche-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7379,7 +7385,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7417,7 +7423,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/guia-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7445,7 +7451,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7483,7 +7489,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7594,7 +7600,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y las fallas en compras, en el momento. Solo cantidades y links, nunca datos de quienes compran.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7629,6 +7635,12 @@
 							{
 								"text": "⬜ Recordatorios",
 								"callback_data": "an:r"
+							}
+						],
+						[
+							{
+								"text": "⬜ Fallas en compras",
+								"callback_data": "an:f"
 							}
 						],
 						[
@@ -7887,7 +7899,7 @@
 				"method": "editMessageText",
 				"chat_id": 77,
 				"message_id": 9,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y las fallas en compras, en el momento. Solo cantidades y links, nunca datos de quienes compran.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7922,6 +7934,12 @@
 							{
 								"text": "⬜ Recordatorios",
 								"callback_data": "an:r"
+							}
+						],
+						[
+							{
+								"text": "⬜ Fallas en compras",
+								"callback_data": "an:f"
 							}
 						],
 						[
@@ -7942,7 +7960,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y las fallas en compras, en el momento. Solo cantidades y links, nunca datos de quienes compran.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7977,6 +7995,12 @@
 							{
 								"text": "⬜ Recordatorios",
 								"callback_data": "an:r"
+							}
+						],
+						[
+							{
+								"text": "⬜ Fallas en compras",
+								"callback_data": "an:f"
 							}
 						],
 						[
@@ -8423,7 +8447,7 @@
 		]
 	},
 	"entradas: tarjeta online": {
-		"text": "🎟 <b>Charla inventada</b>\n📅 <tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n👤 Persona Inventada\n🎫 A la gorra\n\n💻 Es online: el link de la transmisión está en tu entrada, en el sitio.",
+		"text": "🎟 <b>Charla inventada</b>\n📅 <tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n👤 Persona Inventada\n🎫 A la gorra\n\n💻 Es online. Todavía no está el link de la transmisión: te lo mandamos por mail antes del evento y también va a aparecer acá.",
 		"keyboard": [
 			[
 				{

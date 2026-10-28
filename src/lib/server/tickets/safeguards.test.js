@@ -29,12 +29,19 @@ vi.mock('./events.js', async () => {
 });
 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { CHECKOUT_RATE_LIMITS, buyAction, discountAction } from './checkout.js';
+import { CHECKOUT_RATE_LIMITS, FREE_ONCE_MESSAGE, buyAction, discountAction } from './checkout.js';
+import {
+	UNCONFIRMED_MAIL_CAP,
+	optOutUrl,
+	suppressByToken
+} from '$lib/server/email/suppressions.js';
 import { validateBuyer, validateHolder } from './config.js';
 import { createDiscountCode } from './discounts.js';
 import { HOLD_LIMITS, getCounts, reserveOrder } from './orders.js';
 import { clientHash, clientNetwork } from './safeguards.js';
 import { transferDeadline } from '$lib/utils/transferDeadline.js';
+import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
+import { ordersForAccount, unconfirmedFreeOrders } from '$lib/server/cuentas/orders.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -62,14 +69,17 @@ const noFetch = /** @type {any} */ (async () => new Response('{}', { status: 503
  * @param {(event: any) => Promise<any>} action
  * @param {Record<string, string>} fields
  * @param {string} [ip]
+ * @param {string} [slug] el evento (todos con la misma configuración de prueba)
+ * @param {{ id: string, email: string }} [member] la cuenta con sesión
  */
-async function post(action, fields, ip = '203.0.113.7') {
+async function post(action, fields, ip = '203.0.113.7', slug = 'evento', member) {
 	const body = new FormData();
 	for (const [k, v] of Object.entries(fields)) body.set(k, v);
 	/** @type {any} */
 	const event = {
-		params: { event: 'evento' },
+		params: { event: slug },
 		platform: t.platform,
+		locals: member ? { member } : {},
 		request: new Request('http://localhost/x', { method: 'POST', body }),
 		url: new URL('http://localhost/calendario/evento/entradas'),
 		fetch: noFetch,
@@ -344,9 +354,10 @@ describe('?/buy', () => {
 				method: '',
 				dni: `3011122${i}`
 			});
-		// Entradas gratis (se emiten al toque): distintas órdenes, misma dirección.
+		// Entradas gratis (se emiten al toque): distintas órdenes, misma dirección. Cada una en otro
+		// evento: con un mail sin cuenta, una orden gratis por mail y evento (ver más abajo).
 		for (let i = 0; i < 5; i++) {
-			const r = await post(buyAction, free(i), `198.51.100.${i}`);
+			const r = await post(buyAction, free(i), `198.51.100.${i}`, `evento-${i}`);
 			expect(r.redirect).toBeTruthy();
 		}
 		await new Promise((r) => setTimeout(r, 50));
@@ -354,6 +365,168 @@ describe('?/buy', () => {
 		spy.mockRestore();
 		warn.mockRestore();
 	});
+});
+
+describe('entradas gratis y mails a direcciones sin confirmar', () => {
+	/** @param {string} email @param {Record<string, string>} [o] */
+	const free = (email, o = {}) => order({ type: 'libre', amount: '0', email, method: '', ...o });
+
+	/** Los mails «simulados» (dev, sin RESEND_API_KEY) de entradas a `masked` en esta prueba. */
+	function mailLog() {
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		onTestFinished(() => {
+			log.mockRestore();
+			warn.mockRestore();
+		});
+		/** @param {string} masked @param {string} [subject] */
+		return (masked, subject = 'Tus entradas') =>
+			log.mock.calls.filter((c) =>
+				String(c[0]).includes(`email simulado] para ${masked} · "${subject}`)
+			).length;
+	}
+
+	/** @param {string} redirect */
+	const orderOf = async (redirect) =>
+		/** @type {any} */ (
+			await t.db
+				.prepare('SELECT status, payment_method FROM orders WHERE id = ?1')
+				.bind(redirect.split('/')[2])
+				.first()
+		);
+
+	it('una orden gratis por mail y evento; con la cuenta de ese mail, más', async () => {
+		const first = await post(buyAction, free('dos.veces@example.com'), '198.51.100.1');
+		expect(first.redirect).toMatch(/\/estado$/);
+		// Mismo mail (con otras mayúsculas), mismo evento, otra conexión: no.
+		const again = await post(buyAction, free('Dos.Veces@example.com'), '198.51.100.2');
+		expect(again.status).toBe(409);
+		expect(again.data.buy.error).toBe(FREE_ONCE_MESSAGE);
+		// Otro evento, sí.
+		const other = await post(buyAction, free('dos.veces@example.com'), '198.51.100.3', 'otro');
+		expect(other.redirect).toMatch(/\/estado$/);
+		// Con la sesión de la cuenta de ese mail, sí.
+		const member = { id: 'cuenta-de-prueba', email: 'dos.veces@example.com' };
+		const mine = await post(
+			buyAction,
+			free('dos.veces@example.com'),
+			'198.51.100.4',
+			'evento',
+			member
+		);
+		expect(mine.redirect).toMatch(/\/estado$/);
+		// Una cuenta con otro mail no sirve.
+		const otherMember = { id: 'otra-cuenta', email: 'otra.cuenta@example.com' };
+		const notMine = await post(
+			buyAction,
+			free('dos.veces@example.com'),
+			'198.51.100.5',
+			'evento',
+			otherMember
+		);
+		expect(notMine.status).toBe(409);
+		// (Más intentos con este mail chocarían con el límite de órdenes por mail cada 10 minutos.)
+	});
+
+	it('Mi rincón: la gratis pedida con la sesión de esa cuenta va a la lista; sin sesión, a «¿Son tuyas?»', async () => {
+		// Desde cuándo se pregunta (lo escribe la migración 0061): antes de estas órdenes.
+		await t.db
+			.prepare(
+				`INSERT INTO ticket_settings (key, value, updated_at, updated_by)
+				VALUES ('free_order_choices_since', ?1, 1, 'test')`
+			)
+			.bind(String(Date.now() - 1000))
+			.run();
+		const account = await upsertVerifiedAccount(t.db, 'con.cuenta@example.com', {
+			now: Date.now()
+		});
+		const member = { id: account.id, email: account.email };
+		const withSession = await post(
+			buyAction,
+			free('con.cuenta@example.com'),
+			'198.51.100.21',
+			'evento',
+			member
+		);
+		const without = await post(buyAction, free('con.cuenta@example.com'), '198.51.100.22', 'otro');
+		/** @param {string} redirect */
+		const idOf = (redirect) => redirect.split('/')[2];
+		expect((await ordersForAccount(t.db, account.id)).map((o) => o.id)).toEqual([
+			idOf(withSession.redirect)
+		]);
+		expect((await unconfirmedFreeOrders(t.db, account.id)).map((o) => o.id)).toEqual([
+			idOf(without.redirect)
+		]);
+	});
+
+	it('«No fui yo»: la orden gratis se crea y aprueba, pero no sale el mail', async () => {
+		const mails = mailLog();
+		const url = await optOutUrl(t.db, 'http://localhost', 'no.fui@example.com');
+		expect(await suppressByToken(t.db, String(url).split('/').pop())).toBe(true);
+		const r = await post(buyAction, free('No.Fui@example.com'), '198.51.100.7');
+		expect(r.redirect).toMatch(/\/estado$/);
+		expect(await orderOf(r.redirect)).toMatchObject({
+			status: 'approved',
+			payment_method: 'gratis'
+		});
+		// Otra dirección, sin «No fui yo», sí recibe el suyo.
+		const ok = await post(buyAction, free('si.llega@example.com'), '198.51.100.8');
+		expect(ok.redirect).toMatch(/\/estado$/);
+		await new Promise((res) => setTimeout(res, 50));
+		expect(mails('n***@example.com')).toBe(0);
+		expect(mails('s***@example.com')).toBe(1);
+	});
+
+	it('«No fui yo»: la reserva por transferencia se crea, sin el mail de los datos', async () => {
+		const mails = mailLog();
+		const url = await optOutUrl(t.db, 'http://localhost', 'no.reserve@example.com');
+		await suppressByToken(t.db, String(url).split('/').pop());
+		const r = await post(buyAction, order({ email: 'no.reserve@example.com' }), '198.51.100.9');
+		expect(r.redirect).toMatch(/\/estado$/);
+		expect(await orderOf(r.redirect)).toMatchObject({ payment_method: 'transferencia' });
+		await new Promise((res) => setTimeout(res, 50));
+		expect(mails('n***@example.com', 'Datos para transferir')).toBe(0);
+	});
+
+	it(
+		'tope por día de mails a una dirección sin confirmar, sumando entradas gratis y reservas',
+		{ timeout: 30000 },
+		async () => {
+			const mails = mailLog();
+			let clock = Date.UTC(2026, 9, 1, 3, 5, 0);
+			const now = vi.spyOn(Date, 'now').mockImplementation(() => clock);
+			onTestFinished(() => now.mockRestore());
+			// Una por hora (así no cuenta el límite de 3 por hora), cada una en otro evento.
+			for (let i = 0; i < UNCONFIRMED_MAIL_CAP.limit + 2; i++) {
+				clock += 60 * 60 * 1000;
+				const fields =
+					i % 2
+						? order({ email: 'tope@example.com', dni: `3011122${i}` })
+						: free('tope@example.com', { dni: `3011122${i}` });
+				const r = await post(buyAction, fields, `198.51.100.${20 + i}`, `evento-tope-${i}`);
+				expect(r.redirect).toBeTruthy();
+			}
+			await new Promise((res) => setTimeout(res, 50));
+			expect(mails('t***@example.com') + mails('t***@example.com', 'Datos para transferir')).toBe(
+				UNCONFIRMED_MAIL_CAP.limit
+			);
+			// Con la cuenta de ese mail no cuenta el tope (sí el de 3 por hora).
+			clock += 60 * 60 * 1000;
+			const member = { id: 'cuenta-tope', email: 'tope@example.com' };
+			const r = await post(
+				buyAction,
+				free('tope@example.com'),
+				'198.51.100.40',
+				'evento-tope-cuenta',
+				member
+			);
+			expect(r.redirect).toBeTruthy();
+			await new Promise((res) => setTimeout(res, 50));
+			expect(mails('t***@example.com') + mails('t***@example.com', 'Datos para transferir')).toBe(
+				UNCONFIRMED_MAIL_CAP.limit + 1
+			);
+		}
+	);
 });
 
 describe('nombres', () => {

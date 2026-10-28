@@ -21,9 +21,12 @@ import {
 	buildStreamLinkEmail,
 	buildTicketEmail,
 	buildTransferEmail,
+	autoSubmitted,
 	maskEmail,
+	resendBackoff,
 	sendWithResend
 } from './email.js';
+import { noteResendQuota } from './resendQuota.js';
 import { parseAllowlist, routeEmail, subjectForLog } from './emailGuard.js';
 import { getEventMeta, getEventTickets, listTicketedEvents } from './events.js';
 import { coveredPartsByWorkshop } from '../eventos/partes.js';
@@ -32,18 +35,19 @@ import { isPreviewDeploy } from '../deploy.js';
 import { sha256Hex } from '../hash.js';
 import { trackFunnel } from '../analytics/track.js';
 import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
-import { applyPayment, getOrderTickets, markEmailSent } from './orders.js';
+import { applyPayment, getOrderTickets, markEmailSent, markEmailUndeliverable } from './orders.js';
 import {
 	DEFAULT_FROM_EMAIL,
 	DEFAULT_REPLY_TO,
 	getSalesSettings,
+	isAllowedFrom,
 	transferInfoFromSettings
 } from './settings.js';
 import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
 import { resolveTemplate } from './templates.js';
 import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
-import { buyerLocation } from '../amigues/venues.js';
+import { buyerLocation, venueNotesForMail } from '../amigues/venues.js';
 import {
 	claimStreamLinkSend,
 	getStreamLink,
@@ -52,10 +56,16 @@ import {
 } from './stream.js';
 import { mailBatchSize } from './batchSize.js';
 import { withMailFooter } from '../email/layout.js';
+import { domainAcceptsMail } from '../email/mx.js';
+import { isFreeOrder, isSuppressed, optOutUrl } from '../email/suppressions.js';
 import { runMailQueueWith } from './mailQueue.js';
 import { calendarStamp } from './calendarFile.js';
 import { getDateChange, sendDateChangeBatch } from './dateChange.js';
+import { comboCodesForOrder } from './combos.js';
+import { isFlagOn } from '../flags.js';
+import { logMailsPaused, mailsPaused } from '../emergencia.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
+import { reportPurchaseFailure } from '$lib/server/telegram/purchaseAlerts.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -154,6 +164,20 @@ export function contactEmail() {
 }
 
 /**
+ * El remitente guardado, si es de un dominio verificado (`isAllowedFrom` en settings.js); si no
+ * (un valor viejo guardado en D1 o una variable mal cargada), el de siempre: con otro dominio
+ * Resend rechazaría todos los mails. Lo registra en la consola sin el valor.
+ *
+ * @param {string} from
+ */
+function allowedFrom(from) {
+	if (!from) return DEFAULT_FROM_EMAIL;
+	if (isAllowedFrom(from)) return from;
+	console.error('[mails] el remitente configurado no es @kinkyvibe.ar: se usa el de siempre');
+	return DEFAULT_FROM_EMAIL;
+}
+
+/**
  * Remitente y dirección de respuesta de los mails (y adonde se mandan los comprobantes): los de
  * /admin/mensajes/configuracion o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
  * ("KinkyVibe <entradas@kinkyvibe.ar>" y entradas@kinkyvibe.ar).
@@ -169,7 +193,7 @@ export async function emailSettings(db) {
 		console.error('[tickets] no se pudieron leer los ajustes de venta:', error);
 	}
 	return {
-		from: s.from_email || env.TICKETS_FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL,
+		from: allowedFrom(s.from_email || env.TICKETS_FROM_EMAIL?.trim() || ''),
 		replyTo: s.reply_to_email || env.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO,
 		// Pie de los mails (vacío = el de siempre): lo aplica `deliver()` con `withMailFooter`.
 		footer: { contact: s.mail_footer_contact || '', signoff: s.mail_footer_signoff || '' }
@@ -276,10 +300,39 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 	if (result.outcome === 'unknown-order') {
 		console.warn(`[tickets] pago ${payment.id} sin orden conocida`);
 	}
+	if (result.outcome === 'mismatch') {
+		// El monto, la moneda o el medio no coinciden (ya quedó en el log): «Fallas en compras».
+		await reportPurchaseFailure({
+			db,
+			platform,
+			code: 'pago_no_coincide',
+			order: result.order,
+			origin,
+			fetch: fetchFn
+		});
+	}
 	if (result.outcome === 'updated' && result.order?.status === 'refunded') {
-		// Reembolso hecho desde el panel de MP (o contracargo): avisar una vez (solo quien cambió
-		// el estado llega acá; un reembolso hecho desde nuestro admin ya lo avisó).
-		await inBackground(sendRefundEmail({ db, order: result.order, fetch: fetchFn }), platform);
+		if (payment.status === 'charged_back') {
+			// Contracargo: el banco de quien compró revirtió el cobro, no se lo devolvimos nosotres.
+			// La orden queda reembolsada igual, pero el mail «Reembolsamos tu compra» sería falso:
+			// no se manda nada y queda el aviso en el log (sin datos personales) para revisarlo. Les
+			// admins que prendieron «Cada venta» en Telegram reciben un aviso (nunca tira).
+			console.warn(
+				`[tickets] contracargo del pago ${payment.id} en la orden ${result.order.id}: queda reembolsada, sin mail de reembolso`
+			);
+			await queueOrderNotice({
+				db,
+				platform,
+				kind: 'contracargo',
+				order: result.order,
+				origin,
+				fetch: fetchFn
+			});
+		} else {
+			// Reembolso hecho desde el panel de MP: avisar una vez (solo quien cambió el estado
+			// llega acá; un reembolso hecho desde nuestro admin ya lo avisó).
+			await inBackground(sendRefundEmail({ db, order: result.order, fetch: fetchFn }), platform);
+		}
 	}
 	// Reembolso, contracargo o pago cancelado: se liberó el lugar y la lista de espera pasa a la
 	// próxima persona (en segundo plano; el cron lo garantiza igual).
@@ -318,28 +371,54 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  * en producción loguea un error (`failed`). En un preview, solo a EMAIL_ALLOWLIST (emailGuard.js).
  * `from`: remitente fijo de un mail que no es del sitio de entradas (el del Fondo); sin él, el de
  * los ajustes, como siempre.
+ * `optOut`: un mail que no es de una compra pagada (entradas gratis, reservas por transferencia,
+ * lista de espera, avisos de series…): si la dirección dijo «No fui yo» (email/suppressions.js), no
+ * sale y vuelve `simulated` (como enviado: no se reintenta). Si no se puede leer la base, no sale
+ * (`failed`). Los de una compra pagada no lo llevan y salen siempre.
+ * `kind`: el tipo de mail, que va como tag `tipo` de Resend (ver `sendWithResend`).
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
  *   fetch: typeof fetch,
  *   to: string,
  *   message: { subject: string, html: string, text: string,
- *     attachments?: import('./email.js').MailAttachment[] },
+ *     attachments?: import('./email.js').MailAttachment[], headers?: Record<string, string> },
  *   idempotencyKey?: string,
  *   log?: string,
- *   from?: string
+ *   from?: string,
+ *   optOut?: boolean,
+ *   kind?: string
  * }} input
+ * @param {(emailId: string | null) => void} [onSent] recibe el id que devolvió Resend, si salió (el
+ *   mail de las entradas lo guarda en la orden: docs/mails.md, «Rebotes y quejas»)
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
-async function deliver({
-	db,
-	fetch: fetchFn,
-	to,
-	message: built,
-	idempotencyKey,
-	log = '',
-	from: fixedFrom
-}) {
+async function deliver(
+	{
+		db,
+		fetch: fetchFn,
+		to,
+		message: built,
+		idempotencyKey,
+		log = '',
+		from: fixedFrom,
+		optOut = false,
+		kind
+	},
+	onSent
+) {
+	if (optOut) {
+		try {
+			if (!db) throw new Error('sin base');
+			if (await isSuppressed(db, to)) {
+				console.log(`[mails] «No fui yo»: no se manda "${subjectForLog(built.subject)}"`);
+				return 'simulated';
+			}
+		} catch (error) {
+			console.error('[mails] no se pudo revisar «No fui yo»: no se manda', error);
+			return 'failed';
+		}
+	}
 	// Todo mail pasa por acá: el pie de Mensajes → Configuración se pone una sola vez, para todos.
 	const settings = await emailSettings(db);
 	const message = { ...built, html: withMailFooter(built.html, settings.footer) };
@@ -370,15 +449,30 @@ async function deliver({
 	}
 	const { replyTo } = settings;
 	const from = fixedFrom || settings.from;
-	await sendWithResend({
-		fetch: fetchFn,
-		apiKey,
-		from,
-		to: route.to,
-		replyTo,
-		message: { ...message, subject: route.subject },
-		idempotencyKey
-	});
+	/** @type {{ id?: string }} */
+	let sent;
+	try {
+		sent = await sendWithResend({
+			fetch: fetchFn,
+			apiKey,
+			from,
+			to: route.to,
+			replyTo,
+			message: { ...message, subject: route.subject },
+			idempotencyKey,
+			kind
+		});
+	} catch (error) {
+		// Cupo terminado: queda el aviso en «Para revisar» (resendQuota.js). El error sigue: quien
+		// llama decide (las tandas no gastan el intento, ver `resendBackoff`).
+		if (resendBackoff(error) === 'quota') {
+			await noteResendQuota(db, {
+				code: /** @type {import('./email.js').ResendError} */ (error).code
+			});
+		}
+		throw error;
+	}
+	onSent?.(typeof sent?.id === 'string' && sent.id ? sent.id : null);
 	return 'sent';
 }
 
@@ -448,21 +542,55 @@ async function dateChangeVersionFor(db, slug) {
  *   tickets?: import('./orders.js').Ticket[],
  *   origin: string,
  *   fetch: typeof fetch,
- *   idempotent?: boolean
- * }} input
+ *   idempotent?: boolean,
+ *   idempotencyKey?: string
+ * }} input `idempotencyKey`: otra clave para Resend en vez de `tickets-<orden>` (la corrección
+ *   del mail manda con una propia: la de siempre ya se usó con otra dirección)
  * @returns {Promise<boolean>} si se envió
  */
-export async function sendOrderEmail({
+export async function sendOrderEmail(input) {
+	return (await sendOrderEmailResult(input)) === 'sent';
+}
+
+/**
+ * {@link sendOrderEmail} con el resultado de `deliver()`: `sent` (salió y quedó marcado),
+ * `simulated` (no salió a propósito: «No fui yo», preview sin EMAIL_ALLOWLIST o dev sin clave) o
+ * `failed`. Lo usa el reintento del cron (unsentOrders.js) para no volver a tomar una orden
+ * cortada a propósito. Si Resend dijo «ahora no» (cupo, tasa o un 5xx: `resendBackoff` en
+ * email.js), devuelve eso en vez de `failed`, así el reintento no gasta el intento.
+ * `undeliverable`: el dominio de la dirección no recibe correo (email/mx.js); no se mandó y la
+ * orden ya quedó marcada como enviada y rebotada (`markEmailUndeliverable`).
+ *
+ * @param {Parameters<typeof sendOrderEmail>[0]} input
+ * @returns {Promise<'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server' | 'undeliverable'>}
+ */
+export async function sendOrderEmailResult({
 	db,
 	order,
 	tickets,
 	origin,
 	fetch: fetchFn,
-	idempotent = true
+	idempotent = true,
+	idempotencyKey = idempotent ? `tickets-${order.id}` : undefined
 }) {
 	/** @type {string | null} */
 	let claimedLink = null;
 	try {
+		// Un dominio que seguro no recibe correo (un tipeo como gmail.con): no se le pide a Resend
+		// un envío que rebota seguro, y la orden queda marcada como rebotada, como si hubiera
+		// avisado el webhook (Órdenes y «Para revisar»: docs/mails.md, «Rebotes y quejas»). Sin
+		// RESEND_API_KEY (dev, E2E) no sale nada igual: no se consulta.
+		if (
+			env.RESEND_API_KEY &&
+			!(await domainAcceptsMail(order.buyer_email, { salt: env.RESEND_API_KEY }))
+		) {
+			console.warn(
+				`[mails] el dominio del mail de la orden ${order.id} no recibe correo: no se manda y queda como rebotado`
+			);
+			await markEmailUndeliverable(db, order.id, Date.now());
+			// Ni `simulated`: el reintento del cron marcaría la orden como enviada y borraría el rebote.
+			return 'undeliverable';
+		}
 		const list = tickets?.length ? tickets : await getOrderTickets(db, order.id);
 		const config = await getEventTickets(order.event_slug);
 		const typeName =
@@ -476,9 +604,13 @@ export async function sendOrderEmail({
 		// Si el evento tiene lugar, quien compró recibe la
 		// dirección completa, aunque en el sitio no se muestre (docs/amigues.md).
 		const venue = await buyerLocation(db, order.event_slug);
+		// «Cómo llegar» y «Accesibilidad»: solo si la página del evento se los muestra a cualquiera.
+		const notes = await venueNotesForMail(db, order.event_slug);
 		const message = buildTicketEmail({
 			order,
 			tickets: list,
+			// Entradas gratis: el pie lleva «¿No pediste vos estas entradas?» (email/suppressions.js).
+			optOutUrl: isFreeOrder(order) ? await optOutUrl(db, origin, order.buyer_email) : null,
 			event: {
 				// Con el slug, el mail lleva adjunto el .ics del evento (calendarFile.js).
 				slug: order.event_slug,
@@ -495,6 +627,8 @@ export async function sendOrderEmail({
 				}),
 				location: venue ? venue.location : config?.location,
 				location_name: venue ? venue.location_name : config?.location_name,
+				howTo: notes?.howTo,
+				accessibility: notes?.accessibility,
 				online,
 				streamLink,
 				// Taller en varias partes con una sola entrada: la fecha y el lugar de cada parte.
@@ -503,31 +637,67 @@ export async function sendOrderEmail({
 			typeName,
 			origin,
 			contactEmail: contactEmail(),
-			template: await resolveTemplate(db, order.event_slug, 'tickets')
+			template: await resolveTemplate(db, order.event_slug, 'tickets'),
+			combos: await orderCombos(db, order, origin)
 		});
-		const result = await deliver({
-			db,
-			fetch: fetchFn,
-			to: order.buyer_email,
-			message,
-			idempotencyKey: idempotent ? `tickets-${order.id}` : undefined,
-			// Nunca logueamos el token completo: con él se entra al evento.
-			log: list
-				.map((t) => `  ${origin}/entradas/t/${t.token.slice(0, 6)}… (${t.code ?? 'sin código'})`)
-				.join('\n')
-		});
+		/** @type {string | null} */
+		let emailId = null;
+		const result = await deliver(
+			{
+				db,
+				fetch: fetchFn,
+				to: order.buyer_email,
+				message,
+				idempotencyKey,
+				kind: 'entradas',
+				optOut: isFreeOrder(order),
+				// Nunca logueamos el token completo: con él se entra al evento.
+				log: list
+					.map((t) => `  ${origin}/entradas/t/${t.token.slice(0, 6)}… (${t.code ?? 'sin código'})`)
+					.join('\n')
+			},
+			(id) => {
+				emailId = id;
+			}
+		);
 		if (result === 'failed' && claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink });
 		}
-		if (result !== 'sent') return false;
-		await markEmailSent(db, order.id);
-		return true;
+		if (result === 'failed') {
+			// «Fallas en compras» por Telegram (nunca tira); el cron lo reintenta igual.
+			await reportPurchaseFailure({ db, code: 'mail_entradas', order, origin, fetch: fetchFn });
+		}
+		if (result !== 'sent') return result;
+		await markEmailSent(db, order.id, Date.now(), emailId);
+		return 'sent';
 	} catch (error) {
 		console.error(`[tickets] no se pudo mandar el email de la orden ${order.id}:`, error);
 		if (claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink }).catch(() => {});
 		}
-		return false;
+		const backoff = resendBackoff(error);
+		if (!backoff) {
+			await reportPurchaseFailure({ db, code: 'mail_entradas', order, origin, fetch: fetchFn });
+		}
+		return backoff ?? 'failed';
+	}
+}
+
+/**
+ * Los códigos combo de la orden para el mail de las entradas (combos.js), solo con el interruptor
+ * `combo_codigos` prendido. Si algo falla, el mail sale igual, sin el bloque.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {import('./orders.js').Order} order
+ * @param {string} origin
+ */
+async function orderCombos(db, order, origin) {
+	try {
+		if (!(await isFlagOn(db, 'combo_codigos'))) return [];
+		return await comboCodesForOrder(db, order, { origin });
+	} catch (error) {
+		console.error(`[tickets] códigos combo de la orden ${order.id}:`, error);
+		return [];
 	}
 }
 
@@ -594,8 +764,10 @@ export async function sendStreamLinkEmails({
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
-				message,
-				idempotencyKey: `stream-${order.id}-${key}`
+				message: autoSubmitted(message),
+				idempotencyKey: `stream-${order.id}-${key}`,
+				kind: 'transmision',
+				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
 		}
@@ -672,16 +844,22 @@ export async function sendDateChangeEmails({
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
-				message,
-				idempotencyKey: `datechange-${order.id}-${change.version}`
+				message: autoSubmitted(message),
+				idempotencyKey: `datechange-${order.id}-${change.version}`,
+				kind: 'cambio-fecha',
+				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
 		}
 	});
 }
 
+/** Cuánto se espera antes de reintentar el mail con los datos para transferir. */
+export const TRANSFER_RETRY_DELAY_MS = 2000;
+
 /**
- * Manda (o, sin RESEND_API_KEY, loguea) el email con los datos para transferir.
+ * Manda (o, sin RESEND_API_KEY, loguea) el email con los datos para transferir. Si falla, lo
+ * reintenta una vez a los {@link TRANSFER_RETRY_DELAY_MS} con la misma clave de idempotencia.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
@@ -701,6 +879,7 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			event: {
 				title: config?.title || order.event_slug,
 				start: config?.start,
+				end: config?.end,
 				// La compra todavía no está pagada: el lugar como se ve en el sitio.
 				parts: await workshopPartsList(db, order.event_slug, {
 					online: Boolean(config?.online),
@@ -712,15 +891,41 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			replyTo: await replyToAddress(db),
 			contactEmail: contactEmail(),
 			origin,
-			template: await resolveTemplate(db, order.event_slug, 'transfer')
+			template: await resolveTemplate(db, order.event_slug, 'transfer'),
+			// Todavía no está pagada: el pie lleva «¿No reservaste vos?» (email/suppressions.js).
+			optOutUrl: await optOutUrl(db, origin, order.buyer_email)
 		});
-		const result = await deliver({
-			db,
-			fetch: fetchFn,
-			to: order.buyer_email,
-			message,
-			idempotencyKey: `transfer-${order.id}`
-		});
+		/** @returns {Promise<'sent' | 'simulated' | 'failed'>} */
+		const send = async () => {
+			try {
+				return await deliver({
+					db,
+					fetch: fetchFn,
+					to: order.buyer_email,
+					message,
+					idempotencyKey: `transfer-${order.id}`,
+					kind: 'transferencia',
+					optOut: true
+				});
+			} catch (error) {
+				// Cupo terminado: reintentar enseguida no sirve (queda el aviso en «Para revisar»).
+				if (resendBackoff(error) === 'quota') throw error;
+				console.error(`[tickets] el mail de transferencia ${order.id} falló:`, error);
+				return 'failed';
+			}
+		};
+		let result = await send();
+		if (result === 'failed') {
+			// Un reintento, como el mail de las entradas (auditoría de confiabilidad, O29): sin los
+			// datos, la reserva vence sin que la persona sepa adónde transferir. La misma clave de
+			// idempotencia: si el primero sí salió, Resend no lo duplica.
+			console.warn(`[tickets] el mail de transferencia ${order.id} falló: se reintenta una vez`);
+			await new Promise((resolve) => setTimeout(resolve, TRANSFER_RETRY_DELAY_MS));
+			result = await send();
+			if (result === 'failed') {
+				console.error(`[tickets] el mail de transferencia ${order.id} no salió`);
+			}
+		}
 		return result === 'sent';
 	} catch (error) {
 		console.error(`[tickets] no se pudo mandar el email de transferencia ${order.id}:`, error);
@@ -750,7 +955,9 @@ export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
 			fetch: fetchFn,
 			to: order.buyer_email,
 			message,
-			idempotencyKey: `refund-${order.id}`
+			idempotencyKey: `refund-${order.id}`,
+			kind: 'reembolso',
+			optOut: isFreeOrder(order)
 		});
 		return result !== 'failed';
 	} catch (error) {
@@ -818,6 +1025,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 	const dateChanges = new Map();
 	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
 	const venues = new Map();
+	/** @type {Map<string, Awaited<ReturnType<typeof venueNotesForMail>>>} */
+	const venueNotes = new Map();
 	/** @type {Map<string, Record<string, any> | null>} */
 	const partMetas = new Map();
 	// La lista de partes de cada taller con una sola entrada, leída una vez por taller.
@@ -849,6 +1058,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			const tickets = await getOrderTickets(db, order.id);
 			if (!venues.has(where)) venues.set(where, await buyerLocation(db, where));
 			const venue = venues.get(where);
+			if (!venueNotes.has(where)) venueNotes.set(where, await venueNotesForMail(db, where));
+			const notes = venueNotes.get(where);
 			if (!templates.has(e.slug))
 				templates.set(e.slug, await resolveTemplate(db, e.slug, 'reminder'));
 			if (!partLists.has(e.slug)) {
@@ -874,6 +1085,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 						: meta
 							? meta.location_name
 							: config.location_name,
+					howTo: notes?.howTo,
+					accessibility: notes?.accessibility,
 					online: config.online,
 					streamLink: linkInfo?.link ?? null,
 					stamp: calendarStamp({
@@ -893,8 +1106,10 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
-				message,
-				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`
+				message: autoSubmitted(message),
+				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`,
+				kind: 'recordatorio',
+				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
 		}
@@ -907,6 +1122,10 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
  * «Avisar a les compradores» de un cambio de fecha (ver mailQueue.js). Se puede llamar dos veces a la vez sin duplicar nada (ver sendState.js).
  * Con `sendWaitlist` (interruptor `lista_espera` prendido; `waitlistMailBatch` de
  * waitlistEngine.js), los mails de la lista de espera van primero.
+ *
+ * Con la pausa de emergencia de los mails (`MAILS_PAUSED`, $lib/server/emergencia.js) no manda
+ * nada ni gasta intentos: devuelve `{ paused: true }` y todo queda pendiente para las corridas de
+ * después de la pausa.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
@@ -925,6 +1144,10 @@ export async function runMailQueue({
 	limit,
 	sendWaitlist
 }) {
+	if (mailsPaused()) {
+		logMailsPaused('la tanda del cron (recordatorios, links, cambios de fecha, lista de espera)');
+		return { paused: /** @type {const} */ (true) };
+	}
 	return runMailQueueWith(db, {
 		limit,
 		...(sendWaitlist ? { sendWaitlist } : {}),
@@ -950,7 +1173,11 @@ export async function runMailQueue({
  */
 export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit }) {
 	const config = await getEventTickets(send.event_slug);
-	const event = { title: config?.title || send.event_slug, start: config?.start };
+	const event = {
+		title: config?.title || send.event_slug,
+		start: config?.start,
+		end: config?.end
+	};
 	return sendBuyerMailBatch(db, {
 		send,
 		limit,
@@ -974,7 +1201,9 @@ export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit })
 				fetch: fetchFn,
 				to: recipient.email,
 				message,
-				idempotencyKey: `buyer-mail-${send.id}-${who}`
+				idempotencyKey: `buyer-mail-${send.id}-${who}`,
+				kind: 'mail-compradores',
+				optOut: !recipient.paid
 			});
 			return result !== 'failed';
 		}
@@ -999,7 +1228,8 @@ export async function sendTestEmail({ db, fetch: fetchFn, to, message }) {
 			db,
 			fetch: fetchFn,
 			to,
-			message: { ...message, subject: `[Prueba] ${message.subject}` }
+			message: { ...message, subject: `[Prueba] ${message.subject}` },
+			kind: 'prueba'
 		});
 	} catch (error) {
 		console.error('[tickets] no se pudo mandar el mail de prueba:', error);

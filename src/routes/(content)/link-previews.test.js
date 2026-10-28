@@ -89,7 +89,12 @@ function expectComplete(meta, head, path) {
 	expect(new URL(meta['twitter:image']).href).toBe(image.href);
 	expect(meta['og:locale']).toBe('es_AR');
 	expect(meta['og:site_name']).toBe('Kinky Vibe');
-	expect(meta['twitter:card']).toBe('summary_large_image');
+	// La tarjeta chica solo para imágenes cuadradas o angostas (seoTags).
+	const w = Number(meta['og:image:width']);
+	const h = Number(meta['og:image:height']);
+	expect(meta['twitter:card']).toBe(
+		w && h && (w === h || w < 600) ? 'summary' : 'summary_large_image'
+	);
 	expect(meta['twitter:site']).toBe('@kinkyvibearg');
 	expect(meta['og:title']).toBeTruthy();
 	expect(meta['twitter:title']).toBe(meta['og:title']);
@@ -226,6 +231,41 @@ describe('amigues (la lista)', () => {
 		const meta = single(head);
 		expect(meta['og:title']).toBe('Amigues · ' + evil);
 		expect(new URL(meta['og:url']).searchParams.get('tags')).toBe(evil);
+	});
+
+	it('las listas se indexan: sin robots', async () => {
+		expect(single(await amiguesHead('/amigues'))).not.toHaveProperty('robots');
+	});
+});
+
+describe('/todo', () => {
+	it('noindex (sin nofollow): junta las otras listas, los buscadores siguen sus links', async () => {
+		at('/todo');
+		const { default: ListSeoHead } = await import('$lib/components/ListSeoHead.svelte');
+		const head = render(ListSeoHead, { props: { section: 'todo', noindex: true } }).head;
+		expect(single(head).robots).toBe('noindex');
+		// y la página lo pide así (sin compilarla entera: la fuente alcanza)
+		const { readFileSync } = await import('node:fs');
+		const source = readFileSync(new URL('./todo/+page.svelte', import.meta.url), 'utf8');
+		expect(source).toMatch(/<ListSeoHead section="todo" noindex \/>/);
+	});
+});
+
+describe('títulos de las listas (los textos del panel)', () => {
+	it('/todo: su propio <title> (no el del inicio) y un h1', async () => {
+		at('/todo');
+		const { default: Todo } = await import('./todo/+page.svelte');
+		const { head, body } = render(Todo, { props: { data: /** @type {any} */ ({ posts: [] }) } });
+		expect(head).toContain(`<title>${PREVIEW_TEXT_DEFAULTS['todo.heading']} · Kinky Vibe</title>`);
+		expect(tagsOf(body, 'h1')).toHaveLength(1);
+	});
+
+	it('un texto cambiado en el panel cambia el <title>', async () => {
+		const texts = { ...PREVIEW_TEXT_DEFAULTS, 'material.heading': 'Material · Inventado' };
+		at('/material', ORIGIN, { linkPreview: { texts, images: {} } });
+		const { default: Material } = await import('./material/+page.svelte');
+		const { head } = render(Material, { props: { data: /** @type {any} */ ({ posts: [] }) } });
+		expect(head).toContain('<title>Material · Inventado · Kinky Vibe</title>');
 	});
 });
 
@@ -382,6 +422,100 @@ describe('un material', () => {
 		expect(meta['og:description']).toBe('Guía descargable · Una guía inventada para las pruebas');
 		expect(new URL(meta['og:image']).pathname).toBe(COVER);
 		expect(meta['og:image:alt']).toBe('Tapa de la guía');
+		// La tapa es cuadrada: tarjeta chica en X y Bluesky (la grande la recortaría).
+		expect(meta['twitter:card']).toBe('summary');
+		// Sin fecha de actualización, sin article:modified_time (antes iba vacía).
+		expect(meta).not.toHaveProperty('article:modified_time');
+	});
+});
+
+/**
+ * Los JSON-LD del head (`<script type="application/ld+json">`, LDTag.svelte), ya leídos.
+ * @param {string} head
+ * @returns {any[]}
+ */
+function jsonLdOf(head) {
+	return head
+		.split('<script type="application/ld+json">')
+		.slice(1)
+		.map((part) => JSON.parse(part.slice(0, part.indexOf('</script>'))));
+}
+
+/** El JSON-LD de un tipo (uno solo). @param {string} head @param {string} type */
+function schemaOf(head, type) {
+	const found = jsonLdOf(head).filter((s) => [s['@type']].flat().includes(type));
+	expect(found).toHaveLength(1);
+	return found[0];
+}
+
+describe('Google Discover: la imagen grande va en el JSON-LD, la liviana en og:image', () => {
+	// Discover pide imágenes de 1200 px de ancho o más (y `max-image-preview:large`, en app.html).
+	// Google lee el JSON-LD; WhatsApp y Telegram, og:image. El JSON-LD lleva siempre el original
+	// de la biblioteca (lo más grande que hay: nunca se agranda ni pasa por /cdn-cgi/image), y
+	// og:image sigue igual: achicada a 800 px si pesa (docs/compartir.md).
+	const ORIGINAL = 'https://kinkyvibe.ar' + COVER;
+
+	it('una portada grande y pesada: el original en el JSON-LD, 800 px en og:image', async () => {
+		const cover = { width: 1600, height: 2000, alt: 'Afiche de prueba', size: 600 * 1024 };
+		const head = await eventHead({}, { cover }, 'https://kinkyvibe.ar');
+		expect(schemaOf(head, 'Event').image).toEqual([ORIGINAL]);
+		const meta = single(head);
+		const og = new URL(meta['og:image']);
+		expect(og.pathname.split('/').slice(1, 4)).toEqual([
+			'cdn-cgi',
+			'image',
+			'width=800,format=jpeg,quality=80,onerror=redirect'
+		]);
+		expect(meta['og:image:width']).toBe('800');
+		expect(meta['og:image:height']).toBe('1000');
+	});
+
+	it('una portada grande y liviana: el original en los dos', async () => {
+		const cover = { width: 1280, height: 1280, alt: 'Afiche de prueba', size: 150 * 1024 };
+		const head = await eventHead({}, { cover }, 'https://kinkyvibe.ar');
+		expect(schemaOf(head, 'Event').image).toEqual([ORIGINAL]);
+		const meta = single(head);
+		expect(meta['og:image']).toBe(ORIGINAL);
+		expect(meta['og:image:width']).toBe('1280');
+	});
+
+	it('una portada chica no se agranda: el original tal cual, sin transformar', async () => {
+		const cover = { width: 1000, height: 1000, alt: 'Afiche de prueba', size: 400 * 1024 };
+		const head = await eventHead({}, { cover }, 'https://kinkyvibe.ar');
+		const [image] = schemaOf(head, 'Event').image;
+		expect(image).toBe(ORIGINAL);
+		expect(image).not.toContain('cdn-cgi');
+		expect(head).not.toContain('width=1200');
+		// og:image, igual que siempre: 800 px porque pesa.
+		expect(single(head)['og:image:width']).toBe('800');
+	});
+
+	it('en un material, lo mismo: el original en el JSON-LD', async () => {
+		at('/material/guia-inventada', 'https://kinkyvibe.ar');
+		const { default: Page } = await import('./material/[post]/+page.svelte');
+		const { head } = render(Page, {
+			props: {
+				data: /** @type {any} */ ({
+					meta: {
+						title: 'Guía Inventada',
+						postID: 'guia-inventada',
+						category: 'material',
+						authors: [],
+						tags: ['guía'],
+						summary: 'Una guía inventada para las pruebas',
+						featured: COVER
+					},
+					cover: { width: 1400, height: 1400, alt: 'Tapa de la guía', size: 500 * 1024 },
+					relatedPosts: [],
+					relatedPastCount: 0,
+					authorsProfiles: Promise.resolve([]),
+					personas: null,
+					html: '<p>Texto inventado.</p>'
+				})
+			}
+		});
+		expect(schemaOf(head, 'Article').image).toEqual([ORIGINAL]);
+		expect(new URL(single(head)['og:image']).pathname).toMatch(/^\/cdn-cgi\/image\//);
 	});
 });
 
@@ -423,10 +557,85 @@ describe('la Kinkipedia', () => {
 			'Material, amigues y eventos de «Etiqueta Inventada» en Kinky Vibe.'
 		);
 	});
+
+	it('una etiqueta sin entrada con descripción: la definición en texto y el nombre con mayúscula', async () => {
+		const head = await wikiHead('/wiki/etiqueta-inventada', {
+			tag: {
+				id: 'etiqueta inventada',
+				visible_name: 'etiqueta inventada',
+				description: 'Una [[práctica]] inventada, con [[Bondage:ataduras]].'
+			}
+		});
+		const meta = single(head);
+		expect(meta['og:title']).toBe('Etiqueta inventada');
+		expect(meta.description).toBe('Una práctica inventada, con ataduras.');
+		expect(meta['og:description']).toBe('Una práctica inventada, con ataduras.');
+		expect(head).toContain('<title>Etiqueta inventada · Kinky Vibe</title>');
+		// El mismo nombre en el DefinedTerm.
+		expect(head).toContain('"name": "Etiqueta inventada"');
+	});
+});
+
+describe('una serie (la página de su etiqueta)', () => {
+	const SERIES = {
+		id: 'Serie Inventada',
+		name: 'Serie Inventada',
+		href: '/wiki/Serie-Inventada',
+		total: 2,
+		upcoming: [
+			{ title: 'Serie Inventada #2', path: '/calendario/serie-2', start: '2026-11-07T22:00-03:00' }
+		],
+		past: [
+			{ title: 'Serie Inventada #1', path: '/calendario/serie-1', start: '2026-09-05T22:00-03:00' }
+		]
+	};
+	/** @param {Record<string, any>} [seriesInfo] */
+	async function seriesPage(seriesInfo) {
+		at('/wiki/Serie-Inventada');
+		const { default: Page } = await import('./wiki/[term]/+page.svelte');
+		return render(Page, {
+			props: {
+				data: /** @type {any} */ ({
+					relatedPosts: [],
+					relatedPastCount: 0,
+					tag: { id: 'Serie Inventada', visible_name: 'Serie Inventada' },
+					seriesInfo
+				})
+			}
+		});
+	}
+
+	it('description con sus fechas, EventSeries y un h1 aunque la etiqueta no tenga descripción', async () => {
+		const { head, body } = await seriesPage({
+			series: SERIES,
+			feed: null,
+			account: { member: false, subscribed: false, sigo: false, invite: null }
+		});
+		const meta = single(head);
+		expect(meta['og:description']).toBe(
+			'Ediciones de «Serie Inventada» en Kinky Vibe: 2 fechas, la próxima el 7 de noviembre de 2026.'
+		);
+		expect(head).toContain('"@type": "EventSeries"');
+		expect(head).toContain('/calendario/serie-1');
+		expect(body.match(/<h1[\s>]/g)?.length).toBe(1);
+		// La etiqueta no tiene descripción: el título igual se ve, como cualquier título de la wiki.
+		expect(body).not.toMatch(/<h1 class="sr-only/);
+		expect(body).toMatch(
+			/<div class="itemtitle[^"]*">\s*<h1[^>]*>[^<]*(<!--[^>]*-->\s*)*Serie Inventada/
+		);
+	});
+
+	it('sin datos de la serie: la descripción de siempre y sin EventSeries', async () => {
+		const { head } = await seriesPage(undefined);
+		expect(single(head)['og:description']).toBe(
+			'Material, amigues y eventos de «Serie Inventada» en Kinky Vibe.'
+		);
+		expect(head).not.toContain('EventSeries');
+	});
 });
 
 /** @param {Record<string, any>} [profile] @param {Record<string, any>} [extra] */
-async function profileHead(profile = {}, extra = {}) {
+async function renderProfile(profile = {}, extra = {}) {
 	at('/amigues/Perfil_Inventado');
 	const { default: Page } = await import('./amigues/[profile]/+page.svelte');
 	return render(Page, {
@@ -460,7 +669,12 @@ async function profileHead(profile = {}, extra = {}) {
 				...extra
 			})
 		}
-	}).head;
+	});
+}
+
+/** @param {Record<string, any>} [profile] @param {Record<string, any>} [extra] */
+async function profileHead(profile = {}, extra = {}) {
+	return (await renderProfile(profile, extra)).head;
 }
 
 describe('un perfil de amigues', () => {
@@ -484,6 +698,41 @@ describe('un perfil de amigues', () => {
 
 	it('no listado: noindex', async () => {
 		expect(single(await profileHead({}, { unlisted: true })).robots).toBe('noindex');
+	});
+
+	it('«No aparecer en buscadores»: noindex, vista previa sin foto ni bio y sin JSON-LD', async () => {
+		const { head, body } = await renderProfile({}, { noindex: true });
+		const meta = single(head);
+		expectComplete(meta, head, '/amigues/Perfil_Inventado');
+		expect(meta.robots).toBe('noindex');
+		expect(meta['og:title']).toBe('Perfil Inventado');
+		// Ni la foto ni la presentación: la tarjeta del sitio y una frase fija.
+		expect(meta['og:description']).toBe('Perfil Inventado en Amigues de Kinky Vibe.');
+		expectDefaultImage(meta);
+		expect(head).not.toContain('b'.repeat(64));
+		expect(head).not.toContain('Una bio inventada.');
+		expect(head).not.toContain('application/ld+json');
+		// La página se ve igual: la foto y la bio siguen ahí.
+		const photo = tagsOf(body, 'img').find((img) => /\bu-photo\b/.test(img.class ?? ''));
+		expect(photo?.src).toContain('b'.repeat(64));
+		expect(body).toContain('Una bio inventada.');
+	});
+
+	it('sin «No aparecer en buscadores»: lleva su JSON-LD (lo de siempre)', async () => {
+		const { head } = await renderProfile();
+		expect(head).toContain('application/ld+json');
+		expect(head).toContain('ProfilePage');
+	});
+
+	it('sin etiquetas article:* (son de og:type article; un perfil es profile)', async () => {
+		const meta = single(await profileHead());
+		expect(Object.keys(meta).filter((k) => k.startsWith('article:'))).toEqual([]);
+	});
+
+	it('la foto de perfil dice de quién es', async () => {
+		const { body } = await renderProfile();
+		const photo = tagsOf(body, 'img').find((img) => /\bu-photo\b/.test(img.class ?? ''));
+		expect(photo?.alt).toBe('Foto de perfil de Perfil Inventado');
 	});
 });
 

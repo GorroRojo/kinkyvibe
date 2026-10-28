@@ -12,8 +12,8 @@ import {
 	modalidadOf,
 	placeLine,
 	placeShort,
+	regionAddress,
 	salePlaceText,
-	placeFileErrors,
 	stripMdPlace,
 	venuePlaceMeta,
 	venueShortLabel
@@ -140,9 +140,57 @@ describe('los datos estructurados (schema.org)', () => {
 			location: {
 				'@type': 'Place',
 				name: 'Galpón Inventado',
-				address: { '@type': 'PostalAddress', name: 'Calle Falsa 123' }
+				address: { '@type': 'PostalAddress', streetAddress: 'Calle Falsa 123' }
 			}
 		});
+	});
+
+	it('el nombre del lugar nunca es el título del evento; sin nombre, sin `name`', () => {
+		const out = eventPlaceSchema({ title: 'Fiesta de prueba', location: 'Calle Falsa 123' }, null);
+		expect(out.location).toEqual({
+			'@type': 'Place',
+			address: { '@type': 'PostalAddress', streetAddress: 'Calle Falsa 123' }
+		});
+	});
+
+	it('la región de las etiquetas completa la dirección que falta (ciudad o país, nunca calle)', () => {
+		expect(regionAddress(['fiesta', 'Córdoba'])).toEqual({
+			'@type': 'PostalAddress',
+			addressLocality: 'Córdoba',
+			addressRegion: 'Córdoba',
+			addressCountry: 'AR'
+		});
+		expect(regionAddress(['amba'])?.addressLocality).toBe('Buenos Aires');
+		expect(regionAddress(['Montevideo'])?.addressCountry).toBe('UY');
+		expect(regionAddress(['Chile'])).toEqual({ '@type': 'PostalAddress', addressCountry: 'CL' });
+		expect(regionAddress(['Región Inventada'])).toBeUndefined();
+		expect(regionAddress(undefined)).toBeUndefined();
+		// Sin «Dónde», con región: presencial con un Place sin nombre.
+		expect(eventPlaceSchema({ title: 'Evento de prueba', tags: ['Córdoba'] }, null)).toEqual({
+			eventAttendanceMode: OFFLINE,
+			location: { '@type': 'Place', address: regionAddress(['Córdoba']) }
+		});
+		// Solo el nombre del «Dónde»: la región como dirección.
+		expect(
+			eventPlaceSchema({ location_name: 'Galpón Inventado', tags: ['AMBA'] }, null).location
+		).toEqual({
+			'@type': 'Place',
+			name: 'Galpón Inventado',
+			address: regionAddress(['AMBA'])
+		});
+		// Con la dirección del «Dónde», la región se suma (sin partir el texto).
+		expect(
+			eventPlaceSchema({ location: 'Calle Falsa 123', tags: ['AMBA'] }, null).location.address
+		).toEqual({
+			'@type': 'PostalAddress',
+			streetAddress: 'Calle Falsa 123',
+			addressLocality: 'Buenos Aires',
+			addressCountry: 'AR'
+		});
+		// Online sigue online aunque tenga una región.
+		expect(eventPlaceSchema({ location: 'Online', tags: ['AMBA'] }, null).location['@type']).toBe(
+			'VirtualLocation'
+		);
 	});
 
 	it('online, VirtualLocation; sin nada, ni modo ni lugar', () => {
@@ -160,19 +208,6 @@ describe('los datos estructurados (schema.org)', () => {
 		);
 		expect(out.eventAttendanceMode).toBe(OFFLINE);
 		expect(out.location.name).toBe('Lugar de Prueba');
-	});
-});
-
-describe('guardado', () => {
-	/** @param {string} fm */
-	const file = (fm) => `---\ntitle: Evento de prueba\n${fm}\n---\nTexto.\n`;
-	it('solo se queja de un link al mapa que no sirve', () => {
-		expect(placeFileErrors(file('location: Plaza de Prueba'))).toEqual([]);
-		expect(placeFileErrors(file('location_map: https://osm.org/go/abc'))).toEqual([]);
-		expect(placeFileErrors(file('location_map: http://ejemplo.com'))).toEqual([MAP_LINK_ERROR]);
-		// Un archivo que no se puede leer lo valida el resto del guardado.
-		expect(placeFileErrors('sin propiedades')).toEqual([]);
-		expect(placeFileErrors(file('location_map: [roto'))).toEqual([]);
 	});
 });
 
@@ -356,5 +391,89 @@ describe('textos del lugar', () => {
 		expect(placeShort({ location: 'Calle Falsa 123' })).toBe('Calle Falsa 123');
 		expect(placeShort({ location_name: '', location: 'Calle Falsa 123' })).toBe('Calle Falsa 123');
 		expect(placeShort({ tags: ['AMBA'] })).toBe('');
+	});
+});
+
+/**
+ * Con un lugar vinculado, lo que sale en los datos estructurados del evento según su nivel: nunca
+ * más que la página (docs/amigues.md). La región es la etiqueta que la página ya muestra.
+ */
+describe('datos estructurados del evento con lugar, nivel por nivel (privacidad)', () => {
+	const OFFLINE = 'https://schema.org/OfflineEventAttendanceMode';
+	const VENUE = {
+		title: 'Galpón Inventado',
+		data: {
+			kind: 'lugar',
+			address: 'Calle Falsa 742',
+			area: 'Barrio Inventado',
+			city: 'Ciudad de Prueba',
+			lat: -34.6,
+			lng: -58.4,
+			accessibility: 'Rampa en la entrada',
+			how_to_get_there: 'Colectivo 999'
+		}
+	};
+	const href = '/amigues/galpon-inventado';
+	// El «Dónde» del .md tampoco tiene que salir: con lugar, manda el lugar.
+	const META = {
+		title: 'Fiesta de prueba',
+		tags: ['AMBA'],
+		location: 'Calle Del Archivo 111',
+		location_name: 'Nombre Del Archivo'
+	};
+	const out = (/** @type {import('./venues.js').VenuePrivacy} */ level, meta = META) =>
+		eventPlaceSchema(meta, venueView(VENUE, level, href));
+	const text = (/** @type {any} */ o) => JSON.stringify(o);
+	const NEVER = /Colectivo|Rampa|-34|-58|Archivo/;
+
+	it('público: nombre, link y dirección estructurada', () => {
+		const o = out('public');
+		expect(o.eventAttendanceMode).toBe(OFFLINE);
+		expect(o.location.name).toBe('Galpón Inventado');
+		expect(o.location.url).toBe('https://kinkyvibe.ar/amigues/galpon-inventado');
+		expect(o.location.address.streetAddress).toBe('Calle Falsa 742');
+		expect(text(o)).not.toMatch(NEVER);
+	});
+
+	it('solo nombre: el nombre y la ciudad de la región, nunca la calle ni el barrio', () => {
+		const o = out('name');
+		expect(o.location.name).toBe('Galpón Inventado');
+		expect(o.location.address).toEqual({
+			'@type': 'PostalAddress',
+			addressLocality: 'Buenos Aires',
+			addressCountry: 'AR'
+		});
+		expect(text(o)).not.toMatch(/Falsa|742|Barrio Inventado|Ciudad de Prueba/);
+		expect(text(o)).not.toMatch(NEVER);
+	});
+
+	it('solo dirección: la calle, sin el nombre ni el link', () => {
+		const o = out('address');
+		expect(o.location.address.streetAddress).toBe('Calle Falsa 742');
+		expect(text(o)).not.toMatch(/Galpón|amigues|galpon/);
+		expect(text(o)).not.toMatch(NEVER);
+	});
+
+	it('solo barrio: barrio y ciudad, sin calle, nombre ni link', () => {
+		const o = out('area');
+		expect(o.location.address.addressLocality).toBe('Barrio Inventado, Ciudad de Prueba');
+		expect(text(o)).not.toMatch(/Falsa|742|Galpón|amigues|galpon/);
+		expect(text(o)).not.toMatch(NEVER);
+	});
+
+	it('oculto: solo la región, sin nombre; sin región, sin lugar', () => {
+		const o = out('hidden');
+		expect(o).toEqual({
+			eventAttendanceMode: OFFLINE,
+			location: {
+				'@type': 'Place',
+				address: { '@type': 'PostalAddress', addressLocality: 'Buenos Aires', addressCountry: 'AR' }
+			}
+		});
+		expect(text(o)).not.toMatch(/Falsa|742|Galpón|amigues|galpon|Barrio|Ciudad de Prueba/);
+		expect(text(o)).not.toMatch(NEVER);
+		expect(out('hidden', { ...META, tags: ['fiesta'] })).toEqual({
+			eventAttendanceMode: OFFLINE
+		});
 	});
 });

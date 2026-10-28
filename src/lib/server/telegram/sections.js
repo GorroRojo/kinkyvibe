@@ -10,13 +10,13 @@
  * se llega desde un evento) no va en Amigues, como en /amigues. Un botón armado a mano solo puede
  * abrir algo **de la lista de esa sección**.
  *
- * El orden, como el sitio: el material del más nuevo (como /material); la Kinkipedia, amigues y
- * las series por nombre (como /wiki y /amigues). La Kinkipedia se recorre **por las ramas del
- * árbol de etiquetas**, como /wiki: arriba, las ramas de arriba de todo; tocar una rama («📂»)
- * muestra lo de adentro (su entrada, si tiene, y sus hijas), con «‹ Volver» a la rama madre. Sin
- * el árbol (`source.tree`), una lista por nombre. Series, como la lista de /wiki, solo las que
- * tienen alguna edición (un evento del índice con su etiqueta): una serie sin ediciones no tiene
- * nada para mostrar. Funciones puras.
+ * El orden, como el sitio: el material del más nuevo (como /material); amigues y las series por
+ * nombre (como /amigues y /wiki). La Kinkipedia se recorre **por las ramas del árbol de
+ * etiquetas**, como /wiki y en su mismo orden (el del árbol, no por nombre): arriba, las ramas de
+ * arriba de todo; tocar una rama («📂») muestra lo de adentro (su entrada, si tiene, y sus hijas),
+ * con «‹ Volver» a la rama madre. Sin el árbol (`source.tree`), una lista por nombre. Series, como
+ * la lista de /wiki, solo las que tienen alguna edición (un evento del índice con su etiqueta): una
+ * serie sin ediciones no tiene nada para mostrar. Funciones puras.
  */
 import { tagPagePath } from '$lib/utils/series.js';
 import { escapeHtml } from './format.js';
@@ -151,7 +151,7 @@ export function wikiTree(tree, docs) {
 	const later = [];
 	for (const d of docs) {
 		const tag = d.g?.[0];
-		if (!tag || !tree.has(tag)) loose.push(d);
+		if (!tag || tag === ROOT || !tree.has(tag)) loose.push(d);
 		else if (!own.has(tag) && tagPagePath(tag) === d.h) own.set(tag, d);
 		else later.push(d);
 	}
@@ -182,12 +182,30 @@ export function wikiTree(tree, docs) {
 	}
 	/** @param {string} id */
 	const nameOf = (id) => tree.get(id)?.name ?? id;
-	/** @param {BranchItem} item */
-	const itemName = (item) => (item.kind === 'doc' ? item.doc.t : item.name);
+	/** @param {SearchDoc} a @param {SearchDoc} b */
+	const byName = (a, b) => a.t.localeCompare(b.t, 'es');
+	/**
+	 * Las hijas de una rama en el orden del árbol, el mismo de /wiki (GlosarioTree recorre
+	 * `children` tal cual); una que no esté ahí (no pasa), al final por nombre.
+	 *
+	 * @param {string} id
+	 */
+	function childrenInOrder(id) {
+		const order = tree.get(id)?.children ?? [];
+		/** @param {string} c */
+		const at = (c) => {
+			const i = order.indexOf(c);
+			return i === -1 ? Infinity : i;
+		};
+		return [...(children.get(id) ?? [])].sort(
+			(a, b) => at(a) - at(b) || nameOf(a).localeCompare(nameOf(b), 'es')
+		);
+	}
 
 	/**
-	 * Lo de adentro de una rama (la raíz: lo de arriba de todo), por nombre; la entrada de la
-	 * rama, primero.
+	 * Lo de adentro de una rama (la raíz: lo de arriba de todo): la entrada de la rama primero,
+	 * después las hijas en el orden del árbol de /wiki y al final, por nombre, las otras entradas
+	 * de esa etiqueta (y, arriba de todo, las sueltas).
 	 *
 	 * @param {string} id
 	 * @returns {BranchItem[]}
@@ -195,7 +213,7 @@ export function wikiTree(tree, docs) {
 	function items(id) {
 		/** @type {BranchItem[]} */
 		const inside = [
-			...(children.get(id) ?? []).map((c) => {
+			...childrenInOrder(id).map((c) => {
 				const n = size(c);
 				const doc = own.get(c);
 				return n === 0 && doc
@@ -208,9 +226,10 @@ export function wikiTree(tree, docs) {
 							count: n + (doc ? 1 : 0)
 						});
 			}),
-			...(extra.get(id) ?? []).map((doc) => /** @type {BranchItem} */ ({ kind: 'doc', doc })),
-			...(id === ROOT ? loose : []).map((doc) => /** @type {BranchItem} */ ({ kind: 'doc', doc }))
-		].sort((a, b) => itemName(a).localeCompare(itemName(b), 'es'));
+			...[...(extra.get(id) ?? []), ...(id === ROOT ? loose : [])]
+				.sort(byName)
+				.map((doc) => /** @type {BranchItem} */ ({ kind: 'doc', doc }))
+		];
 		const head = id === ROOT ? undefined : own.get(id);
 		return head ? [{ kind: 'doc', doc: head }, ...inside] : inside;
 	}

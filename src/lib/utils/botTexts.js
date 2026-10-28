@@ -49,6 +49,7 @@ export const BOT_TEXT_SECTIONS = Object.freeze([
 	{ id: 'secciones', label: 'Secciones del sitio (Material, Kinkipedia, Amigues, Series)' },
 	{ id: 'entradas', label: 'Mis entradas (con el QR para la puerta)' },
 	{ id: 'miniapp', label: 'Mini App del calendario (la página /telegram/app)' },
+	{ id: 'compartir', label: 'Mensajes enriquecidos y compartir desde la Mini App' },
 	{ id: 'errores', label: 'Errores' }
 ]);
 
@@ -264,7 +265,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'inicio',
 			'message',
 			'Fondo: si no se pudieron leer los números',
-			'**💗 Fondo Kinky Vibe**\n\nAhora no pude leer los números del Fondo. Mirálos en {fondo}',
+			'**💗 Fondo Kinky Vibe**\n\nAhora no pude leer los números del Fondo. Miralos en {fondo}',
 			{ vars: [{ name: 'fondo', label: 'la dirección del Fondo', sample: 'fondo.kinkyvibe.ar' }] }
 		),
 		f('inicio.fondo_boton', 'inicio', 'button', 'Fondo: el botón', 'Sumate al Fondo ↗'),
@@ -470,8 +471,9 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'message',
 			'Seguir: las opciones de un evento',
 			'**⭐ Seguir**\n\nDe «{evento}» podés seguir estas etiquetas y series (tocá una):\n\n' +
-				'Te avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, ' +
-				'prendé la columna Telegram en Mi rincón → Lo que sigo.',
+				// Seguir desde el bot también prende los avisos por Telegram (decisión 0036).
+				'Te avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. ' +
+				'Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.',
 			{ vars: [V.evento] }
 		),
 		f(
@@ -935,7 +937,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Fallas en compras**: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y las fallas en compras, en el momento. Solo cantidades y links, nunca datos de quienes compran.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -963,6 +965,14 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'button',
 			'Mis avisos: recordatorios',
 			'Recordatorios',
+			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_fallas',
+			'admin',
+			'button',
+			'Mis avisos: fallas en compras',
+			'Fallas en compras',
 			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
 		),
 		f('admin.prendido', 'admin', 'toast', 'Mis avisos: al prender uno', 'Prendido: {aviso}', {
@@ -1040,6 +1050,73 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			}
 		),
 		f(
+			'admin.contracargo',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: un contracargo de Mercado Pago',
+			'⚠️ Contracargo en Mercado Pago: orden {orden} de **{evento}** ({monto}). El banco revirtió el pago; las entradas quedaron anuladas.',
+			{
+				vars: [
+					{ name: 'orden', label: 'la referencia de la orden', sample: 'KV-1A2B3C4D' },
+					V.evento,
+					{ name: 'monto', label: 'el total de la orden', sample: '$ 10.000' }
+				],
+				required: ['orden', 'evento'],
+				help: 'Les llega a quienes prendieron «Cada venta». Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.mails_cupo',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: Resend frenó los mails por el cupo',
+			'📭 Resend frenó los mails por el cupo. Compras aprobadas que esperan el mail con sus entradas: {pendientes}. Se reintentan solas cada 15 minutos; mirá el Inicio del panel.',
+			{
+				vars: [
+					{
+						name: 'pendientes',
+						label: 'cuántas órdenes aprobadas de las últimas 48 h no tienen el mail',
+						sample: '4'
+					}
+				],
+				required: ['pendientes'],
+				help: 'Les llega a quienes prendieron «Cada venta», como mucho uno por hora. Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.falla_compra',
+			'admin',
+			'line',
+			'Aviso «Fallas en compras»: algo de una compra falló',
+			'⚠️ **Falló una compra**: {falla}.\nOrden: {orden} · código de la falla: {codigo}\nVan {veces} desde las {desde}. El detalle está en los registros de Cloudflare (Workers Logs).',
+			{
+				vars: [
+					{
+						name: 'falla',
+						label: 'qué falló',
+						sample: 'no se pudo crear el pago en Mercado Pago'
+					},
+					{ name: 'orden', label: 'la referencia de la orden', sample: 'KV-1A2B3C4D' },
+					{ name: 'codigo', label: 'el código de la falla', sample: 'mp_preferencia' },
+					{ name: 'veces', label: 'cuántas van en esta media hora', sample: '3' },
+					{ name: 'desde', label: 'desde qué hora (Argentina)', sample: '14:30' }
+				],
+				required: ['falla', 'codigo'],
+				help: 'Como mucho uno por falla cada media hora, y 12 por día. Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.falla_sin_orden',
+			'admin',
+			'line',
+			'Aviso «Fallas en compras»: cuando no se sabe la orden',
+			'sin identificar',
+			{
+				max: 40,
+				help: 'Va en {orden} cuando la falla no tiene orden (por ejemplo, un pago que no se pudo leer).'
+			}
+		),
+		f(
 			'admin.resumen_titulo',
 			'admin',
 			'line',
@@ -1090,6 +1167,48 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				],
 				required: ['cantidad']
 			}
+		),
+		f(
+			'admin.dia_titulo',
+			'admin',
+			'line',
+			'Día del evento: el título del resumen de ese día',
+			'📣 **Hoy: {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.manana_titulo',
+			'admin',
+			'line',
+			'Recordatorios: el título del de la víspera (el evento es mañana)',
+			'⏰ **Mañana: {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.falta_titulo',
+			'admin',
+			'line',
+			'Recordatorios: el título del del mismo día, si todavía falta el lugar o el link',
+			'⚠️ **Hoy: {evento}**',
+			{
+				vars: [V.evento],
+				required: ['evento'],
+				help: 'Solo sale si falta algo, y no a quien prendió «Día del evento» (su resumen ya lo dice).'
+			}
+		),
+		f(
+			'admin.falta_lugar',
+			'admin',
+			'line',
+			'Día del evento y recordatorios: un evento presencial sin lugar (solo si falta)',
+			'📍 Todavía no tiene lugar: cargalo en el panel.'
+		),
+		f(
+			'admin.falta_link',
+			'admin',
+			'line',
+			'Día del evento y recordatorios: un evento online sin el link de la transmisión (solo si falta)',
+			'🔗 Todavía falta el link de la transmisión: cargalo en el panel y mandáselo a todes.'
 		),
 
 		// -----------------------------------------------------------------------------------------
@@ -1528,8 +1647,28 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'entradas.online',
 			'entradas',
 			'line',
-			'La entrada de un evento online (no lleva QR)',
-			'💻 Es online: el link de la transmisión está en tu entrada, en el sitio.'
+			'La entrada de un evento online, todavía sin el link de la transmisión (no lleva QR)',
+			'💻 Es online. Todavía no está el link de la transmisión: te lo mandamos por mail antes del evento y también va a aparecer acá.'
+		),
+		f(
+			'entradas.online_link',
+			'entradas',
+			'line',
+			'La entrada de un evento online, con el link de la transmisión ya cargado',
+			'💻 Es online. El link de la transmisión: {link}',
+			{
+				vars: [
+					{ name: 'link', label: 'el link de la transmisión', sample: 'https://ejemplo.com/vivo' }
+				],
+				required: ['link']
+			}
+		),
+		f(
+			'entradas.boton_transmision',
+			'entradas',
+			'button',
+			'La entrada de un evento online: el botón al link de la transmisión',
+			'📺 Ver la transmisión'
 		),
 		f(
 			'entradas.ver_qr',
@@ -1625,6 +1764,81 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'El link del final, al calendario del sitio',
 			'Ver el calendario completo en el sitio ↗',
 			{ help: MINIAPP }
+		),
+
+		// -----------------------------------------------------------------------------------------
+		// Mensajes enriquecidos y compartir desde la Mini App (interruptor `telegram_enriquecido`)
+		// -----------------------------------------------------------------------------------------
+		f(
+			'compartir.sigue',
+			'compartir',
+			'line',
+			'Mensaje enriquecido: abajo del texto, cuando es largo y se cortó',
+			'Esto es el comienzo. El resto está en el sitio: tocá «Ver en el sitio».',
+			{ help: 'El texto de la página llega hasta unos 2500 caracteres; si sigue, va esta línea.' }
+		),
+		f(
+			'compartir.pie',
+			'compartir',
+			'inline',
+			'Mensaje enriquecido: el pie (la última línea, chiquita)',
+			'{tipo} · Kinky Vibe',
+			{
+				vars: [
+					{ name: 'tipo', label: 'qué es (Kinkipedia, Material, Evento…)', sample: 'Kinkipedia' }
+				]
+			}
+		),
+		f(
+			'compartir.tipo_evento',
+			'compartir',
+			'inline',
+			'Mensaje enriquecido: qué es, en el pie de un evento',
+			'Evento',
+			{
+				max: 40,
+				help: 'Los otros tipos son los de «Buscar en todo el sitio» (Kinkipedia, Material, Serie de eventos).'
+			}
+		),
+		f(
+			'compartir.boton_calendario',
+			'compartir',
+			'button',
+			'Un evento mandado (modo inline o desde la Mini App): abre la Mini App del calendario en ese evento',
+			'📅 Abrir en el calendario',
+			{ help: 'Solo con el usuario del bot cargado (TELEGRAM_BOT_USERNAME).' }
+		),
+		f(
+			'compartir.miniapp_boton',
+			'compartir',
+			'button',
+			'Mini App del calendario: el botón de cada evento para mandarlo a un chat',
+			'📤 Mandar a un chat',
+			{ help: MINIAPP }
+		),
+		f(
+			'compartir.miniapp_mandado',
+			'compartir',
+			'inline',
+			'Mini App del calendario: después de mandar un evento',
+			'Listo, ya lo mandaste.',
+			{ help: MINIAPP }
+		),
+		f(
+			'compartir.miniapp_error',
+			'compartir',
+			'inline',
+			'Mini App del calendario: si no se pudo mandar',
+			'No se pudo mandar. Probá de nuevo en un rato.',
+			{ help: MINIAPP }
+		),
+		f(
+			'compartir.miniapp_destacado',
+			'compartir',
+			'inline',
+			'Mini App del calendario: arriba del evento cuando se abre desde «Abrir en el calendario»',
+			'📌 Te pasaron este evento',
+			{ help: MINIAPP, max: 60 }
 		),
 
 		// -----------------------------------------------------------------------------------------

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// svelte-check ratchet: fails only if the number of svelte-check errors goes UP from the baseline
-// stored in scripts/svelte-check-baseline.json. main has pre-existing errors, so plain
-// `npm run check` can't block merges yet; this at least stops new ones.
+// svelte-check ratchet: fails if the number of svelte-check errors goes UP from the baseline
+// stored in scripts/svelte-check-baseline.json. The baseline is 0 (main has no svelte-check
+// errors), so today any new error fails CI; warnings don't count.
 //
 //   node scripts/svelte-check-ratchet.js
 //
-// When the count goes down, it passes and asks you to lower the baseline in the same PR, so the
-// ratchet only ever tightens. Once the count reaches 0, CI can run `npm run check` directly and
-// this script can go.
+// It started with pre-existing errors on main: when the count went down, it passed and asked to
+// lower the baseline in the same PR, so the ratchet only ever tightened. The baseline is never
+// raised to get green.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';

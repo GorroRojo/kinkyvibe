@@ -183,6 +183,39 @@ describe('/og/<tarjeta>/<hash>.jpg', () => {
 		expect(f.r2.size).toBe(0);
 	});
 
+	it('ya en la caché de Cloudflare: sale de ahí sin mirar la base ni R2', async () => {
+		const f = fakePlatform();
+		/** @type {Map<string, Response>} */
+		const stored = new Map();
+		f.platform.caches = {
+			default: {
+				match: vi.fn(async (/** @type {Request} */ req) => stored.get(req.url)?.clone()),
+				put: vi.fn(async (/** @type {Request} */ req, /** @type {Response} */ res) => {
+					stored.set(req.url, res);
+				})
+			}
+		};
+		const [, , card, file] = (await currentUrl(f.platform, 'calendario')).split('/');
+		await get(f.platform, card, file);
+		await f.settle();
+		expect([...stored.keys()]).toEqual([`https://sitio.test/og/${card}/${file}`]);
+
+		// Otro isolate (sin lo recordado de la vista previa) y una base que no se puede tocar.
+		clearLinkPreviewCache();
+		const prepare = vi.fn(() => {
+			throw new Error('no debería leer la base');
+		});
+		f.platform.env.DB = { prepare };
+		f.platform.env.MEDIA.get.mockClear();
+		const res = await get(f.platform, card, file);
+		expect(res.status).toBe(200);
+		expect(res.headers.get('cache-control')).toBe(OG_IMMUTABLE);
+		expect(new Uint8Array(await res.arrayBuffer())).toEqual(JPEG);
+		expect(prepare).not.toHaveBeenCalled();
+		expect(f.platform.env.MEDIA.get).not.toHaveBeenCalled();
+		expect(f.OG_RENDER).toHaveBeenCalledTimes(1);
+	});
+
 	it('una tarjeta que no existe o un archivo raro: 404', async () => {
 		const f = fakePlatform();
 		expect((await get(f.platform, 'otra', '0123456789abcdef.jpg')).status).toBe(404);

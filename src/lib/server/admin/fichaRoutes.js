@@ -5,15 +5,19 @@
  * links viejos (del panel, de Actividad o de mails ya mandados) siguen andando.
  *
  * Solo admins: el `load` y cada action llaman a `requireAdmin`. Lo que cambia algo o muestra un
- * DNI queda en el registro de actividad, sin mails, sin el texto de las notas y sin el DNI.
+ * DNI queda en el registro de actividad, sin mails, sin el texto de las notas y sin el DNI. Abrir
+ * la ficha también (`person.view`, una vez por admin, persona y día): si llega una queja contra
+ * alguien del equipo, se puede saber qué fichas miró.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { arClock, arMidnight } from '$lib/utils/dates.js';
 import { setProfilePermission } from '$lib/server/admin/cuentas.js';
 import { addNote, deleteNote, personId, validateNote } from '$lib/server/admin/people.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { suspendAccount, unsuspendAccount } from '$lib/server/cuentas/suspension.js';
 import { accountIdOf, loadFicha, revealDni } from './ficha.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -38,8 +42,52 @@ export function fichaLoad(resolve, notFound) {
 		const key = await resolve(db, params);
 		const data = key ? await loadFicha(db, key) : null;
 		if (!data) error(404, notFound);
+		await logFichaView(db, locals, key);
 		return data;
 	};
+}
+
+/**
+ * Registra en Actividad que une admin abrió la ficha de una persona (`person.view`), con el mismo
+ * destino que las notas (nunca el mail), una vez por admin, persona y día de Argentina. Un fallo
+ * del registro no rompe la ficha.
+ *
+ * @param {D1Database} db
+ * @param {App.Locals} locals
+ * @param {FichaKey | null} key
+ * @param {number} [now]
+ */
+export async function logFichaView(db, locals, key, now = Date.now()) {
+	try {
+		if (!key) return;
+		const target = await noteTarget(db, key);
+		if (!target) return;
+		const { targetType, targetId } = target.audit;
+		// Las 00:00 de hoy en Argentina (dates.js tiene el único desfasaje con UTC).
+		const today = arClock(now);
+		const dayStart = arMidnight(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+		const seen = await db
+			.prepare(
+				`SELECT 1 FROM admin_audit WHERE action = 'person.view' AND actor_login = ?1
+					AND target_type = ?2 AND target_id = ?3 AND at >= ?4 LIMIT 1`
+			)
+			.bind(String(locals.user?.login ?? 'desconocide'), targetType, targetId, dayStart)
+			.first();
+		if (seen) return;
+		await logAdminAction(
+			db,
+			locals,
+			{
+				action: 'person.view',
+				targetType,
+				targetId,
+				summary: 'Abrió la ficha de una persona'
+			},
+			{ now }
+		);
+	} catch (e) {
+		console.error('[ficha] no se pudo registrar la vista', e);
+	}
 }
 
 /**
@@ -65,7 +113,8 @@ async function noteTarget(db, key) {
 }
 
 /**
- * Las actions de la ficha: el permiso «puede tener perfiles», las notas y «Mostrar» un DNI.
+ * Las actions de la ficha: el permiso «puede tener perfiles», suspender la cuenta (y levantar la
+ * suspensión), las notas y «Mostrar» un DNI.
  * @param {ResolveKey} resolve
  */
 export function fichaActions(resolve) {
@@ -122,6 +171,85 @@ export function fichaActions(resolve) {
 					message: on
 						? 'Listo: esta cuenta puede tener perfiles.'
 						: 'Listo: esta cuenta ya no puede tener perfiles (no los ve, pero quedan guardados).'
+				}
+			};
+		},
+
+		// Suspender la cuenta (src/lib/server/cuentas/suspension.js): cierra sus sesiones, no la deja
+		// entrar y desvincula su Telegram. El motivo (opcional) queda solo en esta ficha: nunca va a
+		// Actividad. Les admins entran con GitHub, así que suspender una cuenta del sitio no saca a
+		// nadie del panel; igual no se puede suspender la cuenta con la que une está en este navegador.
+		/** @param {import('@sveltejs/kit').RequestEvent} event */
+		suspender: async (event) => {
+			const admin = requireAdmin(event.locals, event.url);
+			const o = await open(event, 'suspension');
+			if (!o.db) return o.failed;
+			const accountId = await accountIdOf(o.db, o.key);
+			if (!accountId) {
+				return fail(404, {
+					suspension: { ok: false, message: 'Esa cuenta no existe o está borrada.' }
+				});
+			}
+			if (event.locals.member?.id === accountId) {
+				return fail(400, {
+					suspension: {
+						ok: false,
+						message: 'Es la cuenta con la que entraste en este navegador: no podés suspenderte.'
+					}
+				});
+			}
+			const reason = (await event.request.formData()).get('motivo');
+			const r = await suspendAccount(o.db, accountId, { by: admin.login, reason });
+			if (r.result === 'not_found') {
+				return fail(404, {
+					suspension: { ok: false, message: 'Esa cuenta no existe o está borrada.' }
+				});
+			}
+			if (r.result === 'already') {
+				return { suspension: { ok: true, message: 'Esta cuenta ya estaba suspendida.' } };
+			}
+			await logAdminAction(o.db, event.locals, {
+				action: 'account.suspend',
+				targetType: 'account',
+				targetId: accountId,
+				summary: 'Suspendió una cuenta',
+				// Sin el motivo: es privado y queda solo en la ficha.
+				detail: { sessionsClosed: r.sessions, telegramUnlinked: r.telegram }
+			});
+			return {
+				suspension: {
+					ok: true,
+					message: 'Listo: la cuenta está suspendida. Cerramos sus sesiones y ya no puede entrar.'
+				}
+			};
+		},
+
+		// Levantar la suspensión: puede volver a entrar (las sesiones y el Telegram no vuelven).
+		/** @param {import('@sveltejs/kit').RequestEvent} event */
+		levantarSuspension: async (event) => {
+			requireAdmin(event.locals, event.url);
+			const o = await open(event, 'suspension');
+			if (!o.db) return o.failed;
+			const accountId = await accountIdOf(o.db, o.key);
+			const r = accountId ? await unsuspendAccount(o.db, accountId) : 'not_found';
+			if (r === 'not_found') {
+				return fail(404, {
+					suspension: { ok: false, message: 'Esa cuenta no existe o está borrada.' }
+				});
+			}
+			if (r === 'not_suspended') {
+				return { suspension: { ok: true, message: 'Esta cuenta no estaba suspendida.' } };
+			}
+			await logAdminAction(o.db, event.locals, {
+				action: 'account.unsuspend',
+				targetType: 'account',
+				targetId: accountId,
+				summary: 'Levantó la suspensión de una cuenta'
+			});
+			return {
+				suspension: {
+					ok: true,
+					message: 'Listo: levantamos la suspensión. La cuenta ya puede volver a entrar.'
 				}
 			};
 		},

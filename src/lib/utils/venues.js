@@ -14,6 +14,7 @@
  */
 
 import { textOrNull } from './text.js';
+import { SITE_URL } from './site.js';
 
 /** @typedef {'public' | 'name' | 'address' | 'area' | 'hidden'} VenuePrivacy */
 
@@ -231,32 +232,88 @@ export function venueLine(view) {
 }
 
 /**
+ * @typedef {{ '@type': 'PostalAddress', streetAddress?: string, addressLocality?: string,
+ *   addressRegion?: string, addressCountry?: string }} PostalAddress
+ */
+
+/**
+ * La dirección estructurada (schema.org `PostalAddress`) de un lugar ya filtrado por su nivel:
+ * la usan el perfil del lugar y los eventos (src/lib/utils/jsonLd.js), así dicen lo mismo.
+ * - `public` y `address`: la calle (`streetAddress`), el barrio y la ciudad (`addressLocality`);
+ * - `area`: solo el barrio y la ciudad;
+ * - `name` y `hidden`: nada (la página no muestra la dirección).
+ * Lo que no está en la vista no sale: la calle solo en los niveles que la muestran
+ * ({@link showsAddress}), aunque la vista trajera otra cosa.
+ *
+ * @param {VenueView | null | undefined} view
+ * @returns {PostalAddress | undefined}
+ */
+export function venuePostalAddress(view) {
+	if (!view || (view.level !== 'area' && !showsAddress(view.level))) return undefined;
+	const street = showsAddress(view.level) ? view.address : undefined;
+	const locality = [view.area, view.city].filter(Boolean).join(', ');
+	if (!street && !locality) return undefined;
+	/** @type {PostalAddress} */
+	const address = { '@type': 'PostalAddress' };
+	if (street) address.streetAddress = street;
+	if (locality) address.addressLocality = locality;
+	address.addressCountry = 'AR';
+	return address;
+}
+
+/**
+ * @typedef {{ '@type': 'Place', '@id'?: string, name?: string, url?: string,
+ *   address?: PostalAddress }} PlaceSchema
+ */
+
+/**
  * El lugar para los datos estructurados (schema.org) de un evento: solo lo que su nivel deja ver.
+ * - `public`: el nombre, la página del lugar (`url` y el `@id` de su perfil) y la dirección;
+ * - `name`: el nombre y la página del lugar, sin dirección;
+ * - `address`: la dirección (como nombre y estructurada), sin el nombre ni la página;
+ * - `area`: el barrio y la ciudad;
+ * - `hidden`: nada.
  *
  * @param {VenueView} view
- * @returns {{ '@type': 'Place', name: string, address?: { '@type': 'PostalAddress', name: string } } | undefined}
+ * @returns {PlaceSchema | undefined}
  */
 export function venueSchema(view) {
-	if (view.level === 'public' && view.name) {
-		return view.address
-			? {
-					'@type': 'Place',
-					name: view.name,
-					address: { '@type': 'PostalAddress', name: view.address }
-				}
-			: { '@type': 'Place', name: view.name };
+	const address = venuePostalAddress(view);
+	if (showsVenueLink(view.level) && view.name) {
+		const url = siteUrlOf(view.href);
+		/** @type {PlaceSchema} */
+		const place = { '@type': 'Place' };
+		if (url) place['@id'] = `${url}#perfil`;
+		place.name = view.name;
+		if (url) place.url = url;
+		if (view.level === 'public' && address) place.address = address;
+		return place;
 	}
-	if (view.level === 'name' && view.name) return { '@type': 'Place', name: view.name };
-	if (view.level === 'address') {
-		const line = [view.address, view.area, view.city].filter(Boolean).join(', ');
-		if (line)
-			return { '@type': 'Place', name: line, address: { '@type': 'PostalAddress', name: line } };
-	}
-	if (view.level === 'area') {
-		const place = [view.area, view.city].filter(Boolean).join(', ');
-		if (place) return { '@type': 'Place', name: place };
+	if (view.level === 'address' || view.level === 'area') {
+		const line = (
+			view.level === 'address' ? [view.address, view.area, view.city] : [view.area, view.city]
+		)
+			.filter(Boolean)
+			.join(', ');
+		if (line) return address ? { '@type': 'Place', name: line, address } : undefined;
 	}
 	return undefined;
+}
+
+/**
+ * La dirección absoluta de una página del sitio (`/amigues/<perfil>`), escrita como la arma
+ * `absoluteUrl` de jsonLd.js (así el `@id` coincide con el del perfil); nada si no es del sitio.
+ * @param {string | undefined} href
+ */
+function siteUrlOf(href) {
+	if (!href || !href.startsWith('/') || href.startsWith('//')) return undefined;
+	let path = href;
+	try {
+		path = decodeURI(href);
+	} catch {
+		// queda como está
+	}
+	return SITE_URL + encodeURI(path);
 }
 
 /**

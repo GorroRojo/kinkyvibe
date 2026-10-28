@@ -6,6 +6,9 @@
  * (`donde-y-como-golpear-un-cuerpo`) se ve igual armado desde la base que como lo mostraba el
  * componente que mdsvex compilaba de su .md (guardado en fixtures/material el día que se sacó).
  */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import seedCalendario from '$lib/server/semilla/calendario.json';
@@ -26,6 +29,7 @@ import {
 import { splitMarkdown } from '../amigues/importer.js';
 import { normalizeBody } from './eventos.js';
 import { renderContentBody } from './render.js';
+import { INTERACTIVE_PROPS } from './interactive.js';
 import { stripHtmlComments } from '../../utils/htmlStrip.js';
 
 const TAG = 'kv-donde-golpear-un-cuerpo';
@@ -80,6 +84,42 @@ describe('cómo se ve', () => {
 		expect(html).toContain('class="caja"');
 		// El componente se renderiza (en el servidor también): su SVG está en la página.
 		expect(html).toContain('<svg');
+	});
+
+	it('las props del interactivo (los trazos del SVG) vienen del servidor, en su parte', async () => {
+		const r = await renderContentBody({ body: OWN, body_html: 'libre' }, 'material', 'x');
+		/** @param {any[]} parts @returns {any[]} */
+		const flat = (parts) => parts.flatMap((p) => (p.children ? flat(p.children) : [p]));
+		const part = flat(r.parts ?? []).find((p) => 'component' in p);
+		expect(part.component).toBe(TAG);
+		const paths = part.props.svgData;
+		expect(Array.isArray(paths)).toBe(true);
+		expect(paths.length).toBeGreaterThan(0);
+		for (const p of paths) {
+			expect(Object.keys(p).sort()).toEqual(['d', 'name']);
+			expect(p.d).toMatch(/^m /i);
+			expect(p.name).toBeTruthy();
+		}
+		// Cada interactivo con props está en el registro.
+		for (const tag of Object.keys(INTERACTIVE_PROPS)) expect(INTERACTIVE_TAGS).toHaveProperty(tag);
+	});
+
+	it('los trazos del SVG solo se importan en el servidor (no viajan en el JS de las páginas)', () => {
+		const src = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+		const server = path.join(src, 'server');
+		/** @param {string} dir @returns {string[]} */
+		const files = (dir) =>
+			fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+				const p = path.join(dir, e.name);
+				if (e.isDirectory()) return files(p);
+				return /\.(js|ts|svelte)$/.test(e.name) ? [p] : [];
+			});
+		const importers = files(path.resolve(src, '..'))
+			.filter((f) => /svgData(\.js)?['"]/.test(fs.readFileSync(f, 'utf8')))
+			.filter((f) => !f.startsWith(server + path.sep))
+			.map((f) => path.relative(src, f));
+		expect(importers).toEqual([]);
+		expect(fs.existsSync(path.join(server, 'contenido/interactivos/svgData.js'))).toBe(true);
 	});
 
 	it('una etiqueta que no está en el registro se ve escapada (libre y lista corta)', async () => {

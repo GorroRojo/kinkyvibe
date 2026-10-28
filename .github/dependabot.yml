@@ -18,6 +18,11 @@ updates:
       time: '06:00'
       timezone: America/Argentina/Buenos_Aires
     open-pull-requests-limit: 5
+    # satori queda fijo en 0.32.0: desde la 0.33 trae harfbuzzjs, que no arranca en Workers, y la
+    # vista previa al compartir deja de dibujarse (docs/compartir.md). Este ignore también frena
+    # los PRs de seguridad de satori: sus alertas se miran a mano.
+    ignore:
+      - dependency-name: satori
     groups:
       npm-minor-patch:
         applies-to: version-updates

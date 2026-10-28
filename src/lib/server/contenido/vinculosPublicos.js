@@ -122,6 +122,43 @@ export async function publicLinkTargets(db, refs) {
 }
 
 /**
+ * Lo mismo que {@link publicLinkTargets}, pero de todos los perfiles y etiquetas (sin la lista de
+ * lo nombrado): todas las direcciones de perfiles que ve cualquiera y todos los `key` de etiquetas
+ * que no ve cualquiera. Para quien todavía no sabe qué nombran sus posts (las listas,
+ * src/lib/server/contenido/posts.js): así la consulta sale a la par de la que lee los posts, en vez
+ * de esperarla. `withPublicLinks` decide lo mismo con esto que con lo de `publicLinkTargets`: solo
+ * pregunta si cada vínculo está en el conjunto.
+ *
+ * @param {D1Database} db
+ * @returns {Promise<PublicLinkTargets>}
+ */
+export async function allPublicLinkTargets(db) {
+	const vo = visibleWhere(ANON, 'o');
+	const vv = visibleWhere(ANON, 'v');
+	const { results } = await db
+		.prepare(
+			`SELECT 'perfil' AS kind, o.slug AS ref FROM objects o
+			WHERE o.type = 'perfil' AND ${vo.sql} AND ${PROFILE_APPROVED_SQL}
+			UNION
+			SELECT 'etiqueta' AS kind, json_extract(o.data, '$.key') AS ref FROM objects o
+			WHERE o.type = 'etiqueta'
+				AND NOT EXISTS (SELECT 1 FROM objects v WHERE v.type = 'etiqueta'
+					AND json_extract(v.data, '$.key') = json_extract(o.data, '$.key') AND ${vv.sql})`
+		)
+		.bind(...vo.params, ...vv.params)
+		.all();
+	/** @type {Set<string>} */
+	const profiles = new Set();
+	/** @type {Set<string>} */
+	const hiddenTags = new Set();
+	for (const r of results) {
+		if (typeof r.ref !== 'string') continue;
+		(r.kind === 'perfil' ? profiles : hiddenTags).add(r.ref);
+	}
+	return { profiles, hiddenTags };
+}
+
+/**
  * Las metadatas sin los vínculos a lo que no ve cualquiera (ver arriba), en el mismo orden. Una
  * consulta para todas (ninguna si no nombran perfiles ni etiquetas).
  *

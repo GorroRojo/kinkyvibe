@@ -12,37 +12,52 @@
  * - **Solo la base**: una dirección de evento o material que la base no tiene es 404, aunque haya
  *   un .md en el repo (los .md quedan como respaldo hasta que se borren; 0004). Sin base (por
  *   ejemplo en el build), no hay eventos ni material.
- * - Toda lectura de `objects` pasa por la visibilidad (`visibleWhere`/`getObject`): las listas,
- *   con la vista anónima (son las mismas para todes y se guardan en memoria); la página de cada
- *   post, con quien mira (les admins ven los ocultos).
+ * - Toda lectura de `objects` pasa por la visibilidad (`visibleWhere`, o `canSee` como en
+ *   `getObject`): las listas, con la vista anónima (son las mismas para todes y se guardan en
+ *   memoria); la página de cada post, con quien mira (les admins ven los ocultos).
  * - La metadata (listas y páginas) lleva solo los vínculos (`personas`, `tags`) a perfiles y
  *   etiquetas que ve cualquiera (./vinculosPublicos.js). El panel lee con ./repo.js: ve todo.
  * - Las listas se recuerdan por isolate mientras la base no cambie: cada pedido mira solo cuántos
- *   objetos hay y cuándo cambió el último (una consulta chica, con índice).
+ *   objetos hay y cuándo cambió el último (una consulta chica, con índice). Si el isolate no las
+ *   tiene, las busca en la caché de Cloudflare del centro de datos (`caches.default`), con la marca
+ *   como clave (`edgeState`): un isolate nuevo no las vuelve a armar si otro ya lo hizo.
  * - Las listas no leen el cuerpo de los posts (`data.body`, la mayor parte de lo guardado): solo
  *   la metadata. El cuerpo lo lee aparte el índice de la búsqueda (`siteBodies`), una vez por
  *   cambio de la base.
  */
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { version } from '$app/environment';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { processPost } from '$lib/utils';
 import { pronounLabel } from '$lib/utils/mentions';
 import { isCurrent } from '$lib/utils/allPosts';
-import { currentSiteTags } from '$lib/utils/siteTags.js';
+import { currentSiteTagList, currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
-import { oncePerRequest } from '$lib/server/db/perRequest.js';
-import { ANON, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
-import { getObject } from '$lib/server/objects/read.js';
+import { oncePerRequest, readAndKeep } from '$lib/server/db/perRequest.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
+import { ANON, canSee, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
+import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
 import { EVENT_CATEGORY } from './eventos.js';
 import { renderContentBody } from './render.js';
 import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
 import { tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
-import { hydrateContent, withContentEdges } from './relaciones.js';
-import { publicLinksOf } from './vinculosPublicos.js';
-import { imageOf } from '$lib/server/media/library.js';
+import { contentEdgesFrom, withContentEdges, withEdgesOf } from './relaciones.js';
+import {
+	allPublicLinkTargets,
+	linkRefsOf,
+	publicLinkTargets,
+	publicLinksOf,
+	withPublicLinks
+} from './vinculosPublicos.js';
+import { imageOf, imageOfFrom } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
-import { authorProfilePosts, toPublic } from '$lib/server/amigues/asPost.js';
-import { profileAsPost, shownProfileSql } from '$lib/server/amigues/profiles.js';
+import { authorProfilePosts, authorSlugs, toPublic } from '$lib/server/amigues/asPost.js';
+import {
+	findPublicProfiles,
+	profileAsPost,
+	shownProfileSql
+} from '$lib/server/amigues/profiles.js';
 import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js';
 
@@ -88,22 +103,39 @@ const isDbCategory = (p) => Object.hasOwn(CONTENT_CATEGORIES, String(p.meta.cate
  *   unlisted: ProcessedPost[],
  *   paths: Map<number, string>,
  *   profiles: { listed: ProcessedPost[], unlisted: ProcessedPost[] },
- *   bodies?: Promise<Map<string, string>>,
- *   pronouns?: Record<string, string>
+ *   bodies?: Map<string, string>,
+ *   pronouns?: Record<string, string>,
+ *   hints?: Map<string, PostHint>,
+ *   derived?: Map<string, unknown>
  * }} DbState
  *   `profiles`: los perfiles de amigues que ve cualquiera, como posts (src/lib/server/amigues/asPost.js).
+ *   `hints`: por `<categoría>/<dirección>` (la vieja y la del objeto), lo que la página de cada post
+ *   va a preguntar después de leerlo (ver {@link PostHint}).
+ *   `derived`: lo armado con la base que vale mientras no cambie la marca ({@link fromContentState}).
+ */
+
+/**
+ * Lo que la página de un post pregunta a la base después de leerlo, sacado de la metadata con que
+ * se armaron las listas (antes de quitar los vínculos que no ve cualquiera): los vínculos a
+ * revisar (`publicLinksOf`) y les autores (`authorProfilePosts`). La página lo pregunta a la par de
+ * la lectura del post (una ida en vez de dos, ./db/autoBatch.js): si el post cambió y la pregunta
+ * de verdad es otra, sale aparte, como siempre. Nunca decide qué se muestra.
+ * @typedef {{ refs: { slugs: string[], keys: string[] }, authors: unknown, postID: string }} PostHint
  */
 
 /**
  * Lo recordado: por la marca de la base y por el árbol de etiquetas con que se limpiaron las
  * etiquetas de cada post (`processPost`): si cambia cualquiera de los dos, se vuelve a armar.
- * @type {{ stamp: string, tree: TagManager, state: Promise<DbState> } | null}
+ * Solo el estado ya armado: lo que está en camino se comparte solo dentro del pedido
+ * (`readAndKeep`, src/lib/server/db/perRequest.js).
+ * @type {{ stamp: string, tree: TagManager, state: DbState } | null}
  */
 let cached = null;
 
 /** Olvida lo recordado (tests). */
 export function clearContentCache() {
 	cached = null;
+	lastStamp = null;
 }
 
 /**
@@ -115,8 +147,17 @@ export function clearContentCache() {
  * @returns {Promise<string>}
  */
 function contentStamp(db) {
-	return oncePerRequest(db, 'contentStamp', () => readContentStamp(db));
+	return oncePerRequest(db, 'contentStamp', () =>
+		readContentStamp(db).then((stamp) => (lastStamp = stamp))
+	);
 }
+
+/**
+ * La última marca que leyó este isolate (para adelantar: {@link peekContentStamp}). Solo el valor
+ * ya leído, nunca la consulta en camino.
+ * @type {string | null}
+ */
+let lastStamp = null;
 
 /** @param {D1Database} db */
 async function readContentStamp(db) {
@@ -169,21 +210,129 @@ async function dbState(db) {
 	const stamp = await contentStamp(db);
 	const tree = currentSiteTags();
 	if (cached?.stamp === stamp && cached.tree === tree) return cached.state;
-	const state = loadDbState(db, stamp, tree);
-	cached = { stamp, tree, state };
-	state.catch(() => {
-		if (cached?.state === state) cached = null;
-	});
+	return readAndKeep(
+		db,
+		`dbState\n${stamp}`,
+		() => edgeState(db, stamp, tree),
+		(state) => {
+			cached = { stamp, tree, state };
+		}
+	);
+}
+
+/**
+ * La caché de Cloudflare del centro de datos, o `null` donde no hay (vitest, el build, `vite dev`).
+ * @returns {Cache | null}
+ */
+function edgeCache() {
+	if (typeof caches === 'undefined') return null;
+	const all = /** @type {any} */ (caches);
+	return all.default ?? null;
+}
+
+/** Un día: la clave cambia con la marca, así que un guardado del panel no necesita purgar nada. */
+const EDGE_MAX_AGE = 86400;
+
+/** @type {WeakMap<TagManager, string>} */
+const treeHashes = new WeakMap();
+
+/**
+ * Una huella corta de la lista de etiquetas con que se armó el estado (FNV-1a de su JSON), una vez
+ * por árbol: cada isolate recuerda el árbol 30 s, así que un isolate con el árbol viejo no pisa lo
+ * guardado con el nuevo (ni al revés).
+ * @param {TagManager} tree
+ */
+function treeHash(tree) {
+	let hash = treeHashes.get(tree);
+	if (hash === undefined) {
+		const text = JSON.stringify(currentSiteTagList());
+		let h = 0x811c9dc5;
+		for (let i = 0; i < text.length; i++) {
+			h ^= text.charCodeAt(i);
+			h = Math.imul(h, 0x01000193);
+		}
+		hash = (h >>> 0).toString(36);
+		treeHashes.set(tree, hash);
+	}
+	return hash;
+}
+
+/**
+ * La clave en la caché: la marca, el árbol de etiquetas y la versión del build (un deploy que
+ * cambia cómo se arman las listas no lee lo guardado por el anterior). No es una dirección real.
+ * @param {string} stamp
+ * @param {TagManager} tree
+ */
+export function edgeStateKey(stamp, tree) {
+	return `https://kinkyvibe.ar/__contenido/${encodeURIComponent(stamp)}?t=${treeHash(tree)}&v=${encodeURIComponent(version)}`;
+}
+
+/**
+ * El estado de las listas desde la caché de Cloudflare; si no está, lo arma (`loadDbState`) y lo
+ * guarda. Se guarda solo lo armado de la base (`listed`, `unlisted`, `paths`, `profiles`): los
+ * cuerpos y los pronombres se derivan después, como siempre. Sin caché, como antes.
+ *
+ * @param {D1Database} db
+ * @param {string} stamp
+ * @param {TagManager} tree
+ * @returns {Promise<DbState>}
+ */
+async function edgeState(db, stamp, tree) {
+	const cache = edgeCache();
+	const key = cache ? edgeStateKey(stamp, tree) : '';
+	if (cache) {
+		try {
+			const hit = await cache.match(key);
+			if (hit) {
+				const saved = await hit.json();
+				return {
+					stamp,
+					listed: saved.listed,
+					unlisted: saved.unlisted,
+					paths: new Map(saved.paths),
+					profiles: saved.profiles,
+					hints: new Map(saved.hints ?? [])
+				};
+			}
+		} catch {
+			// Una caché que falla no rompe la página: se arma de la base.
+		}
+	}
+	const start = Date.now();
+	const state = await loadDbState(db, stamp, tree);
+	// Una línea por armado, para los registros del Worker (Workers Logs).
+	console.log(`contenido: listas armadas (marca ${stamp}) en ${Date.now() - start} ms`);
+	if (cache) {
+		const body = JSON.stringify({
+			listed: state.listed,
+			unlisted: state.unlisted,
+			paths: [...state.paths],
+			profiles: state.profiles,
+			hints: [...(state.hints ?? [])]
+		});
+		try {
+			await cache.put(
+				key,
+				new Response(body, {
+					headers: {
+						'content-type': 'application/json',
+						'cache-control': `public, max-age=${EDGE_MAX_AGE}`
+					}
+				})
+			);
+		} catch {
+			// Sin guardar: el próximo isolate la vuelve a armar.
+		}
+	}
 	return state;
 }
 
 /**
+ * La consulta de los posts de las listas ({@link loadDbState}); la misma sentencia para quien la
+ * adelanta ({@link askListsEarly}): con las tandas automáticas, la de después recibe lo ya leído.
  * @param {D1Database} db
- * @param {string} stamp
- * @param {TagManager} tree el árbol de etiquetas en uso
- * @returns {Promise<DbState>}
  */
-async function loadDbState(db, stamp, tree) {
+function listRowsStatement(db) {
 	const visible = publicWhere(ANON, 'o');
 	const visibleImage = visibleWhere(ANON, 'i');
 	const t = marks(TYPES.length);
@@ -191,7 +340,7 @@ async function loadDbState(db, stamp, tree) {
 	// `cover`: la imagen de la biblioteca del post (edge `portada`, docs/imagenes.md), si tiene; de un
 	// perfil, su `avatar`. En la misma consulta, los perfiles de amigues aprobados y no ocultos («solo
 	// base»: lo que las listas mostraban de las fichas .md).
-	const rows = await db
+	return db
 		.prepare(
 			`SELECT o.id, o.type, o.slug, o.title, ${DATA_WITHOUT_BODY} AS data, o.visibility,
 				coalesce(s.legacy_slug, ps.legacy_slug) AS legacy_slug,
@@ -210,8 +359,24 @@ async function loadDbState(db, stamp, tree) {
 				AND ${visible.sql}
 			ORDER BY o.id`
 		)
-		.bind(...visibleImage.params, ...TYPES, ...visible.params)
-		.all();
+		.bind(...visibleImage.params, ...TYPES, ...visible.params);
+}
+
+/**
+ * @param {D1Database} db
+ * @param {string} stamp
+ * @param {TagManager} tree el árbol de etiquetas en uso
+ * @returns {Promise<DbState>}
+ */
+async function loadDbState(db, stamp, tree) {
+	// Con las tandas automáticas, los posts y a qué perfiles y etiquetas se puede vincular, a la par
+	// (una ida, no dos en fila): los vínculos se revisan contra todos los perfiles y etiquetas, sin
+	// esperar a saber cuáles nombran los posts (./vinculosPublicos.js). Sin tandas, como antes:
+	// primero los posts y después solo lo que nombran (ninguna consulta si no nombran nada).
+	const [rows, targets] = await Promise.all([
+		listRowsStatement(db).all(),
+		batchesReads(db) ? allPublicLinkTargets(db) : null
+	]);
 	/** @type {ProcessedPost[]} */
 	const listed = [];
 	/** @type {ProcessedPost[]} */
@@ -244,10 +409,21 @@ async function loadDbState(db, stamp, tree) {
 		};
 		return [{ r, meta: cat.toMeta(object) }];
 	});
-	const metas = await publicLinksOf(
-		db,
-		content.map((c) => c.meta)
-	);
+	const metas = targets
+		? content.map((c) => withPublicLinks(c.meta, targets))
+		: await publicLinksOf(
+				db,
+				content.map((c) => c.meta)
+			);
+	/** @type {Map<string, PostHint>} */
+	const hints = new Map();
+	for (const { r, meta } of content) {
+		const category = categoryOfType(String(r.type))?.category;
+		const postID = r.legacy_slug ? String(r.legacy_slug) : String(r.slug);
+		const hint = { refs: linkRefsOf(meta), authors: meta.authors, postID };
+		hints.set(`${category}/${r.slug}`, hint);
+		if (r.legacy_slug) hints.set(`${category}/${r.legacy_slug}`, hint);
+	}
 	/** @type {Map<Record<string, unknown>, Record<string, any>>} */
 	const metaOf = new Map(content.map((c, i) => [c.r, metas[i]]));
 	for (const r of rows.results) {
@@ -283,7 +459,7 @@ async function loadDbState(db, stamp, tree) {
 		(post.meta.force_unlisted ? unlisted : listed).push(post);
 		paths.set(Number(r.id), post.path);
 	}
-	return { stamp, listed, unlisted, paths, profiles };
+	return { stamp, listed, unlisted, paths, profiles, hints };
 }
 
 /**
@@ -312,33 +488,43 @@ const DATA_WITHOUT_BODY = `CASE WHEN json_valid(o.data) THEN json_remove(o.data,
  * @param {DbState} state
  * @returns {Promise<Map<string, string>>}
  */
-function stateBodies(db, state) {
-	if (!state.bodies) {
-		const t = marks(TYPES.length);
-		const visible = publicWhere(ANON, 'o');
-		const loading = db
-			.prepare(
-				`SELECT o.id, CASE WHEN json_valid(o.data) AND json_type(o.data, '$.body') = 'text'
-					THEN json_extract(o.data, '$.body') END AS body
-				FROM objects o WHERE o.type IN (${t}) AND ${visible.sql} ORDER BY o.id`
-			)
-			.bind(...TYPES, ...visible.params)
-			.all()
-			.then(({ results }) => {
-				/** @type {Map<string, string>} */
-				const bodies = new Map();
-				for (const r of results) {
-					const path = state.paths.get(Number(r.id));
-					if (path && typeof r.body === 'string' && r.body) bodies.set(path, r.body);
-				}
-				return bodies;
-			});
-		state.bodies = loading;
-		loading.catch(() => {
-			if (state.bodies === loading) delete state.bodies;
+async function stateBodies(db, state) {
+	if (state.bodies) return state.bodies;
+	return readAndKeep(
+		state,
+		'bodies',
+		() => readBodies(db, state),
+		(bodies) => {
+			state.bodies = bodies;
+		}
+	);
+}
+
+/**
+ * @param {D1Database} db
+ * @param {DbState} state
+ * @returns {Promise<Map<string, string>>}
+ */
+function readBodies(db, state) {
+	const t = marks(TYPES.length);
+	const visible = publicWhere(ANON, 'o');
+	return db
+		.prepare(
+			`SELECT o.id, CASE WHEN json_valid(o.data) AND json_type(o.data, '$.body') = 'text'
+				THEN json_extract(o.data, '$.body') END AS body
+			FROM objects o WHERE o.type IN (${t}) AND ${visible.sql} ORDER BY o.id`
+		)
+		.bind(...TYPES, ...visible.params)
+		.all()
+		.then(({ results }) => {
+			/** @type {Map<string, string>} */
+			const bodies = new Map();
+			for (const r of results) {
+				const path = state.paths.get(Number(r.id));
+				if (path && typeof r.body === 'string' && r.body) bodies.set(path, r.body);
+			}
+			return bodies;
 		});
-	}
-	return state.bodies;
 }
 
 /** Orden de las categorías cuando dos publicaciones tienen la misma fecha (como los .md). */
@@ -346,7 +532,7 @@ const CATEGORY_ORDER = ['calendario', 'amigues', 'material', 'wiki'];
 
 /** @param {ProcessedPost} p */
 export const postTime = (p) =>
-	new Date(p.meta?.start ?? p.meta?.updated_date ?? p.meta?.published_date).getTime();
+	parseSiteDate(p.meta?.start ?? p.meta?.updated_date ?? p.meta?.published_date).getTime();
 
 /**
  * El orden de las listas: lo más nuevo primero (inicio de los eventos; actualización o
@@ -356,8 +542,17 @@ export const postTime = (p) =>
  * @param {ProcessedPost} b
  */
 export function comparePosts(a, b) {
-	const ta = postTime(a);
-	const tb = postTime(b);
+	return compareByTime(a, b, postTime(a), postTime(b));
+}
+
+/**
+ * {@link comparePosts} con las fechas ya leídas.
+ * @param {ProcessedPost} a
+ * @param {ProcessedPost} b
+ * @param {number} ta
+ * @param {number} tb
+ */
+function compareByTime(a, b, ta, tb) {
 	if (ta !== tb && !(Number.isNaN(ta) && Number.isNaN(tb))) {
 		if (Number.isNaN(ta)) return 1;
 		if (Number.isNaN(tb)) return -1;
@@ -377,7 +572,75 @@ export function comparePosts(a, b) {
  * @param {ProcessedPost[]} fromDb
  */
 export function mergePosts(profiles, fromDb) {
-	return [...profiles.filter((p) => !isDbCategory(p)), ...fromDb].sort(comparePosts);
+	const all = [...profiles.filter((p) => !isDbCategory(p)), ...fromDb];
+	// La fecha de cada post se lee una vez (y no en cada comparación del orden: con ~600 posts eran
+	// miles de `parseSiteDate`). Mismo orden que `comparePosts`.
+	const times = new Map(all.map((p) => [p, postTime(p)]));
+	return all.sort((a, b) => compareByTime(a, b, times.get(a) ?? NaN, times.get(b) ?? NaN));
+}
+
+/**
+ * Las listas ya ordenadas de cada estado (`listed` y `unlisted`): mientras la base no cambie, el
+ * mismo estado sirve muchos pedidos del isolate y el orden no cambia.
+ * @type {WeakMap<DbState, { listed?: ProcessedPost[], unlisted?: ProcessedPost[] }>}
+ */
+const mergedOf = new WeakMap();
+
+/**
+ * @param {DbState} state
+ * @param {boolean} unlisted
+ */
+function mergedFor(state, unlisted) {
+	let merged = mergedOf.get(state);
+	if (!merged) mergedOf.set(state, (merged = {}));
+	if (unlisted) return (merged.unlisted ??= mergePosts(state.profiles.unlisted, state.unlisted));
+	return (merged.listed ??= mergePosts(state.profiles.listed, state.listed));
+}
+
+/**
+ * Para adelantar consultas (nunca para mostrar): la lista listada como la armó este isolate la
+ * última vez, sin preguntar si la base cambió; `null` si todavía no armó ninguna. Quien adelanta
+ * con esto vuelve a preguntar con la lista de verdad (src/lib/server/db/autoBatch.js: si es lo
+ * mismo, no sale otra consulta).
+ * @returns {ProcessedPost[] | null}
+ */
+export function peekListedPosts() {
+	return cached ? mergedFor(cached.state, false) : null;
+}
+
+/**
+ * Para adelantar (nunca para mostrar): la última marca que leyó este isolate, sin preguntar si la
+ * base cambió; `null` si todavía no leyó ninguna.
+ * @returns {string | null}
+ */
+export function peekContentStamp() {
+	return lastStamp;
+}
+
+/** @param {Promise<unknown>} p */
+const quiet = (p) => {
+	p.catch(() => {});
+};
+
+/**
+ * Al empezar un pedido de lectura que va a esperar a la base de todos modos (hooks.server.js,
+ * src/lib/server/adelantarPedido.js): pide la marca y, si el isolate todavía no armó las listas
+ * (recién nacido), las dos consultas con que se arman ({@link loadDbState}), así salen en la misma
+ * ida que el árbol de etiquetas en vez de dos idas después. Son las mismas sentencias: con las
+ * tandas automáticas, las de después reciben lo ya leído (si la caché de Cloudflare ya tiene las
+ * listas, lo adelantado no se usa). Sin tandas, nada (sería consultar de más). Devuelve si pidió las
+ * listas.
+ *
+ * @param {D1Database | null} db
+ * @returns {boolean}
+ */
+export function askListsEarly(db) {
+	if (!db || !batchesReads(db)) return false;
+	quiet(contentStamp(db));
+	if (cached) return false;
+	quiet(listRowsStatement(db).all());
+	quiet(allPublicLinkTargets(db));
+	return true;
 }
 
 /**
@@ -395,11 +658,30 @@ export async function sitePosts(platform, wiki = false, unlisted = false) {
 	const db = contentDb(platform);
 	if (!db) return [];
 	const state = await dbState(db);
-	const posts = unlisted
-		? mergePosts(state.profiles.unlisted, state.unlisted)
-		: mergePosts(state.profiles.listed, state.listed);
+	// Una copia de la lista ordenada del estado: quien la recibe puede cambiarla sin tocar la de
+	// los próximos pedidos.
+	const posts = mergedFor(state, unlisted).slice();
 	stateOfList.set(posts, state);
 	return posts;
+}
+
+/**
+ * Para adelantar consultas (nunca para mostrar): el post `<categoría>/<dirección>` y la lista
+ * listada como las armó este isolate la última vez, sin preguntar si la base cambió. `null` si el
+ * isolate no tiene listas o no lo tiene listado. Quien adelanta con esto vuelve a preguntar con lo
+ * leído de verdad (./db/autoBatch.js: si es lo mismo, no sale otra consulta).
+ *
+ * @param {string} category
+ * @param {string} slug
+ * @returns {{ post: ProcessedPost, posts: ProcessedPost[] } | null}
+ */
+export function peekSitePost(category, slug) {
+	const state = cached?.state;
+	if (!state) return null;
+	const posts = mergedFor(state, false);
+	const path = `/${category}/${slug}`;
+	const post = posts.find((p) => p.path === path) ?? state.unlisted.find((p) => p.path === path);
+	return post ? { post, posts } : null;
 }
 
 /**
@@ -501,6 +783,57 @@ export async function siteBodies(platform) {
 }
 
 /**
+ * Algo armado con la base que cambia solo cuando cambia la marca del contenido (los lugares de los
+ * eventos como los ve cualquiera, las etiquetas «Parte N de M»), recordado junto a las listas de
+ * este isolate: mientras la marca no cambie, sin consultas. `compute(eventSlugs)` lo arma la
+ * primera vez, con las direcciones de los eventos de las listas.
+ *
+ * Solo si el isolate ya tiene las listas de la marca de ahora (no las arma para esto): si no,
+ * `null` y quien llama consulta como siempre. Un error no se recuerda.
+ *
+ * @template T
+ * @param {D1Database} db
+ * @param {string} key qué se arma
+ * @param {(eventSlugs: string[]) => Promise<T>} compute
+ * @returns {Promise<T | null>}
+ */
+export async function fromContentState(db, key, compute) {
+	if (!cached) return null;
+	// Si lo recordado todavía no lo tiene, se arma a la par de la marca (con las tandas, en la misma
+	// ida) y se usa solo si la marca no cambió: así lo armado nunca es más viejo que la marca.
+	const ahead = batchesReads(db) ? derivedOf(cached.state, key, compute) : null;
+	if (ahead) quiet(ahead);
+	const stamp = await contentStamp(db);
+	if (cached?.stamp !== stamp || cached.tree !== currentSiteTags()) return null;
+	return derivedOf(cached.state, key, compute);
+}
+
+/**
+ * Lo armado con `state` para `key` ({@link fromContentState}): lo recordado, o lo que arma
+ * `compute` (compartido dentro del pedido; recordado cuando termina bien).
+ * @template T
+ * @param {DbState} state
+ * @param {string} key
+ * @param {(eventSlugs: string[]) => Promise<T>} compute
+ * @returns {Promise<T>}
+ */
+function derivedOf(state, key, compute) {
+	const derived = (state.derived ??= new Map());
+	if (derived.has(key)) return Promise.resolve(/** @type {T} */ (derived.get(key)));
+	const events = [...state.listed, ...state.unlisted]
+		.filter((p) => p.meta?.category === EVENT_CATEGORY)
+		.map((p) => String(p.meta.postID));
+	return readAndKeep(
+		state,
+		`derived\n${key}`,
+		() => compute(events),
+		(value) => {
+			derived.set(key, value);
+		}
+	);
+}
+
+/**
  * La marca de cambios del contenido de la base (la misma con la que se recuerdan las listas). Para quien recuerda algo armado con las listas o los cuerpos
  * (el índice de la búsqueda): si la marca no cambió, lo armado sigue valiendo. `null` sin base.
  *
@@ -524,6 +857,55 @@ export function contentStampOf(db) {
 }
 
 /**
+ * A qué objeto lleva una dirección (la de {@link resolveContentSlug}): dos búsquedas por índices
+ * únicos ((category, legacy_slug) y (type, slug)); con un `OR` entre las dos tablas, SQLite
+ * recorría todos los posts del tipo. Solo `?` sin número (se puede meter dentro de otra consulta):
+ * los parámetros, {@link resolveContentParams}.
+ */
+const RESOLVE_CONTENT_SQL = `SELECT id, legacy_slug FROM (
+	SELECT o.id, s.legacy_slug, 0 AS pri FROM content_sources s
+	JOIN objects o ON o.id = s.object_id AND o.type = ?
+	WHERE s.category = ? AND s.legacy_slug = ?
+	UNION ALL
+	SELECT o.id, s.legacy_slug, 1 AS pri FROM objects o
+	LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?
+	WHERE o.type = ? AND o.slug = ?
+) ORDER BY pri LIMIT 1`;
+
+/**
+ * @param {{ type: string }} cat
+ * @param {string} category
+ * @param {string} slug
+ */
+const resolveContentParams = (cat, category, slug) => [
+	cat.type,
+	category,
+	slug,
+	category,
+	cat.type,
+	slug
+];
+
+/**
+ * El id del objeto al que lleva una dirección de una categoría, como subconsulta (`SELECT id …`,
+ * solo `?` sin número): para pedir algo del post por su dirección sin esperar a saber su id (como
+ * «Lo que enlaza acá», ./loQueEnlaza.js). Sin mirar visibilidad. `null` si la
+ * categoría no existe.
+ *
+ * @param {string} category
+ * @param {string} slug
+ * @returns {{ sql: string, params: string[] } | null}
+ */
+export function contentIdFrom(category, slug) {
+	const cat = CONTENT_CATEGORIES[category];
+	if (!cat) return null;
+	return {
+		sql: `SELECT id FROM (${RESOLVE_CONTENT_SQL})`,
+		params: resolveContentParams(cat, category, slug)
+	};
+}
+
+/**
  * A qué objeto lleva una dirección de una categoría (sin mirar visibilidad: es para decidir el
  * camino). Primero la dirección vieja de un .md importado (`todo-kink-…-BDSM-cuir`), después la
  * del objeto.
@@ -536,21 +918,9 @@ export function contentStampOf(db) {
 export async function resolveContentSlug(db, category, slug) {
 	const cat = CONTENT_CATEGORIES[category];
 	if (!cat) return null;
-	// Dos búsquedas por índices únicos ((category, legacy_slug) y (type, slug)); con un `OR` entre
-	// las dos tablas, SQLite recorría todos los posts del tipo.
 	const row = await db
-		.prepare(
-			`SELECT id, legacy_slug FROM (
-				SELECT o.id, s.legacy_slug, 0 AS pri FROM content_sources s
-				JOIN objects o ON o.id = s.object_id AND o.type = ?1
-				WHERE s.category = ?2 AND s.legacy_slug = ?3
-				UNION ALL
-				SELECT o.id, s.legacy_slug, 1 AS pri FROM objects o
-				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
-				WHERE o.type = ?1 AND o.slug = ?3
-			) ORDER BY pri LIMIT 1`
-		)
-		.bind(cat.type, category, slug)
+		.prepare(RESOLVE_CONTENT_SQL)
+		.bind(...resolveContentParams(cat, category, slug))
 		.first();
 	if (!row) return null;
 	return { id: Number(row.id), legacySlug: row.legacy_slug ? String(row.legacy_slug) : null };
@@ -567,6 +937,63 @@ export function resolveEventSlug(db, slug) {
 }
 
 /**
+ * La portada de la biblioteca (edge `portada`) de la publicación de una dirección, o null (sin
+ * base, sin esa dirección o si no se pudo leer: entonces el editor muestra la vieja del repo). La
+ * usan los editores del panel (material y eventos) y «Cargar evento» desde otro.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} category
+ * @param {string} slug
+ * @param {Viewer} viewer
+ * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
+ */
+export async function libraryCoverOf(db, category, slug, viewer) {
+	if (!db) return null;
+	try {
+		const ref = await resolveContentSlug(db, category, slug);
+		return ref ? await imageOf(db, ref.id, 'portada', viewer) : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Lo que la página de un post pregunta después de leerlo, pedido a la par de su lectura (con las
+ * tandas automáticas, en la misma ida; ./db/autoBatch.js):
+ * - sus relaciones y su portada, por su dirección (la misma subconsulta que lo encuentra), sin
+ *   esperar a saber su id;
+ * - lo que dice {@link PostHint} de las listas ya armadas en este isolate (los vínculos y les
+ *   autores): las mismas consultas que van a salir después, así la de después es la ya leída.
+ *
+ * Nada de esto se muestra si quien mira no puede ver el post: se lee y se descarta (404).
+ *
+ * @param {D1Database} db
+ * @param {{ type: string }} cat
+ * @param {string} category
+ * @param {string} slug
+ * @param {Viewer} viewer
+ */
+function askEarly(db, cat, category, slug, viewer) {
+	const from = {
+		sql: `SELECT id FROM (${RESOLVE_CONTENT_SQL})`,
+		params: resolveContentParams(cat, category, slug)
+	};
+	const edges = contentEdgesFrom(db, from);
+	const cover = imageOfFrom(db, from, 'portada', viewer).catch(() => null);
+	// Con un 404 nadie los espera: que un error no quede sin atender.
+	edges.catch(() => {});
+	// Adelantar solo conviene con tandas (la consulta de después recibe lo ya leído).
+	const hint = batchesReads(db) ? cached?.state.hints?.get(`${category}/${slug}`) : undefined;
+	if (hint) {
+		if (hint.refs.slugs.length || hint.refs.keys.length)
+			publicLinkTargets(db, hint.refs).catch(() => {});
+		const authors = authorSlugs(hint.authors, hint.postID);
+		if (authors.length) findPublicProfiles(db, authors, viewer).catch(() => {});
+	}
+	return { edges, cover };
+}
+
+/**
  * @typedef {ProcessedPost & import('./render.js').RenderedBody & { cover: import('$lib/utils/seo.js').ImageInfo | null, readingMinutes?: number, readingWords?: number }} SitePost
  *   `readingMinutes` y `readingWords`: solo el material (los eventos son cortos); 0 si el texto es
  *   corto.
@@ -576,48 +1003,82 @@ export function resolveEventSlug(db, slug) {
  * Un post (evento o material) de la base para su página, o `null` si la base no lo tiene o quien
  * mira no lo puede ver (→ 404).
  *
+ * Con `followRedirect` (la página de un material), un material que redirige (`redirect` con
+ * `link`, por ejemplo a la tienda) tira la redirección 307 apenas leído el objeto: sin leer sus
+ * relaciones, su portada, sus autores ni armar el texto (una tanda a la base en vez de cuatro).
+ *
  * @param {App.Platform | undefined} platform
  * @param {string} category
  * @param {string} slug
- * @param {{ viewer?: Viewer, shallow?: boolean, html?: boolean }} [opts]
+ * @param {{ viewer?: Viewer, shallow?: boolean, html?: boolean, followRedirect?: boolean }} [opts]
  * @returns {Promise<SitePost | null>}
  */
 export async function siteContent(
 	platform,
 	category,
 	slug,
-	{ viewer = ANON, shallow = false, html = true } = {}
+	{ viewer = ANON, shallow = false, html = true, followRedirect = false } = {}
 ) {
 	const cat = CONTENT_CATEGORIES[category];
 	const db = cat ? contentDb(platform) : null;
 	if (!db || !cat) return null;
-	const ref = await resolveContentSlug(db, category, slug);
-	if (!ref) return null;
-	const found = await getObject(db, { id: ref.id }, viewer);
-	if (!found) return null;
-	// Una parte de un taller que oculta sus partes, como el taller (docs/talleres-partes.md).
+	// La dirección, el objeto y si es una parte de un taller que oculta sus partes (como el taller,
+	// docs/talleres-partes.md), en una consulta: la base está lejos y cada consulta que espera a
+	// otra es una ida y vuelta. Lo mismo que `resolveContentSlug` + `getObject` + esa regla.
 	const part = partVisibleWhere(viewer, 'o');
-	const partOk = await db
-		.prepare(`SELECT 1 AS ok FROM objects o WHERE o.id = ? AND ${part.sql}`)
-		.bind(found.id, ...part.params)
+	const early = askEarly(db, cat, category, slug, viewer);
+	const row = await db
+		.prepare(
+			`SELECT r.legacy_slug AS ref_legacy_slug, ${OBJECT_COLUMNS.split(', ')
+				.map((c) => `o.${c}`)
+				.join(', ')}, (${part.sql}) AS part_ok
+			FROM (${RESOLVE_CONTENT_SQL}) r JOIN objects o ON o.id = r.id`
+		)
+		.bind(...part.params, ...resolveContentParams(cat, category, slug))
 		.first();
-	if (!partOk) return null;
-	const [object] = await hydrateContent(db, [found]);
-	const postID = ref.legacySlug ?? object.slug;
-	const cover = await imageOf(db, object.id, 'portada', viewer).catch(() => null);
+	if (!row) return null;
+	const stored = rowToObject(row);
+	if (!canSee(stored, viewer) || !row.part_ok) return null;
+	const found = forViewer(stored, viewer);
+	if (followRedirect && category === 'material') {
+		// `redirect` y `link` salen tal cual de `data` (`materialToMeta`): no dependen de las
+		// relaciones ni de la portada.
+		const light = cat.toMeta(found);
+		// Uno oculto (solo admins) sigue el camino de siempre: la página le pone `no-store`.
+		if (light.redirect && !light.force_unpublished && typeof light.link === 'string' && light.link)
+			redirect(307, light.link);
+	}
+	const legacySlug = row.ref_legacy_slug ? String(row.ref_legacy_slug) : null;
+	// Sus relaciones y su portada: ya pedidas a la par del objeto (`askEarly`).
+	const [edges, cover] = await Promise.all([early.edges, early.cover]);
+	const object = withEdgesOf(found, edges);
+	const postID = legacySlug ?? object.slug;
+	const baseMeta = cat.toMeta(object);
 	// Sin los vínculos a lo que no ve cualquiera, para todes (también con cuenta o admin): es la
-	// página pública. El panel lee con ./repo.js.
-	const [meta] = await publicLinksOf(db, [cat.toMeta(object)]);
+	// página pública. El panel lee con ./repo.js. A la par, les autores con perfil (de la base,
+	// como los ve quien mira): «Por …» y sus tarjetas (los vínculos públicos no tocan `authors`).
+	const [linked, authors] = await Promise.all([
+		publicLinksOf(db, [baseMeta]).then(
+			([meta]) => ({ meta }),
+			(error) => ({ error })
+		),
+		shallow
+			? null
+			: authorProfilePosts(db, baseMeta.authors, { postID, viewer }).then(
+					(list) => ({ list }),
+					(error) => ({ error })
+				)
+	]);
+	// Los errores, en el orden de antes: primero el de los vínculos.
+	if ('error' in linked) throw linked.error;
+	if (authors && 'error' in authors) throw authors.error;
 	const post = await processPost(
 		undefined,
 		postID,
-		/** @type {any} */ (withCover(meta, cover?.key)),
+		/** @type {any} */ (withCover(linked.meta, cover?.key)),
 		shallow
 	);
-	// Les autores con perfil (de la base, como los ve quien mira): «Por …» y sus tarjetas.
-	if (!shallow) {
-		post.authorsProfiles = await authorProfilePosts(db, post.meta.authors, { postID, viewer });
-	}
+	if (authors) post.authorsProfiles = authors.list;
 	// «X min de lectura» del material, del texto guardado ($lib/utils/readingTime.js).
 	const reading =
 		category === 'material' && !shallow

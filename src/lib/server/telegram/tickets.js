@@ -8,8 +8,9 @@
  */
 import { ordersForAccount } from '$lib/server/cuentas/orders.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
+import { streamLinkFor } from '$lib/server/tickets/index.js';
 import { readWorkshop } from '$lib/server/eventos/partes.js';
-import { partsCoveredBy } from '$lib/utils/partes.js';
+import { partsCoveredBy, ticketParts as coveredTicketParts } from '$lib/utils/partes.js';
 import { chatAccount } from './seguir.js';
 import { shortHash } from './nav.js';
 
@@ -19,12 +20,15 @@ import { shortHash } from './nav.js';
  * los datos de quien compró. `id`: un hash corto del id de la entrada (lo que lleva el botón).
  * `parts`: si es la entrada de un taller en varias partes con una sola entrada
  * (docs/talleres-partes.md), las fechas de todas sus partes, en orden (el taller es la 1).
+ * `streamLink`: en un evento online, el link de la transmisión si ya está cargado (con la misma
+ * regla que la página de la entrada: solo compras aprobadas, que son las únicas que llegan acá).
  *
- * @typedef {{ n: number, start: string | null, end: string | null, cancelled: boolean }} BotTicketPart
+ * @typedef {import('$lib/utils/partes.js').TicketPart} BotTicketPart
  * @typedef {{
  *   id: string, token: string, code: string | null, holder: string, pronouns: string,
  *   type: string, slug: string, title: string, start: string | null, end: string | null,
- *   online: boolean, checkedInAt: number | null, parts?: BotTicketPart[] | null
+ *   online: boolean, checkedInAt: number | null, parts?: BotTicketPart[] | null,
+ *   streamLink?: string | null
  * }} BotTicket
  */
 /**
@@ -54,15 +58,7 @@ const isoOrNull = (v) => {
  */
 async function ticketParts(db, slug) {
 	try {
-		const parts = partsCoveredBy(await readWorkshop(db, slug), slug);
-		return parts
-			? parts.map((p) => ({
-					n: p.n,
-					start: p.start,
-					end: p.end,
-					cancelled: p.status === 'cancelado'
-				}))
-			: null;
+		return coveredTicketParts(partsCoveredBy(await readWorkshop(db, slug), slug));
 	} catch {
 		console.error('[telegram] mis entradas: no se pudieron leer las partes de un taller');
 		return null;
@@ -71,8 +67,8 @@ async function ticketParts(db, slug) {
 
 /**
  * Las entradas de las compras aprobadas de la cuenta. Una consulta para las compras y una para
- * todas sus entradas; los datos del evento (título, fecha, tipos y las partes de un taller), uno
- * por evento.
+ * todas sus entradas; los datos del evento (título, fecha, tipos, las partes de un taller y, si es
+ * online, el link de la transmisión), uno por evento.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -97,6 +93,8 @@ export async function accountTickets(db, accountId) {
 	const configs = new Map();
 	/** @type {Map<string, BotTicketPart[] | null>} */
 	const partsBySlug = new Map();
+	/** @type {Map<string, string | null>} */
+	const streamBySlug = new Map();
 	/** @type {BotTicket[]} */
 	const out = [];
 	for (const row of results) {
@@ -110,10 +108,13 @@ export async function accountTickets(db, accountId) {
 			}
 			configs.set(slug, config);
 			partsBySlug.set(slug, await ticketParts(db, slug));
+			// Como la página de la entrada: online y con la compra aprobada (todas las de acá).
+			streamBySlug.set(slug, config?.online ? await streamLinkFor(db, slug) : null);
 		}
 		const config = configs.get(slug) ?? null;
 		const typeId = String(row.ticket_type);
 		const parts = partsBySlug.get(slug);
+		const streamLink = streamBySlug.get(slug) ?? null;
 		out.push({
 			id: shortHash(String(row.id)),
 			token: String(row.token),
@@ -127,7 +128,8 @@ export async function accountTickets(db, accountId) {
 			end: isoOrNull(config?.end),
 			online: Boolean(config?.online),
 			checkedInAt: row.checked_in_at == null ? null : Number(row.checked_in_at),
-			...(parts ? { parts } : {})
+			...(parts ? { parts } : {}),
+			...(streamLink ? { streamLink } : {})
 		});
 	}
 	return out;

@@ -7,6 +7,9 @@ Usa **Workers Analytics Engine** de Cloudflare y nada más. Es **anónimo**: no 
 cookies ni cuentas. El beacon de **Cloudflare Web Analytics** (`src/app.html`) sigue como estaba y
 no tiene nada que ver con esto.
 
+Las estadísticas de uso del **bot de Telegram** son otra cosa, en D1 y con sus propias reglas
+(Estadísticas → Bot de Telegram, [telegram.md](telegram.md) «Estadísticas de uso»).
+
 ## Qué se guarda (y qué nunca)
 
 Cada visita o paso es un "punto" con estas columnas, y nada más:
@@ -26,7 +29,7 @@ Cada visita o paso es un "punto" con estas columnas, y nada más:
 «celu / tablet / compu»), cookies, la cuenta o la sesión, el mail, el id de la orden, la query
 string (UTM, `fbclid`, tokens…), la ruta del Referer ni la ciudad. Las visitas del panel, la API,
 los login, «Mi rincón» y las rutas con tokens (`/entradas/…`, `/avisos/confirmar|baja|sigo/…`,
-`/propinas/<id>`) no se cuentan.
+`/lista-de-espera/…`, `/mails/…`, `/propinas/<id>`) no se cuentan.
 
 ### Qué cuenta como visita
 

@@ -3,6 +3,10 @@
 declare global {
 	/** Rama del deploy (Workers Builds o Pages; '' en local). Ver src/lib/server/deploy.js. */
 	const __DEPLOY_BRANCH__: string;
+	/** La última migración de migrations/ al compilar (vite.config.js, src/lib/server/buildInfo.js). */
+	const __LATEST_MIGRATION__: string;
+	/** El commit del build (Workers Builds; '' en local). Ver src/lib/server/buildInfo.js. */
+	const __BUILD_SHA__: string;
 	namespace App {
 		interface Locals {
 			/** Verified against GitHub in hooks.server.js; never read from client cookies. */
@@ -19,11 +23,23 @@ declare global {
 			user_token: string;
 			/**
 			 * Cuenta del público con sesión abierta (src/lib/server/cuentas/web.js). Independiente de
-			 * `user` (admins): una persona puede tener las dos, una o ninguna.
+			 * `user` (admins): una persona puede tener las dos, una o ninguna. `readingSpeed` y
+			 * `canHaveProfiles` vienen con la sesión (`getSessionAccount`), para no volver a leer la
+			 * cuenta; sin ellos (otros caminos), se leen de la base. Nunca `preferences` (el DNI).
 			 */
-			member?: { id: string; email: string };
+			member?: {
+				id: string;
+				email: string;
+				readingSpeed?: number | null;
+				canHaveProfiles?: boolean;
+			};
 		}
-		// interface Error {}
+		/** Lo que llega a la página de error (src/lib/server/errorLog.js). */
+		interface Error {
+			message: string;
+			/** Código corto del error en los registros (no en los 404). */
+			id?: string;
+		}
 		// interface Locals {}
 		// interface PageData {}
 		interface Platform {
@@ -45,6 +61,8 @@ declare global {
 				 * en los pedidos a `/og/…` (lo agrega worker/index.js); en `vite dev` falta.
 				 */
 				OG_RENDER?: import('../worker/og-render.js').OgRenderer;
+				/** `off`: sin las tandas automáticas de D1 (src/lib/server/db/autoBatch.js). */
+				KV_D1_TANDAS?: string;
 			};
 			ctx?: import('@cloudflare/workers-types').ExecutionContext;
 			caches?: import('@cloudflare/workers-types').CacheStorage;

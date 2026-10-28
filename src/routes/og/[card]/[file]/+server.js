@@ -3,8 +3,11 @@
  * las portadas de los próximos eventos y los textos del panel. La dirección lleva el hash de lo
  * que se dibuja (src/lib/server/linkPreview.js), así que la respuesta se guarda para siempre.
  *
+ * - Ya en la caché de Cloudflare con esta misma dirección: de ahí, sin mirar la base (la dirección
+ *   lleva el hash, así que lo guardado es la imagen de ese hash; también la de un hash que ya no es
+ *   el de ahora, que sigue siendo la imagen que se compartió con esa dirección).
  * - Hash viejo (cambió un texto o una portada): 302 a la dirección de ahora.
- * - Ya dibujada: de la caché de Cloudflare o de R2.
+ * - Ya dibujada: de R2.
  * - Si no, se dibuja (worker/og.js), se guarda en R2 y en la caché, y se manda.
  * - Si no se puede dibujar (sin base, en `vite dev`, o si falla): 302 a la tarjeta de `static/`
  *   (el mismo diseño, sin portadas), por un rato.
@@ -58,16 +61,17 @@ export async function GET({ params, platform, url, fetch }) {
 	const m = FILE.exec(params.file);
 	if (!isOgCard(card) || !m) error(404, 'No existe esa imagen.');
 	const fallback = (/** @type {string} */ reason) => redirect302('/' + OG_CARDS[card].file, reason);
+	// Primero la caché de Cloudflare, con la dirección pedida (sin `?…`): si está, ni la base.
+	const cache = /** @type {any} */ (platform?.caches)?.default;
+	const cacheKey = new Request(url.origin + url.pathname);
+	const hit = await cache?.match(cacheKey).catch(() => null);
+	if (hit) return hit;
 	if (!getDB(platform)) return fallback('no-db');
 	const current = (await linkPreviewState(platform)).cards[card];
 	if (!current) return fallback('no-card');
 	if (current.hash !== m[1]) return redirect302(current.url);
 
 	const env = /** @type {import('$lib/server/ogImage.js').OgEnv} */ (platform?.env ?? {});
-	const cache = /** @type {any} */ (platform?.caches)?.default;
-	const cacheKey = new Request(url.origin + current.url);
-	const hit = await cache?.match(cacheKey).catch(() => null);
-	if (hit) return hit;
 
 	const key = ogStorageKey(card, current.hash);
 	const waitUntil = (/** @type {Promise<unknown>} */ p) =>

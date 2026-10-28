@@ -38,32 +38,36 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const login = requireAdmin(locals, url).login;
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
-	/** @type {Map<string, { confirmed: number, pending: number }>} */
-	let counts = new Map();
-	if (db) {
-		try {
-			counts = await subscriberCounts(db);
-		} catch (error) {
-			logDBError('series: suscripciones', error);
-		}
-	}
-	// El árbol de etiquetas en uso (la base).
-	const tags = await siteTagManager(platform);
-	const series = await allSeries({ tags, platform });
-	const dbMode = Boolean(await dbTagsForAdmin(platform, login));
+	// Todo a la par (cada lectura es una ida a la base; lo que no depende de otra sale junto).
+	const [counts, { tags, series }, dbTags, library] = await Promise.all([
+		/** @type {Promise<Map<string, { confirmed: number, pending: number }>>} */ (
+			db
+				? subscriberCounts(db).catch((error) => {
+						logDBError('series: suscripciones', error);
+						return new Map();
+					})
+				: Promise.resolve(new Map())
+		),
+		// El árbol de etiquetas en uso (la base) y las series.
+		siteTagManager(platform).then(async (tags) => ({
+			tags,
+			series: await allSeries({ tags, platform })
+		})),
+		dbTagsForAdmin(platform, login),
+		// La imagen de la biblioteca de cada serie (edge `imagen`, docs/imagenes.md).
+		/** @type {Promise<Map<string, import('$lib/server/media/library.js').PublicImage>>} */ (
+			db
+				? seriesImages(db, { role: 'admin', id: login }).catch((error) => {
+						logDBError('series: imágenes', error);
+						return new Map();
+					})
+				: Promise.resolve(new Map())
+		)
+	]);
+	const dbMode = Boolean(dbTags);
 	const canCreate = dbMode;
 	const upcomingSlugs = new Set(series.flatMap((s) => s.upcoming.map((e) => e.slug)));
 	const ids = seriesTagIds(tags);
-	// La imagen de la biblioteca de cada serie (edge `imagen`, docs/imagenes.md).
-	/** @type {Map<string, import('$lib/server/media/library.js').PublicImage>} */
-	let library = new Map();
-	if (db) {
-		try {
-			library = await seriesImages(db, { role: 'admin', id: login });
-		} catch (error) {
-			logDBError('series: imágenes', error);
-		}
-	}
 	return {
 		series: series.map((s) => ({
 			id: s.id,

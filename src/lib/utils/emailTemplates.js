@@ -7,7 +7,7 @@
  * saludo y lo que quieran agregar) y, si quieren, la **etiqueta** gris de arriba del título, el
  * **texto del botón**, la **línea de ayuda** de abajo del botón y el **por qué te llega** del pie
  * (`TEMPLATE_EXTRAS`: vacíos = el texto de siempre). Lo demás (datos del evento, precios, entradas con su QR y
- * código, links, número de orden, política de devoluciones) lo sigue poniendo el código: una
+ * código, links, número de compra, política de devoluciones) lo sigue poniendo el código: una
  * plantilla nunca puede romper un QR ni un link.
  *
  * Formato seguro (no es HTML):
@@ -50,7 +50,7 @@ import { escapeHtml } from './escape.js';
  * @typedef {'tickets' | 'transfer' | 'stream' | 'reminder' | 'refund' | 'date_change'
  *   | WaitlistTemplateId} TemplateId
  * @typedef {'waitlist_confirm' | 'waitlist_offer' | 'waitlist_reminder' | 'waitlist_expired'
- *   | 'waitlist_closed'} WaitlistTemplateId
+ *   | 'waitlist_ended' | 'waitlist_closed'} WaitlistTemplateId
  */
 
 /** Largo máximo de cada parte. */
@@ -85,6 +85,9 @@ export const TEMPLATE_FIELD_LABELS = Object.freeze({
 /** Por qué llegan los mails de entradas (pie de la plantilla común). */
 export const WHY_BOUGHT = 'Te llega porque compraste entradas en kinkyvibe.ar.';
 export const WHY_RESERVED = 'Te llega porque reservaste entradas en kinkyvibe.ar.';
+/** Por qué llegan los mails de entradas gratis (nadie compró: alguien las pidió con este mail). */
+export const WHY_FREE =
+	'Te llega porque se pidieron entradas gratis con este mail en kinkyvibe.ar.';
 /** Por qué llegan los mails de la lista de espera. */
 export const WHY_WAITLIST = 'Te llega porque te anotaste en una lista de espera de kinkyvibe.ar.';
 export const WHY_WAITLIST_CONFIRM =
@@ -160,7 +163,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Entradas',
 		when: 'Cuando se aprueba una compra (Mercado Pago, sin cargo o transferencia confirmada) y al reenviar las entradas.',
 		fixed:
-			'Evento con fecha y lugar, detalle del precio, instrucciones para la puerta (o el link de la transmisión), cada entrada con su QR, código y link, número de orden y política de devoluciones.',
+			'Evento con fecha y lugar, detalle del precio, instrucciones para la puerta (o el link de la transmisión), cada entrada con su QR, código y link, número de compra y política de devoluciones.',
 		vars: [
 			V.nombre,
 			V.evento,
@@ -181,7 +184,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			label: { default: 'Tus entradas' },
 			button: {
 				default: 'Ver mis entradas',
-				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
+				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión». Si no, con una sola entrada lleva a esa entrada y dice «Ver mi entrada»; con varias, a la página de la compra.'
 			},
 			help: {
 				default: '',
@@ -225,7 +228,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Link de la transmisión',
 		when: 'Con "Enviar el link a todes" en un evento online.',
 		fixed:
-			'El link de la transmisión en un recuadro, links a cada entrada, número de orden y política de devoluciones.',
+			'El link de la transmisión en un recuadro, links a cada entrada, número de compra y política de devoluciones.',
 		vars: [V.nombre, V.evento, V.fecha],
 		defaults: {
 			subject: 'Link de la transmisión: {{evento}}',
@@ -247,7 +250,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Recordatorio',
 		when: 'Antes de cada evento, según Mensajes → Configuración → Recordatorios.',
 		fixed:
-			'Evento con fecha y lugar, qué llevar (o el link de la transmisión), la lista de entradas con su link y código, número de orden y política de devoluciones.',
+			'Evento con fecha y lugar, qué llevar (o el link de la transmisión), la lista de entradas con su link y código, número de compra y política de devoluciones.',
 		vars: [V.nombre, V.evento, V.fecha, V.lugar, V.cuando, V.tipo, V.cantidad, V.entradas],
 		defaults: {
 			subject: 'Recordatorio: {{evento}} {{cuando}}',
@@ -258,7 +261,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			label: { default: 'Recordatorio' },
 			button: {
 				default: 'Ver mis entradas',
-				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
+				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión». Si no, con una sola entrada lleva a esa entrada y dice «Ver mi entrada»; con varias, a la página de la compra.'
 			},
 			help: { default: '', note: 'Sin texto propio, este mail no tiene línea de ayuda.' },
 			why: { default: WHY_BOUGHT }
@@ -269,7 +272,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Reembolso',
 		when: 'Cuando se reembolsa una compra (desde el panel o desde Mercado Pago).',
 		fixed:
-			'Cómo se devuelve la plata (según el medio de pago), que las entradas ya no valen, número de orden y contacto.',
+			'Cómo se devuelve la plata (según el medio de pago), que las entradas ya no valen, número de compra y contacto.',
 		vars: [V.nombre, V.evento, V.fecha, V.tipo, V.cantidad, V.total],
 		defaults: {
 			subject: 'Reembolso de tu compra · {{evento}}',
@@ -287,7 +290,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Cambio de fecha',
 		when: 'Con «Avisar a les compradores» después de cambiar la fecha o el horario de un evento.',
 		fixed:
-			'La fecha nueva en un recuadro (con el lugar), la de antes, el calendario actualizado (.ics y Google Calendar), el link de la transmisión si es online y ya está, número de orden y política de devoluciones.',
+			'La fecha nueva en un recuadro (con el lugar), la de antes, el calendario actualizado (.ics y Google Calendar), el link de la transmisión si es online y ya está, número de compra y política de devoluciones.',
 		vars: [V.nombre, V.evento, V.fecha, V.fecha_anterior, V.lugar, V.entradas],
 		defaults: {
 			subject: 'Cambió la fecha: {{evento}}',
@@ -298,7 +301,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			label: { default: 'Cambio de fecha' },
 			button: {
 				default: 'Ver mis entradas',
-				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
+				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión». Si no, con una sola entrada lleva a esa entrada y dice «Ver mi entrada»; con varias, a la página de la compra.'
 			},
 			help: {
 				default:
@@ -382,6 +385,28 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			subject: 'Se venció tu lugar para {{evento}}',
 			heading: 'Se venció tu lugar',
 			body: 'No llegaste a usar el lugar que te guardamos para **{{evento}}**, así que se lo pasamos a la próxima persona de la fila.'
+		},
+		extras: {
+			label: { default: 'Lista de espera' },
+			button: { default: 'Volver a anotarme' },
+			help: {
+				default:
+					'Si todavía querés ir, podés volver a anotarte: quedás al final de la fila, sin confirmar el mail de nuevo.'
+			},
+			why: { default: WHY_WAITLIST }
+		},
+		flag: 'lista_espera'
+	},
+	{
+		id: 'waitlist_ended',
+		label: 'Lista de espera: terminamos tu lugar',
+		when: 'Cuando une admin termina desde el panel el lugar que le ofrecimos («Terminar la reserva y pasar a la siguiente») y elige avisarle por mail.',
+		fixed: `El evento con su fecha, el botón «Volver a anotarme» (vuelve al final de la fila, sin confirmar de nuevo) y ${WAITLIST_LEAVE_NOTE}.`,
+		vars: [V.evento, V.fecha, V.tipo_lista],
+		defaults: {
+			subject: 'Se terminó tu lugar para {{evento}}',
+			heading: 'Se terminó tu lugar',
+			body: 'Terminamos el lugar que te ofrecimos para **{{evento}}** y se lo pasamos a la próxima persona de la fila. El link para comprar ya no sirve.'
 		},
 		extras: {
 			label: { default: 'Lista de espera' },
@@ -479,7 +504,7 @@ export function unknownVariables(id, tpl) {
 const HTML_TAG_RE = /<\/?[a-z!?][^<>]*>/i;
 
 /** Color de los links de las plantillas (el `MAIL_COLORS.link` de src/lib/server/email/layout.js). */
-export const TEMPLATE_LINK_COLOR = 'hsl(262,90%,45%)';
+export const TEMPLATE_LINK_COLOR = '#570bda';
 
 /** Un link: `[texto](dirección)`, la dirección sin espacios ni paréntesis. */
 const LINK_RE = /\[([^[\]\n]+)\]\(([^\s()]+)\)/g;

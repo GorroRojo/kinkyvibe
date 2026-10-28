@@ -9,6 +9,7 @@ import { parseFeePercent } from '$lib/utils/tickets.js';
 import { safeTextError } from '$lib/utils/emailTemplates.js';
 import { MAX_MAIL_BATCH_SIZE, MIN_MAIL_BATCH_SIZE, parseMailBatchSize } from './batchSize.js';
 import { MAX_REMINDERS, normalizeReminder } from './reminders.js';
+import { oncePerRequest } from '$lib/server/db/perRequest.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -61,6 +62,38 @@ export function isValidFrom(v) {
 	return m ? EMAIL_RE.test(m[2].trim()) : EMAIL_RE.test(v);
 }
 
+/**
+ * Los únicos dominios desde los que se puede mandar: los verificados en Resend (con su DKIM). Con
+ * otro, Resend rechaza todos los mails (y un From de Gmail mandado por Resend fallaría DMARC).
+ */
+export const MAIL_FROM_DOMAINS = Object.freeze(['kinkyvibe.ar']);
+
+/** El error del formulario cuando el remitente es de otro dominio. */
+export const FROM_DOMAIN_ERROR =
+	'El remitente tiene que ser una dirección @kinkyvibe.ar (el dominio verificado para mandar mails).';
+
+/**
+ * El dominio de un remitente («Nombre <dir@dominio>» o «dir@dominio»), en minúsculas, o `''`.
+ *
+ * @param {string} v
+ */
+export function fromDomain(v) {
+	const m = v.trim().match(/<([^<>]+)>\s*$/);
+	const address = (m ? m[1] : v).trim().toLowerCase();
+	const at = address.lastIndexOf('@');
+	return at === -1 ? '' : address.slice(at + 1);
+}
+
+/**
+ * Si un remitente tiene la forma correcta y es de un dominio de {@link MAIL_FROM_DOMAINS}
+ * (exacto: ni subdominios ni dominios que lo contengan).
+ *
+ * @param {string} v
+ */
+export function isAllowedFrom(v) {
+	return isValidFrom(v.trim()) && MAIL_FROM_DOMAINS.includes(fromDomain(v));
+}
+
 /** @typedef {(typeof SETTING_KEYS)[number]} SettingKey */
 /** @typedef {Record<SettingKey, string>} SalesSettings */
 
@@ -70,13 +103,21 @@ function empty() {
 }
 
 /**
- * Lee los ajustes (vacíos si no hay base o todavía no se aplicó la migración).
+ * Lee los ajustes (vacíos si no hay base o todavía no se aplicó la migración). Una sola consulta
+ * por pedido de lectura (la venta los pide varias veces: el Fondo, la transferencia, la comisión);
+ * en los demás pedidos, solo se comparte la que está en camino, así lo leído después de guardar
+ * es lo nuevo (`oncePerRequest`, src/lib/server/db/perRequest.js). Cada llamada recibe su copia.
  *
  * @param {D1Database | null | undefined} db
  * @returns {Promise<SalesSettings & { updatedAt: number | null, updatedBy: string | null }>}
  */
 export async function getSalesSettings(db) {
 	if (!db) return readSalesSettings([]);
+	return { ...(await oncePerRequest(db, 'salesSettings', () => readSettings(db))) };
+}
+
+/** @param {D1Database} db */
+async function readSettings(db) {
 	try {
 		const { results } = await salesSettingsStatement(db).all();
 		return readSalesSettings(results);
@@ -152,6 +193,8 @@ export function validateSalesSettings(form) {
 	const from = clean(form.from_email);
 	if (from && (from.length > 120 || !isValidFrom(from))) {
 		errors.from_email = 'Poné una dirección (entradas@kinkyvibe.ar) o "Nombre <dirección>".';
+	} else if (from && !isAllowedFrom(from)) {
+		errors.from_email = FROM_DOMAIN_ERROR;
 	}
 	value.from_email = from;
 	const replyTo = clean(form.reply_to_email).toLowerCase();

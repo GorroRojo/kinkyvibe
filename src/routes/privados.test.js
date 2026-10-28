@@ -788,6 +788,17 @@ const LIST_OUTPUTS = [
 		['evento']
 	],
 	[
+		'/api/calendario/pasados?mes=2099-03&enteros=1 (la lista con «Mostrar eventos pasados»)',
+		() =>
+			whenPlantedEventsArePast(() =>
+				get(
+					import('./api/calendario/pasados/+server.js'),
+					anonEvent({ path: '/api/calendario/pasados?mes=2099-03&enteros=1' })
+				)
+			),
+		['evento']
+	],
+	[
 		'/material',
 		() => load(import('./(content)/material/+page.server.js'), anonEvent({ path: '/material' })),
 		['material']
@@ -803,14 +814,17 @@ const LIST_OUTPUTS = [
 		['evento']
 	],
 	[
+		// el glosario: las páginas de la wiki y los detalles de las etiquetas vienen con la página
 		'/wiki',
 		() => load(import('./(content)/wiki/+page.server.js'), anonEvent({ path: '/wiki' })),
-		[]
+		['etiqueta']
 	],
 	[
-		'layout (glosario y etiquetas de cada página)',
+		// el árbol liviano de cada página: sin páginas de la wiki ni descripciones (nada que
+		// controlar de lo público; sí que no salga nada privado)
+		'layout (etiquetas de cada página)',
 		() => load(import('./+layout.server.js'), anonEvent()),
-		['etiqueta']
+		[]
 	],
 	[
 		`/wiki/${PUBLIC_SERIES_SLUG}`,
@@ -997,8 +1011,10 @@ async function attempt(fn) {
 	try {
 		return { status: 200, body: await fn() };
 	} catch (e) {
-		const status = /** @type {any} */ (e)?.status;
-		if (typeof status === 'number') return { status, body: text(/** @type {any} */ (e).body) };
+		const err = /** @type {any} */ (e);
+		const status = err?.status;
+		// Una redirección no trae cuerpo: se revisa adónde lleva.
+		if (typeof status === 'number') return { status, body: text(err.body ?? err.location ?? '') };
 		throw e;
 	}
 }

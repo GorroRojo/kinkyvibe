@@ -12,6 +12,7 @@ import { seriesOf } from '$lib/utils/sheetImport.js';
 import { foldText } from '$lib/server/tickets/orders.js';
 import { getEventInfo } from '$lib/server/tickets/events.js';
 import { noteDeletionPath, softDeletionStatement } from './deletions.js';
+import { EVENT_START_SQL, SALE_AT_SQL } from './saleMonth.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -21,7 +22,8 @@ import { noteDeletionPath, softDeletionStatement } from './deletions.js';
  *   payment_method: string, fondo_option: string, fondo_amount: number,
  *   fondo_contribution: number, buyer_name: string, buyer_pronouns: string | null,
  *   buyer_email: string, status: string, created_at: number, checked: number,
- *   surcharge_amount?: number
+ *   surcharge_amount?: number, event_start?: number | null,
+ *   mp_fee_amount?: number | null, refunded_amount?: number | null
  * }} PersonOrder
  * @typedef {{ title: string, start: string | null, tags?: string[] }} EventInfo
  */
@@ -60,20 +62,26 @@ export async function personId(email) {
 
 /**
  * Órdenes aprobadas y reembolsadas con cuántas entradas tuvieron check-in. Sin DNI.
+ * `event_start`: cuándo empieza el evento (ms; `null` si no está en la base), para contar cada
+ * venta en el mes del evento (./saleMonth.js).
  * @param {D1Database} db
- * @param {{ since?: number | null }} [opts] `since`: solo las compradas desde ese momento (ms),
- *   filtrado en SQL (Estadísticas → Ventas con un período).
+ * @param {{ since?: number | null }} [opts] `since`: solo las compradas desde ese momento o de
+ *   eventos que empiezan desde ese momento (ms), filtrado en SQL (Estadísticas → Ventas con un
+ *   período: el gráfico va por fecha de compra y lo demás por mes del evento).
  * @returns {Promise<PersonOrder[]>}
  */
 export async function loadPeopleOrders(db, { since = null } = {}) {
 	const query = db.prepare(
 		`SELECT o.id, o.event_slug, o.ticket_type, o.quantity, o.total, o.payment_method,
-				o.fondo_option, o.fondo_amount, o.fondo_contribution, o.surcharge_amount, o.buyer_name,
+				o.fondo_option, o.fondo_amount, o.fondo_contribution, o.surcharge_amount, o.mp_fee_amount,
+				o.refunded_amount, o.buyer_name,
 				o.buyer_pronouns,
-				o.buyer_email, o.status, o.created_at,
+				o.buyer_email, o.status, o.created_at, ${EVENT_START_SQL} AS event_start,
 				(SELECT COUNT(*) FROM tickets t WHERE t.order_id = o.id AND t.checked_in_at IS NOT NULL)
 					AS checked
-			FROM orders o WHERE o.status IN ${KEPT}${since === null ? '' : ' AND o.created_at >= ?1'}
+			FROM orders o WHERE o.status IN ${KEPT}${
+				since === null ? '' : ` AND (o.created_at >= ?1 OR ${SALE_AT_SQL} >= ?1)`
+			}
 			ORDER BY o.created_at`
 	);
 	const { results } = await (since === null ? query : query.bind(since)).all();
@@ -197,7 +205,10 @@ export const NOTE_MAX = 2000;
 
 /**
  * El mail se compara sin mayúsculas ni espacios (una nota vieja guardada con otro formato
- * también aparece).
+ * también aparece). Por eso el índice `person_notes_email (email, created_at)` de 0009 no le sirve
+ * a esta consulta y recorre la tabla: con las pocas notas de hoy no importa. Si la tabla crece, la
+ * salida es una migración nueva con un índice por expresión, `(lower(trim(email)), created_at)`
+ * (auditoría de plata, D32).
  *
  * @param {D1Database | null | undefined} db
  * @param {string} email normalizado

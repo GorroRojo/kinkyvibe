@@ -14,6 +14,7 @@ import {
 import {
 	buildWaitlistClosedEmail,
 	buildWaitlistConfirmEmail,
+	buildWaitlistEndedEmail,
 	buildWaitlistExpiredEmail,
 	buildWaitlistOfferEmail,
 	buildWaitlistReminderEmail
@@ -97,12 +98,14 @@ function sampleTickets() {
 /**
  * El mail de ejemplo de una plantilla (con `template` = null, el texto del código). Con
  * `event`, el título, la fecha y el lugar son los de ese evento (la vista previa de la ficha de
- * un evento); la compra y quien compró siguen siendo de ejemplo.
+ * un evento); la compra y quien compró siguen siendo de ejemplo. `event.parts`: la lista de
+ * partes de un taller con una sola entrada (en los mails que la llevan).
  *
  * @param {TemplateId} id
  * @param {TemplateParts | null} template ya junta (lo del evento sobre la general)
  * @param {{ origin: string, contactEmail: string, replyTo?: string, now?: number,
- *   event?: { title?: string, start?: string, location?: string, location_name?: string },
+ *   event?: { title?: string, start?: string, location?: string, location_name?: string,
+ *     parts?: import('./workshopParts.js').PartsList | null },
  *   footer?: import('$lib/server/email/layout.js').MailFooter | null }} ctx
  *   `footer`: el pie de Mensajes → Configuración (como lo pone `deliver()` al mandar).
  * @returns {{ subject: string, html: string, text: string }}
@@ -132,7 +135,8 @@ function buildPreview(
 			real?.start ||
 			`${new Date(now + 10 * 86400000 - 3 * 3600000).toISOString().slice(0, 10)}T22:00:00-03:00`,
 		location: real ? (real.location ?? '') : 'Calle Falsa 123',
-		location_name: real ? (real.location_name ?? '') : 'Lugar de ejemplo'
+		location_name: real ? (real.location_name ?? '') : 'Lugar de ejemplo',
+		parts: real?.parts ?? null
 	};
 	const common = { order, typeName: 'General', contactEmail, template };
 	// Lista de espera: sin compra ni nombre (la lista guarda solo el mail); links de ejemplo.
@@ -159,6 +163,11 @@ function buildPreview(
 			return buildWaitlistReminderEmail({ ...waitlist, offerUrl, holdUntil: now + 3 * 3600000 });
 		case 'waitlist_expired':
 			return buildWaitlistExpiredEmail({
+				...waitlist,
+				rejoinUrl: `${origin}/lista-de-espera/volver/ejemplo`
+			});
+		case 'waitlist_ended':
+			return buildWaitlistEndedEmail({
 				...waitlist,
 				rejoinUrl: `${origin}/lista-de-espera/volver/ejemplo`
 			});

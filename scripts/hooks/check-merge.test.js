@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	check,
 	decide,
+	latestRuns,
 	parseMergeCall,
 	planReviewReason,
 	planReviewShas,
@@ -158,6 +159,62 @@ describe('decide', () => {
 			green.checks
 		);
 		expect(d.reasons[0]).toContain('Cloudflare Pages=pending');
+	});
+
+	it('only the newest run of each check counts (an old cancelled run on the same commit does not block)', () => {
+		const at = (name, conclusion, started_at, id, status = 'completed') => ({
+			...run(name, conclusion, status),
+			started_at,
+			id
+		});
+		const checks = {
+			check_runs: [
+				at('ci-ok', 'failure', '2026-10-24T00:01:19Z', 1),
+				at('unit', 'cancelled', '2026-10-23T23:59:45Z', 2),
+				at('unit', 'success', '2026-10-24T00:01:36Z', 3),
+				at('ci-ok', 'success', '2026-10-24T00:09:00Z', 4)
+			]
+		};
+		expect(decide(pr(), green.status, checks)).toEqual({ allow: true, reasons: [] });
+		// The other way round: a newer failure still blocks, and a run that hasn't started yet too.
+		const newerFailure = {
+			check_runs: [...checks.check_runs, at('unit', 'failure', '2026-10-24T00:20:00Z', 5)]
+		};
+		expect(decide(pr(), green.status, newerFailure).reasons[0]).toContain('unit=failure');
+		const queued = { check_runs: [...checks.check_runs, at('e2e', null, null, 6, 'queued')] };
+		expect(decide(pr(), green.status, queued).reasons[0]).toContain('e2e=queued');
+	});
+
+	it('ignores a cancelled matrix job that was never expanded (template name)', () => {
+		const checks = {
+			check_runs: [
+				{
+					...run('tests (${{ matrix.shard }}/3)', 'cancelled'),
+					started_at: '2026-10-24T14:52:56Z'
+				},
+				{ ...run('tests (1/3)'), started_at: '2026-10-24T14:57:30Z' },
+				{ ...run('ci-ok'), started_at: '2026-10-24T15:05:00Z' }
+			]
+		};
+		expect(decide(pr(), green.status, checks).allow).toBe(true);
+		// A template-named job that FAILED (not cancelled) still blocks.
+		const failed = {
+			check_runs: [
+				...checks.check_runs,
+				{ ...run('x (${{ matrix.y }})', 'failure'), started_at: '2026-10-24T15:06:00Z' }
+			]
+		};
+		expect(decide(pr(), green.status, failed).allow).toBe(false);
+	});
+
+	it('latestRuns keeps one run per name, the newest (ties by id)', () => {
+		const r = latestRuns([
+			{ name: 'a', id: 1, started_at: '2026-01-01T00:00:00Z' },
+			{ name: 'a', id: 2, started_at: '2026-01-01T00:00:00Z' },
+			{ name: 'b', id: 3, started_at: '2026-01-02T00:00:00Z' },
+			{ name: 'b', id: 4, started_at: '2026-01-01T00:00:00Z' }
+		]);
+		expect(r.map((x) => x.id).sort()).toEqual([2, 3]);
 	});
 
 	it('blocks when no checks reported yet', () => {

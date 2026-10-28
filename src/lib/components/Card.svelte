@@ -1,9 +1,10 @@
 <script>
 	import { tagManager } from '$lib/utils/stores';
 	import { onMount } from 'svelte';
-	import TagChip from './ui/TagChip.svelte';
+	import CardTags from './CardTags.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
-	import { argDateList } from '$lib/utils/dates.js';
+	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
+	import { cardSrcset } from '$lib/utils/mediaCopies.js';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
@@ -12,6 +13,10 @@
 		mark
 	} = post;
 	export let setId = true;
+	// Las primeras tarjetas de la página se piden enseguida: con `lazy` el navegador espera al
+	// layout y la imagen más grande (el LCP) arrancaba ~2 s tarde (docs/seo.md, «Velocidad»).
+	export let eager = false;
+	export let priority = false;
 	mark = tags.includes('KinkyVibe') ? 'Kinky Vibe' : undefined;
 	let mounted = false;
 	onMount(() => (mounted = true));
@@ -25,7 +30,7 @@
 
 <a
 	{href}
-	class:past={new Date(start ?? '').getTime() < Date.now()}
+	class:past={parseSiteDate(start ?? '').getTime() < Date.now()}
 	class="card {mark ? 'mark' : ''} {category} {{
 		amigues: 'h-card',
 		calendario: 'h-event',
@@ -38,7 +43,14 @@
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
-	<img class="card-img u-featured placeholder-gradient" {src} alt="" loading="lazy" />
+	<img
+		class="card-img u-featured placeholder-gradient"
+		{src}
+		srcset={cardSrcset(src) || undefined}
+		alt=""
+		loading={eager ? 'eager' : 'lazy'}
+		fetchpriority={priority ? 'high' : undefined}
+	/>
 	<h3 class="p-name">
 		{title}
 		{#if pronounDisplay(pronoun)}
@@ -50,18 +62,18 @@
 	</h3>
 	{#if category == 'calendario' && argDateList(start ?? '')}
 		<!-- la fecha corta de las listas (docs/estilo.md, «Textos») -->
-		<time class="card-date dt-start" datetime={new Date(start ?? '').toISOString()}
+		<time class="card-date dt-start" datetime={parseSiteDate(start ?? '').toISOString()}
 			>{argDateList(start ?? '')}</time
 		>
 	{/if}
 	{#if tags}
+		<!-- Hasta 5 chips y «+N» para ver el resto (CardTags; docs/seo.md, opción 1b); los chips son
+		     links recién después de hidratar (un <a> en otro <a>). -->
 		<ul class="tagrow">
-			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
-				<!-- El chip compartido (TagChip); link recién después de hidratar (un <a> en otro <a>). -->
-				<li>
-					<TagChip {tag} href={mounted ? `/todo?tags=${encodeURIComponent(tag)}` : undefined} />
-				</li>
-			{/each}
+			<CardTags
+				tags={removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')])}
+				linked={mounted}
+			/>
 		</ul>
 	{/if}
 </a>

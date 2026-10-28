@@ -86,6 +86,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { listAudit } from '$lib/server/admin/audit.js';
 import { confirmTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { computePrice } from '$lib/utils/tickets.js';
+import { formatARS } from '$lib/utils/money.js';
 import { buyAction, getTicketsView, summarizeTickets, tierLeftMessage } from './checkout.js';
 import { parseTicketConfig, withTier } from './config.js';
 import { doorSaleLimits, sellAtDoor } from './door.js';
@@ -439,10 +440,27 @@ describe('compra (?/buy) con preventas', () => {
 		const r = await buy('preventa', { tier: 'p1' });
 		expect(r.status).toBe(409);
 		expect(r.data.buy.errors.type).toMatch(/El precio cambió.*Preventa 2.*\$\s9\.000/);
+		// La respuesta trae el tramo de ahora, para que el formulario muestre ese precio y lo mande
+		// al confirmar de nuevo (SvelteKit no vuelve a cargar la página después de un error).
+		expect(r.data.buy.tier).toMatchObject({
+			type: 'general',
+			id: 'p2',
+			name: 'Preventa 2',
+			price: 9000
+		});
 		const forged = await buy('preventa', { tier: 'inventado' });
 		expect(forged.status).toBe(409);
 		const ok = await buy('preventa', { tier: 'p2' });
 		expect(await orderOf(ok)).toMatchObject({ ticket_tier: 'p2', unit_price: 9000 });
+	});
+
+	it('las respuestas con error de un tipo con tramos traen el tramo vigente; sin tramos, no', async () => {
+		const bad = await buy('preventa', { tier: 'p1', name: '' });
+		expect(bad.status).toBe(400);
+		expect(bad.data.buy.tier).toMatchObject({ type: 'general', id: 'p1', price: 8000 });
+		const plain = await buy('preventa', { type: 'libre', tier: '', name: '' });
+		expect(plain.status).toBe(400);
+		expect(plain.data.buy).not.toHaveProperty('tier');
 	});
 
 	it('pedir más de lo que queda en el tramo: compra lo que queda y el resto en otra compra', async () => {
@@ -697,5 +715,8 @@ describe('entradas en la puerta: interruptor por evento', () => {
 		// Precio pleno (el del último tramo) y sin tramo: la preventa sigue intacta.
 		expect(r.ok && r.order).toMatchObject({ unit_price: 10000, ticket_tier: null });
 		expect((await view('preventa')).types[0]).toMatchObject({ tier: { id: 'p1' }, available: 3 });
+		// La línea pública de la puerta sale de los mismos precios (sin nota `puerta_precio`): General
+		// $ 10.000 (el último tramo), Última tanda $ 12.000 y Libre $ 5.000, así que «desde $ 5.000».
+		expect((await view('preventa')).door).toMatchObject({ typesPrice: `desde ${formatARS(5000)}` });
 	});
 });

@@ -12,6 +12,8 @@ import { dayNumber } from '$lib/admin/salesChart.js';
 import { periodRange } from '$lib/admin/statsPeriod.js';
 import { normalizeEmail, seriesLabel } from './people.js';
 import { computeStats, monthKey } from './stats.js';
+import { saleAt } from './saleMonth.js';
+import { orderRevenue } from '$lib/utils/salesGoal.js';
 import { attendanceReturn, fondoByMonth, salesByDay, salesEvents } from './charts.js';
 
 /** @typedef {import('./people.js').PersonOrder} PersonOrder */
@@ -39,11 +41,12 @@ function monthsBetween(a, b) {
 export function salesKpis(orders) {
 	const ok = orders.filter((o) => o.status === 'approved');
 	const tickets = ok.reduce((s, o) => s + o.quantity, 0);
-	const revenue = ok.reduce((s, o) => s + o.total, 0);
+	const revenue = ok.reduce((s, o) => s + orderRevenue(o), 0);
 	return {
 		tickets,
 		revenue,
-		people: new Set(ok.map((o) => normalizeEmail(o.buyer_email))).size,
+		// Sin las ventas sin mail (en la puerta es opcional): no son una persona.
+		people: new Set(ok.map((o) => normalizeEmail(o.buyer_email)).filter(Boolean)).size,
 		avgTicket: tickets ? Math.round(revenue / tickets) : 0
 	};
 }
@@ -70,9 +73,25 @@ export function serieOptions(orders, events, selected = '') {
 }
 
 /**
+ * Fin (exclusivo) del mes calendario de Argentina que contiene `now`.
+ * @param {number} now
+ */
+function monthEnd(now) {
+	const [y, m] = monthKey(now).split('-').map(Number);
+	// 1 del mes siguiente a las 00:00 de Argentina (UTC−3).
+	return Date.UTC(y, m, 1, 3);
+}
+
+/**
  * Pestaña Ventas: KPIs (con el período anterior, si hay), ventas en el tiempo, por serie, cómo
  * pagan, opciones del fondo y Fondo y finanzas, todo del período y, si se eligió, de una serie.
- * Las órdenes pueden traer de más (el período anterior): se filtran acá por fecha de compra.
+ *
+ * Todo cuenta por el **mes del evento** (./saleMonth.js): las ventas de los eventos que empiezan
+ * desde el comienzo del período hasta el fin del mes en curso (en hora de Argentina), así los
+ * números de arriba y los meses de «Fondo y finanzas» cierran con «Entradas este mes» del Inicio.
+ * Solo el gráfico «Ventas en el tiempo» va por **fecha de compra** (muestra cuándo se vendió),
+ * desde el comienzo del período hasta ahora. Las órdenes pueden traer de más (el período
+ * anterior): se filtran acá.
  *
  * @param {PersonOrder[]} orders aprobadas y reembolsadas
  * @param {Map<string, EventInfo>} events
@@ -82,20 +101,27 @@ export function salesPage(orders, events, { period, serie = '', now = Date.now()
 	const range = periodRange(period, now);
 	/** @param {PersonOrder} o */
 	const ofSerie = (o) => !serie || seriesOf(o.event_slug) === serie;
-	const current = orders.filter(
-		(o) => ofSerie(o) && (range.from === null || o.created_at >= range.from) && o.created_at <= now
-	);
+	const end = monthEnd(now);
+	const current = orders.filter((o) => {
+		const t = saleAt(o);
+		return ofSerie(o) && (range.from === null || t >= range.from) && t < end;
+	});
 	const previous =
 		range.prevFrom === null || range.prevTo === null
 			? null
-			: orders.filter(
-					(o) =>
+			: orders.filter((o) => {
+					const t = saleAt(o);
+					return (
 						ofSerie(o) &&
-						o.created_at >= /** @type {number} */ (range.prevFrom) &&
-						o.created_at < /** @type {number} */ (range.prevTo)
-				);
+						t >= /** @type {number} */ (range.prevFrom) &&
+						t < /** @type {number} */ (range.prevTo)
+					);
+				});
+	const bought = orders.filter(
+		(o) => ofSerie(o) && (range.from === null || o.created_at >= range.from) && o.created_at <= now
+	);
 	const stats = computeStats(current, events, { now });
-	const days = salesByDay(current);
+	const days = salesByDay(bought);
 	// El gráfico arranca donde arranca el período (con «todo», en la primera venta).
 	const fromDay =
 		range.from !== null ? dayNumber(range.from) : days.length ? days[0].day : dayNumber(now);
@@ -103,7 +129,7 @@ export function salesPage(orders, events, { period, serie = '', now = Date.now()
 		range.from !== null
 			? monthKey(range.from)
 			: current.length
-				? monthKey(Math.min(...current.map((o) => o.created_at)))
+				? monthKey(Math.min(...current.map(saleAt)))
 				: monthKey(now);
 	const months = monthsBetween(firstMonth, monthKey(now));
 	return {

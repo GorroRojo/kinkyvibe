@@ -1,12 +1,9 @@
 /**
  * La página de un evento y sus listas (pedido de gorrite, revisión de UX del sitio): si ya pasó,
- * la serie para seguir, el menú «Agregar a mi calendario» y el orden de «Más cosas de…» y
- * «Participa en». Datos inventados.
+ * la serie para seguir y el orden de «Más cosas de…» y «Participa en». Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
 import {
-	CALENDAR_OPTIONS,
-	calendarButtonEvent,
 	eventPageTitle,
 	isPastEvent,
 	mainSeries,
@@ -62,62 +59,31 @@ describe('la serie del evento', () => {
 });
 
 describe('eventPageTitle', () => {
-	const series = { list: [{ id: 'Serie Uno', name: 'Serie Uno', href: '/wiki/Serie-Uno' }] };
-
-	it('en una serie suma el mes y el año de la edición (en hora de Argentina)', () => {
+	it('suma el día de la edición, en hora de Argentina', () => {
 		const meta = { title: 'Noche Inventada', start: '2026-10-02T22:00-03:00' };
-		expect(eventPageTitle(meta, series)).toBe('Noche Inventada · octubre 2026');
-		// 31/12 a las 23:00 en Argentina ya es 1/1 en UTC: sigue siendo diciembre.
+		expect(eventPageTitle(meta)).toBe('Noche Inventada · 2 de octubre de 2026');
+		// 31/12 a las 23:00 en Argentina ya es 1/1 en UTC: sigue siendo el 31 de diciembre.
 		const fin = { title: 'Noche Inventada', start: '2026-12-31T23:00-03:00' };
-		expect(eventPageTitle(fin, series)).toBe('Noche Inventada · diciembre 2026');
+		expect(eventPageTitle(fin)).toBe('Noche Inventada · 31 de diciembre de 2026');
 	});
 
-	it('sin serie, sin fecha o si el título ya dice el mes, queda igual', () => {
+	it('dos ediciones del mismo mes tienen títulos distintos (sea o no de una serie)', () => {
+		const a = eventPageTitle({ title: 'Jam Semanal', start: '2026-02-03T20:00-03:00' });
+		const b = eventPageTitle({ title: 'Jam Semanal', start: '2026-02-10T20:00-03:00' });
+		expect(a).not.toBe(b);
+	});
+
+	it('sin fecha, con una fecha que no se entiende o si el título ya dice el día, queda igual', () => {
 		const meta = { title: 'Noche Inventada', start: '2026-10-02T22:00-03:00' };
-		expect(eventPageTitle(meta, null)).toBe('Noche Inventada');
-		expect(eventPageTitle(meta, { list: [] })).toBe('Noche Inventada');
-		expect(eventPageTitle({ title: 'Noche Inventada' }, series)).toBe('Noche Inventada');
-		expect(eventPageTitle({ ...meta, start: 'cualquier cosa' }, series)).toBe('Noche Inventada');
-		expect(eventPageTitle({ ...meta, title: 'Noche de Octubre' }, series)).toBe('Noche de Octubre');
-	});
-});
-
-describe('«Agregar a mi calendario»', () => {
-	const event = calendarButtonEvent({
-		title: 'Taller Inventado',
-		summary: 'Un taller de prueba',
-		start: '2026-10-02T21:30:00-03:00',
-		end: '2026-10-03T01:00:00-03:00',
-		status: 'anunciado',
-		postID: 'taller-inventado'
-	});
-
-	it('tres opciones con nombres claros: Google, Apple / celu (.ics) y Outlook', () => {
-		expect(CALENDAR_OPTIONS).toEqual([
-			'Google',
-			'Apple|Apple / celu (.ics)',
-			'Outlook.com|Outlook'
-		]);
-		expect(event.options).toEqual([...CALENDAR_OPTIONS]);
-		expect(JSON.stringify(event)).not.toMatch(/iCal Ficha|Yahoo|Teams|365/);
-	});
-
-	it('es un diálogo con «Cerrar»', () => {
-		expect(event.listStyle).toBe('modal');
-		expect(event.customLabels).toEqual({ close: 'Cerrar' });
-	});
-
-	it('en hora argentina, con el archivo .ics con el nombre del evento', () => {
-		expect(event).toMatchObject({
-			name: 'Taller Inventado',
-			startDate: '2026-10-02',
-			startTime: '21:30',
-			endDate: '2026-10-03',
-			endTime: '01:00',
-			status: 'TENTATIVE',
-			iCalFileName: 'taller-inventado',
-			language: 'es'
-		});
+		expect(eventPageTitle({ title: 'Noche Inventada' })).toBe('Noche Inventada');
+		expect(eventPageTitle({ ...meta, start: 'cualquier cosa' })).toBe('Noche Inventada');
+		expect(eventPageTitle({ ...meta, title: 'Fiesta del 2 de Octubre' })).toBe(
+			'Fiesta del 2 de Octubre'
+		);
+		// Nombrar solo el mes no alcanza: las ediciones semanales de ese mes se repetirían.
+		expect(eventPageTitle({ ...meta, title: 'Noche de Octubre' })).toBe(
+			'Noche de Octubre · 2 de octubre de 2026'
+		);
 	});
 });
 

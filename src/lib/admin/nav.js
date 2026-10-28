@@ -44,7 +44,9 @@
  * 1. **Próximamente**: el plan está aprobado y tiene fase. `soon: true, phase: N, soonText`. Se ve
  *    gris y punteada al final de su área, con "fase N"; su `href` queda reservado y abre la página
  *    genérica "Próximamente" (`src/routes/(authed)/admin/[...section=soon]`). Cada persona puede
- *    ocultarlas con "Ocultar lo que viene" (menú de usuario).
+ *    ocultarlas con "Ocultar lo que viene" (menú de usuario). Su `href` va también en
+ *    `SOON_HREFS` ($lib/admin/soonSections.js, la lista sin íconos del matcher; nav.test.js
+ *    controla que coincidan).
  * 2. **En prueba**: la página existe pero su interruptor está apagado. `soon: false, flag: 'x'`.
  *    Solo la ven les superadmins, con la etiqueta "prueba" (hoy todes les admins son superadmins,
  *    así que la ven todes). Si con el interruptor apagado la página da 404, `hiddenWhenOff: true`.
@@ -102,6 +104,7 @@ import {
 	Mail,
 	MapPin,
 	Pencil,
+	Printer,
 	Repeat,
 	ScanLine,
 	ScrollText,
@@ -316,6 +319,19 @@ export const NAV = Object.freeze([
 		parent: 'eventos-agenda'
 	},
 	{
+		// Volantes para imprimir con los próximos eventos (docs/panel.md#agenda-impresa).
+		id: 'eventos-agenda-impresa',
+		href: '/admin/eventos/agenda-impresa',
+		icon: Printer,
+		emoji: '🖨️',
+		label: 'Agenda impresa',
+		area: 'eventos',
+		soon: false,
+		// Se entra desde la Agenda (y el buscador); no ocupa lugar en el menú.
+		menu: false,
+		parent: 'eventos-agenda'
+	},
+	{
 		// Series de eventos (docs/decisiones/0005).
 		id: 'eventos-series',
 		href: '/admin/eventos/series',
@@ -450,8 +466,8 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
-		// El estado de «Lo que sigo» para mirar: interruptores, números, avisos que salieron y lo
-		// más seguido (cuántas cuentas, nunca quiénes). Se ve con el interruptor apagado.
+		// El estado de «Lo que sigo» para mirar: interruptores, lo más seguido (cuántas cuentas y
+		// quiénes, solo admins), números y avisos que salieron. Se ve con el interruptor apagado.
 		id: 'lo-que-sigo',
 		href: '/admin/mensajes/lo-que-sigo',
 		icon: Sparkles,
@@ -552,8 +568,8 @@ export const NAV = Object.freeze([
 			'aparte de las entradas.'
 	},
 
-	// Estadísticas: tres pestañas (gorrite, 11/10), cada una con su período en la URL. El id
-	// `estadisticas` queda en Ventas (lo usan el atajo `g s` y el buscador).
+	// Estadísticas: tres pestañas (gorrite, 11/10) y la del bot (12/10), cada una con su período
+	// en la URL. El id `estadisticas` queda en Ventas (lo usan el atajo `g s` y el buscador).
 	{
 		id: 'estadisticas',
 		href: '/admin/estadisticas/ventas',
@@ -578,6 +594,18 @@ export const NAV = Object.freeze([
 		icon: Eye,
 		emoji: '👀',
 		label: 'Visitas al sitio',
+		area: 'estadisticas',
+		soon: false
+	},
+	{
+		// Las estadísticas de uso del bot (decisión 0045, docs/telegram.md): quién lo usa y, aparte
+		// y sumado por semana, para qué. Sin interruptor en el menú: con `telegram_estadisticas`
+		// apagado la página lo dice.
+		id: 'estadisticas-bot',
+		href: '/admin/estadisticas/bot',
+		icon: Bot,
+		emoji: '🤖',
+		label: 'Bot de Telegram',
 		area: 'estadisticas',
 		soon: false
 	},
@@ -736,7 +764,10 @@ export const EVENT_TABS = Object.freeze(
 				{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias' },
 				// Lista de espera (interruptor `lista_espera`): la ficha la muestra con la lista
 				// prendida, o si el evento ya tiene lista o gente anotada.
-				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' }
+				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' },
+				// Gastos y reparto (prototipo, interruptor `gastos_reparto`): la ficha la muestra solo
+				// con el interruptor prendido.
+				{ id: 'gastos', suffix: '/gastos', label: 'Gastos y reparto' }
 			]
 		},
 		{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false, section: 'checkin' },
@@ -758,7 +789,10 @@ export const EVENT_TABS = Object.freeze(
 			emoji: '✉️',
 			views: [
 				{ id: 'mail', suffix: '/mail', label: 'Mandar un aviso' },
-				{ id: 'mails', suffix: '/mails', label: 'Plantillas' }
+				{ id: 'mails', suffix: '/mails', label: 'Plantillas' },
+				// Encuesta después del evento (prototipo, interruptor `encuesta_post_evento`): la ficha
+				// la muestra solo con el interruptor prendido.
+				{ id: 'encuesta', suffix: '/encuesta', label: 'Encuesta' }
 			]
 		},
 		// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.

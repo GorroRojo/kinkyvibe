@@ -16,6 +16,11 @@ No hay decisiones legales acá: eso queda para abogades.
   cambia lo decidido.
 - Las decisiones las toma gorrite (o les superadmins). Si una no está clara, preguntá antes de
   inventar.
+- **Lo que decide una sesión sin la confirmación de gorrite** (porque había que elegir algo para
+  avanzar) no es una decisión de acá: va en el doc del área marcado **A CONFIRMAR**, en mayúsculas
+  (así lo encuentra `grep -r "A CONFIRMAR" docs`), y su lugar se suma a la línea de
+  `docs-a-confirmar` en [plan.md](../plan.md). Cuando gorrite lo confirma, se saca la marca (y, si
+  hace falta, se escribe la decisión).
 - Nada privado: sin datos de personas de la comunidad, secretos ni detalles de vulnerabilidades.
   El repo es público.
 
@@ -65,12 +70,18 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 ### Infraestructura
 
 - [0009](0009-infraestructura.md): Infraestructura, backups, pagos y documentación (30/9)
+- [0049](0049-cache-de-1-minuto-sin-sesion.md): Caché de 1 minuto para quien no tiene sesión;
+  quien tiene sesión siempre ve la página recién hecha (25/10)
 
 ### Cuentas, perfiles y permisos
 
 - [0002](0002-cuentas-y-perfiles.md): Cuentas y perfiles (30/9)
 - [0003](0003-superadmins-y-permisos.md): Superadmins y permisos (30/9)
 - [0019](0019-proyecto.md): "Proyecto" reemplaza a "grupo" (1/10)
+- [0048](0048-entradas-gratis-sin-sesion-se-preguntan.md): Las entradas gratis pedidas sin la
+  sesión de la cuenta se preguntan en Mi rincón («¿Son tuyas?») (25/10)
+- [0050](0050-entrar-no-ingresar.md): «Entrar», no «Ingresar», en los textos de la cuenta; la
+  dirección `/ingresar` no cambia (26/10)
 
 ### Contenido, objetos y etiquetas
 
@@ -102,6 +113,12 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   hábiles (11/10)
 - [0035](0035-vender-en-puerta-sin-conexion.md): La puerta vende sin conexión (11/10)
 - [0040](0040-lista-de-espera.md): Lista de espera por evento o por tipo de entrada (11/10)
+- [0044](0044-reglas-de-la-venta-de-entradas.md): Reglas de la venta para el lanzamiento:
+  cancelación, reprogramación, Fondo, cierre, reembolsos y plazo de MP; y otras respuestas del día
+  (12/10)
+- [0051](0051-reembolsar-todas-evento-cancelado.md): «Reembolsar todas» para un evento cancelado:
+  solo admins, con confirmación escrita, de a tandas y por el mismo paso que «Reembolsar…»; la
+  puerta y la carga a mano se devuelven a mano (26/10)
 
 ### Propinas
 
@@ -123,7 +140,14 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0041](0041-telegram-para-admins.md): Telegram para admins: estado de la venta y avisos
   (organizadores, más adelante) (12/10)
 - [0043](0043-lo-que-sigo-en-el-panel.md): «Lo que sigo» en el panel: les admins ven lo que sigue
-  cada persona en su ficha y «Lo más seguido» con el número exacto, nunca quiénes (12/10)
+  cada persona en su ficha y, en Mensajes › Lo que sigo, «Lo más seguido» con el número exacto y
+  quiénes siguen cada cosa (12/10)
+- [0045](0045-estadisticas-del-bot.md): Estadísticas de uso del bot: quién y cuánto, y para qué
+  solo sumado (12/10)
+- [0046](0046-sintaxis-de-busqueda.md): Una sola forma de escribir una búsqueda en el sitio, el
+  bot y el panel, y dónde se explica (12/10)
+- [0047](0047-cuerpos-enlazados.md): Los cuerpos de todos los objetos como una red de páginas
+  enlazadas, con sintaxis ya conocida (Markdown, Obsidian, directivas) (12/10)
 
 ### Panel y CRM
 

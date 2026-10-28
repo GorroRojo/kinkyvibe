@@ -3,8 +3,13 @@
  * importada, por ejemplo). Une admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza
  * (decisión de gorrite, 1/10). Tabla `profile_claims` (migración 0017).
  *
+ * Lo pide cualquier cuenta, tenga o no el permiso "puede tener perfiles" (gorrite, 26/10: en vez
+ * de un canal para pedir el permiso, reclamar un perfil que ya existe). El pedido nunca da nada
+ * solo: une admin lo revisa y, para aprobarlo, la cuenta tiene que tener el permiso (se lo da en
+ * el panel antes de aprobar).
+ *
  * Lo que nunca se tiene que romper:
- * - solo cuentas con el permiso "puede tener perfiles" (sin él, como si el botón no existiera);
+ * - pedir no da nada: solo aprobar (une admin, con la cuenta ya con el permiso) suma une dueñe;
  * - una cuenta ve solo SUS pedidos: la respuesta es la misma haya o no otros pedidos o dueñes
  *   (nada dice si alguien más lo reclamó ni quién lo gestiona);
  * - límites por cuenta y por conexión, contados antes de mirar el perfil;
@@ -15,7 +20,6 @@
 import { getObject } from '$lib/server/objects/index.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
-import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
 import {
 	MAX_PROFILES_PER_ACCOUNT,
 	PROFILE_TYPE,
@@ -35,8 +39,9 @@ export const CLAIM_RATE_LIMITS = Object.freeze({
 export const CLAIM_MESSAGE_MAX = 500;
 
 export const CLAIM_MESSAGES = Object.freeze({
-	sent: 'Listo: le mandamos tu pedido a les admins. Cuando lo revisen, el perfil va a aparecer en Mi rincón → Perfiles.',
-	already: 'Ya pediste este perfil. Les admins lo van a revisar pronto.',
+	sent: 'Listo: le mandamos tu pedido al equipo. Lo revisamos a mano y, si lo aprobamos, el perfil aparece en Mi rincón → Perfiles para que lo edites.',
+	already:
+		'Ya pediste este perfil: lo revisa el equipo. Si lo aprobamos, aparece en Mi rincón → Perfiles.',
 	manager: 'Ya gestionás este perfil: lo encontrás en Mi rincón → Perfiles.',
 	tooMany: 'Mandaste muchos pedidos seguidos. Probá de nuevo mañana.',
 	notFound: 'No encontramos ese perfil.'
@@ -47,22 +52,85 @@ export const CLAIM_MESSAGES = Object.freeze({
  */
 
 /**
- * El estado de ESTA cuenta con un perfil: lo gestiona, tiene un pedido pendiente o nada.
+ * El estado de ESTA cuenta con un perfil: lo gestiona, tiene un pedido pendiente, su último pedido
+ * no se aprobó o nada.
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {number} profileId
- * @returns {Promise<'manager' | 'pending' | 'none'>}
+ * @returns {Promise<'manager' | 'pending' | 'rejected' | 'none'>}
  */
 export async function claimState(db, accountId, profileId) {
 	if (await managerRole(db, accountId, profileId)) return 'manager';
+	return claimStatusOf(db, accountId, profileId);
+}
+
+/**
+ * El pedido de esta cuenta para este perfil (la página de un perfil ya sabe si lo gestiona: lo
+ * pregunta a la par de lo demás): `pending` si hay uno pendiente, `rejected` si el último no se
+ * aprobó (la página dice «no aprobado» en vez de volver a ofrecer el botón) y `none` si no pidió
+ * nunca o el último se aprobó (si ya no lo gestiona, puede volver a pedirlo).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {number} profileId
+ * @returns {Promise<'pending' | 'rejected' | 'none'>}
+ */
+export async function claimStatusOf(db, accountId, profileId) {
 	const row = await db
 		.prepare(
-			"SELECT 1 AS x FROM profile_claims WHERE profile_id = ?1 AND account_id = ?2 AND status = 'pending'"
+			`SELECT status FROM profile_claims WHERE profile_id = ?1 AND account_id = ?2
+			ORDER BY status = 'pending' DESC, created_at DESC, id DESC LIMIT 1`
 		)
 		.bind(profileId, accountId)
 		.first();
-	return row ? 'pending' : 'none';
+	if (row?.status === 'pending') return 'pending';
+	return row?.status === 'rejected' ? 'rejected' : 'none';
+}
+
+/**
+ * Un pedido de la cuenta, para Mi rincón: el perfil (su nombre y, si se puede abrir, su
+ * dirección), el estado y las fechas. Nada de lo que decidió quién ni de otros pedidos.
+ *
+ * @typedef {{ id: number, profileTitle: string, href: string | null,
+ *   status: 'pending' | 'approved' | 'rejected', createdAt: number,
+ *   decidedAt: number | null }} MyClaim
+ */
+
+/** Cuántos pedidos muestra Mi rincón, como mucho (los más nuevos). */
+export const MY_CLAIMS_MAX = 50;
+
+/**
+ * Los pedidos «¿Es tu perfil?» de ESTA cuenta, del más nuevo al más viejo (sin los de perfiles
+ * borrados). El link al perfil, solo si no está oculto (si no, su página da 404).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @returns {Promise<MyClaim[]>}
+ */
+export async function myClaims(db, accountId) {
+	const { results } = await db
+		.prepare(
+			`SELECT c.id, c.status, c.created_at, c.decided_at, o.title, o.slug, o.visibility,
+				s.legacy_slug
+			FROM profile_claims c JOIN objects o ON o.id = c.profile_id
+			LEFT JOIN profile_sources s ON s.profile_id = o.id
+			WHERE c.account_id = ?1 AND o.deleted_at IS NULL
+			ORDER BY c.created_at DESC, c.id DESC LIMIT ?2`
+		)
+		.bind(accountId, MY_CLAIMS_MAX)
+		.all();
+	return results.map((r) => ({
+		id: Number(r.id),
+		profileTitle: String(r.title ?? ''),
+		href:
+			r.visibility === 'hidden'
+				? null
+				: `/amigues/${encodeURIComponent(String(r.legacy_slug || r.slug))}`,
+		status: r.status === 'approved' ? 'approved' : r.status === 'rejected' ? 'rejected' : 'pending',
+		createdAt: Number(r.created_at),
+		decidedAt: r.decided_at == null ? null : Number(r.decided_at)
+	}));
 }
 
 /**
@@ -77,9 +145,6 @@ export async function createClaim(
 	db,
 	{ accountId, profileId, message = '', connection, now = Date.now() }
 ) {
-	if (!(await canHaveProfiles(db, accountId))) {
-		return { ok: false, status: 404, message: CLAIM_MESSAGES.notFound };
-	}
 	const perAccount = await hitRateLimit(
 		db,
 		`amigues:claim:a:${await sha256Hex(`amigues:account:${accountId}`)}`,

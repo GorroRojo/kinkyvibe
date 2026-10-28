@@ -7,8 +7,8 @@
  *   veces se quiera, y dos a la vez nunca ofrecen el mismo lugar dos veces.
  * - {@link runWaitlistCron}: la pasada sobre cada evento con anotaciones vivas, desde el cron de
  *   siempre (`POST /api/cron/recordatorios`, cada 15 minutos; no hay un cron nuevo).
- * - {@link sendWaitlistMails}: los mails de la oferta, el último aviso, la reserva vencida y el
- *   cierre. No hay una cola aparte: lo que falta mandar sale del estado de cada anotación y de
+ * - {@link sendWaitlistMails}: los mails de la oferta, el último aviso, la reserva vencida (o
+ *   terminada por admin, si lo pidió: {@link queueEndedMail}) y el cierre. No hay una cola aparte: lo que falta mandar sale del estado de cada anotación y de
  *   `waitlist_sends` (una fila por anotación, mail y ronda: nunca sale dos veces). En el cron van
  *   primero en la tanda (`runMailQueueWith`): son pocos y urgentes.
  * - {@link queueWaitlistAdvance}: el «empujón» desde donde se libera un lugar (reembolso,
@@ -26,6 +26,7 @@
 import { getDB } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { isFlagOn } from '$lib/server/flags.js';
+import { logMailsPaused, mailsPaused, ticketsPausedMessage } from '$lib/server/emergencia.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { signLink } from '$lib/server/signedLinks.js';
 import {
@@ -33,6 +34,7 @@ import {
 	effectiveWaitlistSettings,
 	holdUntil
 } from '$lib/utils/waitlistHold.js';
+import { autoSubmitted } from './email.js';
 import { mailBatchSize } from './batchSize.js';
 import { salesState, typeAvailability, typeClosesAt } from './config.js';
 import { HOLDING } from './discounts.js';
@@ -44,6 +46,7 @@ import { getSalesSettings } from './settings.js';
 import { resolveTemplate } from './templates.js';
 import {
 	buildWaitlistClosedEmail,
+	buildWaitlistEndedEmail,
 	buildWaitlistExpiredEmail,
 	buildWaitlistOfferEmail,
 	buildWaitlistReminderEmail
@@ -157,6 +160,8 @@ export async function advanceWaitlist(db, input) {
 	);
 
 	// 2. Compras con la oferta que no se pagaron: vuelve la misma oferta (mismo link y ronda).
+	// Una orden rechazada (MP) sigue guardando su lugar hasta que vence (se puede reintentar el
+	// pago): vuelve recién entonces, por la rama de `HOLDING` vencido.
 	out.restored = changes(
 		await db
 			.prepare(
@@ -164,7 +169,7 @@ export async function advanceWaitlist(db, input) {
 				WHERE event_slug = ?1 AND status = 'purchased' AND offer_token_hash IS NOT NULL
 					AND (hold_until IS NULL OR hold_until > ?2)
 					AND EXISTS (SELECT 1 FROM orders o WHERE o.id = waitlist_entries.order_id
-						AND (o.status IN ('cancelled', 'expired', 'rejected')
+						AND (o.status IN ('cancelled', 'expired')
 							OR (o.status IN ${HOLDING} AND o.expires_at <= ?2)))`
 			)
 			.bind(eventSlug, now)
@@ -420,7 +425,7 @@ export async function waitlistEventsToSweep(db, now) {
 			WHERE status IN ('pending_confirmation', 'waiting', 'offered')
 				OR (status = 'purchased' AND (hold_until IS NULL OR hold_until > ?1)
 					AND EXISTS (SELECT 1 FROM orders o WHERE o.id = waitlist_entries.order_id
-						AND (o.status IN ('cancelled', 'expired', 'rejected')
+						AND (o.status IN ('cancelled', 'expired')
 							OR (o.status IN ${HOLDING} AND o.expires_at <= ?1))))
 			ORDER BY event_slug`
 		)
@@ -488,11 +493,47 @@ const offerSent = `EXISTS (SELECT 1 FROM waitlist_sends s
 	WHERE s.entry_id = e.id AND s.kind = 'offer' AND s.round = e.offer_count AND s.status = 'sent')`;
 
 /**
+ * «Une admin pidió avisarle que terminó su reserva» ({@link queueEndedMail}): la fila de
+ * `waitlist_sends` de esa ronda, puesta antes de mandar.
+ */
+const endedMailAsked = `EXISTS (SELECT 1 FROM waitlist_sends s
+	WHERE s.entry_id = e.id AND s.kind = 'expired' AND s.round = e.offer_count)`;
+
+/**
+ * Pide el mail «se terminó tu lugar» (`waitlist_ended`) para una reserva que une admin terminó
+ * desde el panel («Terminar la reserva y pasar a la siguiente», con «Mandarle un mail»). No hay
+ * columna para eso (sin migración): la marca es la fila del envío en `waitlist_sends` (`expired`,
+ * la ronda de la oferta), en `retry` y sin intentos, que la próxima tanda reserva y manda como
+ * cualquier otra. Sin esa fila, una reserva terminada por admin no recibe mail.
+ *
+ * Solo si terminó por `admin` y el mail de la oferta ya había salido (sin oferta, «se terminó tu
+ * lugar» no se entiende). Devuelve `true` si quedó pedido.
+ *
+ * @param {D1Database} db
+ * @param {string} entryId
+ * @param {number} [now]
+ */
+export async function queueEndedMail(db, entryId, now = Date.now()) {
+	const r = await db
+		.prepare(
+			`INSERT INTO waitlist_sends (entry_id, kind, round, status, attempts, sent_at)
+			SELECT e.id, 'expired', e.offer_count, 'retry', 0, ?2
+			FROM waitlist_entries e
+			WHERE e.id = ?1 AND e.status = 'expired' AND e.end_reason = 'admin' AND ${offerSent}
+			ON CONFLICT (entry_id, kind, round) DO NOTHING`
+		)
+		.bind(entryId, now)
+		.run();
+	return changes(r) === 1;
+}
+
+/**
  * Los mails de la lista que faltan mandar, en orden: ofertas, últimos avisos, vencidas, cierres.
  *
  * - oferta: anotación `offered` vigente sin el mail de esa ronda;
  * - último aviso: reserva de 12 h o más a la que le quedan 3 h o menos, con la oferta ya mandada;
- * - vencida: reserva vencida (`hold_expired`) en las últimas 48 h, con la oferta ya mandada;
+ * - vencida: reserva vencida (`hold_expired`) en las últimas 48 h, con la oferta ya mandada; o
+ *   terminada por admin con el mail pedido ({@link queueEndedMail}, sale «se terminó tu lugar»);
  * - cierre: lista cerrada (`closed` / `event_cancelled`) en las últimas 48 h.
  *
  * @param {D1Database} db
@@ -517,7 +558,8 @@ export async function pendingWaitlistMails(db, { now, eventSlug = null }) {
 			UNION ALL
 			SELECT ${cols}, 'expired', e.offer_count, 3, e.ended_at
 			FROM waitlist_entries e
-			WHERE e.status = 'expired' AND e.end_reason = 'hold_expired' AND e.ended_at > ?6 ${ev}
+			WHERE e.status = 'expired' AND e.ended_at > ?6 ${ev}
+				AND (e.end_reason = 'hold_expired' OR (e.end_reason = 'admin' AND ${endedMailAsked}))
 				AND ${offerSent} AND ${notSent('expired', 'e.offer_count')}
 			UNION ALL
 			SELECT ${cols}, 'closed', 0, 4, e.ended_at
@@ -556,6 +598,13 @@ const TEMPLATE_OF = {
 };
 
 /**
+ * La plantilla de un mail pendiente: «se venció» o, si la terminó une admin, «se terminó».
+ * @param {PendingMail} m
+ */
+const templateOf = (m) =>
+	m.kind === 'expired' && m.end_reason === 'admin' ? 'waitlist_ended' : TEMPLATE_OF[m.kind];
+
+/**
  * Manda una tanda de los mails de la lista (como mucho `limit`), una sola vez por anotación,
  * mail y ronda (`sendBatch` con `waitlist_sends`; un fallo se reintenta en la próxima tanda,
  * hasta 3 veces, y después queda para «Para revisar»).
@@ -563,11 +612,17 @@ const TEMPLATE_OF = {
  * @param {D1Database} db
  * @param {{ limit: number, send: WaitlistSend, origin: string, contactEmail?: string,
  *   now?: number, eventSlug?: string | null, configOf?: ConfigOf }} input
- * @returns {Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {Promise<import('./sendState.js').BatchResult>}
  */
 export async function sendWaitlistMails(db, input) {
 	const { limit, send, origin, now = Date.now(), eventSlug = null } = input;
 	const configOf = input.configOf ?? getEventTickets;
+	// Pausa de emergencia de los mails (MAILS_PAUSED): nada sale ni gasta intentos. Lo pendiente
+	// sale del estado de cada anotación, así que va en la primera tanda después de la pausa.
+	if (mailsPaused()) {
+		logMailsPaused('los mails de la lista de espera');
+		return { sent: 0, failed: 0, remaining: 0 };
+	}
 	await expireStaleClaims(db, 'waitlist_sends', now);
 	const items = await pendingWaitlistMails(db, { now, eventSlug });
 	/** @type {Map<string, Promise<EventTickets | null>>} */
@@ -583,10 +638,11 @@ export async function sendWaitlistMails(db, input) {
 			);
 		return /** @type {Promise<EventTickets | null>} */ (configs.get(slug));
 	};
-	/** @param {string} slug @param {WaitlistSendKind} kind */
-	const templateFor = (slug, kind) => {
-		const k = `${slug}\n${kind}`;
-		if (!templates.has(k)) templates.set(k, resolveTemplate(db, slug, TEMPLATE_OF[kind]));
+	/** @param {PendingMail} m */
+	const templateFor = (m) => {
+		const id = templateOf(m);
+		const k = `${m.event_slug}\n${id}`;
+		if (!templates.has(k)) templates.set(k, resolveTemplate(db, m.event_slug, id));
 		return /** @type {Promise<import('./email.js').Template>} */ (templates.get(k));
 	};
 	return sendBatch(db, 'waitlist_sends', {
@@ -597,7 +653,11 @@ export async function sendWaitlistMails(db, input) {
 		claim: (m) => ({ entryId: m.id, key: [m.kind, m.kind === 'closed' ? 0 : m.round] }),
 		send: async (m) => {
 			const config = await configFor(m.event_slug);
-			const event = { title: config?.title || m.event_slug, start: config?.start ?? null };
+			const event = {
+				title: config?.title || m.event_slug,
+				start: config?.start ?? null,
+				end: config?.end ?? null
+			};
 			const typeName = m.ticket_type
 				? (config?.types.find((t) => t.id === m.ticket_type)?.name ?? m.ticket_type)
 				: null;
@@ -607,7 +667,7 @@ export async function sendWaitlistMails(db, input) {
 				unsubscribeUrl: await waitlistLeaveUrl(db, origin, m.id),
 				origin,
 				contactEmail: input.contactEmail,
-				template: await templateFor(m.event_slug, m.kind)
+				template: await templateFor(m)
 			};
 			const offerUrl = async () =>
 				waitlistOfferUrl(origin, m.event_slug, await offerToken(db, m.id, m.round));
@@ -625,7 +685,7 @@ export async function sendWaitlistMails(db, input) {
 								holdUntil: /** @type {number} */ (m.hold_until)
 							})
 						: m.kind === 'expired'
-							? buildWaitlistExpiredEmail({
+							? (m.end_reason === 'admin' ? buildWaitlistEndedEmail : buildWaitlistExpiredEmail)({
 									...common,
 									rejoinUrl: await waitlistRejoinUrl(db, origin, m.id)
 								})
@@ -634,7 +694,11 @@ export async function sendWaitlistMails(db, input) {
 									reason: m.end_reason === 'event_cancelled' ? 'event_cancelled' : 'closed',
 									eventUrl: `${origin.replace(/\/+$/, '')}/calendario/${encodeURIComponent(m.event_slug)}`
 								});
-			const result = await send(m.email, message, waitlistIdempotencyKey(m.kind, m.id, m.round));
+			const result = await send(
+				m.email,
+				autoSubmitted(message),
+				waitlistIdempotencyKey(m.kind, m.id, m.round)
+			);
 			return result !== 'failed';
 		}
 	});
@@ -645,13 +709,13 @@ export async function sendWaitlistMails(db, input) {
  * `runMailQueueWith`), con el envío de siempre (`deliverEmail`).
  *
  * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number }} input
- * @returns {(limit: number) => Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {(limit: number) => Promise<import('./sendState.js').BatchResult>}
  */
 export function waitlistMailBatch({ db, origin, fetch: fetchFn, now }) {
 	return (limit) =>
 		sendWaitlistMails(db, {
 			limit,
-			send: waitlistSender(db, fetchFn),
+			send: waitlistSender(db, fetchFn, { batch: true }),
 			origin,
 			contactEmail: contactEmail(),
 			...(now ? { now } : {})
@@ -659,8 +723,10 @@ export function waitlistMailBatch({ db, origin, fetch: fetchFn, now }) {
 }
 
 /**
- * @typedef {'no-db' | 'off' | 'idle' | 'throttled' | 'done' | 'error'} NudgeOutcome
+ * @typedef {'no-db' | 'off' | 'paused' | 'idle' | 'throttled' | 'done' | 'error'} NudgeOutcome
  * - `off`: interruptor apagado; `idle`: el evento no tiene a nadie esperando ni con oferta;
+ * - `paused`: una pausa de emergencia (`TICKETS_PAUSED` o `MAILS_PAUSED`): la lista no avanza (un
+ *   lugar guardado que no se puede comprar o del que nadie se entera se vencería igual);
  * - `throttled`: ya hubo un empujón para este evento en el último minuto (el cron sigue);
  * - `done`: avanzó la lista (y, con `fetch` y `origin`, mandó los mails de ese evento).
  */
@@ -692,6 +758,7 @@ async function nudge({ platform, db: given, eventSlug, origin, fetch: fetchFn, n
 	const db = given ?? getDB(platform);
 	if (!db || !eventSlug) return 'no-db';
 	if (!(await isFlagOn(db, 'lista_espera'))) return 'off';
+	if (ticketsPausedMessage() !== null || mailsPaused()) return 'paused';
 	const live = await db
 		.prepare(
 			`SELECT 1 AS ok FROM waitlist_entries WHERE event_slug = ?1
@@ -708,7 +775,7 @@ async function nudge({ platform, db: given, eventSlug, origin, fetch: fetchFn, n
 	if (fetchFn && origin) {
 		await sendWaitlistMails(db, {
 			limit: mailBatchSize((await getSalesSettings(db)).mail_batch_size),
-			send: waitlistSender(db, fetchFn),
+			send: waitlistSender(db, fetchFn, { batch: true }),
 			origin,
 			contactEmail: contactEmail(),
 			eventSlug,

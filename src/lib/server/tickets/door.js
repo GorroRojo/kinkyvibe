@@ -12,6 +12,8 @@
  *   en eventos con `puerta: false` (ver `doorSalesOpen`). Une admin puede pasar esos límites
  *   con confirmación (`doorSaleLimits` + overrides.js).
  * - `insertApprovedOrder`: la orden aprobada del panel (la usan la puerta y la carga a mano).
+ *   En la puerta se puede cobrar otro precio y dejar una nota (`admin_note`, como la carga a
+ *   mano); si el precio cambió, el de siempre queda en `door_list_price` (migración 0063).
  * - `parseDoorSale` / `applyQueuedSales`: las ventas hechas sin conexión (decisión 0035): se
  *   registran en orden con `sellAtDoor`, de forma idempotente (`client_sale_id`), y si pasan un
  *   límite se guardan igual y quedan en «Para revisar» (`offline_review`).
@@ -19,8 +21,20 @@
  * Privacidad: el DNI completo nunca va en la lista sin conexión ni en el escaneo (solo los
  * últimos 3 dígitos); se pide aparte y se registra quién lo vio.
  */
-import { computePrice, isFondoOption, normalizeDni, remainingOf } from '$lib/utils/tickets.js';
+import {
+	FREE_DOOR_MESSAGE,
+	ORDER_MAX_MESSAGE,
+	ORDER_MAX_TOTAL,
+	computePrice,
+	defaultFondoOption,
+	exceedsOrderMax,
+	isFondoOption,
+	normalizeDni,
+	parseAmount,
+	remainingOf
+} from '$lib/utils/tickets.js';
 import { doorPrice } from '$lib/utils/ticketTiers.js';
+import { doorPriceChangeText, parseDoorAmount } from '$lib/admin/doorSale.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { HOLDING } from './discounts.js';
@@ -33,6 +47,7 @@ import {
 	maxPerPurchaseLimit,
 	noDoorLimit
 } from './overrides.js';
+import { parseDoorPrice } from './config.js';
 import { getCounts, isValidToken, issueTicketsStatements } from './orders.js';
 import { isFirstTime } from './series.js';
 
@@ -192,6 +207,9 @@ export async function purchaseDetails(db, { slug, ticketId, typeNames }) {
 		paidAt: order.status === 'approved' || order.status === 'refunded' ? order.updated_at : null,
 		confirmedBy: order.confirmed_by,
 		refundedAt: order.refunded_at ?? null,
+		// Solo admins (el modo puerta lo es): la nota y si se cobró otro precio en la puerta.
+		note: order.admin_note ?? '',
+		priceChange: orderPriceChangeText(order),
 		tickets: tickets.map((x) => ({
 			id: x.id,
 			holder: x.holder_name,
@@ -379,6 +397,42 @@ export const MAX_DOOR_SALE = 10;
  */
 export const PANEL_ORDER_HARD_MAX = 100;
 
+/** Largo máximo de la nota de una orden del panel (venta en la puerta o carga a mano). */
+export const ORDER_NOTE_MAX = 300;
+
+/**
+ * «Precio cambiado en la puerta: $ 5.000 en vez de $ 12.000» de una orden ('' si se cobró el
+ * precio de siempre o no es de la puerta).
+ * @param {{ unit_price: number, door_list_price?: number | null }} order
+ */
+export function orderPriceChangeText(order) {
+	return doorPriceChangeText({ charged: order.unit_price, list: order.door_list_price ?? null });
+}
+
+/**
+ * Lo que va al registro de actividad de una venta en la puerta además de lo de siempre: el precio
+ * cambiado (de cuánto a cuánto, por entrada) y si tiene nota (la nota no: como en la carga a mano).
+ * @param {{ unit_price: number, door_list_price?: number | null, admin_note?: string | null }} order
+ */
+export function doorSaleAuditExtra(order) {
+	const list = order.door_list_price ?? null;
+	return {
+		withNote: Boolean(order.admin_note),
+		...(list !== null && list !== order.unit_price
+			? { priceChanged: { from: list, to: order.unit_price } }
+			: {})
+	};
+}
+
+/**
+ * El final del resumen del registro: «; precio cambiado: $ 5.000 en vez de $ 12.000» o ''.
+ * @param {{ unit_price: number, door_list_price?: number | null }} order
+ */
+export function doorSaleAuditSuffix(order) {
+	const text = orderPriceChangeText(order);
+	return text ? `; ${text.replace('Precio cambiado en la puerta', 'precio cambiado')}` : '';
+}
+
 /**
  * Qué límites pasaría esta venta en la puerta (ver overrides.js): evento solo anticipadas,
  * evento cancelado, máximo por venta y cupo del tipo (con las reservas online vigentes). La
@@ -437,12 +491,14 @@ export async function doorSaleLimits(db, { eventSlug, config, type, quantity, no
  *   fondoPercent?: number | null,
  *   channel: 'puerta' | 'manual',
  *   note?: string | null,
+ *   listPrice?: number | null,
  *   checkIn?: boolean,
  *   override?: boolean,
  *   offline?: OfflineSaleMark | null,
  *   by: string,
  *   now: number
- * }} input `offline`: venta hecha sin conexión (ver `applyQueuedSales`)
+ * }} input `offline`: venta hecha sin conexión (ver `applyQueuedSales`); `listPrice`: el precio
+ *   de siempre cuando en la puerta se cobró otro (`door_list_price`)
  * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] } | { ok: false }>}
  */
 export async function insertApprovedOrder(db, input) {
@@ -452,6 +508,21 @@ export async function insertApprovedOrder(db, input) {
 	}
 	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
 	const offline = input.offline ?? null;
+	// Columnas que solo se nombran cuando hacen falta (venta sin conexión, migración 0051; precio
+	// cambiado en la puerta, 0063): así la venta de siempre y la carga a mano no dependen de ellas.
+	/** @type {[string, unknown][]} */
+	const extra = [];
+	if (offline) {
+		extra.push(
+			['client_sale_id', offline.clientSaleId],
+			['offline_review', offline.review?.length ? JSON.stringify(offline.review) : null]
+		);
+	}
+	if (input.listPrice !== undefined && input.listPrice !== null) {
+		extra.push(['door_list_price', input.listPrice]);
+	}
+	const extraCols = extra.map(([col]) => `, ${col}`).join('');
+	const extraVals = extra.map((_, i) => `, ?${24 + i}`).join('');
 	const id = crypto.randomUUID();
 	const [inserted] = await db.batch([
 		db
@@ -460,9 +531,9 @@ export async function insertApprovedOrder(db, input) {
 					discount_amount, total, payment_method, buyer_name, buyer_email, holders, status,
 					created_at, updated_at, expires_at, fondo_amount, surcharge_amount, buyer_dni,
 					fondo_option, fondo_contribution, buyer_pronouns, fondo_percent, confirmed_by,
-					channel, admin_note${offline ? ', client_sale_id, offline_review' : ''})
+					channel, admin_note${extraCols})
 				SELECT ?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, ?9, ?10, ?11, 'approved', ?12, ?12, ?12,
-					?13, 0, ?14, ?15, ?16, ?17, ?18, ?19, ?21, ?22${offline ? ', ?24, ?25' : ''}
+					?13, 0, ?14, ?15, ?16, ?17, ?18, ?19, ?21, ?22${extraVals}
 				WHERE ?23 = 1 OR ?20 IS NULL OR (
 					SELECT COALESCE(SUM(quantity), 0) FROM orders
 					WHERE event_slug = ?2 AND ticket_type = ?3
@@ -494,11 +565,7 @@ export async function insertApprovedOrder(db, input) {
 				input.channel,
 				input.note || null,
 				input.override ? 1 : 0,
-				// Venta sin conexión (migración 0051): las columnas nuevas solo se nombran cuando hay
-				// una, así la venta de siempre y la carga a mano no dependen de la migración.
-				...(offline
-					? [offline.clientSaleId, offline.review?.length ? JSON.stringify(offline.review) : null]
-					: [])
+				...extra.map(([, value]) => value)
 			),
 		...issueTicketsStatements(db, {
 			id,
@@ -547,6 +614,23 @@ export async function insertApprovedOrder(db, input) {
  * puerta del tipo (`door_price`) si tiene uno y, si no, el del último tramo (o el precio fijo). No gasta
  * lugares de los tramos (`ticket_tier` NULL), pero sí cuenta para el cupo.
  *
+ * **Otro precio** (gorrite, 12/10): con `unitPrice` en un tipo que no es a la gorra, se cobra ese
+ * precio por entrada (entero de 0 a `ORDER_MAX_TOTAL`, el tope de `price`) en lugar del de
+ * `doorPrice`, como si fuera el `door_price` de esta venta: el Fondo sale de `parseDoorPrice` con
+ * el mismo porcentaje, y el total con `computePrice`. Si es distinto del de siempre, ese queda en
+ * `door_list_price` para mostrarlo en el panel.
+ *
+ * **Precio 0 escrito por quien vende**: queda «sin cargo» (`gratis`) como en la carga a mano, y
+ * con canal `manual`, porque la base solo acepta precio 0 en las manuales y a la gorra (CHECK de la
+ * migración 0010). Las entradas quedan adentro igual y la venta va al registro como venta en la
+ * puerta. Cambiar ese CHECK exige reconstruir `orders` (ver docs/tickets.md). Un `door_price: 0`
+ * de la configuración **sin** `unitPrice` (el editor ya no lo deja guardar, #374) sigue dando
+ * `free-door`: la venta sin cargo tiene que ser una decisión de quien vende, no un precio por
+ * defecto.
+ *
+ * `note`: nota opcional (solo en el panel, `admin_note`, hasta `ORDER_NOTE_MAX`), como en la carga
+ * a mano.
+ *
  * Con `override: true` (solo desde el panel, después de confirmar en el diálogo los límites que
  * da `doorSaleLimits`) vende igual aunque se pase del cupo o el evento sea solo anticipadas.
  *
@@ -561,15 +645,17 @@ export async function insertApprovedOrder(db, input) {
  *   method: 'efectivo' | 'transferencia',
  *   option?: import('$lib/utils/tickets.js').PriceOption,
  *   unitPrice?: number,
+ *   note?: string | null,
  *   fondoPercent?: number | null,
  *   override?: boolean,
  *   offline?: OfflineSaleMark | null,
  *   by: string,
  *   now?: number
- * }} input
+ * }} input `unitPrice`: el monto a la gorra o, en un tipo con precio, otro precio por entrada
  * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] }
  *   | { ok: false, reason: 'soldout', available: number | null }
- *   | { ok: false, reason: 'no-door' }>}
+ *   | { ok: false, reason: 'no-door' }
+ *   | { ok: false, reason: 'free-door' }>}
  */
 export async function sellAtDoor(db, input) {
 	const { eventSlug, type, quantity, holders, buyer, by, now = Date.now() } = input;
@@ -578,16 +664,50 @@ export async function sellAtDoor(db, input) {
 	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
 	const gorra = Boolean(type.gorra);
 	const atDoor = doorPrice(type);
-	const price = gorra || !atDoor ? Number(input.unitPrice) : atDoor.price;
-	// Un `door_price: 0` (entrada sin cargo en la puerta) vale; un precio fijo es siempre ≥ 1.
-	const min = gorra ? (type.gorra?.min ?? 0) : atDoor?.source === 'door' ? 0 : 1;
+	// Otro precio que escribió quien vende (solo en un tipo con precio): entero de 0 al tope de
+	// `price`, y el total dentro del tope técnico de la orden (como a la gorra).
+	const custom =
+		!gorra && atDoor && input.unitPrice !== undefined && input.unitPrice !== null
+			? input.unitPrice
+			: null;
+	if (
+		custom !== null &&
+		(!Number.isSafeInteger(custom) ||
+			custom < 0 ||
+			custom > ORDER_MAX_TOTAL ||
+			exceedsOrderMax(custom, quantity))
+	) {
+		throw new Error('Precio por entrada inválido');
+	}
+	const changed = custom !== null && atDoor !== null && custom !== atDoor.price;
+	// Con otro precio, el Fondo se calcula como el de un `door_price` (misma función, mismo porcentaje).
+	let charged = atDoor;
+	if (changed && custom !== null) {
+		const p = parseDoorPrice(custom, type.id, input.fondoPercent ?? null);
+		if (p) charged = { price: p.price, fondo: p.fondo, source: 'door' };
+	}
+	const price = gorra || !charged ? Number(input.unitPrice) : charged.price;
+	// Un precio 0 (un `door_price: 0` viejo o un precio cambiado a 0) pasa este control; un precio
+	// fijo es siempre ≥ 1.
+	const min = gorra ? (type.gorra?.min ?? 0) : charged?.source === 'door' ? 0 : 1;
 	if (!Number.isSafeInteger(price) || price < min) {
 		throw new Error('Precio por entrada inválido');
 	}
+	// Precio 0 sin que quien vende lo haya escrito (un `door_price: 0` guardado antes de que el
+	// editor lo prohibiera, o una venta sin conexión de una versión vieja sin `amount`): como en
+	// #374, no se vende y se avisa que se cargue a mano. Si quien vende escribió $ 0 en esta venta,
+	// es sin cargo a propósito: se registra con canal `manual` (ver arriba).
+	if (!gorra && price === 0 && custom === null) return { ok: false, reason: 'free-door' };
+	// Sin opción elegida, la de la pantalla: la que corresponde al precio de la puerta (con Fondo si
+	// ese precio lo tiene; si no, completo). No la del precio cobrado: con otro precio el Fondo se
+	// recalcula y, sin esto, un `door_price` sin Fondo cobraría con el descuento sin que se viera.
+	const option = gorra
+		? 'gorra'
+		: (input.option ?? (atDoor ? defaultFondoOption(atDoor.fondo ?? 0) : undefined));
 	const prices = computePrice({
 		price,
-		fondo: gorra || !atDoor ? 0 : atDoor.fondo,
-		option: gorra ? 'gorra' : input.option,
+		fondo: gorra || !charged ? 0 : (charged.fondo ?? 0),
+		option,
 		quantity,
 		discount: null,
 		method: input.method
@@ -604,7 +724,12 @@ export async function sellAtDoor(db, input) {
 		unitPrice: price,
 		prices,
 		fondoPercent: gorra ? null : (input.fondoPercent ?? null),
-		channel: 'puerta',
+		// Precio 0 en un tipo con precio: canal `manual` (ver arriba).
+		channel: !gorra && price === 0 ? 'manual' : 'puerta',
+		note: String(input.note ?? '')
+			.trim()
+			.slice(0, ORDER_NOTE_MAX),
+		listPrice: changed && atDoor ? atDoor.price : null,
 		checkIn: true,
 		override: input.override,
 		offline: input.offline ?? null,
@@ -627,16 +752,20 @@ export async function sellAtDoor(db, input) {
  *   method: 'efectivo' | 'transferencia',
  *   option?: import('$lib/utils/tickets.js').PriceOption,
  *   unitPrice?: number,
+ *   note: string,
  *   holders: import('./config.js').Holder[],
  *   buyer: { name: string, pronouns: string, email: string, dni: string | null },
  *   sendEmail: boolean
- * }} DoorSaleInput
+ * }} DoorSaleInput `unitPrice`: el monto a la gorra o, en un tipo con precio, el precio por
+ *   entrada que se cobró (si no viene, el de `doorPrice`)
  */
 
 /**
  * Valida los campos de «Vender en puerta» (los del formulario: `type`, `quantity`, `method`,
- * `name`, `email`, `dni`, `amount` u `option`, `pronouns`, `holder_N`, `pronouns_N`,
- * `send_email`). La usan la venta con conexión (acción `sell`) y la sincronización de las ventas
+ * `name`, `email`, `dni`, `amount`, `option`, `note`, `pronouns`, `holder_N`, `pronouns_N`,
+ * `send_email`). `amount` es el monto a la gorra o, en un tipo con precio, el precio por entrada
+ * que se cobró (vacío o ausente: el de `doorPrice`, como las ventas guardadas sin conexión antes de
+ * que existiera el campo). La usan la venta con conexión (acción `sell`) y la sincronización de las ventas
  * hechas sin conexión (`applyQueuedSales`), así las dos aceptan exactamente lo mismo.
  *
  * @param {{ types: import('./config.js').TicketType[] }} config
@@ -672,14 +801,34 @@ export function parseDoorSale(config, get) {
 	/** @type {number | undefined} */
 	let unitPrice;
 	if (type.gorra) {
-		unitPrice = Number(text('amount', 12).replace(/[.\s$]/g, ''));
-		if (!Number.isSafeInteger(unitPrice) || unitPrice < type.gorra.min) {
+		// El mismo criterio que la compra online (`parseAmount`): «5.000», «$ 5.000» y «5000,00»
+		// son 5000; «5000.00» o «5.5» no se adivinan (antes «5000.00» quedaba en $ 500.000).
+		const amount = parseAmount(text('amount', 14));
+		if (amount === null) {
+			return bad('Escribí el monto por entrada en pesos, sin centavos (por ejemplo 5.000).');
+		}
+		if (amount < type.gorra.min) {
 			return bad(`El monto por entrada tiene que ser de al menos $ ${type.gorra.min}.`);
 		}
+		if (exceedsOrderMax(amount, quantity)) return bad(ORDER_MAX_MESSAGE);
+		unitPrice = amount;
 	} else {
 		const o = text('option', 20);
 		option = isFondoOption(o) ? /** @type {any} */ (o) : undefined;
 		if (option === 'fondo' && !((doorPrice(type)?.fondo ?? 0) > 0)) option = undefined;
+		// Otro precio por entrada (vacío: el de `doorPrice`). Se lee con `parseAmount` como a la
+		// gorra («5000.00» no se adivina) y con el mismo tope que `price`.
+		const raw = text('amount', 20);
+		if (raw) {
+			const amount = parseDoorAmount(raw);
+			if (amount === null) {
+				return bad(
+					`El precio por entrada tiene que ser un número entero de pesos, de 0 a $ ${ORDER_MAX_TOTAL.toLocaleString('es-AR')}.`
+				);
+			}
+			if (exceedsOrderMax(amount, quantity)) return bad(ORDER_MAX_MESSAGE);
+			unitPrice = amount;
+		}
 	}
 	const holders = Array.from({ length: quantity }, (_, i) => ({
 		name: text(`holder_${i}`) || name,
@@ -694,6 +843,7 @@ export function parseDoorSale(config, get) {
 			option,
 			unitPrice,
 			holders,
+			note: text('note', ORDER_NOTE_MAX),
 			buyer: { name, pronouns: text('pronouns', 40), email, dni },
 			sendEmail: Boolean(email) && (get('send_email') === 'on' || get('send_email') === true)
 		}
@@ -703,9 +853,23 @@ export function parseDoorSale(config, get) {
 /** Cuántas ventas sin conexión se sincronizan por pedido como máximo. */
 export const SALE_QUEUE_MAX_ITEMS = 100;
 
-/** Campos de una venta sin conexión que se aceptan (los del formulario de «Vender en puerta»). */
+/**
+ * Campos de una venta sin conexión que se aceptan: los del formulario de «Vender en puerta» y
+ * `charged_total`, el total que cobró el celu (para avisar si se registra con otro).
+ */
 const SALE_FIELD_RE =
-	/^(type|quantity|method|option|amount|name|pronouns|email|send_email|transfer_seen|holder_\d{1,3}|pronouns_\d{1,3})$/;
+	/^(type|quantity|method|option|amount|note|name|pronouns|email|send_email|transfer_seen|charged_total|holder_\d{1,3}|pronouns_\d{1,3})$/;
+
+/**
+ * El total que cobró el celu (`charged_total`), si vino y es un entero ≥ 0. Un celu con una
+ * versión vieja no lo manda: `null`, y no se compara.
+ * @param {string | undefined} raw
+ */
+function chargedTotal(raw) {
+	if (raw === undefined || !/^\d{1,12}$/.test(raw)) return null;
+	const n = Number(raw);
+	return Number.isSafeInteger(n) ? n : null;
+}
 
 /**
  * Una venta hecha sin conexión, esperando para sincronizar: el id que le puso el celu, la hora
@@ -743,7 +907,9 @@ export function parseSaleQueue(raw) {
 		/** @type {Record<string, string>} */
 		const fields = {};
 		for (const [k, v] of Object.entries(item.fields)) {
-			if (SALE_FIELD_RE.test(k)) fields[k] = String(v ?? '').slice(0, 200);
+			// La nota puede ser más larga que los demás campos (la recorta `parseDoorSale`).
+			if (SALE_FIELD_RE.test(k))
+				fields[k] = String(v ?? '').slice(0, k === 'note' ? ORDER_NOTE_MAX + 50 : 200);
 		}
 		out.push({ id, at, fields });
 	}
@@ -874,6 +1040,7 @@ export async function applyQueuedSales(db, locals, input) {
 				method: sale.method,
 				option: sale.option,
 				unitPrice: sale.unitPrice,
+				note: sale.note,
 				fondoPercent: input.fondoPercent ?? null,
 				by,
 				now: soldAt
@@ -891,15 +1058,34 @@ export async function applyQueuedSales(db, locals, input) {
 			continue;
 		}
 		if (!r.ok) {
-			// Con `override` no pasa (no se controla el cupo ni la puerta), pero por las dudas.
-			out.push({ id: item.id, result: 'rejected', message: 'No se pudo registrar.' });
+			// Con `override` el cupo y la puerta no frenan; una entrada sin cargo en la puerta, sí.
+			out.push({
+				id: item.id,
+				result: 'rejected',
+				message: r.reason === 'free-door' ? FREE_DOOR_MESSAGE : 'No se pudo registrar.'
+			});
 			continue;
+		}
+		// La venta se registra con el precio y el % del Fondo de ahora, no con los de cuando se
+		// vendió. Si el total no es el que cobró el celu, no se corrige solo: queda en «Para
+		// revisar» con los dos montos.
+		const charged = chargedTotal(item.fields.charged_total);
+		/** @type {import('./overrides.js').ExceededLimit[]} */
+		const review =
+			charged !== null && charged !== r.order.total
+				? [...limits, { kind: 'price', charged, recorded: r.order.total }]
+				: limits;
+		if (review.length > limits.length) {
+			await db
+				.prepare('UPDATE orders SET offline_review = ?2 WHERE id = ?1')
+				.bind(r.order.id, JSON.stringify(review))
+				.run();
 		}
 		await logAdminAction(db, locals, {
 			action: 'order.door_sale',
 			targetType: 'order',
 			targetId: r.order.id,
-			summary: `Vendió en la puerta sin conexión ${sale.quantity} × ${sale.type.name} (${orderRef(r.order.id)}, ${r.order.payment_method})`,
+			summary: `Vendió en la puerta sin conexión ${sale.quantity} × ${sale.type.name} (${orderRef(r.order.id)}, ${r.order.payment_method}${doorSaleAuditSuffix(r.order)})`,
 			detail: {
 				event: eventSlug,
 				type: sale.type.id,
@@ -908,10 +1094,12 @@ export async function applyQueuedSales(db, locals, input) {
 				total: r.order.total,
 				offline: true,
 				soldAt,
+				...doorSaleAuditExtra(r.order),
 				...(sale.method === 'transferencia'
 					? { transferSeen: item.fields.transfer_seen === 'on' }
 					: {}),
-				...(limits.length ? { overrides: limits } : {})
+				...(limits.length ? { overrides: limits } : {}),
+				...(review.length > limits.length ? { charged } : {})
 			}
 		});
 		await logOverride(db, locals, {
@@ -931,7 +1119,7 @@ export async function applyQueuedSales(db, locals, input) {
 			type: sale.type.name,
 			total: r.order.total,
 			method: r.order.payment_method,
-			review: limits.map((l) => limitMessage(l))
+			review: review.map((l) => limitMessage(l))
 		});
 	}
 	return out;

@@ -26,12 +26,17 @@ export const MAIL_LAYOUT_MARK = 'data-kv-mail="layout"';
 /** Marca del preencabezado oculto (`mailPreheader`). */
 export const MAIL_PREHEADER_MARK = 'data-kv-mail="preheader"';
 
+/**
+ * Colores de los mails, siempre en hex: el Outlook clásico de Windows no entiende `hsl()` (el botón
+ * podía quedar blanco sobre blanco). Son los mismos de antes: pink = hsl(319,90%,60%), pinkText =
+ * hsl(319,100%,36%), link = hsl(262,90%,45%).
+ */
 export const MAIL_COLORS = Object.freeze({
 	page: '#f4eff6',
 	card: '#ffffff',
-	pink: 'hsl(319,90%,60%)',
-	pinkText: 'hsl(319,100%,36%)',
-	link: 'hsl(262,90%,45%)',
+	pink: '#f53dbb',
+	pinkText: '#b8007d',
+	link: '#570bda',
 	text: '#2b2730',
 	muted: '#625b68',
 	faint: '#8a8290',
@@ -62,11 +67,13 @@ export function defaultMailContact() {
 }
 
 /**
- * Botón rosa (uno por mail). Tabla con fondo en la celda: se ve también en Outlook.
+ * Botón rosa (uno por mail). Tabla con el fondo en la celda, también como atributo `bgcolor`: así
+ * se ve en el Outlook de escritorio, que ignora el `background` del estilo (ahí sale sin las
+ * puntas redondeadas, y está bien).
  * @param {{ href: string, label: string }} button
  */
 export function mailButton({ href, label }) {
-	return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 4px"><tr><td style="border-radius:999px;background:${MAIL_COLORS.pink};">
+	return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 4px"><tr><td align="center" bgcolor="${MAIL_COLORS.pink}" style="border-radius:999px;background:${MAIL_COLORS.pink};">
 <a href="${escapeHtml(href)}" style="display:inline-block;padding:13px 28px;font-family:${FONT};font-size:19px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;">${escapeHtml(label)}</a>
 </td></tr></table>`;
 }
@@ -159,6 +166,28 @@ export function withMailFooter(html, footer) {
 }
 
 /**
+ * La línea «No fui yo» del pie de los mails a una dirección que nadie confirmó (entradas gratis,
+ * reservas por transferencia, confirmar la lista de espera o «Avisame si se repite»; ver
+ * src/lib/server/email/suppressions.js). `question` según el mail («¿No te anotaste vos?»). Sin
+ * `url`, nada (el mail sale como siempre).
+ *
+ * @param {string | null | undefined} url el link firmado (`optOutUrl`)
+ * @param {string} question
+ * @returns {{ html: string, text: string[] }} `text`: las líneas para el final del texto plano
+ */
+export function mailOptOut(url, question) {
+	if (!url) return { html: '', text: [] };
+	const lead = `${question} Alguien escribió tu mail por error.`;
+	return {
+		html: `${escapeHtml(lead)} <a href="${escapeHtml(url)}" style="color:${MAIL_COLORS.link};">Tocá acá</a> y no te mandamos más mails de Kinky Vibe a esta dirección.`,
+		text: [
+			'',
+			`${lead} Para que no te mandemos más mails de Kinky Vibe a esta dirección, entrá a: ${url}`
+		]
+	};
+}
+
+/**
  * Arma el mail completo.
  *
  * @param {{
@@ -172,7 +201,8 @@ export function withMailFooter(html, footer) {
  *   afterHtml?: string,
  *   whyHtml: string,
  *   contactEmail?: string,
- *   unsubscribeHtml?: string
+ *   unsubscribeHtml?: string,
+ *   optOutHtml?: string
  * }} input
  * - `preheader`: texto plano oculto que los clientes muestran en la lista de mails, al lado del
  *   asunto (sin él, el mail sale como siempre).
@@ -184,6 +214,8 @@ export function withMailFooter(html, footer) {
  * - `afterHtml`: lo que va al final de la tarjeta (número de orden, política de devoluciones).
  * - `whyHtml`: por qué te llega, en el pie.
  * - `unsubscribeHtml`: el link para darse de baja, en el pie (solo los mails que lo tienen).
+ * - `optOutHtml`: «¿No fuiste vos?…», en el pie, de los mails a una dirección sin confirmar
+ *   ({@link mailOptOut}).
  */
 export function mailLayout({
 	origin,
@@ -196,12 +228,15 @@ export function mailLayout({
 	afterHtml = '',
 	whyHtml,
 	contactEmail,
-	unsubscribeHtml = ''
+	unsubscribeHtml = '',
+	optOutHtml = ''
 }) {
 	const logo = `${siteOrigin(origin)}${MAIL_LOGO_PATH}`;
 	const contact = contactEmail || defaultMailContact();
 	const c = MAIL_COLORS;
-	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>
+	// <title>: el nombre del documento para los lectores de pantalla (y la pestaña si se abre en el
+	// navegador); los clientes de mail no lo muestran.
+	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(label)} · Kinky Vibe</title><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only"></head>
 <body style="margin:0;padding:0;background:${c.page};">
 ${preheader ? `${mailPreheader(preheader)}\n` : ''}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.page};" ${MAIL_LAYOUT_MARK}><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:${FONT};color:${c.text};">
@@ -217,7 +252,7 @@ ${afterHtml}
 <tr><td style="padding:18px 8px 0;font-size:13px;line-height:1.5;color:${c.muted};text-align:center;">
 ${whyHtml}<br>
 ¿Dudas? Escribinos a ${contactLink(contact)}<br>
-${unsubscribeHtml ? `${unsubscribeHtml}<br>` : ''}${signoffSpan(escapeHtml(DEFAULT_MAIL_FOOTER.signoff))}
+${unsubscribeHtml ? `${unsubscribeHtml}<br>` : ''}${optOutHtml ? `${optOutHtml}<br>` : ''}${signoffSpan(escapeHtml(DEFAULT_MAIL_FOOTER.signoff))}
 </td></tr>
 </table></td></tr></table></body></html>`;
 }

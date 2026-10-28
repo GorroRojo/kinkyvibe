@@ -17,19 +17,23 @@ import { checkoutProPreference } from '$lib/server/tickets/mercadopago.js';
 import { mapPaymentStatus, nextStatus } from '$lib/server/tickets/orders.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import {
+	TIP_CATEGORIES,
 	TIP_DESTINATION,
+	TIP_DESTINATIONS,
 	TIP_DESTINATION_LABELS,
 	TIP_SOURCE_LABELS,
 	TIP_STATUS_LABELS
 } from '$lib/utils/propinas.js';
+import { AR_UTC_OFFSET_MS } from '$lib/utils/dates.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'pending' | 'approved' | 'rejected' | 'refunded'} TipStatus */
 /** @typedef {import('$lib/utils/propinas.js').TipDestination} TipDestination */
 /** @typedef {import('$lib/utils/propinas.js').TipSource} TipSource */
+/** @typedef {import('$lib/utils/propinas.js').TipCategory} TipCategory */
 /**
  * @typedef {{
- *   id: string, amount: number, status: TipStatus, post_category: 'material' | 'calendario',
+ *   id: string, amount: number, status: TipStatus, post_category: TipCategory,
  *   post_slug: string, message: string | null, mp_preference_id: string | null,
  *   mp_payment_id: string | null, created_at: number, updated_at: number,
  *   approved_at: number | null, destination: TipDestination, source: TipSource
@@ -111,10 +115,11 @@ export function buildTipPreference({ tip, postTitle, origin }) {
  * Guarda una propina pendiente (antes de mandar a la persona a MP).
  *
  * @param {D1Database} db
- * @param {{ amount: number, message: string | null, category: 'material' | 'calendario' | null, slug: string | null, destination?: TipDestination, source?: TipSource }} input
+ * @param {{ amount: number, message: string | null, category: TipCategory | null, slug: string | null, destination?: TipDestination, source?: TipSource }} input
  *   `destination`: si no viene, el Fondo ({@link TIP_DESTINATION}), que es lo que manda siempre
  *   `validateTip`. Otro valor solo sirve para armar propinas viejas en los tests.
  *   `source`: `post` por defecto; con `fondo` se ignoran `category` y `slug` (ver {@link Tip}).
+ *   Un destino o una categoría que el código no conoce tiran un error: la base ya no los controla.
  * @param {{ now?: number }} [opts]
  * @returns {Promise<Tip>}
  */
@@ -123,8 +128,14 @@ export async function createTip(
 	{ amount, message, category, slug, destination = TIP_DESTINATION, source = 'post' },
 	{ now = Date.now() } = {}
 ) {
-	const id = crypto.randomUUID();
 	const fromFondo = source === 'fondo';
+	// La base ya no tiene la lista de valores (migración 0070): la red está acá.
+	if (!TIP_DESTINATIONS.includes(destination))
+		throw new Error(`Destino desconocido: ${destination}`);
+	if (!fromFondo && (category === null || !TIP_CATEGORIES.includes(category))) {
+		throw new Error(`Categoría desconocida: ${category}`);
+	}
+	const id = crypto.randomUUID();
 	await db
 		.prepare(
 			`INSERT INTO tips (id, amount, status, post_category, post_slug, message, destination, source, created_at, updated_at)
@@ -255,9 +266,6 @@ export async function applyTipPayment(db, payment, { now = Date.now() } = {}) {
 
 /* ------------------------------------- Panel ------------------------------------- */
 
-/** Huso de Argentina (sin horario de verano) para agrupar por mes. */
-const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
-
 /**
  * Las propinas que cuentan como aportes al Fondo Kinky Vibe: aprobadas y "Para el Fondo" (ni
  * pendientes, ni rechazadas, ni reembolsadas, ni las de KinkyVibe). Una sola definición para el
@@ -316,7 +324,8 @@ export async function tipSummary(db) {
 					COUNT(*) AS count, SUM(amount) AS total
 				FROM tips WHERE status = 'approved' GROUP BY month ORDER BY month DESC LIMIT 24`
 			)
-			.bind(AR_OFFSET_MS),
+			// Restar las 3 h de diferencia agrupa por mes de Argentina.
+			.bind(-AR_UTC_OFFSET_MS),
 		db.prepare(
 			`SELECT source, post_category, post_slug, COUNT(*) AS count, SUM(amount) AS total
 			FROM tips WHERE status = 'approved' GROUP BY source, post_category, post_slug

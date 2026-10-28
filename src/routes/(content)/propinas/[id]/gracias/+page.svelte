@@ -15,7 +15,9 @@
 <svelte:head>
 	<title>Gracias · Kinky Vibe</title>
 	<meta name="robots" content="noindex, nofollow" />
-	<meta name="referrer" content="no-referrer" />
+	<!-- same-origin (como el encabezado): con no-referrer, «Salir» del menú (un POST) sale con
+	     `Origin: null` y SvelteKit lo rechaza. -->
+	<meta name="referrer" content="same-origin" />
 </svelte:head>
 
 <section class="gracias surface-card" class:bad={status === 'rejected'} aria-live="polite">

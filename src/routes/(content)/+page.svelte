@@ -1,5 +1,7 @@
 <script>
 	import CardRow from '$lib/components/CardRow.svelte';
+	import { parseSiteDate } from '$lib/utils/dates.js';
+	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import Carrousel from '$lib/components/Carrousel.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import SeoHead from '$lib/components/SeoHead.svelte';
@@ -8,27 +10,35 @@
 	import { page } from '$app/stores';
 	export let data;
 	import { userConfig } from '$lib/utils/stores';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
-	import { organizationSchema } from '$lib/utils/jsonLd.js';
+	import { pastPostsLoader } from '$lib/utils/allPosts';
+	import { organizationSchema, websiteSchema } from '$lib/utils/jsonLd.js';
+	import { carruselPosts } from '$lib/utils/carrusel.js';
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (allPosts = posts))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (allPosts = posts));
+	$: if ($userConfig.show_past_events) loadPast();
+
+	// Los eventos que todavía no empezaron: la fila del calendario.
+	$: upcomingEvents = allPosts.filter(
+		(/** @type {{ meta: AnyPostData; }} */ p) =>
+			p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
+	);
+
+	// El carrusel de arriba: con el interruptor `carrusel_portada` o, para revisarlo en un preview,
+	// con `?carrousel` en la dirección. Qué eventos entran: $lib/utils/carrusel.js.
+	$: carrusel =
+		data.carrusel || $page.url.searchParams.has('carrousel') ? carruselPosts(data.posts) : [];
 
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
 	$: previewTexts = linkPreviewOf($page.data).texts;
-	// La organización (schema.org, jsonLd.js): nombre, logo, contacto público y redes oficiales.
-	const websiteSchema = /** @type {any} */ (organizationSchema());
-	import kinkyProfilePic from '../logo.png';
+	// La organización (schema.org, jsonLd.js): nombre, logo, contacto público y redes oficiales; y
+	// el sitio (WebSite), con el nombre que muestran los buscadores.
+	const organizationLd = /** @type {any} */ (organizationSchema());
+	const websiteLd = /** @type {any} */ (websiteSchema());
 </script>
 
 <svelte:head>
-	<title>Kinky Vibe</title>
+	<title>{previewTexts['home.title']}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 </svelte:head>
@@ -40,11 +50,13 @@
 	canonical="/"
 />
 
-<LDTag schema={websiteSchema} />
+<LDTag schema={websiteLd} />
+<LDTag schema={organizationLd} />
 <div class="profile-header h-card p-contact hidden">
 	<a rel="me" href="https://web.brid.gy/r/https://kinkyvibe.ar/">fed bridgy</a>
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
-	<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
+	<!-- Una dirección que no cambia con cada deploy: Bridgy Fed la toma como avatar (docs/seo.md). -->
+	<img class="profile-pic u-photo" src="/android-chrome-512x512.png" alt="" />
 	<p class="profile-name p-name">Kinky Vibe</p>
 	<a
 		target="_blank"
@@ -59,30 +71,22 @@
 		comunitarios
 	</p>
 </div>
-<main>
+<!-- No es un <main>: el layout ya pone uno (un solo main por página). -->
+<div class="inicio">
 	<!-- El logo del encabezado es la presentación (decisión de gorrite, 5/10): el h1 queda solo
 	     para lectores de pantalla y buscadores. -->
 	<h1 class="visually-hidden">Kinky Vibe</h1>
-	{#if $page.url.searchParams.has('carrousel')}
-		<Carrousel
-			posts={allPosts.filter(
-				(/** @type {{ meta: AnyPostData; }} */ p) =>
-					p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
-			)}
-		/>
+	<!-- Sin eventos que entren no hay carrusel: el componente necesita al menos una diapositiva. -->
+	{#if carrusel.length > 0}
+		<Carrousel posts={carrusel} ticketStates={data.ticketStates ?? null} />
 	{/if}
 	<div class="cardrow">
 		<CardRow
 			index="0"
 			id="calendario"
 			title="Talleres y eventos"
-			items={allPosts
-				.filter(
-					(/** @type {{ meta: AnyPostData; }} */ p) =>
-						p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
-				)
-				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))
-				.slice(0, 9)}
+			eager={4}
+			items={[...upcomingEvents].sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1)).slice(0, 9)}
 			--color-1="var(--2-dark)"
 			--color-2="var(--1)"
 			href="/calendario"
@@ -119,7 +123,9 @@
 	<div id="lista"></div>
 	<!-- el feed largo de a 20: así el pie de página queda a mano -->
 	<PostList heading="Lo último publicado" posts={allPosts} limit={20} />
-</main>
+</div>
+<!-- Los feeds del calendario, también desde el inicio (docs/seo.md); /rss lo anuncia app.html. -->
+<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
 
 <style>
 	.hidden {
@@ -128,7 +134,8 @@
 	#lista {
 		display: none;
 	}
-	main {
+	/* div:where(): la misma especificidad que tenía cuando era `main`. */
+	div:where(.inicio) {
 		/* width: 100%; */
 		/* max-width: 50rem; */
 		margin: auto;
@@ -141,7 +148,7 @@
 		max-width: 50rem;
 		margin-inline: auto;
 	}
-	main > * {
+	div:where(.inicio) > * {
 		min-width: 0;
 		min-height: 0;
 	}

@@ -28,6 +28,7 @@ import { ANON, visibleWhere } from '$lib/server/objects/index.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { PROFILE_APPROVED_SQL } from '$lib/server/admin/cuentas.js';
 import { getDB, logDBError } from '$lib/server/db';
+import { D1_MAX_PARAMS, inList } from '$lib/server/db/sql.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import {
 	PERSONAS_KEY,
@@ -51,8 +52,8 @@ import { splitMarkdown } from '$lib/utils/eventDraft.js';
 /** @typedef {'persona' | 'proyecto'} PersonaKind */
 /** @typedef {{ rol: string, items: PublicProfileRef[] }} PersonasGroup */
 
-/** Cuántas direcciones por consulta (D1 acepta hasta 100 parámetros por sentencia). */
-const CHUNK = 90;
+/** Cuántas direcciones por consulta: lugar para los otros parámetros de la consulta. */
+const CHUNK = D1_MAX_PARAMS - 10;
 /** Cuántos perfiles ofrece el editor. */
 export const PICKER_LIMIT = 500;
 
@@ -128,7 +129,7 @@ export async function publicProfilesBySlug(db, slugs) {
 		const { results } = await db
 			.prepare(
 				`${PROFILE_SELECT}
-				WHERE o.type = ? AND o.slug IN (${chunk.map(() => '?').join(', ')})
+				WHERE o.type = ? AND o.slug IN (${inList(chunk)})
 				AND ${vis.sql} AND ${PROFILE_APPROVED_SQL}`
 			)
 			.bind(PROFILE_TYPE, ...chunk, ...vis.params)
@@ -169,7 +170,8 @@ export async function pickableProfiles(db) {
  *
  * @param {D1Database} db
  * @param {unknown} raw `meta.personas`
- * @param {readonly string[]} roles orden de los grupos
+ * @param {readonly string[] | Promise<readonly string[]>} roles orden de los grupos (puede venir
+ *   en camino: se lee a la par de los perfiles)
  * @returns {Promise<PersonasGroup[]>}
  */
 export async function resolvePersonas(db, raw, roles) {
@@ -188,7 +190,7 @@ export async function resolvePersonas(db, raw, roles) {
 		const p = profiles.get(e.perfil);
 		return p ? [{ rol: e.rol, ...p }] : [];
 	});
-	return groupByRole(items, roles).map((g) => ({
+	return groupByRole(items, await roles).map((g) => ({
 		rol: g.rol,
 		items: g.items.map(({ slug, title, kind, href }) => ({ slug, title, kind, href }))
 	}));
@@ -208,7 +210,8 @@ export async function personasForPage(platform, meta) {
 	try {
 		const db = await enabledDB(platform);
 		if (!db) return null;
-		const groups = await resolvePersonas(db, meta?.[PERSONAS_KEY], await listRoles(db));
+		// Los roles, a la par de los perfiles (`listRoles` no tira: con un error, los fijos).
+		const groups = await resolvePersonas(db, meta?.[PERSONAS_KEY], listRoles(db));
 		return groups.length ? groups : null;
 	} catch (error) {
 		logDBError('personas de la página', error);
@@ -245,8 +248,17 @@ export async function contentForProfilePage(platform, slug, loadPosts) {
 	try {
 		const db = await enabledDB(platform);
 		if (!db) return null;
-		const found = await resolveProfileContent(db, slug, await loadPosts(), await listRoles(db));
-		return found?.groups.length ? found.groups : null;
+		// Las publicaciones, los roles y si el perfil es público, a la par (lo mismo que
+		// `resolveProfileContent`; la base está lejos: cada consulta que espera a otra es una ida y
+		// vuelta).
+		const [posts, roles, profiles] = await Promise.all([
+			loadPosts(),
+			listRoles(db),
+			publicProfilesBySlug(db, [slug])
+		]);
+		if (!profiles.get(slug)) return null;
+		const groups = contentByRole(posts, slug, roles);
+		return groups.length ? groups : null;
 	} catch (error) {
 		logDBError('publicaciones del perfil', error);
 		return null;
@@ -262,14 +274,17 @@ export async function contentForProfilePage(platform, slug, loadPosts) {
  * @returns {Promise<{ roles: string[], profiles: PublicProfileRef[] } | null>}
  */
 export async function editorPersonas(platform) {
-	const roles = await activeRoles(platform);
-	if (!roles) return null;
-	try {
-		return { roles, profiles: await pickableProfiles(/** @type {D1Database} */ (getDB(platform))) };
-	} catch (error) {
-		logDBError('perfiles para el editor', error);
-		return { roles, profiles: [] };
-	}
+	const db = getDB(platform);
+	if (!db) return null;
+	// Los roles y los perfiles a la par (una ida); `listRoles` no tira.
+	const [roles, profiles] = await Promise.all([
+		listRoles(db),
+		pickableProfiles(db).catch((error) => {
+			logDBError('perfiles para el editor', error);
+			return [];
+		})
+	]);
+	return { roles, profiles };
 }
 
 /**

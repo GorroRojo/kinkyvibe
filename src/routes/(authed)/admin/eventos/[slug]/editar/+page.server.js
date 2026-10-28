@@ -4,15 +4,19 @@
  * que en los previews va a la capa demo), con la categoría fija en `calendario`.
  *
  * Abajo, la sección «Partes» (talleres en varias partes, docs/talleres-partes.md), con sus propias
- * acciones (`partes_*`): guardan los edges `parte` del taller en la base, aparte del editor.
+ * acciones (`partes_*`): guardan los edges `parte` del taller en la base, aparte del editor. Si el
+ * cambio toca entradas ya vendidas, contestan `needsConfirm` y el editor pregunta («Cambiar
+ * igual» vuelve a mandar con `confirm`); el cambio confirmado queda en el registro de actividad.
  *
  * Al guardar con otro inicio o fin, el cambio de fecha queda anotado (dateChange.js) y la ficha
  * ofrece «Avisar a les compradores» (nunca manda nada sola).
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB } from '$lib/server/db';
 import {
+	coveredPartsByWorkshop,
 	createWorkshopPart,
 	panelParts,
 	setHideParts,
@@ -27,6 +31,8 @@ import { readDbPostFile } from '$lib/server/contenido/repo.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { recordDateChange, scheduleFromFile } from '$lib/server/tickets/dateChange.js';
 import { siteOrigin } from '$lib/server/tickets/index.js';
+import { parseReminders, reopenRemindersForNewStart } from '$lib/server/tickets/reminders.js';
+import { getSalesSettings } from '$lib/server/tickets/settings.js';
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 
 /**
@@ -52,18 +58,35 @@ export async function load(event) {
 	return { ...base, partes };
 }
 
-/** Lo que contestan las acciones de «Partes»: el estado nuevo y el mensaje. */
 /**
+ * Lo que contestan las acciones de «Partes»: el estado nuevo y el mensaje. Con entradas vendidas
+ * y sin `confirm`, `needsConfirm` (no se guardó nada); confirmado, queda en la actividad.
+ *
  * @param {import('./$types').RequestEvent} event
- * @param {(db: import('@cloudflare/workers-types').D1Database, form: FormData, by: string) => Promise<{ ok: true, slug?: string } | { ok: false, message: string }>} run
+ * @param {(db: import('@cloudflare/workers-types').D1Database, form: FormData, by: string, confirm: boolean) => Promise<{ ok: true, slug?: string, sold?: number } | { ok: false, message: string, needsConfirm?: true }>} run
  * @param {string} done mensaje si salió bien
+ * @param {(form: FormData) => string} [logged] qué se cambió con entradas vendidas (para la actividad)
  */
-async function partesAction(event, run, done) {
+async function partesAction(event, run, done, logged) {
 	const user = requireAdmin(event.locals, event.url);
 	const db = getDB(event.platform);
 	if (!db) return fail(503, { partes: { ok: false, message: 'No hay base de datos disponible.' } });
-	const r = await run(db, await event.request.formData(), user.login);
-	if (!r.ok) return fail(400, { partes: { ok: false, message: r.message } });
+	const form = await event.request.formData();
+	const r = await run(db, form, user.login, form.get('confirm') === '1');
+	if (!r.ok) {
+		return fail(r.needsConfirm ? 409 : 400, {
+			partes: { ok: false, message: r.message, needsConfirm: Boolean(r.needsConfirm) }
+		});
+	}
+	if ('sold' in r && r.sold && logged) {
+		await logAdminAction(db, event.locals, {
+			action: 'event.parts_with_sales',
+			targetType: 'event',
+			targetId: event.params.slug,
+			summary: `${logged(form)} con ${r.sold === 1 ? '1 entrada vendida' : `${r.sold} entradas vendidas`}`,
+			detail: { sold: r.sold }
+		});
+	}
 	return {
 		partes: {
 			ok: true,
@@ -128,7 +151,43 @@ async function saveWithDateChange(event) {
 	} catch (e) {
 		console.error('[cambio de fecha] no se pudo anotar:', e);
 	}
+	try {
+		await reopenReminders(db, event.params.slug, before, scheduleFromFile(String(content)));
+	} catch (e) {
+		console.error('[cambio de fecha] no se pudieron reabrir los recordatorios:', e);
+	}
 	return result;
+}
+
+/**
+ * Si cambió el comienzo, los recordatorios que ya salieron para la fecha de antes y en la nueva
+ * todavía no tocan vuelven a quedar pendientes (`reopenRemindersForNewStart`): los de las órdenes
+ * del evento y, si es una parte de un taller con una sola entrada, los de esa parte en las órdenes
+ * del taller. Un cambio solo del fin no reenvía nada.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ * @param {import('$lib/server/tickets/dateChange.js').Schedule | null} before
+ * @param {import('$lib/server/tickets/dateChange.js').Schedule | null} after
+ */
+async function reopenReminders(db, slug, before, after) {
+	const start = after?.start ? Date.parse(after.start) : NaN;
+	const old = before?.start ? Date.parse(before.start) : NaN;
+	if (!Number.isFinite(start) || !Number.isFinite(old) || start === old) return;
+	const reminders = parseReminders((await getSalesSettings(db)).reminders);
+	let reopened = await reopenRemindersForNewStart(db, { slug, start, reminders });
+	for (const [workshop, { parts }] of await coveredPartsByWorkshop(db)) {
+		if (parts.some((p) => p.slug === slug)) {
+			reopened += await reopenRemindersForNewStart(db, {
+				slug: workshop,
+				part: slug,
+				start,
+				reminders
+			});
+		}
+	}
+	if (reopened)
+		console.log(`[cambio de fecha] ${slug}: ${reopened} recordatorio(s) de nuevo pendientes`);
 }
 
 /** @type {import('./$types').Actions} */
@@ -146,16 +205,18 @@ export const actions = {
 	partes_guardar: (event) =>
 		partesAction(
 			event,
-			(db, form, by) =>
+			(db, form, by, confirm) =>
 				setWorkshopParts(db, {
 					eventSlug: event.params.slug,
 					partSlugs: form
 						.getAll('parte')
 						.map((s) => String(s).trim())
 						.filter(Boolean),
-					by
+					by,
+					confirm
 				}),
-			'Partes guardadas.'
+			'Partes guardadas.',
+			() => 'Sumó como parte un evento'
 		),
 
 	// Parte nueva copiando el taller, con su fecha.
@@ -176,13 +237,18 @@ export const actions = {
 	partes_entradas: (event) =>
 		partesAction(
 			event,
-			(db, form, by) =>
+			(db, form, by, confirm) =>
 				setPerPartTickets(db, {
 					eventSlug: event.params.slug,
 					perPart: form.get('por_parte') === 'on',
-					by
+					by,
+					confirm
 				}),
-			'Listo.'
+			'Listo.',
+			(form) =>
+				form.get('por_parte') === 'on'
+					? 'Prendió «Entradas por parte»'
+					: 'Apagó «Entradas por parte»'
 		),
 
 	// «Si ocultás el taller, ocultar también sus partes» (docs/talleres-partes.md).

@@ -170,9 +170,11 @@ export function gorraAmountFor(gorra, amount, count) {
  * @param {boolean} tooHigh
  */
 export function gorraAmountError(gorra, tooHigh) {
-	return tooHigh
-		? ORDER_MAX_MESSAGE
-		: `Escribí un monto en pesos (sin centavos), desde ${formatARS(gorra.min)}.`;
+	if (tooHigh) return ORDER_MAX_MESSAGE;
+	// Con mínimo 0, «desde $ 0» no dice nada.
+	return gorra.min > 0
+		? `Escribí un monto en pesos (sin centavos), desde ${formatARS(gorra.min)}.`
+		: 'Escribí un monto en pesos (sin centavos).';
 }
 
 /**

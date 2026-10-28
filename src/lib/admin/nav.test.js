@@ -33,6 +33,7 @@ import {
 } from './nav.js';
 import { buildCommands, matchCommands } from './commands.js';
 import { match as soonMatcher } from '../../params/soon.js';
+import { SOON_HREFS } from './soonSections.js';
 
 /** Las rutas con página (`+page.svelte`) de `src/routes/(authed)/admin`, como URLs. */
 function adminPages() {
@@ -223,7 +224,8 @@ describe('NAV', () => {
 		expect(ids('estadisticas')).toEqual([
 			'estadisticas',
 			'estadisticas-asistencia',
-			'estadisticas-visitas'
+			'estadisticas-visitas',
+			'estadisticas-bot'
 		]);
 		expect(ids('ajustes')).toEqual([
 			'ajustes-cobros',
@@ -358,7 +360,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			['', ['entradas', 'entradas-transferencias', 'entradas-codigos', 'tienda']]
 		]);
 		expect(blocks('estadisticas')).toEqual([
-			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas']]
+			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas', 'estadisticas-bot']]
 		]);
 		expect(blocks('comunidad')).toEqual([
 			['', ['personas', 'amigues', 'cuentas']],
@@ -414,13 +416,15 @@ describe('sectionTabs (pestañas de sección)', () => {
 	});
 	it('los grupos con varias áreas suman sus secciones (sin lo que viene)', () => {
 		expect(labels('/admin/ventas')).toEqual(['Todas las ventas', 'Transferencias', 'Códigos']);
-		// Estadísticas va sola en el menú, pero desde el 11/10 tiene tres secciones (gorrite): lleva
-		// pestañas. /admin/estadisticas ya no es una página (redirige a Ventas): sin pestañas.
+		// Estadísticas va sola en el menú, pero desde el 11/10 tiene varias secciones (gorrite; la
+		// del bot, 12/10): lleva pestañas. /admin/estadisticas ya no es una página (redirige a
+		// Ventas): sin pestañas.
 		expect(sectionTabs('/admin/estadisticas')).toBe(null);
 		for (const path of [
 			'/admin/estadisticas/ventas',
 			'/admin/estadisticas/asistencia',
-			'/admin/estadisticas/visitas'
+			'/admin/estadisticas/visitas',
+			'/admin/estadisticas/bot'
 		]) {
 			expect(sectionTabs(path)).toEqual({
 				label: 'Secciones de Estadísticas',
@@ -439,6 +443,11 @@ describe('sectionTabs (pestañas de sección)', () => {
 						href: '/admin/estadisticas/visitas',
 						label: 'Visitas al sitio',
 						icon: navItem('estadisticas-visitas')?.icon
+					},
+					{
+						href: '/admin/estadisticas/bot',
+						label: 'Bot de Telegram',
+						icon: navItem('estadisticas-bot')?.icon
 					}
 				]
 			});
@@ -610,6 +619,11 @@ describe('navLink y navState', () => {
 });
 
 describe('páginas "Próximamente"', () => {
+	it('la lista sin íconos del matcher (soonSections.js) es la de las secciones de NAV', () => {
+		expect(new Set(SOON_HREFS)).toEqual(new Set(NAV.filter((i) => i.soon).map((i) => i.href)));
+		expect(SOON_HREFS.length).toBe(new Set(SOON_HREFS).size);
+		expect(Object.isFrozen(SOON_HREFS)).toBe(true);
+	});
 	it('soonItemAt y el matcher solo aceptan las URLs reservadas', () => {
 		for (const i of NAV.filter((x) => x.soon)) {
 			expect(soonItemAt(i.href)?.id).toBe(i.id);
@@ -693,8 +707,14 @@ describe('links a la ficha del evento', () => {
 		}
 		const views = (/** @type {string} */ id) =>
 			EVENT_TABS.find((t) => t.id === id)?.views?.map((v) => v.suffix);
-		expect(views('ventas')).toEqual(['/ventas', '/ordenes', '/transferencias', '/lista-espera']);
-		expect(views('mails')).toEqual(['/mail', '/mails']);
+		expect(views('ventas')).toEqual([
+			'/ventas',
+			'/ordenes',
+			'/transferencias',
+			'/lista-espera',
+			'/gastos'
+		]);
+		expect(views('mails')).toEqual(['/mail', '/mails', '/encuesta']);
 	});
 	it('eventTabOf: la pestaña y la vista de cada dirección (y de sus subpáginas)', () => {
 		const of = (/** @type {string} */ path) => {

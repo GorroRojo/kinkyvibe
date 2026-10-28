@@ -1,13 +1,14 @@
 /**
  * Feeds Atom (RFC 4287) y JSON Feed 1.1 de los eventos, el material y cada etiqueta:
  * /calendario/feed.atom, /material/feed.json, /wiki/<etiqueta>/feed.atom… (docs/seo.md). El RSS
- * de siempre (/rss) sigue igual.
+ * de siempre (/rss, src/routes/rss/rss.js) usa las mismas funciones.
  *
  * Funciones puras: reciben las publicaciones (las mismas que listan las páginas, ya filtradas por
  * quién las puede ver) y devuelven el texto del feed. Del evento va la fecha, nunca el lugar: así
  * no hay que repetir acá las reglas de privacidad de los lugares.
  */
 import { eventLead } from './eventText.js';
+import { parseSiteDate } from './dates.js';
 import { SITE_NAME, SITE_URL, absoluteUrl } from './jsonLd.js';
 
 /** Cuántas publicaciones lista cada feed (las más nuevas), como /rss. */
@@ -34,7 +35,7 @@ export const FEED_LIMIT = 50;
  */
 export function rfc3339(d) {
 	if (d === undefined || d === null || d === '') return undefined;
-	const date = d instanceof Date ? d : new Date(/** @type {any} */ (d));
+	const date = d instanceof Date ? d : parseSiteDate(/** @type {any} */ (d));
 	return isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 

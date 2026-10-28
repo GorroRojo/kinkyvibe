@@ -71,8 +71,8 @@ describe('PostListItem: venta de entradas', () => {
 		});
 		expect(cta(html)).toBeNull();
 		expect(html).not.toContain('Comprar entradas');
-		// El botón de calendario sigue igual (evento con link y abierto).
-		expect(html).toContain('<add-to-calendar-button');
+		// Sin «Añadir al calendario» en la tarjeta (ver abajo).
+		expect(html).not.toContain('Añadir al calendario');
 	});
 
 	it('evento terminado: ni botón ni aviso', () => {
@@ -101,5 +101,51 @@ describe('PostListItem: etiquetas', () => {
 		expect(chips).toEqual(['etiqueta inventada', 'otra inventada']);
 		expect(html).not.toMatch(/class="tag\b/);
 		expect(html).not.toMatch(/<a [^>]*rel="tag"/);
+	});
+});
+
+/*
+ * «Añadir al calendario» ya no va en las tarjetas de las listas (gorrite, 25/10): antes, un
+ * <button> en los eventos abiertos con link de inscripción. Ninguna tarjeta lo tiene.
+ */
+describe('PostListItem: sin «Añadir al calendario»', () => {
+	it('ningún evento lo muestra (abierto con link, cancelado, agotado, terminado, sin link)', () => {
+		for (const extra of [
+			{ link: 'https://example.com/inscripcion' },
+			{ link: 'https://example.com/inscripcion', status: 'cancelado' },
+			{ link: 'https://example.com/inscripcion', status: 'agotadas' },
+			{
+				link: 'https://example.com/inscripcion',
+				start: '2001-01-01T20:00-03:00',
+				end: '2001-01-01T22:00-03:00'
+			},
+			{}
+		]) {
+			const html = body({ post: post({ tickets: undefined, ...extra }) });
+			expect(html).not.toContain('Añadir al calendario');
+		}
+	});
+});
+
+describe('PostListItem: la copia chica de la imagen', () => {
+	const H = 'a'.repeat(64);
+	/** @param {string} html */
+	const img = (html) => html.match(/<img[^>]*>/)?.[0] ?? '';
+
+	it('una imagen de la biblioteca: el original en `src` y la copia de 360 px en `srcset`', () => {
+		const tag = img(body({ post: post({ featured: `/media/img/${H}.jpg` }) }));
+		expect(tag).toContain(`src="/media/img/${H}.jpg"`);
+		expect(tag).toContain(`srcset="/media/img/${H}-360.webp 1x"`);
+	});
+
+	it('una imagen que no es de la biblioteca (o un GIF): solo `src`', () => {
+		for (const featured of [
+			'https://kinkyvibe.ar/media/img/' + H + '.jpg',
+			`/media/img/${H}.gif`
+		]) {
+			const tag = img(body({ post: post({ featured }) }));
+			expect(tag).toContain(`src="${featured}"`);
+			expect(tag).not.toContain('srcset');
+		}
 	});
 });

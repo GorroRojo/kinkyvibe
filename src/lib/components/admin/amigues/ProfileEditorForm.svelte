@@ -233,7 +233,7 @@
 	{#if kind === 'proyecto'}
 		<label class="kv-check">
 			<input type="checkbox" name="show_members" bind:checked={values.show_members} />
-			Mostrar integrantes (solo los que aceptaron y se pueden ver)
+			Mostrar integrantes (solo quienes aceptaron y se pueden ver)
 		</label>
 	{/if}
 
@@ -301,7 +301,9 @@
 	<details class="contact">
 		<summary>Contacto y otros datos de la ficha</summary>
 		<p class="kv-note">
-			Los cargó cada amigue en su ficha pública. La página no los muestra (como antes).
+			Se muestran en el sitio: el mail y el teléfono (en la página del perfil, en «Guardar en tus
+			contactos» y en los datos para buscadores) y la ocupación (en la lista de Amigues). No se
+			muestran: el cumpleaños y la identidad de género.
 		</p>
 		<div class="kv-grid-2">
 			<label class="kv-field"
@@ -329,6 +331,19 @@
 		<input type="checkbox" name="unlisted" bind:checked={values.unlisted} />
 		No listar en /amigues (se puede abrir con el link)
 	</label>
+
+	{#if kind === 'persona'}
+		<label class="kv-check">
+			<input type="checkbox" name="noindex" bind:checked={values.noindex} />
+			No aparecer en buscadores (sigue en /amigues y se abre con el link)
+		</label>
+		<p class="kv-note">
+			Lo eligen quienes gestionan el perfil desde Mi rincón (apagado por defecto). Prendido: la
+			página lleva <code>noindex</code>, sale del sitemap y de IndexNow, va sin datos estructurados
+			y la vista previa al compartir no lleva la foto ni la presentación. No borra lo que Google u
+			otros sitios ya guardaron: Google tarda en sacarlo.
+		</p>
+	{/if}
 
 	{#if err('form')}<p class="kv-flash bad">{err('form')}</p>{/if}
 

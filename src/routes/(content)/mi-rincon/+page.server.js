@@ -1,8 +1,8 @@
 /**
  * "Mi rincón": la cuenta del público (docs/cuentas.md). Mail, contraseña (poner, cambiar,
- * sacar), compras de ese mail (solo lectura), «Mis datos» (lo guardado para la compra: ver,
- * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Sin
- * sesión, lleva a /ingresar.
+ * sacar), compras de ese mail (solo lectura, con «¿Son tuyas?» para las gratis hechas sin
+ * sesión), «Mis datos» (lo guardado para la compra: ver, cambiar, borrar), cerrar sesión (acá o
+ * en todos lados) y borrar la cuenta. Sin sesión, lleva a /ingresar.
  *
  * La sesión dura para siempre, así que tocar la contraseña y borrar la cuenta piden además un
  * código fresco por mail, del mismo `purpose` que la acción (?/confirmar lo manda; la acción lo
@@ -20,8 +20,21 @@ import {
 } from '$lib/server/cuentas/accounts.js';
 import { READING_SPEEDS, parseReadingSpeed } from '$lib/utils/readingTime.js';
 import { passwordProblem } from '$lib/server/cuentas/password.js';
-import { ordersForAccount } from '$lib/server/cuentas/orders.js';
-import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
+import {
+	chooseFreeOrder,
+	ordersForAccount,
+	verifiedEmail,
+	unconfirmedFreeOrders
+} from '$lib/server/cuentas/orders.js';
+import {
+	SESSION_COOKIE,
+	destroyOtherSessions,
+	endSessionById,
+	listSessions,
+	sessionIdOfToken
+} from '$lib/server/cuentas/session.js';
+import { unlinkAccount } from '$lib/server/telegram/link.js';
+import { revokeFeeds } from '$lib/server/series/feeds.js';
 import {
 	checkConfirmCode,
 	closeAccount,
@@ -30,9 +43,13 @@ import {
 } from '$lib/server/cuentas/index.js';
 import { clientOf, endSession, mailSender, requireCuentas } from '$lib/server/cuentas/web.js';
 import { getEventInfo } from '$lib/server/tickets/events.js';
+import { readWorkshop } from '$lib/server/eventos/partes.js';
+import { partsCoveredBy, ticketDate, ticketParts } from '$lib/utils/partes.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
+import { rolOrganizadoreEnabled } from '$lib/server/flags.js';
 import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
+import { myClaims } from '$lib/server/amigues/claims.js';
 import {
 	editSavedBuyer,
 	isSavedBuyerField,
@@ -61,42 +78,118 @@ async function requireMember(event) {
 export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member } = await requireMember(event);
-	const account = await getAccount(db, member.id);
+	// La base está lejos: lo que no depende de otra cosa se lee a la par. La velocidad de lectura
+	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
+	// Prototipo de organizadores (interruptor `rol_organizadore`, docs/cuentas.md): la tarjeta
+	// «Eventos que organizás», con lo de perfiles. Se pide ya y se espera abajo.
+	const organizoRead = rolOrganizadoreEnabled(event.platform);
+	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, claims, sessions] =
+		await Promise.all([
+			getAccount(db, member.id),
+			// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
+			// parte 2). No van en la lista hasta que la persona dice que son suyas.
+			verifiedEmail(db, member.id)
+				.then((email) =>
+					Promise.all([
+						ordersForAccount(db, member.id, { email }),
+						unconfirmedFreeOrders(db, member.id, { email })
+					])
+				)
+				.then(
+					([orders, unconfirmed]) => ({ orders, unconfirmed, error: false }),
+					(e) => {
+						logDBError('cuentas: compras', e);
+						return {
+							orders: /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]),
+							unconfirmed: /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]),
+							error: true
+						};
+					}
+				),
+			// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
+			getSavedBuyer(db, member.id).then(
+				(saved) => ({ saved, error: false }),
+				() => {
+					console.error('[cuentas] no se pudieron leer los datos guardados');
+					return {
+						saved: /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({}),
+						error: true
+					};
+				}
+			),
+			member.canHaveProfiles ?? canHaveProfiles(db, member.id),
+			// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
+			// calendario personal (docs/lo-que-sigo.md).
+			sigoEnabled(event.platform),
+			member.readingSpeed !== undefined
+				? member.readingSpeed
+				: getReadingSpeed(db, member.id).catch(() => null),
+			// Los pedidos «¿Es tu perfil?» de la cuenta, con su estado (pendiente, aprobado, no
+			// aprobado). Si falla, la tarjeta no sale.
+			myClaims(db, member.id).catch((e) => {
+				logDBError('cuentas: pedidos de perfiles', e);
+				return [];
+			}),
+			// «Dónde tenés la sesión abierta»: solo las de esta cuenta. Si falla, la tarjeta lo dice.
+			listSessions(db, member.id, event.cookies.get(SESSION_COOKIE)).catch((e) => {
+				logDBError('cuentas: sesiones', e);
+				return null;
+			})
+		]);
 	if (!account) {
 		await endSession(event, db);
 		redirect(303, LOGIN);
 	}
-	let orders = /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]);
-	let ordersError = false;
-	try {
-		orders = await ordersForAccount(db, account.id);
-	} catch (e) {
-		logDBError('cuentas: compras', e);
-		ordersError = true;
-	}
-	// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
-	let saved = /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({});
-	let savedError = false;
-	try {
-		saved = await getSavedBuyer(db, account.id);
-	} catch {
-		console.error('[cuentas] no se pudieron leer los datos guardados');
-		savedError = true;
-	}
+	const { orders, unconfirmed, error: ordersError } = ordersRead;
+	const { saved, error: savedError } = savedRead;
+	// El título y la fecha de cada evento de las compras, todos a la par. En un taller de varias
+	// partes con una sola entrada, la fecha de la parte que toca (la primera que no pasó; si
+	// pasaron todas, la última), como «Mis entradas» del bot (docs/talleres-partes.md).
+	const slugs = [...new Set([...orders, ...unconfirmed].map((o) => o.event_slug))];
+	const [infos, workshops] = await Promise.all([
+		Promise.all(slugs.map((slug) => getEventInfo(slug))),
+		Promise.all(
+			slugs.map((slug) =>
+				readWorkshop(db, slug).catch(() => {
+					// Sin las partes, la fecha del taller (la de la parte 1), como antes.
+					console.error('[cuentas] compras: no se pudieron leer las partes de un taller');
+					return null;
+				})
+			)
+		)
+	]);
+	const now = Date.now();
 	/** @type {Map<string, { title: string, start: string | null } | null>} */
-	const events = new Map();
-	for (const o of orders) {
-		if (!events.has(o.event_slug)) events.set(o.event_slug, await getEventInfo(o.event_slug));
-	}
+	const events = new Map(
+		slugs.map((slug, i) => {
+			const info = infos[i];
+			const parts = ticketParts(partsCoveredBy(workshops[i], slug));
+			if (!info || !parts) return [slug, info];
+			return [
+				slug,
+				{ ...info, start: ticketDate({ start: info.start, end: null, parts }, now).start }
+			];
+		})
+	);
+	/** @param {(typeof orders)[number]} o */
+	const listed = (o) => ({
+		id: o.id,
+		reference: orderReference(o.id),
+		event: events.get(o.event_slug)?.title ?? o.event_slug,
+		eventStart: events.get(o.event_slug)?.start ?? null,
+		quantity: o.quantity,
+		total: o.total,
+		status: o.status,
+		createdAt: o.created_at
+	});
 	return {
 		email: account.email,
 		hasPassword: account.has_password,
 		createdAt: account.created_at,
 		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
-		canHaveProfiles: await canHaveProfiles(db, account.id),
-		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
-		// calendario personal (docs/lo-que-sigo.md).
-		sigoOn: await sigoEnabled(event.platform),
+		canHaveProfiles: profilesOk,
+		sigoOn,
+		organizoOn: Boolean(profilesOk) && (await organizoRead),
 		ordersError,
 		saved: {
 			name: saved.name ?? '',
@@ -106,17 +199,13 @@ export async function load(event) {
 		},
 		savedError,
 		// La velocidad de lectura de la cuenta (null: la de siempre). $lib/utils/readingSpeed.js.
-		readingSpeed: await getReadingSpeed(db, account.id).catch(() => null),
-		orders: orders.map((o) => ({
-			id: o.id,
-			reference: orderReference(o.id),
-			event: events.get(o.event_slug)?.title ?? o.event_slug,
-			eventStart: events.get(o.event_slug)?.start ?? null,
-			quantity: o.quantity,
-			total: o.total,
-			status: o.status,
-			createdAt: o.created_at
-		}))
+		readingSpeed,
+		orders: orders.map(listed),
+		unconfirmed: unconfirmed.map(listed),
+		claims,
+		// Sin el token ni su hash: cada una con su id público (session.js).
+		sessions,
+		now: Date.now()
 	};
 }
 
@@ -270,6 +359,8 @@ export const actions = {
 			});
 		try {
 			const saved = await setReadingSpeed(db, member.id, wpm);
+			// Sin JavaScript, el layout y la página se cargan en este mismo pedido: que vean lo nuevo.
+			member.readingSpeed = saved;
 			return {
 				action: 'velocidad',
 				message:
@@ -323,6 +414,30 @@ export const actions = {
 		}
 	},
 
+	// «¿Son tuyas?»: «Sí, son mías» (mine=1) la pasa a la lista; «No es mía» (mine=0) la saca.
+	elegirOrden: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const orderId = field(form, 'orden');
+		const mine = field(form, 'mine');
+		if (!orderId || (mine !== '1' && mine !== '0'))
+			return fail(400, { action: 'elegirOrden', error: 'No sabemos qué elegiste.' });
+		try {
+			const ok = await chooseFreeOrder(db, { accountId: member.id, orderId, mine: mine === '1' });
+			if (!ok) return fail(404, { action: 'elegirOrden', error: 'No encontramos esas entradas.' });
+		} catch (e) {
+			logDBError('cuentas: elegir orden gratis', e);
+			return fail(500, { action: 'elegirOrden', error: 'No se pudo. Probá de nuevo.' });
+		}
+		return {
+			action: 'elegirOrden',
+			message:
+				mine === '1'
+					? 'Listo: las sumamos a tus compras y entradas.'
+					: 'Listo: no te las mostramos más.'
+		};
+	},
+
 	salir: async (event) => {
 		const db = await requireCuentas(event.platform);
 		try {
@@ -339,12 +454,55 @@ export const actions = {
 		const { db, member } = await requireMember(event);
 		try {
 			await destroyOtherSessions(db, member.id, undefined);
+			// «En todos lados» también corta lo que no es una sesión: el Telegram vinculado y el link
+			// del calendario personal (quien tenía el celu o la cuenta los podía seguir usando).
+			await unlinkAccount(db, member.id);
+			await revokeFeeds(db, member.id);
 			await endSession(event, db);
 		} catch (e) {
 			logDBError('cuentas: cerrar todas las sesiones', e);
 			return fail(500, { action: 'sesiones', error: 'No se pudo. Probá de nuevo.' });
 		}
 		redirect(303, '/ingresar?salida=todas');
+	},
+
+	// «Dónde tenés la sesión abierta» → «Cerrar esta». Solo entre las sesiones de esta cuenta
+	// (endSessionById); si es la de este navegador, es salir.
+	cerrarSesion: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const id = field(form, 'sesion');
+		const token = event.cookies.get(SESSION_COOKIE);
+		let wasCurrent = false;
+		try {
+			if (id && id === (await sessionIdOfToken(token))) {
+				await endSession(event, db);
+				wasCurrent = true;
+			} else if (!(await endSessionById(db, member.id, id))) {
+				return fail(404, { action: 'dispositivos', error: 'Esa sesión ya no estaba abierta.' });
+			}
+		} catch (e) {
+			logDBError('cuentas: cerrar una sesión', e);
+			return fail(500, { action: 'dispositivos', error: 'No se pudo. Probá de nuevo.' });
+		}
+		// El inicio muestra «Saliste de tu cuenta» (src/routes/(content)/+layout.svelte).
+		if (wasCurrent) redirect(303, '/?salida=1');
+		return { action: 'dispositivos', message: 'Listo: cerramos esa sesión.' };
+	},
+
+	// «Cerrar todas las demás»: todas menos la de este navegador.
+	cerrarOtras: async (event) => {
+		const { db, member } = await requireMember(event);
+		const token = event.cookies.get(SESSION_COOKIE);
+		// Sin la cookie no hay «esta» que dejar abierta (no debería pasar con sesión).
+		if (!token) return fail(400, { action: 'dispositivos', error: 'No se pudo. Probá de nuevo.' });
+		try {
+			await destroyOtherSessions(db, member.id, token);
+		} catch (e) {
+			logDBError('cuentas: cerrar las otras sesiones', e);
+			return fail(500, { action: 'dispositivos', error: 'No se pudo. Probá de nuevo.' });
+		}
+		return { action: 'dispositivos', message: 'Listo: cerramos todas tus otras sesiones.' };
 	},
 
 	borrar: async (event) => {

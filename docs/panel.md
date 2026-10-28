@@ -5,8 +5,9 @@
 `/admin` es donde la organización maneja el sitio sin tocar código: cargar y editar eventos,
 material y amigues, ver las ventas, confirmar transferencias, controlar el ingreso en la puerta,
 mandar mails a quienes compraron, ajustar cobros, el Fondo y los textos de los mails, y ver quién
-cambió qué. Se entra con la cuenta de GitHub (solo las cuentas de la lista de admins). Anda en la
-compu y en el celu, arranca en tema claro y tiene un buscador (`/` o Ctrl/⌘+K, ver
+cambió qué. Se entra con la cuenta de GitHub (solo las cuentas de la lista de admins; el login no
+le pide permisos a GitHub, solo lee el id de la cuenta). Anda en la compu y en el celu, arranca
+en tema claro y tiene un buscador (`/` o Ctrl/⌘+K, ver
 [El buscador](#el-buscador)) que encuentra eventos, órdenes, entradas, códigos, personas, perfiles
 y etiquetas (y cada sección por sus palabras: «pie de mail», «alias», «reembolso»…,
 `NAV_KEYWORDS` en `src/lib/admin/commands.js`).
@@ -64,9 +65,13 @@ nombre, qué hay (`desc` del ítem) y una **línea de estado** («Mercado Pago y
 (fijado a mano)», «2 textos cambiados», «3 admins», «4 en prueba», «Todo al día», «Último cambio:
 hace 5 min»…), resaltada si hay algo para mirar. La arma `src/lib/server/admin/ajustesStatus.js`
 con una sola tanda a la base (ajustes guardados, interruptores, lo último del registro, propinas
-aprobadas) más lo de Automatizaciones; una tarjeta sin un dato barato y claro no lleva línea (el
-Fondo, si no hay uno fijado a mano ni llegó ninguno automático; cualquier parte que no se pudo
-leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
+aprobadas) más lo de Automatizaciones; una tarjeta sin un dato barato y claro no lleva línea
+(cualquier parte que no se pudo leer). El Fondo dice el fijado a mano o el último porcentaje
+automático guardado; si todavía no llegó ninguno, «Automático (todavía no llegó el porcentaje)» y
+lo busca en segundo plano (`waitUntil`, como la página del evento): la portada nunca lo espera y
+la próxima vez ya dice el porcentaje. El Fondo automático dice de cuándo es si el último dato tiene
+más de un día («12 % de cada entrada (último dato hace 30 h)»): con fondo.kinkyvibe.ar caído se
+sigue cobrando ese (auditoría de confiabilidad, O36). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
 `NAV_GROUPS`, y cada página de Ajustes vuelve a la portada con «← Ajustes» (`areaBackLink`).
 
 **Opción C, parte 2** (gorrite, 11/10; [decisión 0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)):
@@ -93,7 +98,8 @@ leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene
   «Sección: Órdenes ▾» de ancho entero, lleno de violeta (la navegación principal
   de la página), que abre la lista; sin tira que se desliza. En la ficha del evento, las acciones
   del encabezado bajan debajo de las pestañas, más chicas: Editar y «⋯ Acciones» (Ver página,
-  Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»).
+  Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»). Desde
+  el 12/10 `menu` es lo de siempre en `Tabs`: una barra nueva también pasa a la lista (gorrite).
 - **Más ágil**: mientras SvelteKit trae la página siguiente (`$navigating`) hay una barrita de 3
   px arriba de todo (aparece después de 120 ms, así lo rápido no parpadea; quieta con movimiento
   reducido) y el link o botón que se tocó queda «cargando» (`data-pending` y `aria-busy`, estilo
@@ -125,14 +131,17 @@ junta lo que eran tres pestañas y **Mails** lo que eran dos: cada parte es una 
 pestaña (`views`), con su URL de siempre, y la ficha las muestra como botones (`.kv-segmented`)
 debajo de las pestañas:
 
-| Pestaña | Vistas (URL)                                                                                                                |
-| ------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo) |
-| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`)                                              |
+| Pestaña | Vistas (URL)                                                                                                                                                                                                                           |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo), Gastos y reparto (`/gastos`, prototipo con el interruptor `gastos_reparto`, ver [tickets.md](tickets.md)) |
+| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`)                                                                                                                                                         |
 
 Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
-y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). La pestaña
+y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). Una orden
+tiene su link: `/ordenes#orden-<id>` (`orderHref` en `src/lib/admin/orderFormat.js`, que usa la
+Puerta); la página baja hasta ella, la marca y, si el filtro «Mostrar» la escondía, pasa a
+«Todas». La pestaña
 Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes,
 Transferencias y Lista de espera, los suyos (en la lista, las anotaciones vivas). En el celu,
 con 4 vistas (Ventas con la lista de espera) los botones no entran en una fila: son una grilla de
@@ -153,20 +162,20 @@ sección (Etiquetas), que usan la URL del área.
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | —            | Inicio (`/admin`)                                                                                                                                                                                                                                                                                                                                         | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                                                                                                                                |
 | Puerta       | Puerta (`/admin/checkin`)                                                                                                                                                                                                                                                                                                                                 | elegir el evento y abrir su modo puerta (`/admin/eventos/<slug>/ingreso`)                                                                                                                                                                                                                                                         |
-| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`, fuera del menú: botón en Eventos), Agenda (`/agenda`, + Importar planilla en `/importar`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                                            | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
+| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`, fuera del menú: botón en Eventos), Agenda (`/agenda`, + Importar planilla en `/importar` y Agenda impresa en `/agenda-impresa`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                      | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
 | Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                                                   | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                                      |
 | Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                                                           | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                                    |
-| Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                                                                                                                     | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas                                                                                                                                                                                                                                      |
-| Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`)                                                                                                                                                                                                                                                                              | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                                                                                                             |
+| Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`), Lo que sigo (`/lo-que-sigo`) · próximamente: Bandeja (`/admin/mensajes`, fase 5)                                                                                                                                                                                             | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas, el estado de «Lo que sigo» en números ([lo-que-sigo.md](lo-que-sigo.md#en-el-panel))                                                                                                                                                |
+| Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`, + Enlaces que faltan en `/falta`, [enlaces.md](enlaces.md))                                                                                                                                                                                                                  | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                                                                                                             |
 | Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                                                                                                                                                     | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                                                                                                                              |
-| Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`); `/admin/estadisticas` redirige a Ventas                                                                                                                                                                                                    | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)). Ver «Estadísticas» abajo                                                                                                                                                                         |
+| Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`), Bot de Telegram (`/bot`); `/admin/estadisticas` redirige a Ventas                                                                                                                                                                          | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)); uso del bot ([telegram.md](telegram.md)). Ver «Estadísticas» abajo                                                                                                                               |
 | Ajustes      | Portada (`/admin/ajustes`) · Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), Propinas (`/propinas`) · Comunicación: Vistas previas al compartir (`/vistas-previas`), Textos del bot (`/textos-bot`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Automatizaciones (`/automatizaciones`), Actividad (`/actividad`) | datos para transferir y comisión de MP, % del Fondo, propinas, textos de la vista previa al compartir un link, todo lo que dice el bot de Telegram, lista de admins, interruptores, lo que corre solo (crons, mails programados, bot; para mirar, más «Actualizar comandos del bot»), registro (con CSV y "Recuperar" lo borrado) |
 
 **Ficha de una persona** (`/admin/comunidad/personas/<id>`, con un id corto sacado del mail; nunca
 el mail en la URL). Es una sola ficha con todo lo que sabemos de alguien, encontrada por el mail
 normalizado (sin espacios ni mayúsculas) y por su cuenta: Notas internas (arriba, después del
 resumen), Cuenta (fechas, contraseña sí/no, sesiones,
-«Mis datos», permiso para tener perfiles), Compras (todas las órdenes por cuenta o por mail, con
+«Mis datos», permiso para tener perfiles, suspensión), Compras (todas las órdenes por cuenta o por mail, con
 entradas, respuestas, recordatorios y mails a compradores), Perfiles (los que gestiona, pedidos «Es
 mi perfil», invitaciones y los eventos donde participan), Lo que sigue (seguimientos, avisos,
 series, calendario y Telegram: nunca tokens ni el id del chat) y Actividad. La
@@ -175,27 +184,67 @@ cuenta borrada), así que los links viejos siguen andando. Las notas internas va
 cuenta borrada ya no tiene mail, así que sus notas quedan atadas a la cuenta (`account_id`,
 migración 0045, con `email` vacío). Borrar una nota pide confirmar y se recupera desde Actividad
 (`deleted_at`, migración 0049; decisión 0033). El DNI no viene con la página: cada
-«Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Propinas y códigos
+«Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Abrir la ficha
+también queda en Actividad (`person.view`, «Abrió la ficha de una persona», sin el mail), una vez
+por admin, persona y día de Argentina, y no se lista en la Actividad de la misma ficha. Propinas y códigos
 de ingreso no se pueden atar a una persona y no aparecen. Código: `src/lib/server/admin/ficha.js`
 (una sola tanda de consultas), `fichaRoutes.js` y `src/lib/components/admin/personas/Ficha.svelte`.
 
-**Estadísticas** (tres pestañas, decisión de gorrite del 11/10). Cada pestaña lee **solo su
-fuente** y tiene su período en la URL (`?periodo=`), así un link se puede compartir:
+**Estadísticas** (tres pestañas, decisión de gorrite del 11/10; la cuarta, la del bot, desde el
+12/10). Cada pestaña lee **solo su fuente** y tiene su período en la URL (`?periodo=`), así un link
+se puede compartir:
 
 - **Ventas en el tiempo** (`/admin/estadisticas/ventas`, id `estadisticas`: el atajo `g s` y el
   buscador siguen yendo acá): entradas, cobrado y entrada promedio (con el cambio contra el período
   anterior), ventas en el tiempo, por serie, cómo pagan, opciones del fondo y Fondo y finanzas.
   Períodos 30 días / 90 días / **12 meses** (por defecto) / Todo, y filtro de serie (`?serie=`,
-  el slug sin la fecha, como «Por serie»). Lee las órdenes filtradas por fecha de compra en SQL
-  (desde el comienzo del período anterior, para comparar).
+  el slug sin la fecha, como «Por serie»). Los números, «Por serie», «Cómo pagan», las opciones del
+  fondo y «Fondo y finanzas» cuentan por el **mes del evento** (ver «Ventas por mes» abajo): las
+  ventas de los eventos que empiezan desde el comienzo del período hasta el fin del mes en curso.
+  Solo el gráfico «Ventas en el tiempo» va por **fecha de compra** (muestra cuándo se vendió). Lee
+  en SQL las órdenes compradas, o de eventos que empiezan, desde el comienzo del período anterior
+  (para comparar).
 - **Asistencia** (`/asistencia`): vinieron (check-in), personas que entraron, primera vez y
   vuelven (con el período anterior), vendidas y entraron, primera vez y vuelven, vuelven a la misma
   serie, vuelven por serie y asistencia por evento. Mismos períodos, por defecto 12 meses; cuentan
   los eventos que ya pasaron y **empezaron** en el período. Lee todas las órdenes: «primera vez» y
-  «ya habían venido» necesitan la historia completa.
+  «ya habían venido» necesitan la historia completa. Una venta sin mail (en la puerta es opcional)
+  no cuenta como persona, ni acá ni en «Personas» de Ventas.
 - **Visitas al sitio** (`/visitas`): las visitas anónimas ([analiticas.md](analiticas.md)), 7 /
   **30** (por defecto) / 90 días. Analytics Engine guarda el detalle unos 3 meses: más atrás solo
   quedan los totales por mes de `analytics_monthly`, y la página lo dice. Nunca lee las órdenes.
+- **Bot de Telegram** (`/bot`): las estadísticas de uso del bot (decisión
+  [0045](decisiones/0045-estadisticas-del-bot.md), [telegram.md](telegram.md) «Estadísticas de
+  uso»): quién lo usó en 7 / **30** (por defecto) / 90 días, con sus interacciones y el último día;
+  los totales por tipo de las últimas 12 semanas; y el detalle de una semana (`?semana=AAAA-Wss`),
+  con lo buscado y las cosas solo desde 5 veces y solo si esa semana lo usaron 5 personas o más
+  (los umbrales, en la consulta). Lee solo las dos tablas del bot (y el vínculo con cuentas y
+  admins); nunca las órdenes.
+
+**Ventas por mes** (decisión de gorrite, Mesa `plata-numeros-panel`): todo número de ventas por
+mes del panel cuenta cada orden en el **mes del evento**, no en el de la compra ni en el de la
+aprobación. Vale para «Entradas este mes» del Inicio y para Estadísticas › Ventas (números de
+arriba y «Fondo y finanzas» por mes), así cierran entre sí:
+
+- Cuenta el **comienzo** del evento (`start`; en la base, la columna `start_at` de `objects`). Un
+  evento de varios días (un taller en partes, un fin de semana) cuenta entero en el mes en que
+  empieza.
+- El mes es el calendario de **Argentina** (UTC−3): un evento que empieza el 31/10 a las 22:00 es
+  de octubre aunque en UTC ya sea 1/11, y uno del 1/11 a las 00:30 es de noviembre.
+- Si el evento ya no está en la base, la orden cuenta por su fecha de compra (para que esa plata no
+  desaparezca).
+- Las propinas «Para el Fondo» que suma el «Neto del fondo» del Inicio no tienen evento: van por su
+  fecha de aprobación.
+- «Recaudado» y lo neto restan los reembolsos parciales hechos en Mercado Pago, y lo neto usa la
+  comisión que cobró MP cuando el pago la informó; si no, la estimada con la tasa de Ajustes, y lo
+  dice («Neto estimado»; en un mes mezclado, cuánto de la comisión es estimado). Detalle en
+  [tickets.md](tickets.md#meta-de-venta).
+- No cambian: «Ventas en el tiempo» y «Ventas por día» de la ficha (fecha de compra, muestran cuándo
+  se vendió), ni los totales por evento.
+
+Código: `src/lib/server/admin/saleMonth.js` (`SALE_AT_SQL` y `saleAt`, una sola definición),
+`monthMoneyQuery` (`inicio.js`), `loadPeopleOrders` (`event_start`), `salesPage` (`statsPages.js`),
+`computeStats` y `lastMonths` (`stats.js`, meses en hora de Argentina) y `fondoByMonth` (`charts.js`).
 
 Ventas y Asistencia nunca llaman a Analytics Engine. `/admin/estadisticas` redirige a Ventas (una de
 las dos redirecciones del panel, ver «Mover una URL»). Código: `src/lib/admin/statsPeriod.js`
@@ -266,6 +315,19 @@ revisar" del Inicio.
   eventos próximos sin imagen», «2 perfiles nuevos para revisar», el chequeo nocturno con sus
   problemas o las etiquetas. Si la tarjeta tiene 7 filas, el botón dice 7 y el Inicio dice «7 cosas
   para revisar». Sin filas, «todo al día».
+- **Entradas con la configuración rota** (auditoría de confiabilidad, O19): un evento próximo y no
+  cancelado que tiene entradas pero cuya configuración ya no se puede leer (una regla endurecida
+  después, un dato editado a mano) no vende y la ficha lo muestra como «no vende». Con la opción
+  `broken`, `listTicketedEvents` (`src/lib/server/tickets/events.js`) los anota y «Para revisar»
+  suma una fila por evento («… no puede vender entradas: su configuración tiene un error», con el
+  error de validación y «Editar»).
+- **Cuando la base falla, el Inicio lo dice** (auditoría de confiabilidad, O18): cada consulta que
+  cae a su respaldo por un error queda anotada (el parámetro `failed` de `runQuery` y `runQueries`
+  en `src/lib/server/db/batch.js`, que pasa también por `combineQueries` y `mapQuery`) y el load
+  devuelve `unreadable`, solo con sus nombres (sin SQL ni mensajes de error). Arriba aparece en rojo
+  «No pudimos leer: … Lo que ves puede estar incompleto; si sigue así, avisale a gorrite.», y ni el
+  saludo ni la tarjeta vacía dicen «todo al día». El contador del menú y Ajustes no lo muestran
+  todavía (Ajustes ya usa `null` como «no se pudo leer»).
 - **Una sola fuente**: `src/lib/server/admin/review.js`. `reviewRows()` arma las filas (con los
   constructores de `inicio.js`: `reviewItems`, `transferMissingItem`, `onlineMismatchItem`,
   `profileReviewItems`, `claimReviewItems`, `groupReviewItems`, `integrityReviewRow`, y los de las
@@ -275,10 +337,16 @@ revisar" del Inicio.
   depende de los eventos que vienen) y `reviewTagUsage` (el uso de las etiquetas). Nada de esto le
   pide algo a GitHub. Los tests `para-revisar.test.js` e `inicio-tanda.test.js` siembran casos y
   comprueban que el botón dice lo mismo que la tarjeta.
-- **Las filas**: «Transferencia» tildada sin datos para
-  transferir, transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
-  pago duplicado o una venta en la puerta sin conexión que pasó un límite, decisión 0035), mails que no
-  salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
+- **Las filas**: primero, una roja por cada pausa de emergencia prendida (`TICKETS_PAUSED`,
+  `MAILS_PAUSED`; `pauseItems`, lleva a Ajustes › Interruptores, [interruptores.md](interruptores.md#pausas-de-emergencia)),
+  después «Transferencia» tildada sin datos para
+  transferir, eventos cancelados con algo por devolver (una por evento: órdenes aprobadas sin
+  reembolsar y transferencias vigentes, aunque el evento ya haya pasado; decisión 0044),
+  transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
+  pago duplicado o una venta en la puerta sin conexión que pasó un límite o quedó registrada con otro total que el
+  que se cobró, decisión 0035), mails que no
+  salieron (hasta 20), el cupo de Resend terminado (un día después del último 429 por cupo; ver
+  [mails.md](mails.md)), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
   Lista de espera del evento más reciente), cupos sobrevendidos, links de transmisión que
   faltan, recordatorios que no salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
   son 2 o más), eventos con lugar y etiqueta «Online», perfiles nuevos y pedidos «Es mi perfil»
@@ -310,7 +378,8 @@ revisar" del Inicio.
   «Lista de espera: N»).
   Cuentas por alcance, la fila en orden, lo terminado y el CSV (con los mails: dato personal).
   Acciones, cada una con su diálogo y en Actividad sin el mail (`waitlist.*`): «Terminar la reserva
-  y pasar a la siguiente», «Sacar de la lista», «Ofrecer ahora», «Cerrar la lista» (termina las
+  y pasar a la siguiente» (el diálogo pregunta si le avisamos por mail, con «Mandarle un mail a …»
+  marcada; Actividad dice «con mail» o «sin mail»; gorrite, 12/10), «Sacar de la lista», «Ofrecer ahora», «Cerrar la lista» (termina las
   anotaciones y además la apaga en el evento: saca `lista_espera` del archivo; gorrite, 12/10) y
   «Volver a probar» los mails que no salieron. Con la lista apagada, la vista avisa y muestra lo
   que quedó.
@@ -385,7 +454,12 @@ con lo que depende de ellos (totales, links, envíos fallidos, recordatorios). S
 consultas que el Inicio (`reviewQueries` y `reviewEventQueries` en `src/lib/server/admin/review.js`):
 consultas chicas, por índice, que devuelven pocas filas (una por evento, hasta 20 mails, hasta 50
 órdenes…). Fuera de las tandas y a la par: la lista de eventos y el uso de las etiquetas (los posts
-de la base, que el isolate recuerda mientras la base no cambie). Si una
+de la base, que el isolate recuerda mientras la base no cambie). Esas lecturas no esperan una a
+la otra: cada categoría de posts, los perfiles y la wiki van a la par (`allMeta` y `fichaMetas`),
+la lectura de qué eventos tienen lugar sale a la par de la lista (`listTicketedEvents` y
+`getEventTickets`, que la usan solo si hace falta), y en la ficha de un evento, una vez sabida su
+venta, los contadores, el aviso de cambio de fecha, la lista de espera y el chip del taller van
+juntos (el 404 sigue saliendo antes). Lo mide `npm run medir:panel` ([pruebas-y-ci.md](pruebas-y-ci.md)). Si una
 consulta de la tanda falla (por ejemplo, falta una migración), cada una se corre sola con su
 respaldo, como antes. Para sumar algo al Inicio: un `…Query` en `src/lib/server/admin/inicio.js`
 (ver `src/lib/server/db/batch.js`) y una línea en la tanda que corresponda; el test
@@ -431,7 +505,8 @@ cambia datos ni la venta, y no bloquea guardar. Una sola función decide:
   que va a las etiquetas del editor. Saber qué eventos tienen lugar vinculado es una consulta más
   para todos (`listEventVenues`); sin base, mira solo el texto libre.
 
-**Celu**: la barra de abajo sigue igual (Inicio, Eventos, Puerta, Ventas, Más). "Más" muestra
+**Celu**: la barra de abajo sigue igual (Inicio, Eventos, Puerta, Ventas, Más). "Ventas" lleva el
+número de transferencias por confirmar y, cuando hay alguna, abre Transferencias. "Más" muestra
 las áreas y, al tocar una, sus secciones. Cuando llegue la Bandeja (fase 5), el cuarto lugar pasa a
 ser "Para revisar".
 
@@ -439,7 +514,10 @@ ser "Para revisar".
 `soon: true, phase: N` y un `soonText`. Se ven al final de su área, grises y punteadas, con
 «Próximamente», y **no son links** (no hay nada que abrir todavía); su URL reservada igual abre una sola página genérica "Próximamente" (`[...section=soon]`, con el
 matcher `src/params/soon.js`) que dice qué va a hacer. Cada persona puede esconderlas con «Ocultar
-lo que viene» en su menú de usuario (en el navegador, con try/catch).
+lo que viene» en su menú de usuario (en el navegador, con try/catch). El matcher va en el
+JavaScript de todas las páginas del sitio, así que no importa `nav.js` (con sus íconos): mira la
+lista de URLs de `src/lib/admin/soonSections.js`, que `nav.test.js` compara con las secciones
+`soon: true` de `nav.js`. Al sumar, construir o sacar una, se cambian las dos.
 
 **Atajos de teclado** (en la compu). `/` o Ctrl/⌘+K abren el buscador, `?` la hoja de atajos y
 `g` + una letra va a una sección (`GO_SHORTCUTS` en `src/lib/admin/commands.js`; la hoja de `?`,
@@ -484,6 +562,91 @@ Cómo se descubren (`src/lib/admin/shortcutHints.js`):
    apagado la página da 404, `hiddenWhenOff: true` y no se muestra.
 3. **Lista**: se prende el interruptor; cuando el interruptor desaparece, se borra `flag`.
 4. **Descartada**: se borra el ítem.
+
+**Conector de Claude** (interruptor `conector_claude`, apagado; [conector-claude.md](conector-claude.md)):
+cada admin puede sumar el sitio como conector en claude.ai y pedirle a Claude que busque y lea
+objetos, las ventas de un evento y los próximos eventos, solo lectura y con las mismas reglas de
+privacidad del panel (sin DNI). Ajustes → Admins tiene la tarjeta «Conector de Claude» con la
+dirección para copiar, «Cerrar mis conexiones de Claude» y «Cerrar las de todes». Cada pedido queda
+en Actividad a nombre de le admin (familia «Conector de Claude», `conector.*`).
+
+## Agenda impresa
+
+**Agenda impresa** (`/admin/eventos/agenda-impresa`, botón en la Agenda y «Ir a…»): arma la hoja
+A4 de volantes para repartir en papel, con el diseño de gorrite (4 volantes A6 para cortar, en
+blanco y negro). Es una pantalla propia sin el menú del panel (`bare: true`), así al imprimir sale
+solo la hoja: se imprime o se guarda como PDF desde el navegador (márgenes «Ninguno» y «Gráficos
+de fondo» prendido). **Solo lee**: no escribe en la base y lo que se cambia en la página no se
+guarda en ningún lado.
+
+- **Qué eventos**: los publicados y listados de un rango de días (por defecto hoy y los 13
+  siguientes; `?desde=AAAA-MM-DD&hasta=AAAA-MM-DD`), sin los cancelados. Se tildan cuáles van y se
+  ordenan con ↑ ↓; en un volante entran 4 (con más, avisa y van los primeros 4).
+- **Qué sale de los datos** (`src/lib/utils/agendaImpresa.js`, puro y con pruebas; los junta
+  `src/lib/server/eventos/agendaImpresa.js`):
+  - fecha y hora en hora de Argentina, «sábado 26 de julio. 20:00 hs» (el diseño lleva «hs»);
+  - el lugar **como lo ve cualquiera** (`feedVenues`): nunca una dirección que el nivel del lugar
+    no muestra. Con «Sólo barrio», «San Telmo (dirección x privado)»; online, «Online»; sin lugar
+    vinculado, el «Dónde» en texto libre. Solo en el volante, «Ciudad Autónoma de Buenos Aires»
+    (y «C.A.B.A.», «Capital Federal») se acorta a «CABA» (`shortenCity`); el sitio no cambia;
+  - el precio con las reglas del precio en la puerta (`doorPricesText`): «Entrada: $ 16.500»,
+    «Desde $ 10.000», «A la gorra», «Gratis»; sin entradas por el sitio, las etiquetas «Gratis» o
+    «a la gorra», o la línea no va;
+  - el ícono y el subtítulo de la **serie** del evento (el emoji de la etiqueta y la primera
+    oración de su descripción, si es corta); sin serie, ✨ y sin subtítulo.
+- **Qué se cambia a mano** (por evento): ícono, subtítulo, lugar y precio; y de la hoja, el
+  encabezado, el pie, cuántos volantes por A4 (4 = A6, 2 = A5 apaisado, 1 = A4), el fondo y un QR
+  al calendario (`qrSvg`, el mismo de las entradas).
+- **Fondo y letra**: el fondo de dibujos (`static/agenda-impresa/fondo.svg`) se sacó del archivo
+  del diseño (una imagen con su máscara, que le da el trazo fino) y se pasó a vectores; va con el
+  tamaño, la posición y la transparencia (33 %) del PDF. La letra es «1797» (Neue_Haut, © 2018 Claustro
+  Comfama San Ignacio, diseño de Santiago Arango García, **CC BY 4.0**), recortada a latín y
+  español en `static/fonts/1797/` con su `LICENSE.txt`; se carga solo en esta página. El logo es el
+  del sitio (`src/routes/logo.png`) pasado a blanco y negro con un filtro.
+
+### Instagram
+
+**Instagram** (pestaña de la misma página, `/admin/eventos/agenda-impresa?modo=instagram`) arma el
+carrusel mensual «agenda kinky» para Instagram, copiando los posts que publica KinkyVibe (primera
+versión, para ir ajustando con gorrite). Como los volantes, **solo lee**: usa los mismos eventos,
+el mismo orden, las mismas tildes y los mismos cambios a mano (cambiar de pestaña no los pierde).
+
+- **Qué rango**: sin `?desde=&hasta=`, la agenda del mes: si hoy es antes del día 20, de hoy al
+  fin de este mes; desde el 20, el mes que viene entero (`instagramRange`). Los eventos nuevos del
+  rango entran todos tildados.
+- **Las placas** (1080 × 1350, 4:5; `src/lib/utils/agendaInstagram.js`, puro):
+  - **portada**: «agenda kinky», la bajada y la grilla del mes (semana desde el domingo): círculo
+    amarillo los días con eventos de KinkyVibe, aro violeta los de eventos amigos;
+  - **eventos de KinkyVibe** (los que tienen la etiqueta KinkyVibe), de a 3 (o 2), con la imagen
+    del evento alternando derecha e izquierda: día y hora («SÁBADO 24. 20:00HS»), el precio de los
+    volantes, el resumen del evento y el lugar en dos líneas (la primera es el lugar de los
+    volantes, **como lo ve cualquiera**; la segunda, «Dirección x privado» o el nombre del lugar
+    solo si es público). Sin imagen, un recuadro violeta con el título. Estrella «Nuevo» a mano;
+  - **el Fondo**: «este mes el N % del precio de las entradas… está cubierto por el Fondo», con la
+    barra; N arranca con el porcentaje de este mes (`resolveFondoPercent`, el mismo que descuentan
+    las entradas) y se cambia a mano (o se saca la placa);
+  - **otros eventos amigos** (los que no tienen la etiqueta KinkyVibe): en la última placa, debajo
+    del último evento de KinkyVibe (4 entran ahí; los demás, de a 6 en placas propias), con quién
+    organiza (los autores menos KinkyVibe), la imagen chica, el título y «SÁB 10 DE OCTUBRE |
+    ALMAGRO».
+- **Qué se cambia a mano**, además de lo de los volantes: el texto (el resumen), la segunda línea
+  del lugar, la estrella «Nuevo» y, en los amigos, quién organiza; de las placas, el mes, la
+  bajada, el pie, cuántos eventos por placa y el Fondo.
+- **Cómo se baja**: cada placa es un SVG con el diseño en HTML adentro (`foreignObject`) y todo
+  embebido como `data:` (letras, dibujo de fondo, logo e imágenes): la vista previa es esa misma
+  imagen y «Descargar» la dibuja en un canvas y la guarda como PNG; «Descargar todas» baja una por
+  una. Las imágenes de los eventos se piden al propio sitio (`/media/img/…`; las de kinkyvibe.ar
+  con la dirección entera, las del modo demo, primero acá) y se recortan al cuadrado, así el canvas
+  no queda bloqueado; si una no carga, va el recuadro violeta. Anda en Chrome y Firefox (Safari
+  puede negarse a guardar el PNG).
+- **El texto del posteo** se arma con los eventos (día, título, lugar público, precio, los amigos y
+  los links), se puede cambiar antes de copiarlo y cuenta los 2200 caracteres de Instagram.
+- **Letras y dibujos**: la condensada en mayúsculas es Bebas Neue y la de los lugares y el Fondo,
+  Barlow Condensed (las dos de Google Fonts, SIL OFL 1.1, en `static/fonts/agenda-instagram/` con su
+  `OFL.txt`); «agenda kinky» va en Fredoka y los textos en Lato, las que ya usa el sitio. Son las
+  libres más parecidas a las de los posts: **falta que gorrite confirme las tipografías**. El dibujo
+  de fondo es el de los volantes (`static/agenda-impresa/fondo.svg`) y el logo, el del sitio pasado
+  a violeta.
 
 ## El buscador
 
@@ -533,34 +696,45 @@ La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registro
 
 Los lee una sola función pura, `parseSearchQuery` (`src/lib/utils/searchQuery.js`): la usan la
 paleta (acciones, y si hace falta preguntarle al servidor) y `/admin/buscar` (registros). Nunca
-falla: lo que no entiende queda como texto. Sin mayúsculas ni tildes, como el resto.
+falla: lo que no entiende queda como texto. Sin mayúsculas ni tildes, como el resto. La base
+(texto, frases, exclusiones, etiquetas, tipos, `lugar:` y fechas) la lee el parser compartido con
+el sitio y el bot (`parseSearch`, `searchSyntax.js`); la sintaxis entera está en
+[buscar.md](buscar.md), y esta tabla es lo del panel.
 
-| Operador                                             | Qué hace                                                                                                                         |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| palabras sueltas                                     | Tienen que estar todas, en cualquier orden («perez jose» encuentra «José Pérez»).                                                |
-| `"frase exacta"`                                     | Esas palabras juntas y en ese orden.                                                                                             |
-| `-palabra`, `-"frase"`                               | Sin eso.                                                                                                                         |
-| `>tema`                                              | Solo acciones (tiene que ir al comienzo; no le pregunta al servidor).                                                            |
-| `#shibari`, `etiqueta:shibari`                       | Eventos con esa etiqueta (por id, nombre o alias; si ninguna se llama así, las que empiezan así) y la etiqueta. `-#…`: sin ella. |
-| `@ana`, `persona:ana`                                | Solo personas y perfiles.                                                                                                        |
-| `e:fiesta`, `evento:fiesta`                          | Solo eventos. Con `puerta`, `ordenes`, `mail`, `ventas` o `duplicar` al final, el atajo a esa pestaña del primero va arriba.     |
-| `orden:ana`                                          | Solo órdenes. `orden:pendiente` (o `estado:pendiente`): las órdenes en ese estado, con o sin texto.                              |
-| `tipo:evento` (`,` para varios)                      | Solo ese tipo: evento, orden, persona, perfil (amigue), etiqueta, entrada, codigo, accion. `-tipo:orden`: todos menos ese.       |
-| `lugar:palermo`                                      | Eventos cuyo lugar lo dice.                                                                                                      |
-| `hoy`, `mañana`, `semana` («esta semana»), `finde`   | Eventos en esos días, en hora de Argentina, del más próximo al más lejano. Las acciones siguen («Abrir la puerta de hoy»).       |
-| `cuando:sabado`, `cuando:15/10`, `cuando:15/10/2026` | El próximo sábado (hoy cuenta) o esa fecha (sin año, la de cualquier año).                                                       |
+| Operador                                                    | Qué hace                                                                                                                                                  |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| palabras sueltas                                            | Tienen que estar todas, en cualquier orden («perez jose» encuentra «José Pérez»).                                                                         |
+| `"frase exacta"`                                            | Esas palabras juntas y en ese orden.                                                                                                                      |
+| `-palabra`, `-"frase"`                                      | Sin eso.                                                                                                                                                  |
+| `>tema`                                                     | Solo acciones (tiene que ir al comienzo; no le pregunta al servidor).                                                                                     |
+| `#shibari`, `etiqueta:shibari`                              | Eventos con esa etiqueta (por id, nombre o alias; si ninguna se llama así, las que empiezan así) y la etiqueta. `-#…`: sin ella.                          |
+| `@ana`, `persona:ana`                                       | Solo personas y perfiles.                                                                                                                                 |
+| `e:fiesta`, `evento:fiesta`                                 | Solo eventos. Con `puerta`, `ordenes`, `mail`, `ventas` o `duplicar` al final, el atajo a esa pestaña del primero va arriba.                              |
+| `amigues:`, `wiki:`/`kinkipedia:`, `serie:`                 | Solo perfiles; solo etiquetas (la Kinkipedia y las series son etiquetas). `material:` no trae nada (el panel no busca material). `-evento:`: sin eventos. |
+| `orden:ana`                                                 | Solo órdenes. `orden:pendiente` (o `estado:pendiente`): las órdenes en ese estado, con o sin texto.                                                       |
+| `tipo:evento` (`,` para varios)                             | Solo ese tipo: evento, orden, persona, perfil (amigue), etiqueta, entrada, codigo, accion. `-tipo:orden`: todos menos ese.                                |
+| `lugar:palermo`                                             | Eventos cuyo lugar lo dice.                                                                                                                               |
+| `hoy`, `mañana`, `semana` («esta semana»), `finde`          | Eventos en esos días, en hora de Argentina, del más próximo al más lejano. Las acciones siguen («Abrir la puerta de hoy»).                                |
+| `cuando:sabado`, `cuando:15/10`, `cuando:15/10/2026`        | El próximo sábado (hoy cuenta) o esa fecha (sin año, la de cualquier año).                                                                                |
+| `cuando:noviembre`, `cuando:1/11..30/11`, `desde:`/`hasta:` | Ese mes (el próximo con ese nombre) o ese rango. Un mes suelto («mayo») es texto en el panel: puede ser un apellido.                                      |
 
 - Los filtros dejan solo los tipos a los que se aplican (`#…`, eventos y etiquetas; `lugar:` y
   `cuando:`, eventos; las fechas sueltas, eventos y acciones; `estado:`, órdenes) y se cruzan con `tipo:`/`@`/`e:`. Si no queda ninguno («estado:pendiente
   #shibari»), la paleta lo dice.
 - Un `algo:` que no es operador (`20:30`, `foo:bar`) es texto. Entre comillas, una palabra de
   fecha también (`"semana"`, por un evento que se llame así).
+- `nombre:` con un espacio toma la palabra siguiente (`orden: pendiente` = `orden:pendiente`,
+  `lugar: palermo`), como en el sitio y el bot.
+- Las palabras que nombran un tipo (`evento`, `taller`…) son texto en el panel (en el sitio y el
+  bot suben ese tipo). Solo cuenta la primera palabra de fecha suelta.
+- Largo máximo: 100 caracteres, como en el sitio y el bot.
 - Para la base, el filtro flojo (`looseLike`) usa la palabra o frase más larga; las demás y las
   excluidas se comparan en JS (`matchTerms`).
 - **Ayuda**: con la paleta vacía hay una línea con ejemplos; «Cómo buscar» (al pie de la paleta,
   como acción y en la hoja de atajos `?`) explica todos con ejemplos que se pueden tocar
   (`SEARCH_TIPS` en `paletteActions.js`; un test verifica que cada ejemplo use un operador).
-- El buscador público del sitio (`SearchPalette.svelte`) es otro y no tiene operadores.
+- El buscador público del sitio (`SearchPalette.svelte`) es otro motor (el índice público), con la
+  misma sintaxis base ([buscar.md](buscar.md)).
 
 **Cambios sin guardar.** Los editores del panel (eventos, material, perfiles, la agenda) usan
 `UnsavedChanges` (`src/lib/components/admin/panel/`): mientras hay cambios guardan un borrador en
@@ -580,6 +754,27 @@ pierde.
 | Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                                                                       |
 | Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `sidebarMode.js`, `commands.js`, `paletteActions.js`, `shortcutHints.js`, `theme.js`, `draft.js`) |
 | Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss`                                                     |
+
+El editor de texto de los formularios de eventos, material y amigues (CodeMirror, sección «Texto»,
+`src/lib/components/admin/event-form/BodySection.svelte`) se baja recién cuando se monta esa
+sección (`import()`), no con el resto del panel. Mientras llega se ve el texto en un recuadro del
+mismo tamaño con «Cargando el editor…»; si no se puede bajar, queda un campo de texto común. Si
+agregás otro editor pesado, cargalo igual.
+
+**Avisos para lectores de pantalla** (`src/lib/admin/announce.js`). Un `<p role="status">` que
+aparece junto con su texto (por ejemplo dentro de `{#if form?.x}`) no siempre se lee. Para eso hay
+dos regiones vivas fijas en el `body`: `announce(texto)` (cortés) y `announceNow(texto)`
+(urgente, repite aunque el texto sea igual: el resultado de un escaneo en la puerta). Desde un
+`use:enhance`, después de `update()`, `announceResult(result, 'clave')` lee el `message` que
+devolvió la acción (lo usan Órdenes y la ficha de una persona). El aviso visible queda como está.
+
+**Teclado en el celu.** La hoja «Más» funciona como un diálogo modal (foco adentro, Tab que da la
+vuelta, el resto del panel `inert`, Escape cierra y el foco vuelve a «Más» o al avatar). No es un
+`<dialog>` nativo a propósito: en la capa superior taparía la barra de carga y el aviso de
+deshacer. En el celu, el `html` del panel tiene `scroll-padding` del alto de las barras fijas
+(`--panel-scroll-top` arriba), así lo que recibe el foco no queda tapado; un `scroll-margin-top`
+nuevo le resta `--panel-scroll-top`. En la compu no: ahí el aviso de atajos, fijo abajo a la
+derecha, taparía «Guardar» al traerlo a la vista.
 
 ## Cómo probar
 
@@ -625,6 +820,11 @@ en la misma tanda que el borrado; «Recuperar» va por `undoDeletion` (también 
 
 ¹ Es solo el nombre de la fila (la forma de siempre): esos archivos ya no están en el repo (0032).
 
+**La excepción: las notas de la Agenda** (las notas por día de la tarjeta Agenda,
+`agenda_day_notes`, `src/lib/server/admin/dayNotes.js`) se borran de verdad (`DELETE`): no pasan
+por `panel_deletions` y no aparecen en «Borrados que podés recuperar». Una nota borrada por error
+solo vuelve con un backup o con Time Travel.
+
 Decisión 0030: las etiquetas, las series y los mails por evento se recuperan. Una etiqueta vuelve
 con sus datos y sus relaciones (nunca se fueron); si mientras tanto se creó otra con el mismo
 nombre, «Recuperar» avisa y no hace nada. Un mail no pisa un texto guardado después (avisa).
@@ -652,11 +852,30 @@ como revisados (o se ocultan o borran) desde su ficha.
 permiso". Queda en Actividad. Sacarlo no borra sus perfiles: solo deja de verlos
 ([cuentas.md](cuentas.md), «Permiso para tener perfiles»).
 
+**Suspender una cuenta.** Comunidad › Cuentas → la ficha → «Suspensión» → «Suspender la cuenta»
+(motivo opcional, solo para admins) y confirmar. Cierra todas sus sesiones, no la deja entrar ni
+usar el bot y queda en Actividad (sin el motivo). Sus perfiles públicos se moderan aparte (ocultar o
+borrar desde Perfiles). «Levantar la suspensión» la deja entrar de nuevo
+([cuentas.md](cuentas.md), «Suspender una cuenta»).
+
 ## Lo que viene
 
 Decisiones 0002, 0003, 0008 y 0010: niveles de permiso (superadmins → organizadores), bandeja de mails dentro del panel,
 el panel como CRM, formularios nuevos (edición larga con índice, compra en tres pasos) y más
 gráficos.
+
+## Lo que sigo
+
+Mensajes › Lo que sigo (`/admin/mensajes/lo-que-sigo`) es **para mirar** el estado de «Lo que
+sigo»: los interruptores, **«Lo más seguido»** justo debajo (cuántas cuentas siguen cada
+etiqueta, perfil o lugar, aunque sea una, y al abrir «Quiénes» las cuentas que la siguen, con link
+a su ficha; [0043](decisiones/0043-lo-que-sigo-en-el-panel.md)), **«Por persona»** (cada cuenta
+con cuántas cosas sigue y cuáles), los totales, los avisos que salieron (7 y 30 días y desde el
+principio, por tipo y canal), el paso de «Avisame si se repite» y Telegram, con links a donde se
+configura cada cosa. Quién sigue qué solo lo ven les admins, en esta página y en las fichas. Se
+ve también con el interruptor apagado. Los números salen de `src/lib/server/sigo/stats.js`;
+detalle en [lo-que-sigo.md](lo-que-sigo.md#en-el-panel). Lo de cada persona está en su ficha
+(«Lo que sigue»).
 
 ## Automatizaciones
 
@@ -667,7 +886,10 @@ que corre solo (la única acción es «Actualizar comandos del bot», abajo). La
   `src/lib/server/scheduled.js`): la vuelta de mails cada 15 minutos y el backup nocturno (con el
   chequeo de integridad después). Cada una con la próxima corrida y la última vez: el último mail
   que salió (la base no guarda las vueltas que no mandaron nada) y el último backup de R2 (solo en
-  producción; en un preview, la última corrida del chequeo, `integrity_runs`).
+  producción; en un preview, la última corrida del chequeo, `integrity_runs`). En producción, si
+  no hay ningún backup nocturno o el último tiene más de 36 horas (alguna noche no corrió), el
+  backup queda en amarillo con «El último backup tiene N horas»; lo mismo si el último chequeo
+  tiene más de 36 horas.
 - **Mails que salen solos**: recordatorios de entradas (los configurados en Mensajes → Configuración),
   links de transmisión, avisos de series y de «Lo que sigo» (nuevo y recordatorio), con el último
   envío, los pendientes y los que fallaron (`reminder_sends`, `stream_link_sends`,

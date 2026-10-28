@@ -1,12 +1,20 @@
 <script context="module">
-	import SpriteIcon from './ui/SpriteIcon.svelte';
-	import { argDate, argDateList, argTime, eventEnd, isoDay } from '$lib/utils/dates.js';
-	import TagChip from './ui/TagChip.svelte';
+	import {
+		CalendarRange,
+		BookOpen,
+		ShoppingCart,
+		Download,
+		MousePointerClick,
+		Heart
+	} from '@lucide/svelte';
+	import { argDateList, argTime, eventEnd, isoDay, parseSiteDate } from '$lib/utils/dates.js';
+	import CardTags from './CardTags.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
 	import { filteredTags } from '$lib/utils/stores';
 	import { ticketCta } from '$lib/utils/ticketCta.js';
 	import { partLabel } from '$lib/utils/partes.js';
+	import { smallSrcset } from '$lib/utils/mediaCopies.js';
 </script>
 
 <script>
@@ -47,19 +55,18 @@
 		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
 	}
 	let mounted = false;
-	// on phones the colored header has no room for the date *and* "Añadir al Calendario":
-	// the button shows only its icon there
-	let narrow = false;
-	let past = start ? new Date(start).getTime() < Date.now() : false;
+	let tagsExpanded = false;
+	let past = start ? parseSiteDate(start).getTime() < Date.now() : false;
 	// Si el evento vende entradas acá, «Comprar entradas» (o «Agotadas»…) en lugar de la
 	// inscripción externa.
 	$: tickets = ticketCta(post.meta, ticketStates, { past });
 	onMount(() => {
-		narrow = window.matchMedia('(max-width: 600px)').matches;
 		mounted = true;
-		// the calendar button (~290 KB) is only loaded when this item shows one
-		if (link && status == 'abierto' && !past) import('add-to-calendar-button');
 	});
+	let style = `scale:var(--scale,1);
+				 translate:var(--translate,0 0);
+				 display: inline-block;
+				 margin-right: .4em;`;
 </script>
 
 <a
@@ -78,21 +85,20 @@
 >
 	<div class="publication">
 		<div class="icon">
-			<!-- del sprite de la página (ui/iconSprite.js): uno por tarjeta, sin repetir el dibujo -->
 			{#if category == 'calendario'}
-				<SpriteIcon name="calendar-range" />
+				<CalendarRange {style} />
 			{:else if category == 'material'}
 				{#if tags.includes('pago')}
-					<SpriteIcon name="shopping-cart" />
+					<ShoppingCart {style} />
 				{:else if tags.includes('descargable')}
-					<SpriteIcon name="download" />
+					<Download {style} />
 				{:else if tags.includes('interactivo')}
-					<SpriteIcon name="mouse-pointer-click" />
+					<MousePointerClick {style} />
 				{:else}
-					<SpriteIcon name="book-open" />
+					<BookOpen {style} />
 				{/if}
 			{:else}
-				<SpriteIcon name="heart" style="fill:var(--post-color)" strokeWidth="3px" />
+				<Heart style={style + 'fill:var(--post-color);'} strokeWidth="3px" />
 			{/if}
 		</div>
 		{#if category != 'amigues'}
@@ -105,48 +111,11 @@
 					<address class="p-author">
 						{authors ? authors.join(', ') : ''}
 					</address>
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- texto fijo, solo entidades de espacio -->
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
 					<time class="dt-published" datetime={isoDay(date)}>
 						{date ? argDateList(date, { time: false }) : ''}
 					</time>
-				{/if}
-				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}
-					<add-to-calendar-button
-						style={`
-							--btn-text: white;
-							--keyboard-focus: var(--post-color, var(--2));
-							--btn-background: transparent;
-							--btn-shadow: none;
-							--btn-shadow-hover: none;
-							--list-background: white;
-							--list-background-hover: var(--1-light) ;
-							--list-text-hover: white;
-							--btn-border: none;
-							--list-shadow: 0 0 1em 0 var(--1-light);
-							`}
-						name={title}
-						description={summary}
-						startDate={argDate(start)}
-						startTime={argTime(start)}
-						endDate={argDate(eventEnd(start, end))}
-						endTime={argTime(eventEnd(start, end))}
-						timeZone="America/Buenos_Aires"
-						options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
-						language="es"
-						iCalFileName="Sample Event"
-						listStyle="overlay"
-						buttonStyle="3d"
-						inline
-						organizer="Mel|kinkyvibe@gmail.com"
-						size="1"
-						hideBackground
-						hideTextLabelButton={narrow ? true : undefined}
-					></add-to-calendar-button>
-					<!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
-					<!-- label="CUSTOM LABEL" -->
-					<!-- buttonStyle="round" -->
-					<!-- location="World Wide Web" -->
-					<!-- trigger="hover" -->
 				{/if}
 				{#if (status && ['cancelado', 'agotadas'].includes(status)) || past}
 					<small class="status">
@@ -158,7 +127,14 @@
 			<span class="job-title">{job_title ?? ''}</span>
 		{/if}
 	</div>
-	{#if src}<img {src} alt="" loading="lazy" decoding="async" />{/if}
+	<!-- la copia chica de 360 px si la imagen es de la biblioteca (docs/imagenes.md) -->
+	{#if src}<img
+			{src}
+			srcset={smallSrcset(src) || undefined}
+			alt=""
+			loading="lazy"
+			decoding="async"
+		/>{/if}
 	<h3>
 		{title}
 		{#if parte}
@@ -174,14 +150,13 @@
 		{summary ?? ''}
 	</p>
 	<div class="tags">
-		<ul class="tagrow">
-			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t) /* && !$redundantTags.has(t)*/)] as tag}
-				<!-- El chip compartido (TagChip, docs/estilo.md, «Chip de etiqueta»): link recién
-				     después de hidratar, porque es un <a> dentro del <a> de la tarjeta. -->
-				<li>
-					<TagChip {tag} href={mounted ? `/todo?tags=${encodeURIComponent(tag)}` : undefined} />
-				</li>
-			{/each}
+		<!-- Hasta 5 chips y «+N» para ver el resto (CardTags; docs/seo.md, opción 1b). -->
+		<ul class="tagrow" class:expanded={tagsExpanded}>
+			<CardTags
+				tags={tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t))}
+				linked={mounted}
+				bind:expanded={tagsExpanded}
+			/>
 		</ul>
 	</div>
 	<!-- Client-only: an <a> nested in the card's <a> is invalid HTML, so the browser would
@@ -204,13 +179,6 @@
 </a>
 
 <style lang="scss">
-	/* (antes, en un style="" de cada ícono) */
-	.icon :global(svg) {
-		scale: var(--scale, 1);
-		translate: var(--translate, 0 0);
-		display: inline-block;
-		margin-right: 0.4em;
-	}
 	.post.amigues {
 		border-radius: var(--radius-pill);
 		padding-top: 0;
@@ -255,6 +223,11 @@
 	}
 	.tagrow::-webkit-scrollbar {
 		display: none;
+	}
+	/* con «+N» desplegado, todas a la vista: en filas, y la tarjeta crece */
+	.tagrow.expanded {
+		flex-wrap: wrap;
+		overflow-x: visible;
 	}
 	.post:has(.CTA) {
 		grid-template-areas: 'img title title' 'img summary summary' 'img tags cta';
@@ -445,6 +418,17 @@
 			}
 			.CTA {
 				justify-self: end;
+			}
+			/* «Comprar entradas» mide los 44px del dedo (`--tap`) en el botón mismo: un
+			   `.tap-target` invisible taparía las etiquetas de arriba (decisión de gorrite,
+			   `areas-toque-restos`). Los avisos («Agotadas»…) no son botones y quedan como están,
+			   a la derecha. */
+			.CTA:not(.note) {
+				display: inline-flex;
+				align-items: center;
+				min-height: var(--tap);
+				/* centrado en su fila, abajo de las etiquetas (gorrite, al revisar #335) */
+				justify-self: center;
 			}
 			/* &:has(.CTA).noimg {
 				grid-template-areas:

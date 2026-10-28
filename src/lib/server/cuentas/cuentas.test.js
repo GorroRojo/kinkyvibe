@@ -2,6 +2,8 @@
  * Cuentas del público contra un D1 de miniflare: códigos, límites, contraseñas, sesiones,
  * borrado y compras por mail verificado. Datos inventados (dominio example.com).
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import {
@@ -34,7 +36,13 @@ import {
 	verifyCode
 } from './index.js';
 import { ACCOUNT_MAIL_CAP, accountMailAllowed } from './mailCap.js';
-import { ordersForAccount } from './orders.js';
+import { createProfile } from './perfiles.js';
+import {
+	chooseFreeOrder,
+	markFreeOrderMine,
+	ordersForAccount,
+	unconfirmedFreeOrders
+} from './orders.js';
 import { clientHash } from '$lib/server/tickets/safeguards.js';
 import {
 	LAST_SEEN_EVERY_MS,
@@ -42,9 +50,14 @@ import {
 	createSession,
 	destroyOtherSessions,
 	destroySession,
+	endSessionById,
 	getSessionAccount,
-	sessionCookieOptions
+	listSessions,
+	sessionCookieOptions,
+	sessionIdOfToken
 } from './session.js';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -79,23 +92,38 @@ function fakeSender() {
 let orderSeq = 0;
 /**
  * Orden mínima válida (datos inventados).
- * @param {{ email: string, status?: string, accountId?: string | null, createdAt?: number, slug?: string }} o
+ * @param {{ email: string, status?: string, accountId?: string | null, createdAt?: number,
+ *   slug?: string, method?: string, channel?: string }} o
  */
 async function insertOrder({
 	email,
 	status = 'approved',
 	accountId = null,
 	createdAt = NOW,
-	slug = 'evento-de-prueba'
+	slug = 'evento-de-prueba',
+	method = 'mercadopago',
+	channel = 'online'
 }) {
 	const id = `00000000-0000-4000-8000-${String(++orderSeq).padStart(12, '0')}`;
 	await t.db
 		.prepare(
 			`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal, total,
-				buyer_name, buyer_email, status, created_at, updated_at, expires_at, account_id)
-			VALUES (?1, ?2, 'general', 1, 1000, 1000, 1000, 'Persona de Prueba', ?3, ?4, ?5, ?5, ?5, ?6)`
+				buyer_name, buyer_email, status, created_at, updated_at, expires_at, account_id,
+				payment_method, fondo_option, channel)
+			VALUES (?1, ?2, 'general', 1, ?7, ?7, ?7, 'Persona de Prueba', ?3, ?4, ?5, ?5, ?5, ?6, ?8,
+				CASE WHEN ?8 = 'gratis' THEN 'gorra' ELSE 'completo' END, ?9)`
 		)
-		.bind(id, slug, email, status, createdAt, accountId)
+		.bind(
+			id,
+			slug,
+			email,
+			status,
+			createdAt,
+			accountId,
+			method === 'gratis' ? 0 : 1000,
+			method,
+			channel
+		)
 		.run();
 	return id;
 }
@@ -480,7 +508,7 @@ describe('tope global de mails y conexiones IPv6', () => {
 		const row = await t.db
 			.prepare("SELECT hits FROM rate_limits WHERE bucket = 'cuentas:mail:global'")
 			.first();
-		expect(Number(row?.hits)).toBe(RATE_LIMITS.codeRequestEmail.limit);
+		expect(Number(row?.hits)).toBe(RATE_LIMITS.codeRequestEmailClient.limit);
 	});
 
 	it('dos direcciones de la misma red IPv6 /64 comparten el límite por conexión', async () => {
@@ -827,7 +855,14 @@ describe('sesiones', () => {
 
 		const tenYears = NOW + 10 * 365 * 24 * 60 * 60 * 1000;
 		const found = await getSessionAccount(t.db, token, { now: tenYears });
-		expect(found).toEqual({ id: account.id, email: EMAIL, touched: true });
+		// Con la velocidad de lectura y el permiso de perfiles (sin elegir / sin permiso).
+		expect(found).toEqual({
+			id: account.id,
+			email: EMAIL,
+			readingSpeed: null,
+			canHaveProfiles: false,
+			touched: true
+		});
 		// last_seen se actualiza como mucho una vez por día.
 		expect((await getSessionAccount(t.db, token, { now: tenYears + 1000 }))?.touched).toBe(false);
 		expect(
@@ -859,6 +894,57 @@ describe('sesiones', () => {
 		await destroyOtherSessions(t.db, account.id, b);
 		expect(await getSessionAccount(t.db, a, { now: NOW })).toBeNull();
 		expect(await getSessionAccount(t.db, b, { now: NOW })).not.toBeNull();
+	});
+
+	it('listSessions: solo las de la cuenta, esta primero y después la usada más reciente', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const other = await upsertVerifiedAccount(t.db, 'otra.prueba@example.com', { now: NOW });
+		const old = await createSession(t.db, account.id, 'code', { now: NOW - 10 * DAY_MS });
+		const recent = await createSession(t.db, account.id, 'password', {
+			now: NOW - DAY_MS,
+			device: 'Chrome en Windows'
+		});
+		const here = await createSession(t.db, account.id, 'code', { now: NOW - 20 * DAY_MS });
+		await createSession(t.db, other.id, 'code', { now: NOW });
+		const list = await listSessions(t.db, account.id, here);
+		expect(list.map((s) => [s.current, s.method, s.device, s.lastSeenAt])).toEqual([
+			[true, 'code', null, NOW - 20 * DAY_MS],
+			[false, 'password', 'Chrome en Windows', NOW - DAY_MS],
+			[false, 'code', null, NOW - 10 * DAY_MS]
+		]);
+		expect(list[0].id).toBe(await sessionIdOfToken(here));
+		for (const s of list) expect(s.id).toMatch(/^[0-9a-f]{32}$/);
+		expect(JSON.stringify(list)).not.toContain(old);
+		expect(JSON.stringify(list)).not.toContain(recent);
+		// Sin cookie (o con una que no es de la cuenta), ninguna es «esta».
+		expect((await listSessions(t.db, account.id, undefined)).some((s) => s.current)).toBe(false);
+	});
+
+	it('endSessionById: cierra solo una sesión de esa cuenta, al toque', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const other = await upsertVerifiedAccount(t.db, 'otra.prueba@example.com', { now: NOW });
+		const a = await createSession(t.db, account.id, 'code', { now: NOW });
+		const b = await createSession(t.db, account.id, 'code', { now: NOW });
+		const theirs = await createSession(t.db, other.id, 'code', { now: NOW });
+		// Con el id de una sesión ajena, nada.
+		expect(await endSessionById(t.db, account.id, await sessionIdOfToken(theirs))).toBe(false);
+		expect(await getSessionAccount(t.db, theirs, { now: NOW })).not.toBeNull();
+		for (const bad of [undefined, '', 'nada', 'F'.repeat(32), 42])
+			expect(await endSessionById(t.db, account.id, bad)).toBe(false);
+		expect(await endSessionById(t.db, account.id, await sessionIdOfToken(a))).toBe(true);
+		expect(await getSessionAccount(t.db, a, { now: NOW })).toBeNull();
+		expect(await getSessionAccount(t.db, b, { now: NOW })).not.toBeNull();
+		expect(await endSessionById(t.db, account.id, await sessionIdOfToken(a))).toBe(false);
+	});
+
+	it('el nombre del navegador se recorta y vacío queda NULL', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		await createSession(t.db, account.id, 'code', { now: NOW, device: 'x'.repeat(200) });
+		await createSession(t.db, account.id, 'code', { now: NOW + 1, device: '' });
+		const rows = await t.db
+			.prepare('SELECT device FROM account_sessions ORDER BY created_at')
+			.all();
+		expect(rows.results.map((r) => r.device)).toEqual(['x'.repeat(60), null]);
 	});
 
 	it('tokens inválidos o desconocidos: null', async () => {
@@ -903,6 +989,157 @@ describe('borrar la cuenta', () => {
 		const again = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW + 3 });
 		expect(again.id).not.toBe(account.id);
 		expect((await ordersForAccount(t.db, again.id)).map((o) => o.id)).toEqual([byEmail]);
+	});
+});
+
+describe('borrar la cuenta: lo que el borrado suave deja atrás', () => {
+	/** @param {string} sql @param {...unknown} args */
+	const run = (sql, ...args) =>
+		t.db
+			.prepare(sql)
+			.bind(...args)
+			.run();
+	/** @param {string} sql @param {...unknown} args */
+	const count = async (sql, ...args) =>
+		Number(
+			(
+				await t.db
+					.prepare(sql)
+					.bind(...args)
+					.first()
+			)?.n
+		);
+	let seq = 0;
+	const uuid = () => `00000000-0000-4000-9000-${String(++seq).padStart(12, '0')}`;
+
+	/**
+	 * Calendario personal, una serie seguida (con un aviso ya mandado), una invitación a gestionar
+	 * para su mail y dos «Es mi perfil» (uno pendiente y uno decidido), todo para `accountId`.
+	 * @param {string} accountId @param {string} email @param {number} profileId @param {string} tag
+	 */
+	async function seed(accountId, email, profileId, tag) {
+		await run(
+			'INSERT INTO calendar_feeds (token_hash, account_id, created_at) VALUES (?1, ?2, ?3)',
+			(await emailHash(`feed:${accountId}`)).padEnd(64, '0'),
+			accountId,
+			NOW
+		);
+		const sub = uuid();
+		await run(
+			`INSERT INTO series_subscriptions (id, series_tag, account_id, subscriber_key, created_at,
+				confirmed_at) VALUES (?1, ?2, ?3, ?4, ?5, ?5)`,
+			sub,
+			tag,
+			accountId,
+			`a:${accountId}`,
+			NOW
+		);
+		await run(
+			'INSERT INTO series_notifications (subscription_id, event_slug, sent_at) VALUES (?1, ?2, ?3)',
+			sub,
+			`${tag}-1`,
+			NOW
+		);
+		await run(
+			`INSERT INTO profile_invites (id, profile_id, email_hash, created_at, expires_at)
+			VALUES (?1, ?2, ?3, ?4, ?5)`,
+			uuid(),
+			profileId,
+			await emailHash(email),
+			NOW,
+			NOW + 1e9
+		);
+		await run(
+			`INSERT INTO profile_claims (profile_id, account_id, message, status, created_at)
+			VALUES (?1, ?2, 'pendiente inventado', 'pending', ?3)`,
+			profileId,
+			accountId,
+			NOW
+		);
+		await run(
+			`INSERT INTO profile_claims (profile_id, account_id, message, status, created_at, decided_at,
+				decided_by) VALUES (?1, ?2, 'decidido inventado', 'rejected', ?3, ?3, 'admin-de-prueba')`,
+			profileId,
+			accountId,
+			NOW
+		);
+	}
+
+	it('se van su calendario, sus series, las invitaciones a su mail y sus pedidos pendientes', async () => {
+		const owner = await upsertVerifiedAccount(t.db, 'duene.prueba@example.com', { now: NOW });
+		await run('UPDATE accounts SET can_have_profiles = 1 WHERE id = ?1', owner.id);
+		const prof = await createProfile(
+			t.db,
+			owner.id,
+			{ kind: 'proyecto', title: 'Proyecto Inventado' },
+			{ now: NOW }
+		);
+		if (!prof.ok) throw new Error('no se creó el perfil');
+		const profileId = Number(prof.profile.id);
+
+		const gone = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const stays = await upsertVerifiedAccount(t.db, 'queda.prueba@example.com', { now: NOW });
+		await seed(gone.id, EMAIL, profileId, 'serie-a');
+		await seed(stays.id, 'queda.prueba@example.com', profileId, 'serie-b');
+		// Una suscripción hecha sin cuenta, con el mismo mail: queda (tiene su propio link de baja).
+		await run(
+			`INSERT INTO series_subscriptions (id, series_tag, email, subscriber_key, created_at,
+				confirmed_at) VALUES (?1, 'serie-a', ?2, ?3, ?4, ?4)`,
+			uuid(),
+			EMAIL,
+			`e:${await emailHash(EMAIL)}`,
+			NOW
+		);
+
+		expect(await deleteAccount(t.db, gone.id, { now: NOW + 1 })).toBe(true);
+
+		const mine = { id: gone.id, hash: await emailHash(EMAIL) };
+		expect(
+			await count('SELECT COUNT(*) AS n FROM calendar_feeds WHERE account_id = ?1', mine.id)
+		).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM series_subscriptions WHERE account_id = ?1', mine.id)
+		).toBe(0);
+		expect(
+			await count(
+				`SELECT COUNT(*) AS n FROM series_notifications n
+				LEFT JOIN series_subscriptions s ON s.id = n.subscription_id WHERE s.id IS NULL`
+			)
+		).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_invites WHERE email_hash = ?1', mine.hash)
+		).toBe(0);
+		// «Es mi perfil»: el pendiente se va; el decidido queda, sin el mensaje.
+		const claims = await t.db
+			.prepare('SELECT status, message FROM profile_claims WHERE account_id = ?1')
+			.bind(mine.id)
+			.all();
+		expect(claims.results).toEqual([{ status: 'rejected', message: '' }]);
+		// La suscripción por mail (sin cuenta) queda.
+		expect(
+			await count('SELECT COUNT(*) AS n FROM series_subscriptions WHERE email = ?1', EMAIL)
+		).toBe(1);
+
+		// Lo de otra cuenta no se toca.
+		const other = { id: stays.id, hash: await emailHash('queda.prueba@example.com') };
+		expect(
+			await count('SELECT COUNT(*) AS n FROM calendar_feeds WHERE account_id = ?1', other.id)
+		).toBe(1);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM series_subscriptions WHERE account_id = ?1', other.id)
+		).toBe(1);
+		expect(await count('SELECT COUNT(*) AS n FROM series_notifications')).toBe(1);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_invites WHERE email_hash = ?1', other.hash)
+		).toBe(1);
+		const otherClaims = await t.db
+			.prepare('SELECT status, message FROM profile_claims WHERE account_id = ?1 ORDER BY status')
+			.bind(other.id)
+			.all();
+		expect(otherClaims.results).toEqual([
+			{ status: 'pending', message: 'pendiente inventado' },
+			{ status: 'rejected', message: 'decidido inventado' }
+		]);
 	});
 });
 
@@ -964,6 +1201,167 @@ describe('compras de la cuenta', () => {
 		await insertOrder({ email: 'otra.persona@example.com' });
 		expect((await ordersForAccount(t.db, one.id)).map((o) => o.id)).toEqual([mine]);
 		expect(await ordersForAccount(t.db, two.id)).toHaveLength(1);
+	});
+});
+
+describe('«¿Son tuyas?»: órdenes gratis hechas sin la sesión de la cuenta («No fui yo», parte 2)', () => {
+	/** Desde cuándo se pregunta (lo escribe la migración 0061 al aplicarse). */
+	const SINCE = NOW - 10_000;
+	/** @param {number} since */
+	const setSince = (since) =>
+		t.db
+			.prepare(
+				`INSERT INTO ticket_settings (key, value, updated_at, updated_by)
+				VALUES ('free_order_choices_since', ?1, 1, 'test')`
+			)
+			.bind(String(since))
+			.run();
+	beforeEach(() => setSince(SINCE));
+	/** @param {string} accountId */
+	const ids = async (accountId) => ({
+		list: (await ordersForAccount(t.db, accountId)).map((o) => o.id),
+		unconfirmed: (await unconfirmedFreeOrders(t.db, accountId)).map((o) => o.id)
+	});
+
+	it('una orden gratis con el mail de la cuenta no va en la lista sino en «¿Son tuyas?»', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const free = await insertOrder({ email: 'Persona.Prueba@Example.com', method: 'gratis' });
+		expect(await ids(account.id)).toEqual({ list: [], unconfirmed: [free] });
+		const [row] = await unconfirmedFreeOrders(t.db, account.id);
+		expect(row).toMatchObject({ payment_method: 'gratis', total: 0, status: 'approved' });
+	});
+
+	it('«No es mía» la saca de todos lados, solo para esa cuenta', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const free = await insertOrder({ email: EMAIL, method: 'gratis' });
+		expect(
+			await chooseFreeOrder(t.db, { accountId: account.id, orderId: free, mine: false, now: NOW })
+		).toBe(true);
+		expect(await ids(account.id)).toEqual({ list: [], unconfirmed: [] });
+		// La orden no se toca: sigue aprobada y sin cuenta.
+		const order = await t.db
+			.prepare('SELECT status, account_id FROM orders WHERE id = ?1')
+			.bind(free)
+			.first();
+		expect(order).toEqual({ status: 'approved', account_id: null });
+	});
+
+	it('«Sí, son mías» la pasa a la lista; se puede cambiar de idea', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const paid = await insertOrder({ email: EMAIL, createdAt: NOW - 1000 });
+		const free = await insertOrder({ email: EMAIL, method: 'gratis' });
+		await chooseFreeOrder(t.db, { accountId: account.id, orderId: free, mine: true, now: NOW });
+		expect(await ids(account.id)).toEqual({ list: [free, paid], unconfirmed: [] });
+		await chooseFreeOrder(t.db, { accountId: account.id, orderId: free, mine: false, now: NOW });
+		expect(await ids(account.id)).toEqual({ list: [paid], unconfirmed: [] });
+	});
+
+	it('las compras pagas se ven siempre, sin preguntar', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const card = await insertOrder({ email: EMAIL, createdAt: NOW - 1000 });
+		const transfer = await insertOrder({
+			email: EMAIL,
+			method: 'transferencia',
+			status: 'awaiting_transfer'
+		});
+		expect(await ids(account.id)).toEqual({ list: [transfer, card], unconfirmed: [] });
+		// Una paga no se puede marcar (ni esconder).
+		expect(
+			await chooseFreeOrder(t.db, { accountId: account.id, orderId: card, mine: false, now: NOW })
+		).toBe(false);
+		expect(await ids(account.id)).toEqual({ list: [transfer, card], unconfirmed: [] });
+	});
+
+	it('pedida con la sesión de esa cuenta (o con su account_id), se ve como siempre', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const withSession = await insertOrder({ email: EMAIL, method: 'gratis', createdAt: NOW - 1 });
+		await markFreeOrderMine(t.db, { accountId: account.id, orderId: withSession, now: NOW });
+		const linked = await insertOrder({
+			email: 'otro.mail@example.com',
+			accountId: account.id,
+			method: 'gratis'
+		});
+		expect(await ids(account.id)).toEqual({ list: [linked, withSession], unconfirmed: [] });
+	});
+
+	it('no se puede elegir sobre la orden de otro mail ni sin mail verificado', async () => {
+		const one = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const two = await upsertVerifiedAccount(t.db, 'otra.persona@example.com', { now: NOW });
+		const free = await insertOrder({ email: EMAIL, method: 'gratis' });
+		expect(
+			await chooseFreeOrder(t.db, { accountId: two.id, orderId: free, mine: true, now: NOW })
+		).toBe(false);
+		expect(await ids(two.id)).toEqual({ list: [], unconfirmed: [] });
+		await t.db
+			.prepare('UPDATE accounts SET email_verified_at = NULL WHERE id = ?1')
+			.bind(one.id)
+			.run();
+		expect(
+			await chooseFreeOrder(t.db, { accountId: one.id, orderId: free, mine: true, now: NOW })
+		).toBe(false);
+		expect(await ids(one.id)).toEqual({ list: [], unconfirmed: [] });
+	});
+
+	it('las de antes de la migración se ven como siempre y no se pueden elegir', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const old = await insertOrder({ email: EMAIL, method: 'gratis', createdAt: SINCE - 1 });
+		const fresh = await insertOrder({ email: EMAIL, method: 'gratis', createdAt: SINCE });
+		expect(await ids(account.id)).toEqual({ list: [old], unconfirmed: [fresh] });
+		expect(
+			await chooseFreeOrder(t.db, { accountId: account.id, orderId: old, mine: false, now: NOW })
+		).toBe(false);
+		expect(await ids(account.id)).toEqual({ list: [old], unconfirmed: [fresh] });
+	});
+
+	it('la migración 0061 pone el corte justo después de la orden más nueva que haya', async () => {
+		await t.db.prepare("DELETE FROM ticket_settings WHERE key = 'free_order_choices_since'").run();
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const before = await insertOrder({ email: EMAIL, method: 'gratis', createdAt: NOW - 5 });
+		await insertOrder({ email: 'otra.persona@example.com', createdAt: NOW });
+		const sql = readFileSync(
+			fileURLToPath(new URL('../../../../migrations/0061_free_order_choices.sql', import.meta.url)),
+			'utf8'
+		);
+		const insert = sql.slice(sql.indexOf('INSERT OR IGNORE INTO ticket_settings'));
+		await t.db.prepare(insert).run();
+		const row = await t.db
+			.prepare("SELECT value FROM ticket_settings WHERE key = 'free_order_choices_since'")
+			.first();
+		expect(row?.value).toBe(String(NOW + 1));
+		const after = await insertOrder({ email: EMAIL, method: 'gratis', createdAt: NOW + 1 });
+		expect(await ids(account.id)).toEqual({ list: [before], unconfirmed: [after] });
+	});
+
+	it('sin la fila de la migración no se pregunta por ninguna (todo se ve como antes)', async () => {
+		await t.db.prepare("DELETE FROM ticket_settings WHERE key = 'free_order_choices_since'").run();
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const free = await insertOrder({ email: EMAIL, method: 'gratis' });
+		expect(await ids(account.id)).toEqual({ list: [free], unconfirmed: [] });
+	});
+
+	it('las gratis que cargan les admins (puerta, carga a mano) se ven siempre', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const door = await insertOrder({
+			email: EMAIL,
+			method: 'gratis',
+			channel: 'puerta',
+			createdAt: NOW - 1
+		});
+		const manual = await insertOrder({ email: EMAIL, method: 'gratis', channel: 'manual' });
+		expect(await ids(account.id)).toEqual({ list: [manual, door], unconfirmed: [] });
+		expect(
+			await chooseFreeOrder(t.db, { accountId: account.id, orderId: manual, mine: false, now: NOW })
+		).toBe(false);
+	});
+
+	it('al borrar la cuenta se borra lo elegido; una cuenta nueva con ese mail vuelve a preguntar', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const free = await insertOrder({ email: EMAIL, method: 'gratis' });
+		await chooseFreeOrder(t.db, { accountId: account.id, orderId: free, mine: true, now: NOW });
+		expect(await deleteAccount(t.db, account.id, { now: NOW + 1 })).toBe(true);
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM free_order_choices').first())?.n).toBe(0);
+		const again = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW + 2 });
+		expect(await ids(again.id)).toEqual({ list: [], unconfirmed: [free] });
 	});
 });
 

@@ -32,21 +32,24 @@
  * - si Telegram dice que el chat ya no recibe (bloqueó al bot), se desvincula.
  */
 import { signLink, verifyLink } from '$lib/server/signedLinks.js';
+import { parseSiteDate, startsAfter } from '$lib/utils/dates.js';
 import { eventsForFollow } from './calendar.js';
 import { stopAllMail } from './follows.js';
 import { migrateAccountSubscriptions } from './avisame.js';
 import { buildFollowEmail } from './email.js';
+import { autoSubmitted } from '$lib/server/tickets/email.js';
+import { oneClickHeaders } from '$lib/server/email/oneClick.js';
 import { resolveTarget } from './targets.js';
 import { optionsFromRow, telegramOptionsFromRow } from '$lib/utils/sigo.js';
 import { formatFollowNotice } from '$lib/server/telegram/format.js';
 import { botTextOverrides } from '$lib/server/telegram/texts.js';
 import { isQuietHour } from '$lib/server/telegram/quiet.js';
 import { REMINDER_ORDER_SQL } from '$lib/server/tickets/reminders.js';
-import { startsAfter } from '$lib/utils/dates.js';
+import { askFreeOrderSql, saidMineSql } from '$lib/server/cuentas/orders.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {Pick<ProcessedPost, 'meta' | 'path'>} Post */
-/** @typedef {(to: string, message: import('./email.js').Message, idempotencyKey: string) => Promise<'sent' | 'simulated' | 'failed'>} FollowSend */
+/** @typedef {(to: string, message: import('./email.js').Message & { headers?: Record<string, string> }, idempotencyKey: string) => Promise<'sent' | 'simulated' | 'failed'>} FollowSend */
 
 /** @typedef {'mail' | 'telegram'} Channel */
 
@@ -141,7 +144,8 @@ export async function markEventsSeen(db, slugs, now) {
  * Qué cuentas tienen entrada para qué eventos, en una sola consulta: órdenes que cuentan para
  * los recordatorios de las entradas ({@link REMINDER_ORDER_SQL}) con el `account_id` de la cuenta
  * o con su mail (sin importar mayúsculas: el recordatorio de las entradas va a ese mismo mail).
- * Devuelve claves `<cuenta>\u0000<evento>`.
+ * Una gratis pedida sin la sesión de la cuenta cuenta solo después de «Sí, son mías» (como Mi
+ * rincón, cuentas/orders.js). Devuelve claves `<cuenta>\u0000<evento>`.
  *
  * @param {D1Database} db
  * @param {readonly string[]} slugs
@@ -159,7 +163,8 @@ export async function accountsWithTickets(db, slugs) {
 			SELECT a.id AS account_id, o.event_slug FROM orders o
 			JOIN accounts a ON lower(a.email) = lower(o.buyer_email)
 			WHERE o.event_slug IN (SELECT value FROM json_each(?1)) AND ${REMINDER_ORDER_SQL}
-				AND a.deleted_at IS NULL AND a.email IS NOT NULL`
+				AND a.deleted_at IS NULL AND a.email IS NOT NULL
+				AND (NOT ${askFreeOrderSql('o')} OR ${saidMineSql('o', 'a.id')})`
 		)
 		.bind(JSON.stringify(slugs))
 		.all();
@@ -227,7 +232,7 @@ export async function runFollowNotifications({
 	const withTicket = await accountsWithTickets(
 		db,
 		events
-			.filter((p) => new Date(p.meta.start).getTime() - now <= REMINDER_WINDOW_MS)
+			.filter((p) => parseSiteDate(p.meta.start).getTime() - now <= REMINDER_WINDOW_MS)
 			.map((p) => String(p.meta.postID))
 	);
 
@@ -269,7 +274,7 @@ export async function runFollowNotifications({
 			const slug = String(post.meta.postID);
 			const seenAt = firstSeen.get(slug);
 			const isNew = seenAt !== undefined && Number(row.created_at) < seenAt;
-			const start = new Date(post.meta.start).getTime();
+			const start = parseSiteDate(post.meta.start).getTime();
 			// Quien tiene entrada ya recibe los recordatorios de las entradas: el de «Lo que sigo»
 			// (por mail o por Telegram), no.
 			const isSoon =
@@ -352,20 +357,30 @@ export async function runFollowNotifications({
 				if (budget <= 0 || !acc.email) break;
 				if (!(await claim(accountId, slug, kind, 'mail'))) continue;
 				budget--;
-				const message = buildFollowEmail({
-					kind,
-					title: String(item.post.meta.title ?? slug),
-					start: String(item.post.meta.start),
-					eventUrl,
-					reasons: [...item.reasons],
-					manageUrl: `${origin}/mi-rincon/sigo`,
-					stopUrl: await stopMailUrl(db, origin, accountId),
-					origin
-				});
+				const stopUrl = await stopMailUrl(db, origin, accountId);
+				const message = {
+					...buildFollowEmail({
+						kind,
+						title: String(item.post.meta.title ?? slug),
+						start: String(item.post.meta.start),
+						eventUrl,
+						reasons: [...item.reasons],
+						manageUrl: `${origin}/mi-rincon/sigo`,
+						stopUrl,
+						origin,
+						now
+					}),
+					// Baja en un clic (RFC 8058): el mismo link del pie (email/oneClick.js).
+					headers: oneClickHeaders(stopUrl)
+				};
 				/** @type {'sent' | 'simulated' | 'failed'} */
 				let result = 'failed';
 				try {
-					result = await send(acc.email, message, `sigo-${accountId}-${slug}-${kind}`);
+					result = await send(
+						acc.email,
+						autoSubmitted(message),
+						`sigo-${accountId}-${slug}-${kind}`
+					);
 				} catch (error) {
 					console.error('[sigo] no se pudo mandar un aviso:', error);
 				}

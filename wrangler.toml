@@ -25,6 +25,17 @@ preview_urls = true
 # cada deploy borraría las que no estén en este archivo. Los secrets nunca se borran.
 keep_vars = true
 
+# Sin `[cache]` (Workers Cache) a propósito: cobra los archivos estáticos, que hoy son gratis, y no
+# mira las cookies (le daría la página anónima a quien tiene sesión). Ver docs/workers-migracion.md,
+# «No prender Workers Cache».
+
+# Tope de CPU por invocación (pedidos y crons): 15 s en vez de los 30 s por defecto. Es un freno de
+# costo contra un pedido que se cuelga en un bucle, no de velocidad. Medido en local con la semilla
+# (27/10/2026): el cron nocturno entero (backup + integridad) ~1 s de pared y `/og` 1,2–3 s; en
+# producción la base es unas 5 veces la semilla. Ver docs/workers-migracion.md, «Tope de CPU».
+[limits]
+cpu_ms = 15000
+
 # Los archivos que genera el adapter de SvelteKit (ver wrangler.adapter.toml).
 [assets]
 directory = ".svelte-kit/cloudflare"
@@ -33,9 +44,23 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
+# Workers Issues (docs/workers-migracion.md, «Enterarse de los errores»): agrupa las excepciones,
+# las respuestas 5xx y los `console.error`. Tiene que estar acá: sin la clave en el archivo, la
+# próxima publicación lo apaga. A quién le llega el aviso se arma en el panel (Issues → Automations).
+[observability.issues]
+enabled = true
+
+# Ubicación del Worker (docs/workers-migracion.md, «Ubicación del Worker»): sin `[placement]`, a
+# propósito. El Worker corre en el centro de datos de quien visita: la caché de 1 minuto responde
+# desde ahí y las páginas livianas tardan menos. Se midió desde Buenos Aires el 25/10 contra la
+# región fija `aws:us-east-1` (al lado de la base): 6 de 8 páginas más rápidas, una igual y la del
+# evento ~0,08 s más lenta, porque todavía hace varias idas en fila a la base (decisión de gorrite).
+# Las consultas van en tanda (src/lib/server/db/autoBatch.js) para que cada página cruce a la base
+# las menos veces posible. Para volver a la región fija: `[placement]` + `region = "aws:us-east-1"`.
+
 # Crons (UTC). Tienen que coincidir con src/lib/server/scheduled.js (lo verifica un test).
 # - cada 15 minutos: recordatorios de entradas;
-# - 06:00 UTC (03:00 en Argentina): backup de la base a R2.
+# - 06:00 UTC (03:00 en Argentina): backup de la base a R2 y copia de la biblioteca.
 # Solo corren en producción (los Previews no ejecutan crons).
 [triggers]
 crons = ["*/15 * * * *", "0 6 * * *"]
@@ -65,6 +90,13 @@ dataset = "kinkyvibe_visitas"
 [[r2_buckets]]
 binding = "MEDIA"
 bucket_name = "kinkyvibe-media"
+
+# Copia de la biblioteca (docs/imagenes.md, «Copia de la biblioteca»): el cron nocturno copia ahí lo
+# nuevo de `img/` y `file/` y nunca borra nada. Solo producción: los Previews no tienen este binding
+# (y no corren crons). El bucket se crea a mano una vez, antes de publicar esto.
+[[r2_buckets]]
+binding = "MEDIA_COPIA"
+bucket_name = "kinkyvibe-media-copia"
 
 # Transformaciones de imágenes de Cloudflare (docs/compartir.md): las miniaturas de las portadas
 # del collage de las imágenes de vista previa (`/og/…`). Cada miniatura distinta cuenta una vez

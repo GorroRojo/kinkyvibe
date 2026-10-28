@@ -407,6 +407,15 @@ describe('volver a anotarse después de vencer', () => {
 		});
 	});
 
+	it('también si une admin terminó su reserva (el link de «se terminó tu lugar»)', async () => {
+		const id = await waiting();
+		await offer(id, NOW + H);
+		await endWaitlistEntry(t.db, id, { reason: 'admin', by: 'admin-de-prueba', now: NOW });
+		const r = await rejoinWaitlist(t.db, id, NOW + 1000);
+		expect(r).toMatchObject({ status: 'waiting' });
+		expect(await row(/** @type {any} */ (r).id)).toMatchObject({ status: 'waiting', email: EMAIL });
+	});
+
 	it('solo desde una reserva vencida (no si salió, la sacaron o sigue viva)', async () => {
 		const id = await waiting();
 		expect(await rejoinWaitlist(t.db, id, NOW)).toBeNull();

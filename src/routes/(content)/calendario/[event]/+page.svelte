@@ -20,18 +20,19 @@
 	import { relatedPostsFor } from '$lib/utils';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
-	import { eventSchema } from '$lib/utils/jsonLd.js';
+	import { eventSchema, withSuperEvent } from '$lib/utils/jsonLd.js';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
+	import LoQueEnlaza from '$lib/components/LoQueEnlaza.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { showEventTip } from '$lib/utils/propinas.js';
 	import { eventEnd } from '$lib/utils/dates.js';
-	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
-	import { Button, TagChip } from '$lib/components/ui';
+	import Button from '$lib/components/ui/Button.svelte';
+	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
 	import AvisoEvento from '$lib/components/evento/AvisoEvento.svelte';
 	import BotonCompra from '$lib/components/evento/BotonCompra.svelte';
@@ -41,7 +42,7 @@
 	import Quienes from '$lib/components/evento/Quienes.svelte';
 	import Serie from '$lib/components/evento/Serie.svelte';
 	import {
-		eventPageTitle,
+		eventTabTitle,
 		isPastEvent,
 		mainSeries,
 		nextEdition,
@@ -51,7 +52,13 @@
 	import { hasVisibleHtml } from '$lib/utils/htmlStrip.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { eventDescription } from '$lib/utils/seo.js';
+	import { posterSrcset } from '$lib/utils/mediaCopies.js';
 	export let data;
+	// El afiche con las copias chicas de la biblioteca (docs/imagenes.md): el ancho que ocupa sale
+	// del CSS de abajo (en el celu, la pantalla menos el margen `--space-xs` de cada lado; en la
+	// compu, la columna de 24rem).
+	const POSTER_SIZES = '(min-width: 900px) 24rem, calc(100vw - 1.75rem)';
+	$: posterSet = posterSrcset(data.meta.featured, data.cover);
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
 	// bloque de estilos del componente.
@@ -62,7 +69,6 @@
 	// (y el botón dice a qué sitio lleva).
 	$: actionLink = safeEventLink(data.meta.link);
 	$: actionLinkTarget = isWebLink(actionLink) ? '_blank' : undefined;
-	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
@@ -130,17 +136,21 @@
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
 <LDTag
-	schema={eventSchema({
-		meta: data.meta,
-		end,
-		venue: data.venue,
-		tickets: data.tickets,
-		webLink: isWebLink(actionLink) ? actionLink : undefined,
-		past
-	})}
+	schema={withSuperEvent(
+		eventSchema({
+			meta: data.meta,
+			end,
+			venue: data.venue,
+			tickets: data.tickets,
+			webLink: isWebLink(actionLink) ? actionLink : undefined,
+			past,
+			authorLinks: data.authorLinks
+		}),
+		data.series?.list
+	)}
 />
 <svelte:head>
-	<title>{eventPageTitle(data.meta, data.series)} · Kinky Vibe</title>
+	<title>{eventTabTitle(data.meta)}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
@@ -192,10 +202,19 @@
 	<aside class="lateral" aria-label="Afiche, cuándo y dónde">
 		<div class="lateral-fijo" bind:this={fixed} style:--top={top || undefined}>
 			{#if data.meta.featured}
+				<!-- El afiche es lo más grande de la página (su LCP): se pide primero, y con las medidas
+				     de la portada de la biblioteca (si las tiene) el navegador le guarda el lugar antes
+				     de que llegue el CSS. El tamaño en pantalla lo sigue mandando `.afiche`. Si es de la
+				     biblioteca, el navegador elige entre las copias chicas y el original (`srcset`). -->
 				<img
 					class="afiche u-photo"
 					src={data.meta.featured + ''}
+					srcset={posterSet || undefined}
+					sizes={posterSet ? POSTER_SIZES : undefined}
 					alt="Afiche de {data.meta.title}"
+					width={data.cover?.width || undefined}
+					height={data.cover?.height || undefined}
+					fetchpriority="high"
 				/>
 			{/if}
 			<CuandoDonde meta={data.meta} venue={data.venue} mapa={!cancelled} entradas={showTickets} />
@@ -277,7 +296,7 @@
 		</section>
 	{/if}
 
-	<Quienes groups={data.personas} tags={data.meta.tags ?? []} />
+	<Quienes groups={data.personas} tags={data.meta.tags ?? []} wikiTags={data.wikiTags ?? []} />
 
 	{#if data.series}<Serie series={data.series} {past} origin={$page.url.origin} />{/if}
 
@@ -301,6 +320,9 @@
 			{/each}
 		{/await}
 	{/if}
+
+	<!-- «Lo que enlaza acá» (interruptor `lo_que_enlaza`): apagado o sin nada, `null` o vacío y no se ve. -->
+	<LoQueEnlaza links={data.linksHere} />
 
 	{#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 		<section class="relacionados" aria-labelledby="mas-titulo">

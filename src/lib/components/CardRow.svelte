@@ -2,21 +2,35 @@
 	//@ts-nocheck
 	import Card from './Card.svelte';
 	import { fly } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
 	export let title = '';
 	export let items = [];
 	export let id = undefined;
 	export let href = undefined;
 	export let index = undefined;
 	export let setId = true;
+	/** Cuántas tarjetas del principio cargan su imagen enseguida (la primera con imagen, con
+	 * prioridad: es el LCP). */
+	export let eager = 0;
+	/** @param {any} post */
+	const hasCover = (post) => {
+		const src = post?.meta?.featured;
+		return Boolean(src) && src !== 'undefined';
+	};
+	// La primera tarjeta CON imagen lleva la prioridad (y carga enseguida aunque esté más allá de
+	// las `eager`): una tarjeta sin imagen no tiene nada que apurar.
+	$: priorityIndex = eager > 0 ? items.findIndex(hasCover) : -1;
 	// Without an index the old offset evaluated to NaN (i.e. no vertical movement); keep that
 	// explicitly, since Svelte 5's Web Animations based transitions warn about NaN keyframes.
 	$: flyY = index === undefined ? 0 : ((index % 2) - 0.5) * 2 * 200;
+	// Con «reducir movimiento» la fila aparece sin desplazarse (las transiciones de Svelte no
+	// respetan el CSS de prefers-reduced-motion: van por Web Animations).
 </script>
 
 <div
 	{id}
-	in:fly={{ y: flyY, duration: 300, delay: 300 }}
-	out:fly={{ y: -flyY, duration: 300 }}
+	in:fly={{ y: prefersReducedMotion.current ? 0 : flyY, duration: 300, delay: 300 }}
+	out:fly={{ y: prefersReducedMotion.current ? 0 : -flyY, duration: 300 }}
 	class="cardrowcontainer"
 >
 	{#if title}
@@ -27,11 +41,19 @@
 	<ul class="cardrow">
 		{#each items as post, i}
 			<li class="cardcontainer">
-				<Card {setId} {post} />
+				<Card
+					{setId}
+					{post}
+					eager={i < eager || i === priorityIndex}
+					priority={i === priorityIndex}
+				/>
 			</li>
 		{/each}
 	</ul>
-	{#if href}<a class="btn-more" {href} tabindex="0">...ver más</a>{/if}
+	<!-- Un link ya es enfocable (sin tabindex); con nombre propio, porque en la portada hay tres. -->
+	{#if href}<a class="btn-more" {href} aria-label={title ? `Ver más de ${title}` : undefined}
+			>...ver más</a
+		>{/if}
 </div>
 
 <style lang="scss">

@@ -33,9 +33,11 @@
 	const icon = { size: 18, strokeWidth: 2, 'aria-hidden': true, class: 'icon' };
 </script>
 
-<div class="profile-header" use:melt={$trigger}>
+<!-- melt-ui pone aria-haspopup y aria-expanded pero no el rol: sin él, un div enfocable sin nombre
+     de qué es. El id no es «title»: ese es el del título de la página (destino de «Volver arriba»). -->
+<div class="profile-header" role="button" tabindex="0" use:melt={$trigger}>
 	<img src={avatar} class="profile-pic" alt="" width="24" height="24" />
-	<span id="title" class="profile-name">
+	<span id="user-menu-name" class="profile-name">
 		{user.name || user.login}
 	</span>
 	{#if $open}
@@ -56,7 +58,7 @@
 						><SquarePen {...icon} /><span>Editar contenido</span></a
 					>
 				{:else}
-					<span class="menuitem disabled" use:melt={$item}
+					<span class="menuitem disabled" aria-disabled="true" use:melt={$item}
 						><SquarePen {...icon} /><span>Editar contenido</span></span
 					>
 				{/if}

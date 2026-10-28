@@ -18,6 +18,8 @@
 	export let errors = {};
 	export let submitText = '';
 	export let submitDisabled = false;
+	/** El mail de quien compra: se muestra antes de pagar para que se vea un error de tipeo. */
+	export let email = '';
 
 	/** Porcentaje de comisión para mostrar (773 → "7,73 %"). */
 	$: feeText =
@@ -30,7 +32,13 @@
 		<div class="method-cards">
 			{#each tickets.methods as m (m)}
 				<label class="method">
-					<input type="radio" name="method" value={m} bind:group={method} />
+					<input
+						type="radio"
+						name="method"
+						value={m}
+						bind:group={method}
+						aria-describedby={errors.method ? 'entradas-medio-error' : undefined}
+					/>
 					<span>
 						<strong>{m === 'mercadopago' ? 'Mercado Pago' : 'Transferencia'}</strong>
 						<small
@@ -55,7 +63,7 @@
 				</p>
 			{/each}
 		</div>
-		{#if errors.method}<p class="field-error">{errors.method}</p>{/if}
+		{#if errors.method}<p class="field-error" id="entradas-medio-error">{errors.method}</p>{/if}
 	</fieldset>
 {:else}
 	<input type="hidden" name="method" value={free ? '' : (tickets.methods[0] ?? '')} />
@@ -69,6 +77,14 @@
 		{/each}
 	</ul>
 </details>
+
+{#if email.trim()}
+	<!-- Antes de pagar, el mail a la vista: un error de tipeo se ve acá y no después. -->
+	<p class="send-to">
+		Te mandamos las entradas a <strong>{email.trim()}</strong>. Revisá que esté bien.
+		<slot name="edit-email" />
+	</p>
+{/if}
 
 <label class="accept">
 	<input type="checkbox" name="accept" required aria-invalid={errors.accept ? 'true' : undefined} />
@@ -165,6 +181,11 @@
 	}
 	.conditions li {
 		margin: 0.25em 0;
+	}
+	.send-to {
+		margin: 0;
+		font-size: var(--step--1);
+		overflow-wrap: anywhere;
 	}
 	.accept {
 		display: flex;

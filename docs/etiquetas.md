@@ -45,6 +45,15 @@ Se hace en PRs chicos, uno arriba del otro:
    `tagSlug()` (espacios → guiones) y `resolveTagSlug()` (`src/lib/utils/tagSlug.js`). El `slug`
    del objeto es solo interno.
 4. Se escribe solo con `saveObject()`, como todo objeto.
+5. **Un ciclo de madres no cuelga el sitio.** Fusionar ya no arma uno (#582), pero si llega por
+   otro lado (importador, semilla, una edición a mano en la base), todo lo que recorre el árbol
+   termina: `getAllChildren`/`getAllParents` no vuelven a abrir una etiqueta que ya está en el
+   camino que lleva hasta ella (en un árbol sin ciclos dan lo mismo que antes, repetidas
+   incluidas), `getColor` mira cada una una vez, y `TagGroup`, `GlosarioTree`/`GlosarioItem`, la
+   página `/wiki/<etiqueta>`, `tagSorter` y `leavesOf` cortan la rama en la etiqueta repetida.
+   Para encontrarlos: `node scripts/etiquetas-ciclos.js` (solo lee la base local; con `--sql` da
+   la consulta para correrla con `wrangler d1 execute … --remote --json` y `--desde=<archivo>` lee
+   esa salida).
 
 ## El tipo `etiqueta`
 
@@ -56,14 +65,14 @@ Archivo: `src/lib/server/objects/types/etiqueta.js`.
 | `key`            | `text`     | `id`: el nombre en los posts. Obligatorio, una línea, sin corchetes               |
 | `icon`           | `text`     | `icon` (un emoji)                                                                 |
 | `color`          | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
-| `description`    | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
+| `description`    | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas (si no existe, va como texto)  |
 | `image`          | `text`     | `image` (series): un nombre de las viejas imágenes de series o la de un evento    |
 | `body`           | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
 | `wiki_title`     | `text`     | `title` del `.md` de la wiki                                                      |
 | `wiki_summary`   | `longtext` | `summary` del `.md` de la wiki                                                    |
 | `wiki_authors`   | `list`     | `authors` del `.md` de la wiki                                                    |
 | `wiki_tags`      | `list`     | `tags` del `.md` de la wiki (otras etiquetas que nombra la página)                |
-| `wiki_body_html` | `option`   | cómo se muestra el texto: `libre` o `corta` (sin valor: lo importado, HTML libre) |
+| `wiki_body_html` | `option`   | cómo se muestra el texto: `libre` o `corta` (sin valor: la lista corta)           |
 
 | Relación          | Hacia    | Qué es hoy                                                                     |
 | ----------------- | -------- | ------------------------------------------------------------------------------ |
@@ -110,7 +119,8 @@ Cómo correrlo: `npm run db:semilla` (local; solo carga etiquetas si la base no 
 `npm run dev` lo hace solo.
 
 La lectura (`read.js`, `loadTagRecords`) devuelve las etiquetas que ve quien mira (por defecto el
-público) con sus relaciones, ambas puntas con `visibleWhere()`.
+público) con sus relaciones, ambas puntas con `visibleWhere()`. Las dos consultas (las etiquetas y
+sus relaciones) van en una sola tanda (`db.batch`): una ida y vuelta a la base, no dos en fila.
 
 ## Leer y editar desde la base (paso 3)
 
@@ -123,14 +133,27 @@ solo); hasta entonces el árbol está vacío y el editor lo avisa.
   `siteTagManager`): la base. Sin base, con la base sin etiquetas o sin poder leerla: vacío
   (`src/lib/utils/tagFallback.js`; las pruebas de vitest ponen ahí las etiquetas de la semilla,
   en `src/tests/setup.js`). Lo leído se recuerda 30 s por isolate (si al volver a leer no cambió
-  nada, es la misma lista: no se rearma nada); el editor lo olvida al guardar.
+  nada, es la misma lista: no se rearma nada); el editor lo olvida al guardar. En los últimos 10 s
+  se renueva sin esperar (`refreshTagSourceAhead`, desde `src/lib/server/adelantarPedido.js`): el
+  pedido usa lo que hay y la lectura nueva sale con sus primeras consultas.
 - **Todo usa esa fuente, sin excepciones** (paso 5). Una sola puerta: `src/lib/utils/siteTags.js`
   (`currentSiteTags()`, `currentSiteTagList()`).
+  - **Un solo árbol por lista** (`siteTagTree`): `currentSiteTags()`, los stores `tagManager` y
+    `wikiTagManager` y `tagManagerOf`/`siteTagManager` de `source.js` devuelven el mismo objeto,
+    de solo lectura (se arma una vez, sobre una copia de la lista). Para modificar uno (el filtro
+    de la Kinkipedia), `freshSiteTags()`.
   - En el servidor, `hooks.server.js` pone el árbol de cada pedido al empezar (`applySiteTags`):
     también los stores `tagManager` y `wikiTagManager` del SSR. Todos los pedidos de un isolate
     ven la misma lista (la de los 30 s).
   - En el navegador, el layout raíz manda la lista de la base (`data.siteTags`, solo prendido) y
-    `useSiteTags` la pone en los stores y en `siteTags.js`.
+    `useSiteTags` la pone en los stores y en `siteTags.js`. Va **liviana**
+    (`src/lib/utils/tagDetails.js`): sin `description`, `related` ni `image`, que solo usan la
+    Kinkipedia (`/wiki`, `/wiki/<término>`), las descripciones de las etiquetas elegidas en
+    `/material`, `/amigues` y `/todo`, y el panel. Esas páginas mandan los detalles aparte
+    (`data.siteTagDetails`, `siteTagDetails()` de `source.js`) y el layout raíz los junta con el
+    árbol (`withTagDetails`: se van sumando, así el árbol no se rearma en cada navegación). En el
+    servidor nada cambia: el layout raíz no toca los stores ahí (ya tienen la lista completa del
+    pedido).
   - Lo leen de ahí: la limpieza de etiquetas de cada post (`canonicalTags`/`processPost`,
     `fetchPost`), los listados de posts (`fetchMarkdownPosts`: la lista se procesa una vez y, con la base, se vuelven a limpiar las etiquetas, una vez por árbol), los
     editores del panel (`adminTags.js`: el editor de eventos, «¿Es parte de una serie?» al
@@ -153,7 +176,8 @@ solo); hasta entonces el árbol está vacío y el editor lo avisa.
   la acción `guardar` acepta un solo cambio (`op`). Fusionar y renombrar sin alias piden
   confirmación antes (con lo que diga la vista previa del servidor). Guarda en la base (sin
   etiquetas en la base, la página pide cargar la semilla: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
-  operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después compara
+  operaciones que el editor del archivo (`applyTagOps`), así que valida igual (ni mover ni
+  fusionar dejan armar un ciclo de madres e hijas); después compara
   objeto por objeto y escribe solo lo que cambió. Diferencias:
   - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
   - el texto de la wiki y los demás datos que el archivo no tiene se conservan; si una etiqueta
@@ -204,11 +228,14 @@ El texto de la wiki de cada etiqueta (`body`, `wiki_title`, `wiki_summary`, `wik
 `.md` de la wiki).
 
 - **Leer**: `src/lib/server/wiki/site.js`. Las páginas vienen con el árbol de etiquetas
-  (`siteTagSource`, recordado 30 s por isolate): el glosario del layout, `/wiki`, el buscador, el
-  sitemap y «Participa en» no suman consultas. `/wiki/<término>` resuelve la etiqueta como toda
+  (`siteTagSource`, recordado 30 s por isolate): el glosario, `/wiki`, el buscador, el
+  sitemap y «Participa en» no suman consultas. Las páginas de la wiki ya no viajan en el layout de
+  todas las páginas: las mandan `/wiki` y `/wiki/<término>` (`wiki`, para el glosario) y
+  `/material`, `/amigues` y `/todo` (`wikiKeys`, para el link «Es más complejo»;
+  `tagDescriptionsData`). `/wiki/<término>` resuelve la etiqueta como toda
   dirección de etiqueta (también un alias) y arma el texto en el servidor
-  (`renderContentBody`: HTML libre como lo armaba mdsvex, con `[[enlaces]]`, anclas e índice; la
-  lista corta si `wiki_body_html` es `corta`). **Ya no se prerenderiza** (`prerender = false`): la
+  (`renderContentBody`: HTML libre como lo armaba mdsvex, con `[[enlaces]]`, anclas e índice, si
+  `wiki_body_html` es `libre`; si no, la lista corta). **Ya no se prerenderiza** (`prerender = false`): la
   base no se puede leer al compilar.
 - **Editar**: Etiquetas → cada etiqueta → «Editar/Escribir la entrada de la Kinkipedia»
   (`/admin/etiquetas/wiki/<dirección>`, `src/lib/server/etiquetas/wikiEditor.js`): en la base al
@@ -216,7 +243,7 @@ El texto de la wiki de cada etiqueta (`body`, `wiki_title`, `wiki_summary`, `wik
   versión. Cambia solo el texto de la wiki (ni el nombre, ni las relaciones, ni la descripción).
   «Sacar la entrada» le saca el texto (queda en el historial). `/edit/wiki/<…>` lleva ahí.
 - **Cómo se muestra** (`wiki_body_html`, como `body_html` de los eventos): si el texto no cambió,
-  como estaba; si cambió, HTML libre si guarda une superadmin (todes les admins del panel, decisión 0003) y la lista corta si no. Sin valor (lo importado del repo): HTML libre.
+  como estaba; si cambió, HTML libre si guarda une superadmin (todes les admins del panel, decisión 0003) y la lista corta si no. Sin valor: la lista corta (lo importado guarda `libre`; la migración 0059 lo escribió en las páginas que ya estaban).
 - **Semilla**: el importador de etiquetas (arriba) carga la wiki de `semilla/wiki.json` en una base
   local o de pruebas.
 
@@ -241,7 +268,9 @@ para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
   (`IMAGE_KEY`), así que el importador lo copia a la base igual. El selector de Editar solo ofrece
   esos nombres viejos (`legacyAssetNames`); la imagen de un evento se conserva si no se cambia.
 - **Página de la serie**: `/wiki/<serie>`, con su imagen, descripción, próximas y pasadas
-  ediciones (`SeriesTagBlock.svelte`, como antes).
+  ediciones (`SeriesTagBlock.svelte`, como antes). Viene con la carga de la página
+  (`data.seriesInfo`, `seriesTagInfo` en `src/lib/server/series/web.js`), así el bloque sale con la
+  página y no la mueve al llegar; `GET /api/series/<etiqueta>` usa la misma función.
 - **Kinkipedia** (`/wiki`): la sección «Series» (`#series`), con una tarjeta por serie que tiene
   ediciones (imagen o su emoji grande, descripción, cuántas ediciones y la próxima, o la última)
   que lleva a su página (`seriesSummaries`, `SeriesGrid.svelte`). Las **series hijas** van dentro

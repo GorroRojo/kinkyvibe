@@ -35,7 +35,12 @@
 		searchHref,
 		usageText
 	} from '$lib/utils/imageChoice.js';
-	import { PICKABLE_TYPES, pickProblem, prepareImage } from '$lib/utils/imageResize.js';
+	import {
+		PICKABLE_TYPES,
+		appendCopies,
+		pickProblem,
+		prepareImage
+	} from '$lib/utils/imageResize.js';
 
 	/** @typedef {import('$lib/server/media/library.js').PublicImage} PublicImage */
 
@@ -122,6 +127,8 @@
 			body.set('alt', pickedAlt);
 			if (prepared.width) body.set('width', String(prepared.width));
 			if (prepared.height) body.set('height', String(prepared.height));
+			// Las copias chicas para las tarjetas (docs/imagenes.md).
+			appendCopies(body, prepared);
 			const res = await fetch('/imagenes', { method: 'POST', body });
 			const out = await res.json().catch(() => ({}));
 			if (!res.ok || !out.image) {
@@ -285,7 +292,7 @@
 					Cambio sin guardar: se aplica al tocar «Guardar».
 				</p>{/if}
 			{#if shown}
-				<button type="button" class="kv-link" on:click={remove}>Quitar la imagen</button>
+				<button type="button" class="kv-link" on:click={remove}>Sacar la imagen</button>
 			{/if}
 		</div>
 	</div>

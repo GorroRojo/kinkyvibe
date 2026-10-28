@@ -13,7 +13,13 @@ import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { withVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
-import { argDateTimeLong, argTime, startsAfter, toArgentina } from '$lib/utils/dates.js';
+import {
+	argDateTimeLong,
+	argTime,
+	startsAfter,
+	toArgentina,
+	parseSiteDate
+} from '$lib/utils/dates.js';
 import { placeShort } from '$lib/utils/eventPlace.js';
 import { ticketCta } from '$lib/utils/ticketCta.js';
 import { renderBotText } from '$lib/utils/botTexts.js';
@@ -76,7 +82,7 @@ export function groupByDay(
 	const upcoming = posts
 		.filter((p) => p.meta?.category === 'calendario' && p.meta?.postID)
 		.filter((p) => startsAfter(p.meta.start, now))
-		.sort((a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime())
+		.sort((a, b) => parseSiteDate(a.meta.start).getTime() - parseSiteDate(b.meta.start).getTime())
 		.slice(0, APP_MAX_EVENTS);
 	for (const p of upcoming) {
 		const m = p.meta;

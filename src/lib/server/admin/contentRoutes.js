@@ -24,8 +24,8 @@ import {
 } from './posts.js';
 import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { FileChangedError, PathExistsError } from '$lib/server/contenido/cliente.js';
-import { findImage, imageOf } from '$lib/server/media/library.js';
-import { resolveContentSlug } from '$lib/server/contenido/posts.js';
+import { findImage } from '$lib/server/media/library.js';
+import { libraryCoverOf } from '$lib/server/contenido/posts.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
 import {
 	contentProblems,
@@ -35,8 +35,8 @@ import {
 } from '$lib/utils/contentPosts.js';
 import { MAX_IMAGE_BYTES, todayInArgentina } from '$lib/utils/eventDraft.js';
 import { contentAdminHref } from '$lib/admin/nav.js';
-import { commitSavedToDb, pathExistsMessage, saveCopy } from '$lib/admin/saveCopy.js';
-import { panelSavesToDb } from '$lib/server/contenido/saving.js';
+import { saveCopy } from '$lib/admin/saveCopy.js';
+import { inOrder } from '$lib/utils/inOrder.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import materialTemplate from '$lib/admin/plantillas/material.md?raw';
 
@@ -71,17 +71,29 @@ const adminViewer = (locals) =>
  * @param {string | undefined} legacyUrl
  */
 async function materialImage(platform, locals, slug, legacyUrl) {
-	const db = getDB(platform);
-	/** @type {import('$lib/server/media/library.js').PublicImage | null} */
-	let current = null;
-	if (db && slug) {
-		try {
-			const ref = await resolveContentSlug(db, 'material', slug);
-			if (ref) current = await imageOf(db, ref.id, 'portada', adminViewer(locals));
-		} catch {
-			// Sin la de la biblioteca, se muestra la del repo.
-		}
-	}
+	return materialImageOf(slug, await materialLibraryImage(platform, locals, slug), legacyUrl);
+}
+
+/**
+ * La imagen del material en la biblioteca (edge `portada`), o null (sin base, sin dirección o si
+ * no se pudo leer: entonces se muestra la del repo). No depende del texto: sale a la par de él.
+ * @param {App.Platform | undefined} platform
+ * @param {App.Locals} locals
+ * @param {string} slug
+ * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
+ */
+async function materialLibraryImage(platform, locals, slug) {
+	if (!slug) return null;
+	return libraryCoverOf(getDB(platform), 'material', slug, adminViewer(locals));
+}
+
+/**
+ * {@link materialImage} con la de la biblioteca ya leída.
+ * @param {string} slug
+ * @param {import('$lib/server/media/library.js').PublicImage | null} current
+ * @param {string | undefined} legacyUrl
+ */
+function materialImageOf(slug, current, legacyUrl) {
 	return {
 		current,
 		legacyUrl: current ? null : (legacyUrl ?? null),
@@ -183,18 +195,27 @@ export function newLoad(category) {
 		requireAdmin(locals, url);
 		const admin = getEventAdmin(locals);
 		if (!admin) throw error(403, NO_PERMISSION);
-		// Lo nuevo de material va a la base (se ve enseguida).
-		const savesToDb = await panelSavesToDb(platform, category);
 		const desde = url.searchParams.get('desde') ?? '';
+		if (desde && !contentPath(category, desde)) throw error(400, 'Esa publicación no existe.');
+		// Lo que no depende de la publicación de origen sale a la par de ella (cada lectura en fila
+		// es una ida); se espera después, así que sus errores (400, 404, 502) salen primero, como antes.
+		const rest = inOrder([
+			takenContentSlugs(category),
+			// Material: el selector de imágenes (docs/imagenes.md).
+			category === 'material' ? materialImage(platform, locals, '', undefined) : null,
+			editorData(category),
+			// Personas con rol en el material (sin base, null).
+			category === 'material' ? editorPersonas(platform) : null
+		]);
+		rest.catch(() => {});
 		/** @type {null | {slug: string, raw: string, title: string}} */
 		let source = null;
 		if (desde) {
-			if (!contentPath(category, desde)) throw error(400, 'Esa publicación no existe.');
 			let post;
 			try {
 				post = await readContentPost(await getRepoClient(), admin.token, category, desde);
 			} catch (e) {
-				throw error(502, saveCopy(savesToDb).postReadFailed + describe(e));
+				throw error(502, saveCopy().postReadFailed + describe(e));
 			}
 			if (!post) throw error(404, 'Esa publicación no existe.');
 			let title = desde;
@@ -205,6 +226,7 @@ export function newLoad(category) {
 			}
 			source = { slug: desde, raw: post.raw, title };
 		}
+		const [taken, image, editor, personas] = await rest;
 		return {
 			category,
 			mode: /** @type {'nuevo'} */ ('nuevo'),
@@ -213,17 +235,16 @@ export function newLoad(category) {
 			slug: '',
 			source: source && { slug: source.slug, title: source.title },
 			fromTemplate: !source,
-			taken: await takenContentSlugs(category),
+			taken,
 			imageUrl: null,
-			// Material: el selector de imágenes (docs/imagenes.md).
-			image: category === 'material' ? await materialImage(platform, locals, '', undefined) : null,
+			image,
 			today: todayInArgentina(),
 			maxImageBytes: MAX_IMAGE_BYTES,
-			savesToDb,
+			// Todo se guarda en la base (decisión 0032); la clave queda mientras el formulario la lea.
+			savesToDb: true,
 			mock: isMockMode(),
-			...(await editorData(category)),
-			// Personas con rol en el material (sin base, null).
-			personas: category === 'material' ? await editorPersonas(platform) : null
+			...editor,
+			personas
 		};
 	};
 }
@@ -241,13 +262,21 @@ export function editLoad(category) {
 		const slug = params.slug ?? '';
 		if (!contentPath(category, slug) || slug.startsWith('_'))
 			throw error(404, 'Esa publicación no existe.');
-		// El material se guarda en la base (se ve enseguida); amigues, con un PR.
-		const savesToDb = await panelSavesToDb(platform, category, slug);
+		// Lo que no depende del texto sale a la par de él (cada lectura en fila es una ida); se espera
+		// después, así que el 502 y el 404 de la publicación salen primero, como antes.
+		const rest = inOrder([
+			// Material: la imagen de la biblioteca (la vieja del repo sale del texto, más abajo).
+			category === 'material' ? materialLibraryImage(platform, locals, slug) : null,
+			editorData(category),
+			// Personas con rol en el material (sin base, null).
+			category === 'material' ? editorPersonas(platform) : null
+		]);
+		rest.catch(() => {});
 		let post;
 		try {
 			post = await readContentPost(await getRepoClient(), admin.token, category, slug);
 		} catch (e) {
-			throw error(502, saveCopy(savesToDb).postReadFailed + describe(e));
+			throw error(502, saveCopy().postReadFailed + describe(e));
 		}
 		if (!post) throw error(404, 'Esa publicación no existe.');
 		let featured = '';
@@ -256,6 +285,7 @@ export function editLoad(category) {
 		} catch (e) {
 			// The editor shows the problem and offers the raw text.
 		}
+		const [libraryImage, editor, personas] = await rest;
 		return {
 			category,
 			mode: /** @type {'editar'} */ ('editar'),
@@ -269,20 +299,19 @@ export function editLoad(category) {
 			// Material: el selector de imágenes (docs/imagenes.md).
 			image:
 				category === 'material'
-					? await materialImage(
-							platform,
-							locals,
+					? materialImageOf(
 							slug,
+							libraryImage ?? null,
 							contentImageURL(category, slug, featured) ?? undefined
 						)
 					: null,
 			today: todayInArgentina(),
 			maxImageBytes: MAX_IMAGE_BYTES,
-			savesToDb,
+			// Todo se guarda en la base (decisión 0032); la clave queda mientras el formulario la lea.
+			savesToDb: true,
 			mock: isMockMode(),
-			...(await editorData(category)),
-			// Personas con rol en el material (sin base, null).
-			personas: category === 'material' ? await editorPersonas(platform) : null
+			...editor,
+			personas
 		};
 	};
 }
@@ -295,7 +324,7 @@ export function editLoad(category) {
  */
 export function editorActions(category) {
 	return {
-		direccion: async ({ locals, request, url, platform }) => {
+		direccion: async ({ locals, request, url }) => {
 			requireAdmin(locals, url);
 			const admin = getEventAdmin(locals);
 			if (!admin) return fail(403, { error: NO_PERMISSION });
@@ -309,7 +338,7 @@ export function editorActions(category) {
 				return {
 					slugCheck: {
 						slug,
-						error: found.length ? saveCopy(await panelSavesToDb(platform, category)).slugTaken : ''
+						error: found.length ? saveCopy().slugTaken : ''
 					}
 				};
 			} catch (e) {
@@ -428,17 +457,14 @@ export function editorActions(category) {
 						imagePath: null,
 						commit: r.commit.url,
 						publish: r.commit.pr ?? null,
-						// Se guardó en la base (ya se ve).
-						savedToDb: commitSavedToDb(r.commit)
+						// Todo se guarda en la base (ya se ve).
+						savedToDb: true
 					}
 				};
 			} catch (e) {
 				if (isRedirect(e)) throw e;
-				const toDb = await panelSavesToDb(platform, category, isNew ? '' : slug).catch(() => false);
-				if (e instanceof PathExistsError)
-					return fail(409, { error: pathExistsMessage(toDb, e.path) });
-				if (e instanceof FileChangedError)
-					return fail(409, { error: saveCopy(toDb).changedMeanwhile });
+				if (e instanceof PathExistsError) return fail(409, { error: saveCopy().pathExists });
+				if (e instanceof FileChangedError) return fail(409, { error: saveCopy().changedMeanwhile });
 				console.log(e);
 				return fail(502, { error: 'No se pudo guardar: ' + describe(e) + '. Probá de nuevo.' });
 			}

@@ -13,8 +13,9 @@
  *   preventa `{ id, name, price, quantity?, until? }`; `after`: id del tipo que se tiene que agotar
  *   o cerrar para que este se habilite; `door_price`: precio en la puerta y en la carga a mano,
  *   opcional; si falta, el del último tramo o el precio fijo);
- * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
- *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo;
+ * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`, `encuesta`
+ *   (prototipo: `false` = no manda la encuesta de después), `mp_fee_percent`, `puerta`,
+ *   `puerta_precio`; y `close` (cierre propio) en cada tipo;
  * - `meta_venta`: la meta de venta (plata o entradas, ver ./salesGoal.js). Se edita junto con la
  *   venta y solo se escribe con la venta prendida.
  * - `lista_espera`: la lista de espera (ver ./waitlistHold.js): `'evento'`, `'tipo'` o
@@ -64,6 +65,7 @@ export const TICKET_KEYS = [
 	'tickets_close',
 	'modalidad',
 	'recordatorios',
+	'encuesta',
 	'mp_fee_percent',
 	'puerta',
 	'puerta_precio'
@@ -146,6 +148,8 @@ export { isOnlineEvent };
  * @prop {string} closeAt datetime-local (hora de Argentina)
  * @prop {'' | 'online' | 'presencial'} modalidad '' = automático
  * @prop {boolean} reminders
+ * @prop {boolean} survey mandar la encuesta de después (`encuesta`; prototipo, solo se muestra con
+ *   el interruptor `encuesta_post_evento`)
  * @prop {string} mpFee '' = el de Ajustes de venta
  * @prop {boolean} door hay entradas en la puerta (`puerta`; solo eventos presenciales). Si el
  *   archivo no tiene `puerta`, arranca prendido (como se comportan esos eventos).
@@ -159,8 +163,16 @@ export { isOnlineEvent };
  * @prop {boolean} waitlistAll «Avisar a todes a la vez desde el principio» (`todes_a_la_vez`)
  */
 
+/*
+ * Las `key` locales (las del `{#each}` keyed de tipos y tramos) tienen que ser únicas también
+ * contra las de un borrador recuperado (draft.js), que se armaron en otra carga de la página. Un
+ * contador solo («t1», «t2»…) vuelve a empezar en cada carga: al recuperar un borrador con «t5» y
+ * agregar un tipo, salía otro «t5», el `{#each}` tiraba `each_key_duplicate` y el editor quedaba
+ * colgado («Sacar» no hacía nada, tarjetas vacías). Por eso llevan un prefijo distinto por carga.
+ */
+const keyPrefix = `t${Math.random().toString(36).slice(2, 8)}-`;
 let keyCounter = 0;
-const newKey = () => `t${++keyCounter}`;
+const newKey = () => `${keyPrefix}${++keyCounter}`;
 
 /** @param {unknown} v */
 const str = (v) => (v === undefined || v === null ? '' : String(v));
@@ -363,6 +375,7 @@ export function readTicketsForm(meta) {
 		closeAt,
 		modalidad: modalidadOf(meta),
 		reminders: meta?.recordatorios !== false,
+		survey: meta?.encuesta !== false,
 		mpFee:
 			meta?.mp_fee_percent === undefined || meta?.mp_fee_percent === null
 				? ''
@@ -554,6 +567,14 @@ export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
 				errors.push(`${label}: el sugerido es demasiado alto (¿sobra un cero?).`);
 		} else if (t.mode === 'tiers') {
 			validateTiers(t, label, sales, errors);
+			const online = tiersOnlineMax(t);
+			if (capacity !== null && online !== null && online < capacity) {
+				const rest = capacity - online;
+				const door = form.door && form.modalidad !== 'online';
+				warnings.push(
+					`${label}: los tramos suman ${entradas(online)} y el cupo es de ${capacity}. Online se venden como mucho ${online}: cuando se terminan los tramos, el tipo figura «Agotado» en la página aunque queden lugares. ${rest === 1 ? 'La entrada que queda' : `Las otras ${rest}`} ${door ? `solo ${rest === 1 ? 'se vende' : 'se venden'} en la puerta o ${rest === 1 ? 'cargándola' : 'cargándolas'} a mano` : `solo ${rest === 1 ? 'se puede cargar' : 'se pueden cargar'} a mano (no hay venta en la puerta)`}. Si es a propósito (para guardar lugares para la puerta), está bien; si no, subí la cantidad de un tramo o dejá el último sin cantidad.`
+				);
+			}
 		} else {
 			const price = parseAmount(t.price);
 			if (price === null || price <= 0)
@@ -566,7 +587,13 @@ export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
 			const p = parseAmount(door);
 			if (p === null)
 				errors.push(
-					`${label}: el precio en puerta tiene que ser en pesos enteros (0 o más), o quedar vacío.`
+					`${label}: el precio en puerta tiene que ser en pesos enteros, mayor a 0, o quedar vacío.`
+				);
+			// La puerta no vende entradas sin cargo (la orden no se puede guardar): esas se cargan a
+			// mano. La configuración ya guardada con `door_price: 0` se sigue leyendo (config.js).
+			else if (p === 0)
+				errors.push(
+					`${label}: el precio en puerta no puede ser $ 0: en la puerta no se venden entradas sin cargo. Dejalo vacío para cobrar el precio de siempre, o cargá esas entradas a mano.`
 				);
 			else if (p > ORDER_MAX_TOTAL)
 				errors.push(`${label}: el precio en puerta es demasiado alto (¿sobra un cero?).`);
@@ -763,6 +790,26 @@ function validateTiers(t, label, sales, errors) {
 }
 
 /**
+ * Cuántas entradas de un tipo con tramos se pueden vender online como mucho: la suma de las
+ * cantidades de sus tramos, si todos tienen cantidad (las fechas solo pueden cerrar un tramo
+ * antes). `null` si alguno no tiene cantidad (es «el resto»: sin tope por tramos) o no se puede
+ * leer. Solo para avisar en el editor: lo que pasa de verdad lo decide `stockOf` al comprar.
+ *
+ * @param {TicketTypeForm} t
+ * @returns {number | null}
+ */
+export function tiersOnlineMax(t) {
+	if (t.mode !== 'tiers' || !t.tiers.length) return null;
+	let sum = 0;
+	for (const tr of t.tiers) {
+		const q = tr.quantity.trim() ? parseCount(tr.quantity) : null;
+		if (q === null || q < 1) return null;
+		sum += q;
+	}
+	return sum;
+}
+
+/**
  * ¿Un tipo puede no agotarse ni cerrar nunca antes del evento? (sin cupo, sin cierre propio y sin
  * un último tramo con cantidad). Solo para avisar en los encadenados.
  *
@@ -835,6 +882,7 @@ function normalized(f) {
 		close: f.enabled && f.customClose ? f.closeAt : '',
 		modalidad: f.enabled ? f.modalidad : '',
 		reminders: f.enabled ? f.reminders : true,
+		survey: f.enabled ? f.survey !== false : true,
 		mpFee: f.enabled ? f.mpFee.trim() : '',
 		door: f.enabled ? f.door : true,
 		doorPrice: f.enabled && f.door ? f.doorPrice.trim() : '',
@@ -876,7 +924,7 @@ export function applyTicketsForm(frontmatter, form, initial, opts) {
 	if (!formChanged && !needsDoorKey(form, initial)) return frontmatter;
 	const doc = parseDocument(frontmatter.replace(/\r\n?/g, '\n'));
 	if (doc.errors.length) throw new Error(doc.errors[0].message);
-	// @ts-ignore frontmatter vacío
+	// @ts-expect-error frontmatter vacío
 	if (doc.contents === null) doc.contents = doc.createNode({});
 	if (!form.enabled) {
 		for (const key of TICKET_KEYS) doc.delete(key);
@@ -981,6 +1029,10 @@ export function applyTicketsForm(frontmatter, form, initial, opts) {
 	if (form.reminders !== initial.reminders || !initial.enabled) {
 		if (form.reminders) doc.delete('recordatorios');
 		else doc.set('recordatorios', false);
+	}
+	if ((form.survey !== false) !== (initial.survey !== false)) {
+		if (form.survey !== false) doc.delete('encuesta');
+		else doc.set('encuesta', false);
 	}
 	if (form.mpFee.trim() !== initial.mpFee.trim()) {
 		if (form.mpFee.trim())

@@ -15,6 +15,7 @@
 	import WaitlistDoorNote from '$lib/components/admin/WaitlistDoorNote.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { parseAmount } from '$lib/utils/tickets.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -48,7 +49,8 @@
 		amountFor = type.id;
 		amount = String(type.gorra?.suggested ?? type.price);
 	}
-	$: unit = method === 'cortesia' ? 0 : Number(String(amount).replace(/[.\s$]/g, ''));
+	// Mismo criterio que el servidor: un monto que no se entiende no muestra total.
+	$: unit = method === 'cortesia' ? 0 : (parseAmount(String(amount)) ?? NaN);
 	$: total = Number.isFinite(unit) && quantity > 0 ? unit * quantity : null;
 	$: count = Math.max(1, Math.min(data.maxOrder, Number(quantity) || 1));
 

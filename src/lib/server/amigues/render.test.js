@@ -45,6 +45,23 @@ describe('markdown y la lista corta de HTML', () => {
 	it('un h1 pasa a h2 (el h1 es el nombre del perfil)', async () => {
 		expect(await render('# Título')).toContain('<h2>Título</h2>');
 	});
+
+	it('en la página de un perfil, la primera imagen se pide primero y la segunda carga de a poco', async () => {
+		const body = '![una](/media/una.webp)\n\nTexto inventado.\n\n![dos](/media/dos.webp)';
+		const imgs =
+			(await renderProfileBody(body, { firstImageEager: true })).match(/<img[^>]*>/g) ?? [];
+		expect(imgs).toHaveLength(2);
+		expect(imgs[0]).toContain('src="/media/una.webp"');
+		expect(imgs[0]).toContain('fetchpriority="high"');
+		expect(imgs[0]).not.toContain('loading=');
+		expect(imgs[1]).toContain('src="/media/dos.webp"');
+		expect(imgs[1]).toContain('loading="lazy"');
+		expect(imgs[1]).not.toContain('fetchpriority');
+		// sin la opción (eventos, material, wiki), las dos de a poco
+		const plain = await renderProfileBody(body);
+		expect(plain.match(/loading="lazy"/g)).toHaveLength(2);
+		expect(plain).not.toContain('fetchpriority');
+	});
 });
 
 describe('nada activo pasa', () => {

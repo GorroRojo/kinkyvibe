@@ -85,6 +85,7 @@ export const TICKET_META_KEYS = /** @type {const} */ ([
 	'tickets_close',
 	'modalidad',
 	'recordatorios',
+	'encuesta',
 	'mp_fee_percent',
 	'puerta',
 	'puerta_precio',

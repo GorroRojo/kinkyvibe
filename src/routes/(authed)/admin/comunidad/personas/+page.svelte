@@ -10,12 +10,14 @@
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { personHref } from '$lib/admin/links.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { argDate } from '$lib/utils/dates.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import { Table } from '$lib/components/ui';
 
 	export let data;
 
@@ -56,6 +58,30 @@
 		}, 300);
 	}
 
+	// La tabla: todas las personas ya están en la página (el filtro es acá), así que se ordenan
+	// todas antes de mostrar las primeras 500.
+	/** @type {import('$lib/components/ui/tableSort.js').TableColumn[]} */
+	const tableColumns = [
+		{ key: 'name', label: 'Persona', sort: 'text', class: 'who' },
+		{ key: 'attended', label: 'Vino / compró', align: 'right', sort: 'number' },
+		{ key: 'spent', label: 'Gastado', align: 'right', sort: 'number' },
+		{
+			key: 'series',
+			label: 'Series',
+			class: 'hide-sm small',
+			sort: 'text',
+			sortValue: (p) => p.series.map((/** @type {string} */ s) => seriesTitle[s] ?? s).join(', ')
+		},
+		{
+			key: 'last',
+			label: 'Última vez',
+			class: 'hide-sm small',
+			nowrap: true,
+			sort: 'date',
+			sortValue: (p) => p.lastVisit ?? p.lastPurchase
+		}
+	];
+
 	/** @type {import('$lib/admin/csv.js').CsvColumn<(typeof data.people)[number]>[]} */
 	const columns = [
 		{ label: 'nombre', key: 'name' },
@@ -69,11 +95,12 @@
 		{ label: 'gastado', key: 'spent' },
 		{
 			label: 'primera_visita',
-			value: (p) => (p.firstVisit ? new Date(p.firstVisit).toISOString().slice(0, 10) : '')
+			// El día en hora de Argentina (no UTC: un evento desde las 21:00 caía al día siguiente).
+			value: (p) => (p.firstVisit ? argDate(p.firstVisit) : '')
 		},
 		{
 			label: 'ultima_visita',
-			value: (p) => (p.lastVisit ? new Date(p.lastVisit).toISOString().slice(0, 10) : '')
+			value: (p) => (p.lastVisit ? argDate(p.lastVisit) : '')
 		},
 		{ label: 'notas', key: 'notes' }
 	];
@@ -136,40 +163,29 @@
 	{#if filtered.length === 0}
 		<EmptyState icon={Users} title="No hay nadie con esos filtros" />
 	{:else}
-		<div class="kv-table-wrap">
-			<table class="kv-table">
-				<thead>
-					<tr>
-						<th>Persona</th>
-						<th class="r">Vino / compró</th>
-						<th class="r">Gastado</th>
-						<th class="hide-sm">Series</th>
-						<th class="hide-sm">Última vez</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each filtered.slice(0, 500) as p (p.id)}
-						<tr>
-							<td class="who">
-								<a class="name" href={personHref(p.id)}>{p.name}</a>
-								{#if p.pronouns.length}<span class="muted">({p.pronouns.join(', ')})</span>{/if}
-								{#if p.notes}<span class="note" title="{p.notes} notas"
-										><StickyNote size={14} aria-label="{p.notes} notas" /></span
-									>{/if}
-								<small class="muted email">{p.email}</small>
-							</td>
-							<td class="r num">
-								{p.attended} / {p.bought}
-								{#if p.attended === 1}<Badge tone="info">primera vez</Badge>{/if}
-								{#if p.noShows}<small class="muted">{p.noShows} sin venir</small>{/if}
-							</td>
-							<td class="r num">{formatARS(p.spent)}</td>
-							<td class="hide-sm small">{p.series.map((s) => seriesTitle[s] ?? s).join(', ')}</td>
-							<td class="hide-sm small">{fmtDate(p.lastVisit ?? p.lastPurchase)}</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+		<div class="people">
+			<Table columns={tableColumns} rows={filtered} rowKey="id" limit={500} caption="Personas">
+				<svelte:fragment slot="cell" let:row={p} let:column>
+					{#if column.key === 'name'}
+						<a class="name" href={personHref(p.id)}>{p.name}</a>
+						{#if p.pronouns.length}<span class="muted">({p.pronouns.join(', ')})</span>{/if}
+						{#if p.notes}<span class="note" title="{p.notes} notas"
+								><StickyNote size={14} aria-label="{p.notes} notas" /></span
+							>{/if}
+						<small class="muted email">{p.email}</small>
+					{:else if column.key === 'attended'}
+						{p.attended} / {p.bought}
+						{#if p.attended === 1}<Badge tone="info">primera vez</Badge>{/if}
+						{#if p.noShows}<small class="muted">{p.noShows} sin venir</small>{/if}
+					{:else if column.key === 'spent'}
+						{formatARS(p.spent)}
+					{:else if column.key === 'series'}
+						{p.series.map((/** @type {string} */ s) => seriesTitle[s] ?? s).join(', ')}
+					{:else if column.key === 'last'}
+						{fmtDate(p.lastVisit ?? p.lastPurchase)}
+					{/if}
+				</svelte:fragment>
+			</Table>
 		</div>
 		{#if filtered.length > 500}
 			<p class="kv-note">
@@ -195,25 +211,34 @@
 	/* La columna de la persona no se angosta hasta partir el mail letra por letra: con
 	   `overflow-wrap: anywhere` su ancho mínimo sería una letra. Un mail más largo que esto se
 	   corta donde haga falta (sigue siendo un solo texto, se puede seleccionar y copiar entero). */
-	.who {
+	.people :global(td.who) {
 		min-width: 14rem;
 	}
 	.email {
 		display: block;
 		overflow-wrap: anywhere;
 	}
-	td small {
+	.people :global(td small) {
 		display: block;
 	}
 	.note {
 		color: var(--link);
 		margin-left: 0.2rem;
 	}
-	.small {
+	.people :global(td.small) {
 		font-size: var(--text-sm);
 	}
+	/* el título de la tabla queda para lectores de pantalla (el contador va arriba) */
+	.people :global(caption) {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
 	@media (max-width: 700px) {
-		.hide-sm {
+		.people :global(.hide-sm) {
 			display: none;
 		}
 	}

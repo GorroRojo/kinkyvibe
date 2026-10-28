@@ -13,6 +13,7 @@ import {
 	runSessionCleanup
 } from './scheduled.js';
 import { STALE_SESSION_MS } from './cuentas/sessionAge.js';
+import { asR2, fakeBucket } from './backup/fakeBucket.js';
 
 const ctx = /** @type {any} */ ({ waitUntil() {}, passThroughOnException() {} });
 
@@ -29,7 +30,9 @@ describe('wrangler.toml', () => {
 		expect(config.r2_buckets).toEqual([
 			expect.objectContaining({ binding: 'BACKUPS', bucket_name: 'kinkyvibe-backups' }),
 			// La biblioteca de imágenes (docs/imagenes.md).
-			expect.objectContaining({ binding: 'MEDIA', bucket_name: 'kinkyvibe-media' })
+			expect.objectContaining({ binding: 'MEDIA', bucket_name: 'kinkyvibe-media' }),
+			// La copia nocturna de la biblioteca (src/lib/server/backup/media.js), solo producción.
+			expect.objectContaining({ binding: 'MEDIA_COPIA', bucket_name: 'kinkyvibe-media-copia' })
 		]);
 		expect(config.d1_databases).toEqual([
 			expect.objectContaining({ binding: 'DB', database_name: 'kinkyvibe' })
@@ -38,11 +41,18 @@ describe('wrangler.toml', () => {
 		expect(previews.d1_databases).toEqual([
 			expect.objectContaining({ binding: 'DB', database_name: 'kinkyvibe-preview' })
 		]);
-		// Los Previews nunca escriben en el bucket de backups ni en el de imágenes de producción:
-		// solo tienen el bucket de imágenes de prueba.
+		// Los Previews nunca escriben en el bucket de backups, en el de imágenes de producción ni en
+		// su copia: solo tienen el bucket de imágenes de prueba.
 		expect(previews.r2_buckets ?? []).toEqual([
 			{ binding: 'MEDIA', bucket_name: 'kinkyvibe-media-preview' }
 		]);
+	});
+
+	it('el Worker corre al lado de la base D1 (este de EE. UU.)', () => {
+		const config = unstable_readConfig({ config: 'wrangler.toml' });
+		// Sin ubicación fija, a propósito (25/10, medido desde Buenos Aires; docs/workers-migracion.md,
+		// «Ubicación del Worker»): el Worker corre cerca de quien visita.
+		expect(/** @type {any} */ (config.placement)?.region).toBeUndefined();
 	});
 
 	it('visitas anónimas: Analytics Engine solo en producción, con el dataset del código', () => {
@@ -155,14 +165,24 @@ describe('integridad de objetos (después del backup)', () => {
 				.prepare("INSERT INTO objects_fts (rowid, title, search_text) VALUES (777, 'x', '')")
 				.run();
 			const scheduledTime = Date.parse('2026-10-03T06:00:00Z');
+			// La biblioteca y su copia (buckets de mentira): la copia nocturna va al final.
+			const media = fakeBucket();
+			media.seed('img/aaaa.webp', 'imagen');
+			const copia = fakeBucket();
 			const result = await handleScheduled(
 				{ cron: BACKUP_CRON, scheduledTime },
-				{ DB: t.db, BACKUPS: /** @type {any} */ (t.env).BACKUPS },
+				{
+					DB: t.db,
+					BACKUPS: /** @type {any} */ (t.env).BACKUPS,
+					MEDIA: asR2(media),
+					MEDIA_COPIA: asR2(copia)
+				},
 				ctx,
 				vi.fn()
 			);
 			expect(result).toMatchObject({ key: 'd1/2026-10-03.sql.gz' });
 			expect(await lastIntegrityRun(t.db)).toMatchObject({ ranAt: scheduledTime, count: 1 });
+			expect(copia.keys()).toEqual(['img/aaaa.webp']);
 		} finally {
 			log.mockRestore();
 			error.mockRestore();
@@ -246,7 +266,7 @@ describe('sesiones sin cookie (después del backup)', () => {
 				.all();
 			expect(results.map((r) => r.h)).toEqual(['a', 'b', 'c']);
 			// En el log, solo cuántas.
-			expect(log).toHaveBeenCalledWith('sesiones viejas: 2 borrada(s)');
+			expect(log).toHaveBeenCalledWith('[sesiones] sesiones viejas: 2 borrada(s)');
 			// Otra vez: nada más que borrar.
 			expect(await runSessionCleanup({ DB: t.db }, new Date(now))).toBe(0);
 		} finally {

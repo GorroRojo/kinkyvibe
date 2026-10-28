@@ -1,0 +1,50 @@
+# Vigilante de producción (ítem `vigilante-produccion` en docs/plan.md).
+#
+# Independiente de Claude y de Cloudflare: cada 30 minutos pide la portada, /calendario,
+# /calendario.ics y /api/health (si existe) de producción. Si fallan dos veces seguidas (con 60
+# segundos entre una y otra), abre el issue «Producción no responde» (uno solo) asignado al dueño
+# del repo; cuando todo vuelve a responder, lo cierra. La lógica está en
+# scripts/vigilante-produccion.js (con tests). No es un chequeo de PR: no va en los `needs` de `ci-ok`.
+name: Vigilante de producción
+
+on:
+  schedule:
+    # A los 17 y 47 de cada hora, lejos de la hora en punto.
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'URL base a revisar (otra que no sea producción solo informa, no toca issues)'
+        required: false
+        default: 'https://kinkyvibe.ar'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: vigilante-produccion
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Solo el script y package.json (`"type": "module"`, para importarlo como ESM).
+          sparse-checkout: |
+            /package.json
+            /scripts/vigilante-produccion.js
+          sparse-checkout-cone-mode: false
+
+      - name: ¿Responde producción?
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          # Por variable de entorno, no interpolado en el script.
+          BASE_URL: ${{ inputs.base_url || 'https://kinkyvibe.ar' }}
+        with:
+          script: |
+            const { run } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/vigilante-produccion.js`);
+            await run({ github, context, core, baseUrl: process.env.BASE_URL });

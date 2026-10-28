@@ -4,16 +4,16 @@ import { withLineEnding } from '$lib/utils/lineEndings.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
 import { featuredURL, getRepoClient, isMockMode } from '$lib/server/eventos';
-import { findImage, imageOf } from '$lib/server/media/library.js';
+import { findImage } from '$lib/server/media/library.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
-import { resolveEventSlug } from '$lib/server/contenido/posts.js';
+import { libraryCoverOf } from '$lib/server/contenido/posts.js';
+import { EVENT_CATEGORY } from '$lib/server/contenido/eventos.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors, waitlistLiveFor } from '$lib/server/tickets/editor.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { transferReady } from '$lib/server/tickets/index.js';
-import { placeFileErrors } from '$lib/utils/eventPlace.js';
-import { linkFileErrors } from '$lib/utils/eventLink.js';
+import { linkFileErrors, placeFileErrors } from '$lib/server/eventos/fileErrors.js';
 import {
 	checkVenueChoice,
 	createVenueForEventAction,
@@ -26,10 +26,8 @@ import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import { isDbPath, readDbPostFile } from '$lib/server/contenido/repo.js';
-import { panelSavesToDb } from '$lib/server/contenido/saving.js';
-import { commitSavedToDb } from '$lib/admin/saveCopy.js';
-import { featuredOf } from '$lib/utils/sharedImage.js';
 import { wikiEditHref } from '$lib/admin/nav.js';
+import { inOrder } from '$lib/utils/inOrder.js';
 
 /**
  * @param {{category: string, postID: string}} params
@@ -79,56 +77,97 @@ export async function load(event) {
 export async function _editLoad({ locals, params, url, platform }) {
 	// Server loads run in parallel with the layout load, so guard here too.
 	requireAdmin(locals, url);
-	const post = await getFileContent(locals.user_token, postPath(params));
+	const path = postPath(params);
 	const isEvent = params.category === 'calendario';
-	// Entradas ya vendidas o reservadas por tipo: el editor no deja romper esas compras.
-	const sales = isEvent ? await salesByType(getDB(platform), params.postID) : null;
-	return {
-		sales,
+	const db = getDB(platform);
+	// Todo sale a la par (cada lectura en fila es una ida a la base): la publicación y lo demás. Se
+	// espera en el orden de antes, así que el 404 de la publicación (y después cada error) es el
+	// mismo que cuando iban en fila.
+	const postP = getFileContent(locals.user_token, path);
+	const rest = inOrder([
+		// Entradas ya vendidas o reservadas por tipo: el editor no deja romper esas compras.
+		isEvent ? salesByType(db, params.postID) : null,
 		// Lista de espera: si el interruptor está prendido (el editor avisa si no) y la gente
 		// anotada por alcance (no deja apagarla ni cambiar el alcance con gente anotada).
-		waitlistEnabled: isEvent ? await isFlagOn(getDB(platform), 'lista_espera') : null,
-		waitlistLive: isEvent ? await waitlistLiveFor(getDB(platform), params.postID) : null,
+		isEvent ? isFlagOn(db, 'lista_espera') : null,
+		isEvent ? waitlistLiveFor(db, params.postID) : null,
+		// Encuesta después del evento (prototipo): el editor muestra la casilla solo si está prendida.
+		isEvent ? isFlagOn(db, 'encuesta_post_evento') : null,
 		// «Lugar» del formulario: los lugares y el elegido (edge `lugar` del evento, no en el archivo).
-		venuePicker: isEvent ? await venuePickerData(getDB(platform), params.postID) : null,
-		salesUnavailable: isEvent && sales === null,
+		isEvent ? venuePickerData(db, params.postID) : null,
 		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
-		transferReady: isEvent ? await transferReady(getDB(platform)) : null,
-		post,
+		isEvent ? transferReady(db) : null,
 		// Tag usage, amigues profiles and past authors for the pickers.
-		...(await editorData(params.category)),
+		editorData(params.category),
 		// Personas con rol: roles y perfiles públicos (sin base, null).
-		personas: params.category === 'amigues' ? null : await editorPersonas(platform),
-		image:
-			params.category === 'calendario'
-				? await eventImageInfo(getDB(platform), locals, params.postID, post.raw)
-				: null,
-		// Los eventos y el material se guardan en la base (se ve enseguida).
-		savesToDb: await panelSavesToDb(platform, params.category, params.postID),
+		params.category === 'amigues' ? null : editorPersonas(platform),
+		// La imagen de la biblioteca (la vieja del repo sale del texto, más abajo).
+		isEvent ? eventLibraryImage(db, locals, params.postID) : null
+	]);
+	rest.catch(() => {}); // si la publicación no está, lo demás no cuenta
+	const post = await postP;
+	const [
+		sales,
+		waitlistEnabled,
+		waitlistLive,
+		surveyEnabled,
+		venuePicker,
+		transfer,
+		editor,
+		personas,
+		libraryImage
+	] = await rest;
+	return {
+		sales,
+		waitlistEnabled,
+		waitlistLive,
+		surveyEnabled,
+		venuePicker,
+		salesUnavailable: isEvent && sales === null,
+		transferReady: transfer,
+		post,
+		...editor,
+		personas,
+		image: isEvent ? eventImageInfo(params.postID, post.raw, libraryImage ?? null) : null,
+		// Todo se guarda en la base (decisión 0032); la clave queda mientras los formularios la lean.
+		savesToDb: true,
 		mock: isMockMode()
 	};
 }
 
 /**
- * La imagen del evento para el selector (docs/imagenes.md): la de la biblioteca (edge `portada`)
- * si tiene; si no, la vieja del repo (`featured`), que se sigue mostrando hasta importar.
+ * La imagen del evento en la biblioteca (edge `portada`), o null (sin base, o si no se pudo leer:
+ * entonces se muestra la del repo).
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {App.Locals} locals
  * @param {string} slug
+ * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
+ */
+function eventLibraryImage(db, locals, slug) {
+	return libraryCoverOf(db, EVENT_CATEGORY, slug, adminViewer(locals));
+}
+
+/**
+ * El `featured` del texto de un evento, o '' si no tiene o no se puede leer.
  * @param {string} raw
  */
-async function eventImageInfo(db, locals, slug, raw) {
-	const featured = featuredOf(raw);
-	/** @type {import('$lib/server/media/library.js').PublicImage | null} */
-	let current = null;
-	if (db) {
-		try {
-			const ref = await resolveEventSlug(db, slug);
-			if (ref) current = await imageOf(db, ref.id, 'portada', adminViewer(locals));
-		} catch (e) {
-			// Sin la imagen de la biblioteca, se muestra la del repo.
-		}
+function featuredOf(raw) {
+	try {
+		return readEventFields(splitMarkdown(raw).frontmatter).featured.trim();
+	} catch (e) {
+		return '';
 	}
+}
+
+/**
+ * La imagen del evento para el selector (docs/imagenes.md): la de la biblioteca (edge `portada`)
+ * si tiene; si no, la vieja del repo (`featured`), que se sigue mostrando hasta importar.
+ * @param {string} slug
+ * @param {string} raw
+ * @param {import('$lib/server/media/library.js').PublicImage | null} current la de la biblioteca
+ */
+function eventImageInfo(slug, raw, current) {
+	const featured = featuredOf(raw);
 	return {
 		current,
 		legacyUrl: current ? null : (featuredURL(slug, featured) ?? null),
@@ -253,7 +292,7 @@ export const _editActions = {
 			save: 'Guardado',
 			publish: commit.pr ?? null,
 			commitUrl: commit.url,
-			savedToDb: commitSavedToDb(commit)
+			savedToDb: true
 		});
 	},
 	/** «+ Crear lugar» desde el «Lugar» del formulario (solo eventos). */

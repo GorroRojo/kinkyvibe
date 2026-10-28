@@ -6,9 +6,11 @@ import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { deliverEmail } from '$lib/server/tickets/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
-import { runSeriesNotifications } from './notify.js';
+import { NOTIFY_BATCH, runSeriesNotifications } from './notify.js';
 import { accountSubscriptions } from './subscriptions.js';
 import { avisameViaSigo } from '$lib/server/sigo/avisame.js';
+import { eventsForTag, seriesPage } from './index.js';
+import { tagFeedPath, tagIdFromSlug } from '$lib/utils/series.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -30,12 +32,22 @@ export async function requireSeriesDB(platform) {
  *
  * @param {D1Database} db
  * @param {typeof fetch} fetchFn
+ * @param {string} [kind] el tipo de mail para Resend (`sendWithResend`); «Lo que sigo» pasa `sigo`
  * @returns {import('./subscriptions.js').SeriesSend}
  */
-export function seriesSender(db, fetchFn) {
+export function seriesSender(db, fetchFn, kind = 'serie') {
 	return async (to, message, idempotencyKey) => {
 		try {
-			return await deliverEmail({ db, fetch: fetchFn, to, message, idempotencyKey });
+			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
+			return await deliverEmail({
+				db,
+				fetch: fetchFn,
+				to,
+				message,
+				idempotencyKey,
+				optOut: true,
+				kind
+			});
 		} catch (e) {
 			console.error('[series] no se pudo mandar el mail:', e);
 			return 'failed';
@@ -46,9 +58,11 @@ export function seriesSender(db, fetchFn) {
 /**
  * La parte de series del cron de mails.
  *
- * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number }} input
+ * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number, limit?: number }} input
+ *   `limit`: mails como mucho en esta corrida (lo que sobró de la tanda); nunca más de
+ *   {@link NOTIFY_BATCH}
  */
-export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now() }) {
+export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now(), limit }) {
 	const platform = /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }));
 	return runSeriesNotifications({
 		db,
@@ -59,7 +73,8 @@ export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now
 		tags: await siteTagManager(platform),
 		origin,
 		send: seriesSender(db, fetchFn),
-		now
+		now,
+		limit: Math.max(0, Math.min(limit ?? NOTIFY_BATCH, NOTIFY_BATCH))
 	});
 }
 
@@ -112,4 +127,55 @@ export async function followInvite(platform, locals) {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * @typedef {{
+ *   series: Awaited<ReturnType<typeof seriesPage>>,
+ *   feed: string | null,
+ *   account: { member: boolean, subscribed: boolean, sigo: boolean, invite: boolean }
+ * }} SeriesTagInfo
+ */
+
+/**
+ * Lo de series de la página de una etiqueta (/wiki/<etiqueta>; lo muestra
+ * $lib/components/series/SeriesTagBlock.svelte): si la etiqueta es una serie, su imagen y sus
+ * ediciones (próximas primero, después las pasadas); si tiene eventos, el link de su calendario
+ * .ics; y si hay una cuenta con sesión, si ya está suscripta a los avisos (y si eso va por «Lo que
+ * sigo»). `null` si no hay nada de series para esa etiqueta. Lo usan la carga de la página (así el
+ * bloque llega con la página) y GET /api/series/<etiqueta>.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {App.Locals} locals
+ * @param {string} segment la etiqueta: su nombre, un alias o la forma de la URL
+ * @param {{ tags?: TagManager, posts?: ProcessedPost[] }} [loaded] lo que ya leyó quien llama
+ * @returns {Promise<SeriesTagInfo | null>}
+ */
+export async function seriesTagInfo(platform, locals, segment, loaded = {}) {
+	// «Rancheadita-Kinky», «Rancheadita Kinky» o un alias: la misma etiqueta (como /wiki/<término>).
+	const [tags, posts] = await Promise.all([
+		loaded.tags ?? siteTagManager(platform),
+		loaded.posts ?? sitePosts(platform)
+	]);
+	const id = tagIdFromSlug(tags, segment) ?? segment;
+	const [series, events] = await Promise.all([
+		seriesPage(id, { tags, posts }),
+		eventsForTag(id, { tags, posts })
+	]);
+	if (!series && !events.length) return null;
+	const account = series
+		? await seriesAccountState(platform, locals)
+		: { member: false, subscribed: [], sigo: false, invite: await followInvite(platform, locals) };
+	return {
+		series,
+		feed: events.length ? tagFeedPath(id) : null,
+		account: {
+			member: account.member,
+			subscribed: account.subscribed.includes(id),
+			// Con cuenta y «Lo que sigo», «Avisame» es seguir la serie (el botón «Seguir» de la página).
+			sigo: account.sigo,
+			// Sin sesión y con «Lo que sigo»: invitar a entrar para seguir.
+			invite: account.invite
+		}
+	};
 }

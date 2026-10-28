@@ -7,13 +7,21 @@
 		wikiTagManager
 	} from '$lib/utils/stores';
 	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
 	import { useSiteTags } from '$lib/utils/siteTags.js';
-	import IconSprite from '$lib/components/ui/IconSprite.svelte';
+	import { withTagDetails } from '$lib/utils/tagDetails.js';
 
 	/** @type {import('./$types').LayoutData} */
 	export let data;
-	// El árbol de la base (docs/etiquetas.md); null = el del archivo (respaldo).
-	$: useSiteTags(data.siteTags, [tagManager, wikiTagManager]);
+	// El árbol de la base (docs/etiquetas.md); null = el del archivo (respaldo). Llega liviano; las
+	// páginas que muestran descripciones o relacionadas mandan esos detalles aparte
+	// (`siteTagDetails`, $lib/utils/tagDetails.js). Solo en el navegador: en el servidor los stores
+	// ya tienen el árbol completo de este pedido (hooks.server.js) y no hay que pisarlo.
+	$: if (browser)
+		useSiteTags(withTagDetails(data.siteTags, $page.data.siteTagDetails), [
+			tagManager,
+			wikiTagManager
+		]);
 
 	// Modo demo (docs/demo.md): constante de compilación, como PREVIEW_BUILD en el servidor. En
 	// el build de producción es `false` y el botón de recargar datos no entra en el bundle.
@@ -51,9 +59,6 @@
 		{/if}
 	</p>
 {/if}
-
-<!-- Los íconos que se repiten en las tarjetas, una vez por página (<SpriteIcon>). -->
-<IconSprite />
 
 <slot></slot>
 

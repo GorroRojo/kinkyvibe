@@ -26,7 +26,9 @@ export async function load({ params, platform, setHeaders }) {
 	setHeaders({
 		'cache-control': 'private, no-store',
 		'x-robots-tag': 'noindex',
-		'referrer-policy': 'no-referrer'
+		// same-origin y no no-referrer: con no-referrer el POST del formulario sale con `Origin: null` y
+		// SvelteKit lo rechaza («Cross-site POST form submissions are forbidden»). Afuera no se manda nada.
+		'referrer-policy': 'same-origin'
 	});
 	const db = requireDB(platform);
 	const id = await checkUnsubscribeToken(db, params.token);

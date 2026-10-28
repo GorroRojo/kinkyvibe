@@ -7,8 +7,10 @@
  *   Con `&tipo=todo|imagen|documento|video` (solo admins): toda la biblioteca, con filtro por
  *   tipo (cada cosa con `kind`, `typeLabel` y dónde se usa); con `&desde=<n>`, la página
  *   siguiente de Contenido › Biblioteca ({@link LIBRARY_PAGE}), con `more` si hay más.
- * - POST (multipart: `file`, `alt`, `name`, `width`, `height`): subir. El tipo sale de los bytes:
- *   - una imagen (el navegador ya la achicó y la pasó a WEBP): pide texto alternativo;
+ * - POST (multipart: `file`, `alt`, `name`, `width`, `height` y, para una imagen, `copy360` y
+ *   `copy720`): subir. El tipo sale de los bytes:
+ *   - una imagen (el navegador ya la achicó y la pasó a WEBP): pide texto alternativo; con ella
+ *     pueden venir sus copias chicas para las tarjetas (WEBP, $lib/utils/mediaCopies.js);
  *   - un documento o un video (PDF, MP4, WebM, ODT, ODS, ODP): solo admins, pide `name` y pesa
  *     hasta 25 MB ({@link MAX_FILE_BYTES}). Responde `{ file }` en vez de `{ image }`.
  *   Va a R2 y a la base al momento (sin commit ni deploy).
@@ -20,6 +22,7 @@
  */
 import { error, json } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
+import { readBytesCapped } from '$lib/server/http/body.js';
 import { imageAccess } from '$lib/server/media/access.js';
 import {
 	ALT_REQUIRED,
@@ -36,9 +39,15 @@ import {
 } from '$lib/server/media/library.js';
 import { sniffDocument, sniffImage } from '$lib/server/media/sniff.js';
 import { fileSizeProblem, libraryKind } from '$lib/utils/libraryFiles.js';
+import { COPY_SIDES } from '$lib/utils/mediaCopies.js';
 import { parseTarget, targetObjectId } from '$lib/server/media/targets.js';
 import { getManagedProfile } from '$lib/server/cuentas/perfiles.js';
 import { seriesTagIds } from '$lib/utils/series.js';
+import {
+	UPLOAD_CAP_MESSAGE,
+	uploadBytesAllowed,
+	uploadCountAllowed
+} from '$lib/server/media/uploadCap.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
@@ -97,6 +106,19 @@ export async function GET({ locals, platform, url }) {
 	return json({ images }, { headers: NO_STORE });
 }
 
+/**
+ * El formulario de un pedido sin content-length, o `null` si pasa de `max` bytes.
+ * @param {Request} request
+ * @param {number} max
+ */
+async function formDataCapped(request, max) {
+	const raw = await readBytesCapped(request, max);
+	if (!raw) return null;
+	return new Response(raw, {
+		headers: { 'content-type': request.headers.get('content-type') ?? '' }
+	}).formData();
+}
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ locals, platform, request }) {
 	const db = getDB(platform);
@@ -108,11 +130,27 @@ export async function POST({ locals, platform, request }) {
 	if (Number.isFinite(declared) && declared > MAX_FILE_BYTES + 64 * 1024) {
 		return json({ error: fileSizeProblem(declared) }, { status: 413 });
 	}
+	// Una cuenta del público tiene un tope diario de subidas (cantidad y megabytes; uploadCap.js).
+	const capped = access.role === 'member' && access.accountId ? access.accountId : null;
+	if (capped && !(await uploadCountAllowed(db, capped))) {
+		return json({ error: UPLOAD_CAP_MESSAGE }, { status: 429 });
+	}
+	// Sin content-length (chunked), el mismo tope: se lee de a pedazos y se corta al pasarlo. Con
+	// content-length (lo normal, ya chequeado arriba) se lee directo, sin una copia de más en
+	// memoria.
 	let form;
 	try {
-		form = await request.formData();
+		form = request.headers.has('content-length')
+			? await request.formData()
+			: await formDataCapped(request, MAX_FILE_BYTES + 64 * 1024);
 	} catch {
 		return json({ error: 'No llegó el archivo. Probá de nuevo.' }, { status: 400 });
+	}
+	if (!form) {
+		return json(
+			{ error: `El archivo pesa más de ${MAX_FILE_BYTES / 1024 / 1024} MB, el máximo.` },
+			{ status: 413 }
+		);
 	}
 	const file = form.get('file');
 	if (!(file instanceof File) || file.size === 0) {
@@ -155,6 +193,20 @@ export async function POST({ locals, platform, request }) {
 	}
 	const alt = String(form.get('alt') ?? '').trim();
 	if (!alt) return json({ error: ALT_REQUIRED }, { status: 400 });
+	/** Las copias chicas que mandó el navegador (storeImage decide si valen). */
+	const copies = [];
+	for (const side of COPY_SIDES) {
+		const copy = form.get(`copy${side}`);
+		if (copy instanceof File && copy.size > 0) {
+			copies.push({ side, bytes: new Uint8Array(await copy.arrayBuffer()) });
+		}
+	}
+	if (capped) {
+		const total = copies.reduce((sum, c) => sum + c.bytes.length, bytes.length);
+		if (!(await uploadBytesAllowed(db, capped, total))) {
+			return json({ error: UPLOAD_CAP_MESSAGE }, { status: 429 });
+		}
+	}
 	try {
 		const { image, created } = await storeImage(
 			db,
@@ -164,7 +216,8 @@ export async function POST({ locals, platform, request }) {
 				name,
 				alt,
 				width: Number(form.get('width')),
-				height: Number(form.get('height'))
+				height: Number(form.get('height')),
+				copies
 			},
 			{ actor: access.actor }
 		);

@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import '$lib/types.d.js';
@@ -12,9 +11,6 @@ export const visibleTags = writable([]);
 export const allTags = writable([]);
 /** @type {import('svelte/store').Writable<Set<string>>} */
 export const redundantTags = writable(new Set());
-
-/** @type {import('svelte/store').Writable<{category:'amigues'|'calendario'|'material'|'wiki'|undefined, path: string}>} */
-export const currentPostData = writable();
 
 /** @type {import('svelte/store').Writable<(a:boolean,b:string)=>string|void>} */
 export const togglePositiveTagFilterFn = writable((a, b) => '');

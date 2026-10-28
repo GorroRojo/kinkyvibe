@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -311,6 +311,99 @@ describe('parseSiteDate', () => {
 			expect(isNaN(parseSiteDate(bad).getTime())).toBe(true);
 	});
 });
+
+describe('parseSiteDate: todas las formas guardadas', () => {
+	// [guardado, instante UTC]. Las formas de los datos (semilla, base, lo que escribe el editor).
+	/** @type {[string, string][]} */
+	const SHAPES = [
+		// fechas de publicación (published_date, updated_date, opening_date, access_date…)
+		['2024-12-06Z-03:00', '2024-12-06T03:00:00.000Z'],
+		['2024-12-06-03:00', '2024-12-06T03:00:00.000Z'],
+		['2024-12-06Z', '2024-12-06T03:00:00.000Z'],
+		['2024-12-06', '2024-12-06T03:00:00.000Z'],
+		['2024-12-06+00:00', '2024-12-06T00:00:00.000Z'],
+		// fechas de eventos (start, end)
+		['2026-10-02T22:00-03:00', '2026-10-03T01:00:00.000Z'],
+		['2026-10-02T22:00:30-03:00', '2026-10-03T01:00:30.000Z'],
+		['2026-10-02T22:00:00.250-03:00', '2026-10-03T01:00:00.250Z'],
+		['2026-10-02T22:00-0300', '2026-10-03T01:00:00.000Z'],
+		['2026-10-02T9:05-03:00', '2026-10-02T12:05:00.000Z'],
+		['2026-10-02 22:00', '2026-10-03T01:00:00.000Z'],
+		['2026-10-02T22:00', '2026-10-03T01:00:00.000Z'],
+		['2026-10-03T01:00:00.000Z', '2026-10-03T01:00:00.000Z'],
+		[' 2026-10-02T22:00-03:00 ', '2026-10-03T01:00:00.000Z']
+	];
+
+	it.each(SHAPES)('lee %s', (stored, utc) => {
+		expect(parseSiteDate(stored).toISOString()).toBe(utc);
+	});
+
+	it('rechaza fechas imposibles en vez de correrlas', () => {
+		for (const bad of [
+			'2026-02-30',
+			'2026-13-01Z-03:00',
+			'2026-10-02T25:00-03:00',
+			'2026-10-02T22:61'
+		])
+			expect(isNaN(parseSiteDate(bad).getTime())).toBe(true);
+	});
+
+	describe('sin depender de Date.parse (como un motor estricto)', () => {
+		const RealDate = Date;
+		// Un Date que no lee ningún texto: si algún helper le pasa una fecha guardada, explota.
+		class StrictDate extends RealDate {
+			/** @param {any[]} args */
+			constructor(...args) {
+				if (args.length === 1 && typeof args[0] === 'string')
+					throw new Error(`new Date(${JSON.stringify(args[0])})`);
+				// @ts-ignore
+				super(...args);
+			}
+			/**
+			 * @param {string} s
+			 * @returns {number}
+			 */
+			static parse(s) {
+				throw new Error(`Date.parse(${JSON.stringify(s)})`);
+			}
+		}
+		beforeEach(() => vi.stubGlobal('Date', StrictDate));
+		afterEach(() => vi.unstubAllGlobals());
+
+		it.each(SHAPES)('%s pasa por parseSiteDate y los formateadores', (stored, utc) => {
+			expect(parseSiteDate(stored).getTime()).toBe(RealDate.UTC(...isoParts(utc)));
+			expect(() => toArgentina(stored)).not.toThrow();
+			expect(argDateList(stored)).not.toBe('');
+			expect(argDateTimeLong(stored)).not.toBe('');
+			expect(argDateLog(stored)).not.toBe('');
+			expect(argDateShort(stored)).not.toBe('');
+			expect(argDateLong(stored)).not.toBe('');
+			expect(argDayMonth(stored)).not.toBe('');
+			expect(argDateParts(stored)).not.toBeNull();
+			expect(argDateTimeCsv(stored)).not.toBe('');
+			expect(isoDay(stored)).toBeDefined();
+			expect(isoDateTime(stored)).toBeDefined();
+			expect(eventEnd(stored, stored).getTime()).toBe(parseSiteDate(stored).getTime());
+		});
+
+		it('formatea la fecha de publicación en el día guardado', () => {
+			expect(argDateLong('2024-12-06Z-03:00')).toBe('6 de diciembre de 2024');
+			expect(argDateShort('2024-12-06')).toBe('6 dic 2024');
+			expect(argDateTimeLong('2026-10-02T22:00-03:00')).toBe('viernes 2 de octubre de 2026, 22:00');
+			expect(argTime(eventEnd('2026-10-02T22:00-03:00', '2026-10-02T01:30-03:00'))).toBe('01:30');
+		});
+	});
+});
+
+/**
+ * Las partes de un instante `…Z` como números para `Date.UTC`, sin leerlo con `Date`.
+ * @param {string} iso
+ * @returns {[number, number, number, number, number, number, number]}
+ */
+function isoParts(iso) {
+	const [y, mo, d, h, mi, s, ms] = (iso.match(/\d+/g) ?? []).map(Number);
+	return [y, mo - 1, d, h, mi, s, ms];
+}
 
 describe('isoDateTime', () => {
 	it('convierte el formato de publicación en ISO 8601 válido con el desfase de Argentina', () => {

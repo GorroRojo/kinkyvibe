@@ -5,6 +5,7 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import { enhance } from '$app/forms';
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import { brokenImage } from '$lib/admin/brokenImage.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { argTime } from '$lib/utils/dates.js';
@@ -22,6 +23,19 @@
 			await update({ reset: false });
 			busy = false;
 		};
+	};
+
+	/** «Desvincular» Telegram: pregunta antes, como las otras acciones que sacan algo. */
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const submitUnlink = async (input) => {
+		const ok = await askConfirm({
+			title: '¿Desvincular tu Telegram?',
+			text: 'El bot deja de reconocerte como admin (la puerta y el estado de la venta). Lo podés volver a vincular desde acá.',
+			confirmLabel: 'Desvincular',
+			tone: 'danger'
+		});
+		if (!ok) return input.cancel();
+		return submit(input);
 	};
 
 	// El link recién creado (solo hasta que se vincula o se recarga la página).
@@ -85,7 +99,7 @@
 				el bot (la puerta y el estado de la venta, según lo que esté prendido) mientras sigas en
 				esta lista.
 			</p>
-			<form method="POST" action="?/desvincularTelegram" use:enhance={submit}>
+			<form method="POST" action="?/desvincularTelegram" use:enhance={submitUnlink}>
 				<button class="kv-btn ghost small" type="submit" disabled={busy}>Desvincular</button>
 			</form>
 		{:else if pending}
@@ -120,6 +134,39 @@
 				>
 			</form>
 		{/if}
+	</Card>
+	<Card title="Conector de Claude">
+		{#if form?.claudeMessage}
+			<p class="kv-flash ok" role="status">{form.claudeMessage}</p>
+		{:else if form?.claudeError}
+			<p class="kv-flash bad" role="alert">{form.claudeError}</p>
+		{/if}
+		{#if data.claude.on}
+			<p class="tg-state">
+				Para que Claude lea el sitio (solo lectura), en claude.ai: Personalizar → Conectores →
+				«Agregar conector personalizado», con esta dirección:
+			</p>
+			<p><code class="claude-url">{data.claude.url}</code></p>
+			<p class="kv-note">
+				Al conectar, el sitio te pide permiso con tu cuenta. Cada pedido de Claude queda en
+				Actividad a tu nombre. Cómo se usa: <code>docs/conector-claude.md</code>.
+			</p>
+		{:else}
+			<p class="tg-state">
+				Está apagado (Ajustes → Interruptores → «Conector de Claude»): Claude no puede leer nada.
+			</p>
+		{/if}
+		<div class="claude-actions">
+			<form method="POST" action="?/cerrarClaude" use:enhance={submit}>
+				<button class="kv-btn ghost small" type="submit" disabled={busy}
+					>Cerrar mis conexiones de Claude</button
+				>
+			</form>
+			<form method="POST" action="?/cerrarClaudeTodes" use:enhance={submit}>
+				<button class="kv-btn ghost small" type="submit" disabled={busy}>Cerrar las de todes</button
+				>
+			</form>
+		</div>
 	</Card>
 	<p class="kv-note">
 		Por ahora la lista se cambia en el código (<code>src/lib/server/auth.js</code>, por el número de
@@ -171,6 +218,14 @@
 		height: 180px;
 		display: block;
 		background: #fff;
+	}
+	.claude-url {
+		overflow-wrap: anywhere;
+	}
+	.claude-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-xs);
 	}
 	.who {
 		display: flex;

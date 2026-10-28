@@ -15,6 +15,7 @@
 // ese día) o una clave del bucket (d1/manual/…). Lo que no es archivo se baja del bucket
 // kinkyvibe-backups con `wrangler r2 object get --remote`.
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -80,11 +81,14 @@ export function resolveSource(source, exists = existsSync) {
 	);
 }
 
+/** El tope de D1 por sentencia al restaurar. */
+export const D1_MAX_STATEMENT_BYTES = 100_000;
+
 /**
  * Las cantidades de filas que anotó el backup al final.
  *
  * @param {string} sql
- * @returns {{ tables: number, rows: number, perTable: Record<string, number>, rebuilt?: string[], skipped?: string[] } | null}
+ * @returns {{ tables: number, rows: number, perTable: Record<string, number>, rebuilt?: string[], skipped?: string[], maxStatementBytes?: number } | null}
  */
 export function readStats(sql) {
 	const line = sql
@@ -95,6 +99,13 @@ export function readStats(sql) {
 	return JSON.parse(line.slice(STATS_COMMENT.length));
 }
 
+/** El ejecutable de wrangler del repo (`node_modules/wrangler/bin/wrangler.js`). */
+export function wranglerBin() {
+	// `wrangler/bin/wrangler.js` no está en los `exports` del paquete: se arma desde su package.json.
+	const pkg = createRequire(import.meta.url).resolve('wrangler/package.json');
+	return path.join(path.dirname(pkg), 'bin', 'wrangler.js');
+}
+
 /** @param {string} name */
 const quoteIdent = (name) => `"${name.replaceAll('"', '""')}"`;
 
@@ -103,11 +114,12 @@ const quoteIdent = (name) => `"${name.replaceAll('"', '""')}"`;
  * @param {{ json?: boolean }} [options]
  */
 function wrangler(args, { json = false } = {}) {
-	const result = spawnSync('npx', ['wrangler', ...args], {
+	// Wrangler corre con el mismo node, sin shell: en Windows `npx` necesita `shell: true` y el
+	// shell parte en los espacios el SQL de `--command` («Unknown arguments: name, FROM, …»).
+	const result = spawnSync(process.execPath, [wranglerBin(), ...args], {
 		stdio: ['ignore', json ? 'pipe' : 'inherit', 'inherit'],
 		encoding: 'utf8',
-		env: { ...process.env, CI: 'true' },
-		shell: process.platform === 'win32'
+		env: { ...process.env, CI: 'true' }
 	});
 	if (result.status !== 0) throw new Error(`Falló: wrangler ${args.join(' ')}`);
 	if (!json) return null;
@@ -144,6 +156,14 @@ async function main() {
 	const sqlPath = path.join(work, 'backup.sql');
 	writeFileSync(sqlPath, sql);
 	console.log(`Backup: ${sql.split('\n', 1)[0].replace(/^--\s*/, '')}`);
+
+	// D1 rechaza una sentencia de más de 100.000 bytes; el volcado parte las filas largas
+	// (backup/dump.js), así que esto solo pasaría con un backup viejo o con un BLOB enorme.
+	if ((stats?.maxStatementBytes ?? 0) > D1_MAX_STATEMENT_BYTES) {
+		throw new Error(
+			`El backup tiene una sentencia de ${stats.maxStatementBytes} bytes y D1 acepta hasta ${D1_MAX_STATEMENT_BYTES}: no se puede restaurar así. Partí esa sentencia a mano (ver docs/workers-migracion.md).`
+		);
+	}
 
 	const where =
 		options.mode === 'remote'

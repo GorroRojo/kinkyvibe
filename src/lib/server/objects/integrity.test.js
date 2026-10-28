@@ -202,7 +202,18 @@ describe('checkObjectsIntegrity (con base)', () => {
 		delete fields.summary;
 		// `imagen`: evento y perfil pueden apuntar a una imagen (docs/imagenes.md).
 		const imagen = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('imagen'));
-		const registry = createRegistry([{ ...evento, fields }, lugar, perfil, imagen, etiqueta]);
+		// Y `enlaza` (lo que nombra el texto) puede apuntar a un material, que apunta a archivos.
+		const material = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('material'));
+		const archivo = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('archivo'));
+		const registry = createRegistry([
+			{ ...evento, fields },
+			lugar,
+			perfil,
+			imagen,
+			etiqueta,
+			material,
+			archivo
+		]);
 		const ctx = { actor: 'admin-inventade' };
 		await saveObject(
 			t.db,

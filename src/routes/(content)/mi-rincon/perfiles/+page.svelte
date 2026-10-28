@@ -36,7 +36,12 @@
 	<p class="hint">
 		Con una cuenta podés tener varios perfiles: los tuyos (nadie ve que son de la misma cuenta) y
 		los de proyectos que gestionás con otras personas. Quiénes gestionan un proyecto no se muestra
-		nunca. Por ahora los perfiles no tienen página pública; la vamos a sumar pronto.
+		nunca. Cada perfil tiene su página en <a href="/amigues">Amigues</a> (según la visibilidad que elijas)
+		cuando une admin lo aprueba; hasta entonces lo ven solo vos y quienes lo gestionan.
+	</p>
+	<p class="hint">
+		¿Ya hay un perfil tuyo (o de tu proyecto o lugar) en Amigues? Abrilo y tocá «¿Es tu perfil?»: lo
+		revisa el equipo y, si lo aprobamos, aparece acá.
 	</p>
 
 	{#if data.invites.length}
@@ -187,11 +192,23 @@
 			<fieldset>
 				<legend>¿De quién es?</legend>
 				<label class="choice">
-					<input type="radio" name="kind" value="persona" bind:group={kind} />
+					<input
+						type="radio"
+						name="kind"
+						value="persona"
+						bind:group={kind}
+						aria-describedby={errors.kind ? 'nuevo-perfil-kind-error' : undefined}
+					/>
 					<span>De una persona <small class="hint">(vos, con el nombre que uses)</small></span>
 				</label>
 				<label class="choice">
-					<input type="radio" name="kind" value="proyecto" bind:group={kind} />
+					<input
+						type="radio"
+						name="kind"
+						value="proyecto"
+						bind:group={kind}
+						aria-describedby={errors.kind ? 'nuevo-perfil-kind-error' : undefined}
+					/>
 					<span
 						>De un proyecto <small class="hint"
 							>(una marca, productora, emprendimiento, colectivo o fiesta; lo pueden gestionar
@@ -200,17 +217,23 @@
 					>
 				</label>
 				<label class="choice">
-					<input type="radio" name="kind" value="lugar" bind:group={kind} />
+					<input
+						type="radio"
+						name="kind"
+						value="lugar"
+						bind:group={kind}
+						aria-describedby={errors.kind ? 'nuevo-perfil-kind-error' : undefined}
+					/>
 					<span
 						>De un lugar <small class="hint"
 							>(un espacio donde pasan cosas: un bar, un centro cultural, una sala)</small
 						></span
 					>
 				</label>
-				{#if errors.kind}<p class="field-error">{errors.kind}</p>{/if}
+				{#if errors.kind}<p class="field-error" id="nuevo-perfil-kind-error">{errors.kind}</p>{/if}
 			</fieldset>
 			<label>
-				<span>Nombre</span>
+				<span id="nuevo-perfil-title-label">Nombre</span>
 				<input
 					name="title"
 					type="text"
@@ -218,9 +241,13 @@
 					required
 					autocomplete="off"
 					value={input?.title ?? ''}
+					aria-labelledby="nuevo-perfil-title-label"
+					aria-describedby={errors.title ? 'nuevo-perfil-title-error' : undefined}
 					aria-invalid={errors.title ? 'true' : undefined}
 				/>
-				{#if errors.title}<span class="field-error">{errors.title}</span>{/if}
+				{#if errors.title}<span id="nuevo-perfil-title-error" class="field-error"
+						>{errors.title}</span
+					>{/if}
 			</label>
 			<fieldset>
 				<legend>¿Quién lo puede ver?</legend>

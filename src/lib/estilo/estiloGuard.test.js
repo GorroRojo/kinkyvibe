@@ -8,7 +8,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GALLERY_BUNDLE_MARKER, galleryIn } from '../../../scripts/demo/guard.js';
-import { SECCIONES } from './secciones.js';
+import { GRUPOS, SECCIONES } from './secciones.js';
 
 const ROOT = path.resolve(import.meta.dirname, '../../..');
 const read = (/** @type {string} */ rel) => readFileSync(path.join(ROOT, rel), 'utf8');
@@ -100,6 +100,12 @@ describe('galería /estilo: contenido', () => {
 				expect(barrel).toMatch(new RegExp(`export \\{ (default as )?${n} \\}`));
 		}
 		expect(new Set(SECCIONES.map((s) => s.id)).size).toBe(SECCIONES.length);
+	});
+
+	it('los grupos de la revisión tienen cada sección una sola vez (para ?grupo=)', () => {
+		const ids = Object.values(GRUPOS).flat();
+		expect([...ids].sort()).toEqual(SECCIONES.map((s) => s.id).sort());
+		for (const g of Object.keys(GRUPOS)) expect(g).toMatch(/^[a-z-]+$/);
 	});
 
 	it('los datos de ejemplo son inventados (mails de dominios reservados)', () => {
