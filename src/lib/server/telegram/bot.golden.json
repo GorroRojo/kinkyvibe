@@ -8423,7 +8423,7 @@
 		]
 	},
 	"entradas: tarjeta online": {
-		"text": "🎟 <b>Charla inventada</b>\n📅 <tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n👤 Persona Inventada\n🎫 A la gorra\n\n💻 Es online: el link de la transmisión está en tu entrada, en el sitio.",
+		"text": "🎟 <b>Charla inventada</b>\n📅 <tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n👤 Persona Inventada\n🎫 A la gorra\n\n💻 Es online. Todavía no está el link de la transmisión: te lo mandamos por mail antes del evento y también va a aparecer acá.",
 		"keyboard": [
 			[
 				{
