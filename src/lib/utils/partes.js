@@ -5,7 +5,7 @@
  * El modelo: el taller es un evento (que es también la parte 1) con edges `parte` hacia los
  * eventos de las otras partes, en orden. Cada parte tiene su fecha, su hora y su lugar.
  */
-import { eventDateList } from './dates.js';
+import { eventDateList, eventEnd } from './dates.js';
 
 /** El `kind` del edge del taller a cada una de sus otras partes. */
 export const PARTE_EDGE = 'parte';
@@ -171,6 +171,79 @@ export function coveringTicketSlug(ws, slug) {
 export function partsCoveredBy(ws, slug) {
 	if (!ws || ws.total < 2 || ws.workshop.perPart || ws.workshop.slug !== slug) return null;
 	return ws.parts;
+}
+
+/** Cuánto después del fin de una fecha (un evento o una parte) sigue siendo «la que toca». */
+export const DATE_GRACE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Una fecha de una entrada: la del evento o la de una parte del taller (`n`, de `total`).
+ *
+ * @typedef {{ start: string | null, end: string | null, n?: number, total?: number }} TicketDate
+ * @typedef {{ n: number, start: string | null, end: string | null, cancelled: boolean }} TicketPart
+ * @typedef {{ start: string | null, end: string | null, parts?: TicketPart[] | null }} DatedTicket
+ * `parts`: las partes que cubre la entrada (de {@link partsCoveredBy}), si es la de un taller.
+ */
+
+/** @param {{ start: string | null }} d */
+export const startMs = (d) => (d.start ? Date.parse(d.start) : NaN);
+
+/**
+ * ¿Esa fecha ya pasó (más {@link DATE_GRACE_MS})? Sin fecha (un evento que ya no está), sí.
+ *
+ * @param {TicketDate} d
+ * @param {number} now
+ */
+export function isPastDate(d, now) {
+	if (!d.start || !Number.isFinite(startMs(d))) return true;
+	const end = eventEnd(d.start, d.end ?? undefined).getTime();
+	return (Number.isFinite(end) ? end : startMs(d)) + DATE_GRACE_MS < now;
+}
+
+/**
+ * Las fechas que cubre la entrada, de la primera a la última: las de las partes del taller (sin
+ * las canceladas) o, si no es un taller (o están todas canceladas), la del evento.
+ *
+ * @param {DatedTicket} t
+ * @returns {TicketDate[]}
+ */
+export function ticketDates(t) {
+	const total = t.parts?.length ?? 0;
+	const parts = (t.parts ?? [])
+		.filter((p) => !p.cancelled && Number.isFinite(startMs(p)))
+		.map((p) => ({ start: p.start, end: p.end, n: p.n, total }))
+		.sort((a, b) => startMs(a) - startMs(b));
+	return parts.length ? parts : [{ start: t.start, end: t.end }];
+}
+
+/**
+ * La fecha que toca mostrar: la primera parte que todavía no pasó o, si pasaron todas, la última.
+ * La usan «Mis entradas» del bot y «Mis compras» de Mi rincón.
+ *
+ * @param {DatedTicket} t
+ * @param {number} now
+ * @returns {TicketDate}
+ */
+export function ticketDate(t, now) {
+	const dates = ticketDates(t);
+	return dates.find((d) => !isPastDate(d, now)) ?? dates[dates.length - 1];
+}
+
+/**
+ * Las partes de {@link partsCoveredBy} como {@link TicketPart} (o `null`).
+ *
+ * @param {NumberedPart[] | null} parts
+ * @returns {TicketPart[] | null}
+ */
+export function ticketParts(parts) {
+	return parts
+		? parts.map((p) => ({
+				n: p.n,
+				start: p.start,
+				end: p.end,
+				cancelled: p.status === 'cancelado'
+			}))
+		: null;
 }
 
 /**

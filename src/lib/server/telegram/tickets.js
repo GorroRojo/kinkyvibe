@@ -9,7 +9,7 @@
 import { ordersForAccount } from '$lib/server/cuentas/orders.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { readWorkshop } from '$lib/server/eventos/partes.js';
-import { partsCoveredBy } from '$lib/utils/partes.js';
+import { partsCoveredBy, ticketParts as coveredTicketParts } from '$lib/utils/partes.js';
 import { chatAccount } from './seguir.js';
 import { shortHash } from './nav.js';
 
@@ -20,7 +20,7 @@ import { shortHash } from './nav.js';
  * `parts`: si es la entrada de un taller en varias partes con una sola entrada
  * (docs/talleres-partes.md), las fechas de todas sus partes, en orden (el taller es la 1).
  *
- * @typedef {{ n: number, start: string | null, end: string | null, cancelled: boolean }} BotTicketPart
+ * @typedef {import('$lib/utils/partes.js').TicketPart} BotTicketPart
  * @typedef {{
  *   id: string, token: string, code: string | null, holder: string, pronouns: string,
  *   type: string, slug: string, title: string, start: string | null, end: string | null,
@@ -54,15 +54,7 @@ const isoOrNull = (v) => {
  */
 async function ticketParts(db, slug) {
 	try {
-		const parts = partsCoveredBy(await readWorkshop(db, slug), slug);
-		return parts
-			? parts.map((p) => ({
-					n: p.n,
-					start: p.start,
-					end: p.end,
-					cancelled: p.status === 'cancelado'
-				}))
-			: null;
+		return coveredTicketParts(partsCoveredBy(await readWorkshop(db, slug), slug));
 	} catch {
 		console.error('[telegram] mis entradas: no se pudieron leer las partes de un taller');
 		return null;
