@@ -23,7 +23,9 @@
  *   D1: los AUTOINCREMENT siguen desde el id más alto restaurado.
  *
  * No es una foto atómica (son varias consultas): corre de madrugada, cuando casi no hay
- * escrituras. Para volver a un minuto exacto de los últimos 30 días está D1 Time Travel.
+ * escrituras. Cada tabla se lee por cursor (rowid o clave primaria), así que una escritura en el
+ * medio no repite ni saltea filas ya existentes. Para volver a un minuto exacto de los últimos 30
+ * días está D1 Time Travel.
  *
  * Solo usa imports relativos: lo importa también worker/index.js, que no pasa por Vite.
  */
@@ -35,6 +37,15 @@ export const STATS_COMMENT = '-- kinkyvibe-backup-stats';
 
 /** Filas por consulta al leer una tabla. */
 export const PAGE_SIZE = 500;
+
+/**
+ * D1 rechaza al restaurar una sentencia de más de 100.000 bytes («Statement too long»). Un INSERT
+ * que pase este tope sale con sus textos más largos vacíos y después un UPDATE por trozo.
+ */
+export const MAX_STATEMENT_BYTES = 90_000;
+
+/** Bytes, como mucho, del literal de cada trozo de texto de esos UPDATE. */
+export const CHUNK_BYTES = 60_000;
 
 /** Nombres que `sqlite_master` lista pero que no se copian. */
 const INTERNAL_NAME = /^(sqlite_|_cf_)/i;
@@ -70,6 +81,66 @@ export function quoteIdent(name) {
  */
 export function quoteText(text) {
 	return `'${text.replaceAll("'", "''")}'`;
+}
+
+/**
+ * Largo en bytes UTF-8 de un texto, sin armar el array (como `TextEncoder`: un sustituto suelto
+ * cuenta 3 bytes).
+ *
+ * @param {string} text
+ */
+export function utf8Length(text) {
+	let n = 0;
+	for (let i = 0; i < text.length; i++) {
+		const c = text.charCodeAt(i);
+		if (c < 0x80) n += 1;
+		else if (c < 0x800) n += 2;
+		else if (c >= 0xd800 && c < 0xdc00 && i + 1 < text.length) {
+			const d = text.charCodeAt(i + 1);
+			if (d >= 0xdc00 && d < 0xe000) {
+				n += 4;
+				i++;
+			} else n += 3;
+		} else n += 3;
+	}
+	return n;
+}
+
+/**
+ * Parte un texto en trozos cuyo literal SQL (`sqlLiteral('text', trozo)`) no pasa `maxBytes`,
+ * sin cortar un par sustituto. Concatenados, dan el texto original.
+ *
+ * @param {string} text
+ * @param {number} [maxBytes]
+ * @returns {string[]}
+ */
+export function splitText(text, maxBytes = CHUNK_BYTES) {
+	// Con un NUL el literal va en hexadecimal (2 caracteres por byte); si no, una comilla simple
+	// se duplica. Se cuenta lo peor de cada caso, más las comillas y el CAST.
+	const hexForm = text.includes('\0');
+	const budget = maxBytes - 30;
+	/** @type {string[]} */
+	const pieces = [];
+	let start = 0;
+	let bytes = 0;
+	let i = 0;
+	while (i < text.length) {
+		const c = text.charCodeAt(i);
+		const pair =
+			c >= 0xd800 && c < 0xdc00 && i + 1 < text.length && text.charCodeAt(i + 1) >= 0xdc00;
+		const width = pair ? 2 : 1;
+		const u8 = pair ? 4 : c < 0x80 ? 1 : c < 0x800 ? 2 : 3;
+		const cost = hexForm ? u8 * 2 : c === 39 ? 2 : u8;
+		if (bytes + cost > budget && i > start) {
+			pieces.push(text.slice(start, i));
+			start = i;
+			bytes = 0;
+		}
+		bytes += cost;
+		i += width;
+	}
+	pieces.push(text.slice(start));
+	return pieces;
 }
 
 /** @param {Uint8Array} bytes */
@@ -228,19 +299,35 @@ async function tableColumns(db, table) {
 	const namesLower = results.map((c) => String(c.name).toLowerCase());
 	const rowidFree = ['rowid', '_rowid_', 'oid'].find((n) => !namesLower.includes(n));
 	const includeRowid = !table.withoutRowid && !hasIntegerPk && rowidFree !== undefined;
-	return { columns, rowidName: includeRowid ? /** @type {string} */ (rowidFree) : null };
+	return {
+		columns,
+		rowidName: includeRowid ? /** @type {string} */ (rowidFree) : null,
+		// Cómo nombrar el rowid en una consulta (para ubicar la fila en un UPDATE), si hay cómo.
+		rowidAlias: table.withoutRowid ? null : (rowidFree ?? null),
+		// La clave primaria, en su orden (para las tablas WITHOUT ROWID).
+		pkColumns: pk.sort((a, b) => Number(a.pk) - Number(b.pk)).map((c) => String(c.name))
+	};
 }
 
 /**
  * Los INSERT de todas las filas de una tabla, de a PAGE_SIZE.
  *
+ * Un INSERT que pasaría {@link MAX_STATEMENT_BYTES} (un texto muy largo: un material entero en
+ * `data` y en `search_text`) sale con sus textos más largos como `''` y, después, un
+ * `UPDATE … SET col = col || '<trozo>'` por cada trozo de {@link CHUNK_BYTES} como mucho, ubicando
+ * la fila por su `rowid` (o por su clave primaria en una tabla WITHOUT ROWID). Los triggers se
+ * crean después de las filas y las FTS con contenido externo se reconstruyen al final, así que
+ * esos UPDATE no disparan nada.
+ *
  * @param {D1Database} db
  * @param {TableInfo} table
  * @param {(line: string) => void} emit
+ * @param {DumpStats} stats para `maxStatementBytes` y `splitRows`
+ * @param {() => Promise<void>} flush se llama después de cada página (manda lo emitido)
  * @returns {Promise<number>} cantidad de filas
  */
-async function dumpRows(db, table, emit) {
-	const { columns, rowidName } = await tableColumns(db, table);
+async function dumpRows(db, table, emit, stats, flush) {
+	const { columns, rowidName, rowidAlias, pkColumns } = await tableColumns(db, table);
 	/** @type {string[]} */
 	const sources = rowidName ? [rowidName, ...columns.map(quoteIdent)] : columns.map(quoteIdent);
 	if (!sources.length) return 0;
@@ -250,24 +337,102 @@ async function dumpRows(db, table, emit) {
 			(src, i) =>
 				`typeof(${src}) AS t${i}, CASE WHEN typeof(${src}) = 'integer' THEN CAST(${src} AS TEXT) ELSE ${src} END AS v${i}`
 		)
+		.concat(rowidAlias ? [`CAST(${rowidAlias} AS TEXT) AS r`] : [])
 		.join(', ');
-	const order = table.withoutRowid ? '' : ' ORDER BY rowid';
 	const insert = `INSERT INTO ${quoteIdent(table.name)} (${targets.join(', ')}) VALUES (`;
+	const offset0 = rowidName ? 1 : 0;
+	const pkIndexes = pkColumns.map((c) => columns.indexOf(c) + offset0);
+
+	// Paginación por cursor (no por OFFSET): una escritura en el medio del volcado no repite ni
+	// saltea filas. Por el rowid o, en las WITHOUT ROWID, por la clave primaria; el cursor va como
+	// literal exacto (los enteros grandes no pasan por un número de JavaScript).
+	const keyset = rowidAlias
+		? { order: rowidAlias, key: rowidAlias }
+		: pkIndexes.length && pkIndexes.every((i) => i >= offset0)
+			? {
+					order: pkIndexes.map((i) => targets[i]).join(', '),
+					key: `(${pkIndexes.map((i) => targets[i]).join(', ')})`
+				}
+			: null;
+	/** @type {string | null} */
+	let after = null;
 
 	let count = 0;
 	for (let offset = 0; ; offset += PAGE_SIZE) {
-		const { results } = await db
-			.prepare(
-				`SELECT ${select} FROM ${quoteIdent(table.name)}${order} LIMIT ${PAGE_SIZE} OFFSET ${offset}`
-			)
-			.all();
+		const from = quoteIdent(table.name);
+		/** @type {string} */
+		const query = keyset
+			? `SELECT ${select} FROM ${from}${after === null ? '' : ` WHERE ${keyset.key} > ${after}`} ORDER BY ${keyset.order} LIMIT ${PAGE_SIZE}`
+			: `SELECT ${select} FROM ${from} LIMIT ${PAGE_SIZE} OFFSET ${offset}`;
+		/** @type {Record<string, unknown>[]} */
+		const results = (await db.prepare(query).all()).results;
+		const last = results.at(-1);
+		if (keyset && last) {
+			after = rowidAlias
+				? sqlLiteral('integer', last.r)
+				: `(${pkIndexes.map((i) => sqlLiteral(String(last[`t${i}`]), last[`v${i}`])).join(', ')})`;
+		}
 		for (const row of results) {
 			const values = sources.map((_, i) => sqlLiteral(String(row[`t${i}`]), row[`v${i}`]));
-			emit(`${insert}${values.join(', ')});`);
+			let line = `${insert}${values.join(', ')});`;
+			/** @type {number[]} */
+			const deferred = [];
+			if (line.length * 3 > MAX_STATEMENT_BYTES && utf8Length(line) > MAX_STATEMENT_BYTES) {
+				const where = rowidAlias
+					? `${rowidAlias} = ${sqlLiteral('integer', row.r)}`
+					: pkIndexes.length && pkIndexes.every((i) => i >= offset0)
+						? pkIndexes.map((i) => `${targets[i]} = ${values[i]}`).join(' AND ')
+						: null;
+				if (!where) {
+					throw new Error(
+						`La tabla ${table.name} tiene una fila de más de ${MAX_STATEMENT_BYTES} bytes y no hay cómo ubicarla para partirla`
+					);
+				}
+				let total = utf8Length(line);
+				const candidates = sources
+					.map((_, i) => i)
+					.filter((i) => row[`t${i}`] === 'text' && !pkIndexes.includes(i))
+					.map((i) => ({ i, bytes: utf8Length(values[i]) }))
+					.sort((x, y) => y.bytes - x.bytes);
+				for (const { i, bytes } of candidates) {
+					if (total <= MAX_STATEMENT_BYTES) break;
+					values[i] = "''";
+					total -= bytes - 2;
+					deferred.push(i);
+				}
+				line = `${insert}${values.join(', ')});`;
+				emit(line);
+				for (const i of deferred) {
+					const col = targets[i];
+					for (const piece of splitText(String(row[`v${i}`]))) {
+						const update = `UPDATE ${quoteIdent(table.name)} SET ${col} = ${col} || ${sqlLiteral('text', piece)} WHERE ${where};`;
+						noteSize(stats, update);
+						emit(update);
+					}
+				}
+				stats.splitRows = (stats.splitRows ?? 0) + 1;
+			} else {
+				emit(line);
+			}
+			noteSize(stats, line);
 		}
 		count += results.length;
+		await flush();
 		if (results.length < PAGE_SIZE) return count;
 	}
+}
+
+/**
+ * Anota la sentencia más larga (en bytes) en `stats.maxStatementBytes`.
+ *
+ * @param {DumpStats} stats
+ * @param {string} line
+ */
+function noteSize(stats, line) {
+	// Un texto nunca tiene más bytes que 3 por unidad: si ni así pasa el máximo, no hace falta medir.
+	if (line.length * 3 <= stats.maxStatementBytes) return;
+	const bytes = utf8Length(line);
+	if (bytes > stats.maxStatementBytes) stats.maxStatementBytes = bytes;
 }
 
 /** @param {string} sql */
@@ -285,18 +450,45 @@ function statement(sql) {
  *   rows: number,
  *   perTable: Record<string, number>,
  *   rebuilt: string[],
- *   skipped: string[]
- * }} DumpStats
+ *   skipped: string[],
+ *   maxStatementBytes: number,
+ *   splitRows?: number
+ * }} DumpStats `maxStatementBytes`: la sentencia más larga de las filas (D1 acepta hasta 100.000);
+ *   `splitRows`: filas que salieron partidas en INSERT + UPDATE (solo si hubo).
  */
 
 /**
- * Vuelca toda la base a SQL.
+ * Vuelca toda la base a SQL, todo en memoria (para tests y archivos chicos). El backup usa
+ * {@link streamDatabase}, que no junta el SQL entero.
  *
  * @param {D1Database} db
  * @param {{ now?: Date, label?: string }} [options]
  * @returns {Promise<{ sql: string, stats: DumpStats }>}
  */
-export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) {
+export async function dumpDatabase(db, options = {}) {
+	/** @type {string[]} */
+	const parts = [];
+	const { stats } = await streamDatabase(
+		db,
+		(text) => {
+			parts.push(text);
+		},
+		options
+	);
+	return { sql: parts.join(''), stats };
+}
+
+/**
+ * Vuelca toda la base a SQL de a pedazos: `write` recibe el texto de cada página de filas (o de
+ * cada parte del esquema) y puede devolver una promesa, que se espera antes de seguir. Así el SQL
+ * entero nunca está en memoria (el isolate tiene 128 MB).
+ *
+ * @param {D1Database} db
+ * @param {(text: string) => void | Promise<void>} write
+ * @param {{ now?: Date, label?: string }} [options]
+ * @returns {Promise<{ stats: DumpStats, sqlBytes: number }>} `sqlBytes`: bytes UTF-8 del SQL
+ */
+export async function streamDatabase(db, write, { now = new Date(), label = 'D1' } = {}) {
 	const { results } = await db
 		.prepare('SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY rowid')
 		.all();
@@ -304,10 +496,29 @@ export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) 
 	const tables = await listTables(db, schema);
 
 	/** @type {string[]} */
-	const out = [];
-	const emit = (/** @type {string} */ line) => out.push(line);
+	let pending = [];
+	let first = true;
+	let sqlBytes = 0;
+	const emit = (/** @type {string} */ line) => {
+		pending.push(first ? line : `\n${line}`);
+		first = false;
+	};
+	const flush = async () => {
+		if (!pending.length) return;
+		const text = pending.join('');
+		pending = [];
+		sqlBytes += utf8Length(text);
+		await write(text);
+	};
 	/** @type {DumpStats} */
-	const stats = { tables: tables.length, rows: 0, perTable: {}, rebuilt: [], skipped: [] };
+	const stats = {
+		tables: tables.length,
+		rows: 0,
+		perTable: {},
+		rebuilt: [],
+		skipped: [],
+		maxStatementBytes: 0
+	};
 
 	emit(`-- Backup de ${label.replace(/\n/g, ' ')} (kinkyvibe), ${now.toISOString()}`);
 	emit('-- Restaurar en una base VACÍA: ver docs/workers-migracion.md («Restaurar un backup»).');
@@ -318,6 +529,7 @@ export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) 
 	emit('');
 	emit('-- Tablas');
 	for (const table of tables) emit(statement(table.sql));
+	await flush();
 
 	/** @type {string[]} */
 	const rebuilds = [];
@@ -339,7 +551,7 @@ export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) 
 				continue;
 			}
 		}
-		const n = await dumpRows(db, table, emit);
+		const n = await dumpRows(db, table, emit, stats, flush);
 		stats.perTable[table.name] = n;
 		stats.rows += n;
 	}
@@ -371,5 +583,6 @@ export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) 
 	// Para verificar una restauración (scripts/d1-restore.js compara estas cantidades).
 	emit(`${STATS_COMMENT} ${JSON.stringify(stats)}`);
 	emit('');
-	return { sql: out.join('\n'), stats };
+	await flush();
+	return { stats, sqlBytes };
 }

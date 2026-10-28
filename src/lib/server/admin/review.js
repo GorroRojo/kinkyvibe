@@ -36,6 +36,7 @@ import { formatARS } from '$lib/utils/money.js';
 import { failedWaitlistMailsQuery } from '$lib/server/tickets/waitlistAdmin.js';
 import { emergencyPauses } from '$lib/server/emergencia.js';
 import { resendQuotaItem, resendQuotaQuery } from '$lib/server/tickets/resendQuota.js';
+import { webhookHealthItem, webhookHealthQuery } from '$lib/server/telegram/webhookHealth.js';
 import {
 	arDay,
 	cancelledLeftoversQuery,
@@ -138,7 +139,9 @@ export function reviewQueries(now, { login = '' } = {}) {
 		// Mails de la lista de espera que no salieron después de los reintentos (null sin la 0053).
 		waitlistFailed: failedWaitlistMailsQuery(),
 		// El último 429 de Resend por cupo terminado, si fue hace menos de un día (resendQuota.js).
-		resendQuota: resendQuotaQuery(now)
+		resendQuota: resendQuotaQuery(now),
+		// El último chequeo del webhook del bot, si encontró un problema (webhookHealth.js).
+		webhookHealth: webhookHealthQuery(now)
 	};
 }
 
@@ -272,6 +275,8 @@ export function tagReviewItem(tags) {
  *   tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null,
  *   waitlistFailed?: { count: number, slugs: string[] } | null,
  *   resendQuota?: import('$lib/server/tickets/resendQuota.js').ResendQuotaHit | null,
+ *   webhookHealth?: import('$lib/server/telegram/webhookHealth.js').WebhookHealth | null,
+ *   brokenTickets?: import('$lib/server/tickets/events.js').BrokenTicketConfig[],
  *   cancelled?: import('./inicio.js').CancelledLeftovers[],
  *   pauses?: { tickets: string | null, mails: string | null },
  *   now: number
@@ -304,12 +309,15 @@ export function reviewRows(facts) {
 	const waitlistItem = waitlistFailedItem(facts.waitlistFailed ?? null, titles);
 	const cancelledItems = cancelledEventItems(facts.cancelled ?? [], titles);
 	const quotaItem = resendQuotaItem(facts.resendQuota, { formatWhen });
+	const botItem = webhookHealthItem(facts.webhookHealth);
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const rows = groupReviewItems(
 		[
 			...pauseItems(facts.pauses ?? emergencyPauses()),
 			...(quotaItem ? [quotaItem] : []),
+			...(botItem ? [botItem] : []),
 			...(transferMissing ? [transferMissing] : []),
+			...brokenTicketItems(facts.brokenTickets ?? []),
 			...cancelledItems,
 			...todoItems,
 			...(onlineItem ? [onlineItem] : []),
@@ -324,6 +332,28 @@ export function reviewRows(facts) {
 	const integrityRow = integrityReviewRow(facts.integrity, { formatWhen });
 	if (integrityRow) rows.push(integrityRow);
 	return rows;
+}
+
+/**
+ * «Para revisar»: una fila por evento próximo con entradas cuya configuración ya no se puede leer
+ * (`listTicketedEvents({ broken })`): no vende y la ficha lo muestra como «no vende» (auditoría de
+ * confiabilidad, O19). Lleva a editar el evento.
+ *
+ * @param {import('$lib/server/tickets/events.js').BrokenTicketConfig[]} broken
+ * @returns {ReviewItem[]}
+ */
+export function brokenTicketItems(broken) {
+	return broken.map((b) => ({
+		id: `broken-tickets-${b.slug}`,
+		tone: 'bad',
+		icon: 'ticket',
+		title: `«${b.title}» no puede vender entradas: su configuración tiene un error`,
+		text: b.message
+			? `Al leerla: ${b.message}. Corregila en el editor del evento.`
+			: 'Corregila en el editor del evento.',
+		action: 'Editar',
+		href: editEventHref(b.slug)
+	}));
 }
 
 /** Dónde se explican las pausas de emergencia en el panel. */

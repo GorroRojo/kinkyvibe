@@ -92,6 +92,14 @@
 		queueOfflineSale,
 		salesPayload
 	} from '$lib/admin/doorOffline.js';
+	import {
+		CHECKIN_TIMEOUT_MS,
+		SALES_BATCH,
+		SERVER_RETRY_MS,
+		SYNC_BATCH,
+		inBatches,
+		scanFallback
+	} from '$lib/admin/doorFallback.js';
 
 	/** @type {Awaited<ReturnType<typeof import('$lib/server/tickets/doorScreen.js').doorLoad>>} */
 	export let data;
@@ -133,6 +141,13 @@
 	// --- Estado ---
 	let counts = data.counts;
 	let online = true;
+	// Con red pero el servidor sin contestar (500, sesión cerrada o 8 s sin respuesta) y la lista
+	// guardada: se valida con la lista y lo dice un cartel (auditoría de confiabilidad, OX1). Se
+	// apaga sola cuando el servidor vuelve a contestar.
+	let serverDown = false;
+	let serverDownAt = 0;
+	/** @type {'server' | 'session'} por qué: el servidor no contestó o la sesión se cerró */
+	let serverDownWhy = 'server';
 	/** @type {DoorState} */
 	let door = emptyDoorState();
 	/** @type {DoorScan | null} */
@@ -266,14 +281,18 @@
 	/**
 	 * @param {string} name
 	 * @param {Record<string, string> | FormData} fields
+	 * @param {{ timeoutMs?: number }} [options] `timeoutMs`: cortar el pedido después de eso
 	 */
-	async function postAction(name, fields) {
+	async function postAction(name, fields, { timeoutMs = 0 } = {}) {
 		const body = fields instanceof FormData ? fields : new FormData();
 		if (!(fields instanceof FormData)) for (const [k, v] of Object.entries(fields)) body.set(k, v);
 		const res = await fetch(`${base}?/${name}`, {
 			method: 'POST',
 			body,
-			headers: { 'x-sveltekit-action': 'true', accept: 'application/json' }
+			headers: { 'x-sveltekit-action': 'true', accept: 'application/json' },
+			...(timeoutMs && typeof AbortSignal.timeout === 'function'
+				? { signal: AbortSignal.timeout(timeoutMs) }
+				: {})
 		});
 		// El DNI completo da 403 con un link aunque el link ande: ese no cierra la puerta.
 		if (name !== 'reveal') linkRefused(res.status);
@@ -391,19 +410,43 @@
 		if (!value || busy) return;
 		busy = true;
 		try {
-			if (!online) {
+			// Sin conexión, o con el servidor caído hace poco: directo a la lista guardada (cada
+			// SERVER_RETRY_MS un escaneo vuelve a probar con el servidor).
+			if (!online || (serverDown && Date.now() - serverDownAt < SERVER_RETRY_MS)) {
 				await offlineScan(value, typed);
 				return;
 			}
 			let r;
 			try {
-				r = await postAction('checkin', { token: value });
+				r = await postAction('checkin', { token: value }, { timeoutMs: CHECKIN_TIMEOUT_MS });
 			} catch {
-				// Sin red (aunque el navegador crea que hay): seguimos con la lista guardada.
-				online = false;
+				// Sin respuesta: sin red (aunque el navegador crea que hay) o el servidor colgado.
+				const fallback = scanFallback({
+					outcome: 'thrown',
+					listLength: door.list.length,
+					browserOnline: navigator.onLine
+				});
+				if (fallback === 'server-down') markServerDown('server');
+				else online = false;
 				await offlineScan(value, typed);
 				return;
 			}
+			// Con un link revocado o vencido (403), `postAction` ya borró la lista (`endLink`): sin
+			// lista, `scanFallback` da null y sale el mensaje de siempre.
+			const fallback =
+				r.type === 'error' || r.type === 'redirect'
+					? scanFallback({
+							outcome: r.type,
+							listLength: door.list.length,
+							browserOnline: navigator.onLine
+						})
+					: null;
+			if (fallback === 'server-down') {
+				markServerDown(r.type === 'redirect' ? 'session' : 'server');
+				await offlineScan(value, typed);
+				return;
+			}
+			if (r.type === 'success') serverDown = false;
 			if (r.type === 'success' && r.data?.checkin) {
 				const s = /** @type {DoorScan} */ ({ ...r.data.checkin, typed });
 				show(s);
@@ -422,6 +465,13 @@
 		} finally {
 			busy = false;
 		}
+	}
+
+	/** @param {'server' | 'session'} why */
+	function markServerDown(why) {
+		serverDown = true;
+		serverDownAt = Date.now();
+		serverDownWhy = why;
 	}
 
 	/**
@@ -617,8 +667,26 @@
 	 * servidor las registra una por una (idempotente: un reintento no duplica).
 	 */
 	async function syncSales() {
-		const r = await postAction('syncSales', { sales: JSON.stringify(salesPayload(door.sales)) });
-		if (r.type !== 'success' || !r.data?.syncSales?.ok) return;
+		// En tandas de SALES_BATCH (el servidor rechaza más), en orden; si una falla, se corta ahí y
+		// lo que queda sigue en la cola.
+		for (const batch of inBatches(salesPayload(door.sales), SALES_BATCH)) {
+			if (!(await syncSalesBatch(batch))) {
+				say(
+					`No se pudo sincronizar: quedan ${door.sales.length} ${door.sales.length === 1 ? 'venta' : 'ventas'} pendientes. Probá con «Sincronizar» o avisale a gorrite.`
+				);
+				return;
+			}
+		}
+	}
+
+	/**
+	 * @param {ReturnType<typeof salesPayload>} batch
+	 * @returns {Promise<boolean>} si el servidor la aceptó
+	 */
+	async function syncSalesBatch(batch) {
+		const r = await postAction('syncSales', { sales: JSON.stringify(batch) });
+		if (r.type === 'success') serverDown = false;
+		if (r.type !== 'success' || !r.data?.syncSales?.ok) return false;
 		const applied = applySaleSyncResults(door, r.data.syncSales.results);
 		door = applied.state;
 		persist();
@@ -660,6 +728,7 @@
 				`${n === 1 ? 'Se sincronizó 1 venta hecha' : `Se sincronizaron ${n} ventas hechas`} sin conexión${applied.warnings.length ? ` (${applied.warnings.length} para revisar)` : ''}.`
 			);
 		}
+		return true;
 	}
 
 	async function sync() {
@@ -673,24 +742,45 @@
 				return;
 			}
 			const queue = door.queue.map(({ id, token, code, at }) => ({ id, token, code, at }));
-			const r = await postAction('sync', { queue: JSON.stringify(queue) });
-			if (r.type === 'success' && r.data?.sync?.ok) {
+			// En tandas de SYNC_BATCH (el servidor rechaza más de 500): cada una se aplica al llegar;
+			// si una falla, se corta ahí y lo que queda sigue en la cola, con el aviso.
+			let done = 0;
+			let problems = 0;
+			let synced = false;
+			let failed = false;
+			for (const batch of inBatches(queue, SYNC_BATCH)) {
+				const r = await postAction('sync', { queue: JSON.stringify(batch) });
+				if (r.type === 'success') serverDown = false;
+				// Con un link revocado (403) `postAction` ya cerró la puerta (`endLink`): sin aviso.
+				if (linkEnded) return;
+				if (r.type !== 'success' || !r.data?.sync?.ok) {
+					say(
+						`No se pudo sincronizar: quedan ${door.queue.length} ${door.queue.length === 1 ? 'ingreso' : 'ingresos'} pendientes. Probá con «Sincronizar» o avisale a gorrite.`
+					);
+					failed = true;
+					break;
+				}
 				const applied = applySyncResults(door, r.data.sync.results);
 				door = applied.state;
 				persist();
 				conflicts = [...applied.conflicts, ...conflicts].slice(0, 20);
 				setCounts(r.data.counts);
-				if (applied.done) {
-					const n = applied.done;
-					const problems = applied.conflicts.length;
-					say(
-						`${n === 1 ? 'Se sincronizó 1 ingreso' : `Se sincronizaron ${n} ingresos`} marcado${n === 1 ? '' : 's'} sin conexión${problems ? ` (${problems} con problemas)` : ''}.`
-					);
-				}
-				await refreshList();
+				synced = true;
+				done += applied.done;
+				problems += applied.conflicts.length;
 			}
+			// Si una tanda falló, queda a la vista ese aviso (no lo tapa el de lo que sí salió).
+			if (done && !failed) {
+				const n = done;
+				say(
+					`${n === 1 ? 'Se sincronizó 1 ingreso' : `Se sincronizaron ${n} ingresos`} marcado${n === 1 ? '' : 's'} sin conexión${problems ? ` (${problems} con problemas)` : ''}.`
+				);
+			}
+			if (synced) await refreshList();
 		} catch {
-			online = false;
+			// Sin red de verdad, «sin conexión»; con red, el servidor no contestó: se reintenta en la
+			// próxima vuelta (antes quedaba «sin conexión» hasta un evento `online` que no llegaba).
+			if (!navigator.onLine) online = false;
 		} finally {
 			syncing = false;
 		}
@@ -1168,7 +1258,24 @@
 			</button>
 		</header>
 
-		{#if !online && connection}
+		{#if online && serverDown && !linkEnded}
+			<div class="banner offline" role="status">
+				<WifiOff size={20} />
+				<span>
+					<strong
+						>{serverDownWhy === 'session'
+							? 'Se cerró la sesión (volvé a entrar para sincronizar):'
+							: 'El servidor no contesta:'}</strong
+					>
+					validando con la lista guardada{door.savedAt ? ` de las ${hhmm(door.savedAt)}` : ''}. Los
+					ingresos se mandan solos cuando vuelve.
+					{#if pendingText}<strong class="pending">{pendingText}</strong>{/if}
+				</span>
+				<button type="button" class="link" on:click={sync} disabled={syncing}>
+					{syncing ? 'Sincronizando…' : 'Sincronizar'}
+				</button>
+			</div>
+		{:else if !online && connection}
 			<div class="banner offline" role="status">
 				<WifiOff size={20} />
 				<span>

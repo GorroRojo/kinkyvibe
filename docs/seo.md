@@ -270,7 +270,7 @@ corrida falla, la siguiente la cubre.
   (`/wiki/<serie>`, `eventSeriesPaths`), y cuando cambia la etiqueta de la serie, su página. En los
   dos casos, solo si esa página está en la lista del sitemap.
 - Dónde verlo: el resultado sale en la respuesta del cron (`indexNow: { sent, status }`, en
-  Observability → Logs, `recordatorios:`) y en Bing Webmaster Tools → IndexNow.
+  Observability → Logs, `[recordatorios]`) y en Bing Webmaster Tools → IndexNow.
 
 ## Velocidad (PageSpeed, 12/10/2026)
 
