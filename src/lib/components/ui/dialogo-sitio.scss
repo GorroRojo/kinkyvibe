@@ -1,0 +1,33 @@
+// Diálogo centrado del sitio público (`Dialog` y `ConfirmDialog` con `surface="sitio"`): lo mismo
+// que `.kv-dialog` de panel.scss (que solo vale dentro de `.kv-panel`) con los tokens del sitio.
+// El fondo de atrás es el `--scrim` claro del panel, armado con el violeta del sitio (el sitio no
+// tiene `--scrim`).
+.kv-dialog-sitio {
+	border: 0;
+	border-radius: var(--radius-l);
+	background: var(--surface);
+	color: var(--ink);
+	box-shadow: var(--shadow-3);
+	padding: var(--space-s);
+	width: min(28rem, calc(100vw - 32px));
+	&::backdrop {
+		background: color-mix(in srgb, var(--2-dark) 30%, transparent);
+		backdrop-filter: blur(3px);
+	}
+	h2 {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2xs);
+		margin: 0 0 var(--space-2xs);
+		font-size: var(--text-base);
+	}
+	p {
+		margin: 0 0 var(--space-s);
+	}
+	.kv-dialog-btns {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: var(--space-2xs);
+	}
+}

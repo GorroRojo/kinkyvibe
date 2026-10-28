@@ -348,9 +348,28 @@ código nuevo, importá de `$lib/components/ui`. **Pendiente** (gorrite, 5/10: q
 un PR aparte pasa los imports viejos y borra los envoltorios, después del rediseño de la página del
 evento.
 
-**Pendiente** (gorrite, 5/10): las piezas que hoy son solo del panel (`UndoToast`, el diálogo de
-`askConfirm`, que monta solo el layout del panel) tienen que tener también su versión para el
-sitio público.
+### Versiones para el sitio público
+
+`Field`, `Checkbox`, `Switch`, `Notice`, `Card`, `Badge`, `Table`, `UndoToast`, `Dialog` y
+`ConfirmDialog` aceptan `surface="sitio"` (como `Button`): el mismo componente, sin `.kv-panel`
+alrededor, con los tokens del sitio (`--ink`, `--muted`, `--line`, `--hover`, `--2-dark`, los
+`-tint` con sus `-ink` y `--error`). Sin `surface`, el del panel de siempre. Se ven lado a lado
+con las del panel en `/estilo`, sección «Sitio público» (`/estilo?grupo=sitio-publico`). Todavía
+no las usa ninguna página pública: adoptarlas es otra decisión (plan `diseno-versiones-publicas`).
+
+- **Contraste.** Texto: 5:1 o más en todos los pares nuevos (avisos 5.4–6:1 sobre su fondo; badges
+  llenas, blanco sobre el tono oscuro de cada color, 6:1 o más, porque blanco sobre `--1` da
+  3.35:1). Bordes de los controles: `--field` da 2.2:1 sobre blanco, así que en el sitio el borde
+  de los campos, de la casilla sin marcar y el riel del interruptor apagado van en
+  `color-mix(in srgb, var(--muted) 75%, var(--surface))` (3.65:1, el mínimo de 3:1 para
+  controles). El texto del botón secundario (`--1` sobre blanco, 3.35:1) es el aprobado y no se
+  tocó.
+- **Diálogo.** `.kv-dialog-sitio` (`ui/dialogo-sitio.scss`), con el fondo de atrás violeta como el
+  `--scrim` claro del panel y botones `.pill-btn`. `ConfirmDialog surface="sitio"` lo montaría una
+  vez un layout público, igual que el del panel, y `askConfirm` lo usa. `register={false}` deja
+  tener dos en una página (la galería): ese no atiende `askConfirm` y se le pregunta con su `ask()`.
+- **Foco y movimiento.** Los de siempre de `style.scss`: anillo violeta con teclado, borde rosa en
+  los campos, y «reducir movimiento» apaga las transiciones de la casilla y el interruptor.
 
 ## Textos
 
