@@ -19,6 +19,8 @@ import {
 	emptyDoorState,
 	markRecentDiscarded,
 	pendingSaleId,
+	pruneDoorNotices,
+	stripStaleNotices,
 	isPendingSaleTicket,
 	markRecentSynced,
 	offlineSaleLimits,
@@ -30,6 +32,8 @@ import {
 	forgetAllLinkDoors,
 	forgetLinkDoor
 } from './doorOffline.js';
+
+import { DOOR_NOTICE_KEEP_DAYS, doorNoticeKeepUntil } from '$lib/utils/doorNotices.js';
 
 const TOKEN = 'A'.repeat(42) + 'b';
 
@@ -211,7 +215,14 @@ describe('buscar y guardar', () => {
 			})
 		);
 		// El estado completo (con la cola de ventas sin conexión, decisión 0035).
-		const state = { list: [ticket({})], queue: [], savedAt: 5, sales: [], failed: [] };
+		const state = {
+			list: [ticket({})],
+			queue: [],
+			savedAt: 5,
+			sales: [],
+			failed: [],
+			noticeUntil: null
+		};
 		expect(saveDoorState(storage, 'ev', state)).toBe(true);
 		expect(loadDoorState(storage, 'ev')).toEqual(state);
 		const broken = /** @type {Storage} */ (
@@ -229,7 +240,8 @@ describe('buscar y guardar', () => {
 			queue: [],
 			savedAt: null,
 			sales: [],
-			failed: []
+			failed: [],
+			noticeUntil: null
 		});
 		expect(saveDoorState(broken, 'ev', state)).toBe(false);
 		mem['kv-door:roto'] = '{no';
@@ -663,7 +675,8 @@ describe('puerta con link: lo guardado en el celu', () => {
 		queue: [{ id: 'q1', ticketId: 't1', holder: 'Persona Inventada', code: 'ABC123', at: 3 }],
 		savedAt: 5,
 		sales: [sale],
-		failed: [failed]
+		failed: [failed],
+		noticeUntil: null
 	});
 
 	it('el link se guarda aparte de la puerta del panel', () => {
@@ -715,5 +728,98 @@ describe('puerta con link: lo guardado en el celu', () => {
 		expect(Object.keys(mem).some((k) => k.startsWith('kv-puerta-link'))).toBe(false);
 		expect(mem['kv-door:ev']).toBe(admin);
 		expect(forgetAllLinkDoors(null)).toEqual([]);
+	});
+});
+
+describe('avisos de puerta guardados en el celu (decisión 0053)', () => {
+	const DAY = 24 * 60 * 60 * 1000;
+	const EVENT_END = Date.parse('2026-10-04T06:00:00-03:00');
+
+	/** localStorage de mentira, con `length` y `key` como el de verdad. */
+	function memStorage() {
+		/** @type {Record<string, string>} */
+		const mem = {};
+		const storage = /** @type {Storage} */ (
+			/** @type {unknown} */ ({
+				get length() {
+					return Object.keys(mem).length;
+				},
+				key: (/** @type {number} */ i) => Object.keys(mem)[i] ?? null,
+				getItem: (/** @type {string} */ k) => mem[k] ?? null,
+				setItem: (/** @type {string} */ k, /** @type {string} */ v) => {
+					mem[k] = v;
+				}
+			})
+		);
+		return { mem, storage };
+	}
+
+	/** @param {number | null} noticeUntil */
+	const flaggedState = (noticeUntil) => ({
+		...emptyDoorState(),
+		list: [ticket({ notice: true }), ticket({ ticketId: 't2', notice: false })],
+		queue: [{ id: 'q1', ticketId: 't2', holder: 'Otra Persona', at: 1 }],
+		savedAt: EVENT_END - DAY,
+		noticeUntil
+	});
+
+	it('la marca vale hasta unos días después del final del evento (o desde que se bajó)', () => {
+		const keep = DOOR_NOTICE_KEEP_DAYS * DAY;
+		const end = '2026-10-04T06:00:00-03:00';
+		// Bajada antes del evento: cuenta desde el final.
+		expect(doorNoticeKeepUntil({ start: null, end, now: EVENT_END - 10 * DAY })).toBe(
+			EVENT_END + keep
+		);
+		// Sin final, desde el comienzo.
+		expect(doorNoticeKeepUntil({ start: end, end: null, now: EVENT_END - DAY })).toBe(
+			EVENT_END + keep
+		);
+		// Ya pasó, o sin fecha: desde ahora.
+		expect(doorNoticeKeepUntil({ end, now: EVENT_END + 5 * DAY })).toBe(EVENT_END + 5 * DAY + keep);
+		expect(doorNoticeKeepUntil({ now: 1000 })).toBe(1000 + keep);
+	});
+
+	it('antes de `noticeUntil` queda; después se saca, y nada más cambia', () => {
+		const until = EVENT_END + 3 * DAY;
+		const state = flaggedState(until);
+		expect(stripStaleNotices(state, until)).toBe(state);
+		const clean = stripStaleNotices(state, until + 1);
+		expect(clean.list.some((t) => 'notice' in t)).toBe(false);
+		expect(clean.list.map((t) => t.ticketId)).toEqual(['t1', 't2']);
+		expect(clean.queue).toEqual(state.queue);
+		// Una lista guardada sin `noticeUntil` (de antes) no se queda con la marca.
+		expect(stripStaleNotices(flaggedState(null), 0).list.some((t) => 'notice' in t)).toBe(false);
+	});
+
+	it('al leer y al guardar, la lista vieja sale sin la marca', () => {
+		const { mem, storage } = memStorage();
+		const until = EVENT_END + 3 * DAY;
+		mem['kv-door:fiesta'] = JSON.stringify(flaggedState(until));
+		expect(loadDoorState(storage, 'fiesta', { now: until - 1 }).list[0].notice).toBe(true);
+		expect(loadDoorState(storage, 'fiesta', { now: until + 1 }).list[0]).not.toHaveProperty(
+			'notice'
+		);
+		// Guardar con la fecha ya pasada tampoco la escribe.
+		expect(saveDoorState(storage, 'vieja', flaggedState(1000))).toBe(true);
+		expect(mem['kv-door:vieja']).not.toContain('"notice":');
+	});
+
+	it('al abrir el panel se limpian las listas de todos los eventos ya pasados', () => {
+		const { mem, storage } = memStorage();
+		const until = EVENT_END + 3 * DAY;
+		mem['kv-door:pasado'] = JSON.stringify(flaggedState(until));
+		mem['kv-door:proximo'] = JSON.stringify(flaggedState(until + 30 * DAY));
+		mem['kv-door-recent:pasado'] = '[]';
+		mem['kv-door-sound'] = '1';
+		expect(pruneDoorNotices(storage, until + DAY)).toBe(1);
+		expect(mem['kv-door:pasado']).not.toContain('"notice":');
+		// Lo demás de la lista vieja (la cola por sincronizar) sigue.
+		expect(JSON.parse(mem['kv-door:pasado']).queue).toHaveLength(1);
+		expect(JSON.parse(mem['kv-door:proximo']).list[0].notice).toBe(true);
+		expect(mem['kv-door-recent:pasado']).toBe('[]');
+		expect(mem['kv-door-sound']).toBe('1');
+		// Otra vez: ya no hay nada que sacar. Y sin almacenamiento, no tira.
+		expect(pruneDoorNotices(storage, until + DAY)).toBe(0);
+		expect(pruneDoorNotices(null)).toBe(0);
 	});
 });

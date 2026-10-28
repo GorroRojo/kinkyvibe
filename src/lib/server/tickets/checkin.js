@@ -52,14 +52,18 @@ export async function extractToken(db, slug, raw) {
  * «ver completo», que queda en el registro de actividad.
  *
  * Con `forLink` (la puerta con un link): sin el token de la entrada (para marcar el ingreso desde
- * una sugerencia alcanzan el código o `ticket:<id>`, ver `extractToken`) y sin el login de GitHub
- * de quien marcó el ingreso si fue une admin (`linkSafeBy`).
+ * una sugerencia alcanzan el código o `ticket:<id>`, ver `extractToken`), sin el login de GitHub
+ * de quien marcó el ingreso si fue une admin (`linkSafeBy`) y sin `notice` (decisión 0053: los
+ * avisos de puerta nunca van a un link, aunque venga `noticeIds`).
+ *
+ * `notice` (solo sin `forLink`): la entrada coincide con un aviso de puerta (los ids de
+ * `noticeIds`, ver doorNotices.js); la pantalla muestra solo el texto genérico.
  *
  * @param {import('./orders.js').TicketSearchResult[]} found
  * @param {Record<string, string>} names
- * @param {{ forLink?: boolean }} [opts]
+ * @param {{ forLink?: boolean, noticeIds?: Set<string> }} [opts]
  */
-export function searchRows(found, names, { forLink = false } = {}) {
+export function searchRows(found, names, { forLink = false, noticeIds = new Set() } = {}) {
 	return found.map((t) => ({
 		id: t.id,
 		...(forLink ? {} : { token: t.token }),
@@ -71,6 +75,7 @@ export function searchRows(found, names, { forLink = false } = {}) {
 		type: names[t.ticket_type] ?? t.ticket_type,
 		checkedInAt: t.checked_in_at,
 		checkedInBy: forLink ? linkSafeBy(t.checked_in_by) : t.checked_in_by,
+		...(forLink ? {} : { notice: noticeIds.has(t.id) }),
 		match: t.match
 			? {
 					field: t.match.field,

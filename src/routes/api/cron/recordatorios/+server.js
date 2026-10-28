@@ -12,7 +12,9 @@
  * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js) y borra las filas
  * por persona de las estadísticas de uso del bot de más de 180 días (ver
  * $lib/server/telegram/uso.js) y avisa por IndexNow las páginas públicas que cambiaron (ver
- * $lib/server/seo/indexnow.js). Lo llama cada 15 minutos el cron
+ * $lib/server/seo/indexnow.js) y borra los avisos de puerta vencidos y avisa por mail a la casilla
+ * de la organización los que vencen pronto (ver $lib/server/tickets/doorNotices.js). Lo llama cada
+ * 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
  * Pausas de emergencia ($lib/server/emergencia.js, docs/interruptores.md): con `MAILS_PAUSED`
@@ -28,7 +30,13 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
-import { runMailQueue, siteOrigin } from '$lib/server/tickets/index.js';
+import {
+	deliverEmail,
+	replyToAddress,
+	runMailQueue,
+	siteOrigin
+} from '$lib/server/tickets/index.js';
+import { runDoorNoticesCron } from '$lib/server/tickets/doorNotices.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
@@ -150,6 +158,15 @@ export async function POST({ request, platform, url, fetch }) {
 				return { posts, wikiPosts, seriesIds: seriesTagIds(tags) };
 			}
 		});
+		// Avisos de puerta (decisión 0053): borra los vencidos y avisa 14 días antes, una vez, a la
+		// casilla de la organización (la de los comprobantes). Sin datos de la persona. Nunca tira.
+		const doorNotices = await runDoorNoticesCron({
+			db,
+			origin: siteOrigin(url),
+			to: () => replyToAddress(db),
+			send: ({ to, message, idempotencyKey }) =>
+				deliverEmail({ db, fetch, to, message, idempotencyKey })
+		});
 		// El menú «/» del bot: solo si cambió la lista y hay token. Nunca tira.
 		const telegramCommands = await syncBotCommands({
 			db,
@@ -167,6 +184,7 @@ export async function POST({ request, platform, url, fetch }) {
 				...(telegramAdmin ? { telegramAdmin } : {}),
 				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),
 				...('skipped' in indexNow ? {} : { indexNow }),
+				...(doorNotices && (doorNotices.expired || doorNotices.reminded) ? { doorNotices } : {}),
 				telegramCommands
 			},
 			{ headers: { 'cache-control': 'no-store' } }

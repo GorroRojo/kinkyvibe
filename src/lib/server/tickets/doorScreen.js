@@ -18,7 +18,14 @@
  * - topes por link y por hora: entradas vendidas y mails de compra (solo en ventas con conexión);
  * - una entrada de otro evento dice solo «De otro evento», sin cuál;
  * - cada acción (ingreso, deshacer, venta, sincronizar, ver una compra) queda en el registro de
- *   actividad como `puerta:<id del link>`, con `doorLink` en el detalle.
+ *   actividad como `puerta:<id del link>`, con `doorLink` en el detalle;
+ * - **nunca** viajan los avisos de puerta (decisión 0053): ni la marca `notice` (tampoco en
+ *   `false`) en la tarjeta de un escaneo o una venta, la lista sin conexión o las sugerencias del
+ *   buscador, ni `noticeUntil`. Ni se consultan: `noticesFor` devuelve `null` con un link.
+ *
+ * Avisos de puerta (decisión 0053, doorNotices.js), solo para une admin y solo en los eventos de
+ * Kinky Vibe: la tarjeta de una entrada que coincide lleva `notice: true` y la pantalla muestra solo
+ * «Avisá a la organización antes de dejar pasar». El ingreso se marca igual.
  *
  * Acciones (la página las llama con fetch + `deserialize`, y también andan sin JavaScript):
  * - `checkin`: valida un QR / link / código y marca el ingreso.
@@ -73,6 +80,8 @@ import {
 } from '$lib/server/tickets/door.js';
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
+import { doorNoticeMatcher, isKinkyVibeDoor } from './doorNotices.js';
+import { doorNoticeKeepUntil } from '$lib/utils/doorNotices.js';
 import {
 	DOOR_LINK_PATH,
 	DOOR_LINK_TICKETS_MESSAGE,
@@ -100,6 +109,46 @@ import { NO_STORE, cachedPrior, doorContext, doorSeriesLabel } from './doorConte
 
 /** Cuántas sugerencias como máximo en «Buscar persona». */
 const SEARCH_LIMIT = 8;
+
+/**
+ * Los avisos de puerta (decisión 0053) para quien está en la puerta: el matcher para une admin y
+ * `null` con un link, que nunca los recibe (ni en la lista sin conexión, ni en el buscador, ni en
+ * la tarjeta de un escaneo). Es el único lugar de la puerta que llama a `doorNoticeMatcher`.
+ *
+ * @param {D1Database} db
+ * @param {DoorActor} actor
+ * @param {Parameters<typeof isKinkyVibeDoor>[0]} config
+ * @returns {Promise<import('./doorNotices.js').DoorNoticeMatcher | null>}
+ */
+async function noticesFor(db, actor, config) {
+	if (actor.link) return null;
+	return doorNoticeMatcher(db, { kinkyVibe: isKinkyVibeDoor(config) });
+}
+
+/**
+ * Una tarjeta o fila sin la marca `notice` (con un link no va ni en `false`).
+ *
+ * @template {{ notice?: boolean }} T
+ * @param {T} row
+ * @returns {Omit<T, 'notice'>}
+ */
+function withoutNotice({ notice: _notice, ...rest }) {
+	return rest;
+}
+
+/**
+ * La tarjeta de una entrada para quien está en la puerta: con un link, sin `notice`.
+ *
+ * @param {DoorActor} actor
+ * @param {import('./door.js').TicketWithBuyer} full
+ * @param {{ typeNames: Record<string, string>, prior: import('./door.js').PriorAttendance | null,
+ *   notices: import('./doorNotices.js').DoorNoticeMatcher | null }} ctx
+ */
+async function doorCard(actor, full, { typeNames, prior, notices }) {
+	const notice = notices ? await notices(full) : false;
+	const card = ticketCard(full, { typeNames, prior, notice });
+	return actor.link ? withoutNotice(card) : card;
+}
 
 /**
  * Une admin del panel como actor de la puerta (`requireAdmin`: redirige o da 403 si no).
@@ -231,7 +280,7 @@ export async function doorLoad(event, actor) {
  * @param {DoorActor} actor
  */
 async function checkinAction(event, actor) {
-	const { db, typeNames, ticketSlug, part } = await doorContext(event);
+	const { db, config, typeNames, ticketSlug, part } = await doorContext(event);
 	const slug = ticketSlug;
 	const raw = (await event.request.formData()).get('token');
 	const token = await extractToken(db, slug, raw);
@@ -271,8 +320,9 @@ async function checkinAction(event, actor) {
 			}
 		});
 	}
-	// La entrada con quien compró, la primera vez en la serie y los contadores, juntos.
-	const [full, prior, counts] = await Promise.all([
+	// La entrada con quien compró, la primera vez en la serie, los avisos de puerta (solo admins) y
+	// los contadores, juntos.
+	const [full, prior, notices, counts] = await Promise.all([
 		r.ticket
 			? ticketWithBuyer(db, { id: r.ticket.id }).then(async (found) =>
 					found && part
@@ -287,9 +337,10 @@ async function checkinAction(event, actor) {
 				)
 			: null,
 		cachedPrior(db, slug, event.platform),
+		noticesFor(db, actor, config),
 		countsFor(db, { ticketSlug, part })
 	]);
-	const card = full ? ticketCard(full, { typeNames, prior }) : null;
+	const card = full ? await doorCard(actor, full, { typeNames, prior, notices }) : null;
 	return {
 		checkin: {
 			result: r.result,
@@ -563,10 +614,11 @@ export function doorActions(getActor) {
 				);
 			}
 			const prior = await cachedPrior(db, slug, event.platform);
+			const notices = await noticesFor(db, actor, config);
 			const cards = [];
 			for (const t of r.tickets) {
 				const full = await ticketWithBuyer(db, { id: t.id });
-				if (full) cards.push(ticketCard(full, { typeNames, prior }));
+				if (full) cards.push(await doorCard(actor, full, { typeNames, prior, notices }));
 			}
 			const mailSkipped = parsed.sale.sendEmail && !mailOk;
 			return {
@@ -591,26 +643,25 @@ export function doorActions(getActor) {
  * entradas que coinciden por nombre, pronombres, quien compró, email, DNI o código, y con qué
  * campo coincidió (el DNI, solo los últimos 3).
  *
- * Con un link: sin el token de las entradas ni buscar por su comienzo, y sin logins de admins.
+ * Con un link: sin el token de las entradas ni buscar por su comienzo, sin logins de admins y sin
+ * avisos de puerta. Para une admin, `notice` si la entrada coincide con uno (nunca el motivo).
  *
  * @param {any} event
  * @param {DoorActor} actor ya verificado por la ruta
  */
 export async function doorSearch(event, actor) {
 	// En una parte de un taller: las entradas del taller con el ingreso a esta parte.
-	const { db, typeNames, ticketSlug, part } = await doorContext(event);
+	const { db, config, typeNames, ticketSlug, part } = await doorContext(event);
 	const q = (event.url.searchParams.get('q') ?? '').trim().slice(0, 80);
-	const found =
+	const raw =
 		q.length >= 2
-			? searchRows(
-					await searchTickets(db, ticketSlug, q, {
-						limit: SEARCH_LIMIT,
-						tokenPrefix: !actor.link
-					}),
-					typeNames,
-					{ forLink: Boolean(actor.link) }
-				)
+			? await searchTickets(db, ticketSlug, q, { limit: SEARCH_LIMIT, tokenPrefix: !actor.link })
 			: [];
+	/** @type {Set<string>} */
+	const noticeIds = new Set();
+	const notices = raw.length ? await noticesFor(db, actor, config) : null;
+	if (notices) for (const t of raw) if (await notices(t)) noticeIds.add(t.id);
+	const found = searchRows(raw, typeNames, { forLink: Boolean(actor.link), noticeIds });
 	const results = part
 		? await overlayPartCheckins(db, part.slug, found, {
 				id: 'id',
@@ -669,23 +720,39 @@ export async function doorPurchase(event, actor) {
  * Lista de entradas del evento para validar sin conexión (el celu la guarda en localStorage). Lleva
  * el hash del token (no el token) y los últimos 3 dígitos del DNI (no el DNI): ver `offlineList`.
  *
+ * Avisos de puerta (decisión 0053): para une admin, `notice` en las entradas que coinciden y hasta
+ * cuándo puede quedar esa marca en el celu (`noticeUntil`, unos días después del evento). Con un
+ * link, ninguna de las dos cosas: así no se puede bajar quién tiene aviso.
+ *
  * @param {any} event
  * @param {DoorActor} actor ya verificado por la ruta (con un link, sin logins de admins)
  */
 export async function doorList(event, actor) {
 	// En una parte de un taller (docs/talleres-partes.md): las entradas del taller con el ingreso
 	// a esta parte.
-	const { db, typeNames, ticketSlug: slug, part } = await doorContext(event);
-	const prior = await cachedPrior(db, slug, event.platform);
+	const { db, config, typeNames, ticketSlug: slug, part } = await doorContext(event);
+	const [prior, notices] = await Promise.all([
+		cachedPrior(db, slug, event.platform),
+		noticesFor(db, actor, config)
+	]);
 	const [all, counts] = await Promise.all([
-		offlineList(db, { slug, typeNames, prior }),
+		offlineList(db, { slug, typeNames, prior, notices: notices ?? undefined }),
 		part ? partDoorCounts(db, slug, part.slug) : doorCounts(db, slug)
 	]);
-	const tickets = part
+	const rows = part
 		? await overlayPartCheckins(db, part.slug, all, { id: 'ticketId', at: 'at', by: 'by' })
 		: all;
+	const tickets = hideLogins(actor, actor.link ? rows.map(withoutNotice) : rows, 'by');
+	const now = Date.now();
 	return json(
-		{ at: Date.now(), tickets: hideLogins(actor, tickets, 'by'), counts },
+		actor.link
+			? { at: now, tickets, counts }
+			: {
+					at: now,
+					noticeUntil: doorNoticeKeepUntil({ start: config.start, end: config.end, now }),
+					tickets,
+					counts
+				},
 		{ headers: NO_STORE }
 	);
 }
