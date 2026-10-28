@@ -59,7 +59,8 @@ sin tocar el repo.
 
 ## `GET /api/preview-status`
 
-Solo en previews: cuántas filas hay en las tablas principales y si el entorno está bien armado.
+Solo en previews y con sesión de admin (la de prueba alcanza; sin sesión, 403): cuántas filas hay
+en las tablas principales y si el entorno está bien armado.
 (La vieja tabla `demo_files`, la capa de archivos del modo demo, ya no se usa: si una base de
 preview vieja la tiene, se puede borrar con `DROP TABLE demo_files;`.)
 

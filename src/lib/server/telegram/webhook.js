@@ -11,6 +11,7 @@
  */
 import { json } from '@sveltejs/kit';
 import { sha256Hex, timingSafeEqual } from '$lib/server/hash.js';
+import { readTextCapped } from '$lib/server/http/body.js';
 import { handleUpdate, planUpdate } from './router.js';
 import { runPlan, telegramCaller } from './run.js';
 import { runWithBotTexts } from './texts.js';
@@ -94,8 +95,9 @@ export async function handleWebhook({
 	// El secreto se chequea antes que el interruptor: así nadie sin él puede ver si está prendido.
 	if (!enabled) return new Response(null, { status: 200 });
 
-	const text = await request.text();
-	if (text.length > MAX_BODY_BYTES) return new Response('too large', { status: 413 });
+	// Tope también sin content-length: se corta al leer, sin guardar el cuerpo entero.
+	const text = await readTextCapped(request, MAX_BODY_BYTES);
+	if (text === null) return new Response('too large', { status: 413 });
 	/** @type {unknown} */
 	let update;
 	try {

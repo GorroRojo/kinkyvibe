@@ -153,13 +153,19 @@ nada de estas tablas para sumarlas.
 
 | Qué                           | Límite                                      |
 | ----------------------------- | ------------------------------------------- |
-| Pedir código, por mail        | 3 cada 15 minutos y 10 por día              |
-| Pedir código, mail + conexión | 4 por día                                   |
+| Pedir código, por mail        | 5 cada 15 minutos y 10 por día              |
+| Pedir código, mail + conexión | 3 cada 15 minutos y 4 por día               |
 | Pedir código, por conexión    | 10 cada 15 minutos                          |
 | Escribir código, por conexión | 20 cada 15 minutos (además de 5 por código) |
 | Contraseña, por mail          | 10 cada 15 minutos                          |
 | Contraseña, por conexión      | 20 cada 15 minutos                          |
 | Mails de cuentas, en total    | 300 por hora (códigos y avisos)             |
+
+Los topes de mail + conexión son más bajos que los del mail solo: desde una sola conexión nadie
+gasta todo el cupo de un mail ajeno (quien pide sus propios códigos ve lo mismo de siempre: 3
+seguidos).
+
+"Por día" es en las últimas 24 horas (ventana móvil, por hora), no desde la medianoche.
 
 "Conexión" es el `clientHash` de las entradas: la IP con una sal que cambia cada día, hasheada.
 Una IPv6 cuenta por su red /64 entera (`clientNetwork` en `src/lib/server/tickets/safeguards.js`):
@@ -596,9 +602,12 @@ actualizá esta lista.
 - **Contraseña bloqueada por otres.** Diez contraseñas mal escritas para un mail, desde cualquier
   conexión, no dejan entrar con contraseña a ese mail por hasta 15 minutos. Entrar con
   código sigue andando.
-- **Ventana diaria fija (UTC).** Los topes por día se reinician a medianoche UTC: alrededor de esa
-  hora se pueden pedir hasta el doble de códigos para un mail. Con 5 intentos por código, adivinar
-  uno sigue siendo muy improbable.
+- **Topes por día con ventana móvil.** Los topes «por día» suman las últimas 24 horas, por hora
+  (`hitRateLimit` en `src/lib/server/db/rateLimit.js`), así que la medianoche ya no los reinicia.
+  Un pedido rechazado no se anota (si no, seguir probando estiraría el bloqueo para siempre).
+  Queda un borde: la sal de la «conexión» cambia a las 00:00 UTC, y los topes de mail + conexión
+  vuelven a empezar con la sal nueva. Los topes por mail solo (10 por día) siguen contando, así
+  que un mail recibe como mucho eso por día.
 - **PBKDF2 con 100.000 iteraciones**, el máximo de Workers (OWASP pide 600.000). Ver "Contraseña".
 - **Hash del mail sin secreto.** En `login_codes`, `rate_limits` y `profile_invites` se guarda
   `SHA-256` del mail con un prefijo fijo: con acceso a la base, se puede confirmar si un mail

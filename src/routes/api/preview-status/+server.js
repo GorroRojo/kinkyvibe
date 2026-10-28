@@ -1,12 +1,14 @@
 /**
  * GET /api/preview-status: qué está configurado en un deploy de preview, para revisar el entorno
  * de prueba sin entrar a Cloudflare. Solo presente/ausente (nunca un valor) y si el token de
- * Mercado Pago es de prueba. En producción (y en local) responde 404.
+ * Mercado Pago es de prueba. En producción (y en local) responde 404; sin sesión de admin (la
+ * de prueba del preview alcanza), 403: qué secrets hay no queda a la vista de cualquiera.
  * `demo`: filas de la base de prueba (docs/demo.md).
  */
 import { error, json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getDB } from '$lib/server/db';
+import { isAdmin } from '$lib/server/auth.js';
 import { isPreviewDeploy } from '$lib/server/deploy.js';
 import { parseAllowlist } from '$lib/server/tickets/emailGuard.js';
 
@@ -23,8 +25,9 @@ const COUNTED_TABLES = [
 const present = (value) => Boolean(value?.trim());
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({ platform }) {
+export async function GET({ platform, locals }) {
 	if (!isPreviewDeploy()) error(404, 'Not found');
+	if (!isAdmin(locals.user)) error(403, 'Solo admins');
 	const token = env.MP_ACCESS_TOKEN?.trim() ?? '';
 	const db = getDB(platform);
 	let dbOk = false;

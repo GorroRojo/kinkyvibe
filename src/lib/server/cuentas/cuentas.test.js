@@ -503,7 +503,7 @@ describe('tope global de mails y conexiones IPv6', () => {
 		const row = await t.db
 			.prepare("SELECT hits FROM rate_limits WHERE bucket = 'cuentas:mail:global'")
 			.first();
-		expect(Number(row?.hits)).toBe(RATE_LIMITS.codeRequestEmail.limit);
+		expect(Number(row?.hits)).toBe(RATE_LIMITS.codeRequestEmailClient.limit);
 	});
 
 	it('dos direcciones de la misma red IPv6 /64 comparten el límite por conexión', async () => {
