@@ -20,7 +20,9 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   reclamar un perfil). Pedir no da nada: une admin lo revisa en el panel y lo aprueba (la cuenta
   pasa a ser dueñe) o lo rechaza; para aprobarlo, la cuenta tiene que tener el permiso (el panel
   lo avisa y une admin se lo da antes). Mi rincón, sin el permiso, tiene la tarjeta «¿Ya estás en
-  Amigues?» que lo explica.
+  Amigues?» que lo explica, y a cualquier cuenta que pidió alguno le lista sus pedidos con su estado
+  (pendiente, aprobado, no aprobado; [cuentas.md](cuentas.md)). Si el último no se aprobó, la
+  página del perfil dice «no aprobado» en vez de volver a ofrecer el botón.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
 - **Ocultar desde el panel** (la ficha del perfil, `hideProfile` en
