@@ -789,7 +789,10 @@ export const EVENT_TABS = Object.freeze(
 			emoji: '✉️',
 			views: [
 				{ id: 'mail', suffix: '/mail', label: 'Mandar un aviso' },
-				{ id: 'mails', suffix: '/mails', label: 'Plantillas' }
+				{ id: 'mails', suffix: '/mails', label: 'Plantillas' },
+				// Encuesta después del evento (prototipo, interruptor `encuesta_post_evento`): la ficha
+				// la muestra solo con el interruptor prendido.
+				{ id: 'encuesta', suffix: '/encuesta', label: 'Encuesta' }
 			]
 		},
 		// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.

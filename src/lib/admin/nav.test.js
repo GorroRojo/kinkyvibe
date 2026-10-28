@@ -714,7 +714,7 @@ describe('links a la ficha del evento', () => {
 			'/lista-espera',
 			'/gastos'
 		]);
-		expect(views('mails')).toEqual(['/mail', '/mails']);
+		expect(views('mails')).toEqual(['/mail', '/mails', '/encuesta']);
 	});
 	it('eventTabOf: la pestaña y la vista de cada dirección (y de sus subpáginas)', () => {
 		const of = (/** @type {string} */ path) => {

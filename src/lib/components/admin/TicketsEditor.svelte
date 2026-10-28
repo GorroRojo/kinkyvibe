@@ -80,6 +80,12 @@
 	export let waitlistEnabled = null;
 	/** @type {Record<string, number> | null} */
 	export let waitlistLive = null;
+	/**
+	 * Encuesta después del evento (prototipo): el interruptor `encuesta_post_evento`. Solo con
+	 * `true` se muestra «Mandar la encuesta…».
+	 * @type {boolean | null}
+	 */
+	export let surveyEnabled = null;
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
@@ -537,6 +543,17 @@
 				<input type="checkbox" id="{idPrefix}-reminders" bind:checked={state.reminders} />
 				Mandar recordatorios por mail antes del evento
 			</label>
+			{#if surveyEnabled}
+				<label class="check">
+					<input
+						type="checkbox"
+						id="{idPrefix}-survey"
+						checked={state.survey !== false}
+						on:change={(ev) => (state.survey = ev.currentTarget.checked)}
+					/>
+					Mandar la encuesta después del evento (prototipo)
+				</label>
+			{/if}
 
 			<details class="advanced" open={Boolean(state.mpFee)}>
 				<summary>Avanzado</summary>

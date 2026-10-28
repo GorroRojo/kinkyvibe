@@ -97,6 +97,7 @@
  *   online: boolean,
  *   door: { on: boolean, explicit: boolean, price: string } | null,
  *   reminders: boolean,
+ *   survey: boolean,
  *   status: string | undefined,
  *   title: string,
  *   start: string | undefined,
@@ -341,6 +342,9 @@ export function parseTicketConfig(meta, options = {}) {
 		door: online ? null : parseDoor(meta),
 		// `recordatorios: false` en el frontmatter: este evento no manda recordatorios por mail.
 		reminders: meta.recordatorios !== false,
+		// `encuesta: false`: este evento no manda la encuesta de después (prototipo, interruptor
+		// `encuesta_post_evento`; src/lib/server/encuesta/).
+		survey: meta.encuesta !== false,
 		status: meta.status,
 		title: String(meta.title ?? ''),
 		start: meta.start instanceof Date ? meta.start.toISOString() : meta.start,

@@ -15,7 +15,8 @@
  * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js) y borra las filas
  * por persona de las estadísticas de uso del bot de más de 180 días (ver
  * $lib/server/telegram/uso.js) y avisa por IndexNow las páginas públicas que cambiaron (ver
- * $lib/server/seo/indexnow.js). Lo llama cada 15 minutos el cron
+ * $lib/server/seo/indexnow.js) y, en prototipo (interruptor `encuesta_post_evento`), manda la
+ * encuesta de después de cada evento (ver $lib/server/encuesta/send.js). Lo llama cada 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
  * Pausas de emergencia ($lib/server/emergencia.js, docs/interruptores.md): con `MAILS_PAUSED`
@@ -36,6 +37,7 @@ import { mailBudgetLeft } from '$lib/server/tickets/mailQueue.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
+import { runSurveyCron } from '$lib/server/encuesta/send.js';
 import { isFlagOn, listaEsperaEnabled } from '$lib/server/flags.js';
 import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
@@ -132,8 +134,9 @@ export async function POST({ request, platform, url, fetch }) {
 		// Con MAILS_PAUSED, ni las series ni «Lo que sigo» (sus avisos quedan para después).
 		let series = null;
 		let sigo = null;
+		let survey = null;
 		if (mailsOff) {
-			logMailsPaused('los avisos de series ni los de «Lo que sigo»');
+			logMailsPaused('los avisos de series, los de «Lo que sigo» ni la encuesta');
 		} else {
 			// Series y «Lo que sigo» salen con lo que sobró de la tanda («de a cuántos»): la corrida
 			// entera no la pasa y las entradas y los recordatorios van primero. Con la tanda gastada
@@ -151,6 +154,12 @@ export async function POST({ request, platform, url, fetch }) {
 				sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch, limit: left });
 			} catch (error) {
 				logDBError('cron lo que sigo', error);
+			}
+			// La encuesta después del evento (prototipo), también aparte.
+			try {
+				survey = await runSurveyCron({ db, platform, origin: siteOrigin(url), fetch });
+			} catch (error) {
+				logDBError('cron encuesta', error);
 			}
 		}
 		// Los avisos de admins por Telegram (decisión 0041): el resumen diario desde las 9 (hora
@@ -228,6 +237,7 @@ export async function POST({ request, platform, url, fetch }) {
 				...(unsentOrders ? { unsentOrders } : {}),
 				...(series ? { series } : {}),
 				...(sigo ? { sigo } : {}),
+				...(survey ? { survey } : {}),
 				...(telegramAdmin ? { telegramAdmin } : {}),
 				...(telegramAdminDia ? { telegramAdminDia } : {}),
 				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),

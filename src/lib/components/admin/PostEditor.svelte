@@ -551,6 +551,7 @@
 					transferReady={data.transferReady ?? null}
 					waitlistEnabled={data.waitlistEnabled ?? null}
 					waitlistLive={data.waitlistLive ?? null}
+					surveyEnabled={data.surveyEnabled ?? null}
 					errors={ticketsCheck.errors}
 					bind:touched={ticketsTouched}
 					warnings={ticketsCheck.warnings}
