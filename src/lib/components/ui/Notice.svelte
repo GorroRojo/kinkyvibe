@@ -14,6 +14,9 @@
 	 * - `role`: los errores se anuncian con `role="alert"` y los demás con `role="status"`. Pasá
 	 *   `role={null}` para una nota fija que está desde que carga la página (no se anuncia), o
 	 *   `role="alert"` para un aviso que aparece después de una acción y no puede pasar de largo.
+	 * - `surface`: 'panel' (default: los tokens del panel si está adentro, los del sitio si no) |
+	 *   'sitio' (siempre los del sitio: `--3-ink` sobre `--3-tint`, `--4-ink` sobre `--4-tint`,
+	 *   `--error` sobre `--error-bg`; texto compacto en `--ink`).
 	 * - `id`: opcional (para `aria-describedby` o las pruebas).
 	 * Slot default: el texto (puede tener links, listas, botones).
 	 */
@@ -29,6 +32,8 @@
 	export let role = undefined;
 	/** @type {string | undefined} */
 	export let id = undefined;
+	/** @type {'panel' | 'sitio'} */
+	export let surface = 'panel';
 
 	const ICONS = { ok: CircleCheck, warn: TriangleAlert, error: CircleAlert };
 
@@ -41,6 +46,7 @@
 	class="kv-notice {tone}"
 	class:compact={compact || inline}
 	class:inline
+	class:sitio={surface === 'sitio'}
 	role={ariaRole ?? undefined}
 	{id}
 >
@@ -96,6 +102,23 @@
 	}
 	.kv-notice.compact > :global(.kv-notice-icon) {
 		color: var(--notice-ink);
+	}
+	/* Sitio: los tokens del sitio aunque esté adentro de algo con los del panel (5.4:1, 6:1 y
+	   6:1 el texto de cada tono sobre su fondo). */
+	.kv-notice.sitio {
+		--notice-bg: var(--3-tint);
+		--notice-ink: var(--3-ink);
+	}
+	.kv-notice.sitio.warn {
+		--notice-bg: var(--4-tint);
+		--notice-ink: var(--4-ink);
+	}
+	.kv-notice.sitio.error {
+		--notice-bg: var(--error-bg);
+		--notice-ink: var(--error);
+	}
+	.kv-notice.sitio.compact {
+		color: var(--ink);
 	}
 	.kv-notice.inline {
 		display: inline-flex;

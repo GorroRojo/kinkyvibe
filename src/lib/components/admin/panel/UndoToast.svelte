@@ -6,6 +6,8 @@
 	 * botón), `error` (el aviso es un error: en rojo). Eventos: `undo`, `close` (solo con `floating`).
 	 * Se ve como `Notice` (gorrite, 12/10): su ícono de Lucide, el mismo radio, texto en negrita y
 	 * sin margen propio (el espacio lo pone la página, como con los avisos).
+	 * `surface`: 'panel' (default: tokens del panel y botón `.kv-btn`) | 'sitio' (fuera del panel:
+	 * `--3-ink` sobre `--3-tint`, o `--error` sobre `--error-bg`, y el botón `.pill-btn`).
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { CircleAlert, CircleCheck, Undo2, X } from '@lucide/svelte';
@@ -15,11 +17,13 @@
 	export let floating = false;
 	export let error = false;
 	export let canUndo = true;
+	/** @type {'panel' | 'sitio'} */
+	export let surface = 'panel';
 
 	const dispatch = createEventDispatcher();
 </script>
 
-<div class="undo" class:floating class:error role="status">
+<div class="undo" class:floating class:error class:sitio={surface === 'sitio'} role="status">
 	<span class="msg"
 		><svelte:component
 			this={error ? CircleAlert : CircleCheck}
@@ -30,7 +34,10 @@
 	>
 	<span class="actions">
 		{#if canUndo}
-			<button class="kv-btn ghost" on:click={() => dispatch('undo')} disabled={busy}
+			<button
+				class={surface === 'sitio' ? 'pill-btn ghost' : 'kv-btn ghost'}
+				on:click={() => dispatch('undo')}
+				disabled={busy}
 				><Undo2 size={16} aria-hidden="true" /> {busy ? 'Deshaciendo…' : 'Deshacer'}</button
 			>
 		{/if}
@@ -108,5 +115,21 @@
 	}
 	.close:hover {
 		background: var(--surface-2);
+	}
+	/* Sitio: los tokens del sitio (5.4:1 el verde y 6:1 el rojo sobre su fondo). */
+	.undo.sitio {
+		background: var(--3-tint);
+		color: var(--3-ink);
+	}
+	.undo.sitio.error {
+		background: var(--error-bg);
+		color: var(--error);
+	}
+	.sitio .close {
+		width: var(--tap);
+		height: var(--tap);
+	}
+	.sitio .close:hover {
+		background: var(--hover);
 	}
 </style>
