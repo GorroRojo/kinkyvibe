@@ -13,8 +13,9 @@
  *   preventa `{ id, name, price, quantity?, until? }`; `after`: id del tipo que se tiene que agotar
  *   o cerrar para que este se habilite; `door_price`: precio en la puerta y en la carga a mano,
  *   opcional; si falta, el del último tramo o el precio fijo);
- * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
- *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo;
+ * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`, `encuesta`
+ *   (prototipo: `false` = no manda la encuesta de después), `mp_fee_percent`, `puerta`,
+ *   `puerta_precio`; y `close` (cierre propio) en cada tipo;
  * - `meta_venta`: la meta de venta (plata o entradas, ver ./salesGoal.js). Se edita junto con la
  *   venta y solo se escribe con la venta prendida.
  * - `lista_espera`: la lista de espera (ver ./waitlistHold.js): `'evento'`, `'tipo'` o
@@ -64,6 +65,7 @@ export const TICKET_KEYS = [
 	'tickets_close',
 	'modalidad',
 	'recordatorios',
+	'encuesta',
 	'mp_fee_percent',
 	'puerta',
 	'puerta_precio'
@@ -146,6 +148,8 @@ export { isOnlineEvent };
  * @prop {string} closeAt datetime-local (hora de Argentina)
  * @prop {'' | 'online' | 'presencial'} modalidad '' = automático
  * @prop {boolean} reminders
+ * @prop {boolean} survey mandar la encuesta de después (`encuesta`; prototipo, solo se muestra con
+ *   el interruptor `encuesta_post_evento`)
  * @prop {string} mpFee '' = el de Ajustes de venta
  * @prop {boolean} door hay entradas en la puerta (`puerta`; solo eventos presenciales). Si el
  *   archivo no tiene `puerta`, arranca prendido (como se comportan esos eventos).
@@ -371,6 +375,7 @@ export function readTicketsForm(meta) {
 		closeAt,
 		modalidad: modalidadOf(meta),
 		reminders: meta?.recordatorios !== false,
+		survey: meta?.encuesta !== false,
 		mpFee:
 			meta?.mp_fee_percent === undefined || meta?.mp_fee_percent === null
 				? ''
@@ -877,6 +882,7 @@ function normalized(f) {
 		close: f.enabled && f.customClose ? f.closeAt : '',
 		modalidad: f.enabled ? f.modalidad : '',
 		reminders: f.enabled ? f.reminders : true,
+		survey: f.enabled ? f.survey !== false : true,
 		mpFee: f.enabled ? f.mpFee.trim() : '',
 		door: f.enabled ? f.door : true,
 		doorPrice: f.enabled && f.door ? f.doorPrice.trim() : '',
@@ -1023,6 +1029,10 @@ export function applyTicketsForm(frontmatter, form, initial, opts) {
 	if (form.reminders !== initial.reminders || !initial.enabled) {
 		if (form.reminders) doc.delete('recordatorios');
 		else doc.set('recordatorios', false);
+	}
+	if ((form.survey !== false) !== (initial.survey !== false)) {
+		if (form.survey !== false) doc.delete('encuesta');
+		else doc.set('encuesta', false);
 	}
 	if (form.mpFee.trim() !== initial.mpFee.trim()) {
 		if (form.mpFee.trim())
