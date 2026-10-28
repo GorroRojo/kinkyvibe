@@ -80,7 +80,10 @@
 	};
 	// Lista de espera (una vista de Ventas): con el interruptor prendido, o si el evento ya tiene
 	// lista o gente anotada.
-	$: views = (here?.tab.views ?? []).filter((v) => v.id !== 'lista-espera' || data.waitlistTab);
+	// Gastos y reparto (prototipo): solo con su interruptor.
+	$: views = (here?.tab.views ?? []).filter(
+		(v) => (v.id !== 'lista-espera' || data.waitlistTab) && (v.id !== 'gastos' || data.gastosTab)
+	);
 	$: when = [shortDate(e.start), timeRange(e.start, e.end)].filter(Boolean).join(' · ');
 	$: where = [e.locationName, e.location && e.location !== e.locationName ? e.location : '']
 		.filter(Boolean)
