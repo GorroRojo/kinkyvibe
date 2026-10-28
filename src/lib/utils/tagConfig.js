@@ -711,6 +711,14 @@ function applyOne(m, op) {
 				throw new Error(`«${into}» es un alias: elegí la etiqueta a la que apunta.`);
 			if (m.descendants(from).has(into))
 				throw new Error(`«${into}» está adentro de «${from}»: movela antes de fusionar.`);
+			// Las madres de `from` pasan a ser madres de `into`: si una ya está adentro de `into`
+			// (`from` es nieta de `into`, por ejemplo), quedaría un ciclo, que «Mover» no deja hacer.
+			const inside = m.descendants(into);
+			const loop = m.parentsOf(from).find((p) => p !== into && inside.has(p));
+			if (loop)
+				throw new Error(
+					`«${loop}» está adentro de «${into}»: sacá «${from}» de «${loop}» antes de fusionar.`
+				);
 			const src = m.find(from);
 			const dst = m.ensure(into);
 			if (src) {
