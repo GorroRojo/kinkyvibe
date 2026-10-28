@@ -344,7 +344,6 @@
 	"src/lib/utils/seriesDetect.test.js": 0.1,
 	"src/lib/utils/seriesTagIndex.test.js": 0,
 	"src/lib/utils/shareImage.test.js": 0.1,
-	"src/lib/utils/sharedImage.test.js": 0.1,
 	"src/lib/utils/sheetImport.test.js": 0.9,
 	"src/lib/utils/signupFields.test.js": 0.1,
 	"src/lib/utils/sigo-telegram.test.js": 0,
