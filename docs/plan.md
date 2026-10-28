@@ -375,7 +375,7 @@ CI) va en la fase 0.
 - `talleres-viejos-a-partes` · fase 3 · sigue · entradas · Pasar a talleres en partes los talleres viejos de varios días (datos de producción, probando antes en el demo), lo hace Claude de a tandas, cada una con el OK de gorrite en la Mesa (12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md), [talleres-partes.md](talleres-partes.md#pendiente)
 - `plata-talleres-partes-ventas` · fase 3 · hecho · entradas · Talleres en partes: sumar como parte un evento con entradas vendidas, o prender o apagar «Entradas por parte» con ventas, pregunta antes («Cambiar igual») y lo confirmado queda en la actividad · #380, [talleres-partes.md](talleres-partes.md#entradas)
 - `pasar-entrada` · fase 3 · algún día · entradas · Pasarle una entrada a otra persona por mail
-- `encuesta-post-evento` · fase 3 · sigue · mails · Encuesta automática después de cada evento (pedido de gorrite): a quién, cuándo, preguntas, anónima o no, respuestas en el panel, se apaga por evento
+- `encuesta-post-evento` · fase 3 · sigue · mails · Encuesta automática después de cada evento (pedido de gorrite): a quién, cuándo, preguntas, anónima o no, respuestas en el panel, se apaga por evento; prototipo en #566 (interruptor apagado, solo dev): falta que gorrite decida lo de «Para decidir» y la migración de las respuestas · #566
 - `preguntas-sugeridas` · fase 3 · sigue · panel · Preguntas de inscripción sugeridas para elegir rápido
 - `campos-propios-tipos` · fase 3 · algún día · panel · Campos propios y tipos simples desde el panel; falta diseño
 - `recurrencia-rrule` · fase 3 · algún día · sitio · Recurrencia tipo RRULE (las series y los talleres en partes cubren una parte) · #29
