@@ -262,6 +262,9 @@ describe('TICKETS_PAUSED: ?/buy no crea ninguna orden', () => {
 		const r = await buy(SLUG);
 		expect(r.redirect).toMatch(/\/estado$/);
 		expect(await count('orders')).toBe(1);
+		// El mail de la reserva sale en segundo plano (y se reintenta si falla): que termine acá y
+		// no caiga en la prueba siguiente.
+		await Promise.all(background);
 	});
 
 	it.each([

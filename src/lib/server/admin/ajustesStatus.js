@@ -42,6 +42,8 @@ import { previewTextOverrides } from '$lib/utils/previewTexts.js';
  * linkPreview.js, que no se importa acá porque arrastra la lista de publicaciones).
  */
 const FONDO_LAST_KEY = 'fondo_percent_last';
+/** Desde cuándo el último porcentaje del Fondo muestra de cuándo es. */
+const FONDO_STALE_MS = 24 * 60 * 60 * 1000;
 const PREVIEW_TEXTS_KEY = 'link_preview_texts';
 
 /**
@@ -136,11 +138,20 @@ export function buildAjustesStatus({
 
 		// Fondo: el fijado a mano o el último que llegó de fondo.kinkyvibe.ar (sin ir a buscarlo).
 		const manual = parsePercent(sales.fondo_percent_override);
-		const last = parsePercent(jsonRow(settings, FONDO_LAST_KEY)?.percent);
+		const lastRow = jsonRow(settings, FONDO_LAST_KEY);
+		const last = parsePercent(lastRow?.percent);
+		// Con fondo.kinkyvibe.ar caído se sigue cobrando el último que llegó: si es de hace más de un
+		// día, que se vea de cuándo es (auditoría de confiabilidad, O36). Sin visitas la fecha también
+		// envejece aunque la API ande, por eso no va en amarillo.
+		const lastAt = Number(lastRow?.at);
+		const lastAge =
+			Number.isFinite(lastAt) && now - lastAt > FONDO_STALE_MS
+				? ` (último dato ${fmtRelative(lastAt, now)})`
+				: '';
 		if (manual !== null) out['ajustes-fondo'] = { text: `${manual} % (fijado a mano)` };
 		else if (fondoDevPercent !== null)
 			out['ajustes-fondo'] = { text: `${fondoDevPercent} % de cada entrada` };
-		else if (last !== null) out['ajustes-fondo'] = { text: `${last} % de cada entrada` };
+		else if (last !== null) out['ajustes-fondo'] = { text: `${last} % de cada entrada${lastAge}` };
 
 		const bot = Object.keys(cleanBotTextOverrides(jsonRow(settings, BOT_TEXTS_SETTING))).length;
 		out['ajustes-textos-bot'] = {

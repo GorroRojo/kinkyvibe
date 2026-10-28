@@ -76,7 +76,8 @@ svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet f
 (y a mano desde la pestaña Actions, «Run workflow»), así que no está en los `needs` de `ci-ok`.
 Sin Claude, mira si hay algún PR con la etiqueta `repaso-semanal` creado en los últimos 8 días
 (la rutina de Claude de los lunes lo abre siempre). Si no hay, abre el issue «El repaso semanal
-del plan no corrió» con esa etiqueta, salvo que ya haya uno abierto; si vuelve a haber un PR de
+del plan no corrió» con esa etiqueta y asignado al dueño del repo (así le llega la
+notificación), salvo que ya haya uno abierto; si vuelve a haber un PR de
 repaso y el issue sigue abierto, lo cierra con un comentario. Permisos: `contents: read`,
 `issues: write`, `pull-requests: read`. La etiqueta `repaso-semanal` la crea el vigilante la
 primera vez que abre el issue si todavía no existe (también se puede crear a mano en Issues →
@@ -327,6 +328,14 @@ Pegá el resumen de cada uno en la descripción del PR (y si corriste `test:rela
 entera), junto con la línea `Plan: <id>` o `Plan: ninguno` ([plan.md](plan.md)). Si tocaste
 `docs/plan.md` o el `phase` de `nav.js`, corré también `node scripts/plan-lint.js`. No se dice "los
 tests pasan" sin haberlos corrido. La CI corre siempre la suite entera.
+
+Si el PR toca los crons o el Worker (`src/lib/server/scheduled.js`, `worker/index.js`,
+`src/lib/server/backup/` o `src/routes/api/cron/`), la CI no los ejecuta en el runtime de Workers:
+corré además `npm run build && npm run preview:worker`, dispará los dos crons en local (el de
+cada 15 minutos y el nocturno: `preview:worker` corre con `--test-scheduled`, así que se disparan
+con `curl "http://localhost:8880/__scheduled?cron=*/15+*+*+*+*"` y `cron=0+6+*+*+*`) y pegá lo que
+respondieron en el PR
+(auditoría de confiabilidad, O41).
 
 ## Cuando algo está en rojo
 

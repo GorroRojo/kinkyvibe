@@ -11,6 +11,11 @@ en el repo. Hay tres copias separadas de la base: la de tu compu, la de los prev
 producción. La de tu compu y la de las pruebas E2E arrancan con la semilla de contenido público
 (`npm run db:semilla`, `src/lib/server/semilla/`).
 
+**El respaldo de verdad** son los backups nocturnos de la base en R2 y Time Travel de D1 (30 días;
+[workers-migracion.md](workers-migracion.md#backups-de-la-base)). La semilla es una foto pública
+para desarrollar, no un backup. «Descargar todo» (Contenido › Base) baja los eventos y el material
+como `.md`, pero no trae imágenes, archivos, perfiles, órdenes ni nada de lo que pasa en el sitio.
+
 ## Lo que nunca se tiene que romper
 
 - **Las migraciones son solo para agregar.** Una migración que pudo haberse aplicado (en
