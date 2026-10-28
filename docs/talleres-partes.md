@@ -68,6 +68,10 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   la compra aprobada (en el de transferencia, el que se ve en el sitio). Lo arma
   `src/lib/server/tickets/workshopParts.js`; con «Entradas por parte», o en un evento suelto, no
   hay lista y los mails salen byte a byte como siempre.
+- **Vista previa en el panel:** en la ficha del taller → Mails → Plantillas, la vista previa (y
+  «Mandarme una prueba») de esos tres mails lleva la misma lista. En el recordatorio, «Parte»
+  elige de qué parte se ve (con su título, su fecha y su lugar, como sale el de verdad;
+  `workshopPreview` en `mails/[id]/context.server.js`).
 - **Mis entradas en el bot:** la entrada del taller sigue en «próximas» hasta la última parte y
   muestra la fecha de la parte que toca («· Parte 2 de 3»); ver [telegram.md](telegram.md).
 - **Estado de la compra** (`/entradas/<orden>/estado`, la página de vuelta del pago): en el

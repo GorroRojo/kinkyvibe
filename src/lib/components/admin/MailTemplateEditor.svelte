@@ -122,6 +122,7 @@
 	}
 	$: if (mounted) {
 		void values;
+		void previewUrl;
 		clearTimeout(timer);
 		timer = setTimeout(refresh, 300);
 	}

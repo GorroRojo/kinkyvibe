@@ -30,7 +30,8 @@ describe('editor de plantillas de mails', () => {
 					saved: { heading: 'Título del evento', updatedAt: 1, updatedBy: 'alguien' },
 					hasGeneral: true,
 					inherited: { subject: 'Asunto general', label: 'Etiqueta general' },
-					recipients: []
+					recipients: [],
+					parts: []
 				}),
 				form: null
 			}

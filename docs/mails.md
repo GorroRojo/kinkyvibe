@@ -92,7 +92,9 @@ cambiar). Al mandar, cada parte sale de lo del evento → la plantilla general (
 → el texto del código (`resolveTemplate` en `templates.js`, `mergeTemplates` en
 `emailTemplates.js`). Las partes opcionales vacías = el texto de siempre; el texto plano solo
 cambia con asunto, título, texto o línea de ayuda propios. La vista previa de la ficha usa el
-título, la fecha y el lugar del evento con una compra de ejemplo. Van en su propia tabla (no en el
+título, la fecha y el lugar del evento con una compra de ejemplo; en un taller con una sola
+entrada, también la lista de partes y, en el recordatorio, la parte elegida (ver
+[talleres-partes.md](talleres-partes.md)). Van en su propia tabla (no en el
 objeto `evento`) porque los eventos todavía salen de sus `.md` y no siempre están en la base.
 
 **Plantilla común (diseño):** todos los mails (los de esta tabla y los de series, «Lo que sigo» e
