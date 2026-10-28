@@ -81,7 +81,9 @@ export function renderPreviewHtml(body) {
 	});
 }
 
-const DROP = 'script,style,iframe,object,embed,link,meta,base,form,input,button,textarea,select';
+// svg y math salen enteros, como en la lista corta del servidor (amigues/sanitize.js).
+const DROP =
+	'script,style,iframe,object,embed,link,meta,base,form,input,button,textarea,select,svg,math,noscript,template';
 
 /**
  * Cleans rendered preview HTML in place with the browser's parser: removes active elements,
@@ -103,7 +105,7 @@ export function sanitizePreview(html) {
 				el.removeAttribute(attr.name);
 			else if (
 				['href', 'src', 'xlink:href', 'action', 'formaction'].includes(name) &&
-				/^(javascript|data|vbscript):/.test(value.replace(/\s+/g, ''))
+				/^(javascript|data|vbscript):/.test(value.replace(/[\s\u0000-\u001f]+/g, ''))
 			)
 				el.removeAttribute(attr.name);
 		}
