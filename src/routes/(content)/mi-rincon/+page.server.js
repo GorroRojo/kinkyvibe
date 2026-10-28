@@ -26,7 +26,13 @@ import {
 	verifiedEmail,
 	unconfirmedFreeOrders
 } from '$lib/server/cuentas/orders.js';
-import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
+import {
+	SESSION_COOKIE,
+	destroyOtherSessions,
+	endSessionById,
+	listSessions,
+	sessionIdOfToken
+} from '$lib/server/cuentas/session.js';
 import { unlinkAccount } from '$lib/server/telegram/link.js';
 import { revokeFeeds } from '$lib/server/series/feeds.js';
 import {
@@ -77,7 +83,7 @@ export async function load(event) {
 	// Prototipo de organizadores (interruptor `rol_organizadore`, docs/cuentas.md): la tarjeta
 	// «Eventos que organizás», con lo de perfiles. Se pide ya y se espera abajo.
 	const organizoRead = rolOrganizadoreEnabled(event.platform);
-	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, claims] =
+	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, claims, sessions] =
 		await Promise.all([
 			getAccount(db, member.id),
 			// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
@@ -123,6 +129,11 @@ export async function load(event) {
 			myClaims(db, member.id).catch((e) => {
 				logDBError('cuentas: pedidos de perfiles', e);
 				return [];
+			}),
+			// «Dónde tenés la sesión abierta»: solo las de esta cuenta. Si falla, la tarjeta lo dice.
+			listSessions(db, member.id, event.cookies.get(SESSION_COOKIE)).catch((e) => {
+				logDBError('cuentas: sesiones', e);
+				return null;
 			})
 		]);
 	if (!account) {
@@ -191,7 +202,10 @@ export async function load(event) {
 		readingSpeed,
 		orders: orders.map(listed),
 		unconfirmed: unconfirmed.map(listed),
-		claims
+		claims,
+		// Sin el token ni su hash: cada una con su id público (session.js).
+		sessions,
+		now: Date.now()
 	};
 }
 
@@ -450,6 +464,45 @@ export const actions = {
 			return fail(500, { action: 'sesiones', error: 'No se pudo. Probá de nuevo.' });
 		}
 		redirect(303, '/ingresar?salida=todas');
+	},
+
+	// «Dónde tenés la sesión abierta» → «Cerrar esta». Solo entre las sesiones de esta cuenta
+	// (endSessionById); si es la de este navegador, es salir.
+	cerrarSesion: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const id = field(form, 'sesion');
+		const token = event.cookies.get(SESSION_COOKIE);
+		let wasCurrent = false;
+		try {
+			if (id && id === (await sessionIdOfToken(token))) {
+				await endSession(event, db);
+				wasCurrent = true;
+			} else if (!(await endSessionById(db, member.id, id))) {
+				return fail(404, { action: 'dispositivos', error: 'Esa sesión ya no estaba abierta.' });
+			}
+		} catch (e) {
+			logDBError('cuentas: cerrar una sesión', e);
+			return fail(500, { action: 'dispositivos', error: 'No se pudo. Probá de nuevo.' });
+		}
+		// El inicio muestra «Saliste de tu cuenta» (src/routes/(content)/+layout.svelte).
+		if (wasCurrent) redirect(303, '/?salida=1');
+		return { action: 'dispositivos', message: 'Listo: cerramos esa sesión.' };
+	},
+
+	// «Cerrar todas las demás»: todas menos la de este navegador.
+	cerrarOtras: async (event) => {
+		const { db, member } = await requireMember(event);
+		const token = event.cookies.get(SESSION_COOKIE);
+		// Sin la cookie no hay «esta» que dejar abierta (no debería pasar con sesión).
+		if (!token) return fail(400, { action: 'dispositivos', error: 'No se pudo. Probá de nuevo.' });
+		try {
+			await destroyOtherSessions(db, member.id, token);
+		} catch (e) {
+			logDBError('cuentas: cerrar las otras sesiones', e);
+			return fail(500, { action: 'dispositivos', error: 'No se pudo. Probá de nuevo.' });
+		}
+		return { action: 'dispositivos', message: 'Listo: cerramos todas tus otras sesiones.' };
 	},
 
 	borrar: async (event) => {
