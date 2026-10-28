@@ -128,17 +128,17 @@
 			<p class="kv-flash bad" role="alert">{form.claudeError}</p>
 		{/if}
 		{#if data.claude.on}
-			<p class="tg-state">
+			<p class="claude-text">
 				Para que Claude lea el sitio (solo lectura), en claude.ai: Personalizar → Conectores →
 				«Agregar conector personalizado», con esta dirección:
 			</p>
-			<p><code class="claude-url">{data.claude.url}</code></p>
+			<p class="claude-text"><code class="claude-url">{data.claude.url}</code></p>
 			<p class="kv-note">
 				Al conectar, el sitio te pide permiso con tu cuenta. Cada pedido de Claude queda en
 				Actividad a tu nombre. Cómo se usa: <code>docs/conector-claude.md</code>.
 			</p>
 		{:else}
-			<p class="tg-state">
+			<p class="claude-text">
 				Está apagado (Ajustes → Interruptores → «Conector de Claude»): Claude no puede leer nada.
 			</p>
 		{/if}
@@ -204,6 +204,11 @@
 		height: 180px;
 		display: block;
 		background: #fff;
+	}
+	/* La tarjeta es una columna flex con su propio espacio entre hijos: los márgenes de los <p> no
+	   se colapsan y dejaban un hueco grande arriba de la dirección. */
+	.claude-text {
+		margin: 0;
 	}
 	.claude-url {
 		overflow-wrap: anywhere;
