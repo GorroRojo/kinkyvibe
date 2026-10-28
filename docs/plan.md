@@ -4,7 +4,7 @@ El plan de kinkyvibe en un solo archivo: lo que está en curso, lo que sigue, lo
 gorrite, lo de algún día y lo descartado. Reemplaza a la vieja `docs/hoja-de-ruta.md`, al issue
 #70 y a los artifacts de plan. Si algo no está acá, no está en el plan.
 
-Último repaso: 2026-10-19
+Último repaso: 2026-10-26
 
 ## Reglas
 
@@ -202,7 +202,7 @@ CI) va en la fase 0.
 - `bot-busquedas-vacias-panel` · fase 0 · sigue · bot · Contar cuántas búsquedas del bot no encuentran nada, para el panel (sin guardar quién ni qué) (depende de: bot-busquedas-vacias)
 - `bot-sin-resultados-grupo` · fase 0 · sigue · bot · Sin resultados en un grupo: «⭐ Seguir» la etiqueta buscada como link al chat privado (hoy no aparece; haría falta un deep link nuevo) (depende de: bot-busquedas-vacias)
 - `bot-sin-resultados-tildes` · fase 0 · sigue · bot · Sin resultados: las palabras sugeridas salen como las guarda el índice, sin tildes ni mayúsculas («guia», no «Guía»); mostrarlas como se escriben en el título (depende de: bot-busquedas-vacias)
-- `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear); gorrite lo prueba en el próximo evento, sin bot de prueba (12/10) · [0037](decisiones/0037-puerta-por-telegram.md)
+- `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear); gorrite lo prueba en un evento, sin bot de prueba (12/10; «después», 23/10) · [0037](decisiones/0037-puerta-por-telegram.md)
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
 - `bot-kinkipedia-ramas-probar` · fase 0 · hecho · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
 - `bot-mis-entradas-partes` · fase 0 · hecho · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte · #329
@@ -295,7 +295,7 @@ CI) va en la fase 0.
 - `vivo-durable-objects` · fase 1 · algún día · infra · Presencia («alguien está editando») y contadores en vivo con un Durable Object
 - `r2-ciclo-vida` · fase 1 · algún día · infra · Regla de R2 que limpie subidas a medias después de un día
 - `seguridad-endurecer` · fase 1 · espera gorrite · infra · Endurecer la configuración de GitHub y Cloudflare: ver Mesa
-- `auditoria-seguridad` · fase 1 · espera gorrite · infra · Auditoría de seguridad en una sesión aparte de gorrite, antes de la fase 4: ver Mesa
+- `auditoria-seguridad` · fase 1 · sigue · infra · Auditoría de seguridad en una sesión aparte de gorrite, antes de la fase 4: las auditorías terminaron (16/10) y los arreglos se aplican de a uno, despacio (gorrite, 20/10): ver Mesa
 - `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
 - `perf-js-matcher` · fase 1 · hecho · infra · El matcher de las secciones «Próximamente» (`src/params/soon.js`) usa una lista de URLs sin íconos (`soonSections.js`, comparada con `nav.js` en una prueba): todas las páginas dejan de bajar el menú del panel · #394
@@ -368,7 +368,7 @@ CI) va en la fase 0.
 ## Fase 3
 
 - `lista-espera` · fase 3 · hecho · entradas · Lista de espera por evento o tipo de entrada, apagada · #310, [0040](decisiones/0040-lista-de-espera.md)
-- `lista-espera-prender` · fase 3 · espera gorrite · entradas · Prender `lista_espera` (ya prendido en producción y probado en un preview) y probarla en un evento real (anotarse, reembolso, oferta y compra con el link) (depende de: lista-espera)
+- `lista-espera-prender` · fase 3 · espera gorrite · entradas · Prender `lista_espera` (ya prendido en producción y probado en un preview) y probarla en un evento real (anotarse, reembolso, oferta y compra con el link; gorrite: después, 23/10) (depende de: lista-espera)
 - `lista-espera-mail-terminar` · fase 3 · hecho · entradas · «Terminar la reserva y pasar a la siguiente» pregunta si le avisamos por mail («se terminó tu lugar», marcado de entrada) (depende de: lista-espera) · #339
 - `promos-varios-eventos` · fase 3 · hecho · entradas · Promociones de varios eventos, versión chica (gorrite, 12/10): código combo, la compra de un evento trae en su mail un código personal para otro; detrás de `combo_codigos`, migración 0056 · #340
 - `talleres-partes-mails-preview` · fase 3 · sigue · entradas · Vista previa de los mails de cada parte de un taller en el panel
@@ -419,6 +419,7 @@ CI) va en la fase 0.
 
 Para que no vuelvan: si alguien lo propone de nuevo, primero se habla con gorrite.
 
+- `salir-todo` · fase 0 · descartado · cuentas · «Salir en todos lados» que también desconecte Telegram y anule el link del calendario: no hace falta (gorrite, 24/10) · #386
 - `negocio-1` · fase 7 · descartado · plan · ver Mesa (gorrite, 12/10)
 - `bot-miniapp-historia` · fase 0 · descartado · bot · «Compartir en tu historia» desde la Mini App: no (gorrite, 12/10)
 - `kinkipedia-series-mejor` · fase 0 · descartado · sitio · Kinkipedia más rica y una lista de series mejor armada (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
