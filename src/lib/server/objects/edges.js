@@ -6,7 +6,7 @@
  * extremos existan; el tipo del objeto de origen dice qué `kind` puede tener y hacia qué tipos.
  *
  * Algunos edges los calcula el tipo a partir de sus datos (`derived` en el tipo, por ejemplo
- * `adjunto` del material, que sigue al texto): {@link withDerivedEdges} los suma en cada guardado y
+ * `adjunto` del material o `enlaza` de los cuerpos, que siguen al texto): {@link withDerivedEdges} los suma en cada guardado y
  * quien guarda no los puede mandar.
  *
  * Al leer, un edge solo se muestra si quien mira puede ver el otro extremo (`getEdges`).
@@ -114,9 +114,10 @@ export function normalizeEdges(def, edges, selfId) {
  * @param {import('./types/index.js').CoreType} def
  * @param {Record<string, EdgeInput[]> | undefined} edges
  * @param {Record<string, any>} data ya validado
+ * @param {{ id: number | null }} [self] el objeto que se guarda (`id` null si es nuevo)
  * @returns {Promise<Record<string, EdgeInput[]> | undefined>}
  */
-export async function withDerivedEdges(db, def, edges, data) {
+export async function withDerivedEdges(db, def, edges, data, self = { id: null }) {
 	const kinds = Object.entries(def.edges ?? {})
 		.filter(([, e]) => e.derived)
 		.map(([kind]) => kind);
@@ -133,7 +134,7 @@ export async function withDerivedEdges(db, def, edges, data) {
 			}))
 		});
 	}
-	const derived = await def.deriveEdges(db, data);
+	const derived = await def.deriveEdges(db, data, self);
 	/** @type {Record<string, EdgeInput[]>} */
 	const out = { ...edges };
 	for (const kind of kinds) out[kind] = derived[kind] ?? [];
