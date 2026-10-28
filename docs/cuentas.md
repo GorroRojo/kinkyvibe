@@ -348,6 +348,8 @@ Sin el permiso, la cuenta **no ve nada de perfiles**:
 - además, en `perfiles.js`: `listMyProfiles` y `getManagedProfile` (que usan casi todas las
   acciones) piden el permiso en la misma consulta, `createProfile` y `answerInvite` lo chequean
   antes, y `myInvites`, `listMyMemberInvites` y `listMyMemberships` no devuelven nada;
+- `/imagenes` (subir, buscar y borrar imágenes de la biblioteca para un perfil) da **404**, aunque
+  la cuenta siga anotada como gestora de un perfil (`imageAccess` de `src/lib/server/media/access.js`);
 - las **invitaciones** (a gestionar un proyecto o a ser integrante) no se le muestran ni las puede
   aceptar o rechazar, y el aviso por mail no sale (`sendInviteNotice`, que corre después de
   responder). **Quien invita recibe exactamente la misma respuesta de siempre** y ve la

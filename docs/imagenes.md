@@ -216,7 +216,8 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 
 - **Admins**: subir (imágenes, documentos y video), buscar en toda la biblioteca, elegir
   cualquiera y sacar imágenes y archivos.
-- **Cuentas que gestionan un perfil** (Mi rincón): subir y buscar **solo entre las que subieron**;
+- **Cuentas que gestionan un perfil** (Mi rincón, con el permiso «puede tener perfiles»; sin él,
+  `/imagenes` da 404 como a cualquiera): subir y buscar **solo entre las que subieron**;
   en su perfil solo pueden poner una imagen que subieron o la que el perfil ya tenía. **Borran una
   imagen que subieron, solo si nada la usa** (decisión de gorrite; ver «Borrar»).
 - Nadie más: `/imagenes` responde 404 (como si no existiera).
