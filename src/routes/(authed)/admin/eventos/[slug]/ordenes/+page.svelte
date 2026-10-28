@@ -23,7 +23,6 @@
 	import { formatARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 	import { replaceState } from '$app/navigation';
-	import { page } from '$app/stores';
 	import {
 		DEFAULT_ORDER_SORT,
 		ORDER_SORTS,
@@ -102,14 +101,15 @@
 			})
 		: byStatus;
 	// «Ordenar» (tarjetas, no una tabla): llegan todas las órdenes del evento, así que se ordenan
-	// acá. Queda en la URL (`?orden=total`) sin volver a cargar la página.
-	let orderBy = orderSortOf($page.url.searchParams.get('orden'));
+	// acá. Queda en la URL (`?orden=total`) sin volver a cargar la página; se lee al montar.
+	let orderBy = DEFAULT_ORDER_SORT;
+	onMount(() => (orderBy = orderSortOf(new URL(location.href).searchParams.get('orden'))));
 	$: shown = sortOrders(visible, orderBy);
 	function writeSortUrl() {
 		const url = new URL(location.href);
 		if (orderBy === DEFAULT_ORDER_SORT) url.searchParams.delete('orden');
 		else url.searchParams.set('orden', orderBy);
-		replaceState(url, $page.state);
+		replaceState(url, {});
 	}
 	// Link a una orden (`#orden-<id>`, por ejemplo «¿Te equivocaste? Ver la orden» de la Puerta):
 	// si el filtro la esconde, pasa a «Todas»; baja hasta ella y la marca (`:target` no siempre se
