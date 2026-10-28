@@ -6,7 +6,7 @@ si cambiás cómo se busca en cualquier lado, cambiá esto en el mismo PR. La gu
 sitio, el bot o el panel sale de acá (ver «La guía visible», abajo). Por qué es así:
 [0046](decisiones/0046-sintaxis-de-busqueda.md).
 
-> **Estado (12/10):** acordado con gorrite ([0046](decisiones/0046-sintaxis-de-busqueda.md)),
+> **Estado (28/10):** acordado con gorrite ([0046](decisiones/0046-sintaxis-de-busqueda.md)),
 > todavía no hecho en todos lados: la columna «Hoy» de cada tabla dice dónde ya anda, y cada PR que
 > lo aplica la actualiza.
 
@@ -59,15 +59,15 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 | Escribís         | Qué hace                                                                                              | Ejemplo                | Hoy               |
 | ---------------- | ----------------------------------------------------------------------------------------------------- | ---------------------- | ----------------- |
 | palabras sueltas | Tienen que estar todas, en cualquier campo y orden. Sitio y bot: perdona errores de tipeo y prefijos. | `cuerdas suspension`   | sitio, bot, panel |
-| `"frase"`        | Esas palabras juntas y en ese orden.                                                                  | `"reduccion de danos"` | panel             |
-| `-palabra`       | Sin esa palabra. También `-"frase"`, `-#etiqueta`, `-evento:` (sin eventos).                          | `taller -online`       | panel             |
+| `"frase"`        | Esas palabras juntas y en ese orden.                                                                  | `"reduccion de danos"` | sitio, panel      |
+| `-palabra`       | Sin esa palabra. También `-"frase"`, `-#etiqueta`, `-evento:` (sin eventos).                          | `taller -online`       | sitio, panel      |
 
 - **Dónde se buscan las palabras** (sitio y bot): el título y sus otros nombres, las etiquetas
   (con sus otros nombres), les autores, el resumen, **todo el cuerpo**, y en un evento también el
   nombre, el barrio y la ciudad de su lugar (lo público, nunca la calle). Pesa más el título, después
-  las etiquetas y les autores, después el resto. **Falta hoy**: el índice corta el cuerpo (400
-  caracteres en eventos, 2500 en lo demás, `BODY_MAX`) y no está claro que un evento lleve el nombre
-  de su lugar; lo arregla el PR del sitio (`buscar-sintaxis-sitio`).
+  las etiquetas y les autores, después el resto (el lugar de un evento pesa como el resumen).
+  **Falta hoy**: el índice corta el cuerpo (400 caracteres en eventos, 2500 en lo demás,
+  `BODY_MAX`); queda en `buscar-cuerpo-entero` (hay que medir cuánto crece el índice).
 - **`-palabra` y `-#etiqueta` no son lo mismo**: `-online` saca todo lo que diga «online» en
   cualquier lado (también un texto que diga «esto no es online»); `-#online` saca solo lo que tiene
   esa etiqueta. Casi siempre se quiere lo segundo.
@@ -79,28 +79,31 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 
 ### Etiquetas y personas
 
-| Escribís                  | Qué hace                                                                                                                            | Ejemplo    | Hoy   |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----- |
-| `#etiqueta` o `etiqueta:` | Con esa etiqueta, por su nombre o sus otros nombres (alias). Varias: tienen que estar todas.                                        | `#shibari` | panel |
-| `@nombre`                 | Sitio y bot: lo que esa persona firma (material, Kinkipedia) u organiza (eventos, cuando el dato está). Panel: personas y perfiles. | `@gorrite` | panel |
+| Escribís                  | Qué hace                                                                                                                                       | Ejemplo    | Hoy          |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------ |
+| `#etiqueta` o `etiqueta:` | Con esa etiqueta, por su nombre o sus otros nombres (alias). Varias: tienen que estar todas.                                                   | `#shibari` | sitio, panel |
+| `@nombre`                 | Sitio y bot: su ficha y lo que esa persona firma (material, Kinkipedia) u organiza (eventos, cuando el dato está). Panel: personas y perfiles. | `@gorrite` | sitio, panel |
 
 - La etiqueta se busca **con su árbol**: `#cuerdas` trae también lo etiquetado con una etiqueta
   hija (como ya hace el bot con `siteTagManager`).
 - `#` solo, o `#` con una etiqueta que no existe, se busca como texto.
+- En el sitio y el bot, `@nombre` reconoce a la persona por su nombre como autore u organizadore
+  (el comienzo alcanza: `@demon`) o por el nombre o la dirección de su ficha.
 - **`@` es un perfil del sitio** (amigues, autores), por su nombre visible, su dirección
   (`/amigues/<nombre>`) o sus otros nombres. **No** es un usuario de Telegram ni de GitHub: eso es
   privado y no entra en la búsqueda pública. Para no tener que saber cómo se llama exacto,
-  escribir `@` abre el autocompletado (`@gor` → elegís a la persona).
+  escribir `@` abre el autocompletado (`@gor` → elegís a la persona; todavía no está, va con los
+  chips y el autocompletado de «En qué orden»).
 
 ### Tipo de resultado
 
-| Escribís                      | Qué hace                                | Hoy                       |
-| ----------------------------- | --------------------------------------- | ------------------------- |
-| `evento:` (`eventos:`, `e:`)  | Solo eventos.                           | bot (al principio), panel |
-| `material:` (`m:`)            | Solo material.                          | bot (al principio)        |
-| `wiki:`, `kinkipedia:` (`w:`) | Solo la Kinkipedia (entradas y series). | bot (al principio)        |
-| `serie:` (`series:`, `s:`)    | Solo series.                            | bot (al principio)        |
-| `amigues:` (`a:`)             | Solo amigues.                           | bot (al principio)        |
+| Escribís                      | Qué hace                                | Hoy                              |
+| ----------------------------- | --------------------------------------- | -------------------------------- |
+| `evento:` (`eventos:`, `e:`)  | Solo eventos.                           | sitio, bot (al principio), panel |
+| `material:` (`m:`)            | Solo material.                          | sitio, bot (al principio)        |
+| `wiki:`, `kinkipedia:` (`w:`) | Solo la Kinkipedia (entradas y series). | sitio, bot (al principio)        |
+| `serie:` (`series:`, `s:`)    | Solo series.                            | sitio, bot (al principio)        |
+| `amigues:` (`a:`)             | Solo amigues.                           | sitio, bot (al principio)        |
 
 - Van en cualquier lugar de lo escrito, con o sin espacio después de los dos puntos, en singular o
   plural.
@@ -113,13 +116,13 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 
 ### Lugar y fechas (solo eventos)
 
-| Escribís                            | Qué hace                                                                    | Ejemplo                           | Hoy   |
-| ----------------------------------- | --------------------------------------------------------------------------- | --------------------------------- | ----- |
-| `lugar:`                            | Eventos en ese lugar (el nombre público del lugar).                         | `lugar: palermo`                  | panel |
-| `hoy`, `mañana`, `semana`, `finde`  | Eventos en esos días (hora de Argentina). `esta semana` = `semana`.         | `finde #cuerdas`                  | panel |
-| `cuando:`                           | Un día de la semana (el próximo) o una fecha `d/m` o `d/m/aaaa`.            | `cuando: sabado`, `cuando: 15/10` | panel |
-| un mes, `este mes`, `mes que viene` | Eventos de ese mes (el próximo con ese nombre). También `cuando:noviembre`. | `noviembre #cuerdas`              | —     |
-| `cuando:a..b`                       | Un rango de fechas, como en GitHub. Igual que `desde:a hasta:b`.            | `cuando:1/11..30/11`              | —     |
+| Escribís                            | Qué hace                                                                    | Ejemplo                           | Hoy          |
+| ----------------------------------- | --------------------------------------------------------------------------- | --------------------------------- | ------------ |
+| `lugar:`                            | Eventos en ese lugar (el nombre público del lugar, su barrio o su ciudad).  | `lugar: palermo`                  | sitio, panel |
+| `hoy`, `mañana`, `semana`, `finde`  | Eventos en esos días (hora de Argentina). `esta semana` = `semana`.         | `finde #cuerdas`                  | sitio, panel |
+| `cuando:`                           | Un día de la semana (el próximo) o una fecha `d/m` o `d/m/aaaa`.            | `cuando: sabado`, `cuando: 15/10` | sitio, panel |
+| un mes, `este mes`, `mes que viene` | Eventos de ese mes (el próximo con ese nombre). También `cuando:noviembre`. | `noviembre #cuerdas`              | sitio        |
+| `cuando:a..b`                       | Un rango de fechas, como en GitHub. Igual que `desde:a hasta:b`.            | `cuando:1/11..30/11`              | sitio        |
 
 - **Regla de respaldo** (sitio y bot): si una palabra de fecha suelta (`finde`, `noviembre`) no
   deja ningún resultado, se busca como texto, para que «finde» encuentre «Finde de cuerdas». Con `cuando:`
@@ -140,12 +143,19 @@ En el sitio y el bot estos se buscan como texto (`orden:` no es un operador ahí
 
 ## Qué código lo hace
 
-- **Hoy**: `$lib/utils/searchQuery.js` (`parseSearchQuery`) es el parser del panel;
+- **El parser de la base**: `$lib/utils/searchSyntax.js` (`parseSearch(lo escrito, buscador)`),
+  con el registro de operadores (`OPERATORS`), las palabras de tipo (`TYPE_WORDS`) y las fechas
+  (`parseWhen`, `whenRange`, `dayInWhen`). Solo entiende lo escrito: qué hace cada filtro lo decide
+  el motor de cada buscador.
+- **Sitio**: `find()` en `$lib/utils/search.js` (el motor del índice público) lee con
+  `parseSearch` y filtra; `search()` sigue siendo la búsqueda de texto sola. Sin operadores, `find`
+  da lo mismo que `search` (salvo las palabras de tipo y de fecha). El índice lleva, para esto, el
+  lugar público de cada evento (`l`) y las madres de cada etiqueta (`p`, para buscar con el árbol).
+- **Hoy, todavía aparte**: `$lib/utils/searchQuery.js` (`parseSearchQuery`) es el parser del panel;
   `telegram/inline.js` (`parseInlineQuery`, `INLINE_PREFIXES`) lee solo el prefijo de tipo del
-  bot; el sitio no lee operadores (`queryTerms` en `search.js`).
-- **Acordado**: un solo parser para la base en `$lib/utils/` que usan los tres. El panel lo llama
-  y suma lo suyo (`>`, `orden:`, `estado:`, `tipo:`, pestañas). `parseInlineQuery` y el
-  `queryTerms` del sitio pasan a usarlo.
+  bot. Pasan a `parseSearch` en `buscar-sintaxis-bot` y `buscar-sintaxis-panel` (el panel lo llama
+  y suma lo suyo: `>`, `orden:`, `estado:`, `tipo:`, pestañas, que el registro marca como del panel
+  y el parser le devuelve en `extra`).
 - **El registro de operadores** (acordado con gorrite, 12/10): una sola lista en el código que
   describe cada operador una vez: su nombre y otras formas de escribirlo, qué filtra, en qué
   buscadores anda, si es público, un ejemplo y la explicación para la guía. De esa lista salen las
@@ -157,9 +167,10 @@ En el sitio y el bot estos se buscan como texto (`orden:` no es un operador ahí
     a armar el documento, falla.
 
   El dato «público» es un seguro: un operador que no es público (lo del panel: órdenes, personas)
-  no se puede usar en el sitio ni en el bot aunque alguien lo conecte por error. Se arma en el
-  primer PR (`buscar-sintaxis-sitio` o el que vaya primero); hasta entonces, estas tablas se
-  mantienen a mano.
+  no se puede usar en el sitio ni en el bot aunque alguien lo conecte por error. **Hoy**: la lista
+  está (`OPERATORS` en `searchSyntax.js`) y el parser la lee; el script que arma las tablas y la
+  guía desde ella, y el chequeo de la CI, quedan en `buscar-registro-doc`. Hasta entonces, estas
+  tablas se mantienen a mano, junto con la lista.
 
 - Cada operador lleva tests del parser (lo escrito → lo entendido) y uno de punta a punta por
   buscador. Los ejemplos del registro son casos de test.
