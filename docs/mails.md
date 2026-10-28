@@ -215,6 +215,12 @@ las 9:00) lo recibe **el día anterior a las 20:00** (`EVE_TIME`), con el mismo 
 asunto «… es mañana». No sale si otro recordatorio activado ya cae en las 24 horas antes del
 comienzo, y si hay dos «el mismo día», solo el primero pasa a la noche anterior.
 
+**La corrida entera respeta el «de a cuántos».** Después de la tanda y del reintento del mail de
+las entradas, los avisos de series («Avisame si se repite») y de «Lo que sigo» salen con lo que
+sobró (`mailBudgetLeft` en `tickets/mailQueue.js`; cada uno, además, con su tope de 50). Si Resend
+cortó la tanda (cupo, tasa o 5xx), esa corrida no manda avisos: igual anotan las ediciones nuevas y
+los mails quedan para la próxima.
+
 ### Reintento del mail de las entradas
 
 El mail con las entradas sale una vez, al aprobarse la orden (en segundo plano). Si ese envío

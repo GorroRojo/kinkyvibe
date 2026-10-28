@@ -880,6 +880,11 @@ una confirmación):
   quedaron anuladas.» No tiene interruptor propio: les llega a quienes prendieron **«Cada
   venta»** (clave `contracargo:<orden>`, aparte de la de la venta). Solo la referencia, el evento y
   el total; nunca quién compró.
+- cupo de mails de Resend terminado (el cron de 15 minutos, cuando el reintento del mail de las
+  entradas recibe un 429 de cupo; `notifyMailQuota`): «📭 Resend frenó los mails por el cupo.
+  Compras aprobadas que esperan el mail con sus entradas: 4. …». También a quienes prendieron
+  **«Cada venta»**, como mucho uno por hora de reloj (clave `mails-cupo:<hora>`), con la cantidad de
+  órdenes aprobadas de las últimas 48 h sin mail. Un 429 de tasa (demasiados por segundo) no avisa.
 - Solo las del sitio (canal `online`): las de la puerta y las cargadas a mano las hace une admin.
 - En el horario de silencio salen igual, pero **sin sonido** (`disable_notification`): una venta
   avisada a las 9 de la mañana ya no sirve.

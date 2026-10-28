@@ -118,6 +118,8 @@ los pasados solo los que terminaron en los últimos 90 días (`publicIcsSince` e
 suscripto baja cada hora). **Cambia lo que ve quien está suscripte**: los calendarios suscriptos
 copian el archivo, así que los eventos de hace más de 90 días dejan de verse ahí (siguen en el
 sitio). Para cambiar el plazo: `PUBLIC_ICS_PAST_DAYS`. El personal (`/ics/mio/…`) sigue con todo.
+Los lugares vinculados se buscan solo para los eventos que van a salir (`isFeedEvent`), y los dos
+salen con `public, max-age=900` (`icsResponse`).
 Todos dicen cada cuánto volver a bajarlos: `X-PUBLISHED-TTL` (Outlook) y `REFRESH-INTERVAL` (RFC
 7986), una hora. El `ORGANIZER` lleva el mail del perfil de quien organiza si lo tiene y si no (los
 de Kinky Vibe siempre) el contacto público `kinkyvibe.talleres@gmail.com` (`DEFAULT_CONTACT_EMAIL`
@@ -247,6 +249,12 @@ primer paso de `handle` (`src/hooks.server.js`) hace lo mismo con `wwwRedirectRe
 (`src/lib/server/canonicalHost.js`): solo con el host `www.` exacto, así que el apex, los Previews
 y localhost no cambian y no hay bucles. Las canónicas siguen saliendo del origen del pedido (los
 Previews y `seo.test.js` lo esperan).
+
+En los builds de producción (rama `main`), cualquier otro host (una dirección `*.workers.dev` de
+una versión de producción) también va a `https://kinkyvibe.ar` con 308 (`offSiteRedirectResponse`,
+mismo archivo): producción tiene una sola puerta, la de la zona, con sus reglas. Los Previews de
+rama y local no cambian (su rama no es `main`), y `/api/cron/…` no se redirige. Por eso la Version
+URL de un deploy de producción ya no sirve para probarlo: redirige al sitio.
 
 ### IndexNow
 

@@ -175,8 +175,9 @@ dejaría saltar los límites. Las IPv4 cuentan igual que antes.
 
 El **tope global** (`src/lib/server/cuentas/mailCap.js`) suma todos los mails de cuentas que
 salen (códigos para entrar, códigos para confirmar y avisos de invitación), de cualquier conexión
-y a cualquier mail: estos mails usan la misma cuenta de Resend que los de las entradas, y así
-nunca se comen ese cupo. Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
+y a cualquier mail. Estos mails usan la misma cuenta de Resend que los de las entradas: el tope
+acota cuánto gastan, pero es por hora y no garantiza que no se coman el cupo (ver «Límites
+conocidos»). Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
 un código responde "Estamos mandando muchos mails en este momento. Probá en un rato." (el mismo
 texto para cualquier mail, así no dice nada de la dirección) y los avisos de invitación no salen
 (la invitación se crea igual y aparece en Mi rincón).
@@ -604,7 +605,10 @@ actualizá esta lista.
 - **Límites por conexión.** Alguien con muchas IPv4 distintas puede repartir pedidos entre ellas.
   El tope global de 300 mails por hora es el respaldo, pero también se puede llenar a propósito:
   mientras dure (como mucho una hora) nadie recibe códigos nuevos. Las sesiones abiertas no se
-  ven afectadas.
+  ven afectadas. Además, como es por hora, en un día deja pasar muchos más mails que el cupo
+  diario de algunos planes de Resend: un abuso sostenido podría agotar ese cupo y dejar sin mail
+  las entradas hasta que se renueve. Cuánto margen hay depende del plan de Resend (lo decide
+  gorrite); un tope diario atado al plan sería el arreglo.
 - **Turnstile** (o una regla de rate limiting de Cloudflare en `/ingresar`) queda como opción para
   más adelante: necesita claves y configuración en el panel de Cloudflare.
 - **Contraseña bloqueada por otres.** Diez contraseñas mal escritas para un mail, desde cualquier
