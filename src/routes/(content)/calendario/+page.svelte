@@ -82,12 +82,9 @@
 	const daysOf = (posts) =>
 		posts.reduce((dates, post, i) => {
 			let start_date = format(toArgentina(post.meta.start), 'yyyy-MM-dd');
-			// @ts-ignore
 			if (dates[start_date]) {
-				// @ts-ignore
 				dates[start_date].push({ i, ...post });
 			} else {
-				// @ts-ignore
 				dates[start_date] = [{ i, ...post }];
 			}
 			return dates;

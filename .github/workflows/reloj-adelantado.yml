@@ -1,0 +1,60 @@
+# Pruebas con el reloj adelantado, todos los domingos (ítem `auditoria-codigo-arreglos` en
+# docs/plan.md).
+#
+# Corre la suite de vitest con `SHIFT_DAYS=30` (scripts/vitest/shift-clock.js: `Date.now()` y
+# `new Date()` dan la hora real más 30 días). Una prueba que depende de la fecha real falla acá
+# antes de fallar sola en todos los PRs. Si falla, abre el issue «Las pruebas fallan con el reloj
+# adelantado» (o le suma un comentario); cuando vuelve a pasar, lo cierra
+# (scripts/vigilante-pruebas.js). No es un chequeo de PR: no va en los `needs` de `ci-ok`.
+name: Reloj adelantado
+
+on:
+  schedule:
+    # Domingos a las 05:37 UTC (02:37 en Argentina), lejos de la hora en punto.
+    - cron: '37 5 * * 0'
+  workflow_dispatch:
+    inputs:
+      shift_days:
+        description: 'Días que se adelanta el reloj'
+        required: false
+        default: '30'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: reloj-adelantado
+  cancel-in-progress: false
+
+jobs:
+  vitest:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: vitest con el reloj adelantado
+        id: vitest
+        env:
+          SHIFT_DAYS: ${{ inputs.shift_days || '30' }}
+        run: npx vitest run
+
+      # Solo en main (la corrida programada siempre es en main): una corrida manual en otra rama
+      # no toca issues. Si falló antes de las pruebas (npm ci), también cuenta como falla.
+      - name: Issue si falla
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+        uses: actions/github-script@v9
+        env:
+          VITEST_OK: ${{ steps.vitest.outcome == 'success' }}
+        with:
+          script: |
+            const { run } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/vigilante-pruebas.js`);
+            await run({ github, context, core, suite: 'reloj', ok: process.env.VITEST_OK === 'true' });

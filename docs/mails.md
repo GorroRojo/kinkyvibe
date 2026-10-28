@@ -764,9 +764,22 @@ todavía llevan el evento; una opción de mails discretos (una casilla en la com
 evento del asunto, del preencabezado y del adjunto) sería una etapa aparte, que necesita una
 decisión de gorrite.
 
-**Cambiar un mail desde el código.** Editá la función `build…Email` en `email.js` y actualizá
-`email.golden.json` en el mismo PR, explicando el cambio. Si agregás una variable, sumala en
-`emailTemplates.js`.
+**Cambiar un mail desde el código.** Editá la función `build…Email` en `email.js` y regenerá los
+goldens en el mismo PR, explicando el cambio. Si agregás una variable, sumala en
+`emailTemplates.js`. Los goldens no se editan a mano:
+
+```sh
+UPDATE_EMAIL_GOLDEN=1 npx vitest run src/lib/server/tickets/templates.test.js src/lib/server/email/layout.test.js
+npx vitest run src/lib/server/tickets src/lib/server/email   # después, sin la variable
+git diff -- '*.json'                                          # solo los mails que cambiaste
+```
+
+`templates.test.js` escribe `email.golden.json` (HTML, asunto y texto de los mails de entradas y
+de la lista de espera) y `layout.test.js` escribe `mails.text.json` (asunto y texto de todos los
+mails), cada uno entero, con los builders y los fixtures de hoy (`src/lib/testing/golden.js`
+mantiene el orden de las claves: regenerar sin cambios da un diff vacío). **Ante un conflicto en
+un golden** (al actualizar desde main), tomá cualquiera de los dos lados y regenerá: el resultado
+sale del código ya mezclado, no de los lados.
 
 **Agregar un mail nuevo.** Armalo en `email.js`, mandalo con `deliver()` (nunca directo a
 Resend) y, si es masivo, con una tabla de envíos que reserve a cada destinatarie antes de mandar

@@ -103,6 +103,7 @@
 	{/if}
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
 		<!-- HTML limpiado en el servidor (src/lib/server/amigues/sanitize.js). -->
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -- HTML limpiado en el servidor (amigues/sanitize.js) -->
 		{@html data.bodyHtml}
 		{#if p.links[0]}
 			<a href={p.links[0]} target="_blank" rel="nofollow ugc noopener noreferrer" class="cta"

@@ -61,6 +61,7 @@
 		<div class="qr-row">
 			<div class="qr" role="img" aria-label="Código QR de la entrada">
 				<!-- SVG generado en el servidor a partir de la URL de esta entrada. -->
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG del QR armado en el servidor -->
 				{@html data.qr}
 			</div>
 			{#if data.ticket.code}

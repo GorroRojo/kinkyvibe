@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { writeGolden } from '$lib/testing/golden.js';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import {
 	EMAIL_TEMPLATES,
@@ -27,10 +28,23 @@ import {
 	saveTemplateOverride
 } from './templates.js';
 
-const golden = JSON.parse(readFileSync(new URL('./email.golden.json', import.meta.url), 'utf8'));
-
 /** @param {string} fn @param {any} input */
 const build = (fn, input) => /** @type {any} */ (email)[fn](input);
+
+// email.golden.json: cómo sale cada mail sin plantilla guardada. Este archivo es el único que la
+// escribe: con UPDATE_EMAIL_GOLDEN=1 la regenera entera con los builders y los fixtures de hoy
+// (docs/mails.md, «Cambiar un mail desde el código»); sin la variable, compara.
+const GOLDEN = new URL('./email.golden.json', import.meta.url);
+if (process.env.UPDATE_EMAIL_GOLDEN === '1') {
+	/** @type {Record<string, unknown>} */
+	const fresh = {};
+	for (const [name, fn, input] of emailCases()) fresh[name] = build(fn, input);
+	for (const [name, fn, input] of waitlistEmailCases()) {
+		fresh[name] = /** @type {any} */ (waitlistEmail)[fn](input);
+	}
+	writeGolden(GOLDEN, fresh);
+}
+const golden = JSON.parse(readFileSync(GOLDEN, 'utf8'));
 
 describe('sin plantilla guardada, los mails no cambian', () => {
 	it.each(emailCases())('%s: igual byte a byte que antes de las plantillas', (name, fn, input) => {

@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import '$lib/types.d.js';
