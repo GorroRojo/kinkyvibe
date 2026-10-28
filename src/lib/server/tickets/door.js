@@ -991,15 +991,20 @@ export function parseSaleQueue(raw) {
 }
 
 /**
- * La orden que ya se creó para una venta sin conexión, si existe.
+ * La orden que ya se creó para una venta sin conexión, si existe, **de este evento**: una venta de
+ * otro evento con el mismo id no se muestra (con un link de puerta, ni su nombre ni su orden).
  *
  * @param {D1Database} db
  * @param {string} clientSaleId
+ * @param {string} eventSlug
  * @returns {Promise<Order | null>}
  */
-async function orderByClientSaleId(db, clientSaleId) {
+async function orderByClientSaleId(db, clientSaleId, eventSlug) {
 	return /** @type {Order | null} */ (
-		await db.prepare('SELECT * FROM orders WHERE client_sale_id = ?1').bind(clientSaleId).first()
+		await db
+			.prepare('SELECT * FROM orders WHERE client_sale_id = ?1 AND event_slug = ?2')
+			.bind(clientSaleId, eventSlug)
+			.first()
 	);
 }
 
@@ -1087,7 +1092,7 @@ export async function applyQueuedSales(db, locals, input) {
 		review: offlineReviewMessages(/** @type {any} */ (o).offline_review)
 	});
 	for (const item of items) {
-		const existing = await orderByClientSaleId(db, item.id);
+		const existing = await orderByClientSaleId(db, item.id, eventSlug);
 		if (existing) {
 			out.push(duplicate(item.id, existing));
 			continue;
@@ -1134,13 +1139,15 @@ export async function applyQueuedSales(db, locals, input) {
 			});
 		} catch (e) {
 			// El índice único de `client_sale_id`: otro pedido con la misma venta llegó primero.
-			const again = await orderByClientSaleId(db, item.id);
+			const again = await orderByClientSaleId(db, item.id, eventSlug);
+			const text = e instanceof Error ? e.message : '';
 			if (again) out.push(duplicate(item.id, again));
 			else
 				out.push({
 					id: item.id,
 					result: 'rejected',
-					message: e instanceof Error && e.message ? e.message : 'No se pudo registrar.'
+					// El error de la base por un id que ya usa otro evento no se muestra tal cual.
+					message: text && !text.includes('client_sale_id') ? text : 'No se pudo registrar.'
 				});
 			continue;
 		}
