@@ -255,7 +255,14 @@ async function loadTickets(slug, platform, fetchFn, waitlistFlag, now) {
 	// Agotadas con lista: el botón lleva al formulario de la página de compra («Agotadas · Anotate
 	// en la lista de espera»). Solo se suma `waitlist` cuando hay dónde anotarse (la misma cuenta
 	// que el formulario de /entradas); si no, el resumen queda como siempre.
-	if (waitlistOn && db && !view.open && (await canJoinWaitlist(db, slug)))
+	// Con la venta en pausa (TICKETS_PAUSED), solo el texto de la pausa.
+	if (
+		waitlistOn &&
+		db &&
+		!view.open &&
+		view.reason !== 'paused' &&
+		(await canJoinWaitlist(db, slug))
+	)
 		return { ...summary, waitlist: true };
 	return summary;
 }

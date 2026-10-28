@@ -361,6 +361,101 @@ describe('quien compró recibe la dirección completa', () => {
 	});
 });
 
+describe('«Cómo llegar» y «Accesibilidad» en los mails (venueNotesForMail)', () => {
+	const ACCESS = 'Rampa en la entrada';
+
+	/** @param {string} privacy @param {Record<string, any>} [extra] */
+	const withNotes = (privacy, extra = {}) =>
+		makeProfile(t.db, {
+			title: `Lugar ${privacy}`,
+			kind: 'lugar',
+			...extra,
+			data: {
+				address: SECRET,
+				area: AREA,
+				how_to_get_there: 'Por la puerta verde',
+				accessibility: ACCESS,
+				venue_privacy: privacy
+			}
+		});
+
+	it('solo en el nivel en que la página los muestra a cualquiera', async () => {
+		const m = await modules();
+		for (const privacy of ['public', 'name', 'address', 'area', 'hidden']) {
+			const v = await withNotes(privacy);
+			const slug = `notas-${privacy}`;
+			await m.setEventVenue(t.db, { eventSlug: slug, venueId: v.id, privacy: null, by: 'a' });
+			const notes = await m.venueNotesForMail(t.db, slug);
+			if (privacy === 'public') {
+				expect(notes).toEqual({ howTo: 'Por la puerta verde', accessibility: ACCESS });
+			} else {
+				expect(notes, privacy).toBeNull();
+			}
+		}
+	});
+
+	it('el nivel del evento manda (más y menos privado)', async () => {
+		const m = await modules();
+		const pub = await withNotes('public');
+		await m.setEventVenue(t.db, {
+			eventSlug: 'tapa',
+			venueId: pub.id,
+			privacy: 'address',
+			by: 'a'
+		});
+		expect(await m.venueNotesForMail(t.db, 'tapa')).toBeNull();
+		const hidden = await withNotes('hidden', { title: 'Lugar oculto' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'abre',
+			venueId: hidden.id,
+			privacy: 'public',
+			by: 'a'
+		});
+		expect(await m.venueNotesForMail(t.db, 'abre')).toEqual({
+			howTo: 'Por la puerta verde',
+			accessibility: ACCESS
+		});
+	});
+
+	it('un lugar sin aprobar o que no se muestra al público: nada', async () => {
+		const m = await modules();
+		const draft = await withNotes('public', { approved: false, title: 'Lugar borrador' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'borrador',
+			venueId: draft.id,
+			privacy: null,
+			by: 'a'
+		});
+		expect(await m.venueNotesForMail(t.db, 'borrador')).toBeNull();
+		const members = await withNotes('public', { visibility: 'members', title: 'Lugar de socies' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'socios',
+			venueId: members.id,
+			privacy: null,
+			by: 'a'
+		});
+		expect(await m.venueNotesForMail(t.db, 'socios')).toBeNull();
+	});
+
+	it('sin lugar, sin base o si la base falla: nada (y no tira)', async () => {
+		const m = await modules();
+		await makeEvent(t.db, 'sin-lugar');
+		expect(await m.venueNotesForMail(t.db, 'sin-lugar')).toBeNull();
+		expect(await m.venueNotesForMail(null, 'sin-lugar')).toBeNull();
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const broken = /** @type {any} */ ({
+				prepare() {
+					throw new Error('D1 de prueba caída');
+				}
+			});
+			expect(await m.venueNotesForMail(broken, 'sin-lugar')).toBeNull();
+		} finally {
+			log.mockRestore();
+		}
+	});
+});
+
 describe('los .ics dinámicos (feedVenues)', () => {
 	it('solo los eventos pedidos que tienen lugar, como los ve cualquiera', async () => {
 		const m = await modules();

@@ -16,9 +16,12 @@
  * - Cada orden se intenta como mucho {@link RETRY_ATTEMPTS} veces por día (`rate_limits`, la clave
  *   lleva el id de la orden, que no es un dato personal): una dirección que Resend rechaza siempre
  *   no ocupa la tanda dos días seguidos. Las que se saltean no cuentan para `limit`.
+ * - Si Resend dice «ahora no» (cupo terminado, demasiados por segundo o un 5xx; `resendBackoff` en
+ *   email.js), ese intento no cuenta (`deferred`). Con el cupo o la tasa la corrida se corta ahí
+ *   (`stopped`); con dos 5xx, también. La ventana de 48 h pone el techo.
  */
 import { EMAIL_GRACE_MS } from '../admin/inicio.js';
-import { hitRateLimit } from '../db/rateLimit.js';
+import { hitRateLimit, releaseRateLimitHit } from '../db/rateLimit.js';
 import { isFreeOrder, unconfirmedMailAllowed } from '../email/suppressions.js';
 import { sendOrderEmailResult } from './index.js';
 import { markEmailSent } from './orders.js';
@@ -31,6 +34,8 @@ export const RETRY_WINDOW_MS = 48 * 60 * 60 * 1000;
 export const RETRY_ATTEMPTS = 3;
 /** Cuántas candidatas se leen por cada mail de la tanda (deja lugar a las salteadas). */
 const SCAN_FACTOR = 4;
+/** La ventana de los intentos por orden. */
+const RETRY_RULE = Object.freeze({ limit: RETRY_ATTEMPTS, windowSeconds: 24 * 60 * 60 });
 
 /**
  * @param {{
@@ -40,7 +45,8 @@ const SCAN_FACTOR = 4;
  *   now?: number,
  *   limit?: number
  * }} input
- * @returns {Promise<{ sent: number, failed: number, skipped: number }>}
+ * @returns {Promise<{ sent: number, failed: number, skipped: number, deferred?: number,
+ *   stopped?: 'quota' | 'rate' | 'server' }>} `deferred` y `stopped`, solo si pasó.
  */
 export async function resendUnsentOrderEmails({
 	db,
@@ -50,6 +56,10 @@ export async function resendUnsentOrderEmails({
 	limit = 5
 }) {
 	const counts = { sent: 0, failed: 0, skipped: 0 };
+	let deferred = 0;
+	let serverErrors = 0;
+	/** @type {'quota' | 'rate' | 'server' | undefined} */
+	let stopped;
 	const { results } = await db
 		.prepare(
 			`SELECT * FROM orders
@@ -63,12 +73,8 @@ export async function resendUnsentOrderEmails({
 	let attempted = 0;
 	for (const order of /** @type {import('./orders.js').Order[]} */ (results)) {
 		if (attempted >= limit) break;
-		const tries = await hitRateLimit(
-			db,
-			`mail:reintento-entradas:${order.id}`,
-			{ limit: RETRY_ATTEMPTS, windowSeconds: 24 * 60 * 60 },
-			now
-		);
+		const bucket = `mail:reintento-entradas:${order.id}`;
+		const tries = await hitRateLimit(db, bucket, RETRY_RULE, now);
 		if (!tries.allowed) {
 			counts.skipped++;
 			continue;
@@ -79,7 +85,15 @@ export async function resendUnsentOrderEmails({
 			continue;
 		}
 		const result = await sendOrderEmailResult({ db, order, origin, fetch: fetchFn });
-		if (result === 'sent') counts.sent++;
+		if (result === 'quota' || result === 'rate' || result === 'server') {
+			// Resend no lo tomó: el intento no cuenta.
+			await releaseRateLimitHit(db, bucket, RETRY_RULE, now);
+			deferred++;
+			if (result !== 'server' || ++serverErrors >= 2) {
+				stopped = result;
+				break;
+			}
+		} else if (result === 'sent') counts.sent++;
 		else if (result === 'failed') counts.failed++;
 		else {
 			await markEmailSent(db, order.id, now);
@@ -91,5 +105,5 @@ export async function resendUnsentOrderEmails({
 			`[tickets] reintento de mails de entradas: ${counts.sent} enviados, ${counts.failed} fallaron`
 		);
 	}
-	return counts;
+	return { ...counts, ...(deferred ? { deferred } : {}), ...(stopped ? { stopped } : {}) };
 }
