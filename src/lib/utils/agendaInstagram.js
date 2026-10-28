@@ -307,10 +307,11 @@ p { margin: 0; }
 .round { font-family: 'IG Fredoka', sans-serif; font-weight: 600; color: ${C.mint}; line-height: 0.78; letter-spacing: -0.01em;
   -webkit-text-stroke: 0.06em ${C.ink}; paint-order: stroke fill; }
 .logo { display: block; border-radius: 50%; }
-.tag { position: absolute; top: 72px; left: 50%; width: 182px; height: 104px; margin-left: -91px; border-radius: 50%;
+.tag { position: absolute; top: 71px; left: 50%; width: 188px; height: 108px; margin-left: -94px; border-radius: 50%;
   background: ${C.yellow}; border: 3px solid ${C.ink}; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .tag .round { font-size: 46px; text-shadow: 2px 3px 0 ${C.ink}; }
-.tag .round + .round { margin-left: 30px; }
+.tag .round:first-child { transform: translate(-12px, -11px); }
+.tag .round + .round { margin-left: 30px; transform: translateY(-5px); }
 .cover-logo { position: absolute; top: 72px; left: 50%; margin-left: -57px; width: 114px; height: 114px; }
 .title { position: absolute; top: 250px; left: 293px; width: 490px; height: 278px; border-radius: 50%; background: ${C.yellow};
   border: 3px solid ${C.ink}; }
@@ -352,14 +353,18 @@ p { margin: 0; }
   transform: rotate(-14deg); }
 .fondo-top { position: absolute; top: 205px; left: 0; right: 0; text-align: center; font-size: 68px; line-height: 1.0; color: ${C.purple}; }
 .fondo-top .hot { color: ${C.hot}; }
-.fondo-name { position: absolute; top: 552px; left: 70px; display: flex; align-items: center; gap: 12px; }
-.fondo-name .big { font-size: 124px; line-height: 1; -webkit-text-stroke: 0.04em ${C.ink}; paint-order: stroke fill; }
-.fondo-name .stack { display: flex; flex-direction: column; align-items: center; }
-.fondo-name .stack .s { font-size: 72px; line-height: 0.8; -webkit-text-stroke: 0.05em ${C.ink}; paint-order: stroke fill; }
+.fondo-name { position: absolute; top: 629px; left: 96px; display: flex; align-items: baseline; gap: 12px; }
+.fondo-name .big { font-size: 114px; line-height: 1; -webkit-text-stroke: 0.04em ${C.ink}; paint-order: stroke fill; }
+/* «educativo» y «comunitario» van montadas sobre «cultural» y del mismo ancho, como en los posts. */
+.fondo-name .fstack { position: relative; }
+.fondo-name .fstack .s { position: absolute; left: 50%; transform: translateX(-50%); line-height: 1; white-space: nowrap;
+  -webkit-text-stroke: 0.05em ${C.ink}; paint-order: stroke fill; }
+.fondo-name .fstack .p { bottom: 77%; font-size: 90px; }
+.fondo-name .fstack .m { top: 75%; font-size: 74px; }
 .y { color: ${C.yellow}; } .p { color: ${C.hot}; } .m { color: ${C.mint}; } .v { color: ${C.purple}; }
-.fondo-logo { position: absolute; top: 560px; left: 790px; width: 230px; height: 230px; }
+.fondo-logo { position: absolute; top: 560px; left: 780px; width: 256px; height: 246px; }
 .fondo-logo i { position: absolute; border-radius: 48% 52% 45% 55%; }
-.fondo-logo img { position: absolute; left: 20px; top: 22px; width: 196px; height: 196px; border: 3px solid ${C.ink}; }
+.fondo-logo img { position: absolute; left: 20px; top: 24px; width: 212px; height: 212px; border: 3px solid ${C.ink}; }
 .bar { position: absolute; top: 830px; left: 46px; width: 974px; height: 68px; border-radius: 14px; background: ${C.bar}; overflow: hidden; }
 .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: ${C.hot}; }
 .bar .tick { position: absolute; top: 18px; width: 3px; height: 30px; background: #fff; }
@@ -469,8 +474,8 @@ ${slide.footer ? `<div class="foot">${xml(slide.footer)}</div>` : ''}`;
 		const tagLeft = Math.round(Math.max(46, Math.min(46 + 974 - 100, 46 + (974 * p) / 100)));
 		inner = `${TOP}<div class="pat" style="bottom:0;height:80px;background-position:0 -500px"></div>
 <div class="fondo-top barlow"><p>este mes</p><p class="hot">el ${p}% del precio</p><p class="hot">de las entradas</p><p>a eventos y talleres</p><p>está cubierto por el</p></div>
-<div class="fondo-name barlow"><span class="big y">Fondo</span><span class="stack"><span class="s p">educativo</span><span class="big y">cultural</span><span class="s m">comunitario</span></span><span class="big v">de</span></div>
-<div class="fondo-logo"><i style="left:6px;top:0;width:170px;height:150px;background:${C.mint}"></i><i style="left:90px;top:12px;width:140px;height:140px;background:${C.yellow}"></i><i style="left:0;top:90px;width:150px;height:140px;background:${C.pink}"></i>${logo('')}</div>
+<div class="fondo-name barlow"><span class="big y">Fondo</span><span class="fstack"><span class="s p">educativo</span><span class="big y">cultural</span><span class="s m">comunitario</span></span><span class="big v">de</span></div>
+<div class="fondo-logo"><i style="left:15px;top:2px;width:175px;height:175px;background:${C.mint}"></i><i style="left:94px;top:14px;width:159px;height:151px;background:${C.yellow}"></i><i style="left:1px;top:100px;width:135px;height:144px;background:${C.pink}"></i>${logo('')}</div>
 <div class="bar"><div class="fill" style="width:${p}%"></div>${ticks}</div>
 <div class="pct bebas" style="left:${tagLeft}px">${p}%</div>
 <p class="mecenas barlow">Volvete nuestre mecenas para<br/>ayudarnos a que todo sea gratis</p>
