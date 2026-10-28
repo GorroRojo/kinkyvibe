@@ -209,7 +209,8 @@ export function parseSearchQuery(raw) {
 	const phrases = [...base.phrases];
 	const parts = [...base.parts];
 	const plain = [...base.plain];
-	pq.exclude = [...base.exclude];
+	// `-lugar:palermo`: el panel lo saca como texto, como antes (no filtra por lugar al excluir).
+	pq.exclude = [...base.exclude, ...base.excludePlaces];
 	pq.excludeTags = [...base.excludeTags];
 	pq.tags = [...base.tags];
 	pq.places = [...base.places];
