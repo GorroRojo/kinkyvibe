@@ -4,9 +4,10 @@ import { withLineEnding } from '$lib/utils/lineEndings.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
 import { featuredURL, getRepoClient, isMockMode } from '$lib/server/eventos';
-import { findImage, imageOf } from '$lib/server/media/library.js';
+import { findImage } from '$lib/server/media/library.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
-import { resolveEventSlug } from '$lib/server/contenido/posts.js';
+import { libraryCoverOf } from '$lib/server/contenido/posts.js';
+import { EVENT_CATEGORY } from '$lib/server/contenido/eventos.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors, waitlistLiveFor } from '$lib/server/tickets/editor.js';
@@ -143,15 +144,8 @@ export async function _editLoad({ locals, params, url, platform }) {
  * @param {string} slug
  * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
  */
-async function eventLibraryImage(db, locals, slug) {
-	if (!db) return null;
-	try {
-		const ref = await resolveEventSlug(db, slug);
-		return ref ? await imageOf(db, ref.id, 'portada', adminViewer(locals)) : null;
-	} catch (e) {
-		// Sin la imagen de la biblioteca, se muestra la del repo.
-		return null;
-	}
+function eventLibraryImage(db, locals, slug) {
+	return libraryCoverOf(db, EVENT_CATEGORY, slug, adminViewer(locals));
 }
 
 /**
