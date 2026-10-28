@@ -115,7 +115,7 @@ const SEARCH_LIMIT = 8;
  * `null` con un link, que nunca los recibe (ni en la lista sin conexión, ni en el buscador, ni en
  * la tarjeta de un escaneo). Es el único lugar de la puerta que llama a `doorNoticeMatcher`.
  *
- * @param {D1Database} db
+ * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {DoorActor} actor
  * @param {Parameters<typeof isKinkyVibeDoor>[0]} config
  * @returns {Promise<import('./doorNotices.js').DoorNoticeMatcher | null>}
