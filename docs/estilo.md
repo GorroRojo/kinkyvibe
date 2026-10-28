@@ -243,8 +243,19 @@ marca y su contraste no se tocan). En el resto:
   número de la plata, no el texto «$ 24.000»), el texto en castellano con los números adentro en
   orden («KV-2» antes que «KV-10»), las celdas vacías al final y el orden es estable
   (`tableSort.js`). **Solo las filas que ya están en la página**: una lista que se pagina o se
-  corta en el servidor no se ordena (Cuentas ordena solo si llegaron todas, menos de 500). Lo
-  usan Comunidad › Personas, Comunidad › Cuentas y Ventas › Códigos. Las columnas a la derecha
+  corta en el servidor no se ordena en el navegador. Lo usan Comunidad › Personas, Comunidad ›
+  Cuentas y Ventas › Códigos.
+- **Listas que se ordenan en el servidor.** Con `presorted`, `Table` no reordena las filas: el
+  encabezado (el mismo botón, con `aria-sort`) cambia `sort` y avisa con `on:sort`, y la página
+  pide el orden nuevo. Comunidad › Cuentas (500 como mucho) lo lleva en la URL
+  (`?orden=mail-asc`, `creada-…`, `perfiles-…`; sin `?orden`, la más nueva primero, como
+  siempre): el servidor lo valida contra esas columnas (`parseAccountSort` en
+  `src/lib/admin/cuentas.js`; otro valor da el de siempre), desempata por id y la búsqueda y
+  «Ver todas» lo conservan. El foco queda en el encabezado (`goto` con `keepFocus`).
+- **Listas de tarjetas.** Ventas › Órdenes no es una tabla: lleva un selector «Ordenar» al lado
+  de «Mostrar» (más nuevas o más viejas primero, nombre, total, entradas), con `?orden=` en la
+  URL (sin volver a cargar la página). Trae todas las órdenes del evento, así que se ordenan en
+  el navegador con el comparador de `tableSort.js` y desempate por id (`src/lib/admin/orderSort.js`). Las columnas a la derecha
   (números) y las `nowrap` no se cortan: si no entran, la tabla se desliza de costado. Con
   `width` en las columnas, la tabla vacía conserva los anchos de la llena.
 
