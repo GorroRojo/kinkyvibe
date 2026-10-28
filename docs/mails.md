@@ -64,6 +64,11 @@ sus plantillas propias) está en la ficha del evento.
 | Código para entrar        | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
 | Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
 
+**Reembolso: la línea de cómo se devuelve** (fija, no está en la plantilla) sale del total y el
+medio de la compra: total 0 → «Era una compra sin cargo: no hay dinero para devolver.»; si no,
+Mercado Pago, transferencia o efectivo con su frase, y cualquier otro medio con monto (una carga a
+mano con «otro») → «Te devolvimos el dinero.».
+
 **Lista de espera** (en construcción, interruptor `lista_espera`; ver abajo y
 [tickets.md](tickets.md#lista-de-espera-en-construcción)):
 
