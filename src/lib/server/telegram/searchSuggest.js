@@ -26,8 +26,10 @@ export const SUGGESTIONS_MAX = 3;
 /** Cuántas sugerencias se prueban (cada una es una búsqueda), como mucho. */
 const CANDIDATES_MAX = 12;
 
-/** Campos del índice que cuentan para una palabra sugerida: título y etiquetas (search.js). */
-const TITLE_OR_TAGS = 1 | 2;
+/** Campos del índice (search.js): título y etiquetas, los que cuentan para una palabra sugerida. */
+const TITLE = 1;
+const TAGS = 2;
+const TITLE_OR_TAGS = TITLE | TAGS;
 
 /**
  * Cuántas letras distintas se aceptan para sugerir una palabra: más que el buscador del sitio
@@ -79,6 +81,42 @@ export function closestWords(prepared, term, limit = 2) {
 		.sort((a, b) => a.d - b.d || a.word.localeCompare(b.word))
 		.slice(0, limit)
 		.map((f) => f.word);
+}
+
+/**
+ * Una palabra del índice (normalizada, `fold`) como se escribe en los títulos o los nombres de
+ * etiquetas donde aparece («guia» → «Guía»): la forma más usada (si empatan, la que va en
+ * minúscula, la de la mitad de un título), o la palabra tal cual si no está.
+ *
+ * @param {PreparedIndex} prepared
+ * @param {string} word normalizada
+ * @returns {string}
+ */
+export function writtenAs(prepared, word) {
+	/** @type {Map<string, number>} */
+	const forms = new Map();
+	/** @param {string} text */
+	const collect = (text) => {
+		const folded = fold(text);
+		for (const m of folded.matchAll(/[\p{L}\p{N}]+/gu)) {
+			if (m[0] !== word) continue;
+			const start = /** @type {number} */ (m.index);
+			const form = text.slice(start, start + word.length);
+			forms.set(form, (forms.get(form) ?? 0) + 1);
+		}
+	};
+	for (const [i, mask] of prepared.postings.get(word) ?? []) {
+		if (!(mask & TITLE_OR_TAGS)) continue;
+		const doc = prepared.docs[i];
+		if (mask & TITLE) collect([doc.t, ...(doc.k ?? [])].join(' '));
+		if (mask & TAGS) for (const id of doc.g ?? []) collect((prepared.tags?.[id] ?? []).join(' '));
+	}
+	let best = word;
+	let most = 0;
+	for (const [form, n] of forms) {
+		if (n > most || (n === most && form[0] !== form[0].toUpperCase())) [best, most] = [form, n];
+	}
+	return best;
 }
 
 /**
@@ -147,7 +185,9 @@ function wordCandidates(prepared, query) {
 	const terms = queryTerms(query);
 	if (!terms.length) return [];
 	const fixed = terms.map((t) =>
-		search(prepared, t, { limit: 1 }).length ? [t] : closestWords(prepared, t)
+		(search(prepared, t, { limit: 1 }).length ? [t] : closestWords(prepared, t)).map((w) =>
+			writtenAs(prepared, w)
+		)
 	);
 	/** @type {string[]} */
 	const out = [];
