@@ -846,7 +846,9 @@ Para todos:
   el panel ↗» (`/admin/eventos/<dirección>`).
 - **Nada dos veces**: antes de mandar se toma una fila de `telegram_admin_sent` (migración
   `0055`, clave `venta:<orden>`, `transferencia:<orden>` o `resumen:<día>:<evento>`); si Telegram
-  falla se suelta (el resumen se reintenta en la corrida siguiente). Si le admin bloqueó al bot, no
+  falla se suelta (el resumen se reintenta en la corrida siguiente), como mucho 3 intentos por aviso
+  y admin en el día (`ADMIN_NOTICE_ATTEMPTS`, en `rate_limits` con la clave hasheada): un chat que
+  falla siempre no se reintenta cada 15 minutos todo el día. Si le admin bloqueó al bot, no
   se reintenta y el vínculo sigue (lo usa la puerta). El cron borra las filas de más de 30 días.
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con su vista previa.
 

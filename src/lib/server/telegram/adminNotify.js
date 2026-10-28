@@ -33,6 +33,8 @@ import { orderReference } from '$lib/utils/tickets.js';
 import { argentinaHour, isQuietHour } from './quiet.js';
 import { getStreamLink } from '$lib/server/tickets/stream.js';
 import { placeLine } from '$lib/utils/eventPlace.js';
+import { hitRateLimit } from '$lib/server/db/rateLimit.js';
+import { sha256Hex } from '$lib/server/hash.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/tickets/orders.js').Order} Order */
@@ -63,6 +65,14 @@ export const DAILY_EXPIRING_MS = 24 * 60 * 60 * 1000;
 
 /** Mensajes del resumen diario por corrida, como mucho (el resto sale en las siguientes). */
 export const ADMIN_NOTICE_BATCH = 50;
+
+/**
+ * Intentos por aviso y admin en un día: después de tantos fallos seguidos la fila queda tomada y
+ * no se reintenta más (como el reintento del mail de las entradas, tickets/unsentOrders.js). Las
+ * claves de los avisos ya llevan el día o la hora, así que el de mañana sale igual.
+ */
+export const ADMIN_NOTICE_ATTEMPTS = 3;
+const RETRY_RULE = Object.freeze({ limit: ADMIN_NOTICE_ATTEMPTS - 1, windowSeconds: 24 * 60 * 60 });
 
 /** Cuánto se guardan las filas de `telegram_admin_sent` (lo enviado). */
 export const SENT_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
@@ -347,7 +357,8 @@ export async function pruneSentNotices(db, now) {
 }
 
 /**
- * Manda un aviso a cada destinatarie, una sola vez por clave.
+ * Manda un aviso a cada destinatarie, una sola vez por clave. Si Telegram falla, la fila se suelta
+ * para la corrida siguiente, como mucho {@link ADMIN_NOTICE_ATTEMPTS} intentos por día.
  *
  * @param {{ db: D1Database, send: AdminSend, key: string, message: AdminMessage, now: number,
  *   recipients: { telegramUserId: string, githubId: number }[] }} input
@@ -363,7 +374,14 @@ async function deliverOnce({ db, send, key, message, now, recipients }) {
 		const result = await send(r.telegramUserId, message);
 		if (result === 'failed') {
 			out.failed += 1;
-			await releaseNotice(db, r.githubId, key);
+			// Se suelta para reintentar, salvo que ya haya fallado ADMIN_NOTICE_ATTEMPTS veces hoy.
+			const retry = await hitRateLimit(
+				db,
+				`telegram:aviso-admin:${await sha256Hex(`${r.githubId}:${key}`)}`,
+				RETRY_RULE,
+				now
+			);
+			if (retry.allowed) await releaseNotice(db, r.githubId, key);
 		} else if (result === 'blocked') {
 			// Bloqueó al bot o borró el chat: no se reintenta (el vínculo sigue, lo usa la puerta).
 			out.failed += 1;
