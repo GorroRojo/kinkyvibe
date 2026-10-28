@@ -368,7 +368,7 @@
 		</p>
 		<ul class="lines">
 			{#each people as p, i (p.id)}
-				<li class="person">
+				<li class="person" class:with-value={mode !== 'iguales'}>
 					<label class="kv-field name">
 						<span class="visually-hidden">Nombre de la persona {i + 1}</span>
 						<input class="kv-input" bind:value={p.name} placeholder="Persona {i + 1}" />
@@ -496,6 +496,7 @@
 	}
 	.kv-table select {
 		width: 100%;
+		min-width: 9rem;
 	}
 	tfoot .total td {
 		font-weight: 700;
@@ -520,25 +521,50 @@
 		flex-direction: column;
 		gap: var(--space-2xs);
 	}
-	.expense,
+	/* Cada gasto en dos renglones: concepto (y sacar) arriba; monto y quién pagó abajo. */
+	.expense {
+		display: grid;
+		grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+		grid-template-areas: 'concept concept del' 'amount paid paid';
+		align-items: center;
+		gap: var(--space-3xs);
+		padding-bottom: var(--space-2xs);
+		border-bottom: 1px solid var(--line);
+	}
+	.expense .concept {
+		grid-area: concept;
+	}
+	.expense .amount {
+		grid-area: amount;
+	}
+	.expense .paid {
+		grid-area: paid;
+	}
+	.expense > :global(:last-child) {
+		grid-area: del;
+	}
+	/* Nombre, parte y sacar; con porcentaje o monto, el campo va abajo del nombre. */
 	.person {
-		display: flex;
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto auto;
+		grid-template-areas: 'name share del';
 		align-items: center;
 		gap: var(--space-3xs);
 	}
-	.expense .concept,
+	.person.with-value {
+		grid-template-areas: 'name name del' 'value share share';
+	}
 	.person .name {
-		flex: 2 1 9rem;
-	}
-	.expense .amount {
-		flex: 1 1 6rem;
-	}
-	.expense .paid {
-		flex: 2 1 9rem;
+		grid-area: name;
 	}
 	.person .value {
-		flex: 1 1 7rem;
+		grid-area: value;
+	}
+	.person .share {
+		grid-area: share;
+	}
+	.person > :global(:last-child) {
+		grid-area: del;
 	}
 	.kv-field input,
 	.kv-field select {
