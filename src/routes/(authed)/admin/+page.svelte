@@ -23,6 +23,7 @@
 	import { navItem, navLink } from '$lib/admin/nav.js';
 	import { checkinHref, eventLink } from '$lib/admin/links.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
+	import { netEstimate, netEstimateText, netRevenue } from '$lib/utils/salesGoal.js';
 	import {
 		Activity,
 		ArrowLeftRight,
@@ -222,7 +223,21 @@
 							'entradas'
 						)} · de los eventos de este mes"
 						href="/admin/ventas"
-					/>
+					>
+						{#if data.money.mpFee}
+							{@const kind = netEstimate(data.money)}
+							<small
+								class="net-line"
+								title={netEstimateText(data.money) ||
+									'Lo recaudado menos la comisión que cobró Mercado Pago.'}
+								>{kind === 'all' ? 'Neto estimado' : 'Neto'}: {formatARS(
+									netRevenue({ revenue: data.money.total, mpFee: data.money.mpFee })
+								)}{kind === 'part'
+									? ` (comisión estimada en parte: ${formatARS(data.money.mpFeeEstimated)} de ${formatARS(data.money.mpFee)})`
+									: ''}</small
+							>
+						{/if}
+					</Stat>
 					<Stat
 						label="Neto del fondo"
 						value={formatSignedARS(data.money.fondoNet)}
@@ -965,5 +980,10 @@
 			width: 100%;
 			justify-content: center;
 		}
+	}
+	.net-line {
+		display: block;
+		font-size: var(--text-xs);
+		color: var(--muted);
 	}
 </style>

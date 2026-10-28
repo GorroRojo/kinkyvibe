@@ -134,7 +134,10 @@ describe('goalProgress', () => {
 			target: 250000,
 			pct: 72,
 			reached: false,
-			text: `${formatARS(180000)} netos de ${formatARS(250000)} (72 %)`
+			text: `${formatARS(180000)} netos de ${formatARS(250000)} (72 %)`,
+			// Sin `mpFeeEstimated`, nada es estimado (la comisión es la que informó MP).
+			estimate: null,
+			estimateText: ''
 		});
 	});
 

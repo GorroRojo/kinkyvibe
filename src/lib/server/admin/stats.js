@@ -7,6 +7,7 @@ import { fondoOptionLabel } from '$lib/utils/tickets.js';
 import { MONTHS_SHORT_ES, TIMEZONE } from '$lib/utils/dates.js';
 import { normalizeEmail, seriesLabel } from './people.js';
 import { saleAt } from './saleMonth.js';
+import { orderRevenue } from '$lib/utils/salesGoal.js';
 
 /** @typedef {import('./people.js').PersonOrder} PersonOrder */
 /** @typedef {import('./people.js').EventInfo} EventInfo */
@@ -65,7 +66,7 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 		const m = byMonth.get(monthKey(saleAt(o)));
 		if (!m) continue;
 		m.tickets += o.quantity;
-		m.revenue += o.total;
+		m.revenue += orderRevenue(o);
 		m.orders++;
 	}
 
@@ -82,7 +83,7 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 			events: new Set()
 		};
 		s.tickets += o.quantity;
-		s.revenue += o.total;
+		s.revenue += orderRevenue(o);
 		s.events.add(o.event_slug);
 		bySeries.set(key, s);
 	}
@@ -97,7 +98,7 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 			const r = m.get(k) ?? { key: k, label: label(k), orders: 0, tickets: 0, revenue: 0 };
 			r.orders++;
 			r.tickets += o.quantity;
-			r.revenue += o.total;
+			r.revenue += orderRevenue(o);
 			m.set(k, r);
 		}
 		return [...m.values()].sort((a, b) => b.orders - a.orders);
@@ -183,10 +184,10 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 	return {
 		kpis: {
 			tickets: totalTickets,
-			revenue: orders.reduce((s, o) => s + o.total, 0),
+			revenue: orders.reduce((s, o) => s + orderRevenue(o), 0),
 			people: people.size,
 			avgTicket: totalTickets
-				? Math.round(orders.reduce((s, o) => s + o.total, 0) / totalTickets)
+				? Math.round(orders.reduce((s, o) => s + orderRevenue(o), 0) / totalTickets)
 				: 0,
 			checkinRate: totalSoldPast ? totalChecked / totalSoldPast : 0,
 			returningRate: eventsPerPerson.size ? returningAny / eventsPerPerson.size : 0,

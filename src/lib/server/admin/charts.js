@@ -12,6 +12,7 @@ import { eventSeriesTags, seriesTagIndex } from '$lib/utils/series.js';
 import { normalizeEmail } from './people.js';
 import { lastMonths, monthKey, monthLabel } from './stats.js';
 import { saleAt } from './saleMonth.js';
+import { orderMpFee, orderMpFeeEstimated, orderRevenue } from '$lib/utils/salesGoal.js';
 
 /** @typedef {import('./people.js').PersonOrder} PersonOrder */
 /** @typedef {import('./people.js').EventInfo} EventInfo */
@@ -37,7 +38,7 @@ export function salesByDay(orders) {
 		const key = `${day}|${o.event_slug}`;
 		const r = map.get(key) ?? { day, slug: o.event_slug, tickets: 0, revenue: 0 };
 		r.tickets += o.quantity;
-		r.revenue += o.total;
+		r.revenue += orderRevenue(o);
 		map.set(key, r);
 	}
 	return [...map.values()].sort((a, b) => a.day - b.day || a.slug.localeCompare(b.slug));
@@ -145,8 +146,10 @@ export function attendanceReturn(orders, perEvent, events = new Map(), seriesInd
 
 /**
  * Fondo y finanzas por mes (el mes del evento, ./saleMonth.js; aprobadas): lo que cubrió el Fondo (descuentos
- * `fondo`), lo que se aportó (opciones solidarias), el neto (aportado − usado) y el recargo de
- * Mercado Pago que pagaron les compradores.
+ * `fondo`), lo que se aportó (opciones solidarias), el neto (aportado − usado), el recargo de
+ * Mercado Pago que pagaron les compradores y la comisión de MP (`mpFee`: la que cobró MP o, si no
+ * la informó, la estimada; `mpFeeEstimated`: la parte estimada, así un mes mezclado dice cuánto es
+ * estimado).
  * @param {PersonOrder[]} orders
  * @param {{ now?: number, months?: number }} [opts]
  */
@@ -154,7 +157,16 @@ export function fondoByMonth(orders, { now = Date.now(), months = 12 } = {}) {
 	const map = new Map(
 		lastMonths(now, months).map((m) => [
 			m,
-			{ month: m, label: monthLabel(m), used: 0, contributed: 0, net: 0, surcharge: 0 }
+			{
+				month: m,
+				label: monthLabel(m),
+				used: 0,
+				contributed: 0,
+				net: 0,
+				surcharge: 0,
+				mpFee: 0,
+				mpFeeEstimated: 0
+			}
 		])
 	);
 	for (const o of orders) {
@@ -164,9 +176,16 @@ export function fondoByMonth(orders, { now = Date.now(), months = 12 } = {}) {
 		r.used += o.fondo_amount;
 		r.contributed += o.fondo_contribution;
 		r.surcharge += o.surcharge_amount ?? 0;
+		r.mpFee += orderMpFee(o);
+		r.mpFeeEstimated += orderMpFeeEstimated(o);
 	}
-	const rows = [...map.values()].map((r) => ({ ...r, net: r.contributed - r.used }));
-	const sum = (/** @type {'used'|'contributed'|'surcharge'} */ k) =>
+	const rows = [...map.values()].map((r) => ({
+		...r,
+		net: r.contributed - r.used,
+		// La comisión que informó MP (lo demás de `mpFee` es estimado).
+		mpFeeCharged: r.mpFee - r.mpFeeEstimated
+	}));
+	const sum = (/** @type {'used'|'contributed'|'surcharge'|'mpFee'|'mpFeeEstimated'} */ k) =>
 		rows.reduce((s, r) => s + r[k], 0);
 	return {
 		rows,
@@ -174,7 +193,9 @@ export function fondoByMonth(orders, { now = Date.now(), months = 12 } = {}) {
 			used: sum('used'),
 			contributed: sum('contributed'),
 			net: sum('contributed') - sum('used'),
-			surcharge: sum('surcharge')
+			surcharge: sum('surcharge'),
+			mpFee: sum('mpFee'),
+			mpFeeEstimated: sum('mpFeeEstimated')
 		}
 	};
 }
