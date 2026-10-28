@@ -134,6 +134,20 @@ export const FLAGS = Object.freeze({
 			'ticket_combos y columnas buyer_email y source_order_id de discount_codes). ' +
 			'src/lib/server/tickets/combos.js.',
 		envVar: 'COMBO_CODIGOS_ENABLED'
+	},
+	encuesta_post_evento: {
+		label: 'Encuesta después del evento (prototipo)',
+		description:
+			'Un día después de que termina un evento con entradas, les llega a quienes tenían entrada ' +
+			'un mail con una encuesta corta y anónima. Cada evento la puede apagar en su editor ' +
+			'(«Mandar la encuesta después del evento») y las respuestas se ven en la ficha del evento → ' +
+			'Mails → Encuesta. Es un prototipo: todavía no guarda las respuestas en la base, así que ' +
+			'solo anda en desarrollo (prendido en producción no manda nada).',
+		tech:
+			'docs/mails.md, «Encuesta después del evento (prototipo)». src/lib/server/encuesta/. Los ' +
+			'envíos usan reminder_sends (clave `encuesta`); las respuestas, un almacén en memoria solo ' +
+			'en `vite dev` hasta que haya migración. Clave `encuesta` del evento (false = no se manda).',
+		envVar: 'ENCUESTA_POST_EVENTO_ENABLED'
 	}
 });
 
@@ -307,6 +321,16 @@ export function listaEsperaEnabled(platform) {
  */
 export function comboCodigosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'combo_codigos');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendida la encuesta después del evento (prototipo)?
+ * (docs/mails.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function encuestaEnabled(platform) {
+	return isFlagOn(getDB(platform), 'encuesta_post_evento');
 }
 
 /**

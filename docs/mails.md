@@ -622,6 +622,41 @@ botón del mail lleva directo a la entrada.
 sitio (hoy, quien administra el sitio). Si no lo tenés, pedíselo a gorrite; mientras tanto, los
 pasos 1, 2 y 5 se hacen solo desde el panel del sitio.
 
+### Encuesta después del evento (prototipo)
+
+Pedido de gorrite (plan `encuesta-post-evento`). **Prototipo detrás del interruptor
+`encuesta_post_evento`** (`ENCUESTA_POST_EVENTO_ENABLED`), apagado, y **solo anda en `vite dev`**:
+todavía no hay tabla para las respuestas (ver abajo). Prendido en producción no manda nada ni abre
+la página. Código: `src/lib/server/encuesta/`.
+
+- **Cuándo y a quién:** 24 h después del fin del evento (`eventEnd`; `SURVEY_DELAY_MS`), a cada
+  orden aprobada (las mismas de los recordatorios) creada antes de esa hora. Si pasaron más de 3
+  días desde que tocaba (`SURVEY_MAX_LATE_MS`), ya no sale: así, al prender el interruptor no les
+  llega a todes la de eventos viejos. Eventos cancelados, no.
+- **Cómo sale:** el cron de cada 15 minutos (`runSurveyCron`, aparte de la tanda y nunca con
+  `MAILS_PAUSED`), por `deliver()` con `optOut` (respeta «No fui yo» y los rebotes de
+  `email_suppressions`) y `Auto-Submitted`. Una vez por orden: la reserva es la de los
+  recordatorios (`reminder_sends`, id `encuesta`), con sus reintentos; por eso un envío fallido de
+  la encuesta se cuenta en «Para revisar» como un recordatorio fallido y se ve en la ficha de la
+  persona como recordatorio `encuesta`.
+- **El mail:** textos fijos en `encuesta/email.js` (todavía no es plantilla editable). El asunto y
+  el preencabezado no llevan el título del evento. El botón lleva a `/encuesta/<orden>.<firma>`
+  (`signLink`, clave `survey_link_key`).
+- **La página:** 5 preguntas, todas opcionales (`SURVEY_QUESTIONS`): puntaje 1 a 5, qué te gustó,
+  qué mejorar, ¿volverías? (sí / tal vez / no) y algo más. Formulario común, anda sin JavaScript.
+  El link sirve una vez; después dice «Ya contestaste».
+- **Anónima:** la respuesta se guarda sin la orden y solo con el día; aparte, solo la marca «esta
+  orden ya contestó» (`encuesta/store.js`).
+- **Por evento:** Editar → Entradas → «Mandar la encuesta después del evento (prototipo)» (se ve
+  solo con el interruptor). Destildada escribe `encuesta: false` en el evento; sin columna nueva.
+- **En el panel:** ficha del evento → Mails → **Encuesta** (solo admins, solo con el interruptor):
+  cuándo sale, a cuántes les salió, respuestas (cantidad, promedio, distribución, ¿volverías?, los
+  textos) y la vista previa del mail. En `vite dev`, «Mandarla ahora» la manda sin esperar.
+- **Dónde se guardan las respuestas:** hoy en memoria del servidor de desarrollo (se pierden al
+  reiniciarlo). Ninguna tabla existente sirve sin forzarla: `ticket_settings` se lee entera en cada
+  venta, y `order_answers` va atada a la orden. La migración que se propone está en el PR del
+  prototipo.
+
 ### La lista de supresión
 
 Resend guarda una lista de direcciones a las que no manda más: las que rebotaron de forma
