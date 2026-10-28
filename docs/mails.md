@@ -235,8 +235,10 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
   los envíos en tandas marcan 'sent' lo simulado, y no se vuelve a tomar. Las órdenes gratis pasan
   además por el tope de mails a una dirección sin confirmar (5 por día): el reintento no lo saltea.
 - **Una dirección que falla siempre** (Resend la rechaza) se intenta como mucho 3 veces por día
-  (`rate_limits`, la clave lleva el id de la orden) y no frena a las demás. Después de 48 h queda
-  en «mails sin enviar» del Inicio para «Reenviar» a mano.
+  (`rate_limits`, la clave lleva el id de la orden, ventana del día UTC). Cada corrida lee como
+  mucho 20 candidatas (4 por mail) y la consulta ya deja afuera las que gastaron sus 3 intentos del
+  día, así que esas no ocupan lugar ni frenan a las más nuevas; vuelven a probar al día UTC
+  siguiente. Después de 48 h queda en «mails sin enviar» del Inicio para «Reenviar» a mano.
 - **Si Resend dice «ahora no»** (cupo terminado, demasiados por segundo o un 5xx), ese intento no
   cuenta para los 3 del día y la corrida se corta (ver abajo).
 
