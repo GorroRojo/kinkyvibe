@@ -183,8 +183,9 @@ recorrer toda la biblioteca está Contenido → Biblioteca (abajo). Pestañas:
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
   largo 2000 px) y la pasa a WEBP, y hace sus dos copias chicas para las tarjetas (arriba). Si el
-  navegador no sabe hacer WEBP (Safari), la pasa a JPEG; si no puede dibujarla (o un GIF, que puede
-  ser animado), sube el original, y el servidor le saca los metadatos (arriba).
+  navegador no sabe hacer WEBP (Safari), una foto JPEG la pasa a JPEG, y un PNG, WEBP o AVIF lo
+  sube como está (puede tener transparencias, que en JPEG saldrían negras); si no puede dibujarla
+  (o un GIF, que puede ser animado), sube el original, y el servidor le saca los metadatos (arriba).
 - **Buscar**: por nombre o texto alternativo (búsqueda de la base, sin tildes).
 - **De este evento** (o «De este material/serie/perfil»): las imágenes que ya usa ese objeto; en un
   evento, también las de su serie (la etiqueta y las otras ediciones).

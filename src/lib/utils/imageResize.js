@@ -1,8 +1,9 @@
 /**
  * Achicar una imagen en el navegador antes de subirla a la biblioteca (docs/imagenes.md): el lado
  * más largo queda en {@link MAX_SIDE} px como mucho y se pasa a WEBP. Así se sube poco y el sitio
- * carga rápido. Si el navegador no sabe hacer WEBP (Safari), se pasa a JPEG: dibujada de nuevo, la
- * foto ya no lleva sus datos ocultos (GPS, fecha). Si no puede dibujarla, o si el resultado pesa
+ * carga rápido. Si el navegador no sabe hacer WEBP (Safari), una foto JPEG se pasa a JPEG: dibujada
+ * de nuevo, ya no lleva sus datos ocultos (GPS, fecha); un PNG, WEBP o AVIF va como está (puede
+ * tener transparencias, que en JPEG saldrían negras). Si no puede dibujarla, o si el resultado pesa
  * más que el original sin haber hecho falta achicarlo, se sube el original (el servidor le saca
  * igual los metadatos a un JPEG o un PNG: media/metadata.js).
  *
@@ -139,8 +140,12 @@ export async function prepareImage(file, env = {}) {
 		ctx.imageSmoothingQuality = 'high';
 		ctx.drawImage(bitmap, 0, 0, size.width, size.height);
 		let blob = await toWebp(canvas, WEBP_QUALITY);
-		// Safari no hace WEBP desde un canvas (devuelve PNG): JPEG, en lugar del original tal cual.
-		if (blob && blob.type !== 'image/webp') blob = await toBlob(canvas, 'image/jpeg', JPEG_QUALITY);
+		// Safari no hace WEBP desde un canvas (devuelve PNG): una foto JPEG sale JPEG, en lugar del
+		// original tal cual. Un PNG, WEBP o AVIF no: puede tener partes transparentes, que en JPEG
+		// saldrían negras; va el original (al PNG el servidor le saca igual los metadatos).
+		if (blob && blob.type !== 'image/webp') {
+			blob = file.type === 'image/jpeg' ? await toBlob(canvas, 'image/jpeg', JPEG_QUALITY) : null;
+		}
 		const converted = keepConverted(file, blob, size.scaled);
 		// Las copias se miden contra lo que se sube (el WEBP achicado o el original).
 		const up = converted ? size : { width: bitmap.width, height: bitmap.height };

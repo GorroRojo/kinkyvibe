@@ -44,7 +44,10 @@ las capturas y archive.org. Eso no se borra solo.
    «Sacar de la biblioteca»). Para que deje de verse antes de un día, purgar en Cloudflare
    (dashboard → Caching → Configuration → Custom Purge, por URL) la dirección de la foto, sus copias
    chicas (`…-360.webp`, `…-720.webp`) y las variantes `/cdn-cgi/image/…` de las vistas previas.
-   Lo que quedó en el navegador de alguien no se puede borrar.
+   Lo que quedó en el navegador de alguien no se puede borrar. Si la persona pide que la foto se
+   borre de verdad (no solo que deje de verse), los bytes se borran a mano de R2, **del bucket
+   original y de la copia nocturna**, cuando el bloqueo de 30 días lo deja: ver «Si una persona
+   pide que saquemos su foto» en `docs/imagenes.md`.
 3. **El nombre en los eventos y el material.** Ocultar el perfil lo saca de los créditos con
    perfil, pero no de «Organiza» ni de «Autore» cuando el nombre está escrito como texto: hay que
    editar evento por evento y sacarlo o poner «une organizadore». Buscarlo con el buscador del
@@ -69,5 +72,6 @@ las capturas y archive.org. Eso no se borra solo.
 - El perfil oculto o borrado sigue en la base (borrado suave), con sus relaciones, para poder
   deshacer. Las versiones viejas en `object_revisions` las ven solo les admins.
 - El registro de Actividad no se borra desde el panel.
-- Borrar del todo (la fila, el historial, el archivo en R2) no tiene botón: es una decisión aparte
-  de gorrite.
+- La foto queda en R2 (en el bucket original y en la copia nocturna, que nunca borra sola) hasta
+  que alguien con acceso a Cloudflare borre los bytes a mano (paso 2).
+- Borrar del todo la fila y el historial no tiene botón: es una decisión aparte de gorrite.
