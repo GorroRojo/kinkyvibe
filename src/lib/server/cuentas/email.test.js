@@ -97,4 +97,11 @@ describe('mails con código: el código se puede detectar y copiar', () => {
 		expect(parts?.[3]).toBe('482913');
 		expect(m.html.split('482913')).toHaveLength(2);
 	});
+
+	// Pedir otro código anula el anterior: si el primero llega tarde, que se sepa cuál usar.
+	it.each(cases)('%s: avisa que vale el último código (texto y HTML)', (_, m) => {
+		const last = 'Si pediste más de un código, usá el último: los anteriores ya no sirven.';
+		expect(m.text.split('\n')).toContain(last);
+		expect(m.html).toContain(last);
+	});
 });

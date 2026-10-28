@@ -1,5 +1,5 @@
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { buildIcsFeed } from '$lib/utils/icsFeed.js';
+import { buildIcsFeed, publicIcsSince } from '$lib/utils/icsFeed.js';
 import { TAGGED_CACHE } from '$lib/server/etiquetas/cache.js';
 import { getDB } from '$lib/server/db';
 import { feedVenues } from '$lib/server/amigues/venues.js';
@@ -18,7 +18,8 @@ export async function GET({ platform }) {
 		getDB(platform),
 		allPosts.filter((p) => p.meta.category === 'calendario').map((p) => String(p.meta.postID))
 	);
-	return new Response(buildIcsFeed(allPosts, { venues }), {
+	// De los pasados, solo los de los últimos 90 días (`publicIcsSince`, docs/seo.md).
+	return new Response(buildIcsFeed(allPosts, { venues, since: publicIcsSince() }), {
 		headers: { 'Content-Type': 'text/calendar; charset=utf-8', ...TAGGED_CACHE }
 	});
 }

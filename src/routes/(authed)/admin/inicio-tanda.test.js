@@ -920,14 +920,14 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await load(fakeEvent(page.platform));
 		expect(page.trips()).toBe(2);
 		expect(page.stats.batches).toBe(2);
-		// Las sentencias de este escenario (no crecen sin que se note): 20 en la primera tanda (con
-		// la de los eventos «Online» con lugar, las 2 de las etiquetas y la de los mails de la lista
-		// de espera que no salieron, de «Para revisar»; la de la última revisión del importador se
+		// Las sentencias de este escenario (no crecen sin que se note): 21 en la primera tanda (con
+		// la de los eventos «Online» con lugar, las 2 de las etiquetas, la de los mails de la lista
+		// de espera que no salieron y la del aviso de cupo de Resend, de «Para revisar»; la de la última revisión del importador se
 		// fue con él, decisión 0032) y 19 en la segunda (totales, ingresos, links, 3 de envíos
 		// fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita, 2 por
 		// evento de hoy para el gráfico y 1 de lo que queda por devolver de los eventos cancelados,
 		// porque el escenario tiene uno).
-		expect(page.stats.prepared).toBe(20 + 20);
+		expect(page.stats.prepared).toBe(21 + 20);
 
 		// El de antes, con las mismas funciones: una ida por consulta (acá sin las de la lista de
 		// eventos, que son de mentira).
@@ -941,11 +941,12 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await menuCounts(layout.platform);
 		expect(layout.trips()).toBe(2);
 		expect(layout.stats.batches).toBe(2);
-		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 11 de
+		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 12 de
 		// «Para revisar» que no dependen de los eventos (con la de los eventos «Online» con lugar, que
-		// es también su contador, y la de los mails de la lista de espera que no salieron). Segunda: totales, links, 3 de envíos fallidos, 4 recordatorios
+		// es también su contador, la de los mails de la lista de espera que no salieron y la del aviso
+		// de cupo de Resend). Segunda: totales, links, 3 de envíos fallidos, 4 recordatorios
 		// vencidos y lo que queda por devolver del evento cancelado.
-		expect(layout.stats.prepared).toBe(5 + 11 + 10);
+		expect(layout.stats.prepared).toBe(5 + 12 + 10);
 
 		// Sin eventos que vienen con entradas, la segunda tanda no tiene nada: una sola ida.
 		fake.ticketed = [];

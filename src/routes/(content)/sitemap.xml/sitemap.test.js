@@ -37,20 +37,60 @@ describe('sitemap helpers', () => {
 	});
 
 	test('render incluye las entradas de la wiki, con lastmod sólo si tienen fecha', () => {
-		const now = new Date('2026-01-01T00:00:00Z');
 		const xml = render(
 			['/wiki'],
 			[post('/material/a', { published_date: '2024-01-01T00:00:00Z' })],
-			[post('/wiki/BDSM'), post('/wiki/bondage', { updated_date: '2023-11-04T00:00:00Z' })],
-			now
+			[post('/wiki/BDSM'), post('/wiki/bondage', { updated_date: '2023-11-04T00:00:00Z' })]
 		);
 		expect(xml).toContain('<loc>https://kinkyvibe.ar/material/a</loc>');
+		expect(xml).toMatch(/<loc>https:\/\/kinkyvibe\.ar\/wiki\/BDSM<\/loc>\s*<\/url>/);
 		expect(xml).toMatch(
-			/<loc>https:\/\/kinkyvibe\.ar\/wiki\/BDSM<\/loc>\s*<priority>0\.5<\/priority>\s*<\/url>/
+			/<loc>https:\/\/kinkyvibe\.ar\/wiki\/bondage<\/loc>\s*<lastmod>2023-11-04T00:00:00\.000Z<\/lastmod>/
 		);
-		expect(xml).toMatch(
-			/<loc>https:\/\/kinkyvibe\.ar\/wiki\/bondage<\/loc>\s*<priority>0\.5<\/priority>\s*<lastmod>2023-11-04T00:00:00\.000Z<\/lastmod>/
-		);
+	});
+
+	test('render no usa <priority> (Google la ignora)', () => {
+		const xml = render(['/', '/material'], [post('/material/a')], [post('/wiki/BDSM')]);
+		expect(xml).not.toContain('priority');
+	});
+
+	test('una publicación sin fecha va sin lastmod (nunca la hora del pedido)', () => {
+		const xml = render([], [post('/material/sin-fecha')], []);
+		expect(xml).toMatch(/<loc>https:\/\/kinkyvibe\.ar\/material\/sin-fecha<\/loc>\s*<\/url>/);
+	});
+
+	test('el lastmod de una sección es la fecha más nueva de lo que lista, y no cambia con la hora', async () => {
+		vi.useFakeTimers();
+		try {
+			const pages = ['/', '/material', '/calendario', '/amigues', '/wiki'];
+			const posts = [
+				post('/material/vieja', { published_date: '2024-01-01T00:00:00Z' }),
+				post('/material/nueva', {
+					published_date: '2024-02-01T00:00:00Z',
+					updated_date: '2025-03-04T00:00:00Z'
+				}),
+				// Las que redirigen no están en el sitemap: tampoco cuentan para la fecha.
+				post('/material/en-la-tienda', { published_date: '2026-01-01T00:00:00Z', redirect: true }),
+				post('/calendario/fiesta', { published_date: '2025-06-07T00:00:00Z' })
+			];
+			vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+			const first = render(pages, posts, []);
+			vi.setSystemTime(new Date('2026-05-05T12:00:00Z'));
+			const second = render(pages, posts, []);
+			expect(first).toBe(second);
+			expect(first).toMatch(
+				/<loc>https:\/\/kinkyvibe\.ar\/material<\/loc>\s*<lastmod>2025-03-04T00:00:00\.000Z<\/lastmod>/
+			);
+			expect(first).toMatch(
+				/<loc>https:\/\/kinkyvibe\.ar\/calendario<\/loc>\s*<lastmod>2025-06-07T00:00:00\.000Z<\/lastmod>/
+			);
+			// Sin nada que listar, o sin ser la lista de una sección: sin lastmod.
+			expect(first).toMatch(/<loc>https:\/\/kinkyvibe\.ar\/amigues<\/loc>\s*<\/url>/);
+			expect(first).toMatch(/<loc>https:\/\/kinkyvibe\.ar\/<\/loc>\s*<\/url>/);
+			expect(first).toMatch(/<loc>https:\/\/kinkyvibe\.ar\/wiki<\/loc>\s*<\/url>/);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });
 
@@ -67,6 +107,21 @@ test('render deja afuera las publicaciones que redirigen a otro sitio', () => {
 	expect(xml).not.toContain('en-la-tienda');
 });
 
+test('render deja afuera los perfiles que pidieron no aparecer en buscadores', () => {
+	const xml = render(
+		['/amigues'],
+		[
+			post('/amigues/Persona_Inventada', { published_date: '2025-01-01T00:00:00Z' }),
+			post('/amigues/Sin_Buscadores', { noindex: true, published_date: '2026-02-02T00:00:00Z' })
+		],
+		[]
+	);
+	expect(xml).toContain('<loc>https://kinkyvibe.ar/amigues/Persona_Inventada</loc>');
+	expect(xml).not.toContain('Sin_Buscadores');
+	// Tampoco cuenta para la fecha de /amigues (no se nota cuándo lo editaron).
+	expect(xml).not.toContain('2026-02-02');
+});
+
 describe('GET /sitemap.xml', () => {
 	test('lista los posts y las entradas de la Kinkipedia', async () => {
 		const res = await GET(/** @type {any} */ ({}));
@@ -78,5 +133,13 @@ describe('GET /sitemap.xml', () => {
 		expect(xml).toContain('<loc>https://kinkyvibe.ar/material/sin-fecha</loc>');
 		expect(xml).not.toContain('Invalid Date');
 		expect(xml.match(/<url>/g)?.length).toBe(xml.match(/<\/url>/g)?.length);
+	});
+
+	test('la raíz va una sola vez y /todo no está (va con noindex)', async () => {
+		const xml = await (await GET(/** @type {any} */ ({}))).text();
+		expect(xml.match(/<loc>https:\/\/kinkyvibe\.ar\/?<\/loc>/g)).toEqual([
+			'<loc>https://kinkyvibe.ar/</loc>'
+		]);
+		expect(xml).not.toContain('/todo</loc>');
 	});
 });

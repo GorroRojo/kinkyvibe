@@ -33,22 +33,21 @@
 	$: hcardContact = contactItems(p);
 </script>
 
+<!-- «No aparecer en buscadores» (data.noindex): `noindex` y una vista previa reducida, sin la foto
+     ni la presentación (la tarjeta del sitio y «<nombre> en Amigues de Kinky Vibe»). La página de
+     abajo no cambia. -->
 <ProfileHead
 	title={p.title}
 	pronoun={p.pronoun}
-	summary={p.bio}
-	image={p.image}
+	summary={data.noindex ? null : p.bio}
+	image={data.noindex ? null : p.image}
 	{url}
-	published={p.publishedDate}
-	modified={p.updatedDate ?? p.publishedDate}
-	authors={p.authors}
-	tags={p.tags}
 	canonical={data.canonical}
-	noindex={Boolean(data.unlisted)}
+	noindex={Boolean(data.unlisted || data.noindex)}
 />
 
 <article class="h-entry h-resume" data-kind={p.kind}>
-	{#if data.badges.hidden || data.badges.pending || data.badges.membersOnly}
+	{#if data.badges.hidden || data.badges.pending || data.badges.membersOnly || data.badges.noindex}
 		<p class="badges">
 			{#if data.badges.hidden}<span>Oculto: lo ven solo les admins</span>{/if}
 			{#if data.badges.pending}<span
@@ -56,6 +55,10 @@
 					o sos admin.</span
 				>{/if}
 			{#if data.badges.membersOnly}<span>Solo para personas con cuenta</span>{/if}
+			{#if data.badges.noindex}<span
+					>No aparece en buscadores: se ve en el sitio, pero les pedimos a Google y compañía que no
+					lo muestren. Lo ves porque lo gestionás o sos admin.</span
+				>{/if}
 		</p>
 	{/if}
 	<ProfileHeader title={p.title} image={p.image} pronoun={p.pronoun}>
@@ -88,7 +91,7 @@
 		</address>
 	{/if}
 	{#if p.tags.length}
-		<ProfileTags tags={p.tags} />
+		<ProfileTags tags={p.tags} wikiTags={data.wikiTags ?? []} />
 	{/if}
 	{#if p.bio}
 		<div class="content">
@@ -109,7 +112,7 @@
 	</div>
 	{#if contact.length}
 		<section class="content contact">
-			<h3>Contacto</h3>
+			<h2 class="like-h3">Contacto</h2>
 			<ul>
 				{#each contact as c (c.href)}
 					<li>
@@ -131,7 +134,7 @@
 	{/if}
 	{#if data.members}
 		<section class="content members">
-			<h3>Integrantes</h3>
+			<h2 class="like-h3">Integrantes</h2>
 			{#if data.members.length}
 				<ul>
 					{#each data.members as m (m.slug)}
@@ -150,7 +153,7 @@
 {/if}
 
 {#if data.location && data.venueEvents.length}
-	<div class="content"><h3>Eventos en {p.title}</h3></div>
+	<div class="content"><h2 class="like-h3">Eventos en {p.title}</h2></div>
 	<PostList posts={data.venueEvents} />
 {/if}
 

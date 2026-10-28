@@ -170,6 +170,19 @@
 			</dd>
 		{/if}
 	</div>
+{:else if title}
+	<!-- Sin nada más que mostrar (una serie sin descripción, por ejemplo), la página igual tiene su
+	     título visible, igual que el de arriba pero sin descripción, alias ni «Ver también». -->
+	<div class="all" class:single class:title style:--color={'var(--1)'}>
+		<dt id={name} class="onlyTitle">
+			<div class="itemtitle">
+				<h1>
+					{tag?.icon ?? ''}
+					<MiniMarkup value={name[0].toLocaleUpperCase() + name.slice(1)} />
+				</h1>
+			</div>
+		</dt>
+	</div>
 {/if}
 
 <mark hidden></mark>

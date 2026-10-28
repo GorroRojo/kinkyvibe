@@ -57,11 +57,12 @@ const icsDate = (v) =>
 const MAIN_ROUTES = [
 	// The home <h1> is a hidden h-card (microformats), so check the first visible section title.
 	{ path: '/', title: /^Kinky Vibe$/, heading: 'Talleres y eventos', level: 2 },
-	{ path: '/calendario', title: /^Calendario · Kinky Vibe$/ },
-	{ path: '/material', title: /Artículos, links y descargables/ },
-	{ path: '/amigues', title: /Emprendimientos y profesionales/ },
-	{ path: '/wiki', title: /Kinkipedia/, heading: 'Kinkipedia' },
-	{ path: '/todo', title: /^Kinky Vibe$/ },
+	// The list titles are the panel texts (`<lista>.heading`, previewTexts.js) plus « · Kinky Vibe».
+	{ path: '/calendario', title: /^Calendario · .+ · Kinky Vibe$/ },
+	{ path: '/material', title: /^Material · .+ · Kinky Vibe$/ },
+	{ path: '/amigues', title: /^Amigues · .+ · Kinky Vibe$/ },
+	{ path: '/wiki', title: /^Kinkipedia · .+ · Kinky Vibe$/, heading: 'Kinkipedia' },
+	{ path: '/todo', title: /^Todo el contenido · .+ · Kinky Vibe$/ },
 	{ path: '/calendario/someter-2026-09', title: /Someter/, heading: /Someter/ },
 	{ path: '/material/6-tips-para-tops', title: /6 tips para tops/, heading: '6 tips para tops' },
 	{ path: '/amigues/AUCH', title: /AUCH/, heading: /AUCH/ },
@@ -168,10 +169,15 @@ test.describe('calendario', () => {
 		// changing month is client-only: the loads don't read the query string
 		const dataRequests = [];
 		page.on('request', (r) => r.url().includes('__data.json') && dataRequests.push(r.url()));
-		await page.getByRole('button', { name: 'Next Month' }).click();
+		// Dentro del rango de meses con eventos las flechas son links rastreables (docs/seo.md). Hay
+		// eventos pasados en la semilla, así que el mes anterior siempre está en el rango (el
+		// siguiente depende de la fecha: puede no haber eventos después).
+		const prev = page.getByRole('link', { name: 'Previous Month' });
+		await expect(prev).toHaveAttribute('href', /^\/calendario\?viewdate=\d{4}-\d{2}$/);
+		await prev.click();
 		await expect(page).toHaveURL(/[?&]viewdate=\d{4}-\d{2}/);
 		await expect(month).not.toHaveText(first);
-		await page.getByRole('button', { name: 'Previous Month' }).click();
+		await page.getByRole('link', { name: 'Next Month' }).click();
 		await expect(month).toHaveText(first);
 		await expect(page).not.toHaveURL(/viewdate/);
 		await page.goBack();
@@ -179,6 +185,10 @@ test.describe('calendario', () => {
 		await page.goBack();
 		await expect(month).toHaveText(first);
 		expect(dataRequests).toEqual([]);
+		// Fuera del rango, la flecha sigue siendo un botón: no hay links a meses vacíos sin fin.
+		await page.goto('/calendario?viewdate=1999-01');
+		await expect(page.getByRole('button', { name: 'Previous Month' })).toBeVisible();
+		await expect(page.locator('a[href*="viewdate=1998-12"]')).toHaveCount(0);
 	});
 
 	test('/calendario.ics es un iCalendar válido con VEVENTs', async ({ request }) => {
@@ -190,7 +200,23 @@ test.describe('calendario', () => {
 		const { lines, events } = parseIcs(text);
 		expect(lines[0]).toBe('BEGIN:VCALENDAR');
 		expect(lines.at(-1)).toBe('END:VCALENDAR');
-		expect(events.length).toBeGreaterThan(10);
+		expect(text).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT1H');
+		// De los pasados van solo los de los últimos 90 días (docs/seo.md). La semilla es fija y el
+		// tiempo corre, así que en vez de un número fijo de eventos: están todos los eventos listados
+		// (no cancelados) que empezaron en esa ventana, y ninguno que haya terminado antes.
+		const DAY = 24 * 60 * 60 * 1000;
+		const since = Date.now() - 90 * DAY;
+		const posts = await (await request.get('/api/posts')).json();
+		const recent = posts
+			.filter((/** @type {any} */ p) => p.meta.category === 'calendario')
+			.filter((/** @type {any} */ p) => p.meta.status !== 'cancelado')
+			// un día de margen por la zona horaria (el .ics lleva la hora sin zona)
+			.filter((/** @type {any} */ p) => Date.parse(p.meta.start) >= since + DAY)
+			.map((/** @type {any} */ p) => `https://kinkyvibe.ar${p.path}`);
+		const urls = events.map((ev) => ev.URL);
+		for (const url of recent) expect(urls, url).toContain(url);
+		for (const ev of events) expect(icsDate(ev.DTEND), ev.URL).toBeGreaterThan(since - DAY);
+		expect(events.length).toBeGreaterThanOrEqual(recent.length);
 		for (const ev of events) {
 			expect(ev.SUMMARY, JSON.stringify(ev)).toBeTruthy();
 			expect(ev.URL).toMatch(/^https:\/\/kinkyvibe\.ar\/calendario\//);
@@ -448,9 +474,10 @@ test.describe('salud', () => {
 });
 
 test.describe('errores', () => {
-	test('/wiki/<término inexistente> no rompe', async ({ request }) => {
+	test('/wiki/<término inexistente> devuelve 404', async ({ request }) => {
+		// Ninguna etiqueta se llama así: 404 de verdad, no una página vacía con 200.
 		const res = await request.get('/wiki/esto-no-existe-xyz');
-		expect(res.status()).toBeLessThan(500);
+		expect(res.status()).toBe(404);
 	});
 
 	// Regression test: missing posts used to bubble up as a 500 instead of a 404.
@@ -579,7 +606,7 @@ test.describe('experiencia', () => {
 			.first()
 			.click();
 		await expect(page).toHaveURL(/\/calendario$/);
-		await expect(page).toHaveTitle(/^Calendario · Kinky Vibe$/);
+		await expect(page).toHaveTitle(/^Calendario · .+ · Kinky Vibe$/);
 		await expect.poll(() => page.evaluate(() => window.__mainAnimations.length)).toBe(2);
 		const [delay, duration] = await page.evaluate(() => window.__mainAnimations);
 		expect(delay).toBe(0);

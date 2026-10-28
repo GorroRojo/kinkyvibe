@@ -32,7 +32,7 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
 
 - **`wrangler.toml`**: el Worker `kinkyvibe`. `main = "worker/index.js"`, archivos estáticos en
   `.svelte-kit/cloudflare` (binding `ASSETS`), `nodejs_compat`, crons, D1 `DB` (producción),
-  R2 `BACKUPS`, y un bloque `[previews]` con la base `kinkyvibe-preview` para los Previews.
+  R2 `BACKUPS`, `MEDIA` y `MEDIA_COPIA`, y un bloque `[previews]` con la base `kinkyvibe-preview` para los Previews.
   `keep_vars = true` para que un deploy no borre las variables cargadas en el panel.
 - **`worker/index.js`**: el adapter de SvelteKit genera un Worker que solo tiene `fetch`. Este
   archivo lo envuelve y le suma `scheduled()` (los crons). Las páginas se atienden igual.
@@ -46,8 +46,9 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
     corre la misma función que corría con el Worker aparte.
   - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos. Después,
     sin hacer fallar la corrida: el chequeo de integridad de los objetos, el resumen mensual de las
-    visitas y la limpieza de las sesiones de cuentas que ya no tienen cookie
-    ([cuentas.md](cuentas.md)).
+    visitas, la limpieza de las sesiones de cuentas que ya no tienen cookie
+    ([cuentas.md](cuentas.md)) y la copia de la biblioteca al bucket `kinkyvibe-media-copia`
+    (binding `MEDIA_COPIA`; [imagenes.md](imagenes.md#copia-de-la-biblioteca-y-bloqueo-contra-borrados)).
   - Los crons **solo corren en producción**; los Previews no los ejecutan.
 - **Modo demo en los Previews**: `__DEPLOY_BRANCH__` se fija al compilar con `WORKERS_CI_BRANCH`
   (la pone Workers Builds; `src/lib/server/deployBranch.js`). `CF_PAGES_BRANCH`, la de Pages,
@@ -403,15 +404,22 @@ de una versión del código, más rápido: **Worker → Deployments → (versió
 - **Cuánto tiempo:** todos los de los **últimos 30 días**; el primero de **cada mes durante 12
   meses**; y el primero de **cada año, para siempre**. Los manuales y cualquier otro archivo del
   bucket **nunca** se borran solos. Un backup viejo solo se borra después de que el de esa noche
-  quedó guardado y verificado. (Con la base actual cada archivo pesa unos pocos KB: el costo de R2
-  es cero en la práctica.)
+  quedó guardado y verificado. **Si borrar los viejos falla, la corrida no falla**: el backup ya
+  está guardado, el log dice `[backup] la poda de los backups viejos falló` y la noche siguiente se
+  vuelve a intentar (`nightlyBackup` en `src/lib/server/backup/index.js`). (Con la base actual cada
+  archivo pesa unos pocos KB: el costo de R2 es cero en la práctica.)
 - **Además** D1 tiene **Time Travel**: volver la base a cualquier minuto de los últimos 30 días,
   sin hacer nada de antemano.
 - **Extra recomendado:** una vez por mes, bajá el último backup a tu compu
   (`npx wrangler r2 object get kinkyvibe-backups/d1/AAAA-MM-DD.sql.gz --remote --file backup.sql.gz`),
   así también hay una copia fuera de Cloudflare. Y, si querés que ni un error humano pueda borrar
-  backups, en el bucket se puede activar un **Bucket lock** (R2 → bucket → Settings) para el
-  prefijo `d1/`.
+  backups, en el bucket se puede activar un **Bucket lock** (R2 → bucket → Settings):
+  - `d1/manual/`: sin vencimiento (los manuales nunca se borran solos).
+  - `d1/`: **28 días como mucho, nunca 30 o más**. La poda borra los nocturnos a los 30 días; con
+    un bloqueo más largo, R2 no la dejaría borrarlos y quedarían para siempre (la corrida igual
+    sale bien, pero el log avisaría de la poda todas las noches).
+  - Con un bloqueo, lo bloqueado no se puede borrar ni pisar hasta que vence, y el bucket no se
+    puede vaciar ni borrar mientras tenga algo bloqueado.
 
 ### Restaurar un backup
 

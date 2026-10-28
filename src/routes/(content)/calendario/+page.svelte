@@ -3,6 +3,7 @@
 	import { linkPreviewOf, upcomingDescription } from '$lib/utils/seo.js';
 	import { userConfig } from '$lib/utils/stores.js';
 	import {
+		calendarMonthHref,
 		currentMonth,
 		defaultCalendarMonth,
 		isCalendarMonth,
@@ -115,13 +116,7 @@
 		!!data.firstMonth &&
 		prev_month >= data.firstMonth;
 	/** @param {string} month yyyy-MM */
-	const monthHref = (month) => {
-		const url = new URL($page.url);
-		url.hash = '';
-		if (month === default_month) url.searchParams.delete('viewdate');
-		else url.searchParams.set('viewdate', month);
-		return url.pathname + url.search;
-	};
+	const monthHref = (month) => calendarMonthHref($page.url, month, default_month);
 	/** @param {MouseEvent} e */
 	async function showPrevMonth(e) {
 		if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
@@ -136,7 +131,7 @@
 </script>
 
 <svelte:head>
-	<title>Calendario · Kinky Vibe</title>
+	<title>{previewTexts['calendario.heading']} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <ListSeoHead
@@ -152,7 +147,7 @@
 
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Calendario</h1>
-<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
+<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" ics="/calendario.ics" />
 
 <!-- Los próximos eventos en una fila arriba del calendario, como antes (pedido de gorrite, 5/10).
      La imagen de la primera tarjeta es el LCP: las dos primeras cargan enseguida (docs/seo.md). -->
@@ -169,7 +164,12 @@
 
 <div id="container">
 	<div id="calendar">
-		<CalendarHeader {view_date} {default_month} />
+		<CalendarHeader
+			{view_date}
+			{default_month}
+			first_month={data.firstMonth}
+			last_month={data.lastMonth}
+		/>
 		<button
 			type="button"
 			class="pill-btn ghost small grid-toggle tap-target"

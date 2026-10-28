@@ -204,9 +204,19 @@ function linkedVenueView(link, visible, approved) {
 }
 
 /**
+ * Lo que muestran las páginas de un evento cuando no se pudo leer su lugar: como un lugar oculto
+ * («Lugar a confirmar» y, en los datos estructurados, a lo sumo la región de sus etiquetas). Así
+ * no sale el «Dónde» del .md, que en un evento con lugar puede tener una dirección que el nivel
+ * del lugar esconde.
+ * @type {Readonly<VenueView>}
+ */
+export const VENUE_UNREADABLE = Object.freeze({ level: 'hidden' });
+
+/**
  * "Sucede en" para las páginas de un evento (la del evento, /entradas y /compartir): el lugar
- * según su privacidad para quien mira. `null` sin base, si no tiene lugar (o si la base falla):
- * la página muestra lo de su .md.
+ * según su privacidad para quien mira. `null` sin base o si no tiene lugar: la página muestra lo
+ * de su .md. Si la base falla, {@link VENUE_UNREADABLE} (nunca `null`: no se sabe si el evento
+ * tiene un lugar que esconde su dirección, así que tampoco sale el «Dónde» del .md).
  *
  * @param {D1Database | null | undefined} db
  * @param {string} eventSlug
@@ -232,7 +242,7 @@ export async function eventPageVenue(db, eventSlug, locals) {
 		return await publicVenueForEvent(db, eventSlug, viewer);
 	} catch (e) {
 		console.error('[calendario] no se pudo leer el lugar del evento', e);
-		return null;
+		return { ...VENUE_UNREADABLE };
 	}
 }
 
@@ -274,6 +284,33 @@ export async function buyerLocation(db, eventSlug) {
 		return { location_name: venue.name, location: venue.address || undefined };
 	} catch (e) {
 		console.error('[lugares] no se pudo leer el lugar para quien compró', e);
+		return null;
+	}
+}
+
+/**
+ * «Cómo llegar» y «Accesibilidad» del lugar de un evento para los mails de quien compró (entradas y
+ * recordatorios): **solo lo que la página del evento le muestra a cualquiera** (ANON), o sea solo
+ * en el nivel «Nombre + dirección» y con el lugar visible y aprobado (`venueView`). En los demás
+ * niveles son textos libres que pueden nombrar el lugar, y el sitio tampoco se los muestra a quien
+ * compró (a quien compró solo le da además el nombre y la dirección: {@link buyerLocation}).
+ * `null` sin base, sin lugar, sin ninguno de los dos textos o si algo falla (nunca tira: el mail
+ * sale sin el recuadro).
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} eventSlug
+ * @returns {Promise<{ howTo: string | null, accessibility: string | null } | null>}
+ */
+export async function venueNotesForMail(db, eventSlug) {
+	if (!db) return null;
+	try {
+		const view = await publicVenueForEvent(db, eventSlug, ANON);
+		if (view?.level !== 'public') return null;
+		const howTo = view.howTo ?? null;
+		const accessibility = view.accessibility ?? null;
+		return howTo || accessibility ? { howTo, accessibility } : null;
+	} catch (e) {
+		console.error('[lugares] no se pudo leer cómo llegar para el mail', e);
 		return null;
 	}
 }

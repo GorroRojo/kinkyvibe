@@ -4,25 +4,26 @@
 	import DbProfile from '$lib/components/amigues/DbProfile.svelte';
 	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ParticipacionesPorRol from '$lib/components/ParticipacionesPorRol.svelte';
-	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	/** @type {any} */
 	export let data;
 	/** @type {any} */
 	export let form;
 	// El perfil sale de la base (+page.server.js, «solo base»).
-	currentPostData.set({ category: 'amigues', path: $page.url.pathname });
 </script>
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js); el lugar, según
-     su privacidad. -->
-<LDTag
-	schema={profileSchema({
-		profile: data.profile,
-		canonical: data.canonical,
-		location: data.location
-	})}
-/>
+     su privacidad. Una persona que pidió no aparecer en buscadores no lleva ninguno (no hay que
+     ayudar a que la encuentren ni a unir su perfil con sus otras redes). -->
+{#if !data.noindex}
+	<LDTag
+		schema={profileSchema({
+			profile: data.profile,
+			canonical: data.canonical,
+			location: data.location
+		})}
+	/>
+{/if}
 <a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <DbProfile {data} claimResult={form?.claim} url={$page.url.href} />
 <!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, `data.follow` es null y no se ve. Viene con

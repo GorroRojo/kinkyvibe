@@ -38,8 +38,6 @@ export const TIP_MIN = 500;
 export const TIP_MAX = 500_000;
 /** Largo máximo del mensaje opcional (solo lo ven les admins). */
 export const TIP_MESSAGE_MAX = 280;
-/** Categorías de publicación que pueden tener el bloque de propina. */
-export const TIP_CATEGORIES = Object.freeze(['material', 'calendario']);
 /** Destinos que puede tener una propina guardada (los viejos `kinkyvibe` se siguen leyendo). */
 export const TIP_DESTINATIONS = Object.freeze(/** @type {const} */ (['kinkyvibe', 'fondo']));
 /** El destino de toda propina nueva: el Fondo Kinky Vibe (ya no se elige). */
@@ -59,26 +57,66 @@ export const FONDO_SITE_URL = 'https://fondo.kinkyvibe.ar';
 
 /** Slug de una publicación (como los nombres de archivo de src/lib/posts). */
 export const TIP_SLUG_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,150}$/;
+/**
+ * Dirección de una página de la Kinkipedia: el id de la etiqueta con guiones en vez de espacios
+ * (`tagSlug`), que puede llevar tildes y eñes. Sin espacios, `/`, `\`, `?`, `#`, `%` ni
+ * caracteres de control; que exista lo controla el servidor (`findTipPost`).
+ */
+export const TIP_WIKI_SLUG_RE = /^[^\s/\\?#%\p{Cc}]{1,150}$/u;
+
+/**
+ * Las clases de publicación que pueden llevar el bloque de propina, con su nombre (panel y CSV),
+ * su ruta pública y la forma de su dirección. Sumar una es agregarla acá y enseñarle a
+ * `findTipPost` (src/lib/server/propinas/posts.js) a buscarla: la base no tiene una lista fija
+ * (migración 0070).
+ * @typedef {'material' | 'calendario' | 'wiki'} TipCategory
+ * @type {Readonly<Record<TipCategory, { label: string, base: string, slugRe: RegExp }>>}
+ */
+export const TIP_POST_KINDS = Object.freeze({
+	material: { label: 'Material', base: '/material/', slugRe: TIP_SLUG_RE },
+	calendario: { label: 'Calendario', base: '/calendario/', slugRe: TIP_SLUG_RE },
+	wiki: { label: 'Kinkipedia', base: '/wiki/', slugRe: TIP_WIKI_SLUG_RE }
+});
+/** Categorías de publicación que pueden tener el bloque de propina. */
+export const TIP_CATEGORIES = /** @type {readonly TipCategory[]} */ (
+	Object.freeze(Object.keys(TIP_POST_KINDS))
+);
 
 /**
  * La publicación de una propina, si `category` y `slug` tienen forma válida; si no, `null`.
  * @param {unknown} category
  * @param {unknown} slug
- * @returns {{ category: 'material' | 'calendario', slug: string } | null}
+ * @returns {{ category: TipCategory, slug: string } | null}
  */
 export function tipPost(category, slug) {
-	if (typeof category !== 'string' || !TIP_CATEGORIES.includes(category)) return null;
-	if (typeof slug !== 'string' || !TIP_SLUG_RE.test(slug)) return null;
-	return { category: /** @type {'material' | 'calendario'} */ (category), slug };
+	if (typeof category !== 'string' || !Object.hasOwn(TIP_POST_KINDS, category)) return null;
+	const kind = TIP_POST_KINDS[/** @type {TipCategory} */ (category)];
+	if (typeof slug !== 'string' || !kind.slugRe.test(slug)) return null;
+	return { category: /** @type {TipCategory} */ (category), slug };
 }
 
 /**
- * Ruta pública de la publicación de una propina (siempre de este sitio, nunca otra web).
- * @param {string} category 'material' o 'calendario'
+ * Ruta pública de la publicación de una propina (siempre de este sitio, nunca otra web). Una
+ * categoría que el código ya no conoce va al material, como antes.
+ * @param {string} category ver {@link TIP_POST_KINDS}
  * @param {string} slug
  */
 export function tipPostPath(category, slug) {
-	return `/${category === 'calendario' ? 'calendario' : 'material'}/${encodeURIComponent(slug)}`;
+	const kind = Object.hasOwn(TIP_POST_KINDS, category)
+		? TIP_POST_KINDS[/** @type {TipCategory} */ (category)]
+		: TIP_POST_KINDS.material;
+	return `${kind.base}${encodeURIComponent(slug)}`;
+}
+
+/**
+ * Nombre de la clase de publicación de una propina (panel y CSV); si el código no la conoce, tal
+ * cual está guardada.
+ * @param {string} category
+ */
+export function tipCategoryLabel(category) {
+	return Object.hasOwn(TIP_POST_KINDS, category)
+		? TIP_POST_KINDS[/** @type {TipCategory} */ (category)].label
+		: category;
 }
 
 /**
@@ -171,7 +209,7 @@ export function parseTipMessage(raw) {
  * fondo.kinkyvibe.ar) no hay publicación: `category` y `slug` se ignoran y quedan en `null`.
  *
  * @param {{ amount?: unknown, custom?: unknown, message?: unknown, category?: unknown, slug?: unknown, destination?: unknown, source?: unknown }} input
- * @returns {{ ok: true, amount: number, message: string | null, source: 'post', category: 'material' | 'calendario', slug: string, destination: TipDestination }
+ * @returns {{ ok: true, amount: number, message: string | null, source: 'post', category: TipCategory, slug: string, destination: TipDestination }
  *   | { ok: true, amount: number, message: string | null, source: 'fondo', category: null, slug: null, destination: TipDestination }
  *   | { ok: false, errors: Record<string, string> }}
  */

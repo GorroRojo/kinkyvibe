@@ -14,7 +14,7 @@
  *   {@link STALE_CLAIM_MS}.
  * - El mail sale por `deliver()` de index.js, así que en los previews solo llega a EMAIL_ALLOWLIST.
  */
-import { escapeHtml, formatEventDate } from './email.js';
+import { escapeHtml, formatEventWhen, resendBackoff } from './email.js';
 import { mailLayout } from '$lib/server/email/layout.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -73,12 +73,13 @@ export function validateBuyerMail(input) {
  *
  * @param {{
  *   subject: string, body: string, buyerName: string,
- *   event: { title: string, start?: string }, contactEmail: string, origin?: string
+ *   event: { title: string, start?: string, end?: string | null }, contactEmail: string,
+ *   origin?: string
  * }} input
  * `origin`: del sitio, para el logo (sin él, SITE_URL o el de producción).
  */
 export function buildBuyerMail({ subject, body, buyerName, event, contactEmail, origin }) {
-	const when = formatEventDate(event.start);
+	const when = formatEventWhen(event.start, event.end);
 	const fullSubject = subject.includes(event.title) ? subject : `${subject} · ${event.title}`;
 	const paragraphs = body
 		.split(/\n{2,}/)
@@ -86,6 +87,7 @@ export function buildBuyerMail({ subject, body, buyerName, event, contactEmail, 
 		.join('\n\t\t');
 	const html = mailLayout({
 		origin,
+		preheader: 'Un aviso de les organizadores sobre tu entrada.',
 		label: 'Sobre tu entrada',
 		titleHtml: escapeHtml(subject),
 		contentHtml: `<p><strong>${escapeHtml(event.title)}</strong>${when ? `<br>${escapeHtml(when)}` : ''}</p>
@@ -96,7 +98,7 @@ export function buildBuyerMail({ subject, body, buyerName, event, contactEmail, 
 		contactEmail
 	});
 	const text = [
-		`Sobre tu entrada para ${event.title}${when ? ` (${when})` : ''}`,
+		`Sobre tu entrada para ${event.title}${when ? ` · ${when}` : ''}`,
 		'',
 		subject,
 		'',
@@ -238,7 +240,10 @@ async function finishRecipient(db, { sendId, email, ok, now = Date.now() }) {
  *   limit?: number,
  *   now?: number
  * }} input
- * @returns {Promise<{ sent: number, failed: number, progress: Awaited<ReturnType<typeof buyerMailProgress>> }>}
+ * @returns {Promise<{ sent: number, failed: number, progress: Awaited<ReturnType<typeof buyerMailProgress>>,
+ *   stopped?: 'quota' | 'rate' }>} `stopped`: la tanda se cortó porque Resend dijo que se terminó
+ *   el cupo o que van demasiados por segundo (`resendBackoff` en email.js); lo que falta sale con
+ *   la próxima tanda (acá no hay tope de intentos: no se gasta nada).
  */
 export async function sendBuyerMailBatch(
 	db,
@@ -256,6 +261,8 @@ export async function sendBuyerMailBatch(
 	let sent = 0;
 	let failed = 0;
 	let tried = 0;
+	/** @type {'quota' | 'rate' | undefined} */
+	let stopped;
 	for (const recipient of audience) {
 		if (tried >= limit) break;
 		if (done.has(recipient.email)) continue;
@@ -263,14 +270,21 @@ export async function sendBuyerMailBatch(
 			continue;
 		tried++;
 		let ok = false;
+		/** @type {ReturnType<typeof resendBackoff>} */
+		let backoff = null;
 		try {
 			ok = await deliver(recipient);
 		} catch (error) {
+			backoff = resendBackoff(error);
 			console.error(`[tickets] no se pudo mandar el aviso ${send.id}:`, error);
 		}
 		await finishRecipient(db, { sendId: send.id, email: recipient.email, ok, now });
 		if (ok) sent++;
 		else failed++;
+		if (backoff === 'quota' || backoff === 'rate') {
+			stopped = backoff;
+			break;
+		}
 	}
 	const progress = await buyerMailProgress(db, send);
 	if (progress.pending === 0 && !send.finished_at) {
@@ -279,7 +293,7 @@ export async function sendBuyerMailBatch(
 			.bind(send.id, now)
 			.run();
 	}
-	return { sent, failed, progress };
+	return { sent, failed, progress, ...(stopped ? { stopped } : {}) };
 }
 
 /**

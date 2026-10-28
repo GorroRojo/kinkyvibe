@@ -323,6 +323,46 @@ describe('/calendario/<evento>: el lugar, una sola vez y en «Cuándo y dónde»
 	});
 });
 
+describe('/calendario/<evento>: si la base falla al leer el lugar', () => {
+	// `eventPageVenue` (src/lib/server/amigues/venues.js) devuelve un lugar oculto en vez de
+	// `null`: el «Dónde» del .md (que en un evento con lugar puede tener una dirección que el nivel
+	// esconde) no llega a la página, ni al HTML ni a los datos estructurados.
+	const MD_PLACE = {
+		location: 'Calle Del Punto Md 555',
+		location_name: 'Salón Del Punto Md',
+		location_map: 'https://www.openstreetmap.org/#map=17/-34.7/-58.5',
+		tags: ['AMBA']
+	};
+	const loaded = async () => {
+		const { load } = await import('./+page.js');
+		const out = await load(
+			/** @type {any} */ ({
+				data: {
+					post: { meta: MD_PLACE, html: '<p>Texto inventado.</p>' },
+					venue: { level: 'hidden' }
+				}
+			})
+		);
+		return /** @type {any} */ (out);
+	};
+
+	// (+page.server.js ya saca el «Dónde» de `post` con cualquier lugar, también este.)
+	it('+page.js no le pasa el «Dónde» del .md a la página', async () => {
+		const out = await loaded();
+		expect(out.venue).toEqual({ level: 'hidden' });
+		expect(JSON.stringify(out.meta)).not.toMatch(/Del Punto Md|-34\.7|-58\.5/);
+	});
+
+	it('la página dice «Lugar a confirmar» y los datos estructurados, a lo sumo la región', async () => {
+		const out = await loaded();
+		const { body, head: h } = rendered(out.meta, { venue: out.venue });
+		for (const html of [body, h]) expect(html).not.toMatch(/Del Punto Md|-34\.7|-58\.5/);
+		expect(text(card(body))).toContain('Lugar a confirmar');
+		expect(h).not.toContain('streetAddress');
+		expect(h).toMatch(/"addressLocality": ?"Buenos Aires"/);
+	});
+});
+
 describe('/calendario/<evento>: los botones', () => {
 	// Antes: «Agregar a mi calendario» al lado de «Compartir». La maqueta final (gorrite) lo saca:
 	// queda «Compartir» solo, centrado, y la inscripción va después del texto.
@@ -878,5 +918,33 @@ describe('el afiche (lo más grande de la página, su LCP)', () => {
 		expect(img).toContain('fetchpriority="high"');
 		expect(img).not.toMatch(/\swidth=/);
 		expect(img).not.toMatch(/\sheight=/);
+	});
+
+	it('de la biblioteca: las copias chicas y el original en el srcset, con el sizes del CSS', () => {
+		const hash = 'f'.repeat(64);
+		const img = poster(
+			page(
+				{ featured: `/media/img/${hash}.webp` },
+				{ cover: { width: 1080, height: 1350, alt: '', size: null } }
+			)
+		);
+		expect(img).toContain(`src="/media/img/${hash}.webp"`);
+		expect(img).toContain(
+			`srcset="/media/img/${hash}-360.webp 360w, /media/img/${hash}-720.webp 720w, /media/img/${hash}.webp 1080w"`
+		);
+		expect(img).toContain('sizes="(min-width: 900px) 24rem, calc(100vw - 1.75rem)"');
+		expect(img).toContain('fetchpriority="high"');
+		expect(img).toContain('width="1080"');
+	});
+
+	it('una imagen que no es de la biblioteca (o un GIF): solo el original, sin srcset ni sizes', () => {
+		for (const featured of [AFICHE, `/media/img/${'f'.repeat(64)}.gif`]) {
+			const img = poster(
+				page({ featured }, { cover: { width: 1080, height: 1350, alt: '', size: null } })
+			);
+			expect(img).toContain(`src="${featured}"`);
+			expect(img).not.toContain('srcset=');
+			expect(img).not.toContain('sizes=');
+		}
 	});
 });

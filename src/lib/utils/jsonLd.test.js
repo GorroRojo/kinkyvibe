@@ -3,15 +3,21 @@ import { ORG_CONTACT_EMAIL } from './organization.js';
 import {
 	ORGANIZATION_ID,
 	OFFICIAL_PROFILES,
+	WEBSITE_ID,
 	absoluteUrl,
+	authorLinksFrom,
 	eventSchema,
 	isoDate,
 	kinkipediaSchema,
 	materialSchema,
 	materialType,
 	organizationSchema,
+	withSuperEvent,
 	profileSchema,
+	seriesSchema,
 	tagTermSchema,
+	plainTagDescription,
+	websiteSchema,
 	wikiTermSchema
 } from './jsonLd.js';
 import { jsonForScript } from './escape.js';
@@ -45,7 +51,10 @@ describe('absoluteUrl', () => {
 describe('isoDate', () => {
 	it('deja las fechas ISO con su zona y descarta las inválidas', () => {
 		expect(isoDate('2031-08-01T20:00-03:00')).toBe('2031-08-01T20:00-03:00');
-		expect(isoDate(new Date('2031-08-01T23:00:00Z'))).toBe('2031-08-01T23:00:00.000Z');
+		// Un Date (el fin calculado de un evento) va en hora de Argentina, como `startDate`.
+		expect(isoDate(new Date('2031-08-01T23:00:00Z'))).toBe('2031-08-01T20:00:00-03:00');
+		expect(isoDate(Date.UTC(2031, 7, 1, 23))).toBe('2031-08-01T20:00:00-03:00');
+		expect(isoDate(new Date(NaN))).toBeUndefined();
 		expect(isoDate('no es fecha')).toBeUndefined();
 		expect(isoDate(undefined)).toBeUndefined();
 	});
@@ -54,6 +63,20 @@ describe('isoDate', () => {
 		expect(out).toBe('2024-12-06T00:00:00-03:00');
 		expect(Date.parse(/** @type {string} */ (out))).toBe(Date.parse('2024-12-06T03:00:00Z'));
 		expect(isoDate('2030-01-02')).toBe('2030-01-02');
+	});
+});
+
+describe('websiteSchema', () => {
+	it('es un WebSite con el nombre del sitio, otros nombres y la organización como editora', () => {
+		const w = roundTrip(websiteSchema());
+		expect(w['@type']).toBe('WebSite');
+		expect(w['@id']).toBe(WEBSITE_ID);
+		expect(w.name).toBe('Kinky Vibe');
+		expect(w.alternateName).toEqual(['KinkyVibe', 'kinkyvibe.ar']);
+		expect(w.url).toBe('https://kinkyvibe.ar');
+		expect(w.inLanguage).toBe('es-AR');
+		expect(w.publisher['@id']).toBe(ORGANIZATION_ID);
+		expect(w.potentialAction).toBeUndefined();
 	});
 });
 
@@ -138,7 +161,7 @@ describe('eventSchema', () => {
 			tickets: { open: false, reason: 'notyet', priceFrom: 5, opensAt }
 		});
 		expect(notyet.offers.availability).toBe('https://schema.org/PreOrder');
-		expect(notyet.offers.validFrom).toBe(new Date(opensAt).toISOString());
+		expect(notyet.offers.validFrom).toBe('2031-06-30T21:00:00-03:00');
 	});
 
 	it('el link de inscripción como oferta; gratis, precio 0', () => {
@@ -150,11 +173,54 @@ describe('eventSchema', () => {
 			'@type': 'Offer',
 			url: 'https://example.com/inscripcion',
 			price: 0,
-			priceCurrency: 'ARS'
+			priceCurrency: 'ARS',
+			availability: 'https://schema.org/InStock'
 		});
 		expect(
 			eventSchema({ meta: EVENT, webLink: 'https://example.com', past: true }).offers
 		).toBeUndefined();
+	});
+
+	it('el link de inscripción: la disponibilidad sale del estado del evento', () => {
+		const offer = (/** @type {string | undefined} */ status) =>
+			eventSchema({ meta: { ...EVENT, status }, webLink: 'https://example.com/i' }).offers;
+		expect(offer('abierto').availability).toBe('https://schema.org/InStock');
+		expect(offer('agotadas').availability).toBe('https://schema.org/SoldOut');
+		expect(offer('anunciado').availability).toBeUndefined();
+		expect(offer(undefined).availability).toBeUndefined();
+	});
+
+	it('el fin calculado (un Date) va en -03:00, como el comienzo', () => {
+		const e = eventSchema({
+			meta: { ...EVENT, end: undefined },
+			end: new Date('2031-08-02T02:00:00Z')
+		});
+		expect(e.endDate).toBe('2031-08-01T23:00:00-03:00');
+	});
+
+	it('organizer con perfil público: su url y su tipo; sin perfil, solo el nombre', () => {
+		const e = roundTrip(
+			eventSchema({
+				meta: {
+					...EVENT,
+					authors: ['KinkyVibe', 'Persona Inventada', 'Proyecto Inventado', 'Sin Perfil']
+				},
+				authorLinks: [
+					{ name: 'Persona Inventada', path: '/amigues/Persona-Inventada', kind: 'persona' },
+					{ name: 'Proyecto Inventado', path: '/amigues/Proyecto-Inventado', kind: 'proyecto' }
+				]
+			})
+		);
+		expect(e.organizer[0]['@id']).toBe(ORGANIZATION_ID);
+		expect(e.organizer[1]).toEqual({
+			'@type': 'Person',
+			'@id': 'https://kinkyvibe.ar/amigues/Persona-Inventada#perfil',
+			name: 'Persona Inventada',
+			url: 'https://kinkyvibe.ar/amigues/Persona-Inventada'
+		});
+		expect(e.organizer[2]['@type']).toBe('Organization');
+		expect(e.organizer[2].url).toBe('https://kinkyvibe.ar/amigues/Proyecto-Inventado');
+		expect(e.organizer[3]).toEqual({ '@type': 'Person', name: 'Sin Perfil' });
 	});
 
 	it('el lugar oculto no sale; el de solo zona, sin dirección', () => {
@@ -163,8 +229,27 @@ describe('eventSchema', () => {
 		const area = roundTrip(
 			eventSchema({ meta: EVENT, venue: { level: 'area', area: 'Barrio Inventado', city: 'CABA' } })
 		);
-		expect(area.location).toEqual({ '@type': 'Place', name: 'Barrio Inventado, CABA' });
+		expect(area.location).toEqual({
+			'@type': 'Place',
+			name: 'Barrio Inventado, CABA',
+			address: {
+				'@type': 'PostalAddress',
+				addressLocality: 'Barrio Inventado, CABA',
+				addressCountry: 'AR'
+			}
+		});
 		expect(area.eventAttendanceMode).toBe('https://schema.org/OfflineEventAttendanceMode');
+	});
+
+	it('lugar oculto con etiqueta de región: solo la ciudad, sin nombre ni calle', () => {
+		const e = roundTrip(
+			eventSchema({ meta: { ...EVENT, tags: ['AMBA'] }, venue: { level: 'hidden' } })
+		);
+		expect(e.location).toEqual({
+			'@type': 'Place',
+			address: { '@type': 'PostalAddress', addressLocality: 'Buenos Aires', addressCountry: 'AR' }
+		});
+		expect(e.location.name).toBeUndefined();
 	});
 
 	it('online: VirtualLocation', () => {
@@ -194,16 +279,121 @@ describe('materialSchema', () => {
 		expect(m.url).toBe('https://kinkyvibe.ar/material/guia-inventada');
 		expect(m.author).toEqual({ '@type': 'Person', name: 'Persona Inventada' });
 		expect(m.publisher['@id']).toBe(ORGANIZATION_ID);
+		expect(m.inLanguage).toBe('es-AR');
 		expect(m.datePublished).toBe('2030-01-02');
 		expect(m.keywords).toBe('web, BDSM');
 	});
-	it('descargable: DigitalDocument (sin headline); interactivo: CreativeWork', () => {
+	it('descargable: Article y DigitalDocument, con headline; interactivo: CreativeWork', () => {
 		expect(materialType(['descargable'])).toBe('DigitalDocument');
 		expect(materialType(['interactivo'])).toBe('CreativeWork');
 		const d = materialSchema({ ...MAT, tags: ['descargable'] });
-		expect(d['@type']).toBe('DigitalDocument');
-		expect(d.headline).toBeUndefined();
+		expect(d['@type']).toEqual(['Article', 'DigitalDocument']);
+		expect(d.headline).toBe(MAT.title);
 		expect(d.name).toBe(MAT.title);
+		expect(materialSchema({ ...MAT, tags: ['interactivo'] })['@type']).toBe('CreativeWork');
+	});
+	it('autore con perfil público: su url', () => {
+		const m = materialSchema(MAT, [
+			{ name: 'Persona Inventada', path: '/amigues/Persona-Inventada', kind: 'persona' }
+		]);
+		expect(m.author.url).toBe('https://kinkyvibe.ar/amigues/Persona-Inventada');
+	});
+});
+
+describe('authorLinksFrom', () => {
+	const profile = (/** @type {string} */ slug, kind = 'persona') => ({
+		path: `/amigues/${slug}`,
+		meta: { category: 'amigues', postID: slug, kind }
+	});
+	it('solo les autores con perfil en la lista pública (la que ve cualquiera)', () => {
+		const posts = [
+			profile('Persona-Inventada'),
+			profile('Lugar-Inventado', 'lugar'),
+			// Un evento con la misma dirección no es un perfil.
+			{ path: '/calendario/Sin-Perfil', meta: { category: 'calendario', postID: 'Sin-Perfil' } }
+		];
+		expect(
+			authorLinksFrom(
+				['KinkyVibe', 'Persona Inventada', 'Lugar Inventado', 'Sin Perfil', 'Perfil Oculto'],
+				posts
+			)
+		).toEqual([
+			{ name: 'Persona Inventada', path: '/amigues/Persona-Inventada', kind: 'persona' },
+			{ name: 'Lugar Inventado', path: '/amigues/Lugar-Inventado', kind: 'lugar' }
+		]);
+	});
+	it('sin lista o sin autores, nada; el post mismo no es su autore', () => {
+		expect(authorLinksFrom(undefined, [profile('A')])).toEqual([]);
+		expect(authorLinksFrom(['A'], null)).toEqual([]);
+		expect(authorLinksFrom(['A'], [profile('A')], 'A')).toEqual([]);
+	});
+	it('un lugar como autore: Organization con url y sin @id (allá es un Place)', () => {
+		const m = materialSchema({ title: 'X', postID: 'x', authors: ['Lugar Inventado'] }, [
+			{ name: 'Lugar Inventado', path: '/amigues/Lugar-Inventado', kind: 'lugar' }
+		]);
+		expect(m.author).toEqual({
+			'@type': 'Organization',
+			name: 'Lugar Inventado',
+			url: 'https://kinkyvibe.ar/amigues/Lugar-Inventado'
+		});
+	});
+});
+
+describe('series (EventSeries)', () => {
+	const SERIES = {
+		name: 'Serie Inventada',
+		href: '/wiki/Serie-Inventada',
+		image: '/media/img/serie.webp',
+		upcoming: [
+			{ title: 'Serie Inventada #3', path: '/calendario/serie-3', start: '2031-09-01T20:00-03:00' }
+		],
+		past: [
+			{
+				title: 'Serie Inventada #2',
+				path: '/calendario/serie-2',
+				start: '2031-08-01T20:00-03:00',
+				status: 'cancelado'
+			},
+			{ title: 'Serie Inventada #1', path: '/calendario/serie-1', start: '2031-07-01T20:00-03:00' }
+		]
+	};
+	it('cada edición dice de qué serie es (superEvent), sin dejar de ser su propio Event', () => {
+		const e = roundTrip(
+			withSuperEvent(eventSchema({ meta: EVENT }), [
+				{ name: 'Serie Inventada', href: '/wiki/Serie-Inventada' }
+			])
+		);
+		expect(e['@type']).toBe('Event');
+		expect(e.url).toBe('https://kinkyvibe.ar/calendario/taller-de-prueba-2031-08');
+		expect(e.superEvent).toEqual({
+			'@type': 'EventSeries',
+			'@id': 'https://kinkyvibe.ar/wiki/Serie-Inventada#serie',
+			name: 'Serie Inventada',
+			url: 'https://kinkyvibe.ar/wiki/Serie-Inventada'
+		});
+		// Sin series, el evento queda igual.
+		const plain = eventSchema({ meta: EVENT });
+		expect(withSuperEvent(plain, null)).toBe(plain);
+		expect(withSuperEvent(plain, [])).toBe(plain);
+	});
+	it('la página de la serie: EventSeries con sus ediciones en orden, sin lugar', () => {
+		const s = roundTrip(seriesSchema(SERIES));
+		expect(s['@type']).toBe('EventSeries');
+		expect(s.url).toBe('https://kinkyvibe.ar/wiki/Serie-Inventada');
+		expect(s.subEvent.map((/** @type {any} */ e) => e.url)).toEqual([
+			'https://kinkyvibe.ar/calendario/serie-1',
+			'https://kinkyvibe.ar/calendario/serie-2',
+			'https://kinkyvibe.ar/calendario/serie-3'
+		]);
+		expect(s.subEvent[1].eventStatus).toBe('https://schema.org/EventCancelled');
+		for (const e of s.subEvent) {
+			expect(Object.keys(e).sort()).toEqual(['@type', 'eventStatus', 'name', 'startDate', 'url']);
+		}
+		expect(allText(s)).not.toMatch(/location|address|Place/);
+	});
+	it('sin nombre o sin página, nada', () => {
+		expect(seriesSchema(null)).toBeNull();
+		expect(seriesSchema({ name: 'X' })).toBeNull();
 	});
 });
 
@@ -254,6 +444,12 @@ describe('Kinkipedia', () => {
 		expect(tagTermSchema({ title: 'X', path: '/wiki/X' })).toBeNull();
 		expect(tagTermSchema({ title: 'X', description: '  ', path: '/wiki/X' })).toBeNull();
 	});
+	it('plainTagDescription: los links quedan como su texto, en una línea', () => {
+		expect(plainTagDescription('una [[práctica]]')).toBe('una práctica');
+		expect(plainTagDescription('[[término:texto]] y  más\nlíneas')).toBe('texto y más líneas');
+		expect(plainTagDescription(undefined)).toBe('');
+		expect(plainTagDescription(42)).toBe('');
+	});
 });
 
 describe('profileSchema', () => {
@@ -280,6 +476,20 @@ describe('profileSchema', () => {
 		expect(e.email).toBe('persona@example.com');
 		expect(e.telephone).toBe('+541100000000');
 		expect(allText(p)).not.toContain('javascript:');
+	});
+	it('el perfil de KinkyVibe es la organización del sitio (mismo @id)', () => {
+		const p = profileSchema({
+			profile: { title: 'Kinky Vibe', kind: 'proyecto', links: [] },
+			canonical: '/amigues/KinkyVibe'
+		});
+		expect(p.mainEntity['@type']).toBe('Organization');
+		expect(p.mainEntity['@id']).toBe(ORGANIZATION_ID);
+		// Otro perfil con el mismo nombre no lo es: se decide por la dirección.
+		const other = profileSchema({
+			profile: { title: 'Kinky Vibe', kind: 'proyecto', links: [] },
+			canonical: '/amigues/Otro-Proyecto'
+		});
+		expect(other.mainEntity['@id']).toBe('https://kinkyvibe.ar/amigues/Otro-Proyecto#perfil');
 	});
 	it('proyecto: Organization; sin contacto, sin esos campos', () => {
 		const p = profileSchema({
@@ -341,4 +551,73 @@ describe('profileSchema', () => {
 		// Place no tiene `email` en schema.org.
 		expect(p.mainEntity.email).toBeUndefined();
 	});
+});
+
+describe('vistas del lugar con todo cargado: cada nivel saca solo lo suyo', () => {
+	// Una vista que trae de más (como si una vista futura se olvidara de filtrar): lo que el nivel
+	// esconde no tiene que salir en los datos estructurados igual.
+	const LEAKY = {
+		name: 'Lugar Filtrado',
+		href: '/amigues/Lugar-Filtrado',
+		address: 'Calle Filtrada 999',
+		area: 'Barrio Filtrado',
+		city: 'Ciudad Filtrada',
+		lat: -34.123456,
+		lng: -58.654321,
+		howTo: 'Puerta Filtrada',
+		accessibility: 'Rampa Filtrada'
+	};
+	const MD = { location: 'Calle Del Md 111', location_name: 'Salón Del Md' };
+	/** Lo que cada nivel deja ver (docs/amigues.md). */
+	const SHOWS = {
+		public: { name: true, link: true, street: true, area: true, geo: true },
+		name: { name: true, link: true, street: false, area: false, geo: false },
+		address: { name: false, link: false, street: true, area: true, geo: true },
+		area: { name: false, link: false, street: false, area: true, geo: false },
+		hidden: { name: false, link: false, street: false, area: false, geo: false }
+	};
+	const COORDS = /-34\.123456|-58\.654321|GeoCoordinates/;
+
+	for (const [level, shows] of Object.entries(SHOWS)) {
+		const venue = /** @type {any} */ ({ ...LEAKY, level });
+
+		it(`evento, nivel «${level}»`, () => {
+			const e = roundTrip(eventSchema({ meta: { ...EVENT, ...MD, tags: ['AMBA'] }, venue }));
+			const json = allText(e);
+			// Con lugar, nunca el «Dónde» del .md; nunca los textos libres ni las coordenadas.
+			expect(json).not.toContain('Del Md');
+			expect(json).not.toMatch(/Puerta Filtrada|Rampa Filtrada/);
+			expect(json).not.toMatch(COORDS);
+			expect(json.includes('Lugar Filtrado')).toBe(shows.name);
+			expect(json.includes('/amigues/Lugar-Filtrado')).toBe(shows.link);
+			expect(json.includes('Calle Filtrada')).toBe(shows.street);
+			expect(json.includes('streetAddress')).toBe(shows.street);
+			expect(json.includes('Barrio Filtrado')).toBe(shows.area);
+			expect(e.eventAttendanceMode).toBe('https://schema.org/OfflineEventAttendanceMode');
+		});
+
+		it(`perfil del lugar, nivel «${level}»`, () => {
+			const p = roundTrip(
+				profileSchema({
+					profile: { title: 'Perfil Inventado', kind: 'lugar' },
+					canonical: '/amigues/Perfil-Inventado',
+					location: venue
+				})
+			);
+			const json = allText(p);
+			expect(json).not.toMatch(/Puerta Filtrada|Rampa Filtrada/);
+			expect(json.includes('Calle Filtrada')).toBe(shows.street);
+			expect(json.includes('Barrio Filtrado')).toBe(shows.area);
+			expect(COORDS.test(json)).toBe(shows.geo);
+			if (shows.geo) {
+				expect(p.mainEntity.geo).toEqual({
+					'@type': 'GeoCoordinates',
+					latitude: LEAKY.lat,
+					longitude: LEAKY.lng
+				});
+			} else {
+				expect(p.mainEntity.geo).toBeUndefined();
+			}
+		});
+	}
 });

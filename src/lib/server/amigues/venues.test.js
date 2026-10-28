@@ -233,6 +233,45 @@ describe('las coordenadas del mapa solo salen si la dirección es pública', () 
 	});
 });
 
+describe('si la base falla al leer el lugar (eventPageVenue)', () => {
+	/** Una base que falla en cualquier consulta. */
+	const broken = /** @type {import('@cloudflare/workers-types').D1Database} */ (
+		/** @type {unknown} */ ({
+			prepare() {
+				throw new Error('D1 de prueba caída');
+			},
+			batch() {
+				throw new Error('D1 de prueba caída');
+			}
+		})
+	);
+
+	it('como un lugar oculto (nunca `null`, que mostraría el «Dónde» del .md), y lo registra', async () => {
+		const m = await modules();
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			for (const locals of /** @type {App.Locals[]} */ ([
+				{},
+				/** @type {any} */ ({ member: { id: 'cuenta-de-prueba' } })
+			])) {
+				const view = await m.eventPageVenue(broken, 'evento-de-prueba', locals);
+				expect(view).toEqual({ level: 'hidden' });
+				expect(view).toEqual(m.VENUE_UNREADABLE);
+			}
+			expect(log).toHaveBeenCalled();
+		} finally {
+			log.mockRestore();
+		}
+	});
+
+	it('sin lugar vinculado (y la base bien), `null` como siempre', async () => {
+		const m = await modules();
+		await makeEvent(t.db, 'sin-lugar');
+		expect(await m.eventPageVenue(t.db, 'sin-lugar', /** @type {App.Locals} */ ({}))).toBeNull();
+		expect(await m.eventPageVenue(null, 'sin-lugar', /** @type {App.Locals} */ ({}))).toBeNull();
+	});
+});
+
 describe('la página del lugar', () => {
 	it('lista solo los eventos que muestran el link al lugar (niveles 1 y 2)', async () => {
 		const m = await modules();
@@ -319,6 +358,101 @@ describe('quien compró recibe la dirección completa', () => {
 		await on.setEventVenue(t.db, { eventSlug: 'con-lugar', venueId: v.id, privacy: null, by: 'a' });
 		expect(await on.buyerLocation(t.db, 'sin-lugar')).toBeNull();
 		expect(await on.buyerLocation(null, 'con-lugar')).toBeNull();
+	});
+});
+
+describe('«Cómo llegar» y «Accesibilidad» en los mails (venueNotesForMail)', () => {
+	const ACCESS = 'Rampa en la entrada';
+
+	/** @param {string} privacy @param {Record<string, any>} [extra] */
+	const withNotes = (privacy, extra = {}) =>
+		makeProfile(t.db, {
+			title: `Lugar ${privacy}`,
+			kind: 'lugar',
+			...extra,
+			data: {
+				address: SECRET,
+				area: AREA,
+				how_to_get_there: 'Por la puerta verde',
+				accessibility: ACCESS,
+				venue_privacy: privacy
+			}
+		});
+
+	it('solo en el nivel en que la página los muestra a cualquiera', async () => {
+		const m = await modules();
+		for (const privacy of ['public', 'name', 'address', 'area', 'hidden']) {
+			const v = await withNotes(privacy);
+			const slug = `notas-${privacy}`;
+			await m.setEventVenue(t.db, { eventSlug: slug, venueId: v.id, privacy: null, by: 'a' });
+			const notes = await m.venueNotesForMail(t.db, slug);
+			if (privacy === 'public') {
+				expect(notes).toEqual({ howTo: 'Por la puerta verde', accessibility: ACCESS });
+			} else {
+				expect(notes, privacy).toBeNull();
+			}
+		}
+	});
+
+	it('el nivel del evento manda (más y menos privado)', async () => {
+		const m = await modules();
+		const pub = await withNotes('public');
+		await m.setEventVenue(t.db, {
+			eventSlug: 'tapa',
+			venueId: pub.id,
+			privacy: 'address',
+			by: 'a'
+		});
+		expect(await m.venueNotesForMail(t.db, 'tapa')).toBeNull();
+		const hidden = await withNotes('hidden', { title: 'Lugar oculto' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'abre',
+			venueId: hidden.id,
+			privacy: 'public',
+			by: 'a'
+		});
+		expect(await m.venueNotesForMail(t.db, 'abre')).toEqual({
+			howTo: 'Por la puerta verde',
+			accessibility: ACCESS
+		});
+	});
+
+	it('un lugar sin aprobar o que no se muestra al público: nada', async () => {
+		const m = await modules();
+		const draft = await withNotes('public', { approved: false, title: 'Lugar borrador' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'borrador',
+			venueId: draft.id,
+			privacy: null,
+			by: 'a'
+		});
+		expect(await m.venueNotesForMail(t.db, 'borrador')).toBeNull();
+		const members = await withNotes('public', { visibility: 'members', title: 'Lugar de socies' });
+		await m.setEventVenue(t.db, {
+			eventSlug: 'socios',
+			venueId: members.id,
+			privacy: null,
+			by: 'a'
+		});
+		expect(await m.venueNotesForMail(t.db, 'socios')).toBeNull();
+	});
+
+	it('sin lugar, sin base o si la base falla: nada (y no tira)', async () => {
+		const m = await modules();
+		await makeEvent(t.db, 'sin-lugar');
+		expect(await m.venueNotesForMail(t.db, 'sin-lugar')).toBeNull();
+		expect(await m.venueNotesForMail(null, 'sin-lugar')).toBeNull();
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const broken = /** @type {any} */ ({
+				prepare() {
+					throw new Error('D1 de prueba caída');
+				}
+			});
+			expect(await m.venueNotesForMail(broken, 'sin-lugar')).toBeNull();
+		} finally {
+			log.mockRestore();
+		}
 	});
 });
 

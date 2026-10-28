@@ -1,5 +1,5 @@
 /**
- * Pie de página: "Tu cuenta" (Ingresar / Mi rincón), "Dejá una propina" y "Entrar al panel" para
+ * Pie de página: "Tu cuenta" (Entrar / Mi rincón), "Dejá una propina" y "Entrar al panel" para
  * el equipo. Los interruptores `cuentas` y `propinas` quedaron prendidos para siempre: los casos
  * «apagado» (sin "Tu cuenta", con Cafecito) se fueron con ellos.
  */
@@ -7,6 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import Footer from './Footer.svelte';
 import { OFFICIAL_PROFILES } from '$lib/utils/jsonLd.js';
+import { ORG_PROFILE_PATH } from '$lib/utils/organization.js';
+import { readFileSync } from 'node:fs';
 
 /** @param {Record<string, unknown>} [data] */
 const html = (data) => render(Footer, { props: { data } }).body;
@@ -67,5 +69,22 @@ describe('Footer', () => {
 			expect(tag, url).not.toBeNull();
 			expect(tag?.[0]).toMatch(/rel="me( noopener)?"/);
 		}
+	});
+
+	it('«Sobre nosotres»: «Quiénes somos» (el perfil de Kinky Vibe) y «Contacto» (mail)', () => {
+		const body = html({});
+		const section = body.slice(body.indexOf('Sobre nosotres'), body.indexOf('Redes'));
+		expect(section).toMatch(
+			/<a href="\/amigues\/KinkyVibe"[^>]*>(?:(?!<\/a>)[\s\S])*Quiénes somos<\/a>/
+		);
+		expect(section).toMatch(
+			/<a href="mailto:kinkyvibe\.talleres@gmail\.com"[^>]*>(?:(?!<\/a>)[\s\S])*Contacto<\/a>/
+		);
+	});
+
+	it('el perfil de «Quiénes somos» existe en la semilla (el mismo slug que en producción)', () => {
+		const seed = JSON.parse(readFileSync('src/lib/server/semilla/amigues.json', 'utf8'));
+		const slug = ORG_PROFILE_PATH.replace('/amigues/', '');
+		expect(seed.map((/** @type {any} */ p) => p.legacySlug)).toContain(slug);
 	});
 });
