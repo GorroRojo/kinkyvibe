@@ -50,6 +50,8 @@ export function noticeLabel(kind) {
 			return botText('admin.aviso_transferencia');
 		case 'dia_evento':
 			return botText('admin.aviso_dia');
+		case 'fallas_compra':
+			return botText('admin.aviso_fallas');
 		default:
 			return botText('admin.aviso_recordatorios');
 	}

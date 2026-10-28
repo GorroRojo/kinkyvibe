@@ -72,6 +72,7 @@ import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 import { markFreeOrderMine } from '$lib/server/cuentas/orders.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
+import { reportPurchaseFailure } from '$lib/server/telegram/purchaseAlerts.js';
 import { unconfirmedMailAllowed } from '$lib/server/email/suppressions.js';
 import { ticketsPausedMessage } from '$lib/server/emergencia.js';
 
@@ -1046,6 +1047,8 @@ export async function buyAction(event) {
 		});
 	} catch (error) {
 		logDBError('reserve order', error);
+		// «Fallas en compras» por Telegram a les admins que lo prendieron (nunca tira).
+		await reportPurchaseFailure({ db, platform, code: 'reserva', origin: siteOrigin(url), fetch });
 		return failWith(500, 'No pudimos reservar tus entradas. Probá de nuevo más tarde.');
 	}
 	if (!reserved.ok) {
@@ -1143,6 +1146,7 @@ export async function buyAction(event) {
 			}
 		} catch (error) {
 			logDBError('approve free order', error);
+			await reportPurchaseFailure({ db, platform, code: 'gratis', order, origin, fetch });
 			return failWith(500, 'No pudimos emitir tus entradas. Probá de nuevo más tarde.');
 		}
 		await rememberOrder(db, cookies, url, order.id);
@@ -1175,6 +1179,7 @@ export async function buyAction(event) {
 		checkoutUrl = created.init_point;
 	} catch (error) {
 		console.error(`[tickets] no se pudo crear la preferencia de la orden ${order.id}:`, error);
+		await reportPurchaseFailure({ db, platform, code: 'mp_preferencia', order, origin, fetch });
 		await cancelPendingOrder(db, order.id).catch((e) => logDBError('cancel order', e));
 		// Si era la compra de alguien con su lugar guardado, vuelve a tenerlo (y si no, el lugar
 		// liberado pasa a la lista de espera).
