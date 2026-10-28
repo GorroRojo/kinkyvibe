@@ -228,7 +228,7 @@ que se vuelva a prender.
 - El recordatorio sale cuando faltan 24 horas o menos (no a una hora fija del día anterior).
 - «Avisame» con cuenta deja también «en mi calendario» prendido.
 
-### Decidido por Claude, a confirmar con gorrite
+### Decidido por Claude, A CONFIRMAR con gorrite
 
 - Los mails de «Lo que sigo» usan su propia clave de firma (`sigo_mail_stop_key`).
 - El calendario personal existe siempre (el interruptor `series` quedó fijo); «Lo que sigo» le

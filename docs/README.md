@@ -18,6 +18,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [tickets.md](tickets.md)                       | Venta de entradas: referencia completa (precios, Fondo, Mercado Pago, variables, pendientes)                        |
 | [propinas.md](propinas.md)                     | Propinas con Mercado Pago al pie de las publicaciones de KinkyVibe (en lugar del cafecito)                          |
 | [contenido.md](contenido.md)                   | Eventos, material, amigues y wiki: todo en la base (D1), cómo se editan, la semilla local y «Descargar todo»        |
+| [imagenes.md](imagenes.md)                     | La biblioteca en R2: imágenes, documentos y video, cómo se suben y cómo se sirven                                   |
 | [publicar-contenido.md](publicar-contenido.md) | Cómo se publica lo que se guarda en el panel: en la base, al momento (antes, un PR por cambio)                      |
 | [mails.md](mails.md)                           | Qué mails manda el sitio, con Resend, plantillas editables, recordatorios y el filtro de los previews               |
 | [datos.md](datos.md)                           | La base D1: tablas, migraciones, cómo agregar una, base de preview y base de producción                             |
@@ -37,7 +38,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |
-| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0041, cada una con su línea en su índice): leelo antes de cambiar un área |
+| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0051, cada una con su línea en su índice): leelo antes de cambiar un área |
 
 Otras guías sueltas:
 

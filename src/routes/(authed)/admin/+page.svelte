@@ -73,8 +73,8 @@
 	// varias, como «3 transferencias», también). El botón «Para revisar» de arriba cuenta lo mismo:
 	// las dos salen de `reviewRows` (src/lib/server/admin/review.js, decisión 0030).
 	$: reviewCount = data.todo.length;
-	$: checkinItem = navItem('checkin');
-	$: checkinGeneral = checkinItem ? navLink(checkinItem) : null;
+	const checkinItem = navItem('checkin');
+	const checkinGeneral = checkinItem ? navLink(checkinItem) : null;
 	$: todayEvent = data.todayEvents.find((e) => e.ticketed) ?? data.todayEvents[0];
 	$: checkinQuick = todayEvent?.ticketed ? checkinHref(todayEvent.slug) : checkinGeneral;
 

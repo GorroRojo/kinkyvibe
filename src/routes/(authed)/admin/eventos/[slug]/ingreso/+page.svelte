@@ -606,7 +606,6 @@
 	let wakeLock = null;
 	async function lockScreen() {
 		try {
-			// @ts-ignore Wake Lock todavía no está en todos los tipos.
 			wakeLock = await navigator.wakeLock?.request('screen');
 			wakeOk = Boolean(wakeLock);
 			wakeLock?.addEventListener?.('release', () => (wakeOk = false));

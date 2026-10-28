@@ -306,17 +306,25 @@ jobs:
   # docs/plan.md, el plan único: ids, fases, estados, dependencias y que las fases de
   # src/lib/admin/nav.js coincidan (scripts/plan-lint.js). Sin dependencias: no hace falta npm ci.
   # Corre también en los PRs de solo documentación.
+  # Y migrations/ append-only (scripts/migrations-lint.js): ninguna migración de la base cambia,
+  # se borra o se renombra, y no hay dos con el mismo número. Compara el merge del PR (o el push a
+  # main) con su primer padre, por eso `fetch-depth: 2`.
   plan:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
 
       - run: node scripts/plan-lint.js
+
+      - name: Migraciones append-only
+        run: node scripts/migrations-lint.js --base HEAD^1
 
   # La descripción del PR dice a qué ítems del plan corresponde: una línea `Plan: <id>[, <id>]` o
   # `Plan: ninguno`, con ids que existen en el docs/plan.md del PR (scripts/plan-pr.js). Los PRs de

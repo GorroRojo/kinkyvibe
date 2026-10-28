@@ -33,7 +33,6 @@ function orphanTagFactory(id, data) {
  *   en la app; las etiquetas viven en la base)
  * @return {TagManager}
  */
-// @ts-ignore
 export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 	/** @type Array<ProcessedTag> */
 	/**@type Map<TagID, ProcessedTag> */
@@ -68,7 +67,6 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 		 * @param {*} value
 		 */
 		set(id, value) {
-			// @ts-ignore
 			tagsMap.set(id, orphanTagFactory(id, value));
 			return;
 		},
@@ -187,7 +185,6 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 
 	// link related and wikilinks
 
-	// @ts-ignore
 	return { ...tagManager, missingTags: [...new Set(missingTags)] };
 }
 export default tagsFactory;
@@ -270,6 +267,6 @@ function parseDescription(description, query) {
 		})
 		.flat()
 		.filter(({ line }) => line !== '');
-	// @ts-ignore
+	// @ts-expect-error las líneas mezclan los dos tipos que arma el map
 	return lines.length > 0 ? lines : [];
 }

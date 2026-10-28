@@ -24,6 +24,7 @@ import {
 	templateDef
 } from '$lib/utils/emailTemplates.js';
 import { MAIL_COLORS, MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
+import { escapeHtml } from '$lib/utils/escape.js';
 import {
 	eventReservationScript,
 	googleCalendarUrl,
@@ -261,15 +262,8 @@ export function priceLines(order, typeName) {
 	return lines;
 }
 
-/** @param {string} s */
-export function escapeHtml(s) {
-	return s
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#39;');
-}
+// El escape de siempre ($lib/utils/escape.js); se reexporta para los mails que lo importan de acá.
+export { escapeHtml };
 
 /**
  * Fecha y hora del evento en horario de Argentina.

@@ -625,6 +625,7 @@
 							{/if}
 							{#if previewTags.length}<div class="ptags"><Tags tags={previewTags} /></div>{/if}
 							{#if f.values.summary}<div class="content"><p>{f.values.summary}</p></div>{/if}
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -- vista previa pasada por sanitizePreview -->
 							<div class="content">{@html previewHtml}</div>
 						</article>
 					</div>

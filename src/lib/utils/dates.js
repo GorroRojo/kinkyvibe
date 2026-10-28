@@ -3,7 +3,53 @@
 // has. These helpers make displayed dates independent of the runtime timezone.
 
 export const TIMEZONE = 'America/Argentina/Buenos_Aires';
-const OFFSET_MS = -3 * 60 * 60 * 1000;
+
+/**
+ * Argentina está siempre en UTC−3 (sin horario de verano desde 2009): **hora de Argentina = UTC +
+ * esto** (un número negativo). Es el único lugar con el desfasaje: para contar días o meses de
+ * Argentina usá las funciones de abajo (`arClock`, `arDayKey`, `arMidnight`, `arMonthWindow`) en
+ * vez de otra constante con `3 * 60 * 60 * 1000` (las copias tenían signos distintos).
+ */
+export const AR_UTC_OFFSET_MS = -3 * 60 * 60 * 1000;
+const OFFSET_MS = AR_UTC_OFFSET_MS;
+
+/**
+ * El instante `ms` corrido a la hora de Argentina, para leerlo con `getUTC…` o `toISOString()`
+ * (`arClock(ms).getUTCDate()` es el día en Argentina). No es un instante real: no lo compares.
+ * @param {number} ms
+ * @returns {Date}
+ */
+export const arClock = (ms) => new Date(ms + AR_UTC_OFFSET_MS);
+
+/**
+ * El día de Argentina (`YYYY-MM-DD`) de un instante.
+ * @param {number} ms
+ * @returns {string}
+ */
+export const arDayKey = (ms) => arClock(ms).toISOString().slice(0, 10);
+
+/**
+ * El instante de las 00:00 de Argentina del día `d` del mes `m0` (0 = enero) de `y`. Como
+ * `Date.UTC`, se desborda: `arMidnight(2026, 12, 1)` es el 1/1/2027 y `arMidnight(y, m0, 0)` el
+ * último día del mes anterior.
+ * @param {number} y
+ * @param {number} m0
+ * @param {number} d
+ * @returns {number}
+ */
+export const arMidnight = (y, m0, d) => Date.UTC(y, m0, d) - AR_UTC_OFFSET_MS;
+
+/**
+ * El mes `m0` (0 = enero) de `y` en Argentina como ventana `[start, end)` en ms: desde las 00:00
+ * del día 1 hasta las 00:00 del día 1 del mes siguiente (exclusivo).
+ * @param {number} y
+ * @param {number} m0
+ * @returns {{ start: number, end: number }}
+ */
+export const arMonthWindow = (y, m0) => ({
+	start: arMidnight(y, m0, 1),
+	end: arMidnight(y, m0 + 1, 1)
+});
 
 /**
  * Returns a Date whose *local* fields (getDate, getHours..., and so what

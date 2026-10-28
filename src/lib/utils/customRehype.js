@@ -83,7 +83,6 @@ const linkIcon = {
  */
 export default function customRehype() {
 	return (tree) => {
-		// eslint-disable-next-line no-unused-vars
 		visit(tree, 'element', (node, _index, _parent) => {
 			// hast-util-heading-rank 3 tipa con @types/hast 3 y el resto del pipeline (rehype 12)
 			// sigue en hast 2: el nodo es el mismo, solo difieren los tipos (en hast 2
@@ -97,14 +96,14 @@ export default function customRehype() {
 						class: 'linktothis',
 						'aria-label': 'Enlace a esta sección'
 					},
-					// @ts-ignore
+					// @ts-expect-error el ícono es un nodo hast que el tipo de children no acepta
 					children: [linkIcon]
 				});
 				node.children.push({
 					type: 'element',
 					tagName: 'a',
 					properties: { href: '#title', class: 'backtotop', 'aria-label': 'Volver arriba' },
-					// @ts-ignore
+					// @ts-expect-error el ícono es un nodo hast que el tipo de children no acepta
 					children: [cornerRightUpIcon]
 				});
 				return [SKIP];
@@ -148,7 +147,6 @@ export default function customRehype() {
 				}
 			],
 			[
-				// eslint-disable-next-line no-useless-escape
 				/(?<![\w\d])(\\?)@([\p{L}\p{N}_.-]*[\p{L}\p{N}_])/gu,
 				(_, escape, user, { stack }) => {
 					if (escape) return '@' + user;

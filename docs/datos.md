@@ -29,16 +29,16 @@ producción. La de tu compu y la de las pruebas E2E arrancan con la semilla de c
 
 ## Las tres bases
 
-| Dónde                     | Qué base                                                                                      | Cómo se le aplican las migraciones                                                   |
-| ------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Tu compu (`npm run dev`)  | copia simulada en `.wrangler/state/`                                                          | solas, antes de cada `npm run dev*` (`scripts/db-migrate-local.js`)                  |
-| Previews de cada PR       | `kinkyvibe-preview` (el binding `DB` de los Previews está en `[previews]` de `wrangler.toml`) | a mano, cuando un PR trae una migración nueva                                        |
-| Producción (kinkyvibe.ar) | `kinkyvibe` (su id está en `wrangler.toml`)                                                   | a mano, `npm run db:migrate:remote`, **antes** de deployar el código que la necesita |
-| Pruebas (vitest)          | una nueva en memoria por archivo de pruebas                                                   | solas: `createTestDB()` aplica todas                                                 |
+| Dónde                     | Qué base                                                                                      | Cómo se le aplican las migraciones                                                                                     |
+| ------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Tu compu (`npm run dev`)  | copia simulada en `.wrangler/state/`                                                          | solas, antes de cada `npm run dev*` (`scripts/db-migrate-local.js`)                                                    |
+| Previews de cada PR       | `kinkyvibe-preview` (el binding `DB` de los Previews está en `[previews]` de `wrangler.toml`) | a mano, `npm run db:migrate:preview`, cuando un PR trae una migración nueva (es una sola base para todos los Previews) |
+| Producción (kinkyvibe.ar) | `kinkyvibe` (su id está en `wrangler.toml`)                                                   | a mano, `npm run db:migrate:remote`, **antes** de deployar el código que la necesita                                   |
+| Pruebas (vitest)          | una nueva en memoria por archivo de pruebas                                                   | solas: `createTestDB()` aplica todas                                                                                   |
 
-Las migraciones `0001` a `0010` ya están aplicadas en producción (30/9/2026, antes de mergear el
-panel, #115). Con la migración a Workers los bindings pasan a configurarse distinto: ver
-[workers-migracion.md](workers-migracion.md) cuando esté.
+Este doc no lleva la cuenta de qué migraciones están aplicadas en cada base: wrangler la lleva en
+cada base, por nombre de archivo (tabla `d1_migrations`), y aplica solo las que faltan. Los
+bindings del Worker: [workers-migracion.md](workers-migracion.md).
 
 ## Las tablas y quién las usa
 
@@ -131,8 +131,16 @@ en el runtime de Workers con la base local: `npm run build && npm run preview:wo
 5. En el PR, avisá que trae migración: quien tiene acceso a Cloudflare (hoy gorrite) la aplica en
    preview y, **antes** del deploy, en producción (`npm run db:migrate:remote`). Wrangler solo
    aplica las que faltan.
-6. Si más de un PR agrega migraciones a la vez, el segundo en mergearse renumera la suya (nunca
-   dos con el mismo número).
+6. Las migraciones son **append-only**: una que ya está en main no se edita, no se borra y no se
+   renombra; si algo quedó mal, va una migración nueva. Lo chequea la CI
+   (`node scripts/migrations-lint.js`, en el job `plan`), que también falla si dos archivos tienen
+   el mismo número.
+7. **Nunca se renumera una migración que puede estar aplicada** en alguna base remota (producción
+   o la de los Previews): wrangler la registra por nombre, así que con otro nombre la intenta
+   aplicar de nuevo y las que hacen `ADD COLUMN` fallan. Si dos PRs abiertos tomaron el mismo
+   número, el segundo en mergearse renumera la suya solo si no se aplicó en ninguna base remota;
+   ante la duda, se pregunta a gorrite. Si ya se aplicó, el número repetido se acepta: se suma a
+   `ALLOWED_DUPLICATES` en `scripts/migrations-lint.js`, con los dos nombres.
 
 ### Mirar datos
 
