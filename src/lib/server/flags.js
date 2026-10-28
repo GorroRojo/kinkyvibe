@@ -200,6 +200,19 @@ export const FLAGS = Object.freeze({
 			'envíos usan reminder_sends (clave `encuesta`); las respuestas, un almacén en memoria solo ' +
 			'en `vite dev` hasta que haya migración. Clave `encuesta` del evento (false = no se manda).',
 		envVar: 'ENCUESTA_POST_EVENTO_ENABLED'
+	},
+	rol_organizadore: {
+		label: 'Organizadores: sus eventos en Mi rincón (prototipo)',
+		description:
+			'Quien gestiona un perfil que figura con el rol «Organiza» en un evento ve en Mi rincón → ' +
+			'«Eventos que organizás» cómo va la venta de ESE evento (entradas, cupo y lo recaudado), ' +
+			'la lista para la puerta (solo nombres) y puede cambiar el texto del evento. Nada de mails ' +
+			'ni teléfonos de quienes compraron. Es un prototipo para mirar y decidir. Apagado, no se ve.',
+		tech:
+			'docs/cuentas.md, «Organizadores (prototipo)». Sin migración: organizar sale del rol ' +
+			'Organiza del evento y de profile_managers (src/lib/server/personas/organizadore.js, ' +
+			'canManageEvent). Apagado, /mi-rincon/organizo da 404.',
+		envVar: 'ROL_ORGANIZADORE_ENABLED'
 	}
 });
 
@@ -410,6 +423,15 @@ export function conectorClaudeEnabled(platform) {
  */
 export function encuestaEnabled(platform) {
 	return isFlagOn(getDB(platform), 'encuesta_post_evento');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el prototipo de organizadores en Mi rincón? (docs/cuentas.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function rolOrganizadoreEnabled(platform) {
+	return isFlagOn(getDB(platform), 'rol_organizadore');
 }
 
 /**

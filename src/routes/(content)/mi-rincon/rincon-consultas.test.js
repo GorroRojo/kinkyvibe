@@ -172,6 +172,7 @@ describe('Mi rincón con sesión, en pocas tandas', () => {
 			createdAt: 1_000,
 			canHaveProfiles: true,
 			sigoOn: false,
+			organizoOn: false,
 			ordersError: false,
 			saved: {
 				name: 'Persona Inventada',

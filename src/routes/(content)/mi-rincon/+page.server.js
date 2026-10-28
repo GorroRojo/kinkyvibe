@@ -41,6 +41,7 @@ import { readWorkshop } from '$lib/server/eventos/partes.js';
 import { partsCoveredBy, ticketDate, ticketParts } from '$lib/utils/partes.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
+import { rolOrganizadoreEnabled } from '$lib/server/flags.js';
 import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
 import { myClaims } from '$lib/server/amigues/claims.js';
 import {
@@ -73,6 +74,9 @@ export async function load(event) {
 	const { db, member } = await requireMember(event);
 	// La base está lejos: lo que no depende de otra cosa se lee a la par. La velocidad de lectura
 	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
+	// Prototipo de organizadores (interruptor `rol_organizadore`, docs/cuentas.md): la tarjeta
+	// «Eventos que organizás», con lo de perfiles. Se pide ya y se espera abajo.
+	const organizoRead = rolOrganizadoreEnabled(event.platform);
 	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, claims] =
 		await Promise.all([
 			getAccount(db, member.id),
@@ -174,6 +178,7 @@ export async function load(event) {
 		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
 		canHaveProfiles: profilesOk,
 		sigoOn,
+		organizoOn: Boolean(profilesOk) && (await organizoRead),
 		ordersError,
 		saved: {
 			name: saved.name ?? '',
