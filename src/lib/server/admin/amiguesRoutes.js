@@ -27,6 +27,11 @@ import { resolveProfileSlug, urlSlugOf } from '$lib/server/amigues/profiles.js';
 import { decideClaim } from '$lib/server/amigues/claims.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
+import {
+	avatarSnapshot,
+	purgeAfterProfileSave,
+	purgeProfileAvatars
+} from '$lib/server/media/purge.js';
 
 /** Tipos que se eligen en el editor. */
 export const EDITOR_KINDS = Object.freeze({ ...KIND_LABELS });
@@ -147,6 +152,7 @@ export async function saveProfileAction({ locals, url, platform, params, request
 		}
 		avatar = picked.id;
 	}
+	const before = await avatarSnapshot(platform, db, found.object);
 	const result = await saveProfileFromPanel(db, found.object, values, {
 		actor: admin.login,
 		...(avatar !== undefined ? { avatar } : {})
@@ -168,6 +174,8 @@ export async function saveProfileAction({ locals, url, platform, params, request
 		targetId: result.profile.id,
 		summary: `Editó el perfil «${result.profile.title}»`
 	});
+	// Si lo ocultó o le cambió la foto, la de antes sale de la caché del borde.
+	purgeAfterProfileSave(platform, before, result.profile, avatar !== undefined);
 	return {
 		perfil: {
 			ok: true,
@@ -255,6 +263,8 @@ export function approvalAction(approve) {
 					? `Aprobó el perfil «${title}» para Amigues`
 					: `Sacó el perfil «${title}» de Amigues`
 			});
+			// Sin aprobación, su foto deja de servirse: que tampoco quede en la caché del borde.
+			if (!approve) await purgeProfileAvatars(platform, db, [id]);
 		}
 		return {
 			perfil: {

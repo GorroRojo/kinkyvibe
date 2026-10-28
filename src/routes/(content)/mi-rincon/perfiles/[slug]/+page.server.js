@@ -32,6 +32,7 @@ import {
 	updateProfile,
 	withdrawMemberInvite
 } from '$lib/server/cuentas/perfiles.js';
+import { avatarSnapshot, purgeAfterProfileSave } from '$lib/server/media/purge.js';
 import {
 	field,
 	inviteNotice,
@@ -189,7 +190,7 @@ async function guarded(action, fn) {
 /** @type {import('./$types').Actions} */
 export const actions = {
 	guardar: async (event) => {
-		const { db, member, slug } = await managed(event);
+		const { db, member, slug, found: current } = await managed(event);
 		const form = await event.request.formData();
 		const draft = profileForm(form);
 		const version = Number(field(form, 'version', 20));
@@ -218,6 +219,7 @@ export const actions = {
 			}
 			avatar = image.id;
 		}
+		const before = await avatarSnapshot(event.platform, db, current.profile);
 		let result;
 		try {
 			result = await updateProfile(db, member.id, slug, {
@@ -239,6 +241,8 @@ export const actions = {
 				conflict: result.status === 409 && !result.errors
 			});
 		}
+		// Si lo ocultó o le cambió la foto, la de antes sale de la caché del borde.
+		purgeAfterProfileSave(event.platform, before, result.profile, avatar !== undefined);
 		// El nombre no cambia la dirección (así los links que ya circulan siguen andando).
 		return { action: 'guardar', message: 'Guardado.' };
 	},
@@ -367,6 +371,7 @@ export const actions = {
 			});
 		}
 		const version = Number(field(form, 'version', 20));
+		const before = await avatarSnapshot(event.platform, db, found.profile);
 		const result = await guarded('borrar', async () =>
 			reply(
 				'borrar',
@@ -378,6 +383,8 @@ export const actions = {
 			)
 		);
 		if ('status' in result) return result;
+		// Borrado: su foto deja de servirse; que tampoco quede en la caché del borde.
+		purgeAfterProfileSave(event.platform, before, { visibility: 'deleted' }, true);
 		redirect(303, '/mi-rincon/perfiles');
 	},
 

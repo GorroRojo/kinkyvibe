@@ -255,11 +255,67 @@ donde alguien ya pidió la imagen, la respuesta guardada se sigue sirviendo sin 
 base: **hasta un año** una portada o un archivo (`immutable`), **hasta un día** la foto de un
 perfil. Probado con `wrangler dev` (que emula esa caché): después de borrar, la misma URL sigue
 dando 200 y con `Cache-Control: no-cache` en el pedido (que saltea la caché) da 404. Los
-navegadores que ya la tenían también la guardan ese tiempo, y eso no se puede borrar.
+navegadores que ya la tenían también la guardan ese tiempo, y eso no se puede borrar. Por eso,
+después de sacarla, hay que **purgarla de la caché del borde**: sola si la purga automática está
+configurada, o a mano (abajo).
 
-Para que deje de verse en el borde, **purgar a mano** después de sacarla (no hay purga
-automática): panel de Cloudflare → zona `kinkyvibe.ar` → **Caching** → **Configuration** →
-**Custom Purge** → **URL**, y pegar estas direcciones (`<hash>.<ext>` es lo que muestra «Abrir»):
+Para borrar los bytes de verdad (el pedido de una persona), ver «Si una persona pide que saquemos
+su foto», abajo: hay que borrarlos también de la copia nocturna.
+
+**Las cuentas** (Mi rincón, «Borrar imágenes sin usar…» en Buscar) borran igual (el mismo borrado
+suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` en
+`src/lib/server/media/library.js`, `DELETE /imagenes/<id>`):
+
+- «Usar» es cualquier edge hacia la imagen desde un objeto vivo (portada, imagen, avatar…) o un
+  objeto vivo que nombra su archivo en sus datos (por ejemplo, `/media/img/<hash>.webp` en un
+  texto) (`imageUsage`). Lo que la cuenta no puede ver se cuenta igual, como «otra publicación».
+- Si se usa: 409 con dónde («No la podés borrar: se usa en perfil «…». Primero sacala de ahí.»),
+  y el selector ya no muestra «Borrar» para esa imagen sino dónde se usa.
+- La imagen de otra persona, una ya borrada, sin sesión o sin perfiles: 404 (como si no
+  existiera). Desde otro sitio (Origin): 403.
+- Les admins siguen pudiendo sacar cualquiera, aunque se use.
+
+### Purga automática (cuando está configurada)
+
+Cada respuesta de `/media` lleva `Cache-Tag: img-<hash>` (el original y sus copias chicas
+`-360`/`-720`, la misma etiqueta) o `file-<hash>` (un documento o video). Cloudflare la guarda con
+la entrada de la caché (también las que guarda el worker con `cache.put`) y la saca antes de que
+llegue al navegador. Cuando algo deja de servirse, `purgeMediaCache` (`src/lib/server/media/purge.js`)
+le pide a la API de Cloudflare (`POST /zones/<zona>/purge_cache`) que purgue esas etiquetas en
+todos los centros de datos, y en un segundo pedido la URL del original (lo que, según la
+documentación de Cloudflare Images, saca también sus variantes `/cdn-cgi/image/…`). Corre en
+`waitUntil`: quien borra no la espera, y si falla, lo de la persona ya está hecho y el error queda
+en los registros del Worker (una línea JSON con `"area":"media-purge"`). Se purga:
+
+- al **sacar** una imagen o un archivo de la biblioteca (admins, y una cuenta con una imagen suya
+  sin usar);
+- la **foto de un perfil** cuando el perfil se oculta (panel o Mi rincón), deja de ser público
+  («solo con cuenta»), sale de Amigues, se borra (panel o Mi rincón), o le cambian o sacan la foto
+  (la de antes);
+- las fotos de los perfiles de una cuenta que **se borra** («Borrar la cuenta» en Mi rincón).
+
+Purgar algo que se sigue usando en otro lado no rompe nada: el próximo pedido lo vuelve a buscar.
+
+**Para prenderla** (una vez, gorrite, en el panel de Cloudflare; nada de esto va al repo):
+
+1. **El id de la zona**: zona `kinkyvibe.ar` → **Overview** → columna de la derecha, «API» →
+   **Zone ID** (copiar con el botón). Va en el Worker `kinkyvibe` → **Settings** → **Variables and
+   Secrets** como texto: `CLOUDFLARE_ZONE_ID`.
+2. **El token**: **My Profile** → **API Tokens** → **Create Token** → **Custom token**, con un solo
+   permiso, **Zone** › **Cache Purge** › **Purge**, y en «Zone Resources» solo **Include** ›
+   **Specific zone** › `kinkyvibe.ar`. Va en el mismo lugar como **Secret**:
+   `CLOUDFLARE_PURGE_TOKEN`.
+3. Para probar: sacar una imagen de prueba y mirar que `curl -sI` de su dirección dé `404` (en los
+   registros del Worker no tiene que aparecer `media-purge`).
+
+Sin alguno de los dos, la purga no hace nada (los registros lo dicen una vez por instancia,
+`[media-purge] Sin CLOUDFLARE_PURGE_TOKEN…`) y hay que purgar a mano. Los previews no los
+necesitan: en `workers.dev` la caché del worker no guarda nada.
+
+### Purgar a mano (si la automática no está o falló)
+
+Panel de Cloudflare → zona `kinkyvibe.ar` → **Caching** → **Configuration** → **Custom Purge** →
+**URL**, y pegar estas direcciones (`<hash>.<ext>` es lo que muestra «Abrir»):
 
 ```text
 https://kinkyvibe.ar/media/img/<hash>.<ext>
@@ -279,22 +335,6 @@ https://kinkyvibe.ar/media/img/<hash>-720.webp
   con `kinkyvibe.ar/media/img/<hash>` saca de una vez el original, las copias y cualquier `?…`.
 - Para comprobar: `curl -sI https://kinkyvibe.ar/media/img/<hash>.<ext>` tiene que dar `404`
   (mira solo el centro de datos más cercano; la purga es para todos).
-
-Para borrar los bytes de verdad (el pedido de una persona), ver «Si una persona pide que saquemos
-su foto», abajo: hay que borrarlos también de la copia nocturna.
-
-**Las cuentas** (Mi rincón, «Borrar imágenes sin usar…» en Buscar) borran igual (el mismo borrado
-suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` en
-`src/lib/server/media/library.js`, `DELETE /imagenes/<id>`):
-
-- «Usar» es cualquier edge hacia la imagen desde un objeto vivo (portada, imagen, avatar…) o un
-  objeto vivo que nombra su archivo en sus datos (por ejemplo, `/media/img/<hash>.webp` en un
-  texto) (`imageUsage`). Lo que la cuenta no puede ver se cuenta igual, como «otra publicación».
-- Si se usa: 409 con dónde («No la podés borrar: se usa en perfil «…». Primero sacala de ahí.»),
-  y el selector ya no muestra «Borrar» para esa imagen sino dónde se usa.
-- La imagen de otra persona, una ya borrada, sin sesión o sin perfiles: 404 (como si no
-  existiera). Desde otro sitio (Origin): 403.
-- Les admins siguen pudiendo sacar cualquiera, aunque se use.
 
 ## Las imágenes viejas del repo
 
@@ -394,10 +434,11 @@ Con un bloqueo puesto, un bucket no se puede vaciar ni borrar hasta sacar las re
 1. **En el momento: sacarla del sitio.** Contenido → Biblioteca → buscarla → **Sacar** (el borrado
    suave): deja de aparecer en las páginas. Sacarla también de donde se use (portada, perfil) si
    hace falta otra imagen. **`/media/…` no da 404 al toque**: donde ya estaba en la caché del
-   borde se sigue sirviendo hasta un año (un día si es la foto de un perfil). Enseguida, **purgar
-   en Cloudflare** sus tres direcciones (original, `-360.webp`, `-720.webp`), como dice «Borrar»
-   arriba, y comprobar con `curl -sI` que da 404. Lo que quedó en el navegador de alguien no se
-   puede borrar.
+   borde se sigue sirviendo hasta un año (un día si es la foto de un perfil). Con la purga
+   automática configurada («Borrar», arriba), sacarla ya la purga sola; si no (o si `curl -sI`
+   todavía da 200 a los pocos minutos), **purgar a mano en Cloudflare** sus tres direcciones
+   (original, `-360.webp`, `-720.webp`). Comprobar con `curl -sI` que da 404. Lo que quedó en el
+   navegador de alguien no se puede borrar.
 2. **Anotar la clave** (antes de sacarla, «Abrir» muestra `/media/img/<hash>.<ext>`): la clave en
    R2 es `img/<hash>.<ext>`, y sus copias chicas, `img/<hash>-360.webp` e `img/<hash>-720.webp`
    (un GIF no tiene). Un documento: `file/<hash>.<ext>`.
