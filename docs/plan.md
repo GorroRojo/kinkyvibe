@@ -402,7 +402,7 @@ CI) va en la fase 0.
 ## Fase 6
 
 - `social` · fase 6 · algún día · sitio · Lo social: sin publicaciones libres ni feeds por ahora; la comunidad vive en Telegram · [0001](decisiones/0001-ritmo-y-orden.md)
-- `proto-indieweb-activitypub` · fase 6 · sigue · sitio · Investigación y prototipo de IndieWeb y ActivityPub (webmention, federación como Mobilizon o Gancio), para mirar y decidir
+- `proto-indieweb-activitypub` · fase 6 · sigue · sitio · Investigación y prototipo de IndieWeb y ActivityPub (webmention, federación como Mobilizon o Gancio), para mirar y decidir; investigación y prototipo (interruptor `fediverso`, apagado) en #NNN, falta decidir la fase 2 · [investigación](investigaciones/indieweb-activitypub.md)
 - `iconos-roles-bdsm` · fase 6 · algún día · diseño · Investigar el proyecto de íconos de roles BDSM que circula en internet (quién lo hizo, licencia, qué roles cubre) para usarlo en los perfiles cuando llegue lo social; va junto con `queermoji` (gorrite, 25/10)
 
 ## Fase 7

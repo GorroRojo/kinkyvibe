@@ -187,7 +187,7 @@
 								(/** @type {ProcessedPost} */ a) => a.meta.postID == author
 							)}{#if i > 0}{i === authors.length - 1 ? ' y ' : ', '}{/if}{#if profile}<a
 								rel="author"
-								class="p-author u-url"
+								class="p-author h-card"
 								href={profile.path}>{author}</a
 							>{:else}<span class="p-author">{author}</span>{/if}{/each}{/await}
 			</address>
