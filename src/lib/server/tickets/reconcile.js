@@ -50,17 +50,6 @@ export const MAX_CONSECUTIVE_FAILURES = 3;
 const bucketOf = (id) => `tickets:conc:${id}`;
 
 /**
- * El comienzo de la ventana (segundos, como en `rate_limits`) que le toca a `now`.
- *
- * @param {number} now ms
- * @param {number} windowSeconds
- */
-function windowStart(now, windowSeconds) {
-	const s = Math.floor(now / 1000);
-	return s - (s % windowSeconds);
-}
-
-/**
  * @param {{
  *   db: D1Database,
  *   origin: string,
@@ -96,7 +85,7 @@ export async function reconcilePendingPayments({
 				AND NOT EXISTS (
 					SELECT 1 FROM rate_limits r
 					WHERE r.bucket = 'tickets:conc:' || o.id
-						AND r.window_start = CASE WHEN o.created_at > ?3 THEN ?4 ELSE ?5 END
+						AND r.window_start > CASE WHEN o.created_at > ?3 THEN ?4 ELSE ?5 END
 						AND r.hits > 0
 				)
 			ORDER BY (SELECT MAX(r.window_start) FROM rate_limits r
@@ -108,8 +97,10 @@ export async function reconcilePendingPayments({
 			now - MAX_AGE_MS,
 			now - MIN_AGE_MS,
 			youngSince,
-			windowStart(now, YOUNG_WINDOW_SECONDS),
-			windowStart(now, OLD_WINDOW_SECONDS),
+			// «Ya mirada en esta ventana»: una marca que empieza después de esto. Sirve igual con la
+			// ventana fija (una fila por ventana) que con una móvil (una por hora, rateLimit.js).
+			Math.floor(now / 1000) - YOUNG_WINDOW_SECONDS,
+			Math.floor(now / 1000) - OLD_WINDOW_SECONDS,
 			limit
 		)
 		.all();
