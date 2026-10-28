@@ -5,6 +5,7 @@
 	 * pidió ni si alguien lo gestiona).
 	 * Props: `state` ('none' | 'pending' | 'manager'), `result` (lo que devolvió la action, si hubo).
 	 */
+	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 
 	/** @type {'none' | 'pending' | 'manager'} */
@@ -14,6 +15,15 @@
 
 	let open = false;
 	let busy = false;
+	/** @type {HTMLTextAreaElement | undefined} */
+	let textarea;
+
+	/** El botón desaparece al abrir el formulario: el foco pasa al campo del mensaje. */
+	async function openForm() {
+		open = true;
+		await tick();
+		textarea?.focus();
+	}
 </script>
 
 <aside class="claim">
@@ -28,7 +38,7 @@
 			Pediste este perfil: lo revisa el equipo. Si lo aprobamos, aparece en Mi rincón → Perfiles.
 		</p>
 	{:else if !open}
-		<button type="button" class="link" on:click={() => (open = true)}>¿Es tu perfil?</button>
+		<button type="button" class="link" on:click={openForm}>¿Es tu perfil?</button>
 	{:else}
 		<form
 			method="POST"
@@ -51,7 +61,7 @@
 					>Contanos algo que nos ayude a confirmar que es tuyo (opcional): por ejemplo, dónde
 					publicás o cómo te conocemos</span
 				>
-				<textarea name="mensaje" maxlength="500" rows="3"></textarea>
+				<textarea name="mensaje" maxlength="500" rows="3" bind:this={textarea}></textarea>
 			</label>
 			<button type="submit" class="kv-cta" disabled={busy}>Es mi perfil</button>
 		</form>

@@ -59,7 +59,8 @@
 		comunitarios
 	</p>
 </div>
-<main>
+<!-- No es un <main>: el layout ya pone uno (un solo main por página). -->
+<div class="inicio">
 	<!-- El logo del encabezado es la presentación (decisión de gorrite, 5/10): el h1 queda solo
 	     para lectores de pantalla y buscadores. -->
 	<h1 class="visually-hidden">Kinky Vibe</h1>
@@ -120,7 +121,7 @@
 	<div id="lista"></div>
 	<!-- el feed largo de a 20: así el pie de página queda a mano -->
 	<PostList heading="Lo último publicado" posts={allPosts} limit={20} />
-</main>
+</div>
 <!-- Los feeds del calendario, también desde el inicio (docs/seo.md); /rss lo anuncia app.html. -->
 <FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
 
@@ -131,7 +132,8 @@
 	#lista {
 		display: none;
 	}
-	main {
+	/* div:where(): la misma especificidad que tenía cuando era `main`. */
+	div:where(.inicio) {
 		/* width: 100%; */
 		/* max-width: 50rem; */
 		margin: auto;
@@ -144,7 +146,7 @@
 		max-width: 50rem;
 		margin-inline: auto;
 	}
-	main > * {
+	div:where(.inicio) > * {
 		min-width: 0;
 		min-height: 0;
 	}

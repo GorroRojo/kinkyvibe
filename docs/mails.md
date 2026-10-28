@@ -97,6 +97,8 @@ título, detalles, un botón rosa y una línea de ayuda; abajo, por qué te lleg
 baja (si el mail la tiene) y «Kinky Vibe · Buenos Aires». Lo editable de las plantillas va dentro
 de la tarjeta.
 
+- **`<title>`**: «etiqueta · Kinky Vibe», para los lectores de pantalla (los clientes de mail no
+  lo muestran).
 - **Colores en hex**, nunca `hsl()` (`MAIL_COLORS`; `layout.test.js` falla si algún mail lo
   tiene): el Outlook clásico de Windows no lo entiende. La celda del botón lleva además el atributo
   `bgcolor`, así el botón no queda blanco sobre blanco en Outlook de escritorio (ahí sale sin las

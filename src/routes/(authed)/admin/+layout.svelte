@@ -283,6 +283,8 @@
 		};
 	});
 	afterNavigate(() => {
+		// Se cerró por haber ido a otra página: el foco lo maneja SvelteKit, no vuelve a «Más».
+		sheetReturn = null;
 		sheetOpen = false;
 		drawerOpen = false;
 		tip = null;
@@ -377,6 +379,54 @@
 		}
 	}
 
+	/*
+	 * La hoja «Más» se comporta como un diálogo modal para el teclado y los lectores de pantalla:
+	 * al abrirse el foco entra (al botón Cerrar), Tab y Mayús+Tab dan la vuelta adentro, el resto
+	 * del panel queda `inert` y al cerrarse el foco vuelve a donde estaba («Más» o el avatar).
+	 * No es un <dialog> nativo: en la capa superior taparía la barra de carga y el aviso de
+	 * deshacer, que hoy se ven por encima.
+	 */
+	/** @type {HTMLElement | null} */
+	let sheetReturn = null;
+	$: sheetFocus(sheetOpen);
+	/** @param {boolean} open */
+	async function sheetFocus(open) {
+		if (typeof document === 'undefined') return;
+		if (open) {
+			if (!sheetReturn) sheetReturn = /** @type {HTMLElement | null} */ (document.activeElement);
+			await tick();
+			/** @type {HTMLElement | null | undefined} */ (
+				sheetEl?.querySelector('.sheet-head .x')
+			)?.focus();
+		} else if (sheetReturn) {
+			const back = sheetReturn;
+			sheetReturn = null;
+			// Después de que el panel deja de estar `inert`.
+			await tick();
+			if (back.isConnected) back.focus();
+		}
+	}
+
+	/** @param {KeyboardEvent} e */
+	function sheetTrap(e) {
+		if (e.key !== 'Tab' || !sheetEl) return;
+		const items = /** @type {HTMLElement[]} */ ([
+			...sheetEl.querySelectorAll(
+				'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+			)
+		]).filter((el) => el.offsetParent !== null);
+		if (!items.length) return;
+		const first = items[0];
+		const last = items[items.length - 1];
+		if (e.shiftKey && document.activeElement === first) {
+			e.preventDefault();
+			last.focus();
+		} else if (!e.shiftKey && document.activeElement === last) {
+			e.preventDefault();
+			first.focus();
+		}
+	}
+
 	/** @param {TransitionEvent} e */
 	function sheetTransitionEnd(e) {
 		if (closing && e.target === sheetEl && e.propertyName === 'transform') sheetOpen = false;
@@ -427,7 +477,7 @@
 	{#if bare}
 		<slot />
 	{:else}
-		<div class="app">
+		<div class="app" inert={sheetOpen || undefined}>
 			<aside
 				class="side"
 				class:open={drawerOpen}
@@ -641,7 +691,12 @@
 			</div>
 		{/if}
 
-		<nav class="tabbar" aria-label="Secciones principales" data-sveltekit-preload-data="hover">
+		<nav
+			class="tabbar"
+			aria-label="Secciones principales"
+			data-sveltekit-preload-data="hover"
+			inert={sheetOpen || undefined}
+		>
 			{#each mobileTabs as tab, i (i)}
 				{#if tab}
 					<a
@@ -676,8 +731,10 @@
 					class:dragging
 					id="kv-more"
 					role="dialog"
+					aria-modal="true"
 					aria-label="Todas las secciones"
 					bind:this={sheetEl}
+					on:keydown={sheetTrap}
 					style:transform={dragY ? `translateY(${dragY}px)` : undefined}
 					on:transitionend={sheetTransitionEnd}
 				>
@@ -762,6 +819,18 @@
 </div>
 
 <style lang="scss">
+	/* En el celu, las barras fijas del panel (arriba y abajo) no tapan lo que recibe el foco ni el
+	   destino de un ancla: el navegador deja ese margen al traer algo a la vista. Los
+	   scroll-margin-top del editor y de las órdenes le restan --panel-scroll-top para terminar en
+	   el mismo lugar que antes. En la compu queda como estaba (ahí el aviso de atajos, fijo abajo a
+	   la derecha, taparía «Guardar» al traerlo a la vista). */
+	:global(html:has(.kv-panel > .app)) {
+		@media (max-width: 899.98px) {
+			--panel-scroll-top: 3.75rem;
+			scroll-padding-top: var(--panel-scroll-top);
+			scroll-padding-bottom: calc(4.3rem + env(safe-area-inset-bottom, 0px));
+		}
+	}
 	.app {
 		display: grid;
 		grid-template-columns: 15.5rem minmax(0, 1fr);

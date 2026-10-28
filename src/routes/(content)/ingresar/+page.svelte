@@ -1,4 +1,5 @@
 <script>
+	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
 	import { durationText } from '$lib/utils/expiry.js';
@@ -10,6 +11,8 @@
 	$: email = form?.email ?? '';
 	$: next = form?.next ?? data.next;
 	let busy = false;
+	/** @type {HTMLInputElement | undefined} */
+	let codeInput;
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const submit = () => {
@@ -17,6 +20,10 @@
 		return async ({ update }) => {
 			await update({ reset: false });
 			busy = false;
+			// En el paso del código, el foco va al campo (el botón que se tocó se deshabilita o
+			// desaparece y el foco caía en el body: un lector de pantalla no se enteraba del paso).
+			await tick();
+			if (form?.step === 'code') codeInput?.focus();
 		};
 	};
 </script>
@@ -38,7 +45,7 @@
 	{/if}
 
 	{#if step === 'code'}
-		<p>
+		<p id="codigo-envio">
 			{#if form?.sent}Si el mail está bien, en un ratito te llega un código a <strong
 					>{email}</strong
 				>.{:else}Escribí el código que te mandamos a <strong>{email}</strong>.{/if}
@@ -46,7 +53,7 @@
 					at={form.expiresAt}
 				/>){/if}.
 		</p>
-		<p class="hint">
+		<p class="hint" id="codigo-ayuda">
 			Puede tardar un par de minutos. Si no lo ves, revisá spam o promociones y buscá «Tu código
 			para entrar a Kinky Vibe». Si pedís otro, vale solo el último que te llegó.
 		</p>
@@ -63,6 +70,8 @@
 					autocomplete="one-time-code"
 					maxlength="9"
 					required
+					bind:this={codeInput}
+					aria-describedby="codigo-envio codigo-ayuda"
 				/>
 			</label>
 			<button class="pill-btn" type="submit" disabled={busy}>Entrar</button>

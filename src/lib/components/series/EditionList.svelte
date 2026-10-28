@@ -17,7 +17,10 @@
 <ol class="editions">
 	{#each shown as e (e.slug)}
 		<li class:current={e.slug === current} class:cancelled={e.status === 'cancelado'}>
-			<span class="n" aria-label="Edición {e.number}">#{e.number}</span>
+			<span class="n"
+				><span class="visually-hidden">{'Edición '}</span><span aria-hidden="true">#</span
+				>{e.number}</span
+			>
 			<a href={e.path} aria-current={e.slug === current ? 'page' : undefined}>{e.title}</a>
 			<time datetime={e.start}>{editionDateLabel(e.start)}</time>
 		</li>
@@ -29,7 +32,10 @@
 		<ol class="editions">
 			{#each rest as e (e.slug)}
 				<li class:current={e.slug === current} class:cancelled={e.status === 'cancelado'}>
-					<span class="n" aria-label="Edición {e.number}">#{e.number}</span>
+					<span class="n"
+						><span class="visually-hidden">{'Edición '}</span><span aria-hidden="true">#</span
+						>{e.number}</span
+					>
 					<a href={e.path} aria-current={e.slug === current ? 'page' : undefined}>{e.title}</a>
 					<time datetime={e.start}>{editionDateLabel(e.start)}</time>
 				</li>

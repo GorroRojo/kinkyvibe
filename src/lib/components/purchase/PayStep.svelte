@@ -32,7 +32,13 @@
 		<div class="method-cards">
 			{#each tickets.methods as m (m)}
 				<label class="method">
-					<input type="radio" name="method" value={m} bind:group={method} />
+					<input
+						type="radio"
+						name="method"
+						value={m}
+						bind:group={method}
+						aria-describedby={errors.method ? 'entradas-medio-error' : undefined}
+					/>
 					<span>
 						<strong>{m === 'mercadopago' ? 'Mercado Pago' : 'Transferencia'}</strong>
 						<small
@@ -57,7 +63,7 @@
 				</p>
 			{/each}
 		</div>
-		{#if errors.method}<p class="field-error">{errors.method}</p>{/if}
+		{#if errors.method}<p class="field-error" id="entradas-medio-error">{errors.method}</p>{/if}
 	</fieldset>
 {:else}
 	<input type="hidden" name="method" value={free ? '' : (tickets.methods[0] ?? '')} />

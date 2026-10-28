@@ -152,16 +152,19 @@
 		<form method="POST" action="?/guardar">
 			<input type="hidden" name="version" value={p.version} />
 			<label>
-				<span>Nombre</span>
+				<span id="perfil-title-label">Nombre</span>
 				<input
 					name="title"
 					type="text"
 					maxlength="200"
 					required
 					value={values.title}
+					aria-labelledby="perfil-title-label"
+					aria-describedby={errors.title ? 'perfil-title-error' : undefined}
 					aria-invalid={errors.title ? 'true' : undefined}
 				/>
-				{#if errors.title}<span class="field-error">{errors.title}</span>{/if}
+				{#if errors.title}<span id="perfil-title-error" class="field-error">{errors.title}</span
+					>{/if}
 			</label>
 			<ImagePicker
 				bind:value={avatar}
@@ -176,37 +179,50 @@
 				<input type="hidden" name="pronouns" value={values.pronouns} />
 			{:else}
 				<label>
-					<span>Pronombres <small class="hint">(opcional)</small></span>
+					<span id="perfil-pronouns-label">Pronombres <small class="hint">(opcional)</small></span>
 					<input
 						name="pronouns"
 						type="text"
 						maxlength="40"
 						value={values.pronouns}
+						aria-labelledby="perfil-pronouns-label"
+						aria-describedby={errors.pronouns ? 'perfil-pronouns-error' : undefined}
 						aria-invalid={errors.pronouns ? 'true' : undefined}
 					/>
-					{#if errors.pronouns}<span class="field-error">{errors.pronouns}</span>{/if}
+					{#if errors.pronouns}<span id="perfil-pronouns-error" class="field-error"
+							>{errors.pronouns}</span
+						>{/if}
 				</label>
 			{/if}
 			<label>
-				<span>Presentación <small class="hint">(opcional, hasta 1000 caracteres)</small></span>
+				<span id="perfil-bio-label"
+					>Presentación <small class="hint">(opcional, hasta 1000 caracteres)</small></span
+				>
 				<textarea
 					name="bio"
 					rows="5"
 					maxlength="1000"
+					aria-labelledby="perfil-bio-label"
+					aria-describedby={errors.bio ? 'perfil-bio-error' : undefined}
 					aria-invalid={errors.bio ? 'true' : undefined}>{values.bio}</textarea
 				>
-				{#if errors.bio}<span class="field-error">{errors.bio}</span>{/if}
+				{#if errors.bio}<span id="perfil-bio-error" class="field-error">{errors.bio}</span>{/if}
 			</label>
 			<label>
-				<span>Links <small class="hint">(uno por línea, hasta 8)</small></span>
+				<span id="perfil-links-label"
+					>Links <small class="hint">(uno por línea, hasta 8)</small></span
+				>
 				<textarea
 					name="links"
 					rows="3"
 					inputmode="url"
 					placeholder="https://"
+					aria-labelledby="perfil-links-label"
+					aria-describedby={errors.links ? 'perfil-links-error' : undefined}
 					aria-invalid={errors.links ? 'true' : undefined}>{values.links}</textarea
 				>
-				{#if errors.links}<span class="field-error">{errors.links}</span>{/if}
+				{#if errors.links}<span id="perfil-links-error" class="field-error">{errors.links}</span
+					>{/if}
 			</label>
 			<fieldset>
 				<legend>¿Quién lo puede ver?</legend>
@@ -250,38 +266,50 @@
 				<fieldset>
 					<legend>El lugar</legend>
 					<label>
-						<span>Dirección <small class="hint">(calle y número)</small></span>
+						<span id="perfil-address-label"
+							>Dirección <small class="hint">(calle y número)</small></span
+						>
 						<input
 							name="address"
 							type="text"
 							maxlength="300"
 							autocomplete="off"
 							bind:value={venueAddress}
+							aria-labelledby="perfil-address-label"
+							aria-describedby={errors.address ? 'perfil-address-error' : undefined}
 							aria-invalid={errors.address ? 'true' : undefined}
 						/>
-						{#if errors.address}<span class="field-error">{errors.address}</span>{/if}
+						{#if errors.address}<span id="perfil-address-error" class="field-error"
+								>{errors.address}</span
+							>{/if}
 					</label>
 					<label>
-						<span>Barrio</span>
+						<span id="perfil-area-label">Barrio</span>
 						<input
 							name="area"
 							type="text"
 							maxlength="100"
 							bind:value={venueArea}
+							aria-labelledby="perfil-area-label"
+							aria-describedby={errors.area ? 'perfil-area-error' : undefined}
 							aria-invalid={errors.area ? 'true' : undefined}
 						/>
-						{#if errors.area}<span class="field-error">{errors.area}</span>{/if}
+						{#if errors.area}<span id="perfil-area-error" class="field-error">{errors.area}</span
+							>{/if}
 					</label>
 					<label>
-						<span>Ciudad</span>
+						<span id="perfil-city-label">Ciudad</span>
 						<input
 							name="city"
 							type="text"
 							maxlength="100"
 							bind:value={venueCity}
+							aria-labelledby="perfil-city-label"
+							aria-describedby={errors.city ? 'perfil-city-error' : undefined}
 							aria-invalid={errors.city ? 'true' : undefined}
 						/>
-						{#if errors.city}<span class="field-error">{errors.city}</span>{/if}
+						{#if errors.city}<span id="perfil-city-error" class="field-error">{errors.city}</span
+							>{/if}
 					</label>
 					<div class="coords">
 						<VenueGeocoder
@@ -306,33 +334,47 @@
 						/>
 					</div>
 					<label>
-						<span>Accesibilidad <small class="hint">(escaleras, baño accesible…)</small></span>
+						<span id="perfil-accessibility-label"
+							>Accesibilidad <small class="hint">(escaleras, baño accesible…)</small></span
+						>
 						<textarea
 							name="accessibility"
 							rows="3"
 							maxlength="2000"
+							aria-labelledby="perfil-accessibility-label"
+							aria-describedby={errors.accessibility ? 'perfil-accessibility-error' : undefined}
 							aria-invalid={errors.accessibility ? 'true' : undefined}
 							>{values.venue?.accessibility ?? ''}</textarea
 						>
-						{#if errors.accessibility}<span class="field-error">{errors.accessibility}</span>{/if}
+						{#if errors.accessibility}<span id="perfil-accessibility-error" class="field-error"
+								>{errors.accessibility}</span
+							>{/if}
 					</label>
 					<label>
-						<span>Cómo llegar</span>
+						<span id="perfil-how-to-get-there-label">Cómo llegar</span>
 						<textarea
 							name="how_to_get_there"
 							rows="3"
 							maxlength="2000"
+							aria-labelledby="perfil-how-to-get-there-label"
+							aria-describedby={errors.how_to_get_there
+								? 'perfil-how-to-get-there-error'
+								: undefined}
 							aria-invalid={errors.how_to_get_there ? 'true' : undefined}
 							>{values.venue?.how_to_get_there ?? ''}</textarea
 						>
-						{#if errors.how_to_get_there}<span class="field-error">{errors.how_to_get_there}</span
+						{#if errors.how_to_get_there}<span
+								id="perfil-how-to-get-there-error"
+								class="field-error">{errors.how_to_get_there}</span
 							>{/if}
 					</label>
 					<label>
-						<span>¿Qué se muestra de la dirección?</span>
+						<span id="perfil-venue-privacy-label">¿Qué se muestra de la dirección?</span>
 						<select
 							name="venue_privacy"
 							value={values.venue?.venue_privacy ?? ''}
+							aria-labelledby="perfil-venue-privacy-label"
+							aria-describedby={errors.venue_privacy ? 'perfil-venue-privacy-error' : undefined}
 							aria-invalid={errors.venue_privacy ? 'true' : undefined}
 						>
 							<option value="">{VENUE_PRIVACY_UNSET_LABEL}</option>
@@ -340,7 +382,9 @@
 								<option {value}>{label}</option>
 							{/each}
 						</select>
-						{#if errors.venue_privacy}<span class="field-error">{errors.venue_privacy}</span>{/if}
+						{#if errors.venue_privacy}<span id="perfil-venue-privacy-error" class="field-error"
+								>{errors.venue_privacy}</span
+							>{/if}
 					</label>
 					<p class="hint">
 						Cada evento puede mostrar menos. Quien compra una entrada recibe siempre la dirección
