@@ -568,7 +568,10 @@ export async function sendOrderEmailResult({
 		// un envío que rebota seguro, y la orden queda marcada como rebotada, como si hubiera
 		// avisado el webhook (Órdenes y «Para revisar»: docs/mails.md, «Rebotes y quejas»). Sin
 		// RESEND_API_KEY (dev, E2E) no sale nada igual: no se consulta.
-		if (env.RESEND_API_KEY && !(await domainAcceptsMail(order.buyer_email))) {
+		if (
+			env.RESEND_API_KEY &&
+			!(await domainAcceptsMail(order.buyer_email, { salt: env.RESEND_API_KEY }))
+		) {
 			console.warn(
 				`[mails] el dominio del mail de la orden ${order.id} no recibe correo: no se manda y queda como rebotado`
 			);

@@ -434,7 +434,7 @@ Resend avisa por un webhook firmado: `POST /api/resend/webhook`
   del webhook. No cambia nada del mail que recibe la persona.
 - **Dominios que no reciben correo:** antes de mandar el mail de las entradas, se consulta el MX
   del dominio por DNS sobre HTTPS (la API JSON de 1.1.1.1, `src/lib/server/email/mx.js`, con el
-  resultado un día en la caché de Cloudflare). Si es seguro que no recibe (el dominio no existe,
+  resultado un día en la caché de Cloudflare, con una clave que no deja ver el dominio). Si es seguro que no recibe (el dominio no existe,
   como `gmail.con`, o publica el MX nulo `0 .`), el mail no se le pide a Resend (rebotaría seguro y
   el rebote pesa sobre la cuenta) y la orden queda marcada como «el mail rebotó», igual que con el
   webhook, con su fila en «Para revisar». Ante cualquier duda (error de red, tiempo agotado,

@@ -9,10 +9,14 @@
  * dirección sigue recibiendo (MX implícito), así que pasa. Cualquier otra cosa (error de red,
  * tiempo agotado, SERVFAIL, respuesta rara) también pasa: ante la duda, el mail sale.
  *
- * El resultado queda un día en la caché de Cloudflare del centro de datos (`caches.default`),
- * con el dominio en la clave. Donde no hay esa caché (vitest, `vite dev`, el build) no consulta
- * nada y devuelve `true`: el chequeo corre solo en Cloudflare.
+ * El resultado queda un día en la caché de Cloudflare del centro de datos (`caches.default`).
+ * La clave no lleva el dominio a la vista sino un hash con un secreto del servidor (`salt`): el
+ * Worker del adapter busca en esa misma caché cualquier GET que le llega, así que con el dominio en
+ * la dirección cualquiera podría pedirla y enterarse de qué dominios de mail se usaron para
+ * comprar. Sin `salt` no se guarda. Donde no hay esa caché (vitest, `vite dev`, el build) no
+ * consulta nada y devuelve `true`: el chequeo corre solo en Cloudflare.
  */
+import { sha256Hex } from '../hash.js';
 
 /** El resolver de Cloudflare (1.1.1.1) con la API JSON; un Worker no puede pedirle a una IP. */
 const DOH_URL = 'https://cloudflare-dns.com/dns-query';
@@ -71,17 +75,18 @@ export function acceptsMailFromDoh(answer) {
  * `false` solo si es seguro que el dominio de `email` no recibe correo (ver arriba).
  *
  * @param {string} email
- * @param {{ fetch?: typeof fetch, cache?: Cache | null }} [deps] para los tests
+ * @param {{ fetch?: typeof fetch, cache?: Cache | null, salt?: string }} [deps] `salt`: un secreto
+ *   del servidor para la clave de la caché (sin él no se guarda); `fetch` y `cache`, para los tests
  * @returns {Promise<boolean>}
  */
-export async function domainAcceptsMail(email, { fetch: fetchFn = fetch, cache } = {}) {
+export async function domainAcceptsMail(email, { fetch: fetchFn = fetch, cache, salt } = {}) {
 	const store = cache === undefined ? edgeCache() : cache;
 	if (!store) return true;
 	const domain = mailDomain(email);
 	if (!domain || !/^[a-z0-9.-]+$/.test(domain)) return true;
-	const key = `https://kinkyvibe.ar/__mx/${encodeURIComponent(domain)}`;
+	const key = salt ? `https://kinkyvibe.ar/__mx/${await sha256Hex(`${salt}\n${domain}`)}` : null;
 	try {
-		const hit = await store.match(key);
+		const hit = key ? await store.match(key) : null;
 		if (hit) return (await hit.text()) !== 'no';
 	} catch {
 		// Sin caché: se consulta igual.
@@ -97,6 +102,7 @@ export async function domainAcceptsMail(email, { fetch: fetchFn = fetch, cache }
 	} catch {
 		return true;
 	}
+	if (!key) return ok;
 	try {
 		await store.put(
 			key,
