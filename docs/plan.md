@@ -185,7 +185,7 @@ CI) va en la fase 0.
 ### Diseño
 
 - `diseno-aprobar-componentes` · fase 0 · hecho · diseño · Revisión de los 9 grupos de `/estilo` por gorrite (paso 3 del sistema de diseño), con lo que pidió cambiar y tablas que se ordenan · #69, #341, [estilo.md](estilo.md)
-- `diseno-versiones-publicas` · fase 0 · sigue · diseño · Versiones para el sitio público de Field, Checkbox, Switch, Notice, Card, Badge, Table, el toast de deshacer y el diálogo de confirmar
+- `diseno-versiones-publicas` · fase 0 · sigue · diseño · Versiones para el sitio público de Field, Checkbox, Switch, Notice, Card, Badge, Table, el toast de deshacer y el diálogo de confirmar: variantes en #579, falta adoptarlas
 - `diseno-envoltorios` · fase 0 · sigue · diseño · Pasar los imports viejos a `$lib/components/ui` y borrar los envoltorios (gorrite, 5/10)
 - `diseno-restos-ui` · fase 0 · sigue · diseño · Revisar lo que quedó del paso 2 de la revisión de UI: links de texto, opciones como tarjetas, chips de monto, tablas editables, el encabezado de evento en otras páginas
 - `diseno-fijar` · fase 0 · sigue · diseño · Fijar el sistema: pruebas de capturas que frenen (hoy el informe de impacto ya fotografía cada grupo de `/estilo`, pero solo informa), reglas de CI (sin colores ni tamaños sueltos), sección de UI en CLAUDE.md (depende de: diseno-aprobar-componentes)
