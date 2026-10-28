@@ -3,12 +3,12 @@
 	 * Resultado grande del modo puerta: verde "Adelante", amarillo "Ya ingresó", rosa "Anulada",
 	 * "De otro evento" o "QR inválido". Tocar el bloque (o "Ver compra") abre la compra completa.
 	 *
-	 * Eventos: `undo`, `details`, `reveal` (DNI completo), `discard` (descartar una venta sin
-	 * conexión que todavía no se mandó).
+	 * Eventos: `undo`, `details`, `reveal` (DNI completo, solo con `canReveal`), `discard`
+	 * (descartar una venta sin conexión que todavía no se mandó).
 	 *
 	 * Después de una venta (UX V12): si ya está en el servidor, «¿Te equivocaste? Ver la orden»
 	 * lleva a la orden en el panel (el reembolso se hace ahí, con su confirmación); si todavía está
-	 * en la cola del celu, se puede descartar.
+	 * en la cola del celu, se puede descartar. Con un link de puerta no va ninguna de las dos.
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { invalidTitle } from '$lib/admin/doorOffline.js';
@@ -33,6 +33,8 @@
 	/** @type {string | null} */
 	export let dni = null;
 	export let canUndo = false;
+	/** Tocar el DNI parcial pide el completo (solo admins; con un link de puerta, no). */
+	export let canReveal = true;
 	/** Link a la orden en el panel (Ventas › Órdenes); `null` si todavía no está en el servidor. */
 	/** @type {string | null} */
 	export let orderHref = null;
@@ -129,6 +131,8 @@
 			{#if card.dniTail}
 				{#if dni}
 					<span class="mono">DNI {dotted(dni)}</span>
+				{:else if !canReveal}
+					<span class="mono">DNI •••.{card.dniTail}</span>
 				{:else}
 					<button
 						type="button"

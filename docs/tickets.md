@@ -175,7 +175,99 @@ con el mismo texto que acá. Si cambia una, cambiá la otra.
 - Si alguien está mal, se siente insegure o hay una situación de violencia, avisale enseguida a
   la persona de cuidado del evento.
 - No prestes tu sesión de admin ni el celu con el panel abierto: si hace falta alguien más en la
-  puerta, que lo resuelva une organizadore.
+  puerta, mejor un [link de puerta](#link-de-puerta).
+
+Con un link de puerta la guía cambia en dos cosas: si una venta pasa un límite no se puede vender
+desde ahí (llamá a une organizadore), y el link no se reenvía (si se pierde el celu, que une admin
+lo revoque).
+
+### Link de puerta
+
+Para que alguien haga la puerta **sin cuenta de admin** ([decisión 0052](decisiones/0052-link-de-puerta.md);
+auditoría de comunidad K28). Une admin lo crea en la ficha del evento (Resumen → **Links de
+puerta**), solo en eventos presenciales con entradas: una etiqueta para reconocerlo («voluntarie
+de la puerta») y hasta cuándo anda (por defecto, el fin del día en que termina el evento, en hora
+de Argentina, más 6 horas; entre 10 minutos y 7 días desde ahora). El link se ve **una sola vez**,
+al crearlo, con «Copiar». La ficha lista los links vivos (etiqueta, quién lo creó y cuándo, cuándo
+vence y si ya se abrió) con **Revocar**, que lo corta al toque, también en los celus donde ya está
+abierto. Como mucho 20 vivos por evento.
+
+**Qué abre.** Solo `/puerta/<slug>` de ese evento: la misma pantalla que el modo puerta del panel
+(`DoorScreen.svelte`, con la misma lógica en el servidor: `src/lib/server/tickets/doorScreen.js`)
+con escanear, escribir el código, buscar, ver la compra, vender en la puerta, deshacer, la lista
+sin conexión y sincronizar. Muestra lo mismo que la puerta del panel para hacer entrar a la gente
+(nombre, pronombres, tipo, quién compró y su mail, los últimos 3 del DNI, la compra). **No**: el
+DNI completo (`reveal` da 403), pasar límites (cupo, 10 por venta, solo anticipadas, evento
+cancelado: la venta contesta «la tiene que confirmar une admin», sin diálogo, y una clave de
+`override` no sirve), cobrar otro precio que el de la puerta o vender sin cargo en un tipo con
+precio (a la gorra, cualquier monto desde el mínimo), qué evento es una entrada «De otro evento»,
+ni ningún link al panel (volver a la ficha, órdenes, cargar a mano, otro evento). Tampoco ve lo
+interno del panel: en «Ver compra» y en el resultado de una venta no van la nota interna, quién
+confirmó la orden, el código de descuento ni el reembolso; el buscador no trae el token de las
+entradas ni busca por su comienzo (marcar desde una sugerencia usa el código o `ticket:<id>`, una
+entrada de ese evento); y donde dice quién marcó un ingreso, lo que marcó une admin dice «une
+admin», sin su login de GitHub.
+
+**Ventas sin conexión con un link.** Los límites del link valen también al sincronizar: una venta
+de más de 10 entradas, de un evento sin venta en la puerta o cancelado, con otro precio o sin
+cargo en un tipo con precio, vuelve al celu como rechazada (queda a la vista con el motivo, para
+cargarla a mano). Solo el **cupo** sigue la regla de [0035](decisiones/0035-vender-en-puerta-sin-conexion.md):
+la venta se guarda igual y queda en «Para revisar». El registro dice «con un link de puerta» y
+lleva `doorLink`. Las ventas sincronizadas con un link no mandan el mail de compra.
+
+**Topes por link** (por hora): 150 entradas vendidas (con conexión y sincronizadas; pasado el
+tope, la venta se rechaza y la carga une admin) y 40 mails de compra (solo en ventas con
+conexión; pasado el tope, la venta queda y el mail no sale).
+En iPhone se usa «Escribir código» o «Buscar persona» (abrir el QR con la app Cámara lleva a la
+página de la entrada, que marca el ingreso solo para admins).
+
+**Cómo funciona** (`src/lib/server/tickets/doorLinks.js`, tabla `door_links`, migración 0067):
+
+- El token es al azar (32 bytes en base64url); en la base queda solo su SHA-256 (`token_hash`).
+- El link es `https://kinkyvibe.ar/puerta#<token>`: el token va en el **fragmento**, que el
+  navegador no manda al servidor, así que no queda en los registros de pedidos ni en el Referer.
+  La página `/puerta` lo saca de la dirección y lo manda en el cuerpo de un POST (`?/entrar`,
+  con tope de 20 intentos cada 10 minutos por conexión, con la IP anónima). Si es de un link vivo
+  deja la cookie `kv_puerta` (httpOnly, `SameSite=Strict`, solo para `/puerta`, vence con el link)
+  y abre `/puerta/<slug>`. «Cerrar la puerta en este celu» (Opciones) la borra, junto con la lista
+  guardada en el celu (solo sin nada por sincronizar ni ventas sin registrar).
+- **Lo guardado en el celu.** La puerta con link guarda aparte de la del panel
+  (`kv-puerta-link:<slug>` y `kv-puerta-link-recent:<slug>` en localStorage; la del panel usa
+  `kv-door:`), así lo que se borra de un link nunca toca lo del panel. Cuando el servidor contesta
+  403 (el link venció o lo revocaron) o pasa el vencimiento del link (al abrir la pantalla y cada 30
+  segundos, aunque no haya conexión), se borran la lista sin conexión (nombres, mails), los ingresos
+  marcados sin conexión y los últimos escaneos, pero **nunca las ventas sin mandar** ni las que el
+  servidor no pudo registrar (una venta que pasó no se pierde, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)):
+  la pantalla avisa «Quedaron N ventas sin mandar: mostráselas a une admin para cargarlas», con
+  «Ver las ventas». Si en ese celu se abre otro link vivo del mismo evento, se mandan con ese link
+  (con sus límites; un reintento no duplica, `client_sale_id`). Con un link tampoco se ofrece
+  «Descartar» una venta sin mandar ni «¿Te equivocaste? Ver la orden» (eso es de la puerta del
+  panel). Abrir `/puerta` sin un link vivo
+  hace lo mismo con todas las puertas con link guardadas, muestra las ventas que quedaron y deja
+  borrarlas a mano («Ya las cargó une admin»). **Revocar no llega a un celu sin conexión**: ese
+  celu sigue con la lista hasta que vence el link o vuelve a hablar con el servidor.
+- En **cada** pedido de `/puerta/<slug>` (la página, cada acción y los tres GET: `buscar`,
+  `compra`, `lista`) `requireDoorLink` vuelve a mirar la base: el link existe, es de **ese**
+  evento, no venció y no se revocó; si no, 403 (y borra una cookie que ya no sirve). Además, un
+  tope de 3000 pedidos por hora por link.
+- La cookie no es una sesión de admin: no toca `locals.user`, así que el resto del panel
+  (`requireAdmin`) no la reconoce y sigue pidiendo GitHub.
+- Los ingresos y las ventas quedan a nombre de `puerta: <etiqueta>` (`checked_in_by`,
+  `confirmed_by`). En el registro de actividad, cada acción hecha con un link (ingreso, «ya
+  ingresó», deshacer, venta, sincronizar, ver una compra) queda como `puerta:<id del link>`, con
+  `doorLink` en el detalle. Crear y revocar quedan como `door_link.create` y `door_link.revoke`.
+  El token nunca se guarda ni se loguea.
+- `/puerta` no se indexa, no se guarda en la caché del borde, no se cuenta en las visitas, no se
+  puede meter en un iframe y no carga el beacon de Cloudflare Web Analytics (`hooks.server.js` lo
+  saca del HTML, `src/lib/server/analyticsBeacon.js`), así ningún script de terceros ve el
+  fragmento con el token.
+
+Las pruebas (`src/routes/puerta/puerta-link.test.js`) cubren el token (solo el hash, cambiado,
+cortado), vencido, revocado, de otro evento, cada acción y cada GET con un link ajeno, el DNI
+completo, los límites (también al sincronizar ventas sin conexión), el precio, lo interno del panel
+en «Ver compra», el buscador sin token, los topes de entradas y de mails, el beacon, que la puerta
+del panel sigue igual, el registro sin el token, que la puerta del panel, la ficha, órdenes,
+exportar, reembolsar y mails no reconocen la cookie, y que solo une admin crea y revoca.
 
 ### Pasar límites desde el panel
 
@@ -683,6 +775,7 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 | Ajustes de venta                                 | `src/lib/server/tickets/settings.js`, `admin/ajustes/*`                                            |
 | Link de la transmisión (online)                  | `src/lib/server/tickets/stream.js`                                                                 |
 | Control de ingreso: código y sugerencias         | `src/lib/server/tickets/checkin.js`, `ingreso/buscar`                                              |
+| Modo puerta (panel y link) y links de puerta     | `src/lib/server/tickets/doorScreen.js`, `doorLinks.js`, `DoorScreen.svelte`, `src/routes/puerta/`  |
 | Cálculo de precio, DNI, política (compartido)    | `src/lib/utils/tickets.js`                                                                         |
 | Preventas (tramos) y tipos encadenados           | `src/lib/utils/ticketTiers.js`, `config.js` (`parseTiers`, `withTier`), `TicketTiersEditor.svelte` |
 | Códigos de descuento                             | `src/lib/server/tickets/discounts.js`, `admin/ventas/codigos`                                      |
@@ -809,6 +902,7 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 - **Códigos:** revalidados en la misma sentencia atómica que el cupo; límite de intentos por cliente y evento, el mismo contador para "Aplicar" y para comprar con un código.
 - **Transferencias:** confirmación solo de admins, idempotente, sin sobreventa al confirmar reservas vencidas.
 - **Entradas:** quien tiene el link de una entrada no puede marcarse el ingreso (el form action `?/checkin` llama a `requireAdmin`: sin sesión redirige a `/login`, con sesión no admin a `/`; y la página no muestra el botón): tests en `src/routes/entradas/t/[token]/security.test.js`. El checkout simulado responde 404 fuera de `vite dev` con el mock (test en `simular-pago/[order]/gate.test.js`).
+- **Links de puerta:** solo la puerta de un evento, con un link vivo de ese evento mirado en cada pedido; ni el DNI completo, ni límites, ni el resto del panel. Ver [Link de puerta](#link-de-puerta).
 - **Link de transmisión:** solo en D1, nunca en el repo; se muestra solo en entradas de compras aprobadas.
 
 ## Verificación contra la documentación de Mercado Pago

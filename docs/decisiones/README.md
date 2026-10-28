@@ -77,6 +77,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   sesión de la cuenta se preguntan en Mi rincón («¿Son tuyas?») (25/10)
 - [0050](0050-entrar-no-ingresar.md): «Entrar», no «Ingresar», en los textos de la cuenta; la
   dirección `/ingresar` no cambia (26/10)
+- [0052](0052-link-de-puerta.md): Link de puerta por evento: solo la puerta de ese evento, sin
+  cuenta, con vencimiento y revocable (26/10)
 
 ### Contenido, objetos y etiquetas
 
