@@ -10,6 +10,7 @@ import { copyMedia } from './backup/media.js';
 import { deleteStaleSessions } from './cuentas/sessionAge.js';
 import { SITE_URL, siteOriginFrom } from '../utils/site.js';
 import { runAnalyticsRollup } from './analytics/report.js';
+import { checkOrdersConsistency } from './db/consistency.js';
 import {
 	checkObjectsIntegrity,
 	hasObjectsSchema,
@@ -100,8 +101,9 @@ export async function runBackup(env, now) {
 const MAX_LOGGED_PROBLEMS = 50;
 
 /**
- * Chequeo nocturno de integridad de los objetos (src/lib/server/objects/integrity.js), después
- * del backup. **Nunca hace fallar la corrida**: guarda el resultado en `integrity_runs` (el
+ * Chequeo nocturno de integridad de los objetos (src/lib/server/objects/integrity.js) y de
+ * consistencia de las órdenes y las entradas (src/lib/server/db/consistency.js), después del
+ * backup. **Nunca hace fallar la corrida**: guarda el resultado en `integrity_runs` (el
  * Inicio del panel lo muestra en "Para revisar") y escribe en el log los códigos e ids (sin
  * datos). Si el chequeo mismo falla, lo escribe en el log y sigue. No arregla nada solo.
  *
@@ -122,6 +124,13 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 			return null;
 		}
 		const problems = await checkObjectsIntegrity(env.DB);
+		// Y la consistencia de las órdenes y las entradas (db/consistency.js; solo lee, nunca
+		// tira): sus problemas van en la misma corrida, a «Para revisar».
+		problems.push(
+			.../** @type {import('./objects/integrity.js').Problem[]} */ (
+				/** @type {unknown} */ (await checkOrdersConsistency(env.DB))
+			)
+		);
 		await recordIntegrityRun(env.DB, problems, now.getTime());
 		if (!problems.length) console.log('integridad de objetos: sin problemas');
 		for (const p of problems.slice(0, MAX_LOGGED_PROBLEMS)) {

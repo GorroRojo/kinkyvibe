@@ -125,7 +125,10 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 		const series = seriesOf(slug);
 		const already = seen.get(series) ?? new Set();
 		const attendees = new Set(
-			evOrders.filter((o) => o.checked > 0).map((o) => normalizeEmail(o.buyer_email))
+			evOrders
+				.filter((o) => o.checked > 0)
+				.map((o) => normalizeEmail(o.buyer_email))
+				.filter(Boolean)
 		);
 		const firstTimers = [...attendees].filter((e) => !already.has(e)).length;
 		for (const e of attendees) already.add(e);
@@ -151,6 +154,8 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 		const series = seriesOf(o.event_slug);
 		const bySerie = visits.get(series) ?? new Map();
 		const email = normalizeEmail(o.buyer_email);
+		// Una venta en la puerta sin mail no es una persona (no se sabe quién es).
+		if (!email) continue;
 		const slugs = bySerie.get(email) ?? new Set();
 		slugs.add(o.event_slug);
 		bySerie.set(email, slugs);
@@ -172,7 +177,7 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 	const totalTickets = orders.reduce((s, o) => s + o.quantity, 0);
 	const totalChecked = perEvent.reduce((s, e) => s + e.checked, 0);
 	const totalSoldPast = perEvent.reduce((s, e) => s + e.sold, 0);
-	const people = new Set(orders.map((o) => normalizeEmail(o.buyer_email)));
+	const people = new Set(orders.map((o) => normalizeEmail(o.buyer_email)).filter(Boolean));
 	const allVisits = [...visits.values()].flatMap((m) => [...m.entries()]);
 	/** @type {Map<string, number>} */
 	const eventsPerPerson = new Map();

@@ -44,7 +44,8 @@ export function salesKpis(orders) {
 	return {
 		tickets,
 		revenue,
-		people: new Set(ok.map((o) => normalizeEmail(o.buyer_email))).size,
+		// Sin las ventas sin mail (en la puerta es opcional): no son una persona.
+		people: new Set(ok.map((o) => normalizeEmail(o.buyer_email)).filter(Boolean)).size,
 		avgTicket: tickets ? Math.round(revenue / tickets) : 0
 	};
 }

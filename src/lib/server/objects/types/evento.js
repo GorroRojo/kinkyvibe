@@ -5,7 +5,12 @@
  * perfil del lugar; tampoco los perfiles de `personas` (edges `persona`, ver `edges` abajo).
  *
  * - `start`/`end` llevan su zona; las columnas generadas `start_at`/`end_at` (migración 0031) los
- *   tienen en ms para ordenar y filtrar. `event_status` y `unlisted` también son columnas.
+ *   tienen en ms. `event_status` y `unlisted` también son columnas. Hoy se leen `start_at` (el mes
+ *   del evento en las ventas, admin/saleMonth.js) y `unlisted` (contenido/posts.js); `end_at` y
+ *   `event_status`, y los índices `objects_evento_*`, no los lee ninguna consulta: quedan para
+ *   cuando se ordene o filtre en SQL, no hacer DROP (auditoría de plata, D31). `unixepoch` descarta
+ *   las fracciones de segundo y lee una fecha sin zona como UTC (no pasa: `fields.js` exige zona y
+ *   guarda −03:00).
  * - `unlisted` es el `force_unlisted` de los .md (se ve con el link, no en las listas). El
  *   `force_unpublished` no es un campo: es la visibilidad `hidden` del objeto.
  * - `extra`: lo que el frontmatter tiene y el tipo todavía no conoce como campo propio

@@ -103,6 +103,14 @@ del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en e
   `snapshotDB()`/`restoreDB()` (copia de las filas para reusar datos caros) para las pruebas;
   `startTemplateDB()` arma la plantilla migrada que copian las bases de prueba (globalSetup de
   vitest, ver [pruebas-y-ci.md](pruebas-y-ci.md)).
+- `src/lib/server/db/consistency.js`: chequeo nocturno de **solo lectura** de las órdenes y las
+  entradas (auditoría de plata, D16 y D36), en la misma corrida que el de los objetos
+  ([objetos.md](objetos.md), «Chequeo de integridad»): aprobadas (o reembolsadas con alguna
+  entrada) con otra cantidad de entradas que `quantity` (`db_ticket_count`), entradas con otro
+  evento o tipo que su orden (`db_ticket_mismatch`), recargo sin Mercado Pago
+  (`db_surcharge_not_mp`), `gratis` con total distinto de 0 (`db_free_total`) y entradas sin
+  código corto (`db_ticket_no_code`). Lo que encuentra sale en «Para revisar» como «Chequeo
+  nocturno»; nunca arregla nada.
 - `wrangler.toml`: el binding `DB`, con `kinkyvibe` en producción y `kinkyvibe-preview` en los
   Previews (bloque `[previews]`). **No tiene `pages_build_output_dir` a propósito**; no se agrega.
 
@@ -123,7 +131,10 @@ en el runtime de Workers con la base local: `npm run build && npm run preview:wo
 
 1. `npm run db:migrations:new -- nombre_descriptivo` (crea `migrations/00NN_nombre_descriptivo.sql`).
 2. Escribí el SQL con un comentario arriba que diga para qué es. Valores por defecto que
-   mantengan cómo funciona hoy (decisión 0006).
+   mantengan cómo funciona hoy (decisión 0006). Toda columna nueva que guarda JSON lleva
+   `CHECK (json_valid(col))` (o `col IS NULL OR json_valid(col)`), como las de las tablas nuevas
+   desde 0012; las viejas sin el CHECK (`orders.holders`, `order_answers.answers`…) se leen con
+   `try/catch` (auditoría de plata, D37).
 3. Si reconstruye una tabla (SQLite no deja cambiar un `CHECK` sin copiar la tabla), sumá una
    prueba con datos como `src/lib/server/db/migration0010.test.js`: que no se pierdan filas y
    que las claves foráneas sigan valiendo.
