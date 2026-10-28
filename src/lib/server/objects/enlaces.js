@@ -21,8 +21,9 @@
  * encuentran por la dirección («etica»).
  *
  * Lo que no se resuelve («falta») no se guarda en ningún lado: el esquema no tiene dónde (un edge
- * necesita un objeto en la otra punta). La lista de lo que falta (`enlaces-falta` del plan) lo
- * puede volver a calcular con {@link resolveBodyLinks}, que lo devuelve en `missing`.
+ * necesita un objeto en la otra punta). La lista de lo que falta (Etiquetas › Enlaces que faltan,
+ * src/lib/server/contenido/enlacesFalta.js) lo vuelve a calcular con {@link candidatesFor} y
+ * {@link resolveReference}; {@link resolveBodyLinks} lo devuelve en `missing`.
  *
  * Quién ve qué: el edge se guarda aunque la otra punta esté oculta, sea «solo con cuenta» o un
  * perfil sin aprobar; ninguna salida pública lo lee todavía. Quien lo lea tiene que mostrar un
@@ -67,13 +68,14 @@ const keyFold = (s) => asciiLower(s.replaceAll(' ', '-'));
 
 /**
  * Los objetos vivos que pueden ser lo que nombran `refs` (una consulta; todos los candidatos que
- * {@link resolveReferences} va a comparar, y alguno de más).
+ * {@link resolveReferences} va a comparar, y alguno de más). También para la lista de lo que falta
+ * (src/lib/server/contenido/enlacesFalta.js), con las referencias de todos los cuerpos juntas.
  *
  * @param {D1Database} db
  * @param {BodyReference[]} refs
  * @returns {Promise<Candidate[]>}
  */
-async function candidatesFor(db, refs) {
+export async function candidatesFor(db, refs) {
 	const names = new Set();
 	const slugs = new Set();
 	const mentions = new Set();
