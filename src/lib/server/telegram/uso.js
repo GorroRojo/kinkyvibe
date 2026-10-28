@@ -61,6 +61,7 @@ export const USO_TIPOS = Object.freeze({
 	comando: { label: 'Comandos' },
 	busqueda: { label: 'Búsquedas en el bot', detalle: true },
 	inline: { label: 'Búsquedas inline', detalle: true },
+	sin_resultados: { label: 'Búsquedas sin resultados' },
 	objeto: { label: 'Cosas abiertas en el bot', detalle: true },
 	inline_elegido: { label: 'Resultados inline mandados', detalle: true },
 	miniapp: { label: 'Mini App' },
