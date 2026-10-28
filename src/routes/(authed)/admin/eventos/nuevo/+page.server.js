@@ -12,9 +12,10 @@ import {
 } from '$lib/server/eventos';
 import { FileChangedError, PathExistsError } from '$lib/server/contenido/cliente.js';
 import { legacyNumberedURL } from '$lib/utils/legacyMedia.js';
-import { findImage, imageOf } from '$lib/server/media/library.js';
+import { findImage } from '$lib/server/media/library.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
-import { resolveEventSlug } from '$lib/server/contenido/posts.js';
+import { libraryCoverOf } from '$lib/server/contenido/posts.js';
+import { EVENT_CATEGORY } from '$lib/server/contenido/eventos.js';
 import { editorData } from '$lib/server/admin/content.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
@@ -172,14 +173,8 @@ const adminViewer = (locals) =>
  * @param {App.Locals} locals
  * @param {string} slug
  */
-async function sourceImage(db, locals, slug) {
-	if (!db) return null;
-	try {
-		const ref = await resolveEventSlug(db, slug);
-		return ref ? await imageOf(db, ref.id, 'portada', adminViewer(locals)) : null;
-	} catch {
-		return null;
-	}
+function sourceImage(db, locals, slug) {
+	return libraryCoverOf(db, EVENT_CATEGORY, slug, adminViewer(locals));
 }
 
 /**

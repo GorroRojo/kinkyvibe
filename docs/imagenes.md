@@ -176,6 +176,9 @@ Lo elegido viaja en un campo oculto `imageId` (`''` = no se tocó, `none` = se s
 servidor crea el edge **en el mismo guardado** del objeto (eventos y material: `commitFiles` con
 `edges`; perfiles: `updateProfile` con `avatar`; series: después de guardar la etiqueta, con
 `linkImage`). Al elegir o sacar una imagen se saca también el campo viejo (`featured` / `image`).
+La portada que el selector muestra de entrada en esos editores (y la del original en «Cargar
+evento» desde otro) sale de un solo helper, `libraryCoverOf` (`src/lib/server/contenido/posts.js`):
+la dirección, su edge `portada` como la ve el panel, o null si no hay o no se pudo leer.
 
 ## Contenido → Biblioteca (la página del panel)
 
