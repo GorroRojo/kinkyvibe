@@ -542,8 +542,10 @@ export function findParsed(index, pq, now = Date.now()) {
 		});
 	}
 	for (const phrase of pq.phrases) checks.push((_, i) => hasWords(docText(index, i), phrase));
-	// Hasta acá, lo que pide algo; las exclusiones solo sacan.
-	const asks = words.length > 0 || checks.length > (typesOnlyExclude ? 1 : 0);
+	// Hasta acá, lo que pide algo; las exclusiones solo sacan. Las palabras vacías (`de`, `el`…)
+	// no piden nada: «el taller» es como «taller» (docs/buscar.md, «Palabras vacías»).
+	const meaningfulWords = words.filter((w) => !STOPWORDS.has(w));
+	const asks = meaningfulWords.length > 0 || checks.length > (typesOnlyExclude ? 1 : 0);
 	for (const x of pq.exclude) checks.push((_, i) => !hasWords(docText(index, i), x));
 	for (const name of pq.excludeTags) {
 		const ids = new Set(tagsNamed(index, name));
@@ -557,7 +559,9 @@ export function findParsed(index, pq, now = Date.now()) {
 
 	// Las palabras que nombran un tipo son obligatorias solo si no se pide nada más.
 	const onlyHints = !asks;
-	const required = onlyHints ? [...pq.hints] : words;
+	// Sin nada más pedido, todo lo escrito es obligatorio, como en `search` (las palabras vacías se
+	// sacan abajo, salvo que sean todo).
+	const required = onlyHints ? [...pq.hints, ...words] : meaningfulWords;
 	let terms = [...new Set(required)];
 	const meaningful = terms.filter((t) => !STOPWORDS.has(t));
 	if (meaningful.length) terms = meaningful;
@@ -582,7 +586,7 @@ export function findParsed(index, pq, now = Date.now()) {
 
 	// Las palabras de tipo que no son obligatorias: suman si están y suben ese tipo.
 	const hints = onlyHints ? [] : pq.hints;
-	const textPhrase = onlyHints ? pq.hints.join(' ') : words.join(' ');
+	const textPhrase = onlyHints ? fold(pq.text) : words.join(' ');
 	/** @type {SearchHit[]} */
 	const hits = [];
 	for (const [i, score] of scores) {
