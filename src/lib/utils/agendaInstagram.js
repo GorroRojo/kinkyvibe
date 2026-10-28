@@ -28,8 +28,8 @@ export const PER_SLIDE_CHOICES = Object.freeze([2, 3]);
 export const DEFAULT_PER_SLIDE = 3;
 /** Cuántos eventos amigos entran en la última placa (con un evento de KinkyVibe arriba). */
 export const FRIENDS_WITH_EVENT = 4;
-/** Cuántos eventos amigos entran en una placa solo de amigos. */
-export const FRIENDS_PER_SLIDE = 7;
+/** Cuántos eventos amigos entran en una placa solo de amigos (7 ya no entran arriba del pie). */
+export const FRIENDS_PER_SLIDE = 6;
 /**
  * Hasta qué día del mes el rango por defecto es «lo que queda de este mes»; desde ese día, el mes
  * que viene entero (la agenda del mes se publica unos días antes de que empiece).
@@ -284,9 +284,6 @@ const BURST = (() => {
 	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon fill="#ff7bd5" points="${pts.join(' ')}"/></svg>`;
 })();
 
-/** Alto del bloque de amigos con `n` eventos (título, raya y filas). @param {number} n */
-const friendsHeight = (n) => 36 + 96 + 23 + n * 144 + 30;
-
 /**
  * El CSS de las placas.
  * @param {SlideAssets} a
@@ -332,13 +329,16 @@ p { margin: 0; }
 .cal td .friends { box-shadow: inset 0 0 0 3px ${C.purple}; }
 .cal-foot { background: ${C.mint}; border-top: 3px solid ${C.ink}; height: 78px; display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-style: italic; font-size: 26px; gap: 18px; }
-.events { position: absolute; left: 0; right: 0; top: 196px; bottom: 82px; display: flex; flex-direction: column; justify-content: space-around; }
+.events { position: absolute; left: 0; right: 0; top: 176px; bottom: 70px; display: flex; flex-direction: column; }
+.events .edge { flex: 1 1 0; min-height: 20px; }
+.events .gap { flex: 0 1 56px; min-height: 8px; }
 .ev { display: flex; align-items: center; gap: 30px; padding: 0 70px; justify-content: flex-end; }
 .ev.left { flex-direction: row-reverse; }
 .ev .txt { width: 585px; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
 .ev.left .txt { text-align: left; align-items: flex-start; }
 .ev .date { color: ${C.hot}; font-size: 70px; }
 .ev .price { color: ${C.purple}; font-size: 49px; margin-top: 2px; }
+.ev .price.long { font-size: 40px; }
 .ev .desc { font-size: 25px; line-height: 1.2; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .ev .where { display: flex; align-items: center; gap: 16px; margin-top: 16px; color: ${C.purple}; font-size: 30px; }
 .ev.left .where { flex-direction: row-reverse; }
@@ -368,14 +368,19 @@ p { margin: 0; }
 .mecenas { position: absolute; top: 1000px; left: 0; right: 0; text-align: center; color: ${C.purple}; font-size: 60px; line-height: 1.05; }
 .btn { position: absolute; top: 1150px; left: 50%; transform: translateX(-50%); padding: 6px 36px 10px; border-radius: 18px; background: ${C.hot};
   border: 3px solid ${C.ink}; color: #fff; font-size: 64px; white-space: nowrap; }
-.friends-wrap { position: absolute; left: 0; right: 0; bottom: 70px; background: ${C.grey}; padding: 36px 0 30px; }
-.friends-wrap h2 { margin: 0 auto; width: 800px; text-align: center; color: ${C.purple}; font-size: 86px; height: 96px; line-height: 96px;
-  border-bottom: 9px solid ${C.purple}; font-weight: 400; box-sizing: content-box; }
-.fr { display: flex; align-items: center; gap: 22px; margin-top: 22px; height: 122px; }
-.fr .who { width: 300px; text-align: right; font-size: 32px; line-height: 1; padding-right: 4px; }
+.stack { position: absolute; left: 0; right: 0; top: 176px; bottom: 70px; display: flex; flex-direction: column; }
+.stack.only { top: 196px; }
+.stack .solo { flex: none; padding: 24px 0; }
+.friends-wrap { flex: 1 1 auto; background: ${C.grey}; padding: 28px 0 24px; display: flex; flex-direction: column; justify-content: center; }
+.friends-wrap h2 { margin: 0 auto; width: 800px; text-align: center; color: ${C.purple}; font-size: 86px; height: 90px; line-height: 96px;
+  border-bottom: 9px solid ${C.purple}; font-weight: 400; box-sizing: content-box; flex: none; }
+.fr { display: flex; align-items: center; gap: 22px; margin-top: 18px; height: 122px; flex: none; }
+.fr .who { width: 300px; text-align: right; font-size: 32px; line-height: 1.1; padding-right: 4px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .fr .thumb { width: 122px; height: 122px; flex: none; border-radius: 18px; border: 2px solid ${C.ink}; object-fit: cover; background: ${C.purple}; display: block; }
-.fr .t1 { color: ${C.hot}; font-size: 42px; }
-.fr .t2 { color: ${C.purple}; font-size: 31px; margin-top: 4px; }
+/* Recortados a 2 y 3 renglones: con el interlineado justo de Bebas, el corte se come las tildes. */
+.fr .t1 { color: ${C.hot}; font-size: 40px; line-height: 1.22; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fr .t2 { color: ${C.purple}; font-size: 31px; }
 .fr .txt { width: 580px; }
 `;
 
@@ -396,7 +401,7 @@ function eventHtml(r, i, a) {
 	const date = slideDateLine(r.start);
 	return `<div class="ev ${side}"><div class="txt">
 ${date ? `<p class="date bebas">${xml(date)}</p>` : ''}
-${r.price ? `<p class="price bebas">${xml(r.price)}</p>` : ''}
+${r.price ? `<p class="price bebas${r.price.length > PRICE_LONG ? ' long' : ''}">${xml(r.price)}</p>` : ''}
 ${r.summary ? `<p class="desc">${xml(r.summary)}</p>` : ''}
 ${p1 ? `<div class="where barlow"><p>${xml(p1)}${p2 ? `<br/>${xml(p2)}` : ''}</p>${PIN}</div>` : ''}
 </div><div class="pic">${pic}${burst}</div></div>`;
@@ -411,6 +416,17 @@ function friendHtml(r, a) {
 		r.title
 	)}</p><p class="t2 bebas">${xml(friendDateLine(r.start))}${where ? ` | ${xml(where)}` : ''}</p></div></div>`;
 }
+
+/** Un precio más largo que esto va más chico, para que no ocupe dos renglones. */
+const PRICE_LONG = 32;
+
+/**
+ * Los eventos de una placa, centrados con un espacio entre ellos que no pasa de 56 px (y se
+ * achica si no entran): con menos eventos no quedan huecos enormes entre uno y otro.
+ * @param {string[]} items
+ */
+const eventsColumn = (items) =>
+	`<div class="events"><div class="edge"></div>${items.join('<div class="gap"></div>')}<div class="edge"></div></div>`;
 
 const TAG = `<div class="tag"><span class="round">agenda</span><span class="round">kinky</span></div>`;
 const TOP = `<div class="pat" style="top:0;height:104px"></div><div class="band"></div>${TAG}`;
@@ -441,8 +457,8 @@ ${slide.text ? `<p class="sub">${xml(slide.text)}</p>` : ''}
 <div class="cal"><div class="cal-head">${xml(slide.month)}</div><table><tr>${head}</tr>${rows}</table>
 <div class="cal-foot"><span>Deslizá para ver los eventos que se vienen</span><span>&gt; &gt; &gt;</span></div></div>`;
 	} else if (slide.kind === 'events') {
-		const evs = slide.rows.map((r, i) => eventHtml(r, slide.first + i, assets)).join('');
-		inner = `${TOP}<div class="events">${evs}</div>
+		const evs = slide.rows.map((r, i) => eventHtml(r, slide.first + i, assets));
+		inner = `${TOP}${eventsColumn(evs)}
 ${slide.footer ? `<div class="foot">${xml(slide.footer)}</div>` : ''}`;
 	} else if (slide.kind === 'fondo') {
 		const p = Math.max(0, Math.min(100, Math.round(slide.percent)));
@@ -460,15 +476,15 @@ ${slide.footer ? `<div class="foot">${xml(slide.footer)}</div>` : ''}`;
 <p class="mecenas barlow">Volvete nuestre mecenas para<br/>ayudarnos a que todo sea gratis</p>
 <p class="btn barlow">${FONDO_HOST}</p>`;
 	} else {
-		const wrapH = friendsHeight(slide.friends.length);
-		const evH = SLIDE_H - 70 - wrapH - 196;
+		// El evento arriba (con su alto) y el bloque gris de los amigos ocupa lo que queda hasta el
+		// pie, con las filas centradas: como los posts, sin huecos con pocos amigos.
 		const ev = slide.row
-			? `<div class="events" style="bottom:auto;height:${evH}px">${eventHtml(slide.row, slide.index, assets)}</div>`
+			? `<div class="solo">${eventHtml(slide.row, slide.index, assets)}</div>`
 			: '';
-		inner = `${TOP}${ev}
-<div class="friends-wrap"${slide.row ? '' : ' style="top:196px"'}><h2 class="bebas">Otros eventos amigos:</h2>${slide.friends
+		inner = `${TOP}<div class="stack${slide.row ? '' : ' only'}">${ev}
+<div class="friends-wrap"><h2 class="bebas">Otros eventos amigos:</h2>${slide.friends
 			.map((r) => friendHtml(r, assets))
-			.join('')}</div>
+			.join('')}</div></div>
 ${slide.footer ? `<div class="foot">${xml(slide.footer)}</div>` : ''}`;
 	}
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="${SLIDE_W}" height="${SLIDE_H}" viewBox="0 0 ${SLIDE_W} ${SLIDE_H}">

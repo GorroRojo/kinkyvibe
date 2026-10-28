@@ -594,7 +594,7 @@ el mismo orden, las mismas tildes y los mismos cambios a mano (cambiar de pesta�
     barra; N arranca con el porcentaje de este mes (`resolveFondoPercent`, el mismo que descuentan
     las entradas) y se cambia a mano (o se saca la placa);
   - **otros eventos amigos** (los que no tienen la etiqueta KinkyVibe): en la última placa, debajo
-    del último evento de KinkyVibe (4 entran ahí; los demás, de a 7 en placas propias), con quién
+    del último evento de KinkyVibe (4 entran ahí; los demás, de a 6 en placas propias), con quién
     organiza (los autores menos KinkyVibe), la imagen chica, el título y «SÁB 10 DE OCTUBRE |
     ALMAGRO».
 - **Qué se cambia a mano**, además de lo de los volantes: el texto (el resumen), la segunda línea
