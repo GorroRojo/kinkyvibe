@@ -29,9 +29,15 @@ const config = {
 	reporter: process.env.CI ? [['list'], ['github']] : 'list',
 	use: {
 		baseURL: `http://localhost:${port}`,
-		launchOptions: process.env.PW_CHROMIUM_PATH
-			? { executablePath: process.env.PW_CHROMIUM_PATH }
-			: {}
+		launchOptions: {
+			...(process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {}),
+			// Sin internet: todo lo que no es localhost no resuelve y falla al toque. La semilla trae
+			// imágenes de https://kinkyvibe.ar (producción) y el sitio carga el beacon de Cloudflare:
+			// con salida a internet, `waitUntil: 'networkidle'` esperaba a esos servidores y, si
+			// alguno tardaba, la prueba se pasaba de los 30 s (/wiki, /material). Así el resultado no
+			// depende de producción ni de la red de la máquina.
+			args: ['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost']
+		}
 	},
 	projects: [{ name: 'chromium', use: { browserName: 'chromium' } }]
 };
