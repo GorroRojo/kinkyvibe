@@ -148,6 +148,7 @@ export const FLAGS = Object.freeze({
 			'(src/lib/admin/reparto.js); gastos y personas en localStorage. Apagado, ' +
 			'/admin/eventos/<slug>/gastos da 404.',
 		envVar: 'GASTOS_REPARTO_ENABLED'
+	},
 	carrusel_portada: {
 		label: 'Carrusel en la portada',
 		description:
@@ -342,6 +343,9 @@ export function comboCodigosEnabled(platform) {
  */
 export function gastosRepartoEnabled(platform) {
 	return isFlagOn(getDB(platform), 'gastos_reparto');
+}
+
+/**
  * Atajo para las rutas: ¿está prendido el carrusel de la portada? (docs/estilo.md).
  *
  * @param {App.Platform | undefined} platform
