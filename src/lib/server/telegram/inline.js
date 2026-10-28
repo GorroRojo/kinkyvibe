@@ -163,7 +163,7 @@ function recentMaterial(docs, extras) {
 export function selectInline(source, { types, text }, now) {
 	const allowed = (/** @type {SearchDoc} */ d) => !types || types.includes(d.c);
 	if (text) {
-		return groupHits(find(source.prepared, text, { now }), now)
+		return groupHits(find(source.prepared, text, { now, types }), now)
 			.flatMap((g) => g.hits.map((h) => h.doc))
 			.filter(allowed)
 			.slice(0, INLINE_MAX);
