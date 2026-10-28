@@ -20,12 +20,19 @@ export function skipsBeacon(pathname) {
 }
 
 /**
- * El HTML sin el beacon.
+ * El HTML sin el beacon. Se repite hasta que no queda nada que sacar: sacar un bloque podría juntar
+ * los pedazos de otro (`<scr` + bloque + `ipt …>`), y así lo que queda nunca tiene el beacon.
  *
  * @param {string} html
  */
 export function stripAnalyticsBeacon(html) {
-	return html.replace(BEACON_BLOCK, '');
+	let out = html;
+	let previous;
+	do {
+		previous = out;
+		out = out.replace(BEACON_BLOCK, '');
+	} while (out !== previous);
+	return out;
 }
 
 /** @typedef {Parameters<import('@sveltejs/kit').Handle>[0]['resolve']} Resolve */
