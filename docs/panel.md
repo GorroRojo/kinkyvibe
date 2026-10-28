@@ -641,34 +641,45 @@ La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registro
 
 Los lee una sola función pura, `parseSearchQuery` (`src/lib/utils/searchQuery.js`): la usan la
 paleta (acciones, y si hace falta preguntarle al servidor) y `/admin/buscar` (registros). Nunca
-falla: lo que no entiende queda como texto. Sin mayúsculas ni tildes, como el resto.
+falla: lo que no entiende queda como texto. Sin mayúsculas ni tildes, como el resto. La base
+(texto, frases, exclusiones, etiquetas, tipos, `lugar:` y fechas) la lee el parser compartido con
+el sitio y el bot (`parseSearch`, `searchSyntax.js`); la sintaxis entera está en
+[buscar.md](buscar.md), y esta tabla es lo del panel.
 
-| Operador                                             | Qué hace                                                                                                                         |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| palabras sueltas                                     | Tienen que estar todas, en cualquier orden («perez jose» encuentra «José Pérez»).                                                |
-| `"frase exacta"`                                     | Esas palabras juntas y en ese orden.                                                                                             |
-| `-palabra`, `-"frase"`                               | Sin eso.                                                                                                                         |
-| `>tema`                                              | Solo acciones (tiene que ir al comienzo; no le pregunta al servidor).                                                            |
-| `#shibari`, `etiqueta:shibari`                       | Eventos con esa etiqueta (por id, nombre o alias; si ninguna se llama así, las que empiezan así) y la etiqueta. `-#…`: sin ella. |
-| `@ana`, `persona:ana`                                | Solo personas y perfiles.                                                                                                        |
-| `e:fiesta`, `evento:fiesta`                          | Solo eventos. Con `puerta`, `ordenes`, `mail`, `ventas` o `duplicar` al final, el atajo a esa pestaña del primero va arriba.     |
-| `orden:ana`                                          | Solo órdenes. `orden:pendiente` (o `estado:pendiente`): las órdenes en ese estado, con o sin texto.                              |
-| `tipo:evento` (`,` para varios)                      | Solo ese tipo: evento, orden, persona, perfil (amigue), etiqueta, entrada, codigo, accion. `-tipo:orden`: todos menos ese.       |
-| `lugar:palermo`                                      | Eventos cuyo lugar lo dice.                                                                                                      |
-| `hoy`, `mañana`, `semana` («esta semana»), `finde`   | Eventos en esos días, en hora de Argentina, del más próximo al más lejano. Las acciones siguen («Abrir la puerta de hoy»).       |
-| `cuando:sabado`, `cuando:15/10`, `cuando:15/10/2026` | El próximo sábado (hoy cuenta) o esa fecha (sin año, la de cualquier año).                                                       |
+| Operador                                                    | Qué hace                                                                                                                                                  |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| palabras sueltas                                            | Tienen que estar todas, en cualquier orden («perez jose» encuentra «José Pérez»).                                                                         |
+| `"frase exacta"`                                            | Esas palabras juntas y en ese orden.                                                                                                                      |
+| `-palabra`, `-"frase"`                                      | Sin eso.                                                                                                                                                  |
+| `>tema`                                                     | Solo acciones (tiene que ir al comienzo; no le pregunta al servidor).                                                                                     |
+| `#shibari`, `etiqueta:shibari`                              | Eventos con esa etiqueta (por id, nombre o alias; si ninguna se llama así, las que empiezan así) y la etiqueta. `-#…`: sin ella.                          |
+| `@ana`, `persona:ana`                                       | Solo personas y perfiles.                                                                                                                                 |
+| `e:fiesta`, `evento:fiesta`                                 | Solo eventos. Con `puerta`, `ordenes`, `mail`, `ventas` o `duplicar` al final, el atajo a esa pestaña del primero va arriba.                              |
+| `amigues:`, `wiki:`/`kinkipedia:`, `serie:`                 | Solo perfiles; solo etiquetas (la Kinkipedia y las series son etiquetas). `material:` no trae nada (el panel no busca material). `-evento:`: sin eventos. |
+| `orden:ana`                                                 | Solo órdenes. `orden:pendiente` (o `estado:pendiente`): las órdenes en ese estado, con o sin texto.                                                       |
+| `tipo:evento` (`,` para varios)                             | Solo ese tipo: evento, orden, persona, perfil (amigue), etiqueta, entrada, codigo, accion. `-tipo:orden`: todos menos ese.                                |
+| `lugar:palermo`                                             | Eventos cuyo lugar lo dice.                                                                                                                               |
+| `hoy`, `mañana`, `semana` («esta semana»), `finde`          | Eventos en esos días, en hora de Argentina, del más próximo al más lejano. Las acciones siguen («Abrir la puerta de hoy»).                                |
+| `cuando:sabado`, `cuando:15/10`, `cuando:15/10/2026`        | El próximo sábado (hoy cuenta) o esa fecha (sin año, la de cualquier año).                                                                                |
+| `cuando:noviembre`, `cuando:1/11..30/11`, `desde:`/`hasta:` | Ese mes (el próximo con ese nombre) o ese rango. Un mes suelto («mayo») es texto en el panel: puede ser un apellido.                                      |
 
 - Los filtros dejan solo los tipos a los que se aplican (`#…`, eventos y etiquetas; `lugar:` y
   `cuando:`, eventos; las fechas sueltas, eventos y acciones; `estado:`, órdenes) y se cruzan con `tipo:`/`@`/`e:`. Si no queda ninguno («estado:pendiente
   #shibari»), la paleta lo dice.
 - Un `algo:` que no es operador (`20:30`, `foo:bar`) es texto. Entre comillas, una palabra de
   fecha también (`"semana"`, por un evento que se llame así).
+- `nombre:` con un espacio toma la palabra siguiente (`orden: pendiente` = `orden:pendiente`,
+  `lugar: palermo`), como en el sitio y el bot.
+- Las palabras que nombran un tipo (`evento`, `taller`…) son texto en el panel (en el sitio y el
+  bot suben ese tipo). Solo cuenta la primera palabra de fecha suelta.
+- Largo máximo: 100 caracteres, como en el sitio y el bot.
 - Para la base, el filtro flojo (`looseLike`) usa la palabra o frase más larga; las demás y las
   excluidas se comparan en JS (`matchTerms`).
 - **Ayuda**: con la paleta vacía hay una línea con ejemplos; «Cómo buscar» (al pie de la paleta,
   como acción y en la hoja de atajos `?`) explica todos con ejemplos que se pueden tocar
   (`SEARCH_TIPS` en `paletteActions.js`; un test verifica que cada ejemplo use un operador).
-- El buscador público del sitio (`SearchPalette.svelte`) es otro y no tiene operadores.
+- El buscador público del sitio (`SearchPalette.svelte`) es otro motor (el índice público), con la
+  misma sintaxis base ([buscar.md](buscar.md)).
 
 **Cambios sin guardar.** Los editores del panel (eventos, material, perfiles, la agenda) usan
 `UnsavedChanges` (`src/lib/components/admin/panel/`): mientras hay cambios guardan un borrador en

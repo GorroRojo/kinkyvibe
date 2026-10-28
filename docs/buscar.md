@@ -44,7 +44,8 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 4. **Todo se combina con Y**: tienen que cumplirse todas las piezas. No hay O ni paréntesis. Dos
    operadores de tipo distintos (`evento: material:`) suman los tipos (es la única excepción: tipo A
    o tipo B).
-5. **Las palabras ordenan, los operadores filtran.** Una palabra suelta que nombra un tipo
+5. **Las palabras ordenan, los operadores filtran** (sitio y bot; el panel no ordena por tipo y
+   ahí son texto). Una palabra suelta que nombra un tipo
    (`evento`, `taller`, `material`, `wiki`…) no es obligatoria: sube lo de ese tipo sin sacar lo
    demás. Así `evento cuerdas palermo` anda sin saber la sintaxis (primero los eventos de cuerdas en
    Palermo). Los operadores (`evento:`, `#cuerdas`, `lugar:`) sí sacan lo que no cumple.
@@ -100,10 +101,10 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 | Escribís                      | Qué hace                                | Hoy               |
 | ----------------------------- | --------------------------------------- | ----------------- |
 | `evento:` (`eventos:`, `e:`)  | Solo eventos.                           | sitio, bot, panel |
-| `material:` (`m:`)            | Solo material.                          | sitio, bot        |
-| `wiki:`, `kinkipedia:` (`w:`) | Solo la Kinkipedia (entradas y series). | sitio, bot        |
-| `serie:` (`series:`, `s:`)    | Solo series.                            | sitio, bot        |
-| `amigues:` (`a:`)             | Solo amigues.                           | sitio, bot        |
+| `material:` (`m:`)            | Solo material.                          | sitio, bot, panel |
+| `wiki:`, `kinkipedia:` (`w:`) | Solo la Kinkipedia (entradas y series). | sitio, bot, panel |
+| `serie:` (`series:`, `s:`)    | Solo series.                            | sitio, bot, panel |
+| `amigues:` (`a:`)             | Solo amigues.                           | sitio, bot, panel |
 
 - Van en cualquier lugar de lo escrito, con o sin espacio después de los dos puntos, en singular o
   plural.
@@ -112,21 +113,23 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
   después (por ejemplo uno de quién organiza: `organiza:@nombre #taller hasta:hoy` serían los
   talleres pasados de esa persona, sin `evento:`).
 - En el panel, `evento:` además deja poner una palabra de pestaña al final (ver «Solo en el
-  panel»).
+  panel»). Ahí `amigues:` son los perfiles, `wiki:` y `serie:` las etiquetas, y `material:` no trae
+  nada (el panel no busca material).
 
 ### Lugar y fechas (solo eventos)
 
-| Escribís                            | Qué hace                                                                    | Ejemplo                           | Hoy               |
-| ----------------------------------- | --------------------------------------------------------------------------- | --------------------------------- | ----------------- |
-| `lugar:`                            | Eventos en ese lugar (el nombre público del lugar, su barrio o su ciudad).  | `lugar: palermo`                  | sitio, bot, panel |
-| `hoy`, `mañana`, `semana`, `finde`  | Eventos en esos días (hora de Argentina). `esta semana` = `semana`.         | `finde #cuerdas`                  | sitio, bot, panel |
-| `cuando:`                           | Un día de la semana (el próximo) o una fecha `d/m` o `d/m/aaaa`.            | `cuando: sabado`, `cuando: 15/10` | sitio, bot, panel |
-| un mes, `este mes`, `mes que viene` | Eventos de ese mes (el próximo con ese nombre). También `cuando:noviembre`. | `noviembre #cuerdas`              | sitio, bot        |
-| `cuando:a..b`                       | Un rango de fechas, como en GitHub. Igual que `desde:a hasta:b`.            | `cuando:1/11..30/11`              | sitio, bot        |
+| Escribís                            | Qué hace                                                                    | Ejemplo                           | Hoy                                |
+| ----------------------------------- | --------------------------------------------------------------------------- | --------------------------------- | ---------------------------------- |
+| `lugar:`                            | Eventos en ese lugar (el nombre público del lugar, su barrio o su ciudad).  | `lugar: palermo`                  | sitio, bot, panel                  |
+| `hoy`, `mañana`, `semana`, `finde`  | Eventos en esos días (hora de Argentina). `esta semana` = `semana`.         | `finde #cuerdas`                  | sitio, bot, panel                  |
+| `cuando:`                           | Un día de la semana (el próximo) o una fecha `d/m` o `d/m/aaaa`.            | `cuando: sabado`, `cuando: 15/10` | sitio, bot, panel                  |
+| un mes, `este mes`, `mes que viene` | Eventos de ese mes (el próximo con ese nombre). También `cuando:noviembre`. | `noviembre #cuerdas`              | sitio, bot (panel: solo `cuando:`) |
+| `cuando:a..b`                       | Un rango de fechas, como en GitHub. Igual que `desde:a hasta:b`.            | `cuando:1/11..30/11`              | sitio, bot, panel                  |
 
 - **Regla de respaldo** (sitio y bot): si una palabra de fecha suelta (`finde`, `noviembre`) no
   deja ningún resultado, se busca como texto, para que «finde» encuentre «Finde de cuerdas». Con `cuando:`
-  nunca se cae a texto. En el panel la fecha manda siempre (como hoy).
+  nunca se cae a texto. En el panel la fecha manda siempre (como hoy); por eso ahí un mes suelto
+  es texto («Mayo» puede ser un apellido) y hace falta `cuando:mayo`.
 
 ### Solo en el panel
 
@@ -155,10 +158,10 @@ En el sitio y el bot estos se buscan como texto (`orden:` no es un operador ahí
   `parseInlineQuery` solo separa los operadores de tipo (`splitTypes`, en cualquier lugar) para lo
   propio del bot: con un tipo y nada más, lista todo lo de ese tipo (los eventos, solo los
   próximos; el material, del más nuevo).
-- **Hoy, todavía aparte**: `$lib/utils/searchQuery.js` (`parseSearchQuery`) es el parser del panel.
-  Pasa a `parseSearch` en `buscar-sintaxis-panel` (el panel lo llama y suma lo suyo: `>`,
-  `orden:`, `estado:`, `tipo:`, pestañas, que el registro marca como del panel y el parser le
-  devuelve en `extra`).
+- **Panel**: `parseSearchQuery` (`$lib/utils/searchQuery.js`) llama a `parseSearch(…, 'panel')`
+  para la base y suma lo suyo: `>`, `@`/`persona:`, `orden:`, `estado:`, `tipo:` (que el registro
+  marca como del panel y el parser le devuelve en `extra`, con su lugar en el texto) y la palabra
+  de pestaña. Las fechas de eventos usan las mismas `whenRange`/`dayInWhen`.
 - **El registro de operadores** (acordado con gorrite, 12/10): una sola lista en el código que
   describe cada operador una vez: su nombre y otras formas de escribirlo, qué filtra, en qué
   buscadores anda, si es público, un ejemplo y la explicación para la guía. De esa lista salen las

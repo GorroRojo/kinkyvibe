@@ -514,9 +514,15 @@ export function splitQuery(raw) {
  * @prop {{ when: When, soft: boolean, src: string }[]} dates fechas pedidas (todas tienen que
  *   cumplirse); `soft`: una palabra suelta (`finde`, `noviembre`), que en el sitio y el bot vuelve a
  *   ser texto si no deja nada (la regla de respaldo; ver `datesAsText`)
- * @prop {{ op: Operator, key: string, value: string, neg: boolean, quoted: boolean }[]} extra los
- *   operadores propios de ese buscador (en el orden escrito), para que los use él
+ * @prop {{ op: Operator, key: string, value: string, neg: boolean, quoted: boolean,
+ *   at: { words: number, phrases: number, parts: number, plain: number } }[]} extra los operadores
+ *   propios de ese buscador (en el orden escrito), para que los use él; `key` como se escribió
+ *   (`@` para `@nombre`), `at`: dónde iría su texto en `words`, `phrases`, `parts` y `plain`
+ * @prop {string[]} parts las palabras y frases como se escribieron, una por pieza (`text` es esto
+ *   junto)
  * @prop {string} text las palabras y frases, como se escribieron
+ * @prop {string[]} plain lo que no es un operador con clave, como se escribió y en orden: palabras,
+ *   frases, palabras de tipo y de fecha (el panel busca sus acciones con esto)
  * @prop {boolean} operators si se usó algún operador
  */
 
@@ -551,8 +557,14 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 		dates: [],
 		extra: [],
 		text: '',
+		parts: [],
+		plain: [],
 		operators: false
 	};
+	// En el panel, las palabras de tipo son texto (no ordena por tipo) y los meses sueltos también
+	// (la fecha ahí manda siempre, sin regla de respaldo: «Mayo» puede ser un apellido). Con
+	// `cuando:mayo`, sí.
+	const panel = engine === 'panel';
 	/** @type {string[]} */
 	const textParts = [];
 	/** @type {{ when: When, src: string }[]} */
@@ -567,6 +579,7 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 		if (phrase) pq.phrases.push(f);
 		else pq.words.push(...f.split(' '));
 		textParts.push(original.trim());
+		pq.plain.push(original.trim());
 	};
 	/** @param {DocType[]} types */
 	const addTypes = (types) => {
@@ -578,6 +591,7 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 	/** @param {When} when @param {boolean} soft @param {string} src */
 	const addDate = (when, soft, src) => {
 		pq.dates.push({ when, soft, src });
+		if (soft) pq.plain.push(src);
 		pq.operators = true;
 		implyEvents();
 	};
@@ -601,9 +615,13 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 			}
 		}
 		const k = key ? foldQuery(key) : null;
+		// `@`: en el sitio y el bot, lo que firma u organiza; en el panel, su `persona:` (personas y
+		// perfiles).
 		const op =
 			k === '@'
-				? /** @type {Operator} */ (OPERATORS.find((o) => o.id === 'persona'))
+				? /** @type {Operator} */ (
+						OPERATORS.find((o) => o.id === (panel ? 'persona-panel' : 'persona'))
+					)
 				: k
 					? operatorFor(k, engine)
 					: null;
@@ -634,12 +652,12 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 					const p = pieces[pi + n];
 					return p && !p.key && !p.neg && !p.quoted ? foldQuery(p.value) : '';
 				};
-				if (v === 'este' && next(1) === 'mes') {
+				if (!panel && v === 'este' && next(1) === 'mes') {
 					addDate({ kind: 'month', month: 0, offset: 0 }, true, `${value} ${pieces[pi + 1].value}`);
 					pi += 1;
 					continue;
 				}
-				if (v === 'mes' && next(1) === 'que' && next(2) === 'viene') {
+				if (!panel && v === 'mes' && next(1) === 'que' && next(2) === 'viene') {
 					addDate({ kind: 'month', month: 0, offset: 1 }, true, `${value} que viene`);
 					pi += 2;
 					continue;
@@ -650,7 +668,7 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 					continue;
 				}
 				const bare = BARE_WHEN[v];
-				const month = bare ? 0 : MONTHS.includes(v) || v === 'setiembre' ? monthOf(v) : 0;
+				const month = bare || panel ? 0 : MONTHS.includes(v) || v === 'setiembre' ? monthOf(v) : 0;
 				if (bare || month) {
 					addDate(
 						bare ? /** @type {When} */ ({ kind: bare }) : { kind: 'month', month },
@@ -660,11 +678,12 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 					continue;
 				}
 			}
-			const hint = TYPE_WORDS[v];
+			const hint = panel ? undefined : TYPE_WORDS[v];
 			if (hint) {
 				pq.hints.push(v);
 				pq.hintTypes = [...new Set([...pq.hintTypes, ...hint])];
 				textParts.push(value);
+				pq.plain.push(value);
 				continue;
 			}
 			addText(value);
@@ -684,12 +703,18 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 			}
 		}
 		const v = foldQuery(value);
-		pq.operators = true;
-
 		if (op.kind === 'extra') {
-			pq.extra.push({ op, key: k ?? '', value, neg: t.neg, quoted: t.quoted });
+			// Dónde va lo que el buscador saque de acá (texto), para que quede en el orden escrito.
+			const at = {
+				words: pq.words.length,
+				phrases: pq.phrases.length,
+				parts: textParts.length,
+				plain: pq.plain.length
+			};
+			pq.extra.push({ op, key: key ?? '', value, neg: t.neg, quoted: t.quoted, at });
 			continue;
 		}
+		pq.operators = true;
 		if (t.neg) {
 			if (op.kind === 'type') pq.excludeTypes.push(...(op.types ?? []));
 			else if (op.kind === 'tag') v && pq.excludeTags.push(v);
@@ -740,6 +765,7 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 			[since[i]?.src, until[i]?.src].filter(Boolean).join(' ')
 		);
 	}
+	pq.parts = textParts;
 	pq.text = textParts.filter(Boolean).join(' ');
 	return pq;
 }
