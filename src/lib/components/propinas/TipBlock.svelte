@@ -13,7 +13,7 @@
 	import { FONDO_SITE_URL, TIP_MESSAGE_MAX } from '$lib/utils/propinas.js';
 	import TipAmountPicker from './TipAmountPicker.svelte';
 
-	/** @type {'material' | 'calendario' | null} */
+	/** @type {import('$lib/utils/propinas.js').TipCategory | null} */
 	export let category = null;
 	/** @type {string | null} */
 	export let slug = null;

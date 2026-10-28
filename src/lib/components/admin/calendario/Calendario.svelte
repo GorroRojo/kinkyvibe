@@ -197,7 +197,8 @@
 		view,
 		events,
 		locale: 'es-AR',
-		firstDay: 1,
+		// La semana empieza el domingo, como en el calendario de papel.
+		firstDay: 0,
 		headerToolbar: { start: '', center: '', end: '' },
 		height: view === 'timeGridWeek' ? (fill ? `${fill}px` : '72vh') : 'auto',
 		// En el mes los días crecen con sus eventos (no hay "+N más").
