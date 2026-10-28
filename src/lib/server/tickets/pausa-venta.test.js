@@ -8,7 +8,17 @@
  *   los códigos para ingresar) salen igual.
  * D1 de miniflare; eventos, personas y pagos inventados. Lo que se le manda a Resend se captura.
  */
-import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	onTestFinished,
+	vi
+} from 'vitest';
 
 const envVars = vi.hoisted(() => /** @type {Record<string, string>} */ ({}));
 
@@ -127,6 +137,16 @@ beforeEach(async () => {
 
 /** Tareas en segundo plano de un pedido (`ctx.waitUntil`), para esperarlas. */
 let background = /** @type {Promise<unknown>[]} */ ([]);
+/**
+ * Todas las de la prueba en curso. Cada prueba las espera al terminar: si no, un mail que sale
+ * tarde (con la máquina cargada) cae en `subjects` de la prueba siguiente, que ve un mail de más.
+ */
+let unfinished = /** @type {Promise<unknown>[]} */ ([]);
+afterEach(async () => {
+	const pending = unfinished;
+	unfinished = [];
+	await Promise.allSettled(pending);
+});
 
 /**
  * Un pedido como lo hace SvelteKit (form action).
@@ -139,7 +159,15 @@ function event(fields, { params = { slug: SLUG, event: SLUG }, locals = admin, p
 	background = [];
 	return /** @type {any} */ ({
 		params,
-		platform: { ...t.platform, ctx: { waitUntil: (/** @type {any} */ p) => background.push(p) } },
+		platform: {
+			...t.platform,
+			ctx: {
+				waitUntil: (/** @type {any} */ p) => {
+					unfinished.push(p);
+					background.push(p);
+				}
+			}
+		},
 		locals,
 		request: new Request(`http://localhost${path}`, { method: 'POST', body }),
 		url: new URL(`http://localhost${path}`),
