@@ -246,6 +246,13 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   - lista corta: `amigues/sanitize.js`, como los perfiles (imágenes solo de la biblioteca propia,
     `/media/…`; ver [amigues.md](amigues.md)). Es también lo que se usa sin valor guardado: el
     HTML libre tiene que estar escrito (`body_html: 'libre'`; en la wiki, `wiki_body_html`).
+  - **Anidado demasiado hondo**: rehype recorre el árbol con recursión, y miles de elementos uno
+    adentro de otro (`<div>` × 5000, o `>` × 2000 en markdown) lo dejan sin pila (`RangeError`,
+    error 500 para todes en esa página). Más de 500 niveles (`$lib/utils/htmlNesting.js`, una
+    cuenta aproximada y barata) no se guardan: el campo del texto (`markup: true` en
+    `objects/fields.js`: eventos, material, perfiles y wiki) da el error en el panel. Uno que ya
+    estaba guardado se muestra vacío y deja una línea `area: 'contenido'` en los registros. Los
+    textos de la semilla no pasan de 10 niveles.
 - **Imágenes que un texto importa** (`import foto from './media/<carpeta>/1.webp'`): su copia en
   la biblioteca (`legacyMedia.js`, `contentMediaURL` en `render.js`). Los PDF, el video y el
   documento viejos ya no se importan: los textos los enlazan por su dirección de la biblioteca

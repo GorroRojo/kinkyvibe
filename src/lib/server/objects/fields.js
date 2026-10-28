@@ -7,6 +7,7 @@
  *
  * Solo usa imports relativos (lo usa el cron nocturno, que no pasa por Vite).
  */
+import { MAX_HTML_NESTING, bodyNestingDepth } from '../../utils/htmlNesting.js';
 
 /**
  * `json` es solo para tipos núcleo (nunca para campos del panel): un objeto JSON tal cual, por
@@ -25,6 +26,9 @@
  * @prop {number} [min] valor mínimo (números)
  * @prop {readonly string[]} [options] valores posibles ('option' y cada ítem de 'list')
  * @prop {boolean} [array] 'json': una lista en vez de un objeto
+ * @prop {boolean} [markup] 'longtext': el texto de una página (markdown con HTML), que se arma
+ *   con rehype; con más de MAX_HTML_NESTING niveles uno adentro de otro no se guarda
+ *   ($lib/utils/htmlNesting.js)
  */
 
 /** @typedef {{ path: string, message: string }} FieldError */
@@ -79,6 +83,11 @@ function checkValue(def, value) {
 			const max = def.max ?? (def.kind === 'text' ? TEXT_MAX : LONGTEXT_MAX);
 			if (text.length > max) return { error: `es demasiado largo (máximo ${max} caracteres)` };
 			if (def.kind === 'text' && /[\n\r]/.test(text)) return { error: 'tiene que ser una línea' };
+			if (def.markup && bodyNestingDepth(text) > MAX_HTML_NESTING) {
+				return {
+					error: `tiene más de ${MAX_HTML_NESTING} niveles de elementos uno adentro de otro (HTML o citas con >): así no se puede mostrar`
+				};
+			}
 			return { value: text };
 		}
 		case 'integer':
