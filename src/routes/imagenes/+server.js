@@ -106,6 +106,19 @@ export async function GET({ locals, platform, url }) {
 	return json({ images }, { headers: NO_STORE });
 }
 
+/**
+ * El formulario de un pedido sin content-length, o `null` si pasa de `max` bytes.
+ * @param {Request} request
+ * @param {number} max
+ */
+async function formDataCapped(request, max) {
+	const raw = await readBytesCapped(request, max);
+	if (!raw) return null;
+	return new Response(raw, {
+		headers: { 'content-type': request.headers.get('content-type') ?? '' }
+	}).formData();
+}
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ locals, platform, request }) {
 	const db = getDB(platform);
@@ -122,21 +135,22 @@ export async function POST({ locals, platform, request }) {
 	if (capped && !(await uploadCountAllowed(db, capped))) {
 		return json({ error: UPLOAD_CAP_MESSAGE }, { status: 429 });
 	}
-	// El mismo tope aunque no venga content-length: se lee de a pedazos y se corta al pasarlo.
-	const raw = await readBytesCapped(request, MAX_FILE_BYTES + 64 * 1024);
-	if (!raw) {
+	// Sin content-length (chunked), el mismo tope: se lee de a pedazos y se corta al pasarlo. Con
+	// content-length (lo normal, ya chequeado arriba) se lee directo, sin una copia de más en
+	// memoria.
+	let form;
+	try {
+		form = request.headers.has('content-length')
+			? await request.formData()
+			: await formDataCapped(request, MAX_FILE_BYTES + 64 * 1024);
+	} catch {
+		return json({ error: 'No llegó el archivo. Probá de nuevo.' }, { status: 400 });
+	}
+	if (!form) {
 		return json(
 			{ error: `El archivo pesa más de ${MAX_FILE_BYTES / 1024 / 1024} MB, el máximo.` },
 			{ status: 413 }
 		);
-	}
-	let form;
-	try {
-		form = await new Response(raw, {
-			headers: { 'content-type': request.headers.get('content-type') ?? '' }
-		}).formData();
-	} catch {
-		return json({ error: 'No llegó el archivo. Probá de nuevo.' }, { status: 400 });
 	}
 	const file = form.get('file');
 	if (!(file instanceof File) || file.size === 0) {
