@@ -707,7 +707,13 @@ describe('links a la ficha del evento', () => {
 		}
 		const views = (/** @type {string} */ id) =>
 			EVENT_TABS.find((t) => t.id === id)?.views?.map((v) => v.suffix);
-		expect(views('ventas')).toEqual(['/ventas', '/ordenes', '/transferencias', '/lista-espera']);
+		expect(views('ventas')).toEqual([
+			'/ventas',
+			'/ordenes',
+			'/transferencias',
+			'/lista-espera',
+			'/gastos'
+		]);
 		expect(views('mails')).toEqual(['/mail', '/mails']);
 	});
 	it('eventTabOf: la pestaña y la vista de cada dirección (y de sus subpáginas)', () => {

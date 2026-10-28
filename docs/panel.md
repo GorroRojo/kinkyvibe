@@ -127,10 +127,10 @@ junta lo que eran tres pestañas y **Mails** lo que eran dos: cada parte es una 
 pestaña (`views`), con su URL de siempre, y la ficha las muestra como botones (`.kv-segmented`)
 debajo de las pestañas:
 
-| Pestaña | Vistas (URL)                                                                                                                |
-| ------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo) |
-| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`)                                              |
+| Pestaña | Vistas (URL)                                                                                                                                                                                                                           |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo), Gastos y reparto (`/gastos`, prototipo con el interruptor `gastos_reparto`, ver [tickets.md](tickets.md)) |
+| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`)                                                                                                                                                         |
 
 Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña

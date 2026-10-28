@@ -134,6 +134,20 @@ export const FLAGS = Object.freeze({
 			'ticket_combos y columnas buyer_email y source_order_id de discount_codes). ' +
 			'src/lib/server/tickets/combos.js.',
 		envVar: 'COMBO_CODIGOS_ENABLED'
+	},
+	gastos_reparto: {
+		label: 'Gastos y reparto (prototipo)',
+		description:
+			'En la ficha de cada evento que vende entradas, Ventas → «Gastos y reparto»: lo que entró ' +
+			'(sin la comisión de Mercado Pago ni lo del Fondo), los gastos con quién pagó cada uno y ' +
+			'el reparto de lo que queda entre les organizadores, con «quién le pasa a quién». Es un ' +
+			'prototipo: lo que se carga no se guarda en la base (queda en ese navegador y se puede ' +
+			'exportar). Apagado, no se ve.',
+		tech:
+			'docs/tickets.md, «Gastos y reparto». Sin migración: lee las órdenes del evento ' +
+			'(src/lib/admin/reparto.js); gastos y personas en localStorage. Apagado, ' +
+			'/admin/eventos/<slug>/gastos da 404.',
+		envVar: 'GASTOS_REPARTO_ENABLED'
 	}
 });
 
@@ -307,6 +321,15 @@ export function listaEsperaEnabled(platform) {
  */
 export function comboCodigosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'combo_codigos');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el prototipo de gastos y reparto? (docs/tickets.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function gastosRepartoEnabled(platform) {
+	return isFlagOn(getDB(platform), 'gastos_reparto');
 }
 
 /**
