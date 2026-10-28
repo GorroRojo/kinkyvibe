@@ -13,7 +13,8 @@
  * Funciones puras (salvo el tope por persona, en memoria): reciben la fuente ya armada
  * (inlineSource.js) y devuelven el `answerInlineQuery`.
  */
-import { fold, groupHits, search } from '$lib/utils/search';
+import { find, groupHits } from '$lib/utils/search';
+import { QUERY_MAX, splitTypes } from '$lib/utils/searchSyntax.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import { isMediaPath, isPublicMediaUrl } from '$lib/utils/media.js';
 import { PRODUCTION_HOST } from '$lib/utils/seo.js';
@@ -106,40 +107,21 @@ export const INLINE_CACHE_SECONDS = 120;
 /** Con la consulta vacía: cuántos materiales van después de los próximos eventos. */
 export const EMPTY_MATERIAL = 5;
 
-/** Largo máximo de lo buscado (Telegram manda hasta 256 caracteres). */
-const QUERY_MAX = 100;
-
 /** El deep link que abre el buscador del bot en privado (nav.js). */
 const SEARCH_START = 'buscar';
 
 /**
- * Los prefijos que acotan el tipo («evento: cuerdas»). Sin tildes ni mayúsculas.
- *
- * @type {Readonly<Record<string, readonly SearchDoc['c'][]>>}
- */
-export const INLINE_PREFIXES = Object.freeze({
-	evento: ['calendario'],
-	eventos: ['calendario'],
-	material: ['material'],
-	wiki: ['wiki', 'serie'],
-	kinkipedia: ['wiki', 'serie'],
-	serie: ['serie'],
-	series: ['serie'],
-	amigues: ['amigues']
-});
-
-/**
- * «evento: cuerdas» → `{ types: ['calendario'], text: 'cuerdas' }`. Sin prefijo, `types: null`.
+ * Lo escrito, en dos: los tipos pedidos con un operador de tipo en cualquier lugar (`evento:`,
+ * `e:`, `material:`…, docs/buscar.md) y el resto, que se busca con la sintaxis del sitio (`find`).
+ * «evento: cuerdas» → `{ types: ['calendario'], text: 'cuerdas' }`; «cuerdas finde» → `{ types:
+ * null, text: 'cuerdas finde' }`. Hasta {@link QUERY_MAX} caracteres (Telegram manda hasta 256).
  *
  * @param {unknown} query
  * @returns {{ types: readonly SearchDoc['c'][] | null, text: string }}
  */
 export function parseInlineQuery(query) {
 	const q = (typeof query === 'string' ? query : '').trim().slice(0, QUERY_MAX);
-	const match = /^([\p{L}]+)\s*:\s*([\s\S]*)$/u.exec(q);
-	const types = match ? INLINE_PREFIXES[fold(match[1])] : undefined;
-	if (match && types) return { types, text: match[2].trim() };
-	return { types: null, text: q };
+	return splitTypes(q, 'bot');
 }
 
 /** @param {SearchDoc} doc */
@@ -169,9 +151,9 @@ function recentMaterial(docs, extras) {
 
 /**
  * Qué se muestra, en orden. Con texto: el mismo buscador y el mismo orden que la búsqueda del
- * sitio (`search` + `groupHits`: próximos, series, material, amigues, Kinkipedia, pasados). Sin
- * texto: los próximos eventos y después algunos materiales recientes; con un prefijo, todo lo de
- * ese tipo (los eventos, solo los próximos).
+ * sitio (`find` + `groupHits`: próximos, series, material, amigues, Kinkipedia, pasados), con la
+ * misma sintaxis (docs/buscar.md). Sin texto: los próximos eventos y después algunos materiales
+ * recientes; con solo un operador de tipo, todo lo de ese tipo (los eventos, solo los próximos).
  *
  * @param {InlineSource} source
  * @param {{ types: readonly SearchDoc['c'][] | null, text: string }} query
@@ -181,7 +163,7 @@ function recentMaterial(docs, extras) {
 export function selectInline(source, { types, text }, now) {
 	const allowed = (/** @type {SearchDoc} */ d) => !types || types.includes(d.c);
 	if (text) {
-		return groupHits(search(source.prepared, text), now)
+		return groupHits(find(source.prepared, text, { now }), now)
 			.flatMap((g) => g.hits.map((h) => h.doc))
 			.filter(allowed)
 			.slice(0, INLINE_MAX);
