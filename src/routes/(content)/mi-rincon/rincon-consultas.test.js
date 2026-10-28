@@ -146,7 +146,9 @@ describe('Mi rincón con sesión, en pocas tandas', () => {
 		// compra). Ahora: 7 en 4 (la sesión; la página a la par; la segunda consulta de las compras;
 		// el evento de la compra).
 		// 8 con «¿Son tuyas?» («No fui yo», parte 2): el mail verificado una vez, y las dos consultas de compras a la par.
-		expect(r.queries).toBeLessThanOrEqual(8);
+		// 9 con los pedidos «¿Es tu perfil?» de la cuenta (rincon-pedidos), a la par de lo demás:
+		// no suma tandas.
+		expect(r.queries).toBeLessThanOrEqual(9);
 		expect(r.waves).toBeLessThanOrEqual(4);
 		expect(r.accountReads).toBeLessThanOrEqual(3);
 	});
@@ -191,7 +193,8 @@ describe('Mi rincón con sesión, en pocas tandas', () => {
 					createdAt: 5_000
 				}
 			],
-			unconfirmed: []
+			unconfirmed: [],
+			claims: []
 		});
 		expect(r.layout).toMatchObject({ member: true, readingSpeed: 300, user: undefined });
 	});

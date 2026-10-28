@@ -13,7 +13,7 @@ import { batchesReads } from '$lib/server/db/autoBatch.js';
 import { ANON } from '$lib/server/objects/visibility.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
-import { hasPendingClaim } from './claims.js';
+import { claimStatusOf } from './claims.js';
 import {
 	findPublicProfile,
 	findPublicProfiles,
@@ -332,25 +332,25 @@ async function venuePageEvents(db, object, href, postsP) {
  * "Es mi perfil": el estado de la cuenta con el perfil (`claimState`), para cualquier cuenta (pedir
  * no da nada: une admin lo revisa). Si lo gestiona ya se sabe (`role`, de la misma regla que
  * `managerRole`); ese estado lleva a Mi rincón → Perfiles, así que solo sale con el permiso (sin
- * él, nada). El pedido pendiente se pregunta a la par del permiso.
+ * él, nada). El pedido (pendiente, no aprobado o ninguno) se pregunta a la par del permiso.
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {number} profileId
  * @param {'owner' | 'manager' | null} role
- * @returns {Promise<{ state: 'none' | 'pending' | 'manager' } | null>}
+ * @returns {Promise<{ state: 'none' | 'pending' | 'rejected' | 'manager' } | null>}
  */
 async function claimOf(db, accountId, profileId, role) {
-	const [can, pending] = await Promise.all([
+	const [can, claim] = await Promise.all([
 		role ? canHaveProfiles(db, accountId) : false,
 		role
 			? null
-			: hasPendingClaim(db, accountId, profileId).then(
+			: claimStatusOf(db, accountId, profileId).then(
 					(value) => ({ value }),
 					(error) => ({ error })
 				)
 	]);
 	if (role) return can ? { state: 'manager' } : null;
-	if (pending && 'error' in pending) throw pending.error;
-	return { state: pending?.value ? 'pending' : 'none' };
+	if (claim && 'error' in claim) throw claim.error;
+	return { state: claim?.value ?? 'none' };
 }
