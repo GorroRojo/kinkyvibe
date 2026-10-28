@@ -760,3 +760,36 @@ export function allowedTypes(pq) {
 	}
 	return types;
 }
+
+/**
+ * Saca de lo escrito los operadores de tipo (`evento:`, `e:cuerdas`, `material:`…, en cualquier
+ * lugar) y devuelve los tipos que piden (sumados) y el resto, tal como se escribió. Para el bot,
+ * que lista todo lo de un tipo cuando no hay nada más. Un `-evento:` queda en el resto (lo saca
+ * el motor).
+ *
+ * @param {string} raw
+ * @param {Engine} engine
+ * @returns {{ types: DocType[] | null, text: string }}
+ */
+export function splitTypes(raw, engine) {
+	/** @type {Set<DocType>} */
+	const types = new Set();
+	/** @type {string[]} */
+	const rest = [];
+	for (const p of splitQuery(String(raw ?? '').slice(0, QUERY_MAX))) {
+		let key = p.key;
+		let value = p.value;
+		if (!key && !p.quoted) {
+			const m = /^([\p{L}]+):(.*)$/su.exec(value);
+			if (m) [key, value] = [m[1], m[2]];
+		}
+		const op = key && !p.neg ? operatorFor(foldQuery(key), engine) : null;
+		if (op?.kind !== 'type') {
+			rest.push(p.src);
+			continue;
+		}
+		for (const t of op.types ?? []) types.add(t);
+		if (value) rest.push(p.quoted ? `"${value}"` : value);
+	}
+	return { types: types.size ? [...types] : null, text: rest.join(' ') };
+}

@@ -41,8 +41,9 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
     `location_map` del evento);
   - «⭐ Seguir» (abajo).
 - **Buscar** busca en **todo el sitio** (eventos, material, Kinkipedia, series y amigues), con el
-  mismo índice y el mismo orden que el buscador del sitio (`/api/search-index.json`, ver «Modo
-  inline» abajo): solo lo que ve une visitante sin cuenta.
+  mismo índice, el mismo orden y la misma sintaxis que el buscador del sitio
+  (`/api/search-index.json` y [buscar.md](buscar.md), ver «Modo inline» abajo): solo lo que ve une
+  visitante sin cuenta.
   - «🔎 Buscar» manda un mensaje nuevo que abre «responder» (`force_reply`, Bot API 10.3) con
     «Cancelar»; la respuesta trae los resultados. `/buscar <texto>` los trae directo (también en
     grupos; en un grupo, `/buscar` solo explica `/buscar cuerdas`).
@@ -350,11 +351,14 @@ Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dó
 
 - **Qué busca**: lo mismo que el buscador del sitio, con su mismo índice
   (`publicSearchIndex` en `src/lib/server/search/publicIndex.js`, el de `/api/search-index.json`,
-  armado una vez por cambio de la base y compartido con el endpoint) y su mismo orden (`search` +
-  `groupHits`: próximos eventos, series, material, amigues, Kinkipedia, eventos pasados).
-- **Prefijos** (opcionales): `evento:`, `material:`, `wiki:` (o `kinkipedia:`, con las series),
-  `serie:`, `amigues:`. Con prefijo y sin texto: todo lo de ese tipo (los eventos, solo los
-  próximos; el material, del más nuevo).
+  armado una vez por cambio de la base y compartido con el endpoint), su mismo orden (`find` +
+  `groupHits`: próximos eventos, series, material, amigues, Kinkipedia, eventos pasados) y **la
+  misma sintaxis** ([buscar.md](buscar.md): frases, `-palabra`, `#etiqueta`, `@persona`, tipos,
+  `lugar:`, fechas). Buscar en el chat usa lo mismo.
+- **Tipos** (opcionales, en cualquier lugar de lo escrito): `evento:` (`e:`), `material:` (`m:`),
+  `wiki:` o `kinkipedia:` (`w:`, con las series), `serie:` (`s:`), `amigues:` (`a:`). Con un tipo
+  y nada más: todo lo de ese tipo (los eventos, solo los próximos; el material, del más nuevo),
+  también en Buscar.
 - **Sin texto**: los próximos eventos (del más cercano) y después 5 materiales recientes.
 - **Cada resultado**: título (con el ícono de la etiqueta en la Kinkipedia y las series), una
   descripción (la fecha y la zona en los eventos; el resumen en el material y la Kinkipedia; el
