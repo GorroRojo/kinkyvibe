@@ -23,8 +23,6 @@
 		slideSvg,
 		svgDataUrl
 	} from '$lib/utils/agendaInstagram.js';
-	import latoUrl from '$lib/styles/fonts/lato-latin-400-normal.woff2?url';
-	import latoBoldUrl from '$lib/styles/fonts/lato-latin-700-normal.woff2?url';
 
 	/** Las filas tildadas, en orden y con lo cambiado a mano. @type {import('$lib/utils/agendaInstagram.js').SlideRow[]} */
 	export let rows = [];
@@ -46,6 +44,7 @@
 	let footer = DEFAULT_SLIDE_FOOTER;
 	let perSlide = DEFAULT_PER_SLIDE;
 	let showFondo = true;
+	let showList = true;
 	let percent = fondoPercent ?? 0;
 
 	/** @type {Omit<import('$lib/utils/agendaInstagram.js').SlideAssets, 'images'> | null} */
@@ -66,6 +65,17 @@
 		const res = await fetch(url);
 		if (!res.ok) throw new Error(`${url}: ${res.status}`);
 		return readBlob(await res.blob());
+	}
+
+	/**
+	 * El dibujo de fondo de los volantes en el lila de los posts (#8e8ed7, el del .ai).
+	 * @param {string} url
+	 */
+	async function patternUrl(url) {
+		const res = await fetch(url);
+		if (!res.ok) throw new Error(`${url}: ${res.status}`);
+		const svg = (await res.text()).replaceAll('#55439b', '#8e8ed7');
+		return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 	}
 
 	/** @param {string} url */
@@ -109,11 +119,11 @@
 		for (let i = 0; i < d.length; i += 4) {
 			const max = Math.max(d[i], d[i + 1], d[i + 2]);
 			const min = Math.min(d[i], d[i + 1], d[i + 2]);
-			// Cuánto «color» tiene (0 = blanco o gris): mezcla hacia el violeta (106, 23, 238).
+			// Cuánto «color» tiene (0 = blanco o gris): mezcla hacia el violeta del .ai (#6511f8).
 			const t = max ? (max - min) / max : 0;
-			d[i] = Math.round(d[i] * (1 - t) + 106 * t);
-			d[i + 1] = Math.round(d[i + 1] * (1 - t) + 23 * t);
-			d[i + 2] = Math.round(d[i + 2] * (1 - t) + 238 * t);
+			d[i] = Math.round(d[i] * (1 - t) + 101 * t);
+			d[i + 1] = Math.round(d[i + 1] * (1 - t) + 17 * t);
+			d[i + 2] = Math.round(d[i + 2] * (1 - t) + 248 * t);
 		}
 		ctx.putImageData(img, 0, 0);
 		return canvas.toDataURL('image/png');
@@ -121,16 +131,30 @@
 
 	onMount(async () => {
 		try {
-			const [bebas, barlow, fredoka, lato, latoBold, pattern, logo] = await Promise.all([
-				fontUrl('/fonts/agenda-instagram/bebas-neue-latin-400.woff2'),
-				fontUrl('/fonts/agenda-instagram/barlow-condensed-latin-600.woff2'),
-				fontUrl('/fonts/share/fredoka-latin-variable.woff2'),
-				fontUrl(latoUrl),
-				fontUrl(latoBoldUrl),
-				dataUrl('/agenda-impresa/fondo.svg'),
-				purpleLogo()
-			]);
-			base = { bebas, barlow, fredoka, lato, latoBold, pattern, logo };
+			// Las letras se cargan solo acá (ver el CSS de las placas en agendaInstagram.js).
+			const [poster, medium, signage, arimo, arimoBold, arimoBoldItalic, fredoka, pattern, logo] =
+				await Promise.all([
+					fontUrl('/fonts/1797/1797-poster.woff2'),
+					fontUrl('/fonts/1797/1797-medium.woff2'),
+					fontUrl('/fonts/1797/1797-signage.woff2'),
+					fontUrl('/fonts/agenda-instagram/arimo-latin-400-normal.woff2'),
+					fontUrl('/fonts/agenda-instagram/arimo-latin-700-normal.woff2'),
+					fontUrl('/fonts/agenda-instagram/arimo-latin-700-italic.woff2'),
+					fontUrl('/fonts/share/fredoka-latin-variable.woff2'),
+					patternUrl('/agenda-impresa/fondo.svg'),
+					purpleLogo()
+				]);
+			base = {
+				poster,
+				medium,
+				signage,
+				arimo,
+				arimoBold,
+				arimoBoldItalic,
+				fredoka,
+				pattern,
+				logo
+			};
 		} catch (e) {
 			loadError = e instanceof Error ? e.message : String(e);
 		}
@@ -161,7 +185,8 @@
 		perSlide,
 		coverText,
 		footer,
-		fondo: showFondo ? Number(percent) || 0 : null
+		fondo: showFondo ? Number(percent) || 0 : null,
+		list: showList
 	});
 	$: sources = base
 		? slides.map((s) =>
@@ -173,6 +198,7 @@
 	function slideLabel(s, i) {
 		if (s.kind === 'cover') return 'portada';
 		if (s.kind === 'fondo') return 'placa del Fondo';
+		if (s.kind === 'list') return 'lista de actividades';
 		return `placa ${i + 1}`;
 	}
 
@@ -270,6 +296,9 @@
 			</select></label
 		>
 		<label class="check"><input type="checkbox" bind:checked={showFondo} /> Placa del Fondo</label>
+		<label class="check"
+			><input type="checkbox" bind:checked={showList} /> Placa con la lista de actividades</label
+		>
 		{#if showFondo}
 			<label
 				>Porcentaje del Fondo <input

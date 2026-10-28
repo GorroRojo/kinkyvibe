@@ -589,17 +589,22 @@ el mismo orden, las mismas tildes y los mismos cambios a mano (cambiar de pesta�
     del evento alternando derecha e izquierda: día y hora («SÁBADO 24. 20:00HS»), el precio de los
     volantes, el resumen del evento y el lugar en dos líneas (la primera es el lugar de los
     volantes, **como lo ve cualquiera**; la segunda, «Dirección x privado» o el nombre del lugar
-    solo si es público). Sin imagen, un recuadro violeta con el título. Estrella «Nuevo» a mano;
+    solo si es público). Sin imagen, un recuadro violeta con el título. Estrella «Nuevo» a mano.
+    La primera imagen va a la izquierda, como en el .ai;
   - **el Fondo**: «este mes el N % del precio de las entradas… está cubierto por el Fondo», con la
     barra; N arranca con el porcentaje de este mes (`resolveFondoPercent`, el mismo que descuentan
     las entradas) y se cambia a mano (o se saca la placa);
+  - **la lista de actividades** (se puede sacar): «Actividades de <mes>» en la banda ancha y los
+    eventos de KinkyVibe de a 8, con la imagen chica, el título y «jueves 8 de octubre I 19:00 hs I
+    lugar»;
   - **otros eventos amigos** (los que no tienen la etiqueta KinkyVibe): en la última placa, debajo
-    del último evento de KinkyVibe (4 entran ahí; los demás, de a 6 en placas propias), con quién
-    organiza (los autores menos KinkyVibe), la imagen chica, el título y «SÁB 10 DE OCTUBRE |
-    ALMAGRO».
+    del último evento de KinkyVibe (4 entran ahí; los demás, de a 4 en placas propias con el título
+    en la banda ancha y sin pie, como en el .ai), con quién organiza (los autores menos KinkyVibe),
+    la imagen chica, el título y «SÁB 10 DE OCTUBRE I ALMAGRO» (la 1797 no dibuja la barra «|»: los
+    posts usan una «I»).
 - **Qué se cambia a mano**, además de lo de los volantes: el texto (el resumen), la segunda línea
   del lugar, la estrella «Nuevo» y, en los amigos, quién organiza; de las placas, el mes, la
-  bajada, el pie, cuántos eventos por placa y el Fondo.
+  bajada, el pie, cuántos eventos por placa, el Fondo y si va la lista de actividades.
 - **Cómo se baja**: cada placa es un SVG con el diseño en HTML adentro (`foreignObject`) y todo
   embebido como `data:` (letras, dibujo de fondo, logo e imágenes): la vista previa es esa misma
   imagen y «Descargar» la dibuja en un canvas y la guarda como PNG; «Descargar todas» baja una por
@@ -609,12 +614,16 @@ el mismo orden, las mismas tildes y los mismos cambios a mano (cambiar de pesta�
   puede negarse a guardar el PNG).
 - **El texto del posteo** se arma con los eventos (día, título, lugar público, precio, los amigos y
   los links), se puede cambiar antes de copiarlo y cuenta los 2200 caracteres de Instagram.
-- **Letras y dibujos**: la condensada en mayúsculas es Bebas Neue y la de los lugares y el Fondo,
-  Barlow Condensed (las dos de Google Fonts, SIL OFL 1.1, en `static/fonts/agenda-instagram/` con su
-  `OFL.txt`); «agenda kinky» va en Fredoka y los textos en Lato, las que ya usa el sitio. Son las
-  libres más parecidas a las de los posts: **falta que gorrite confirme las tipografías**. El dibujo
-  de fondo es el de los volantes (`static/agenda-impresa/fondo.svg`) y el logo, el del sitio pasado
-  a violeta.
+- **Medidas, letras y dibujos**: posiciones, tamaños, interlineados y colores salen del .ai
+  original de los posts que mandó gorrite (no está en el repo). Las letras son las del .ai: 1797
+  POSTER, MEDIUM y SIGNAGE (`static/fonts/1797/`, CC BY 4.0, con su `LICENSE.txt`; SIGNAGE con el
+  espaciado −50 del .ai); la portada, que en el .ai va en Arial, usa Arimo (Google Fonts, SIL OFL
+  1.1, mismas medidas que Arial; en `static/fonts/agenda-instagram/` con su `OFL.txt`), angostada
+  para la Arial Narrow de los números. «agenda kinky» está en curvas en el .ai: va en Fredoka
+  angostada, la del sitio. Todas se declaran en un solo lugar (el CSS de las placas en
+  `agendaInstagram.js`) y se cargan solo en esta pestaña. El dibujo de fondo es el de los volantes
+  (`static/agenda-impresa/fondo.svg`) al doble de tamaño y en el lila del .ai, y el logo, el del
+  sitio pasado a violeta.
 
 ## El buscador
 
