@@ -73,6 +73,7 @@ import { markFreeOrderMine } from '$lib/server/cuentas/orders.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 import { unconfirmedMailAllowed } from '$lib/server/email/suppressions.js';
+import { ticketsPausedMessage } from '$lib/server/emergencia.js';
 
 /**
  * Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver).
@@ -110,7 +111,8 @@ export const CHECKOUT_RATE_LIMITS = {
 /**
  * @typedef {{
  *   open: boolean,
- *   reason: 'cancelled' | 'soldout' | 'closed' | 'notyet' | 'unavailable' | null,
+ *   reason: 'cancelled' | 'soldout' | 'closed' | 'notyet' | 'unavailable' | 'paused' | null,
+ *   pausedMessage?: string | null,
  *   opensAt: number | null,
  *   closesAt: number | null,
  *   maxQuantity: number,
@@ -141,6 +143,10 @@ export const CHECKOUT_RATE_LIMITS = {
  * `maxQuantity`, así la página no muestra ni manda el cupo real) y `left` es lo que se muestra
  * en público: cuántas quedan solo si el tipo tiene cupo y quedan menos de `LOW_STOCK` (ver
  * `publicLeft`). Un tipo sin cupo nunca se agota.
+ *
+ * Pausa de emergencia (`TICKETS_PAUSED`, $lib/server/emergencia.js): `open: false`,
+ * `reason: 'paused'` y `pausedMessage` con el texto para les compradores (salvo un evento
+ * cancelado, que sigue diciendo eso).
  */
 
 /**
@@ -336,6 +342,27 @@ export async function getTicketsView(db, slug, fetchFn, opts = {}) {
 		opts.fondo
 	);
 	if (!config) return null;
+	const view = await salesView(db, slug, config, now, reads, opts);
+	// Pausa de emergencia: el texto en lugar de los botones (nada se puede comprar). Un evento
+	// cancelado sigue diciendo que se canceló.
+	const paused = ticketsPausedMessage();
+	if (paused && view.reason !== 'cancelled')
+		return { ...view, open: false, reason: 'paused', pausedMessage: paused };
+	return view;
+}
+
+/**
+ * {@link getTicketsView} sin la pausa de emergencia.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {string} slug
+ * @param {import('./config.js').EventTickets} config
+ * @param {number} now
+ * @param {ReturnType<typeof salesReads> | undefined} reads lo que ya salió a leerse, si salió
+ * @param {{ waitlist?: boolean, offerId?: string | null }} opts
+ * @returns {Promise<TicketsView>}
+ */
+async function salesView(db, slug, config, now, reads, opts) {
 	const state = salesState(config, now);
 	const { methods, feeBasisPoints, fields, sold } = await (reads ??
 		salesReads(db, slug, config, now, opts));
@@ -433,7 +460,8 @@ export { LOW_STOCK };
  * sin cupo o con muchas, no se muestra ningún número). También si hay entradas en la puerta.
  *
  * @param {TicketsView} view
- * @returns {{ open: boolean, reason: TicketsView['reason'], priceFrom: number | null,
+ * @returns {{ open: boolean, reason: TicketsView['reason'], pausedMessage: string | null,
+ *   priceFrom: number | null,
  *   gorraSuggested: number | null, left: number | null, opensAt: number | null,
  *   closesAt: number | null, door: TicketsView['door'] }}
  */
@@ -451,6 +479,7 @@ export function summarizeTickets(view) {
 	return {
 		open: view.open,
 		reason: view.reason,
+		pausedMessage: view.pausedMessage ?? null,
 		priceFrom: priced.length ? Math.min(...priced) : null,
 		gorraSuggested: gorra.length ? Math.min(...gorra) : null,
 		left: view.open && left !== null && left < LOW_STOCK ? left : null,
@@ -764,6 +793,11 @@ export async function buyAction(event) {
 		});
 
 	if (!db) return failWith(503, 'La venta de entradas no está disponible ahora.');
+	// Pausa de emergencia (TICKETS_PAUSED): no se crea ninguna orden (Mercado Pago, transferencia
+	// ni gratis), antes de tocar la base. Lo que ya está en curso (pagos, puerta, carga a mano)
+	// no pasa por acá.
+	const paused = ticketsPausedMessage();
+	if (paused) return failWith(503, paused);
 	// DEV ONLY: las pruebas E2E compran todo desde la misma conexión (localhost).
 	const relaxed = dev && env.TICKETS_DEV_RELAX_LIMITS === '1';
 	const client = relaxed ? `dev-${crypto.randomUUID()}` : await clientHash(clientAddress(event));

@@ -258,7 +258,12 @@ describe('la página de un perfil, en pocas tandas', () => {
 		expect(r.waves).toBeLessThanOrEqual(4);
 		const mine = await profilePage('perfil-sin-aprobar-inventado', { as: 'manager' });
 		expect(mine.page.claim).toEqual({ state: 'manager' });
-		expect(mine.page.badges).toEqual({ hidden: false, membersOnly: false, pending: true });
+		expect(mine.page.badges).toEqual({
+			hidden: false,
+			membersOnly: false,
+			pending: true,
+			noindex: false
+		});
 		expect((await profilePage('autore-inventade', { as: 'member' })).page.claim).toEqual({
 			state: 'none'
 		});

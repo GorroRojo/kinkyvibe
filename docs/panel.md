@@ -134,7 +134,10 @@ debajo de las pestañas:
 
 Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
-y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). La pestaña
+y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). Una orden
+tiene su link: `/ordenes#orden-<id>` (`orderHref` en `src/lib/admin/orderFormat.js`, que usa la
+Puerta); la página baja hasta ella, la marca y, si el filtro «Mostrar» la escondía, pasa a
+«Todas». La pestaña
 Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes,
 Transferencias y Lista de espera, los suyos (en la lista, las anotaciones vivas). En el celu,
 con 4 vistas (Ventas con la lista de espera) los botones no entran en una fila: son una grilla de
@@ -314,13 +317,16 @@ revisar" del Inicio.
   depende de los eventos que vienen) y `reviewTagUsage` (el uso de las etiquetas). Nada de esto le
   pide algo a GitHub. Los tests `para-revisar.test.js` e `inicio-tanda.test.js` siembran casos y
   comprueban que el botón dice lo mismo que la tarjeta.
-- **Las filas**: «Transferencia» tildada sin datos para
+- **Las filas**: primero, una roja por cada pausa de emergencia prendida (`TICKETS_PAUSED`,
+  `MAILS_PAUSED`; `pauseItems`, lleva a Ajustes › Interruptores, [interruptores.md](interruptores.md#pausas-de-emergencia)),
+  después «Transferencia» tildada sin datos para
   transferir, eventos cancelados con algo por devolver (una por evento: órdenes aprobadas sin
   reembolsar y transferencias vigentes, aunque el evento ya haya pasado; decisión 0044),
   transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
   pago duplicado o una venta en la puerta sin conexión que pasó un límite o quedó registrada con otro total que el
   que se cobró, decisión 0035), mails que no
-  salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
+  salieron (hasta 20), el cupo de Resend terminado (un día después del último 429 por cupo; ver
+  [mails.md](mails.md)), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
   Lista de espera del evento más reciente), cupos sobrevendidos, links de transmisión que
   faltan, recordatorios que no salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
   son 2 o más), eventos con lugar y etiqueta «Online», perfiles nuevos y pedidos «Es mi perfil»

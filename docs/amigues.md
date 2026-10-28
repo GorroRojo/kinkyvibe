@@ -12,8 +12,12 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   el repo ([0032](decisiones/0032-borrar-los-md.md); el último commit con ellos tiene el tag
   `posts-md-final`).
 - `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
-- **"Es mi perfil"**: una cuenta con el permiso "puede tener perfiles" pide hacerse cargo; une
-  admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza.
+- **"Es mi perfil"**: cualquier cuenta pide hacerse cargo de un perfil que ya existe, tenga o no
+  el permiso "puede tener perfiles" (gorrite, 26/10: en vez de un canal para pedir el permiso,
+  reclamar un perfil). Pedir no da nada: une admin lo revisa en el panel y lo aprueba (la cuenta
+  pasa a ser dueñe) o lo rechaza; para aprobarlo, la cuenta tiene que tener el permiso (el panel
+  lo avisa y une admin se lo da antes). Mi rincón, sin el permiso, tiene la tarjeta «¿Ya estás en
+  Amigues?» que lo explica.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
 - **Ocultar desde el panel** (la ficha del perfil, `hideProfile` en
@@ -140,6 +144,35 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   página ya muestra; con el lugar oculto, ese `Place` va sin nombre. Las pruebas por nivel están en
   `venues.test.js` y `eventPlace.test.js`.
 
+## Buscadores: «No aparecer en buscadores»
+
+Decisión de gorrite (auditoría de comunidad, octubre de 2026): los perfiles de persona públicos
+**aparecen en Google por defecto**, pero quienes gestionan el perfil pueden sacarlo de los
+buscadores sin esconderlo del sitio. Es `data.noindex` del perfil (sin migración: va en el JSON
+del objeto; apagado no se guarda), y la única regla que lo lee es `profileNoindex()`
+(`src/lib/server/objects/types/perfil.js`): **solo perfiles de persona**. Un proyecto o un lugar
+quiere que lo encuentren, y un lugar ya tiene la privacidad de su dirección y «No listado»; el
+tipo `perfil` rechaza el campo en los otros.
+
+- **Dónde se elige**: Mi rincón → Perfiles → el perfil → «Buscadores» (una casilla, con el texto de
+  qué hace y qué no). Les admins lo ven y lo cambian en el editor del panel y lo ven en la ficha
+  del perfil (Comunidad → Cuentas → Perfiles: «Buscadores»).
+- **Qué hace**: la página lleva `<meta name="robots" content="noindex">` y la cabecera
+  `X-Robots-Tag: noindex` (también `contacto.vcf`); sale del sitemap y nunca va a IndexNow (las dos
+  usan `inSitemap` de `src/lib/utils/seo.js`, que mira `meta.noindex` del post del perfil); no lleva
+  datos estructurados (ni el `ProfilePage` con `sameAs`, mail y teléfono); y la vista previa al
+  compartir (Open Graph y Twitter) va sin la foto ni la presentación: la tarjeta del sitio y
+  «<nombre> en Amigues de Kinky Vibe».
+- **Qué no cambia**: para quien entra, la página es la misma (foto, texto, contacto, h-card), el
+  perfil sigue en /amigues, en «Más cosas de…», en el buscador del sitio y en `/api/posts`. Quienes
+  lo gestionan y les admins ven en la página el aviso «No aparece en buscadores». El modo inline
+  del bot de Telegram tampoco cambia (decisión de gorrite).
+- **Qué no puede hacer** (lo dice el editor): Google tarda en sacar una página que ya tenía; las
+  copias que guardaron otros sitios (archivos, capturas, vistas previas ya mandadas) no se borran.
+  «Solo personas con cuenta» u «Oculto» ya sacan el perfil de todo lo público.
+- Lo prueban `perfil-noindex.test.js` (al lado de la ruta del perfil), `sitemap.test.js` e
+  `indexnow.test.js`.
+
 ## Privacidad de los lugares
 
 Cada lugar tiene un nivel por defecto (`venue_privacy`; sin elegir: **la dirección completa**,
@@ -172,7 +205,9 @@ En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada" 
 entradas en el sitio; si no (no hay entrada que la lleve), no aparece ningún aviso (decisión de
 gorrite, 9/10). En todos los
 niveles **quien compró recibe el lugar completo** (nombre y dirección) en el mail de confirmación,
-en los recordatorios y en la página de su entrada (con la compra aprobada).
+en los recordatorios y en la página de su entrada (con la compra aprobada). «Cómo llegar» y
+«Accesibilidad» van en esos mails solo cuando la página del evento se los muestra a cualquiera
+(nivel «Nombre + dirección»; `venueNotesForMail`, [mails.md](mails.md)).
 
 La página del lugar muestra su ubicación según su nivel por defecto (el mapa, solo con
 "Nombre + dirección").

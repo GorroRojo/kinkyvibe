@@ -1,5 +1,5 @@
 /**
- * Cuentas del público: los pasos de "Ingresar" con sus límites de intentos. Las páginas
+ * Cuentas del público: los pasos de "Entrar" con sus límites de intentos. Las páginas
  * (src/routes/(content)/ingresar y /mi-rincon) llaman a esto; las piezas están en:
  * accounts.js (cuentas y contraseñas), codes.js (códigos por mail), session.js (sesiones),
  * orders.js (compras de la cuenta), password.js (PBKDF2). Ver docs/cuentas.md.
@@ -23,7 +23,7 @@ import { buildConfirmCodeEmail, buildLoginCodeEmail } from './email.js';
 import { accountMailAllowed } from './mailCap.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
-/** @typedef {(to: string, message: { subject: string, html: string, text: string }, log: string) => Promise<'sent' | 'simulated' | 'failed'>} SendMail */
+/** @typedef {(to: string, message: { subject: string, html: string, text: string, headers?: Record<string, string> }, log: string) => Promise<'sent' | 'simulated' | 'failed'>} SendMail */
 
 export const RATE_LIMITS = Object.freeze({
 	/**
@@ -120,10 +120,14 @@ async function sendCode({ db, email: rawEmail, client, send, now, purpose }) {
 	if (!(await accountMailAllowed(db, now)))
 		return { ok: false, status: 429, message: MESSAGES.mailBusy };
 	const { code, expiresAt } = await createLoginCode(db, hash, { now, purpose });
-	const message =
-		purpose === 'login'
+	const message = {
+		...(purpose === 'login'
 			? buildLoginCodeEmail({ code, now, expiresAt })
-			: buildConfirmCodeEmail({ code, purpose, now, expiresAt });
+			: buildConfirmCodeEmail({ code, purpose, now, expiresAt })),
+		// Un id distinto en cada mail: Gmail no junta los códigos en un hilo (el asunto es siempre
+		// el mismo) y el nuevo no queda plegado debajo de uno vencido.
+		headers: { 'X-Entity-Ref-ID': crypto.randomUUID() }
+	};
 	// `log` solo se muestra en `vite dev` sin RESEND_API_KEY (tickets/index.js): así se puede
 	// probar en local. Nunca se loguea en producción.
 	const result = await send(email, message, `Código (${purpose}): ${code}`);
