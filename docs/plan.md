@@ -157,7 +157,7 @@ CI) va en la fase 0.
 - `compartir-imagen-mas` · fase 0 · algún día · sitio · Imagen para compartir: más paletas, apaisado y carrusel, estilo por serie
 - `icono-tipo-series` · fase 0 · hecho · sitio · Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series · #327
 - `ldtag-plantilla` · fase 0 · hecho · sitio · `LDTag.svelte` tiene datos de una plantilla vieja: borrarlo o pasarlo a datos de Kinky Vibe · #327
-- `missing-tags` · fase 0 · sigue · sitio · `missingTags` siempre vuelve vacío (lo documenta un `it.fails` en `src/lib/utils/tags.test.js`): hacerlo andar, así los links de descripciones a etiquetas que no existen pasan a texto
+- `missing-tags` · fase 0 · hecho · sitio · `missingTags` siempre vuelve vacío (lo documenta un `it.fails` en `src/lib/utils/tags.test.js`): hacerlo andar, así los links de descripciones a etiquetas que no existen pasan a texto · #545
 - `prerender-paginas` · fase 0 · algún día · sitio · Prerenderizar páginas de contenido para servirlas como archivos
 - `me-interesa` · fase 0 · algún día · sitio · El botón anónimo «Me interesa» en los eventos, que quedó para más adelante
 - `readme-rutas` · fase 0 · hecho · docs · El README lista `/nosotres` y `/servicios`, que ya no existen · #327
