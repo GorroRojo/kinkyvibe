@@ -936,7 +936,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Fallas en compras**: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta, cada transferencia y las fallas en compras; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -964,6 +964,14 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'button',
 			'Mis avisos: recordatorios',
 			'Recordatorios',
+			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_fallas',
+			'admin',
+			'button',
+			'Mis avisos: fallas en compras',
+			'Fallas en compras',
 			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
 		),
 		f('admin.prendido', 'admin', 'toast', 'Mis avisos: al prender uno', 'Prendido: {aviso}', {
@@ -1054,6 +1062,39 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				],
 				required: ['orden', 'evento'],
 				help: 'Les llega a quienes prendieron «Cada venta». Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.falla_compra',
+			'admin',
+			'line',
+			'Aviso «Fallas en compras»: algo de una compra falló',
+			'⚠️ **Falló una compra**: {falla}.\nOrden: {orden} · código de la falla: {codigo}\nVan {veces} desde las {desde}. El detalle está en los registros de Cloudflare (Workers Logs).',
+			{
+				vars: [
+					{
+						name: 'falla',
+						label: 'qué falló',
+						sample: 'no se pudo crear el pago en Mercado Pago'
+					},
+					{ name: 'orden', label: 'la referencia de la orden', sample: 'KV-1A2B3C4D' },
+					{ name: 'codigo', label: 'el código de la falla', sample: 'mp_preferencia' },
+					{ name: 'veces', label: 'cuántas van en esta media hora', sample: '3' },
+					{ name: 'desde', label: 'desde qué hora (Argentina)', sample: '14:30' }
+				],
+				required: ['falla', 'codigo'],
+				help: 'Como mucho uno por falla cada media hora, y 12 por día. Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.falla_sin_orden',
+			'admin',
+			'line',
+			'Aviso «Fallas en compras»: cuando no se sabe la orden',
+			'sin identificar',
+			{
+				max: 40,
+				help: 'Va en {orden} cuando la falla no tiene orden (por ejemplo, un pago que no se pudo leer).'
 			}
 		),
 		f(

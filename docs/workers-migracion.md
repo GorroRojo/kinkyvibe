@@ -59,6 +59,22 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   es un 404, una línea JSON en los logs (`"area":"error"`, con `id`, estado, método, ruta, el
   `cf-ray` del pedido, el mensaje y el principio del stack). La página de un error 5xx muestra ese
   `id` («pasanos este código»): se busca en **Observability → Logs** y aparece el error exacto.
+- **Fallas en compras**: si falla algo del camino de una compra (reservar, Mercado Pago, el
+  webhook, un pago que no coincide, el mail de las entradas), el mismo código deja una línea
+  `"area":"compra"` con un código corto y avisa por Telegram a les admins que lo prendieron, como
+  mucho una vez por falla cada media hora ([telegram.md](telegram.md#fallas-en-compras-purchasealertsjs)).
+  Se eligió eso en vez de un Worker que mire los registros (octubre de 2026): los
+  [Tail Workers](https://developers.cloudflare.com/workers/observability/logs/tail-workers/) y el
+  [Logpush de Workers](https://developers.cloudflare.com/workers/observability/logs/logpush/) son
+  del plan pago (US$ 5 por mes como mínimo) y piden configurarlos;
+  [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)
+  guarda 3 días (7 en el pago) y no manda alertas;
+  [Workers Issues](https://developers.cloudflare.com/workers/observability/issues/) (beta gratis)
+  agrupa los errores y puede mandarlos a un webhook, pero se prende con
+  `[observability.issues]` y se automatiza desde el panel, y mira todos los errores, no solo los
+  de una compra; [Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/pricing/)
+  sirve para contar, no para avisar. Si algún día hace falta ver todos los errores, Workers Issues
+  es lo más simple de sumar.
 - **Salud**: `GET /api/health` (`src/routes/api/health/+server.js`) responde un JSON con `ok`, `db`,
   `migrations` y `sha`, sin caché, para un monitor externo o para mirar después de un deploy. `db`:
   la base responde (`SELECT 1`); sin base, 503. `migrations`: `ok` si la base tiene aplicada la

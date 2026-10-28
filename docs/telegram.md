@@ -822,8 +822,8 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
 - **Solo cantidades**: las consultas son `SUM`/`COUNT` sobre `orders` (y la lista de espera); nunca
   leen nombres, mails, DNI, titulares, códigos ni tokens (`admin-privacy.test.js` llena la base con
   todo eso y revisa que no aparezca en ninguna pantalla). Lo de cada compra, en el panel.
-- **🔔 Mis avisos**: cinco tipos (resumen diario, cada venta, cada transferencia, día del evento,
-  recordatorios), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
+- **🔔 Mis avisos**: seis tipos (resumen diario, cada venta, cada transferencia, día del evento,
+  recordatorios y fallas en compras), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
   por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila = apagado): volver a
   vincular no borra lo elegido. Ya salen el resumen diario, cada venta y cada transferencia (abajo);
   el día del evento y los recordatorios, con el PR 3 (la pantalla lo dice).
@@ -883,6 +883,43 @@ una confirmación):
 - En el horario de silencio salen igual, pero **sin sonido** (`disable_notification`): una venta
   avisada a las 9 de la mañana ya no sirve.
 - Si Telegram falla en ese momento, ese aviso no se reintenta (el resumen diario la cuenta igual).
+
+### Fallas en compras (`purchaseAlerts.js`)
+
+Plan `errores-alertas`: enterarse en el momento si falla una compra, sin un Worker aparte, sin
+tocar el panel de Cloudflare, sin secretos nuevos y sin migración. Es un tipo más de «🔔 Mis
+avisos», **Fallas en compras** (`fallas_compra`, letra `f`), apagado como todos. Valen las reglas
+de arriba (a quién, interruptores, horario de silencio sin sonido).
+
+- **Qué se avisa** (`reportPurchaseFailure`, desde el lugar donde ya se registraba el error;
+  **nunca traba ni hace fallar** la compra): `reserva` (no se pudo reservar la compra, en
+  `checkout.js`), `mp_preferencia` (no se pudo crear el pago en Mercado Pago), `gratis` (no se
+  pudieron emitir entradas gratis), `mp_pago` (el webhook no pudo leer un pago de Mercado Pago),
+  `pago` (no se pudo aplicar un pago a su orden), `pago_no_coincide` (monto, moneda o medio no
+  coinciden con la orden, `processPayment`) y `mail_entradas` (el mail con las entradas no salió;
+  no cuenta cuando Resend dice «ahora no», que se reintenta solo).
+- **El texto** («⚠️ Falló una compra: no se pudo crear el pago en Mercado Pago. Orden: KV-1A2B3C4D ·
+  código de la falla: mp_preferencia. Van 3 desde las 14:30…»): qué falló, el código, la
+  referencia de la orden (o «sin identificar») y cuántas van en esa media hora. **Nunca** datos de
+  quien compra, montos ni el mensaje del error. «Ver en el panel ↗» abre la orden
+  (`/admin/eventos/<dirección>/ordenes#orden-<id>`) o, sin orden, Ventas. Textos
+  `admin.falla_compra` y `admin.falla_sin_orden` en «Textos del bot», con su vista previa.
+- **Uno por falla cada media hora**: por código, una fila de `telegram_admin_sent` por ventana fija
+  de 30 minutos (`falla:<código>:<inicio de la ventana>`), tomada con el mismo `INSERT … ON CONFLICT
+DO NOTHING`: dos fallas a la vez no mandan dos avisos. Las ventanas son fijas (:00 y :30), así
+  que en el borde pueden salir dos seguidos. El contador de cada ventana va en `rate_limits`
+  (`falla-compra:<código>`; se cuenta aunque nadie lo haya prendido).
+- **Tope**: 12 avisos de fallas por admin y por día de Argentina (`DAILY_CAP`). Lo que no se avisa
+  queda en los registros.
+- **Registros**: cada falla deja además una línea JSON `{"area":"compra","falla":"<código>",
+"orden":"KV-…"}` (se busca en Observability → Logs). Si lo que falla es la base, el aviso no
+  puede salir (no hay a quién leer): queda solo esa línea. Lo que se cae entero lo avisa
+  `vigilante-produccion`.
+- **Por qué no un Worker que mire los registros**: los Tail Workers y el Logpush de Workers piden
+  el plan pago y armar algo en el panel de Cloudflare; Workers Logs no manda alertas; Workers Issues
+  (beta) agrupa errores y puede mandarlos a un webhook, pero se configura en el panel y mira todos
+  los errores, no solo los de una compra. Avisar desde el mismo código usa lo que ya está (el bot,
+  «Mis avisos», `telegram_admin_sent`). Ver [workers-migracion.md](workers-migracion.md).
 
 ### Puesta en marcha del estado y los avisos (la hace gorrite)
 

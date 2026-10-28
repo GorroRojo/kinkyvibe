@@ -21,7 +21,8 @@ export const NOTICE_CODES = Object.freeze({
 	v: 'cada_venta',
 	t: 'transferencia',
 	e: 'dia_evento',
-	r: 'recordatorios'
+	r: 'recordatorios',
+	f: 'fallas_compra'
 });
 
 /** @typedef {keyof typeof NOTICE_CODES} NoticeCode */
