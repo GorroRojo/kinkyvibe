@@ -135,6 +135,39 @@
 			</form>
 		{/if}
 	</Card>
+	<Card title="Conector de Claude">
+		{#if form?.claudeMessage}
+			<p class="kv-flash ok" role="status">{form.claudeMessage}</p>
+		{:else if form?.claudeError}
+			<p class="kv-flash bad" role="alert">{form.claudeError}</p>
+		{/if}
+		{#if data.claude.on}
+			<p class="tg-state">
+				Para que Claude lea el sitio (solo lectura), en claude.ai: Personalizar → Conectores →
+				«Agregar conector personalizado», con esta dirección:
+			</p>
+			<p><code class="claude-url">{data.claude.url}</code></p>
+			<p class="kv-note">
+				Al conectar, el sitio te pide permiso con tu cuenta. Cada pedido de Claude queda en
+				Actividad a tu nombre. Cómo se usa: <code>docs/conector-claude.md</code>.
+			</p>
+		{:else}
+			<p class="tg-state">
+				Está apagado (Ajustes → Interruptores → «Conector de Claude»): Claude no puede leer nada.
+			</p>
+		{/if}
+		<div class="claude-actions">
+			<form method="POST" action="?/cerrarClaude" use:enhance={submit}>
+				<button class="kv-btn ghost small" type="submit" disabled={busy}
+					>Cerrar mis conexiones de Claude</button
+				>
+			</form>
+			<form method="POST" action="?/cerrarClaudeTodes" use:enhance={submit}>
+				<button class="kv-btn ghost small" type="submit" disabled={busy}>Cerrar las de todes</button
+				>
+			</form>
+		</div>
+	</Card>
 	<p class="kv-note">
 		Por ahora la lista se cambia en el código (<code>src/lib/server/auth.js</code>, por el número de
 		usuarie de GitHub, que no cambia aunque cambie el nombre). Más adelante se va a poder editar
@@ -185,6 +218,14 @@
 		height: 180px;
 		display: block;
 		background: #fff;
+	}
+	.claude-url {
+		overflow-wrap: anywhere;
+	}
+	.claude-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-xs);
 	}
 	.who {
 		display: flex;

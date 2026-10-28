@@ -7,11 +7,17 @@
  * $lib/server/telegram/adminLink.js): crea un código de un solo uso, que vence en 15 minutos, y
  * muestra el link `t.me/<bot>?start=adm_<código>` (y su QR). «Desvincular» lo borra. Las dos
  * cosas quedan en el registro; vincular lo anota el bot cuando se usa el código.
+ *
+ * «Conector de Claude» (interruptor `conector_claude`, docs/conector-claude.md): la dirección para
+ * sumarlo en claude.ai, «Cerrar mis conexiones» (ningún token tuyo de antes vale) y «Cerrar las de
+ * todes» (cambia la clave de las firmas). Las dos quedan en el registro.
  */
 import { fail } from '@sveltejs/kit';
 import { ADMINS, requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { isFlagOn } from '$lib/server/flags.js';
+import { logAdminAction } from '$lib/server/admin/audit.js';
+import { closeConnections, resourceOf, rotateKey } from '$lib/server/mcp/oauth.js';
 import {
 	adminStartParam,
 	createAdminLinkCode,
@@ -79,8 +85,24 @@ export async function load({ locals, url, platform, setHeaders }) {
 		telegram: {
 			linkedAt: myLink?.linkedAt ?? null,
 			blocked: await linkingBlocked(db)
+		},
+		claude: {
+			on: db ? await isFlagOn(db, 'conector_claude') : false,
+			url: resourceOf(url.origin)
 		}
 	};
+}
+
+/**
+ * Para las acciones del conector: la base y le admin, o el error del formulario.
+ * @param {App.Locals} locals
+ * @param {URL} url
+ * @param {App.Platform | undefined} platform
+ */
+function claudeAction(locals, url, platform) {
+	const me = identity(requireAdmin(locals, url));
+	const db = getDB(platform);
+	return { me, db };
 }
 
 /** @type {import('./$types').Actions} */
@@ -121,5 +143,37 @@ export const actions = {
 			return fail(500, { telegramError: 'No se pudo desvincular. Probá de nuevo.' });
 		}
 		return { telegramMessage: 'Listo: tu Telegram quedó desvinculado de la puerta.' };
+	},
+
+	cerrarClaude: async ({ locals, url, platform }) => {
+		const { me, db } = claudeAction(locals, url, platform);
+		if (!db) return fail(503, { claudeError: 'No hay base de datos disponible.' });
+		try {
+			await closeConnections(db, me);
+		} catch (error) {
+			logDBError('admins: cerrar conexiones de Claude', error);
+			return fail(500, { claudeError: 'No se pudieron cerrar. Probá de nuevo.' });
+		}
+		await logAdminAction(db, locals, {
+			action: 'conector.cerrar',
+			summary: 'Conector de Claude: cerró sus conexiones'
+		});
+		return { claudeMessage: 'Listo: Claude ya no puede leer con tus conexiones de antes.' };
+	},
+
+	cerrarClaudeTodes: async ({ locals, url, platform }) => {
+		const { db } = claudeAction(locals, url, platform);
+		if (!db) return fail(503, { claudeError: 'No hay base de datos disponible.' });
+		try {
+			await rotateKey(db);
+		} catch (error) {
+			logDBError('admins: cerrar todas las conexiones de Claude', error);
+			return fail(500, { claudeError: 'No se pudieron cerrar. Probá de nuevo.' });
+		}
+		await logAdminAction(db, locals, {
+			action: 'conector.cerrar_todes',
+			summary: 'Conector de Claude: cerró las conexiones de todes'
+		});
+		return { claudeMessage: 'Listo: ninguna conexión de Claude de antes sirve más, de nadie.' };
 	}
 };
