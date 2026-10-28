@@ -7,7 +7,7 @@
  * Inicio del panel lo muestra en «Para revisar». Ver docs/telegram.md, «Salud del webhook».
  *
  * - Hay problema si la URL registrada no es {@link WEBHOOK_URL}, si Telegram anotó un error de
- *   entrega en las últimas 2 horas o si hay más de 20 mensajes esperando.
+ *   entrega en las últimas 2 horas y todavía hay mensajes esperando, o si hay más de 20 esperando.
  * - Sin token o con el bot apagado no hace nada. Nunca tira. Cuesta un pedido a Telegram por hora.
  * - No llama a `setWebhook`: no arreglaría un secreto rotado (la URL coincide) y pisaría un cambio
  *   de URL hecho a propósito. Volver a registrarlo es `npm run telegram:webhook`.
@@ -48,12 +48,14 @@ export function webhookProblem(info, now) {
 			detail: url ? 'está registrado en otra dirección' : 'no está registrado'
 		};
 	}
+	const pending = Number(info?.pending_update_count ?? 0);
+	// Un error reciente cuenta solo si quedaron mensajes sin entregar: Telegram guarda el último
+	// error aunque después haya entregado todo (un 502 suelto mientras se publica el sitio).
 	const lastError = Number(info?.last_error_date) * 1000;
-	if (Number.isFinite(lastError) && lastError > now - RECENT_ERROR_MS) {
+	if (Number.isFinite(lastError) && lastError > now - RECENT_ERROR_MS && pending > 0) {
 		const message = typeof info?.last_error_message === 'string' ? info.last_error_message : '';
 		return { problem: 'error', detail: message.slice(0, 200) };
 	}
-	const pending = Number(info?.pending_update_count ?? 0);
 	if (pending > MAX_PENDING) {
 		return { problem: 'pending', detail: `${pending} mensajes esperando` };
 	}

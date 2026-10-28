@@ -679,7 +679,8 @@ nadie se entere. Por eso, una vez por hora (la corrida del cron de los minutos 0
 el bot prendido, el cron le pide a Telegram `getWebhookInfo` (`checkWebhookHealth` en
 `src/lib/server/telegram/webhookHealth.js`). Hay problema si la URL registrada no es
 `https://kinkyvibe.ar/api/telegram`, si Telegram anotó un error de entrega en las últimas 2 horas
-o si hay más de 20 mensajes esperando. El resultado queda en `ticket_settings`
+y todavía hay mensajes esperando (un error suelto que después se entregó, como un 502 mientras se
+publica el sitio, no cuenta) o si hay más de 20 mensajes esperando. El resultado queda en `ticket_settings`
 (`telegram_webhook_health`: cuándo, qué pasó y el mensaje de error de Telegram, sin el token) y,
 mientras el último chequeo con problema tenga menos de 3 horas, el Inicio muestra en «Para
 revisar» «El bot de Telegram no está recibiendo mensajes». Se arregla volviendo a registrar el
