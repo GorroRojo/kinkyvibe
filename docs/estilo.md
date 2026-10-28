@@ -285,6 +285,12 @@ elección de gorrite sobre el prototipo «Filtros en el celu» (#283):
   (`src/lib/utils/popover.js`).
 - Todo lee y escribe `$filteredTags` y `?tags=` como antes (la URL la escribe PostList; el árbol
   tilda desde ahí).
+- **Sin etiquetas que no cambian nada** (#17): ni la barra ni el árbol ofrecen una etiqueta que
+  tienen todas las publicaciones a la vista, contando sus hijas como filtra `filterPosts` («BDSM»
+  después de «seguridad», si todo lo de seguridad es de BDSM; `tagCoverage` de
+  `$lib/utils/postSearch.js`). Salvo las elegidas y, en el árbol, las hijas de una elegida y las
+  madres con hijas a la vista (abren su grupo, aunque sumarlas no cambie nada). Con un solo
+  resultado, la barra sigue mostrando sus etiquetas.
 
 Lo controlan `src/lib/components/PostList.test.js`, `TagSearch.test.js`,
 `src/lib/utils/tagBar.test.js`, `src/lib/utils/popover.test.js`, `src/lib/styles/segmented.test.js`,
