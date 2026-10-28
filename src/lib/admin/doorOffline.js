@@ -311,8 +311,8 @@ export function doorRecentKey(slug, { link = false } = {}) {
 /**
  * Saca la marca `notice` de la lista si ya pasó `noticeUntil` (o si no tiene). No toca nada más:
  * ni la cola ni las ventas por sincronizar. Devuelve el mismo estado si no había nada que sacar.
- * Con `link` (la puerta con link) la saca siempre: el servidor nunca la manda a un link (decisión
- * 0053) y el celu tampoco la guarda.
+ * Con `link` (la puerta con link) la saca siempre: el servidor nunca la manda en la lista de un
+ * link (decisión 0053) y el celu tampoco la guarda.
  *
  * @param {DoorState} state
  * @param {number} now

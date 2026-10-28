@@ -53,8 +53,8 @@ export async function extractToken(db, slug, raw) {
  *
  * Con `forLink` (la puerta con un link): sin el token de la entrada (para marcar el ingreso desde
  * una sugerencia alcanzan el código o `ticket:<id>`, ver `extractToken`), sin el login de GitHub
- * de quien marcó el ingreso si fue une admin (`linkSafeBy`) y sin `notice` (decisión 0053: los
- * avisos de puerta nunca van a un link, aunque venga `noticeIds`).
+ * de quien marcó el ingreso si fue une admin (`linkSafeBy`) y sin `notice` (decisión 0053: con un
+ * link, los avisos de puerta nunca van en las sugerencias, aunque venga `noticeIds`).
  *
  * `notice` (solo sin `forLink`): la entrada coincide con un aviso de puerta (los ids de
  * `noticeIds`, ver doorNotices.js); la pantalla muestra solo el texto genérico.

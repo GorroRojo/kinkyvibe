@@ -19,13 +19,15 @@
  * - una entrada de otro evento dice solo «De otro evento», sin cuál;
  * - cada acción (ingreso, deshacer, venta, sincronizar, ver una compra) queda en el registro de
  *   actividad como `puerta:<id del link>`, con `doorLink` en el detalle;
- * - **nunca** viajan los avisos de puerta (decisión 0053): ni la marca `notice` (tampoco en
- *   `false`) en la tarjeta de un escaneo o una venta, la lista sin conexión o las sugerencias del
- *   buscador, ni `noticeUntil`. Ni se consultan: `noticesFor` devuelve `null` con un link.
+ * - los avisos de puerta (decisión 0053) van **solo** en la tarjeta de una entrada que escanea o
+ *   marca con conexión (`checkin`); nunca en la lista sin conexión (ni `noticeUntil`), en las
+ *   sugerencias del buscador ni en la tarjeta de una venta (ahí no va ni `notice: false`). Fuera de
+ *   `checkin` ni se consultan: `noticesFor` devuelve `null` con un link.
  *
- * Avisos de puerta (decisión 0053, doorNotices.js), solo para une admin y solo en los eventos de
- * Kinky Vibe: la tarjeta de una entrada que coincide lleva `notice: true` y la pantalla muestra solo
- * «Avisá a la organización antes de dejar pasar». El ingreso se marca igual.
+ * Avisos de puerta (decisión 0053, doorNotices.js), solo en los eventos de Kinky Vibe (con un link,
+ * solo en la tarjeta de un escaneo, ver arriba): la tarjeta de una entrada que coincide lleva
+ * `notice: true` y la pantalla muestra solo «Avisá a la organización antes de dejar pasar». El
+ * ingreso se marca igual.
  *
  * Acciones (la página las llama con fetch + `deserialize`, y también andan sin JavaScript):
  * - `checkin`: valida un QR / link / código y marca el ingreso.
@@ -111,17 +113,19 @@ import { NO_STORE, cachedPrior, doorContext, doorSeriesLabel } from './doorConte
 const SEARCH_LIMIT = 8;
 
 /**
- * Los avisos de puerta (decisión 0053) para quien está en la puerta: el matcher para une admin y
- * `null` con un link, que nunca los recibe (ni en la lista sin conexión, ni en el buscador, ni en
- * la tarjeta de un escaneo). Es el único lugar de la puerta que llama a `doorNoticeMatcher`.
+ * Los avisos de puerta (decisión 0053) para quien está en la puerta: el matcher para une admin. Con
+ * un link, solo para la tarjeta de una entrada que escanea o marca con conexión (`scanCard`, solo
+ * desde `checkinAction`); para todo lo demás (la lista sin conexión, el buscador, las ventas),
+ * `null`. Es el único lugar de la puerta que llama a `doorNoticeMatcher`.
  *
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {DoorActor} actor
  * @param {Parameters<typeof isKinkyVibeDoor>[0]} config
+ * @param {{ scanCard?: boolean }} [opts]
  * @returns {Promise<import('./doorNotices.js').DoorNoticeMatcher | null>}
  */
-async function noticesFor(db, actor, config) {
-	if (actor.link) return null;
+async function noticesFor(db, actor, config, { scanCard = false } = {}) {
+	if (actor.link && !scanCard) return null;
 	return doorNoticeMatcher(db, { kinkyVibe: isKinkyVibeDoor(config) });
 }
 
@@ -137,17 +141,18 @@ function withoutNotice({ notice: _notice, ...rest }) {
 }
 
 /**
- * La tarjeta de una entrada para quien está en la puerta: con un link, sin `notice`.
+ * La tarjeta de una entrada para quien está en la puerta. Con un link, `notice` va solo en la
+ * tarjeta de un escaneo (`scanCard`); en las demás (una venta) no va ni en `false`.
  *
  * @param {DoorActor} actor
  * @param {import('./door.js').TicketWithBuyer} full
  * @param {{ typeNames: Record<string, string>, prior: import('./door.js').PriorAttendance | null,
- *   notices: import('./doorNotices.js').DoorNoticeMatcher | null }} ctx
+ *   notices: import('./doorNotices.js').DoorNoticeMatcher | null, scanCard?: boolean }} ctx
  */
-async function doorCard(actor, full, { typeNames, prior, notices }) {
+async function doorCard(actor, full, { typeNames, prior, notices, scanCard = false }) {
 	const notice = notices ? await notices(full) : false;
 	const card = ticketCard(full, { typeNames, prior, notice });
-	return actor.link ? withoutNotice(card) : card;
+	return actor.link && !scanCard ? withoutNotice(card) : card;
 }
 
 /**
@@ -320,8 +325,8 @@ async function checkinAction(event, actor) {
 			}
 		});
 	}
-	// La entrada con quien compró, la primera vez en la serie, los avisos de puerta (solo admins) y
-	// los contadores, juntos.
+	// La entrada con quien compró, la primera vez en la serie, los avisos de puerta (también con un
+	// link: es la tarjeta de un escaneo, decisión 0053) y los contadores, juntos.
 	const [full, prior, notices, counts] = await Promise.all([
 		r.ticket
 			? ticketWithBuyer(db, { id: r.ticket.id }).then(async (found) =>
@@ -337,10 +342,12 @@ async function checkinAction(event, actor) {
 				)
 			: null,
 		cachedPrior(db, slug, event.platform),
-		noticesFor(db, actor, config),
+		noticesFor(db, actor, config, { scanCard: true }),
 		countsFor(db, { ticketSlug, part })
 	]);
-	const card = full ? await doorCard(actor, full, { typeNames, prior, notices }) : null;
+	const card = full
+		? await doorCard(actor, full, { typeNames, prior, notices, scanCard: true })
+		: null;
 	return {
 		checkin: {
 			result: r.result,

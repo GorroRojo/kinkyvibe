@@ -12,7 +12,7 @@
 	 *
 	 * Aviso de puerta (decisión 0053): si la entrada coincide (`card.notice`), un cartel con solo
 	 * `DOOR_NOTICE_TEXT`, sin motivo ni detalles. No cambia el resultado: decide quien está en la
-	 * puerta. Con un link, el servidor nunca manda `notice` (doorScreen.js).
+	 * puerta. Con un link, el servidor lo manda solo en la tarjeta de un escaneo (doorScreen.js).
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { invalidTitle } from '$lib/admin/doorOffline.js';
