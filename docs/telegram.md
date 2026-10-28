@@ -192,6 +192,9 @@ ser admin (con el modo privacidad de fábrica solo ve los comandos y las respues
 - **Si un efímero no se puede** (la app no los soporta, pasaron los 15 segundos): lo más privado
   posible, contestar el botón con el link al chat privado con el bot (con token; sin token no se
   puede saber que falló).
+- Un comando para otro bot (`/ayuda@OtroBot`) no se contesta: le llega solo si el bot es admin
+  del grupo o tiene el modo privacidad apagado (`forOtherBot` en router.js; sin
+  `TELEGRAM_BOT_USERNAME` no se puede saber y se contesta como antes).
 - En grupos no hay fotos (un efímero de foto no puede volver a texto), ni «Buscar» con
   `force_reply`, ni nada de cuentas: «Lo que sigo» y «Seguir» son links al chat privado.
 - Telegram avisa que un efímero puede no llegar y desaparecer: por eso nada personal en
