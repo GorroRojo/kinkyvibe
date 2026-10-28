@@ -883,8 +883,10 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 			if (command.args.startsWith(ADMIN_START_PREFIX)) {
 				return adminLinkCommand(command.args, message, deps);
 			}
-			// El link `t.me/<bot>?start=<código>` de Mi rincón llega como "/start <código>".
-			if (START_CODE.test(command.args)) {
+			// El link `t.me/<bot>?start=<código>` de Mi rincón llega como "/start <código>". Un deep
+			// link conocido de 8 letras (`?start=proximos`) no es un código: el código nunca lleva
+			// I ni O (link.js), así que no se pisan.
+			if (START_CODE.test(command.args) && !parseStartParam(command.args)) {
 				const linkCommand = { name: 'vincular', args: command.args };
 				return textScreen(await accountCommand(linkCommand, message.chat, deps));
 			}

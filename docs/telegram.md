@@ -162,7 +162,8 @@ token.
 **Deep links** (`t.me/<bot>?start=…`, solo `A-Za-z0-9_-`): `hoy`, `semana`, `finde`, `proximos`,
 `ev-<id>` (la tarjeta), `seguir-<id>`, `sigo`, `mis-entradas`, `fondo`, `buscar`, `inicio`
 (`mis-entradas` y no `entradas`: 8 letras se leería como un código de vincular). El código de vincular
-(8 letras y números) sigue entrando por `?start=<código>`.
+(8 letras y números) sigue entrando por `?start=<código>`; un deep link conocido de 8 letras
+(`proximos`) se mira antes y no cuenta como código (los códigos nunca llevan I ni O).
 
 ### Con token y sin token
 
