@@ -65,9 +65,11 @@ nombre, qué hay (`desc` del ítem) y una **línea de estado** («Mercado Pago y
 (fijado a mano)», «2 textos cambiados», «3 admins», «4 en prueba», «Todo al día», «Último cambio:
 hace 5 min»…), resaltada si hay algo para mirar. La arma `src/lib/server/admin/ajustesStatus.js`
 con una sola tanda a la base (ajustes guardados, interruptores, lo último del registro, propinas
-aprobadas) más lo de Automatizaciones; una tarjeta sin un dato barato y claro no lleva línea (el
-Fondo, si no hay uno fijado a mano ni llegó ninguno automático; cualquier parte que no se pudo
-leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
+aprobadas) más lo de Automatizaciones; una tarjeta sin un dato barato y claro no lleva línea
+(cualquier parte que no se pudo leer). El Fondo dice el fijado a mano o el último porcentaje
+automático guardado; si todavía no llegó ninguno, «Automático (todavía no llegó el porcentaje)» y
+lo busca en segundo plano (`waitUntil`, como la página del evento): la portada nunca lo espera y
+la próxima vez ya dice el porcentaje. Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
 `NAV_GROUPS`, y cada página de Ajustes vuelve a la portada con «← Ajustes» (`areaBackLink`).
 
 **Opción C, parte 2** (gorrite, 11/10; [decisión 0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)):
