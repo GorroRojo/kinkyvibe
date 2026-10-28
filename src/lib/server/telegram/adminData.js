@@ -94,7 +94,7 @@ export function adminEventChoices(events, now) {
 			title: String(config.title || slug),
 			start: new Date(ms).toISOString(),
 			today: group === 'hoy',
-			cancelled: config.status === 'cancelled',
+			cancelled: config.status === 'cancelado',
 			ms
 		});
 	}
