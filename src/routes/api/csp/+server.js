@@ -35,9 +35,12 @@ export async function POST({ request }) {
 	const directive = String(report['effective-directive'] ?? report['violated-directive'] ?? '')
 		.split(' ')[0]
 		.slice(0, 40);
-	const page = originOf(report['document-uri'])
-		? new URL(report['document-uri']).pathname.split('/')[1]
-		: '';
+	let page = '';
+	try {
+		page = new URL(String(report['document-uri'] ?? '')).pathname.split('/')[1] ?? '';
+	} catch {
+		// sin página válida: se loguea sin ella
+	}
 	console.log(
 		`[csp] ${directive || '?'} bloquearía ${originOf(report['blocked-uri']) || '?'} (en /${String(page).slice(0, 30)})`
 	);
