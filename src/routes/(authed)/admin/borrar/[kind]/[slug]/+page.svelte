@@ -54,8 +54,7 @@
 	{:else if deleted}
 		<form method="POST" action="?/deshacer" use:enhance={submit}>
 			<input type="hidden" name="id" value={deleted.id} />
-			<!-- El botón Deshacer de UndoToast no tiene `type`: dentro del form, lo envía. -->
-			<UndoToast {busy} message="Borraste «{deleted.title}»." />
+			<UndoToast submit {busy} message="Borraste «{deleted.title}»." />
 		</form>
 		{#if !deleted.immediate}
 			<PublishStatus pr={deleted.publish} commitUrl={deleted.publish ? null : deleted.commit} />
