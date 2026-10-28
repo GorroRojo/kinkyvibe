@@ -71,7 +71,8 @@ export function isAccountId(/** @type {unknown} */ id) {
 /**
  * @typedef {{
  *   id: string, email: string | null, verified: boolean, hasPassword: boolean, createdAt: number,
- *   deletedAt: number | null, canHaveProfiles: boolean, profiles: number
+ *   deletedAt: number | null, canHaveProfiles: boolean, suspendedAt: number | null,
+ *   profiles: number
  * }} AdminAccount
  */
 
@@ -85,6 +86,7 @@ function toAdminAccount(r) {
 		createdAt: Number(r.created_at),
 		deletedAt: r.deleted_at == null ? null : Number(r.deleted_at),
 		canHaveProfiles: Number(r.can_have_profiles) === 1,
+		suspendedAt: r.suspended_at == null ? null : Number(r.suspended_at),
 		profiles: Number(r.profiles ?? 0)
 	};
 }
@@ -100,7 +102,7 @@ function liveProfilesCount() {
 }
 
 const ACCOUNT_SELECT = `a.id, a.email, a.email_verified_at, a.password_hash IS NOT NULL AS has_password,
-	a.created_at, a.deleted_at, a.can_have_profiles`;
+	a.created_at, a.deleted_at, a.can_have_profiles, a.suspended_at`;
 
 /**
  * Las cuentas, de la más nueva a la más vieja, con la búsqueda por mail (`q`, parte del mail) y
@@ -126,6 +128,7 @@ export async function listAccounts(db, { q = '', limit = LIST_LIMIT, sort } = {}
 			`SELECT COUNT(*) AS total,
 				COALESCE(SUM(deleted_at IS NULL), 0) AS active,
 				COALESCE(SUM(deleted_at IS NULL AND can_have_profiles = 1), 0) AS with_profiles,
+				COALESCE(SUM(deleted_at IS NULL AND suspended_at IS NOT NULL), 0) AS suspended,
 				COALESCE(SUM(deleted_at IS NOT NULL), 0) AS deleted
 			FROM accounts`
 		)
@@ -136,6 +139,7 @@ export async function listAccounts(db, { q = '', limit = LIST_LIMIT, sort } = {}
 			total: Number(totals?.total ?? 0),
 			active: Number(totals?.active ?? 0),
 			withProfiles: Number(totals?.with_profiles ?? 0),
+			suspended: Number(totals?.suspended ?? 0),
 			deleted: Number(totals?.deleted ?? 0)
 		}
 	};

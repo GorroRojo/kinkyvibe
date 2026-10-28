@@ -16,8 +16,9 @@ import { hashPassword, needsRehash, passwordProblem, verifyPassword } from './pa
 /**
  * @typedef {{
  *   id: string, email: string, email_verified_at: number | null, has_password: boolean,
- *   created_at: number
+ *   created_at: number, suspended: boolean
  * }} Account
+ * `suspended`: une admin suspendió la cuenta (migración 0065, ./suspension.js): no puede entrar.
  */
 
 const EMAIL_RE = /^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/;
@@ -51,11 +52,12 @@ function toAccount(row) {
 		email: String(row.email),
 		email_verified_at: row.email_verified_at == null ? null : Number(row.email_verified_at),
 		has_password: row.password_hash != null,
-		created_at: Number(row.created_at)
+		created_at: Number(row.created_at),
+		suspended: row.suspended_at != null
 	};
 }
 
-const ACCOUNT_COLUMNS = 'id, email, email_verified_at, password_hash, created_at';
+const ACCOUNT_COLUMNS = 'id, email, email_verified_at, password_hash, created_at, suspended_at';
 
 /**
  * Cuenta activa (no borrada) por id, o `null`.
@@ -239,7 +241,7 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 			.prepare(
 				`UPDATE accounts SET email = NULL, email_verified_at = NULL, password_hash = NULL,
 					password_updated_at = NULL, preferences = '{}', can_have_profiles = 0, updated_at = ?2,
-					deleted_at = ?2
+					suspended_reason = NULL, deleted_at = ?2
 				WHERE id = ?1 AND deleted_at IS NULL`
 			)
 			.bind(accountId, now)

@@ -18,7 +18,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 		dbAvailable: false,
 		q,
 		accounts: /** @type {Awaited<ReturnType<typeof listAccounts>>['accounts']} */ ([]),
-		totals: { total: 0, active: 0, withProfiles: 0, deleted: 0 }
+		totals: { total: 0, active: 0, withProfiles: 0, suspended: 0, deleted: 0 }
 	};
 	const db = getDB(platform);
 	if (!db) return empty;

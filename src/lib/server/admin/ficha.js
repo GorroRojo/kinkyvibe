@@ -200,7 +200,8 @@ function fichaQueries(key, extra) {
 			null,
 			`SELECT a.id, a.email, a.email_verified_at, a.password_hash IS NOT NULL AS has_password,
 				a.password_updated_at, json_extract(a.preferences, '$.savedBuyer') AS saved,
-				a.created_at, a.updated_at, a.deleted_at, a.can_have_profiles
+				a.created_at, a.updated_at, a.deleted_at, a.can_have_profiles,
+				a.suspended_at, a.suspended_by, a.suspended_reason
 			FROM accounts a WHERE a.id IN ${ACC}`,
 			p,
 			(rows) => {
@@ -218,6 +219,10 @@ function fichaQueries(key, extra) {
 					updatedAt: num(r.updated_at),
 					deletedAt: num(r.deleted_at),
 					canHaveProfiles: Number(r.can_have_profiles) === 1,
+					// Suspendida (migración 0065): el motivo es privado, solo para esta ficha de admins.
+					suspendedAt: num(r.suspended_at),
+					suspendedBy: r.suspended_by == null ? null : String(r.suspended_by),
+					suspendedReason: r.suspended_reason == null ? null : String(r.suspended_reason),
 					// «Mis datos»: el DNI guardado no viaja, solo si hay uno (se muestra con «Mostrar»).
 					saved: {
 						name: saved.name ?? '',

@@ -474,4 +474,92 @@ describe('cuentas', () => {
 		expect(event.jar[m.session.SESSION_COOKIE]).toBeUndefined();
 		expect(await m.session.getSessionAccount(t.db, token)).toBeNull();
 	});
+
+	it('cuenta suspendida: con el código o la contraseña correctos no entra; ve el aviso con el contacto y nunca el motivo', async () => {
+		const m = await modules();
+		const { suspendAccount, unsuspendAccount, suspendedMessage } =
+			await import('$lib/server/cuentas/suspension.js');
+		const { DEFAULT_CONTACT_EMAIL } = await import('$lib/utils/tickets.js');
+		const SECRET = 'MOTIVO-PRIVADO-INVENTADO';
+		const account = await m.accounts.upsertVerifiedAccount(t.db, EMAIL);
+		expect(await m.accounts.setPassword(t.db, account.id, PW, { iterations: 1000 })).toBeNull();
+		await suspendAccount(t.db, account.id, { by: 'admin-de-prueba', reason: SECRET });
+
+		const loginCode = async () =>
+			(await m.codes.createLoginCode(t.db, await m.accounts.emailHash(EMAIL))).code;
+		const sessions = async () =>
+			(
+				await t.db
+					.prepare('SELECT COUNT(*) AS n FROM account_sessions WHERE account_id = ?1')
+					.bind(account.id)
+					.first()
+			)?.n;
+		const expected = {
+			status: 403,
+			data: {
+				suspended: true,
+				contact: DEFAULT_CONTACT_EMAIL,
+				error: suspendedMessage(DEFAULT_CONTACT_EMAIL)
+			}
+		};
+		expect(expected.data.error).toBe(
+			`Tu cuenta está suspendida. Si creés que es un error, escribinos a ${DEFAULT_CONTACT_EMAIL}.`
+		);
+
+		// Con código por mail.
+		const byCode = fakeEvent({
+			path: '/ingresar',
+			form: { email: EMAIL, next: '/mi-rincon', code: await loginCode() }
+		});
+		const r1 = /** @type {any} */ (await m.ingresar.actions.verificar(byCode));
+		expect(r1).toMatchObject(expected);
+		expect(r1.data.step).toBe('email');
+		expect(JSON.stringify(r1)).not.toContain(SECRET);
+		expect(byCode.jar[m.session.SESSION_COOKIE]).toBeUndefined();
+
+		// Con contraseña.
+		const byPassword = fakeEvent({
+			path: '/ingresar',
+			form: { email: EMAIL, next: '/mi-rincon', password: PW }
+		});
+		const r2 = /** @type {any} */ (await m.ingresar.actions.contrasena(byPassword));
+		expect(r2).toMatchObject(expected);
+		expect(JSON.stringify(r2)).not.toContain(SECRET);
+		expect(byPassword.jar[m.session.SESSION_COOKIE]).toBeUndefined();
+		expect(await sessions()).toBe(0);
+
+		// Sin probar que es su mail, el aviso no sale: nadie se entera de que está suspendida.
+		const wrong = /** @type {any} */ (
+			await m.ingresar.actions.contrasena(
+				fakeEvent({ path: '/ingresar', form: { email: EMAIL, password: 'otra frase cualquiera' } })
+			)
+		);
+		expect(wrong.status).toBe(400);
+		expect(wrong.data.suspended).toBeUndefined();
+		const wrongCode = /** @type {any} */ (
+			await m.ingresar.actions.verificar(
+				fakeEvent({ path: '/ingresar', form: { email: EMAIL, code: '000000' } })
+			)
+		);
+		expect(wrongCode.data.suspended).toBeUndefined();
+
+		// Al levantar la suspensión, vuelve a entrar.
+		expect(await unsuspendAccount(t.db, account.id)).toBe('unsuspended');
+		const again = fakeEvent({
+			path: '/ingresar',
+			form: { email: EMAIL, next: '/mi-rincon', code: await loginCode() }
+		});
+		expect(await thrown(() => m.ingresar.actions.verificar(again))).toMatchObject({
+			status: 303,
+			location: '/mi-rincon'
+		});
+		expect(again.jar[m.session.SESSION_COOKIE]).toBeTruthy();
+		const withPassword = fakeEvent({
+			path: '/ingresar',
+			form: { email: EMAIL, next: '/mi-rincon', password: PW }
+		});
+		expect(await thrown(() => m.ingresar.actions.contrasena(withPassword))).toMatchObject({
+			status: 303
+		});
+	});
 });
