@@ -23,7 +23,8 @@ export const ACCOUNT_EVENT_ACTIONS = Object.freeze({
 	accountCreated: 'account.create',
 	profileCreated: 'profile.create',
 	signupAnswersViewed: 'signup_answers.view',
-	venueResubmitted: 'profile.resubmit'
+	venueResubmitted: 'profile.resubmit',
+	organizerEventEdited: 'event.organizer_edit'
 });
 
 const actor = { user: { login: ACCOUNT_EVENT_ACTOR } };
@@ -114,6 +115,29 @@ export function logVenueResubmitted(db, profile, { now = Date.now() } = {}) {
 			targetType: 'profile',
 			targetId: profile.id,
 			summary: `Volvieron a mandar el lugar «${profile.title}» para aprobar`
+		},
+		{ now }
+	);
+}
+
+/**
+ * "Une organizadore cambió el texto de su evento" (Mi rincón → Eventos que organizás; prototipo,
+ * interruptor `rol_organizadore`). El perfil por el que organiza, el evento y el id de la cuenta.
+ *
+ * @param {D1Database} db
+ * @param {{ accountId: string, profile: { id: number, title: string }, eventSlug: string, eventTitle: string }} entry
+ * @param {{ now?: number }} [opts]
+ */
+export function logOrganizerEventEdited(db, entry, { now = Date.now() } = {}) {
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.organizerEventEdited,
+			targetType: 'profile',
+			targetId: entry.profile.id,
+			summary: `«${entry.profile.title}» cambió el texto de «${entry.eventTitle}» (organiza)`,
+			detail: { event: entry.eventSlug, account: entry.accountId }
 		},
 		{ now }
 	);

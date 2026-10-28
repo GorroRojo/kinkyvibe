@@ -139,6 +139,17 @@
 			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
 			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
 		</section>
+		{#if data.organizoOn}
+			<!-- Prototipo, interruptor `rol_organizadore` (docs/cuentas.md). -->
+			<section class="surface-card" aria-labelledby="organizo-title">
+				<h2 id="organizo-title">Eventos que organizás</h2>
+				<p class="hint">
+					Cómo va la venta, la lista para la puerta y el texto de los eventos donde tu perfil figura
+					con el rol «Organiza».
+				</p>
+				<a class="pill-btn ghost start" href="/mi-rincon/organizo">Ver tus eventos</a>
+			</section>
+		{/if}
 	{:else}
 		<!-- Sin el permiso de perfiles: reclamar uno que ya existe sí se puede (lo revisa el equipo). -->
 		<section class="surface-card" aria-labelledby="amigues-title">
