@@ -538,6 +538,13 @@ Cómo se descubren (`src/lib/admin/shortcutHints.js`):
 3. **Lista**: se prende el interruptor; cuando el interruptor desaparece, se borra `flag`.
 4. **Descartada**: se borra el ítem.
 
+**Conector de Claude** (interruptor `conector_claude`, apagado; [conector-claude.md](conector-claude.md)):
+cada admin puede sumar el sitio como conector en claude.ai y pedirle a Claude que busque y lea
+objetos, las ventas de un evento y los próximos eventos, solo lectura y con las mismas reglas de
+privacidad del panel (sin DNI). Ajustes → Admins tiene la tarjeta «Conector de Claude» con la
+dirección para copiar, «Cerrar mis conexiones de Claude» y «Cerrar las de todes». Cada pedido queda
+en Actividad a nombre de le admin (familia «Conector de Claude», `conector.*`).
+
 ## Agenda impresa
 
 **Agenda impresa** (`/admin/eventos/agenda-impresa`, botón en la Agenda y «Ir a…»): arma la hoja
