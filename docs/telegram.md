@@ -830,9 +830,10 @@ interruptor **Telegram para admins** (`telegram_admin`, `TELEGRAM_ADMIN_ENABLED`
 que además pide el bot prendido. Va en tres PR:
 
 1. La base y el estado a pedido: «📊 Estado» y «🔔 Mis avisos» (#315).
-2. **(este) El resumen diario de ventas y los avisos en el momento** (cada venta, cada
-   transferencia): abajo, «Los avisos que salen».
-3. El día del evento (resumen) y los recordatorios (el evento de mañana, falta el lugar o el link).
+2. El resumen diario de ventas y los avisos en el momento (cada venta, cada transferencia): abajo,
+   «Los avisos que salen» (#322).
+3. El día del evento (resumen) y los recordatorios (el evento de mañana, falta el lugar o el link):
+   abajo, «Día del evento y recordatorios».
 
 **Quién**: une admin con el Telegram vinculado desde el panel (el mismo vínculo que la puerta,
 `telegram_admin_links`) que **sigue** en `ADMINS`, mirado **en cada mensaje y cada botón** de
@@ -862,12 +863,11 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
 - **🔔 Mis avisos**: cinco tipos (resumen diario, cada venta, cada transferencia, día del evento,
   recordatorios), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
   por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila = apagado): volver a
-  vincular no borra lo elegido. Ya salen el resumen diario, cada venta y cada transferencia (abajo);
-  el día del evento y los recordatorios, con el PR 3 (la pantalla lo dice).
+  vincular no borra lo elegido. Salen los cinco (abajo).
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con sus pantallas en
   la vista previa.
 
-### Los avisos que salen (PR 2, `adminNotify.js`)
+### Los avisos que salen (`adminNotify.js`)
 
 Para todos:
 
@@ -883,7 +883,9 @@ Para todos:
   el panel ↗» (`/admin/eventos/<dirección>`).
 - **Nada dos veces**: antes de mandar se toma una fila de `telegram_admin_sent` (migración
   `0055`, clave `venta:<orden>`, `transferencia:<orden>` o `resumen:<día>:<evento>`); si Telegram
-  falla se suelta (el resumen se reintenta en la corrida siguiente). Si le admin bloqueó al bot, no
+  falla se suelta (el resumen se reintenta en la corrida siguiente), como mucho 3 intentos por aviso
+  y admin en el día (`ADMIN_NOTICE_ATTEMPTS`, en `rate_limits` con la clave hasheada): un chat que
+  falla siempre no se reintenta cada 15 minutos todo el día. Si le admin bloqueó al bot, no
   se reintenta y el vínculo sigue (lo usa la puerta). El cron borra las filas de más de 30 días.
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con su vista previa.
 
@@ -926,6 +928,28 @@ una confirmación):
   avisada a las 9 de la mañana ya no sirve.
 - Si Telegram falla en ese momento, ese aviso no se reintenta (el resumen diario la cuenta igual).
 
+**Día del evento y recordatorios** (PR 3, `runAdminEventDayCron`): el mismo cron, a la misma hora
+que el resumen diario (desde las 9 de Argentina, fuera del horario de silencio), aparte de él (su
+resultado sale como `telegramAdminDia`). Solo eventos con entradas de hoy o de mañana (día de
+Argentina) que **no** estén cancelados. Con o sin ventas:
+
+- **Día del evento** (quien prendió «Día del evento»), el día del evento: «📣 Hoy: <evento>» con la
+  hora, el total vendido contra el cupo, lo pendiente como en «📊 Estado» (reservas sin pagar y las
+  que vencen en la próxima hora, transferencias por confirmar, órdenes para revisar, la lista de
+  espera) y lo que falta (abajo). Clave `dia:<día>:<evento>`.
+- **Recordatorios** (quien prendió «Recordatorios»):
+  - el día antes: «⏰ Mañana: <evento>» con la hora, el total vendido y lo que falta. Clave
+    `manana:<día>:<evento>`;
+  - el mismo día, **solo si todavía falta algo** y solo a quien **no** prendió «Día del evento» (su
+    resumen ya lo dice): «⚠️ Hoy: <evento>» con lo que falta. Clave `falta:<día>:<evento>`.
+- **Lo que falta**: en un evento presencial, el lugar (sin lugar vinculado ni «Dónde» en texto,
+  `location`/`location_name`); en uno online (`config.online`), el link de la transmisión
+  (`event_ticket_settings.stream_link`). Mismo criterio que el «Dónde» de la página y las entradas.
+- Las mismas reglas que los demás: solo cantidades, «Ver en el panel ↗», una vez por día, evento y
+  admin (si Telegram falla, se reintenta en la corrida siguiente), sin migración nueva (usa
+  `telegram_admin_sent`). Los textos, en «Textos del bot» (sección «Estado y avisos (admins)»), con
+  su vista previa.
+
 ### Puesta en marcha del estado y los avisos (la hace gorrite)
 
 1. **Aplicar la migración `0054_telegram_admin_avisos.sql` en producción y en preview antes de
@@ -940,6 +964,8 @@ una confirmación):
    de mergear** (0028). Solo crea una tabla: anda con el código de `main`. Después, prender
    «Resumen diario», «Cada venta» o «Cada transferencia» en «🔔 Mis avisos» y probar en un preview
    (una compra de prueba, o esperar al cron de las 9).
+5. PR 3 (sin migración): prender «Día del evento» o «Recordatorios» en «🔔 Mis avisos» y probar en
+   un preview con un evento de prueba para mañana o para hoy (a las 9, o con el cron a mano).
 
 ## Estadísticas de uso (0045)
 
