@@ -76,7 +76,7 @@ const evento = {
 		// con `mailto:` o con un link a otra página del sitio («/calendario/…»).
 		link: { kind: 'text', label: 'Link de acción', max: 2000 },
 		link_text: { kind: 'text', label: 'Texto del link', max: 80 },
-		body: { kind: 'longtext', label: 'Descripción' },
+		body: { kind: 'longtext', label: 'Descripción', markup: true },
 		// Cómo se muestra el texto (decisión 0004): 'libre' (HTML libre: lo importado del repo y lo
 		// que guarda une superadmin, se ve como hoy) o 'corta' (la lista corta de HTML). Se decide al
 		// guardar, según quién escribió el texto (src/lib/server/contenido/render.js).
