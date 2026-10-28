@@ -1,9 +1,10 @@
 /**
  * Quién puede subir y elegir imágenes (docs/imagenes.md):
  * - les admins del panel: todo (subir, buscar en toda la biblioteca, borrar);
- * - una cuenta del público que gestiona al menos un perfil (Mi rincón, para la imagen del
- *   perfil): subir, buscar solo entre las que subió ella y borrar una que subió ella si nada la
- *   usa (decisión de gorrite; `deleteOwnImage` en library.js).
+ * - una cuenta del público que gestiona al menos un perfil y tiene el permiso «puede tener
+ *   perfiles» (Mi rincón, para la imagen del perfil): subir, buscar solo entre las que subió ella
+ *   y borrar una que subió ella si nada la usa (decisión de gorrite; `deleteOwnImage` en
+ *   library.js).
  * Nadie más (ni sin sesión). Documentos y video (tipo `archivo`): solo les admins (lo revisa
  * `/imagenes` al ver el tipo real del archivo).
  */
@@ -29,7 +30,14 @@ export async function imageAccess(locals, db) {
 	const accountId = locals.member?.id;
 	if (accountId && db) {
 		const row = await db
-			.prepare('SELECT 1 AS ok FROM profile_managers WHERE account_id = ?1 LIMIT 1')
+			// Con el permiso «puede tener perfiles» (docs/cuentas.md): sin él, la cuenta no ve nada
+			// de perfiles, y tampoco sube ni borra imágenes, aunque siga anotada como gestora.
+			.prepare(
+				`SELECT 1 AS ok FROM profile_managers pm
+				JOIN accounts a ON a.id = pm.account_id
+				WHERE pm.account_id = ?1 AND a.deleted_at IS NULL AND a.can_have_profiles = 1
+				LIMIT 1`
+			)
 			.bind(accountId)
 			.first();
 		if (row) {
