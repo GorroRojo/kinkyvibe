@@ -13,6 +13,9 @@
 		refunded: 'Reembolsada (ya no es válida)'
 	};
 
+	// La hora del ingreso llega solo para admins (+page.server.js).
+	const usedAt = $derived(data.ticket.state === 'used' ? data.ticket.checkedInAt : null);
+
 	/** @param {number | null | undefined} ms */
 	function time(ms) {
 		return ms ? argDateLog(ms) : '';
@@ -86,9 +89,7 @@
 		<dt>Estado</dt>
 		<dd class="state">
 			<!-- {' '}: Svelte saca el espacio del borde del {#if} y salía «ingresar(2/10/26, 13:14)». -->
-			{stateText[data.ticket.state]}{#if data.ticket.state === 'used'}{' '}({time(
-					data.ticket.checkedInAt
-				)}){/if}
+			{stateText[data.ticket.state]}{#if usedAt}{' '}({time(usedAt)}){/if}
 		</dd>
 	</dl>
 	{#if !data.event.online}

@@ -54,7 +54,9 @@ export async function load({ params, platform, url, locals }) {
 							? 'used'
 							: 'valid'
 			),
-			checkedInAt: ticket.checked_in_at,
+			// La hora del ingreso, solo para admins: quien compró entradas para otres no tiene por
+			// qué saber a qué hora entró cada une (auditoría de comunidad, T7).
+			checkedInAt: isAdmin(locals.user) ? ticket.checked_in_at : null,
 			code: ticket.code ?? null
 		},
 		event: {

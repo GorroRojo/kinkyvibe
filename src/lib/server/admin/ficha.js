@@ -498,10 +498,13 @@ function fichaQueries(key, extra) {
 		activity: query(
 			'actividad',
 			[],
+			// Sin «Abrió la ficha» (`person.view`): taparía lo que pasó con la persona; está en
+			// Actividad.
 			`SELECT id, at, actor_login, action, target_type, target_id, summary FROM admin_audit
-			WHERE (target_type = 'account' AND target_id IN ${ACC})
+			WHERE ((target_type = 'account' AND target_id IN ${ACC})
 				OR (target_type = 'person' AND ?3 != '' AND target_id = ?3)
-				OR (target_type = 'order' AND target_id IN ${ORDER_IDS})
+				OR (target_type = 'order' AND target_id IN ${ORDER_IDS}))
+				AND action != 'person.view'
 			ORDER BY at DESC, id DESC LIMIT ${FICHA_LIST_LIMIT}`,
 			[...p, extra.personId],
 			(rows) =>

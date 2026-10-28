@@ -98,8 +98,9 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   nunca el objeto. **El contacto se muestra** (decisión de gorrite,
   [0023](decisiones/0023-contacto-publico.md)): los links, el mail y el teléfono de la ficha
   (públicos a propósito, están en el repo) salen en "Contacto" de la página del perfil o del lugar
-  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). El
-  cumpleaños y la identidad de género se importan pero no se muestran, como antes.
+  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). Los links
+  web (y el botón del primero) llevan `rel="nofollow ugc noopener noreferrer"`: los escribe quien
+  gestiona el perfil, como el texto. El cumpleaños y la identidad de género se importan pero no se muestran, como antes.
 - **Quienes gestionan no se muestran nunca**; integrantes de un proyecto, solo con `show_members`,
   solo aceptades, aprobades y visibles para quien mira.
 - **«Se muestra al público» es una sola regla** para perfiles y lugares: quien mira lo puede ver

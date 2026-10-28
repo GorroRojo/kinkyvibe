@@ -549,6 +549,7 @@ cuenta borra el chat vinculado y sus códigos.
 - `/sigo`: lo que sigue la cuenta (y «⭐ Seguir» en las tarjetas, arriba).
 - `/entradas`: las entradas de la cuenta, con el QR («🎟 Mis entradas», arriba).
 - `/desvincular`: desconecta el chat. También se puede desde la tarjeta («Desconectar Telegram»).
+  «Salir en todos lados» en Mi rincón también lo desconecta (`unlinkAccount`).
 
 ### Los avisos
 
