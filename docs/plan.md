@@ -354,7 +354,7 @@ CI) va en la fase 0.
 - `passkeys` · fase 2 · sigue · cuentas · Passkeys para las cuentas · [cuentas.md](cuentas.md#pendiente-partes-siguientes)
 - `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida entrar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
 - `perfiles-reclamar` · fase 2 · hecho · cuentas · «¿Es tu perfil?» para cualquier cuenta, también sin el permiso de perfiles (gorrite, 26/10: reclamar un perfil que ya existe en vez de pedir el permiso); pedir no da nada, lo sigue aprobando une admin (con el permiso dado antes); Mi rincón lo explica sin el permiso y Perfiles ya no dice que los perfiles no tienen página pública · #514, [amigues.md](amigues.md)
-- `rincon-pedidos` · fase 2 · hecho · cuentas · Mi rincón lista los pedidos «¿Es tu perfil?» de la cuenta con su estado (pendiente, aprobado, no aprobado) y la página del perfil dice «no aprobado» en vez de volver a ofrecer el botón (depende de: perfiles-reclamar)
+- `rincon-pedidos` · fase 2 · hecho · cuentas · Mi rincón lista los pedidos «¿Es tu perfil?» de la cuenta con su estado (pendiente, aprobado, no aprobado) y la página del perfil dice «no aprobado» en vez de volver a ofrecer el botón (depende de: perfiles-reclamar) · #570
 - `rincon-pedidos-mail` · fase 2 · sigue · cuentas · Aviso por mail a la cuenta cuando se resuelve su pedido «¿Es tu perfil?» (aprobado o no aprobado): falta el texto del mail (depende de: rincon-pedidos)
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
 - `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
