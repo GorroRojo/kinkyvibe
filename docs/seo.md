@@ -46,6 +46,11 @@ guía: `compartir.md` (llega con el PR #257).
 | Serie              | `EventSeries` con `subEvent` (sin lugar); cada edición la nombra en `superEvent`         |
 | Perfil             | `ProfilePage` con `Person` (persona), `Organization` (proyecto) o `Place` (lugar)        |
 
+En una entrada de la wiki, el `DefinedTerm` lleva su página en `mainEntityOfPage` (un `WebPage`
+con `dateModified`: el último guardado de la etiqueta, `objects.updated_at`), porque `DefinedTerm`
+no es un CreativeWork y no admite fechas propias. La página no muestra la fecha (un «Actualizado
+el» visible es decisión de gorrite).
+
 El perfil de KinkyVibe (`/amigues/KinkyVibe`, por su dirección) lleva el `@id` de la organización
 de la portada (`ORGANIZATION_ID`): es la misma entidad. Todas las páginas dicen `inLanguage`
 `es-AR`, como `<html lang>`.
@@ -485,7 +490,10 @@ cada tarjeta esconde 1 o 2 chips.
   febrero de 2026 · Kinky Vibe»; `eventPageTitle` en `eventPage.js`), sea o no de una serie y
   aunque haya varias ediciones en el mes, salvo que el título ya diga ese día. Sale solo del
   evento, sin mirar la serie. El `h1` y la vista previa al compartir quedan con el título solo.
-  Los perfiles no dicen «· Kinky Vibe» («Mem | él»).
+  Si el `<title>` pasa de 65 caracteres (Google muestra unos 60), pierde « · Kinky Vibe»; y si
+  el título del evento solo ya es más largo, se recorta en una palabra con «…», conservando el
+  día (`eventTabTitle`). Solo la pestaña y los buscadores: el `h1` y `og:title` van enteros.
+  Los perfiles también terminan en «· Kinky Vibe» («Mem | él · Kinky Vibe», `ProfileHead.svelte`).
 - **Títulos de las listas**: el `<title>` del inicio es `home.title` y el de cada lista es su
   título del panel más « · Kinky Vibe» (`<lista>.heading`, `wiki.title`; Ajustes › Vistas
   previas, [compartir.md](compartir.md)), el mismo que `og:title`: así gorrite prueba títulos sin

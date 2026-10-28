@@ -116,7 +116,15 @@ export function waitlistSender(db, fetchFn, { batch = false } = {}) {
 	return async (to, message, idempotencyKey) => {
 		try {
 			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
-			return await deliverEmail({ db, fetch: fetchFn, to, message, idempotencyKey, optOut: true });
+			return await deliverEmail({
+				db,
+				fetch: fetchFn,
+				to,
+				message,
+				idempotencyKey,
+				optOut: true,
+				kind: 'lista-espera'
+			});
 		} catch (e) {
 			if (batch && resendBackoff(e)) throw e;
 			console.error('[lista de espera] no se pudo mandar el mail:', e);

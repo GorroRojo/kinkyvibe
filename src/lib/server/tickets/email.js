@@ -1099,6 +1099,9 @@ export function resendBackoff(error) {
 	return error.status >= 500 ? 'server' : null;
 }
 
+/** Lo que Resend acepta como valor de un tag. */
+const RESEND_TAG_VALUE = /^[A-Za-z0-9_-]{1,256}$/;
+
 /** @param {number} ms */
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -1133,10 +1136,13 @@ async function resendError(res) {
  *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[],
  *     headers?: Record<string, string> },
  *   idempotencyKey?: string,
+ *   kind?: string,
  *   timeoutMs?: number,
  *   wait?: (ms: number) => Promise<unknown>
  * }} input `message.headers`: cabeceras de este mail, sobre {@link MAIL_HEADERS}. `wait`: la
- *   espera del reintento corto (para los tests).
+ *   espera del reintento corto (para los tests). `kind`: el tipo de mail (`entradas`, `codigo`,
+ *   `serie`…), que va como tag `tipo` de Resend para filtrar por tipo en Resend → Emails y en los
+ *   eventos del webhook. Solo letras ASCII, números, `_` y `-` (lo que acepta Resend).
  * @throws {ResendError} si Resend responde con un error (ver {@link resendBackoff}).
  *   Un 429 por tasa se reintenta una sola vez antes, esperando lo que diga `retry-after` (como
  *   mucho {@link RESEND_RETRY_MAX_WAIT_MS}): Resend no lo aceptó, así que no se duplica.
@@ -1149,6 +1155,7 @@ export async function sendWithResend({
 	replyTo,
 	message,
 	idempotencyKey,
+	kind,
 	timeoutMs = RESEND_TIMEOUT_MS,
 	wait = sleep
 }) {
@@ -1163,7 +1170,8 @@ export async function sendWithResend({
 		text: message.text,
 		...(message.attachments?.length ? { attachments: message.attachments } : {}),
 		...(replyTo ? { reply_to: replyTo } : {}),
-		headers: { ...MAIL_HEADERS, ...message.headers }
+		headers: { ...MAIL_HEADERS, ...message.headers },
+		...(kind && RESEND_TAG_VALUE.test(kind) ? { tags: [{ name: 'tipo', value: kind }] } : {})
 	});
 	const post = () =>
 		fetch('https://api.resend.com/emails', {

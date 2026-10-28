@@ -43,7 +43,7 @@ export async function runSigoCron({
 			platform ?? /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }))
 		),
 		origin,
-		send: send ?? seriesSender(db, fetchFn),
+		send: send ?? seriesSender(db, fetchFn, 'sigo'),
 		telegram: await telegramChannel(db, fetchFn, telegramSend),
 		now
 	});
