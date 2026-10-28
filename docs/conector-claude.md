@@ -47,6 +47,8 @@ por la dirección (slug).
    solo. Si la pide, el ID de cliente es `kinkyvibe-claude`, sin secreto.
 4. «Conectar»: se abre el sitio. Si no tenés sesión, entrás con GitHub; después, la pantalla
    «¿Conectar Claude?» dice qué va a poder leer y a dónde vuelve (`claude.ai`). «Permitir».
+   Permitilo solo si recién lo pediste vos desde Claude: si alguien te pasa un link a esa
+   pantalla, cancelá (la pantalla lo avisa, y no se puede mostrar dentro de otra página).
 5. En una conversación, prendé el conector (menú de herramientas) y pedí: «¿cómo viene la venta de
    la fiesta de noviembre?». La primera vez, Claude pregunta antes de usar cada herramienta.
 

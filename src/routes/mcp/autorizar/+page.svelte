@@ -29,6 +29,11 @@
 				Ojo: vuelve a un programa en esta compu (como Claude Code), no a claude.ai. Permití solo si
 				lo abriste vos recién.
 			</p>
+		{:else}
+			<p class="warn" role="note">
+				Permití solo si vos acabás de sumar el conector en Claude. Si alguien te pasó este link,
+				cancelá: le darías acceso a su cuenta de Claude.
+			</p>
 		{/if}
 		<form method="POST" action="?/permitir">
 			{#each fields as [name, value] (name)}

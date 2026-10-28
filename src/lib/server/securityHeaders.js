@@ -4,8 +4,9 @@
  * - En todo el sitio: `X-Content-Type-Options: nosniff`, `Referrer-Policy` y `Permissions-Policy`
  *   (cámara solo para el propio sitio, que la usa el escáner de la puerta; sin micrófono ni
  *   ubicación). La CSP de scripts (solo reporte) la pone SvelteKit (`kit.csp`, svelte.config.js).
- * - En el panel, el editor, el login, las páginas de entradas y las de cuentas: no se pueden
- *   mostrar dentro de un iframe de otro sitio (`X-Frame-Options: DENY` y `frame-ancestors 'none'`). Así nadie puede
+ * - En el panel, el editor, el login, las páginas de entradas, las de cuentas y el permiso del
+ *   conector de Claude (`/mcp`): no se pueden mostrar dentro de un iframe de otro sitio
+ *   (`X-Frame-Options: DENY` y `frame-ancestors 'none'`). Así nadie puede
  *   esconder un botón del panel ("Reembolsar", "Marcar ingreso") debajo de su propia página.
  *   El resto del sitio sigue pudiendo embeberse.
  */
@@ -22,7 +23,8 @@ export const NO_FRAME_PREFIXES = [
 	'/callback',
 	'/entradas',
 	'/ingresar',
-	'/mi-rincon'
+	'/mi-rincon',
+	'/mcp'
 ];
 
 /** @param {string} pathname */

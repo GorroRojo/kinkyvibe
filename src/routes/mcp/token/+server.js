@@ -72,8 +72,10 @@ export async function POST(event) {
 			return oauthError('invalid_grant', 'Esta conexión se cerró: volvé a conectar.');
 		if (!(await useOnce(db, refresh.jti, now))) {
 			// Un token de renovación usado dos veces: alguien más lo tiene. Se cierra todo.
+			// Con la hora de ahora (no la del comienzo del pedido) y 1 ms más: así tampoco vale lo que
+			// haya sacado, al mismo tiempo, el otro pedido que lo usó primero.
 			const admin = /** @type {{ id: number, login: string }} */ (adminById(refresh.sub));
-			await closeConnections(db, admin, now);
+			await closeConnections(db, admin, Math.max(Date.now(), now) + 1);
 			await logAdminAction(
 				db,
 				{ user: admin },

@@ -330,7 +330,7 @@ export const TOOLS = {
 			const query = cleanText(args.evento, 200);
 			if (!query) throw new ToolInputError('Falta `evento`.');
 			const estado = typeof args.estado === 'string' ? args.estado : 'todas';
-			if (!(estado in STATUS_FILTER))
+			if (!Object.hasOwn(STATUS_FILTER, estado))
 				throw new ToolInputError(`\`estado\` es uno de: ${Object.keys(STATUS_FILTER).join(', ')}.`);
 			const limite = intIn(args.limite, 0, 500, 100);
 			const r = await resolveEvent(query);
