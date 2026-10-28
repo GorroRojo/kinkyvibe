@@ -61,7 +61,7 @@ export const HARMLESS_PARAMS = [
 /**
  * Rutas que nunca se guardan (y todo lo que va debajo): el panel y el editor (`(authed)`), las
  * APIs, las entradas, las cuentas, el login, los links de mails y avisos, la lista de espera, las
- * propinas, el bot, y archivos que no son páginas.
+ * propinas, el bot, la puerta con link y archivos que no son páginas.
  */
 export const NEVER_CACHE_PREFIXES = [
 	'/admin',
@@ -78,6 +78,7 @@ export const NEVER_CACHE_PREFIXES = [
 	'/lista-de-espera',
 	'/propinas',
 	'/telegram',
+	'/puerta',
 	'/auch',
 	'/errores',
 	'/imagenes',

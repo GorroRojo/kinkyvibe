@@ -11,6 +11,11 @@ en el repo. Hay tres copias separadas de la base: la de tu compu, la de los prev
 producción. La de tu compu y la de las pruebas E2E arrancan con la semilla de contenido público
 (`npm run db:semilla`, `src/lib/server/semilla/`).
 
+**El respaldo de verdad** son los backups nocturnos de la base en R2 y Time Travel de D1 (30 días;
+[workers-migracion.md](workers-migracion.md#backups-de-la-base)). La semilla es una foto pública
+para desarrollar, no un backup. «Descargar todo» (Contenido › Base) baja los eventos y el material
+como `.md`, pero no trae imágenes, archivos, perfiles, órdenes ni nada de lo que pasa en el sitio.
+
 ## Lo que nunca se tiene que romper
 
 - **Las migraciones son solo para agregar.** Una migración que pudo haberse aplicado (en
@@ -67,6 +72,7 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `ticket_combos`                                   | 0056                                 | combos entre eventos (la compra de A genera un código para B); interruptor `combo_codigos`                                                                                   | `src/lib/server/tickets/combos.js`                         |
 | `email_suppressions`                              | 0060                                 | «No fui yo»: hash de las direcciones que no quieren más mails (solo los que no son de una compra pagada; ver mails.md)                                                       | `src/lib/server/email/suppressions.js`                     |
 | `resend_webhook_events`                           | 0064                                 | avisos de Resend ya procesados (rebotes y quejas; también `orders.email_id` y `email_problem`; ver mails.md)                                                                 | `src/lib/server/email/resendWebhook.js`                    |
+| `door_notices`                                    | 0068                                 | avisos de puerta: hash del mail y cuenta, motivo privado y vencimiento obligatorio (decisión 0053; ver tickets.md)                                                           | `src/lib/server/tickets/doorNotices.js`                    |
 
 **Borrados suaves (0049, decisión [0033](decisiones/0033-borrados-recuperables.md)).**
 `signup_fields`, `persona_roles` y `person_notes` tienen `deleted_at` (NULL = está). Borrar desde el

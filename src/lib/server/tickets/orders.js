@@ -1240,7 +1240,9 @@ export const SEARCH_FIELD_LABELS = /** @type {const} */ ({
 });
 
 /**
- * @typedef {Ticket & { buyer_email: string, buyer_name: string, buyer_dni: string | null }} SearchableTicket
+ * @typedef {Ticket & { buyer_email: string, buyer_name: string, buyer_dni: string | null,
+ *   buyer_account_id?: string | null }} SearchableTicket `buyer_account_id`: solo para los avisos de
+ *   puerta (doorNotices.js); nunca va a la pantalla.
  * @typedef {SearchableTicket & { match: { field: SearchField, value: string } | null }} TicketSearchResult
  */
 
@@ -1257,10 +1259,16 @@ export const SEARCH_FIELD_LABELS = /** @type {const} */ ({
  * @param {D1Database} db
  * @param {string} eventSlug
  * @param {string} [query]
- * @param {{ limit?: number }} [options]
+ * @param {{ limit?: number, tokenPrefix?: boolean }} [options] `tokenPrefix: false`: no buscar
+ *   por el comienzo del token (la puerta con un link)
  * @returns {Promise<TicketSearchResult[]>}
  */
-export async function searchTickets(db, eventSlug, query = '', { limit = 50 } = {}) {
+export async function searchTickets(
+	db,
+	eventSlug,
+	query = '',
+	{ limit = 50, tokenPrefix = true } = {}
+) {
 	const q = foldText(query.slice(0, 80));
 	if (!q) return [];
 	const digits = q.replace(/[.\s]/g, '');
@@ -1275,8 +1283,8 @@ export async function searchTickets(db, eventSlug, query = '', { limit = 50 } = 
 		.replaceAll('L', '1');
 	const { results } = await db
 		.prepare(
-			`SELECT t.*, o.buyer_email, o.buyer_name, o.buyer_dni FROM tickets t
-			JOIN orders o ON o.id = t.order_id
+			`SELECT t.*, o.buyer_email, o.buyer_name, o.buyer_dni, o.account_id AS buyer_account_id
+			FROM tickets t JOIN orders o ON o.id = t.order_id
 			WHERE t.event_slug = ?1 AND o.status = 'approved'`
 		)
 		.bind(eventSlug)
@@ -1302,7 +1310,7 @@ export async function searchTickets(db, eventSlug, query = '', { limit = 50 } = 
 		) {
 			match = { field: 'code', value: rowCode };
 			rank = rowCode === code ? 0 : 1;
-		} else if (query.trim().length >= 8 && row.token.startsWith(query.trim())) {
+		} else if (tokenPrefix && query.trim().length >= 8 && row.token.startsWith(query.trim())) {
 			// Comienzo del token (el link del QR), por si alguien lo copia a mano.
 			match = { field: 'code', value: rowCode };
 			rank = 1;

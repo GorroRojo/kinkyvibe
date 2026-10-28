@@ -206,13 +206,13 @@ export async function runAnalyticsRollup(env, options = {}) {
 		const config = analyticsConfig(env);
 		if (!config.ok) {
 			console.log(
-				`analiticas: sin resumen mensual (falta ${config.missing.map((m) => m.name).join(', ')})`
+				`[analiticas] sin resumen mensual (falta ${config.missing.map((m) => m.name).join(', ')})`
 			);
 			return null;
 		}
 		const db = /** @type {import('@cloudflare/workers-types').D1Database | undefined} */ (env.DB);
 		if (!db) {
-			console.error('analiticas: falta el binding DB; no se guardó el resumen mensual');
+			console.error('[analiticas] falta el binding DB; no se guardó el resumen mensual');
 			return null;
 		}
 		const months = [monthStart(now, -1), monthStart(now)];
@@ -223,10 +223,10 @@ export async function runAnalyticsRollup(env, options = {}) {
 			await saveMonth(db, monthKey(m), rows, now.getTime());
 			done.push(monthKey(m));
 		}
-		console.log(`analiticas: resumen mensual de ${done.join(', ')}`);
+		console.log(`[analiticas] resumen mensual de ${done.join(', ')}`);
 		return { months: done };
 	} catch (error) {
-		console.error('analiticas: el resumen mensual falló (el backup ya se hizo)', error);
+		console.error('[analiticas] el resumen mensual falló (el backup ya se hizo)', error);
 		return null;
 	}
 }

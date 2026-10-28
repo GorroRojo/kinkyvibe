@@ -671,6 +671,23 @@ errores se muestran sin él.
 
 Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumularía reintentos).
 
+### Salud del webhook
+
+Si se rota `TELEGRAM_WEBHOOK_SECRET` (o el token) sin volver a correr `npm run telegram:webhook`,
+Telegram sigue mandando el secreto viejo, cada pedido da 401 y el bot deja de contestar sin que
+nadie se entere. Por eso, una vez por hora (la corrida del cron de los minutos 0 a 14), con token y
+el bot prendido, el cron le pide a Telegram `getWebhookInfo` (`checkWebhookHealth` en
+`src/lib/server/telegram/webhookHealth.js`). Hay problema si la URL registrada no es
+`https://kinkyvibe.ar/api/telegram`, si Telegram anotó un error de entrega en las últimas 2 horas
+y todavía hay mensajes esperando (un error suelto que después se entregó, como un 502 mientras se
+publica el sitio, no cuenta) o si hay más de 20 mensajes esperando. El resultado queda en `ticket_settings`
+(`telegram_webhook_health`: cuándo, qué pasó y el mensaje de error de Telegram, sin el token) y,
+mientras el último chequeo con problema tenga menos de 3 horas, el Inicio muestra en «Para
+revisar» «El bot de Telegram no está recibiendo mensajes». Se arregla volviendo a registrar el
+webhook (paso 3). No llama a `setWebhook` solo: no arreglaría un secreto rotado y pisaría un
+cambio de URL hecho a propósito. El log dice `[telegram] webhook: …` y la respuesta del cron suma
+`telegramWebhook`.
+
 ### Fase 2 (la hace gorrite)
 
 1. **Aplicar la migración `0033_telegram_avisos.sql` en producción y en preview antes de mergear**
@@ -733,6 +750,10 @@ que ahora no se puede.
     sin los online, hasta 20): solo dirección, título y comienzo (`doorEvents` en `puerta.js`).
   - `?evento=` sigue andando y gana sobre la lista. Para un evento que no está en la lista, «Otro
     evento: escribir la dirección»; si la lista no carga, queda escribirla, como antes.
+- **Avisos de puerta** (decisión [0053](decisiones/0053-avisos-de-puerta.md)): en un evento de
+  Kinky Vibe, si la entrada coincide con un aviso, la respuesta trae `notice: true` y la Mini App
+  muestra solo «Avisá a la organización antes de dejar pasar», debajo del resultado. El ingreso ya
+  se marcó igual. Ver [tickets.md](tickets.md#avisos-de-puerta).
 - **Cómo se abre**: con el botón «🚪 Abrir la puerta» que manda el bot cuando confirma el vínculo,
   o con «🚪 Puerta» en el inicio (`/start`, `/inicio`, «🏠 Inicio»). Los dos son el mismo botón
   `web_app` a `/telegram/puerta`, solo en chat privado (`web_app` no anda en grupos).
@@ -771,6 +792,16 @@ que ahora no se puede.
 - Marca con lo mismo que el modo puerta del panel (`extractToken` + `checkIn`), con el login de le
   admin; contesta solo el resultado y el nombre de la entrada. Tope de 600 escaneos por hora.
 - Solo Telegram Web puede embeberla (`frame-ancestors https://web.telegram.org`).
+- **Salvedades para la noche del evento** (auditoría de confiabilidad, OX3):
+  - **Necesita señal en cada escaneo**: no guarda la lista ni tiene modo sin conexión. Sin red,
+    cada escaneo falla.
+  - **Cada hora hay que cerrarla y volver a abrirla desde el bot**: el `initData` vale una hora
+    (`auth_date`, decisión 0037) y después cada escaneo contesta «Pasó más de una hora desde que
+    abriste la puerta: cerrala y volvé a abrirla desde el bot».
+  - Para una puerta larga o con mala señal, usá el **modo puerta del panel**
+    (`/admin/eventos/<slug>/ingreso`), que guarda la lista y sigue sin conexión
+    ([tickets.md](tickets.md), punto 9). La de Telegram sirve de respaldo (por ejemplo, si no se
+    puede entrar con GitHub), con señal.
 
 ### Puesta en marcha de la puerta (la hace gorrite)
 

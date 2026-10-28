@@ -81,7 +81,8 @@ const EXCLUDED = [
 	'/avisos/baja',
 	'/avisos/sigo',
 	'/lista-de-espera',
-	'/mails'
+	'/mails',
+	'/puerta'
 ];
 /** Secciones que se cuentan solo en su página principal (las de adentro llevan ids). */
 const ONLY_ROOT = ['/propinas'];
