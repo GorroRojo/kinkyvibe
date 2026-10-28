@@ -54,7 +54,6 @@ const DB = Object.freeze({
  * @param {unknown} [_savesToDb]
  * @returns {Readonly<SaveCopy>}
  */
-// eslint-disable-next-line no-unused-vars
 export function saveCopy(_savesToDb) {
 	return DB;
 }
@@ -66,7 +65,6 @@ export function saveCopy(_savesToDb) {
  *
  * @param {{ savedToDb?: boolean | null, pr?: unknown }} [_result]
  */
-// eslint-disable-next-line no-unused-vars
 export function savedSummary(_result) {
 	return 'Guardado. Se ve enseguida en el sitio.';
 }
