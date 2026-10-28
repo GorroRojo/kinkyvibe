@@ -498,14 +498,21 @@ function docDay(iso) {
  * `noviembre`), que filtran eventos y, si no dejan nada, vuelven a ser texto.
  * @param {PreparedIndex} index
  * @param {string} q
- * @param {{ limit?: number, now?: number }} [opts]
+ * @param {{ limit?: number, now?: number, types?: readonly SearchDoc['c'][] | null }} [opts]
+ * `types`: los tipos de un operador de tipo que se sacó antes de lo escrito (el bot,
+ * `parseInlineQuery`), como si siguiera ahí (así también vale la regla de respaldo).
  * @returns {SearchHit[]}
  */
-export function find(index, q, { limit = 1000, now = Date.now() } = {}) {
-	const pq = parseSearch(q, 'sitio');
+export function find(index, q, { limit = 1000, now = Date.now(), types = null } = {}) {
+	/** @param {import('./searchSyntax.js').ParsedSearch} pq */
+	const typed = (pq) => {
+		if (types?.length) pq.types = [...new Set([...(pq.types ?? []), ...types])];
+		return pq;
+	};
+	const pq = typed(parseSearch(q, 'sitio'));
 	let hits = findParsed(index, pq, now);
 	if (hits.length === 0 && pq.dates.some((d) => d.soft)) {
-		hits = findParsed(index, parseSearch(q, 'sitio', { datesAsText: true }), now);
+		hits = findParsed(index, typed(parseSearch(q, 'sitio', { datesAsText: true })), now);
 	}
 	return hits.slice(0, limit);
 }
@@ -542,8 +549,10 @@ export function findParsed(index, pq, now = Date.now()) {
 		});
 	}
 	for (const phrase of pq.phrases) checks.push((_, i) => hasWords(docText(index, i), phrase));
-	// Hasta acá, lo que pide algo; las exclusiones solo sacan.
-	const asks = words.length > 0 || checks.length > (typesOnlyExclude ? 1 : 0);
+	// Hasta acá, lo que pide algo; las exclusiones solo sacan. Las palabras vacías (`de`, `el`…)
+	// no piden nada: «el taller» es como «taller» (docs/buscar.md, «Palabras vacías»).
+	const meaningfulWords = words.filter((w) => !STOPWORDS.has(w));
+	const asks = meaningfulWords.length > 0 || checks.length > (typesOnlyExclude ? 1 : 0);
 	for (const x of pq.exclude) checks.push((_, i) => !hasWords(docText(index, i), x));
 	for (const name of pq.excludeTags) {
 		const ids = new Set(tagsNamed(index, name));
@@ -557,7 +566,9 @@ export function findParsed(index, pq, now = Date.now()) {
 
 	// Las palabras que nombran un tipo son obligatorias solo si no se pide nada más.
 	const onlyHints = !asks;
-	const required = onlyHints ? [...pq.hints] : words;
+	// Sin nada más pedido, todo lo escrito es obligatorio, como en `search` (las palabras vacías se
+	// sacan abajo, salvo que sean todo).
+	const required = onlyHints ? [...pq.hints, ...words] : meaningfulWords;
 	let terms = [...new Set(required)];
 	const meaningful = terms.filter((t) => !STOPWORDS.has(t));
 	if (meaningful.length) terms = meaningful;
@@ -582,7 +593,7 @@ export function findParsed(index, pq, now = Date.now()) {
 
 	// Las palabras de tipo que no son obligatorias: suman si están y suben ese tipo.
 	const hints = onlyHints ? [] : pq.hints;
-	const textPhrase = onlyHints ? pq.hints.join(' ') : words.join(' ');
+	const textPhrase = onlyHints ? fold(pq.text) : words.join(' ');
 	/** @type {SearchHit[]} */
 	const hits = [];
 	for (const [i, score] of scores) {
