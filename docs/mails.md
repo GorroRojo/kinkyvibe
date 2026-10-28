@@ -240,6 +240,13 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
 - **Si Resend dice «ahora no»** (cupo terminado, demasiados por segundo o un 5xx), ese intento no
   cuenta para los 3 del día y la corrida se corta (ver abajo).
 
+**El mail con los datos para transferir** no tiene columna de «enviado» (no lo toma el cron), así
+que se reintenta en el momento (auditoría de confiabilidad, O29): si falla (un 5xx, un timeout, la
+base que no contesta), `sendTransferEmail` espera 2 segundos y lo vuelve a mandar una vez, con la
+misma clave de idempotencia (`transfer-<orden>`: si el primero sí salió, Resend no lo duplica).
+Con el cupo terminado no reintenta. Si no sale, queda `[tickets] el mail de transferencia … no
+salió` en el log; el tope de mails a una dirección también anota el id de la orden.
+
 ### Cupo de Resend y errores pasajeros
 
 Resend contesta 429 cuando se terminó el cupo diario o mensual del plan (`daily_quota_exceeded`,
@@ -753,4 +760,4 @@ nueva. Que quien compró
 corrija su mail sola desde la página de la compra queda para más adelante (lo decide gorrite).
 
 **Un recordatorio no salió.** Mirá los logs del Worker `kinkyvibe` en Cloudflare
-(**Observability → Logs**, buscar `recordatorios:`): 503 = falta `CRON_SECRET`.
+(**Observability → Logs**, buscar `[recordatorios]`): 503 = falta `CRON_SECRET`.

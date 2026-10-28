@@ -1,9 +1,11 @@
 /**
  * «Descargar todo» (decisión 0004: git no guarda una copia del contenido; lo resguardan los
- * backups y este botón): los eventos y el material que están en la base, como archivos .md
+ * backups nocturnos de la base en R2 y Time Travel; este botón es una copia parcial, para tener a
+ * mano): los eventos y el material que están en la base, como archivos .md
  * (`calendario/<slug>.md`, `material/<slug>.md`), en un .tar. Incluye los ocultos (con
  * `force_unpublished: true`); no los borrados. Los arma la base ($lib/server/contenido/markdown.js),
- * con los interactivos como en los .md del repo. Solo admins; queda en el registro.
+ * con los interactivos como en los .md del repo. No trae imágenes, archivos, perfiles ni órdenes.
+ * Solo admins; queda en el registro.
  */
 import { error } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';

@@ -81,11 +81,14 @@ export function resolveSource(source, exists = existsSync) {
 	);
 }
 
+/** El tope de D1 por sentencia al restaurar. */
+export const D1_MAX_STATEMENT_BYTES = 100_000;
+
 /**
  * Las cantidades de filas que anotó el backup al final.
  *
  * @param {string} sql
- * @returns {{ tables: number, rows: number, perTable: Record<string, number>, rebuilt?: string[], skipped?: string[] } | null}
+ * @returns {{ tables: number, rows: number, perTable: Record<string, number>, rebuilt?: string[], skipped?: string[], maxStatementBytes?: number } | null}
  */
 export function readStats(sql) {
 	const line = sql
@@ -153,6 +156,14 @@ async function main() {
 	const sqlPath = path.join(work, 'backup.sql');
 	writeFileSync(sqlPath, sql);
 	console.log(`Backup: ${sql.split('\n', 1)[0].replace(/^--\s*/, '')}`);
+
+	// D1 rechaza una sentencia de más de 100.000 bytes; el volcado parte las filas largas
+	// (backup/dump.js), así que esto solo pasaría con un backup viejo o con un BLOB enorme.
+	if ((stats?.maxStatementBytes ?? 0) > D1_MAX_STATEMENT_BYTES) {
+		throw new Error(
+			`El backup tiene una sentencia de ${stats.maxStatementBytes} bytes y D1 acepta hasta ${D1_MAX_STATEMENT_BYTES}: no se puede restaurar así. Partí esa sentencia a mano (ver docs/workers-migracion.md).`
+		);
+	}
 
 	const where =
 		options.mode === 'remote'

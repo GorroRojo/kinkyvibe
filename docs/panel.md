@@ -67,7 +67,9 @@ hace 5 min»…), resaltada si hay algo para mirar. La arma `src/lib/server/admi
 con una sola tanda a la base (ajustes guardados, interruptores, lo último del registro, propinas
 aprobadas) más lo de Automatizaciones; una tarjeta sin un dato barato y claro no lleva línea (el
 Fondo, si no hay uno fijado a mano ni llegó ninguno automático; cualquier parte que no se pudo
-leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
+leer). El Fondo automático dice de cuándo es si el último dato tiene más de un día («12 % de cada
+entrada (último dato hace 30 h)»): con fondo.kinkyvibe.ar caído se sigue cobrando ese (auditoría
+de confiabilidad, O36). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
 `NAV_GROUPS`, y cada página de Ajustes vuelve a la portada con «← Ajustes» (`areaBackLink`).
 
 **Opción C, parte 2** (gorrite, 11/10; [decisión 0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)):
@@ -304,6 +306,19 @@ revisar" del Inicio.
   eventos próximos sin imagen», «2 perfiles nuevos para revisar», el chequeo nocturno con sus
   problemas o las etiquetas. Si la tarjeta tiene 7 filas, el botón dice 7 y el Inicio dice «7 cosas
   para revisar». Sin filas, «todo al día».
+- **Entradas con la configuración rota** (auditoría de confiabilidad, O19): un evento próximo y no
+  cancelado que tiene entradas pero cuya configuración ya no se puede leer (una regla endurecida
+  después, un dato editado a mano) no vende y la ficha lo muestra como «no vende». Con la opción
+  `broken`, `listTicketedEvents` (`src/lib/server/tickets/events.js`) los anota y «Para revisar»
+  suma una fila por evento («… no puede vender entradas: su configuración tiene un error», con el
+  error de validación y «Editar»).
+- **Cuando la base falla, el Inicio lo dice** (auditoría de confiabilidad, O18): cada consulta que
+  cae a su respaldo por un error queda anotada (el parámetro `failed` de `runQuery` y `runQueries`
+  en `src/lib/server/db/batch.js`, que pasa también por `combineQueries` y `mapQuery`) y el load
+  devuelve `unreadable`, solo con sus nombres (sin SQL ni mensajes de error). Arriba aparece en rojo
+  «No pudimos leer: … Lo que ves puede estar incompleto; si sigue así, avisale a gorrite.», y ni el
+  saludo ni la tarjeta vacía dicen «todo al día». El contador del menú y Ajustes no lo muestran
+  todavía (Ajustes ya usa `null` como «no se pudo leer»).
 - **Una sola fuente**: `src/lib/server/admin/review.js`. `reviewRows()` arma las filas (con los
   constructores de `inicio.js`: `reviewItems`, `transferMissingItem`, `onlineMismatchItem`,
   `profileReviewItems`, `claimReviewItems`, `groupReviewItems`, `integrityReviewRow`, y los de las
@@ -717,6 +732,11 @@ en la misma tanda que el borrado; «Recuperar» va por `undoDeletion` (también 
 | Notas internas de una persona           | borrado suave (`deleted_at`, 0049)               | `nota:<id>`                       | Nota interna            |
 
 ¹ Es solo el nombre de la fila (la forma de siempre): esos archivos ya no están en el repo (0032).
+
+**La excepción: las notas de la Agenda** (las notas por día de la tarjeta Agenda,
+`agenda_day_notes`, `src/lib/server/admin/dayNotes.js`) se borran de verdad (`DELETE`): no pasan
+por `panel_deletions` y no aparecen en «Borrados que podés recuperar». Una nota borrada por error
+solo vuelve con un backup o con Time Travel.
 
 Decisión 0030: las etiquetas, las series y los mails por evento se recuperan. Una etiqueta vuelve
 con sus datos y sus relaciones (nunca se fueron); si mientras tanto se creó otra con el mismo
