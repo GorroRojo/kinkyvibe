@@ -291,6 +291,32 @@ Lo controlan `src/lib/components/PostList.test.js`, `TagSearch.test.js`,
 `tests/smoke.spec.js` («barra de filtros de las listas», en un celu y en pantalla ancha) y
 `tests/buscador-etiquetas.spec.js` (el buscador con el teclado y con el mouse, y el glosario).
 
+### Carrusel de la portada
+
+Detrás del interruptor `carrusel_portada` ([interruptores.md](interruptores.md); con `?carrousel`
+en la dirección se ve aunque esté apagado, para revisarlo en un preview). Lo pidió gorrite (#15);
+el diseño está para que lo revise.
+
+- **Qué eventos** (`carruselPosts` en `$lib/utils/carrusel.js`): los del calendario que todavía
+  no empezaron, con la etiqueta `KinkyVibe`, con imagen y sin cancelar, por fecha, hasta 5. Sin
+  ninguno, no hay carrusel. Los colores `carrousel_background` y `carrousel_color` de un evento
+  (hex) mandan sobre los de la paleta.
+- **Qué muestra**: la imagen, el título, la fecha corta de las tarjetas (`argDateList`), el lugar
+  (`placeShort`, como el lugar vinculado de la portada), el resumen (no en el celu) y la venta de
+  entradas de las listas (`ticketCta`: «Comprar entradas», «Agotadas»…) más «Saber más». El precio
+  no: tampoco está en las tarjetas.
+- **Accesible** (patrón de carrusel de WAI-ARIA): grupo con nombre, diapositivas «N de M», pausa
+  primero en el orden del foco, «Evento anterior» / «Evento siguiente» y un punto por evento (una
+  sola parada del Tab; entre ellos, con las flechas). Las flechas ← → también andan con el foco en
+  la diapositiva. Las que no se ven quedan `inert`.
+- **Pasa sola** cada 7 s, salvo con «reducir movimiento» (ahí no hay botón de pausa: no se mueve).
+  Se frena con el mouse encima o el foco adentro, y se para del todo al elegir otra diapositiva
+  (botones, flechas o deslizando en el celu) o con «Pausar».
+- **Sin saltos** (CLS): todas las diapositivas ocupan la misma celda de la grilla, así que el alto
+  es el de la más alta desde el HTML del servidor, y la imagen tiene su cuadrado reservado. La
+  imagen de la primera va `eager` con `fetchpriority="high"`; las demás, recién después de
+  hidratar, de a una por delante de la que se ve, y `lazy`. Con `posterSrcset` (copias chicas).
+
 ## Componentes
 
 Un componente por concepto, en [`src/lib/components/ui/`](../src/lib/components/ui/), con un solo

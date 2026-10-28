@@ -12,6 +12,7 @@
 	import { userConfig } from '$lib/utils/stores';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { organizationSchema, websiteSchema } from '$lib/utils/jsonLd.js';
+	import { carruselPosts } from '$lib/utils/carrusel.js';
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
 	let loadedPast = false;
@@ -22,11 +23,16 @@
 			.catch(() => (loadedPast = false));
 	}
 
-	// Los eventos que todavía no empezaron: el carrusel (`?carrousel`) y la fila del calendario.
+	// Los eventos que todavía no empezaron: la fila del calendario.
 	$: upcomingEvents = allPosts.filter(
 		(/** @type {{ meta: AnyPostData; }} */ p) =>
 			p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
 	);
+
+	// El carrusel de arriba: con el interruptor `carrusel_portada` o, para revisarlo en un preview,
+	// con `?carrousel` en la dirección. Qué eventos entran: $lib/utils/carrusel.js.
+	$: carrusel =
+		data.carrusel || $page.url.searchParams.has('carrousel') ? carruselPosts(data.posts) : [];
 
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
 	$: previewTexts = linkPreviewOf($page.data).texts;
@@ -74,9 +80,9 @@
 	<!-- El logo del encabezado es la presentación (decisión de gorrite, 5/10): el h1 queda solo
 	     para lectores de pantalla y buscadores. -->
 	<h1 class="visually-hidden">Kinky Vibe</h1>
-	<!-- Sin eventos próximos no hay carrusel: el componente necesita al menos una diapositiva. -->
-	{#if $page.url.searchParams.has('carrousel') && upcomingEvents.length > 0}
-		<Carrousel posts={upcomingEvents} />
+	<!-- Sin eventos que entren no hay carrusel: el componente necesita al menos una diapositiva. -->
+	{#if carrusel.length > 0}
+		<Carrousel posts={carrusel} ticketStates={data.ticketStates ?? null} />
 	{/if}
 	<div class="cardrow">
 		<CardRow
