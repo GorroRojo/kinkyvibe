@@ -21,6 +21,7 @@ import {
 import { ObjectError, VersionConflictError } from '$lib/server/objects/index.js';
 import { listClaims } from '$lib/server/amigues/claims.js';
 import { approvalAction, claimDecisionAction } from '$lib/server/admin/amiguesRoutes.js';
+import { profileFollowerCount } from '$lib/server/sigo/stats.js';
 
 /** @param {string | undefined} raw */
 function profileId(raw) {
@@ -37,11 +38,14 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	const id = profileId(params.id);
 	const detail = id ? await getProfileDetail(db, id, adminViewer(user)) : null;
 	if (!detail) error(404, 'No encontramos ese perfil.');
-	return {
-		...detail,
+	const [claims, followers] = await Promise.all([
 		// Pedidos "Es mi perfil" de este perfil (también los resueltos).
-		claims: await listClaims(db, { profileId: detail.profile.id, status: 'all' }).catch(() => [])
-	};
+		listClaims(db, { profileId: detail.profile.id, status: 'all' }).catch(() => []),
+		// «N cuentas lo siguen» (Lo que sigo, decisión 0043: solo admins; quiénes, en Mensajes ›
+		// Lo que sigo). `null` si no se pudo contar.
+		profileFollowerCount(db, detail.profile.id)
+	]);
+	return { ...detail, claims, followers };
 }
 
 /**
