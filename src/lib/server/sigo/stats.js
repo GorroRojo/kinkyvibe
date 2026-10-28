@@ -368,3 +368,62 @@ export async function whoFollows(db, ranking, { maxRows = WHO_MAX_ROWS } = {}) {
 	list.sort((a, b) => b.count - a.count || a.email.localeCompare(b.email, 'es'));
 	return { byTarget, people: list, truncated };
 }
+
+// ---------------------------------------------------------------------------------------------
+// «N cuentas lo siguen» en las fichas del panel (lo-que-sigo-fichas, decisión 0043)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Cuántas cuentas (no borradas) siguen cada etiqueta, por el id de la etiqueta en el árbol: como
+ * «Lo más seguido», la clave guardada se resuelve con el árbol (un alias o un nombre viejo cuentan
+ * para su etiqueta). Una sola consulta. `null` si no hay base o falla (sin la migración 0032).
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {TagManager} tags
+ * @returns {Promise<Record<string, number> | null>}
+ */
+export async function tagFollowerCounts(db, tags) {
+	if (!db) return null;
+	const rows = await orNull(async () => {
+		const { results } = await db
+			.prepare(
+				`SELECT f.target_key, COUNT(*) AS n
+				FROM follows f JOIN accounts a ON a.id = f.account_id AND a.deleted_at IS NULL
+				WHERE f.target_kind = 'etiqueta' GROUP BY f.target_key`
+			)
+			.all();
+		return results;
+	});
+	if (!rows) return null;
+	/** @type {Record<string, number>} */
+	const out = {};
+	for (const r of rows) {
+		const key = String(r.target_key ?? '');
+		const id = resolveTag(tags, key)?.target.key ?? key;
+		if (id) out[id] = (out[id] ?? 0) + n(r.n);
+	}
+	return out;
+}
+
+/**
+ * Cuántas cuentas (no borradas) siguen un perfil (persona, proyecto o lugar). `null` si no hay
+ * base o falla.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {number} profileId
+ * @returns {Promise<number | null>}
+ */
+export async function profileFollowerCount(db, profileId) {
+	if (!db) return null;
+	const row = await orNull(() =>
+		db
+			.prepare(
+				`SELECT COUNT(*) AS n
+				FROM follows f JOIN accounts a ON a.id = f.account_id AND a.deleted_at IS NULL
+				WHERE f.target_kind = 'perfil' AND f.target_key = ?1`
+			)
+			.bind(String(profileId))
+			.first()
+	);
+	return row ? n(row.n) : null;
+}
