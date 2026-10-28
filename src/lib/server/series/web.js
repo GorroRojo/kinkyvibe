@@ -5,6 +5,7 @@ import { error } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { deliverEmail } from '$lib/server/tickets/index.js';
+import { resendBackoff } from '$lib/server/tickets/email.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { runSeriesNotifications } from './notify.js';
 import { accountSubscriptions } from './subscriptions.js';
@@ -27,19 +28,48 @@ export async function requireSeriesDB(platform) {
 }
 
 /**
- * Manda los mails de series por el camino de siempre (`deliverEmail`: Resend, el filtro
- * `routeEmail` de los previews y el remitente de los ajustes).
+ * Un {@link import('./subscriptions.js').SeriesSend} que además dice si Resend contestó «ahora
+ * no» (`resendBackoff` en tickets/email.js): `quota`, `rate` o `server` en vez de `failed`.
  *
+ * @typedef {(...args: Parameters<import('./subscriptions.js').SeriesSend>) => Promise<'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server'>} SeriesBatchSend
+ */
+
+/**
+ * Manda los mails de series por el camino de siempre (`deliverEmail`: Resend, el filtro
+ * `routeEmail` de los previews y el remitente de los ajustes). Con `backoff`, el «ahora no» de
+ * Resend vuelve como `quota` / `rate` / `server` (para la tanda del cron, que así no gasta el
+ * intento); sin él, todo error es `failed`.
+ *
+ * @overload
  * @param {D1Database} db
  * @param {typeof fetch} fetchFn
+ * @param {{ backoff: true }} options
+ * @returns {SeriesBatchSend}
+ */
+/**
+ * @overload
+ * @param {D1Database} db
+ * @param {typeof fetch} fetchFn
+ * @param {{ backoff?: false }} [options]
  * @returns {import('./subscriptions.js').SeriesSend}
  */
-export function seriesSender(db, fetchFn) {
+/**
+ * @param {D1Database} db
+ * @param {typeof fetch} fetchFn
+ * @param {{ backoff?: boolean }} [options]
+ * @returns {SeriesBatchSend}
+ */
+export function seriesSender(db, fetchFn, { backoff = false } = {}) {
 	return async (to, message, idempotencyKey) => {
 		try {
 			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
 			return await deliverEmail({ db, fetch: fetchFn, to, message, idempotencyKey, optOut: true });
 		} catch (e) {
+			const later = backoff ? resendBackoff(e) : null;
+			if (later) {
+				console.error(`[series] Resend dijo «ahora no» (${later}): queda para la próxima`);
+				return later;
+			}
 			console.error('[series] no se pudo mandar el mail:', e);
 			return 'failed';
 		}
@@ -61,7 +91,8 @@ export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now
 		// depende de que hooks.server.js haya corrido en este isolate.
 		tags: await siteTagManager(platform),
 		origin,
-		send: seriesSender(db, fetchFn),
+		// Con el «ahora no» de Resend: no gasta el intento del día (notify.js).
+		send: seriesSender(db, fetchFn, { backoff: true }),
 		now
 	});
 }
