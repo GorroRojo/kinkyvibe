@@ -194,6 +194,18 @@
 					value={formatARS(s.fondo.totals.surcharge)}
 					sub="lo pagaron les compradores"
 				/>
+				<Stat
+					label={s.fondo.totals.mpFeeEstimated &&
+					s.fondo.totals.mpFeeEstimated >= s.fondo.totals.mpFee
+						? 'Comisión de Mercado Pago (estimada)'
+						: 'Comisión de Mercado Pago'}
+					value={formatARS(s.fondo.totals.mpFee)}
+					sub={!s.fondo.totals.mpFeeEstimated
+						? 'la que cobró MP'
+						: s.fondo.totals.mpFeeEstimated >= s.fondo.totals.mpFee
+							? 'estimada con la tasa de Ajustes › Cobros'
+							: `${formatARS(s.fondo.totals.mpFee - s.fondo.totals.mpFeeEstimated)} cobrada por MP · ${formatARS(s.fondo.totals.mpFeeEstimated)} estimada`}
+				/>
 			</div>
 			<div class="kv-grid-2">
 				<div class="sub">
@@ -214,12 +226,16 @@
 					/>
 				</div>
 				<div class="sub">
-					<h3>Recargo de Mercado Pago por mes</h3>
+					<h3>Recargo y comisión de Mercado Pago por mes</h3>
 					<Chart
-						title="Recargo de Mercado Pago por mes"
+						title="Recargo y comisión de Mercado Pago por mes"
 						rows={s.fondo.rows}
 						x={{ key: 'label', label: 'mes' }}
-						series={[{ key: 'surcharge', label: 'Recargo MP' }]}
+						series={[
+							{ key: 'surcharge', label: 'Recargo MP' },
+							{ key: 'mpFeeCharged', label: 'Comisión cobrada por MP' },
+							{ key: 'mpFeeEstimated', label: 'Comisión estimada' }
+						]}
 						format={formatARS}
 						csv="recargo-mp-por-mes"
 						csvColumns={[col('month', 'clave')]}
@@ -228,8 +244,9 @@
 				</div>
 			</div>
 			<p class="kv-note">
-				Por mes del evento, solo aprobadas. El Fondo de las suscripciones (fondo.kinkyvibe.ar) no
-				entra acá: está en el Inicio.
+				Por mes del evento, solo aprobadas. La comisión es la que informó Mercado Pago en cada pago;
+				si no la informó, se estima con la tasa de Ajustes › Cobros (el recargo) y se muestra
+				aparte. El Fondo de las suscripciones (fondo.kinkyvibe.ar) no entra acá: está en el Inicio.
 			</p>
 		</Card>
 
