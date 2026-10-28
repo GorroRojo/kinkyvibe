@@ -69,7 +69,7 @@
 	function compute(q, idx, exp) {
 		if (!engine || !idx || q.trim().length < 2) return [];
 		const t0 = performance.now();
-		const grouped = engine.groupHits(engine.search(idx, q));
+		const grouped = engine.groupHits(engine.find(idx, q));
 		lastMs = performance.now() - t0;
 		const limit = grouped.length === 1 ? PER_GROUP * 2 : PER_GROUP;
 		return grouped.map((g) => {

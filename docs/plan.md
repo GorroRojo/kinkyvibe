@@ -226,7 +226,9 @@ CI) va en la fase 0.
 - `bot-textos` · fase 0 · hecho · bot · «Textos del bot» editables desde Ajustes · #302
 - `bot-inline-buscar` · fase 0 · hecho · bot · Modo inline y búsqueda en todo el sitio · #298, #300
 - `buscar-sintaxis` · fase 0 · hecho · sitio · Una sola sintaxis de búsqueda para el sitio, el bot y el panel, escrita en [buscar.md](buscar.md) · #350, [0046](decisiones/0046-sintaxis-de-busqueda.md)
-- `buscar-sintaxis-sitio` · fase 0 · sigue · sitio · El buscador del sitio (Ctrl+K) entiende la sintaxis base (depende de: buscar-sintaxis)
+- `buscar-sintaxis-sitio` · fase 0 · hecho · sitio · El buscador del sitio (Ctrl+K) entiende la sintaxis base, con el parser compartido y el registro de operadores en `searchSyntax.js` (depende de: buscar-sintaxis) · [buscar.md](buscar.md), #551
+- `buscar-registro-doc` · fase 0 · sigue · sitio · Un script arma las tablas de buscar.md (y la guía) desde el registro de operadores, y la CI chequea que coincidan (depende de: buscar-sintaxis-sitio)
+- `buscar-cuerpo-entero` · fase 0 · sigue · sitio · El índice público lleva todo el cuerpo (hoy lo corta `BODY_MAX`), midiendo antes cuánto crece lo que baja el buscador (depende de: buscar-sintaxis-sitio)
 - `buscar-sintaxis-bot` · fase 0 · sigue · bot · El bot (inline y Buscar) entiende la sintaxis base, no solo el prefijo al principio (depende de: buscar-sintaxis)
 - `buscar-sintaxis-panel` · fase 0 · sigue · panel · El buscador del panel usa el mismo parser para la base (formas largas de tipo, `material:`, `wiki:`…) y suma lo suyo (depende de: buscar-sintaxis)
 - `buscar-guia-visible` · fase 0 · sigue · sitio · «¿Cómo buscar?» en el buscador del sitio y en /ayuda/buscar, «🔎 Cómo buscar» en la Ayuda del bot y la tabla completa en la paleta del panel (depende de: buscar-sintaxis)
