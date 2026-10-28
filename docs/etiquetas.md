@@ -56,7 +56,7 @@ Archivo: `src/lib/server/objects/types/etiqueta.js`.
 | `key`            | `text`     | `id`: el nombre en los posts. Obligatorio, una línea, sin corchetes               |
 | `icon`           | `text`     | `icon` (un emoji)                                                                 |
 | `color`          | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
-| `description`    | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
+| `description`    | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas (si no existe, va como texto)  |
 | `image`          | `text`     | `image` (series): un nombre de las viejas imágenes de series o la de un evento    |
 | `body`           | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
 | `wiki_title`     | `text`     | `title` del `.md` de la wiki                                                      |

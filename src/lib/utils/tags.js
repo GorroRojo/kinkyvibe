@@ -105,21 +105,6 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 				}
 			}
 		}
-		// backlink related tags
-		if (tag.related && tag.related.length > 0) {
-			for (let relatedToThis of tag.related) {
-				let r = tagManager.get(relatedToThis);
-				if (r !== undefined) {
-					if (r.related && r.related.length > 0) {
-						if (!r.related.includes(tag.id)) {
-							r.related.push(tag.id);
-						}
-					} else r.related = [tag.id];
-				} else {
-					missingTags.push(relatedToThis);
-				}
-			}
-		}
 		tag.getColor = () => {
 			if (tag.color !== undefined) {
 				return tag.color;
@@ -170,20 +155,43 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 			}
 			return res;
 		};
-		if (tag.description !== undefined) {
-			tag.parsedDescription = parseDescription(tag.description, '').map((l) => {
-				if (l.type == 'link') {
-					if (tagManager.get(l.line) === undefined) {
-						missingTags.push(l.line);
-						return { type: 'text', line: l.line };
-					} else return l;
-				} else return l;
-			});
-		}
 		tag.visible_name = tag.visible_name ?? tag.id;
 	}
 
-	// link related and wikilinks
+	// link related and wikilinks, once every tag exists (children and aliases from "aka" are
+	// created during the loop above, so checking there would flag the later ones as missing)
+	/**
+	 * `get()` never returns undefined (it falls back to an orphan tag), so ask the map.
+	 * @param {TagID} id
+	 */
+	const exists = (id) => {
+		const t = tagsMap.get(id);
+		return t !== undefined && (t.aliasOf === undefined || tagsMap.has(t.aliasOf));
+	};
+	for (let [, tag] of tagManager) {
+		// backlink related tags
+		for (let relatedToThis of tag.related ?? []) {
+			if (exists(relatedToThis)) {
+				let r = tagManager.get(relatedToThis);
+				if (r.related && r.related.length > 0) {
+					if (!r.related.includes(tag.id)) {
+						r.related.push(tag.id);
+					}
+				} else r.related = [tag.id];
+			} else {
+				missingTags.push(relatedToThis);
+			}
+		}
+		// wikilinks to tags that don't exist become plain text
+		if (tag.description !== undefined) {
+			tag.parsedDescription = parseDescription(tag.description, '').map((l) => {
+				if (l.type == 'link' && !exists(l.href ?? l.line)) {
+					missingTags.push(l.href ?? l.line);
+					return { type: 'text', line: l.line };
+				} else return l;
+			});
+		}
+	}
 
 	return { ...tagManager, missingTags: [...new Set(missingTags)] };
 }
