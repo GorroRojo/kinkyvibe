@@ -35,14 +35,16 @@
 
 	let haswiki = (/**@type string*/ n) =>
 		true || data.wiki?.some((/** @type {ProcessedPost} */ e) => e.meta.wiki == n);
-	/**@type {(termino:string, groups?: Group[], parents?: {name:string, disabled?: boolean}[])=>{name:string, disabled?: boolean}[][]}*/
-	function getAscendance(termino) {
+	// `path`: las de esta rama, para no volver a abrir una si los datos traen un ciclo de madres.
+	/**@type {(termino:string, path?: string[])=>{name:string, disabled?: boolean}[][]}*/
+	function getAscendance(termino, path = [termino]) {
 		/**@type {{name:string, disabled?: boolean}[][]}*/
 		let branches = [];
 		let tagParents = $tagManager.get(termino)?.parents?.filter((p) => p != 'root') ?? [];
 		for (let p of tagParents) {
+			if (path.includes(p)) continue;
 			let subbranch = [];
-			let grandparents = getAscendance(p);
+			let grandparents = getAscendance(p, [...path, p]);
 			if (grandparents.length > 0) {
 				for (let g of grandparents) {
 					subbranch.push([...g, { name: p, disabled: !haswiki(p) }]);
@@ -55,13 +57,14 @@
 		return branches.filter((branch) => branch.some((i) => !i.disabled));
 	}
 
-	/**@type {(termino:string, groups?: Group[], parents?: {name:string,disabled?:boolean}[])=>{name:string,disabled?:boolean}[][]}*/
-	function getDescendance(termino) {
+	/**@type {(termino:string, path?: string[])=>{name:string,disabled?:boolean}[][]}*/
+	function getDescendance(termino, path = [termino]) {
 		/**@type {{name:string, disabled?: boolean}[][]}*/
 		let branches = [];
 		let tagChildren = $tagManager.get(termino)?.children ?? [];
 		for (let c of tagChildren) {
-			let grandchildren = getDescendance(c);
+			if (path.includes(c)) continue;
+			let grandchildren = getDescendance(c, [...path, c]);
 			if (grandchildren.length > 0) {
 				for (let g of grandchildren) {
 					branches.push([{ name: c, disabled: !haswiki(c) }, ...g]);

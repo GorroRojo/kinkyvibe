@@ -42,14 +42,17 @@ function childrenOf(tm, id) {
  * Leaf descendants of a tag, in tree order.
  * @param {Tags} tm
  * @param {string} id
+ * @param {string[]} [path] the branch down to `id` (to stop on a cycle in the data)
  * @returns {string[]}
  */
-function leavesOf(tm, id) {
+function leavesOf(tm, id, path = [id]) {
 	/** @type {string[]} */
 	const out = [];
 	for (const child of childrenOf(tm, id)) {
+		// Una madre de esta misma rama (un ciclo en los datos): no se vuelve a abrir.
+		if (path.includes(child)) continue;
 		const sub = childrenOf(tm, child);
-		if (sub.length) out.push(...leavesOf(tm, child));
+		if (sub.length) out.push(...leavesOf(tm, child, [...path, child]));
 		else out.push(child);
 	}
 	return out;

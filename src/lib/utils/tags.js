@@ -127,9 +127,13 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 				return tag.color;
 			}
 			let queue = [tag.id];
+			// Cada etiqueta se mira una vez: un ciclo de madres en los datos no la cuelga.
+			let seen = new Set();
 			while (queue.length > 0) {
 				let currID = queue.pop();
 				if (currID === undefined) return undefined;
+				if (seen.has(currID)) continue;
+				seen.add(currID);
 				let curr = tagManager.get(currID);
 				if (curr == undefined) {
 					continue;
@@ -146,32 +150,8 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 			}
 			return undefined;
 		};
-		tag.getAllChildren = () => {
-			let res = [];
-			let queue = [tag.id];
-			while (queue.length > 0) {
-				let currID = queue.pop();
-				if (currID === undefined) return res;
-				let curr = tagManager.get(currID);
-				if (curr === undefined || curr.children === undefined) continue;
-				queue.push(...curr.children);
-				res.push(...curr.children);
-			}
-			return res;
-		};
-		tag.getAllParents = () => {
-			let res = [];
-			let queue = [tag.id];
-			while (queue.length > 0) {
-				let currID = queue.pop();
-				if (currID === undefined) return res;
-				let curr = tagManager.get(currID);
-				if (curr === undefined || curr.parents === undefined) continue;
-				queue.push(...curr.parents);
-				res.push(...curr.parents);
-			}
-			return res;
-		};
+		tag.getAllChildren = () => walkTags(tagManager, tag.id, 'children');
+		tag.getAllParents = () => walkTags(tagManager, tag.id, 'parents');
 		if (tag.description !== undefined) {
 			tag.parsedDescription = parseDescription(tag.description, '').map((l) => {
 				if (l.type == 'link') {
@@ -191,6 +171,37 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 	return { ...tagManager, missingTags: [...new Set(missingTags)] };
 }
 export default tagsFactory;
+
+/**
+ * Las hijas (o madres) de `id` y las de ellas, hasta abajo (o arriba) de todo, en el orden de
+ * siempre y con repetidas si se llega por dos caminos. No vuelve a abrir una etiqueta que ya está
+ * en el camino que lleva hasta ella: si los datos traen un ciclo, termina igual.
+ *
+ * @param {{ get: (id: TagID) => ProcessedTag }} tagManager
+ * @param {TagID} id
+ * @param {'children' | 'parents'} key
+ * @returns {TagID[]}
+ */
+function walkTags(tagManager, id, key) {
+	/** @typedef {{ id: TagID, up: Step | null }} Step */
+	/** @type {TagID[]} */
+	let res = [];
+	/** @type {Step[]} */
+	let queue = [{ id, up: null }];
+	while (queue.length > 0) {
+		let step = /** @type {Step} */ (queue.pop());
+		if (step.id === undefined) return res;
+		let next = tagManager.get(step.id)?.[key];
+		if (next === undefined) continue;
+		res.push(...next);
+		for (let n of next) {
+			let onPath = false;
+			for (let s = /** @type {Step | null} */ (step); s && !onPath; s = s.up) onPath = s.id === n;
+			if (!onPath) queue.push({ id: n, up: step });
+		}
+	}
+	return res;
+}
 
 /**
  * Normalizes a string by converting it to lowercase and replacing
