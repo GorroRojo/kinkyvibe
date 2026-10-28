@@ -9,4 +9,5 @@
  * navegador): segundos por archivo de pruebas, en todas las pruebas que tocan la base. Si la app
  * empieza a usar otra cosa de `$app/server`, sumala acá (si falta, la prueba falla al importar).
  */
+// @ts-ignore -- es interno de SvelteKit y no tiene tipos propios (los que valen son los de `$app/server`).
 export { getRequestEvent } from '@sveltejs/kit/internal/server';
