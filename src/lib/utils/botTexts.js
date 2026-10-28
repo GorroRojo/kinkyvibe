@@ -1564,8 +1564,28 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'entradas.online',
 			'entradas',
 			'line',
-			'La entrada de un evento online (no lleva QR)',
-			'💻 Es online: el link de la transmisión está en tu entrada, en el sitio.'
+			'La entrada de un evento online, todavía sin el link de la transmisión (no lleva QR)',
+			'💻 Es online. Todavía no está el link de la transmisión: te lo mandamos por mail antes del evento y también va a aparecer acá.'
+		),
+		f(
+			'entradas.online_link',
+			'entradas',
+			'line',
+			'La entrada de un evento online, con el link de la transmisión ya cargado',
+			'💻 Es online. El link de la transmisión: {link}',
+			{
+				vars: [
+					{ name: 'link', label: 'el link de la transmisión', sample: 'https://ejemplo.com/vivo' }
+				],
+				required: ['link']
+			}
+		),
+		f(
+			'entradas.boton_transmision',
+			'entradas',
+			'button',
+			'La entrada de un evento online: el botón al link de la transmisión',
+			'📺 Ver la transmisión'
 		),
 		f(
 			'entradas.ver_qr',

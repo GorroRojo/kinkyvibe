@@ -600,6 +600,26 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'entrada_online_link',
+		label: 'Mis entradas: una entrada online con el link de la transmisión',
+		keys: ['entradas.online_link', 'entradas.boton_transmision'],
+		build: (t) => ({
+			html: [
+				`🎟 <b>${escapeTelegramHtml('Charla online de ejemplo')}</b>`,
+				`📅 ${escapeTelegramHtml(SAMPLE_EVENTS[1].when)}`,
+				t('entradas.titular'),
+				t('entradas.tipo', { tipo: 'A la gorra' }),
+				'',
+				t('entradas.online_link')
+			].join('\n'),
+			buttons: [
+				[{ text: t('entradas.boton_transmision'), link: true }],
+				[{ text: t('entradas.boton_ver'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
 		id: 'entradas_vacio',
 		label: 'Mis entradas: sin entradas',
 		keys: ['entradas.vacio'],
