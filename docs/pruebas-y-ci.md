@@ -149,6 +149,8 @@ Detalles de `tests`:
   (conviene cuando se suman o cambian pruebas lentas), bajá los tres de una corrida reciente de
   `main` y juntalos:
   `gh run download <id> -p 'vitest-durations-*' -D /tmp/tiempos && node scripts/vitest/merge-durations.js /tmp/tiempos/*/vitest-durations.json`.
+  Desde una sesión de Claude en la nube, `gh` no baja artifacts: el tool del MCP de GitHub
+  `actions_get` con `download_workflow_run_artifact` da un link temporal para bajar cada zip.
   Tienen que ser tiempos de la CI: medidos en otra máquina (`npm run test:durations`) las
   proporciones cambian y el reparto sale torcido.
 - **Caché**: cada parte guarda y recupera `node_modules/.vite` (cuánto tardó cada archivo la
