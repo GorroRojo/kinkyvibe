@@ -310,6 +310,8 @@
 	subtitle="El árbol de etiquetas del sitio, cuánto se usa cada una y la Kinkipedia. Arrastrá una etiqueta sobre otra para moverla."
 >
 	<svelte:fragment slot="actions">
+		<!-- Lo que los textos enlazan y no existe (plan `enlaces-falta`, docs/enlaces.md). -->
+		<a class="kv-btn ghost" href="/admin/etiquetas/falta">Enlaces que faltan</a>
 		<CsvButton rows={csvRows} columns={csvColumns} filename="etiquetas.csv" />
 	</svelte:fragment>
 </PageHeader>

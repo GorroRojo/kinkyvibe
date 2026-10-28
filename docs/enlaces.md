@@ -132,8 +132,8 @@ perfil y etiqueta (el texto de la wiki).
   como mucho 200 por objeto. Se suman los nuevos y se sacan los que el texto ya no nombra; los demás
   edges (`persona`, `etiqueta`, `lugar`…) no se tocan. Nadie los manda a mano (es un error).
 - **Lo que falta no se guarda**: un edge necesita un objeto en la otra punta y no hay tabla para
-  los nombres sueltos. La lista de lo que falta (`enlaces-falta`) lo vuelve a calcular leyendo los
-  cuerpos con `resolveBodyLinks`, que lo devuelve en `missing`.
+  los nombres sueltos. La lista de lo que falta (abajo, «Enlaces que faltan») lo vuelve a calcular
+  leyendo los cuerpos, con la misma resolución.
 - **Lo que se guarda junto con otros**: en una importación grande (`saveObjects`), un enlace a un
   objeto que se crea en la misma tanda todavía no se encuentra; el próximo guardado (o
   `scripts/enlaces-backfill.js`) lo suma.
@@ -175,6 +175,26 @@ no se ve. Detrás del interruptor **`lo_que_enlaza`** (`LO_QUE_ENLAZA_ENABLED`, 
   `scripts/enlaces-backfill.js`, `enlaces-pasar-guardados`).
 - Que un `[[Título]]` lo gane un objeto oculto (la revisión de #564) no cambia acá: si quien mira no
   lo ve, ese edge no sale.
+
+### Enlaces que faltan (panel)
+
+Etiquetas › **Enlaces que faltan** (`/admin/etiquetas/falta`, botón arriba de Etiquetas; solo
+admins): los `[[…]]`, `@` y `#` de los cuerpos que no llevan a ningún objeto, de lo que más se
+escribe a lo que menos, con cuántas veces y en qué objetos (con link a su editor y a su página, y
+si son «solo con cuenta» u ocultos). Es la lista de qué escribir para hacer crecer la Kinkipedia.
+Código: `src/lib/server/contenido/enlacesFalta.js`.
+
+- **Se calcula al abrir la página** (no hay tabla): dos consultas en fila, los cuerpos (como mucho
+  3000, los editados más recientemente primero; si hay más, la página lo dice) y, con todo lo que
+  nombran junto, los candidatos (`candidatesFor`, la misma del guardado). Con la semilla local
+  (541 cuerpos, 426 enlaces, 40 que faltan en 16 nombres), ~270 ms en local.
+- **Se resuelve igual que al guardar**, sin mirar visibilidad: lo que lleva a algo oculto no falta.
+- `[[x]]`, `![[x]]` y `#x` cuentan como un mismo nombre (sin mayúsculas); `@x` va aparte.
+- **No crea la página**: el panel no tiene todavía cómo crear una etiqueta, un perfil o una
+  publicación con un nombre dado desde un link. Se crea a mano o se corrige el texto
+  (`enlaces-falta-crear` del plan).
+- No está en el menú (el mapa del panel es de gorrite, [0038](decisiones/0038-navegacion-del-panel-opcion-c.md)):
+  se llega desde Etiquetas o por la dirección.
 
 ## Los dos editores
 
