@@ -19,7 +19,8 @@
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
-	import { readingTimeLabel } from '$lib/utils/readingTime.js';
+	import ReadingProgress from '$lib/components/ReadingProgress.svelte';
+	import { readingTimeLabel, showsReadingProgress } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { cardImage, linkPreviewOf, seriesDescription, tagDescription } from '$lib/utils/seo.js';
 	/** Sin imagen propia, la tarjeta de la Kinkipedia. */
@@ -28,6 +29,12 @@
 	export let data;
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
 	$: readingTime = data.html ? readingTimeLabel(data.readingMinutes) : '';
+	// La barra de progreso de lectura, solo en los textos largos (ReadingProgress.svelte).
+	$: longText = Boolean(data.html) && showsReadingProgress(data.readingMinutes);
+	/** @type {HTMLElement | undefined} */
+	let articleEl;
+	/** @type {HTMLElement | undefined} */
+	let textEl;
 	// Los estilos propios del texto (ya limitados al texto en el servidor). La etiqueta se arma por
 	// partes para que el preprocesador de Svelte no la tome como el bloque de estilos del componente.
 	const STYLE_TAG = 'style';
@@ -146,7 +153,10 @@
 	canonical={data.canonicalPath}
 />
 
-<article class="h-entry wiki" id="title">
+{#if longText}
+	<ReadingProgress from={articleEl} text={textEl} />
+{/if}
+<article class="h-entry wiki" id="title" bind:this={articleEl}>
 	<div class="content">
 		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
 		{#if readingTime}
@@ -157,7 +167,7 @@
 		{#if data.html}
 			<!-- El texto de la wiki, de la base (src/lib/server/contenido/render.js): HTML libre con sus
 			     estilos solo adentro, o la lista corta de HTML. -->
-			<div class="kv-texto-libre">
+			<div class="kv-texto-libre" bind:this={textEl}>
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html ownStyle}
 				{#if data.parts}

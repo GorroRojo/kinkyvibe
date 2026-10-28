@@ -209,6 +209,10 @@ panel, violeta (`--link`, en `admin/+layout.svelte`). Aparece solo si la navegac
 final; con «reducir movimiento», queda quieta y entera. Es un `progressbar` sin valor con
 `aria-label="Cargando la página"`.
 
+**Barra de progreso de lectura.** En los textos largos de Material y Kinkipedia, otra línea de 3px
+arriba de todo, en violeta (`--2`), que se llena con el scroll (`ReadingProgress.svelte`; ver
+[contenido.md](contenido.md)). Decorativa (`aria-hidden`), por debajo de la barra de carga.
+
 ### Ajustes del 4/10 (decisión de gorrite)
 
 Comparando el encabezado del evento antes y después de la revisión, gorrite prefirió el aspecto
