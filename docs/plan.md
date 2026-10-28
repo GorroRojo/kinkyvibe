@@ -151,7 +151,7 @@ CI) va en la fase 0.
 - `textos-desplegables` · fase 0 · sigue · sitio · Secciones desplegables y notas al pie en los textos · #22
 - `fragmentos-reutilizables` · fase 0 · algún día · sitio · Fragmentos reutilizables de publicaciones y del glosario; falta diseño · #23
 - `negociacion-bottoms` · fase 0 · sigue · sitio · Negociación interactiva para bottoms (gorrite, 12/10); necesita una forma de meter componentes interactivos en los textos guardados en la base; #25 es el prototipo · #14, #25, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
-- `inicio-carrusel` · fase 0 · sigue · sitio · Carrusel en la portada: gorrite lo quiere (12/10) · #15, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
+- `inicio-carrusel` · fase 0 · sigue · sitio · Carrusel en la portada: gorrite lo quiere (12/10); en #585 detrás de interruptor (`carrusel_portada`), falta que gorrite revise el diseño y lo prenda · #15, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `mapa-direccion-libre` · fase 0 · sigue · sitio · Mapa para eventos con dirección en texto libre (sin lugar cargado); vincular datos de producción, lo hace Claude de a tandas, cada una con el OK de gorrite en la Mesa (12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `compartir-imagen-mas` · fase 0 · algún día · sitio · Imagen para compartir: más paletas, apaisado y carrusel, estilo por serie
 - `icono-tipo-series` · fase 0 · hecho · sitio · Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series · #327
