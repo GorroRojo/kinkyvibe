@@ -248,6 +248,8 @@ se reintenta en la corrida siguiente, como mucho 3 veces por día por suscripci�
 (`rate_limits`, la clave lleva el id de la suscripción y el slug). Los que ya gastaron los 3 del
 día no entran en la tanda, así que una dirección que falla siempre no frena a las de atrás; al otro
 día se vuelven a intentar, hasta que la edición deja de ser próxima.
+Si Resend dice «ahora no» (ver abajo), la fila se suelta y el intento no cuenta: una caída corta de
+Resend no gasta los 3 del día ni manda los avisos a la ventana siguiente.
 
 ### Cupo de Resend y errores pasajeros
 
@@ -266,6 +268,9 @@ cuando está caído. Ninguno de esos dice nada del mail en sí, así que no gast
   veces por día (`rate_limits`, unas 12 horas de corridas): después cuenta como un intento más.
 - **El mail de las entradas** (reintento del cron, `unsentOrders.js`): lo mismo, el intento no
   cuenta y la corrida se corta. La ventana de 48 h pone el techo.
+- **Los avisos de series** (`series/notify.js`, con `seriesSender(…, { backoff: true })`): lo mismo,
+  el intento no cuenta, la fila se suelta y la tanda de series se corta (`deferred` y `stopped` en
+  la respuesta). El techo es que la edición deje de ser próxima.
 - **«Mail a compradores»:** la tanda se corta con el cupo o la tasa y el panel dice «Resend frenó el
   envío…»; «Reintentar» sigue más tarde sin repetir a nadie.
 - **Aviso:** con el cupo terminado, `deliver()` lo anota (`resendQuota.js`, una fila

@@ -15,6 +15,10 @@
  *    clave lleva el id de la suscripción y el slug, ningún dato personal), como el reintento del
  *    mail de las entradas (tickets/unsentOrders.js). Los que ya los gastaron no entran en la
  *    tanda: una dirección que falla siempre no frena a las que vienen después.
+ *    Si Resend dice «ahora no» (cupo terminado, demasiados por segundo o un 5xx; `resendBackoff`
+ *    en tickets/email.js), el intento no cuenta y la fila se suelta (`deferred`), como en el
+ *    reintento del mail de las entradas: con el cupo o la tasa la corrida se corta ahí
+ *    (`stopped`); con dos 5xx, también. Así una caída corta de Resend no gasta los intentos del día.
  *
  * Quien se suscribe cuando la próxima edición ya estaba anunciada no recibe aviso de esa (la
  * página ya se la muestra); sí de las siguientes.
@@ -24,7 +28,7 @@ import { buildNewEditionEmail } from './email.js';
 import { autoSubmitted } from '$lib/server/tickets/email.js';
 import { deleteExpiredPending, unsubscribeUrl } from './subscriptions.js';
 import { oneClickHeaders } from '$lib/server/email/oneClick.js';
-import { hitRateLimit } from '$lib/server/db/rateLimit.js';
+import { hitRateLimit, releaseRateLimitHit } from '$lib/server/db/rateLimit.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -68,11 +72,13 @@ export async function markEditionsSeen(db, editions, now) {
  *   posts: readonly Pick<ProcessedPost, 'meta' | 'path'>[],
  *   tags: TagManager,
  *   origin: string,
- *   send: import('./subscriptions.js').SeriesSend,
+ *   send: import('./subscriptions.js').SeriesSend | import('./web.js').SeriesBatchSend,
  *   now?: number,
  *   limit?: number
- * }} input
- * @returns {Promise<{ seen: number, sent: number, failed: number, expired: number }>}
+ * }} input `send`: con `seriesSender(db, fetch, { backoff: true })` distingue el «ahora no».
+ * @returns {Promise<{ seen: number, sent: number, failed: number, expired: number,
+ *   deferred?: number, stopped?: 'quota' | 'rate' | 'server' }>} `deferred` y `stopped`, solo si
+ *   pasó.
  */
 export async function runSeriesNotifications({
 	db,
@@ -134,12 +140,17 @@ export async function runSeriesNotifications({
 
 	let sent = 0;
 	let failed = 0;
+	let deferred = 0;
+	let serverErrors = 0;
+	/** @type {'quota' | 'rate' | 'server' | undefined} */
+	let stopped;
 	for (const row of due) {
 		const id = String(row.id);
 		const slug = String(row.event_slug);
 		const edition = upcoming.get(`${row.series_tag}\u0000${slug}`);
 		if (!edition) continue;
-		if (!(await hitRateLimit(db, attemptBucket(id, slug), ATTEMPT_RULE, now)).allowed) continue;
+		const bucket = attemptBucket(id, slug);
+		if (!(await hitRateLimit(db, bucket, ATTEMPT_RULE, now)).allowed) continue;
 		const claim = await db
 			.prepare(
 				`INSERT INTO series_notifications (subscription_id, event_slug, sent_at)
@@ -161,20 +172,39 @@ export async function runSeriesNotifications({
 			// Baja en un clic (RFC 8058): el mismo link del pie (email/oneClick.js).
 			headers: oneClickHeaders(unsubscribe)
 		};
-		/** @type {'sent' | 'simulated' | 'failed'} */
+		/** @type {'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server'} */
 		let result = 'failed';
 		try {
 			result = await send(String(row.email), autoSubmitted(message), `series-${id}-${slug}`);
 		} catch (error) {
 			console.error('[series] no se pudo mandar un aviso:', error);
 		}
+		if (result === 'sent' || result === 'simulated') {
+			sent++;
+			continue;
+		}
+		await db
+			.prepare('DELETE FROM series_notifications WHERE subscription_id = ?1 AND event_slug = ?2')
+			.bind(id, slug)
+			.run();
 		if (result === 'failed') {
 			failed++;
-			await db
-				.prepare('DELETE FROM series_notifications WHERE subscription_id = ?1 AND event_slug = ?2')
-				.bind(id, slug)
-				.run();
-		} else sent++;
+			continue;
+		}
+		// Resend no lo tomó: el intento no cuenta.
+		await releaseRateLimitHit(db, bucket, ATTEMPT_RULE, now);
+		deferred++;
+		if (result !== 'server' || ++serverErrors >= 2) {
+			stopped = result;
+			break;
+		}
 	}
-	return { seen, sent, failed, expired };
+	return {
+		seen,
+		sent,
+		failed,
+		expired,
+		...(deferred ? { deferred } : {}),
+		...(stopped ? { stopped } : {})
+	};
 }
