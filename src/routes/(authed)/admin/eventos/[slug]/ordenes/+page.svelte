@@ -151,6 +151,22 @@
 			typedAll = '';
 		};
 	};
+	// «Reembolsar…» de una orden: mientras se pide, el botón queda apagado y dice «Reembolsando…»
+	// (como «Reembolsar todas»), para que un segundo toque no mande otro pedido. Al volver, lee el
+	// mensaje de la acción en voz alta, como `announced('refund')`.
+	let refunding = '';
+	/**
+	 * @param {string} id
+	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const submitRefund = (id) => () => {
+		refunding = id;
+		return async ({ result, update }) => {
+			await update();
+			refunding = '';
+			announceResult(result, 'refund');
+		};
+	};
 	$: counts = {
 		approved: data.orders.filter((o) => o.status === 'approved').length,
 		pending: data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
@@ -482,14 +498,21 @@
 								Las entradas quedan anuladas (el control de ingreso las rechaza), se libera el cupo y
 								el uso del código, sale de los totales y le avisamos por mail.
 							</p>
-							<form method="POST" action="?/refund" use:enhance={announced('refund')}>
+							<form method="POST" action="?/refund" use:enhance={submitRefund(o.id)}>
 								<input type="hidden" name="order" value={o.id} />
-								<button type="submit" class="refund-confirm">
-									{o.method === 'mercadopago'
-										? `Confirmar reembolso de ${formatARS(o.total)}`
-										: o.method === 'transferencia'
-											? 'Marcar como reembolsada (transferencia devuelta a mano)'
-											: 'Anular las entradas'}
+								<button
+									type="submit"
+									class="refund-confirm"
+									disabled={refunding === o.id}
+									aria-busy={refunding === o.id}
+								>
+									{refunding === o.id
+										? 'Reembolsando…'
+										: o.method === 'mercadopago'
+											? `Confirmar reembolso de ${formatARS(o.total)}`
+											: o.method === 'transferencia'
+												? 'Marcar como reembolsada (transferencia devuelta a mano)'
+												: 'Anular las entradas'}
 								</button>
 							</form>
 						</div>

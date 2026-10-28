@@ -493,7 +493,7 @@
 </script>
 
 <svelte:head>
-	<title>{source ? 'Duplicar evento' : 'Nuevo evento'} · KV Admin</title>
+	<title>{source ? 'Duplicar evento' : 'Nuevo evento'} · Panel</title>
 </svelte:head>
 
 <div class="nuevo kv-admin">

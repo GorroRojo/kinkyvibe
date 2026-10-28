@@ -68,7 +68,7 @@
 					<a href={contacto.href}><Mail {style} />{contacto.label}</a>
 				</li>
 				<li>
-					<a href="https://fondo.kinkyvibe.ar"><ArrowRight {style} />Fondo de Kinky Vibe</a>
+					<a href="https://fondo.kinkyvibe.ar"><ArrowRight {style} />Fondo Kinky Vibe</a>
 				</li>
 				<li>
 					<a href="https://tienda.kinkyvibe.ar" target="_blank"><ShoppingCart {style} />Tienda</a>

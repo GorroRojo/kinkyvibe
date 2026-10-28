@@ -216,7 +216,7 @@
 						><ScanLine size={18} aria-hidden="true" /> Puerta</a
 					>
 				{/if}
-				<a class="kv-btn ghost" href="/admin/ventas/codigos"
+				<a class="kv-btn ghost" href="/admin/ventas/codigos#nuevo"
 					><Tag size={18} aria-hidden="true" /> Nuevo código</a
 				>
 			</nav>

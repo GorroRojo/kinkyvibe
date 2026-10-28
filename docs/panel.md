@@ -499,7 +499,8 @@ cambia datos ni la venta, y no bloquea guardar. Una sola función decide:
   que va a las etiquetas del editor. Saber qué eventos tienen lugar vinculado es una consulta más
   para todos (`listEventVenues`); sin base, mira solo el texto libre.
 
-**Celu**: la barra de abajo sigue igual (Inicio, Eventos, Puerta, Ventas, Más). "Más" muestra
+**Celu**: la barra de abajo sigue igual (Inicio, Eventos, Puerta, Ventas, Más). "Ventas" lleva el
+número de transferencias por confirmar y, cuando hay alguna, abre Transferencias. "Más" muestra
 las áreas y, al tocar una, sus secciones. Cuando llegue la Bandeja (fase 5), el cuarto lugar pasa a
 ser "Para revisar".
 

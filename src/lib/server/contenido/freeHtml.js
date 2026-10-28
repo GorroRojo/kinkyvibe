@@ -869,6 +869,24 @@ function rehypePreLanguage() {
 	};
 }
 
+/**
+ * Cuántos títulos lista el índice (un link por título).
+ *
+ * @param {any} node
+ * @returns {number}
+ */
+function countTocLinks(node) {
+	if (!node || typeof node !== 'object') return 0;
+	const own = node.type === 'element' && node.tagName === 'a' ? 1 : 0;
+	return (
+		own +
+		(node.children ?? []).reduce(
+			(/** @type {number} */ n, /** @type {any} */ c) => n + countTocLinks(c),
+			0
+		)
+	);
+}
+
 // Los plugins están tipados para distintas versiones de unified (los de mdsvex, para otra): es el
 // mismo árbol hast.
 /** @type {any[]} */
@@ -881,12 +899,14 @@ const PLUGINS = [
 	rehypeWikiLinks,
 	customRehype,
 	rehypeRestoreBrackets,
-	// El índice con nombre: en un evento conviven varios <nav> (menú, migas, índice).
+	// El índice solo con 2 títulos o más: con uno (o ninguno) no ayuda a ubicarse y ocupa lugar.
+	// Y con nombre: en un evento conviven varios <nav> (menú, migas, índice).
 	[
 		toc,
 		{
 			/** @param {any} nav */
 			customizeTOC: (nav) => {
+				if (countTocLinks(nav) < 2) return false;
 				nav.properties.ariaLabel = 'Índice';
 				return nav;
 			}
