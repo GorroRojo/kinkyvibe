@@ -240,6 +240,15 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
 - **Si Resend dice «ahora no»** (cupo terminado, demasiados por segundo o un 5xx), ese intento no
   cuenta para los 3 del día y la corrida se corta (ver abajo).
 
+### Reintento de los avisos de series
+
+El aviso de edición nueva («Avisame si se repite», `src/lib/server/series/notify.js`) sale del
+mismo cron, hasta 50 por corrida. Si el mail falla, la fila de `series_notifications` se suelta y
+se reintenta en la corrida siguiente, como mucho 3 veces por día por suscripción y edición
+(`rate_limits`, la clave lleva el id de la suscripción y el slug). Los que ya gastaron los 3 del
+día no entran en la tanda, así que una dirección que falla siempre no frena a las de atrás; al otro
+día se vuelven a intentar, hasta que la edición deja de ser próxima.
+
 ### Cupo de Resend y errores pasajeros
 
 Resend contesta 429 cuando se terminó el cupo diario o mensual del plan (`daily_quota_exceeded`,
