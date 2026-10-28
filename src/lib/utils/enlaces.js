@@ -53,8 +53,9 @@ function visibleText(text) {
 	out = lines.join('\n');
 	return (
 		out
-			// Código en línea: la misma cantidad de comillas invertidas abre y cierra.
-			.replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/g, blank)
+			// Código en línea: la misma cantidad de comillas invertidas abre y cierra, en el mismo
+			// párrafo (una comilla suelta no tapa lo que viene después de una línea en blanco).
+			.replace(/(?<!`)(`+)(?!`)(?:(?!\n[ \t]*\n)[\s\S])*?(?<!`)\1(?!`)/g, blank)
 			// Etiquetas HTML (con sus atributos), destinos de links de Markdown y direcciones sueltas.
 			.replace(/<\/?[A-Za-z][^<>\n]*>/g, blank)
 			.replace(
