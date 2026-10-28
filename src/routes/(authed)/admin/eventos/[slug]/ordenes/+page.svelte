@@ -439,7 +439,8 @@
 						<summary>Reembolsar…</summary>
 						<div class="refund-panel">
 							<p>
-								<strong>{formatARS(o.total)}</strong> a <strong>{o.name}</strong> ({o.email}) ·
+								<strong>{formatARS(Math.max(0, o.total - o.refundedAmount))}</strong> a
+								<strong>{o.name}</strong> ({o.email}) ·
 								{o.quantity}
 								{o.quantity === 1 ? 'entrada' : 'entradas'}{#if o.holders.length}:
 									{o.holders.map((h) => h.name).join(', ')}{/if}.
@@ -461,7 +462,7 @@
 								<input type="hidden" name="order" value={o.id} />
 								<button type="submit" class="refund-confirm">
 									{o.method === 'mercadopago'
-										? `Confirmar reembolso de ${formatARS(o.total)}`
+										? `Confirmar reembolso de ${formatARS(Math.max(0, o.total - o.refundedAmount))}`
 										: o.method === 'transferencia'
 											? 'Marcar como reembolsada (transferencia devuelta a mano)'
 											: 'Anular las entradas'}
