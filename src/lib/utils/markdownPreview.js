@@ -86,6 +86,13 @@ const DROP =
 	'script,style,iframe,object,embed,link,meta,base,form,input,button,textarea,select,svg,math,noscript,template';
 
 /**
+ * The value as the browser reads its scheme: without whitespace or control characters.
+ * @param {string} value
+ */
+const schemeOf = (value) =>
+	[...value.replace(/\s+/g, '')].filter((c) => c.charCodeAt(0) >= 0x20).join('');
+
+/**
  * Cleans rendered preview HTML in place with the browser's parser: removes active elements,
  * `on*` attributes and non-http(s)/relative URLs. Browser only.
  * @param {string} html
@@ -105,7 +112,7 @@ export function sanitizePreview(html) {
 				el.removeAttribute(attr.name);
 			else if (
 				['href', 'src', 'xlink:href', 'action', 'formaction'].includes(name) &&
-				/^(javascript|data|vbscript):/.test(value.replace(/[\s\u0000-\u001f]+/g, ''))
+				/^(javascript|data|vbscript):/.test(schemeOf(value))
 			)
 				el.removeAttribute(attr.name);
 		}
