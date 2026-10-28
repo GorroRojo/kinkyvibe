@@ -371,7 +371,7 @@ CI) va en la fase 0.
 - `lista-espera-prender` · fase 3 · espera gorrite · entradas · Prender `lista_espera` (ya prendido en producción y probado en un preview) y probarla en un evento real (anotarse, reembolso, oferta y compra con el link) (depende de: lista-espera)
 - `lista-espera-mail-terminar` · fase 3 · hecho · entradas · «Terminar la reserva y pasar a la siguiente» pregunta si le avisamos por mail («se terminó tu lugar», marcado de entrada) (depende de: lista-espera) · #339
 - `promos-varios-eventos` · fase 3 · hecho · entradas · Promociones de varios eventos, versión chica (gorrite, 12/10): código combo, la compra de un evento trae en su mail un código personal para otro; detrás de `combo_codigos`, migración 0056 · #340
-- `talleres-partes-mails-preview` · fase 3 · sigue · entradas · Vista previa de los mails de cada parte de un taller en el panel
+- `talleres-partes-mails-preview` · fase 3 · hecho · entradas · Vista previa de los mails de cada parte de un taller en el panel
 - `talleres-viejos-a-partes` · fase 3 · sigue · entradas · Pasar a talleres en partes los talleres viejos de varios días (datos de producción, probando antes en el demo), lo hace Claude de a tandas, cada una con el OK de gorrite en la Mesa (12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md), [talleres-partes.md](talleres-partes.md#pendiente)
 - `plata-talleres-partes-ventas` · fase 3 · hecho · entradas · Talleres en partes: sumar como parte un evento con entradas vendidas, o prender o apagar «Entradas por parte» con ventas, pregunta antes («Cambiar igual») y lo confirmado queda en la actividad · #380, [talleres-partes.md](talleres-partes.md#entradas)
 - `pasar-entrada` · fase 3 · algún día · entradas · Pasarle una entrada a otra persona por mail

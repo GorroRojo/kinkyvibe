@@ -22,7 +22,7 @@ import {
 	saveEventTemplateOverride
 } from '$lib/server/tickets/templates.js';
 import { TEMPLATE_LIMITS, mergeTemplates, validateTemplate } from '$lib/utils/emailTemplates.js';
-import { eventMailOr404, generalTemplate } from './context.server.js';
+import { eventMailOr404, generalTemplate, workshopPreview } from './context.server.js';
 
 /** @param {Request} request */
 async function readForm(request) {
@@ -40,7 +40,8 @@ async function readForm(request) {
 export async function load({ locals, url, params, platform, setHeaders, fetch }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
-	const { def, config } = await eventMailOr404(params.slug, params.id);
+	const mail = await eventMailOr404(params.slug, params.id);
+	const { def, config } = mail;
 	const db = getDB(platform);
 	/** @type {import('$lib/server/tickets/templates.js').StoredEventTemplate | undefined} */
 	let saved;
@@ -70,7 +71,9 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		saved: saved ?? null,
 		hasGeneral: Boolean(general.general),
 		inherited: general.inherited,
-		recipients: await testRecipients({ db, token: locals.user_token, fetch })
+		recipients: await testRecipients({ db, token: locals.user_token, fetch }),
+		// Un taller con una sola entrada: la parte de la vista previa del recordatorio.
+		parts: (await workshopPreview(db, params.slug, mail)).choices
 	};
 }
 
@@ -150,7 +153,8 @@ export const actions = {
 	// con el evento de verdad y una compra de ejemplo, a una dirección de la organización.
 	test: async ({ locals, url, params, platform, request, fetch }) => {
 		requireAdmin(locals, url);
-		const { def, previewEvent } = await eventMailOr404(params.slug, params.id);
+		const mail = await eventMailOr404(params.slug, params.id);
+		const { def } = mail;
 		const db = getDB(platform);
 		const form = await readForm(request);
 		const valid = validateTemplate(def.id, form, { optional: true });
@@ -165,12 +169,15 @@ export const actions = {
 				values: valid.value
 			});
 		}
-		const { general } = await generalTemplate(db, def);
+		const [{ general }, { event }] = await Promise.all([
+			generalTemplate(db, def),
+			workshopPreview(db, params.slug, mail)
+		]);
 		const message = previewEmail(def.id, mergeTemplates(valid.value, general), {
 			origin: siteOrigin(url),
 			contactEmail: contactEmail(),
 			replyTo: await replyToAddress(db),
-			event: previewEvent
+			event
 		});
 		const result = await sendTestEmail({ db, fetch, to: form.to, message });
 		/** @type {Record<string, string>} */
