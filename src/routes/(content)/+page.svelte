@@ -22,6 +22,12 @@
 			.catch(() => (loadedPast = false));
 	}
 
+	// Los eventos que todavía no empezaron: el carrusel (`?carrousel`) y la fila del calendario.
+	$: upcomingEvents = allPosts.filter(
+		(/** @type {{ meta: AnyPostData; }} */ p) =>
+			p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
+	);
+
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
 	$: previewTexts = linkPreviewOf($page.data).texts;
 	// La organización (schema.org, jsonLd.js): nombre, logo, contacto público y redes oficiales; y
@@ -68,13 +74,9 @@
 	<!-- El logo del encabezado es la presentación (decisión de gorrite, 5/10): el h1 queda solo
 	     para lectores de pantalla y buscadores. -->
 	<h1 class="visually-hidden">Kinky Vibe</h1>
-	{#if $page.url.searchParams.has('carrousel')}
-		<Carrousel
-			posts={allPosts.filter(
-				(/** @type {{ meta: AnyPostData; }} */ p) =>
-					p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
-			)}
-		/>
+	<!-- Sin eventos próximos no hay carrusel: el componente necesita al menos una diapositiva. -->
+	{#if $page.url.searchParams.has('carrousel') && upcomingEvents.length > 0}
+		<Carrousel posts={upcomingEvents} />
 	{/if}
 	<div class="cardrow">
 		<CardRow
@@ -82,13 +84,7 @@
 			id="calendario"
 			title="Talleres y eventos"
 			eager={4}
-			items={allPosts
-				.filter(
-					(/** @type {{ meta: AnyPostData; }} */ p) =>
-						p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
-				)
-				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))
-				.slice(0, 9)}
+			items={[...upcomingEvents].sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1)).slice(0, 9)}
 			--color-1="var(--2-dark)"
 			--color-2="var(--1)"
 			href="/calendario"
