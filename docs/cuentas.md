@@ -85,7 +85,10 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 - **Las compras se ven solo con el mail verificado** (P7.5): una orden aparece si tiene el
   `account_id` de la cuenta o si su `buyer_email` (sin importar mayúsculas) es el mail verificado.
   Solo lectura: no se modifica ninguna orden. Se muestran las aprobadas, las que esperan la
-  transferencia y las reembolsadas.
+  transferencia y las reembolsadas. En un taller de varias partes con una sola entrada, la fecha
+  es la de la parte que toca: la primera que no pasó o, si pasaron todas, la última (la misma
+  regla que «Mis entradas» del bot, `ticketDate` en `src/lib/utils/partes.js`;
+  [talleres-partes.md](talleres-partes.md)).
 - **Las entradas gratis pedidas sin la sesión de la cuenta se preguntan** (decisión
   [0048](decisiones/0048-entradas-gratis-sin-sesion-se-preguntan.md), «No fui yo» parte 2 en
   [mails.md](mails.md#no-fui-yo)): cualquiera puede escribir un mail ajeno en el formulario de

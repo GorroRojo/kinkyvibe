@@ -70,6 +70,8 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   hay lista y los mails salen byte a byte como siempre.
 - **Mis entradas en el bot:** la entrada del taller sigue en «próximas» hasta la última parte y
   muestra la fecha de la parte que toca («· Parte 2 de 3»); ver [telegram.md](telegram.md).
+- **Mis compras en Mi rincón:** la compra del taller muestra la fecha de la parte que toca, con la
+  misma regla (`ticketDate` en `src/lib/utils/partes.js`); ver [cuentas.md](cuentas.md).
 - **Estado de la compra** (`/entradas/<orden>/estado`, la página de vuelta del pago): en el
   resumen, «Partes» con la misma lista, en cualquier estado de la compra. El lugar completo solo
   si quien mira hizo esa compra (la cookie) y ya está aprobada; si no, el que se ve en el sitio.
