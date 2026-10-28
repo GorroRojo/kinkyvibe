@@ -260,7 +260,8 @@ marca y su contraste no se tocan). En el resto:
 - **Avisos.** `UndoToast` se ve como `Notice`: su ícono, `--radius-m`, texto en negrita del tono
   y sin margen propio (el espacio lo pone la página). El texto de `Notice` ok y aviso pasa 4.5:1
   en claro (`--ok` es `--3-ink`; `--warn`, más oscuro). `SaveStatus` dice «Guardado» con el
-  ícono `Check` de Lucide.
+  ícono `Check` de Lucide. «Deshacer» es `type="button"` (dentro de un form no lo envía);
+  con `submit`, envía el form que lo rodea (deshacer un borrado, también sin JS).
 - **Diálogos y hojas.** La galería muestra `Dialog` en los tres tonos sin tocar nada, y la hoja
   entera. `--scrim` del mismo violeta en los dos temas.
 - **Tablas: se pueden ordenar.** En `Table`, una columna con `sort` (`'text'`, `'number'` o
