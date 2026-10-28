@@ -305,6 +305,37 @@ Código: `src/lib/utils/salesGoal.js` (leer, formulario, lo neto, `goalProgress`
 `ticketTotals` y `upcomingEvents` (`admin/inicio.js`), `goal`/`revenue`/`mpFee` en las filas de
 Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y `SalesGoalField.svelte`.
 
+### Gastos y reparto (prototipo)
+
+Pedido de gorrite (27/10: «gastos y reparto de la plata en el sitio para la mayoría de los
+eventos»; ítem `gastos-reparto` del [plan](plan.md)). **Prototipo para decidir**: detrás del
+interruptor **`gastos_reparto`** (apagado; [interruptores.md](interruptores.md)), solo admins y
+**sin migración**: nada de lo que se carga va a la base.
+
+- **Dónde:** la ficha del evento › Ventas › **Gastos y reparto** (`/admin/eventos/<slug>/gastos`),
+  solo en eventos que venden entradas. Con el interruptor apagado la vista no se ve y la dirección
+  da 404.
+- **Lo que entró** sale de las órdenes del evento (`eventIncome` en `src/lib/admin/reparto.js`),
+  como el resto del panel: solo las aprobadas, por fuente (Mercado Pago online, transferencias
+  online, la puerta por medio de pago, lo cargado a mano). Se resta la comisión de MP (el recargo
+  guardado en cada orden pagada con MP, como en «Meta de venta»). Las reembolsadas y las
+  transferencias sin confirmar no cuentan (se dice cuántas son). En los eventos con Fondo, dos
+  casillas: **separar los aportes** (lo que se pagó de más en las solidarias es del Fondo; marcada)
+  y **sumar lo que cubrió el Fondo** (si el Fondo se lo pasa al evento; sin marcar).
+- **Gastos:** líneas con concepto, monto y quién lo pagó (o «Falta pagarlo»), con atajos (Lugar,
+  Materiales, Honorarios, Transporte, Difusión, Comida y bebida).
+- **Reparto:** lo que queda (neto − gastos; puede ser una pérdida) entre las personas que se
+  cargan, en partes iguales, por porcentajes (tienen que sumar 100) o con montos fijos (el resto,
+  en partes iguales entre quienes no tienen monto). En pesos enteros: los que sobran al redondear
+  van a las primeras personas.
+- **Quién le pasa a quién:** cada fuente de plata la tiene alguien (se elige en «Lo que entró»).
+  Saldo de cada quien = lo que le toca + lo que puso en gastos − la plata del evento que tiene; el
+  Fondo (aportes − lo que cubrió) y cada gasto sin pagar entran como una parte más. El que más debe
+  le paga al que más le deben hasta quedar a mano (a lo sumo una transferencia menos que las
+  partes).
+- **Dónde queda lo cargado:** en el navegador de quien lo cargó (`localStorage`, por evento), con
+  «Exportar» / «Importar…» (un JSON) y «Empezar de cero».
+
 ### Lista de espera (en construcción)
 
 Cuando un evento (o un tipo de entrada) se agota, la gente se anota en una lista; si se libera un

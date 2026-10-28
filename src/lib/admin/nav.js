@@ -764,7 +764,10 @@ export const EVENT_TABS = Object.freeze(
 				{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias' },
 				// Lista de espera (interruptor `lista_espera`): la ficha la muestra con la lista
 				// prendida, o si el evento ya tiene lista o gente anotada.
-				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' }
+				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' },
+				// Gastos y reparto (prototipo, interruptor `gastos_reparto`): la ficha la muestra solo
+				// con el interruptor prendido.
+				{ id: 'gastos', suffix: '/gastos', label: 'Gastos y reparto' }
 			]
 		},
 		{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false, section: 'checkin' },
