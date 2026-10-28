@@ -12,6 +12,8 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   el repo ([0032](decisiones/0032-borrar-los-md.md); el último commit con ellos tiene el tag
   `posts-md-final`).
 - `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
+  El filtro no muestra el botón de un tipo sin ningún perfil que quien mira pueda ver (por ejemplo
+  «Lugares» sin lugares públicos), salvo el elegido; `?tipo=` anda igual con todos.
 - **"Es mi perfil"**: cualquier cuenta pide hacerse cargo de un perfil que ya existe, tenga o no
   el permiso "puede tener perfiles" (gorrite, 26/10: en vez de un canal para pedir el permiso,
   reclamar un perfil). Pedir no da nada: une admin lo revisa en el panel y lo aprueba (la cuenta

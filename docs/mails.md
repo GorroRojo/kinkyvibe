@@ -440,6 +440,21 @@ Resend avisa por un webhook firmado: `POST /api/resend/webhook`
 - **El id de Resend:** el mail de las entradas guarda en la orden el id que devuelve Resend
   (`orders.email_id`, el del último envío; «Reenviar» lo cambia). Con ese id se busca el mail en
   Resend → Emails (Resend lo guarda 30 días) y el webhook encuentra la orden.
+- **El tipo de mail:** cada envío lleva el tag de Resend `tipo` (`entradas`, `transmision`,
+  `cambio-fecha`, `transferencia`, `reembolso`, `recordatorio`, `mail-compradores`, `prueba`,
+  `codigo`, `perfil-invitacion`, `serie`, `sigo`, `lista-espera`, `fondo`; el `kind` de
+  `deliver()` en `src/lib/server/tickets/index.js`). En Resend → Emails se filtra por tag, así un
+  rebote de «Tus entradas» no se confunde con uno de «Lo que sigo», y el tag viene en los avisos
+  del webhook. No cambia nada del mail que recibe la persona.
+- **Dominios que no reciben correo:** antes de mandar el mail de las entradas, se consulta el MX
+  del dominio por DNS sobre HTTPS (la API JSON de 1.1.1.1, `src/lib/server/email/mx.js`, con el
+  resultado un día en la caché de Cloudflare, con una clave que no deja ver el dominio). Si es seguro que no recibe (el dominio no existe,
+  como `gmail.con`, o publica el MX nulo `0 .`), el mail no se le pide a Resend (rebotaría seguro y
+  el rebote pesa sobre la cuenta) y la orden queda marcada como «el mail rebotó», igual que con el
+  webhook, con su fila en «Para revisar». Ante cualquier duda (error de red, tiempo agotado,
+  dominio sin MX pero con dirección) el mail sale. Quien compra no ve nada distinto: el arreglo es
+  «Corregir el mail…» (si la dirección nueva tampoco recibe, el panel lo dice). El reintento del
+  cron no la vuelve a tomar. Sin `RESEND_API_KEY` (dev, E2E) no se consulta.
 - **Qué hace con cada aviso:** un rebote permanente (`email.bounced` con `bounce.type`
   `Permanent`) o una queja (`email.complained`, alguien lo marcó como spam) anotan la dirección en
   `email_suppressions`, la misma tabla de [«No fui yo»](#no-fui-yo) (por hash, nunca el mail): no le
