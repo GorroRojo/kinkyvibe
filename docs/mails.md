@@ -439,7 +439,8 @@ Resend avisa por un webhook firmado: `POST /api/resend/webhook`
   el rebote pesa sobre la cuenta) y la orden queda marcada como «el mail rebotó», igual que con el
   webhook, con su fila en «Para revisar». Ante cualquier duda (error de red, tiempo agotado,
   dominio sin MX pero con dirección) el mail sale. Quien compra no ve nada distinto: el arreglo es
-  «Corregir el mail…». Sin `RESEND_API_KEY` (dev, E2E) no se consulta.
+  «Corregir el mail…» (si la dirección nueva tampoco recibe, el panel lo dice). El reintento del
+  cron no la vuelve a tomar. Sin `RESEND_API_KEY` (dev, E2E) no se consulta.
 - **Qué hace con cada aviso:** un rebote permanente (`email.bounced` con `bounce.type`
   `Permanent`) o una queja (`email.complained`, alguien lo marcó como spam) anotan la dirección en
   `email_suppressions`, la misma tabla de [«No fui yo»](#no-fui-yo) (por hash, nunca el mail): no le

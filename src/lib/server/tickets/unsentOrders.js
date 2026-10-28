@@ -8,6 +8,8 @@
  *   {@link RETRY_WINDOW_MS}; las más viejas primero, como mucho `limit` por corrida.
  * - Manda con `sendOrderEmailResult` y la misma clave de idempotencia de siempre
  *   (`tickets-<orden>`): si el primer intento sí había salido, Resend no lo duplica.
+ * - Un dominio que no recibe correo (`undeliverable`, email/mx.js): `sendOrderEmailResult` ya marcó
+ *   la orden como enviada y rebotada; acá solo cuenta como salteada.
  * - Un mail cortado a propósito (`simulated`: «No fui yo» en una orden gratis, un preview sin
  *   EMAIL_ALLOWLIST, dev sin clave) cuenta como resuelto: se marca `email_sent_at` (como hacen los
  *   envíos en tandas con su estado 'sent') y no se vuelve a tomar.
@@ -95,6 +97,9 @@ export async function resendUnsentOrderEmails({
 			}
 		} else if (result === 'sent') counts.sent++;
 		else if (result === 'failed') counts.failed++;
+		// El dominio no recibe correo: la orden ya quedó enviada y con el rebote marcado (no se
+		// marca de nuevo: `markEmailSent` borraría el rebote).
+		else if (result === 'undeliverable') counts.skipped++;
 		else {
 			await markEmailSent(db, order.id, now);
 			counts.skipped++;

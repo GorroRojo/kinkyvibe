@@ -281,9 +281,11 @@ export const eventTicketActions = {
 			detail: { event: params.slug, sent: result === 'sent' }
 		});
 		// Un «ahora no» de Resend (cupo, tasa o un 5xx: `resendBackoff`) acá también es que no salió.
-		const outcome = result === 'sent' || result === 'simulated' ? result : 'failed';
+		const outcome =
+			result === 'sent' || result === 'simulated' || result === 'undeliverable' ? result : 'failed';
 		const messages = {
 			sent: `Listo, mandamos las entradas a la dirección nueva (${email}).`,
+			undeliverable: `Corregimos el mail de ${ref}, pero el dominio de ${email} no recibe correos: las entradas no salieron. Revisá que la dirección esté bien escrita.`,
 			simulated: `Corregimos el mail de ${ref}, pero el mail no salió (preview sin EMAIL_ALLOWLIST o dev sin clave).`,
 			failed: `Corregimos el mail de ${ref}, pero no se pudo mandar (ver logs). Probá con «Reenviar mail».`
 		};

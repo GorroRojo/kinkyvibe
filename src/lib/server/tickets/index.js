@@ -546,9 +546,11 @@ export async function sendOrderEmail(input) {
  * `failed`. Lo usa el reintento del cron (unsentOrders.js) para no volver a tomar una orden
  * cortada a propósito. Si Resend dijo «ahora no» (cupo, tasa o un 5xx: `resendBackoff` en
  * email.js), devuelve eso en vez de `failed`, así el reintento no gasta el intento.
+ * `undeliverable`: el dominio de la dirección no recibe correo (email/mx.js); no se mandó y la
+ * orden ya quedó marcada como enviada y rebotada (`markEmailUndeliverable`).
  *
  * @param {Parameters<typeof sendOrderEmail>[0]} input
- * @returns {Promise<'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server'>}
+ * @returns {Promise<'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server' | 'undeliverable'>}
  */
 export async function sendOrderEmailResult({
 	db,
@@ -571,7 +573,8 @@ export async function sendOrderEmailResult({
 				`[mails] el dominio del mail de la orden ${order.id} no recibe correo: no se manda y queda como rebotado`
 			);
 			await markEmailUndeliverable(db, order.id, Date.now());
-			return 'simulated';
+			// Ni `simulated`: el reintento del cron marcaría la orden como enviada y borraría el rebote.
+			return 'undeliverable';
 		}
 		const list = tickets?.length ? tickets : await getOrderTickets(db, order.id);
 		const config = await getEventTickets(order.event_slug);
