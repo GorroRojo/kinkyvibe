@@ -7,7 +7,8 @@
  * El `$app/server` de verdad carga además, para `read` y las funciones remotas, el manifiesto
  * generado y la raíz de la app (`.svelte-kit/generated/root.svelte`, con el runtime de Svelte del
  * navegador): segundos por archivo de pruebas, en todas las pruebas que tocan la base. Si la app
- * empieza a usar otra cosa de `$app/server`, sumala acá (si falta, la prueba falla al importar).
+ * empieza a usar otra cosa de `$app/server`, sumala acá: si falta, NO falla al importar (llega
+ * `undefined`), falla recién al usarla («… is not a function»).
  */
 // @ts-ignore -- es interno de SvelteKit y no tiene tipos propios (los que valen son los de `$app/server`).
 export { getRequestEvent } from '@sveltejs/kit/internal/server';

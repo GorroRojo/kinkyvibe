@@ -140,12 +140,14 @@ let background = /** @type {Promise<unknown>[]} */ ([]);
 /**
  * Todas las de la prueba en curso. Cada prueba las espera al terminar: si no, un mail que sale
  * tarde (con la máquina cargada) cae en `subjects` de la prueba siguiente, que ve un mail de más.
+ * Con `Promise.all`: si una falla, falla la prueba (sin esperarlas era un «Unhandled Rejection»
+ * que también ponía la corrida en rojo; con `allSettled` se perdía).
  */
 let unfinished = /** @type {Promise<unknown>[]} */ ([]);
 afterEach(async () => {
 	const pending = unfinished;
 	unfinished = [];
-	await Promise.allSettled(pending);
+	await Promise.all(pending);
 });
 
 /**
