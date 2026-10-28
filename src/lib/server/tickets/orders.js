@@ -1240,7 +1240,9 @@ export const SEARCH_FIELD_LABELS = /** @type {const} */ ({
 });
 
 /**
- * @typedef {Ticket & { buyer_email: string, buyer_name: string, buyer_dni: string | null }} SearchableTicket
+ * @typedef {Ticket & { buyer_email: string, buyer_name: string, buyer_dni: string | null,
+ *   buyer_account_id?: string | null }} SearchableTicket `buyer_account_id`: solo para los avisos de
+ *   puerta (doorNotices.js); nunca va a la pantalla.
  * @typedef {SearchableTicket & { match: { field: SearchField, value: string } | null }} TicketSearchResult
  */
 
@@ -1281,8 +1283,8 @@ export async function searchTickets(
 		.replaceAll('L', '1');
 	const { results } = await db
 		.prepare(
-			`SELECT t.*, o.buyer_email, o.buyer_name, o.buyer_dni FROM tickets t
-			JOIN orders o ON o.id = t.order_id
+			`SELECT t.*, o.buyer_email, o.buyer_name, o.buyer_dni, o.account_id AS buyer_account_id
+			FROM tickets t JOIN orders o ON o.id = t.order_id
 			WHERE t.event_slug = ?1 AND o.status = 'approved'`
 		)
 		.bind(eventSlug)

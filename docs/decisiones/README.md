@@ -116,6 +116,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0051](0051-reembolsar-todas-evento-cancelado.md): «Reembolsar todas» para un evento cancelado:
   solo admins, con confirmación escrita, de a tandas y por el mismo paso que «Reembolsar…»; la
   puerta y la carga a mano se devuelven a mano (26/10)
+- [0053](0053-avisos-de-puerta.md): Avisos de puerta para personas que la organización no admite:
+  avisan y nunca frenan, solo en eventos de Kinky Vibe, vencen siempre (27/10)
 
 ### Propinas
 

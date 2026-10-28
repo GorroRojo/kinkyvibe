@@ -745,6 +745,12 @@ como revisados (o se ocultan o borran) desde su ficha.
 permiso". Queda en Actividad. Sacarlo no borra sus perfiles: solo deja de verlos
 ([cuentas.md](cuentas.md), «Permiso para tener perfiles»).
 
+**Avisar en la puerta que alguien no entra** (solo eventos de Kinky Vibe). Comunidad › Avisos de
+puerta → el mail, cuándo vence y, si querés, el motivo (privado). La puerta muestra solo «Avisá a la
+organización antes de dejar pasar» y no frena el ingreso. Vence solo; 14 días antes llega un mail a
+la casilla de la organización. Ver [tickets.md](tickets.md#avisos-de-puerta) y la decisión
+[0053](decisiones/0053-avisos-de-puerta.md).
+
 ## Lo que viene
 
 Decisiones 0002, 0003, 0008 y 0010: niveles de permiso (superadmins → organizadores), bandeja de mails dentro del panel,
