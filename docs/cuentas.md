@@ -69,7 +69,8 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
   - sus **perfiles de persona** (también los que ya había borrado) **se vacían**: sin
     presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
     sin los proyectos de los que eran parte, sin su fila de gestión, sus bloqueos ni sus invitaciones
-    de proyectos pendientes, y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
+    de proyectos pendientes, sin las versiones que guardó desde Mi rincón (`object_revisions` con
+    `source = 'cuenta'`, abajo), y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
     todas las cuentas borradas, así nada los vincula entre sí). La fila queda, borrada (borrado
     suave), solo para que la dirección no la use otra persona;
   - cada **proyecto** pasa a quien lo gestiona hace más tiempo, con sus datos (son del proyecto), o se
@@ -213,8 +214,9 @@ el código por mail sigue andando.
   solo se van filas que nunca más se usan. Si falla, lo escribe en el log y la corrida sigue; en el
   log va solo cuántas borró.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
-  cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
-  saca acceso.
+  cuenta, también la de ese navegador, desvincula el Telegram (`unlinkAccount`: el chat y los
+  códigos pendientes) y anula el link del calendario personal (`revokeFeeds`; para volver a usarlo
+  se crea uno nuevo), y vuelve a `/ingresar` con un aviso. No pide código: solo saca acceso.
 - `hooks.server.js` carga `locals.member` (`{ id, email, readingSpeed, canHaveProfiles }`) solo
   si hay cookie (y base). La velocidad de lectura y el permiso de perfiles vienen en la misma
   consulta que la sesión (`getSessionAccount`), así el layout y Mi rincón no vuelven a leer la
@@ -452,6 +454,12 @@ aprobar").
 
   Un perfil de persona tiene una sola fila (su dueñe). La fila de le dueñe se crea en la misma
   tanda que el perfil (opción `also` de `saveObject()`): o entran los dos o ninguno.
+
+- **Historial**: crear o editar un perfil desde Mi rincón guarda, en la misma tanda, la versión
+  que quedó en `object_revisions` con `source = 'cuenta'` (`revisionStatement`,
+  `src/lib/server/contenido/revisions.js`). Si alguien escribe algo en un perfil y después lo
+  borra, les admins pueden ver qué decía. Por ahora no hay pantalla: se mira en la base. Al borrar
+  la cuenta, las versiones `'cuenta'` de sus perfiles de persona se borran (abajo).
 
 - **Invitaciones a gestionar** en `profile_invites`: solo el hash del mail (el mismo de
   `login_codes`), vencen a los 14 días. `invited_by` pasa a `NULL` si se borra de verdad la
