@@ -15,7 +15,7 @@ import { argDayMonth } from './dates.js';
  *
  * @typedef {{
  *   open: boolean,
- *   reason: 'cancelled' | 'soldout' | 'closed' | 'notyet' | 'unavailable' | null,
+ *   reason: 'cancelled' | 'soldout' | 'closed' | 'notyet' | 'unavailable' | 'paused' | null,
  *   opensAt: number | null
  * }} ListTicketState
  *
