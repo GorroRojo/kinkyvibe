@@ -67,3 +67,6 @@ cada pedido para la puerta.
 - PR 2: el resumen diario (a las 9 de Argentina, por evento con movimiento) y los avisos de cada
   venta y cada transferencia (en el momento; en el horario de silencio, sin sonido). Migración
   `0055_telegram_admin_enviados.sql` (lo ya enviado, para no repetir). Pendiente: el PR 3.
+- PR 3: el día del evento («📣 Hoy», el día del evento) y los recordatorios («⏰ Mañana» el día
+  antes y, si el mismo día todavía falta el lugar o el link de la transmisión, «⚠️ Hoy» a quien no
+  prendió «Día del evento»), a las 9 con el resumen diario. Sin migración. Están las cuatro partes.

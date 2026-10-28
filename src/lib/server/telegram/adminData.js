@@ -9,8 +9,8 @@
  * - **Estado**: solo cantidades (consultas con `SUM`/`COUNT`, nunca columnas de compradores: ni
  *   nombres, ni mails, ni DNI, ni teléfonos). Lo de cada compra queda en el panel.
  * - **Mis avisos**: qué avisos eligió cada admin (migración 0054). Vienen apagados (sin fila =
- *   apagado). El resumen diario y los de cada venta y cada transferencia los manda
- *   adminNotify.js; el día del evento y los recordatorios, el PR 3 (decisión 0041).
+ *   apagado). Los manda adminNotify.js: el resumen diario, los de cada venta y cada
+ *   transferencia, el día del evento y los recordatorios (decisión 0041).
  */
 import { isAdmin } from '$lib/server/auth';
 import { isFlagOn } from '$lib/server/flags.js';

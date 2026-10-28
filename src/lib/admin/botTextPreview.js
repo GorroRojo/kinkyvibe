@@ -837,6 +837,52 @@ export const PREVIEW_SCREENS = Object.freeze([
 			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})
+	},
+	{
+		id: 'admin_dia',
+		label: 'Avisos (admins): el día del evento',
+		keys: ['admin.dia_titulo', 'admin.falta_lugar'],
+		build: (t) => ({
+			html: [
+				`${t('admin.dia_titulo', { evento: 'Fiesta de ejemplo' })}\n📅 sáb 11 ene · 23:00`,
+				t('admin.total', { vendidas: 45, cupo: 50 }),
+				[
+					t('admin.reservas', { cantidad: 2, por_vencer: 1 }),
+					t('admin.transferencias', { cantidad: 1 })
+				].join('\n'),
+				t('admin.falta_lugar'),
+				t('admin.pie')
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_manana',
+		label: 'Avisos (admins): recordatorio del evento de mañana',
+		keys: ['admin.manana_titulo', 'admin.falta_link'],
+		build: (t) => ({
+			html: [
+				`${t('admin.manana_titulo', { evento: 'Taller online de ejemplo' })}\n📅 vie 10 ene · 19:00`,
+				t('admin.total_sin_cupo', { vendidas: 12 }),
+				t('admin.falta_link'),
+				t('admin.pie')
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_falta',
+		label: 'Avisos (admins): recordatorio del mismo día, si todavía falta algo',
+		keys: ['admin.falta_titulo', 'admin.falta_link'],
+		build: (t) => ({
+			html: [
+				`${t('admin.falta_titulo', { evento: 'Taller online de ejemplo' })}\n📅 vie 10 ene · 19:00`,
+				t('admin.total_sin_cupo', { vendidas: 14 }),
+				t('admin.falta_link'),
+				t('admin.pie')
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
 	}
 ]);
 

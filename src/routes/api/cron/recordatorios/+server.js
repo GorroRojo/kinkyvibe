@@ -35,7 +35,7 @@ import { runSigoCron } from '$lib/server/sigo/cron.js';
 import { listaEsperaEnabled } from '$lib/server/flags.js';
 import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
-import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
+import { runAdminEventDayCron, runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
 import { pruneUso } from '$lib/server/telegram/uso.js';
 import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
 import { runIndexNow } from '$lib/server/seo/indexnow.js';
@@ -124,6 +124,19 @@ export async function POST({ request, platform, url, fetch }) {
 		} catch (error) {
 			logDBError('cron avisos de admins', error);
 		}
+		// El día del evento y los recordatorios (el evento de mañana, falta el lugar o el link), a
+		// la misma hora y solo a quien los prendió. Aparte del resumen diario.
+		let telegramAdminDia = null;
+		try {
+			telegramAdminDia = await runAdminEventDayCron({
+				db,
+				origin: siteOrigin(url),
+				token: env.TELEGRAM_BOT_TOKEN,
+				fetch
+			});
+		} catch (error) {
+			logDBError('cron día del evento de admins', error);
+		}
 		// Estadísticas de uso del bot: las filas por persona duran 180 días (también con el
 		// interruptor apagado: lo ya guardado se borra igual). Aparte: si falla, lo demás ya salió.
 		let telegramUsoBorradas = null;
@@ -165,6 +178,7 @@ export async function POST({ request, platform, url, fetch }) {
 				...(series ? { series } : {}),
 				...(sigo ? { sigo } : {}),
 				...(telegramAdmin ? { telegramAdmin } : {}),
+				...(telegramAdminDia ? { telegramAdminDia } : {}),
 				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),
 				...('skipped' in indexNow ? {} : { indexNow }),
 				telegramCommands
