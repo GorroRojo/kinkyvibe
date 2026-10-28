@@ -22,6 +22,13 @@
 	} from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
+	import { replaceState } from '$app/navigation';
+	import {
+		DEFAULT_ORDER_SORT,
+		ORDER_SORTS,
+		orderSortOf,
+		sortOrders
+	} from '$lib/admin/orderSort.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -93,6 +100,17 @@
 				return words.every((w) => matches(w, hay, o.id));
 			})
 		: byStatus;
+	// «Ordenar» (tarjetas, no una tabla): llegan todas las órdenes del evento, así que se ordenan
+	// acá. Queda en la URL (`?orden=total`) sin volver a cargar la página; se lee al montar.
+	let orderBy = DEFAULT_ORDER_SORT;
+	onMount(() => (orderBy = orderSortOf(new URL(location.href).searchParams.get('orden'))));
+	$: shown = sortOrders(visible, orderBy);
+	function writeSortUrl() {
+		const url = new URL(location.href);
+		if (orderBy === DEFAULT_ORDER_SORT) url.searchParams.delete('orden');
+		else url.searchParams.set('orden', orderBy);
+		replaceState(url, {});
+	}
 	// Link a una orden (`#orden-<id>`, por ejemplo «¿Te equivocaste? Ver la orden» de la Puerta):
 	// si el filtro la esconde, pasa a «Todas»; baja hasta ella y la marca (`:target` no siempre se
 	// aplica después de una navegación del lado del cliente).
@@ -308,6 +326,12 @@
 				<option value="all">Todas ({counts.all})</option>
 			</select>
 		</label>
+		<label class="filter">
+			<span>Ordenar</span>
+			<select bind:value={orderBy} on:change={writeSortUrl}>
+				{#each ORDER_SORTS as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
+			</select>
+		</label>
 		<label class="search">
 			<Search size={16} aria-hidden="true" />
 			<span class="sr-only">Buscar una orden</span>
@@ -326,7 +350,7 @@
 		<EmptyState icon={ReceiptText} title="No hay órdenes para mostrar" />
 	{/if}
 	<ul class="orders">
-		{#each visible as o (o.id)}
+		{#each shown as o (o.id)}
 			<li class="order status-{o.status}" class:linked={o.id === linked} id="orden-{o.id}">
 				<div class="who">
 					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}

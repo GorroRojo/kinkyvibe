@@ -5,6 +5,9 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { CircleUser } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { DEFAULT_ACCOUNT_SORT, accountSortParam } from '$lib/admin/cuentas.js';
 	import { fmtDate } from '$lib/admin/format.js';
 	import { accountHref } from '$lib/admin/links.js';
 	import { PROFILES_HREF } from '$lib/admin/perfiles.js';
@@ -21,18 +24,28 @@
 
 	/** @param {number | null | undefined} ms */
 	const day = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
-	// Se ordena solo si están todas en la página: con 500 o más, el servidor manda las 500 más
-	// nuevas (las demás se buscan por mail) y ordenar esas sería un orden falso.
-	$: complete = data.accounts.length < 500;
+	// El orden lo hace el servidor (`?orden=`): con 500 cuentas o más no llegan todas, y ordenar
+	// solo las que llegaron sería un orden falso. Tocar un encabezado pide la lista en ese orden.
+	$: sort = data.sort ?? DEFAULT_ACCOUNT_SORT;
+	$: sortParam = accountSortParam(sort);
 	/** @type {import('$lib/components/ui/tableSort.js').TableColumn[]} */
-	$: tableColumns = [
-		{ key: 'email', label: 'Cuenta', sort: complete && 'text' },
-		{ key: 'createdAt', label: 'Creada', class: 'small', nowrap: true, sort: complete && 'date' },
+	const tableColumns = [
+		{ key: 'email', label: 'Cuenta', sort: 'text' },
+		{ key: 'createdAt', label: 'Creada', class: 'small', nowrap: true, sort: 'date' },
 		{ key: 'verified', label: 'Mail verificado', class: 'hide-sm small' },
 		{ key: 'hasPassword', label: 'Contraseña', class: 'hide-sm small' },
-		{ key: 'profiles', label: 'Perfiles', align: 'right', sort: complete && 'number' },
+		{ key: 'profiles', label: 'Perfiles', align: 'right', sort: 'number' },
 		{ key: 'canHaveProfiles', label: 'Permiso', title: 'Puede tener perfiles' }
 	];
+	/** @param {CustomEvent<{ key: string, dir: 'asc' | 'desc' }>} event */
+	function changeSort(event) {
+		const url = new URL($page.url);
+		const param = accountSortParam(event.detail);
+		if (param) url.searchParams.set('orden', param);
+		else url.searchParams.delete('orden');
+		// El foco se queda en el encabezado que se tocó (se puede seguir con el teclado).
+		goto(url, { keepFocus: true, noScroll: true });
+	}
 
 	/** @type {import('$lib/admin/csv.js').CsvColumn<(typeof data.accounts)[number]>[]} */
 	const columns = [
@@ -78,8 +91,12 @@
 				autocomplete="off"
 			/>
 		</label>
+		{#if sortParam}<input type="hidden" name="orden" value={sortParam} />{/if}
 		<button class="kv-btn" type="submit">Buscar</button>
-		{#if data.q}<a class="kv-btn ghost" href="/admin/comunidad/cuentas">Ver todas</a>{/if}
+		{#if data.q}<a
+				class="kv-btn ghost"
+				href="/admin/comunidad/cuentas{sortParam ? `?orden=${sortParam}` : ''}">Ver todas</a
+			>{/if}
 	</form>
 	<p class="kv-note" aria-live="polite">
 		{data.accounts.length}
@@ -96,6 +113,9 @@
 			<Table
 				columns={tableColumns}
 				rows={data.accounts}
+				{sort}
+				presorted
+				on:sort={changeSort}
 				rowKey="id"
 				rowClass={(a) => (a.deletedAt ? 'gone' : '')}
 			>
@@ -119,7 +139,10 @@
 			</Table>
 		</div>
 		{#if data.accounts.length >= 500}
-			<p class="kv-note">Se muestran las 500 más nuevas; buscá por mail para encontrar otras.</p>
+			<p class="kv-note">
+				Se muestran las primeras 500 {sortParam ? 'en este orden' : '(las más nuevas)'}; buscá por
+				mail o cambiá el orden para encontrar otras.
+			</p>
 		{/if}
 	{/if}
 </Card>
