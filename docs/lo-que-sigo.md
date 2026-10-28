@@ -199,8 +199,8 @@ que se vuelva a prender.
 
 ### Código
 
-- `src/lib/utils/sigo.js`: lo puro (qué se puede seguir, las opciones, el orden y el CSV), con
-  tests.
+- `src/lib/utils/sigo.js`: lo puro (qué se puede seguir, las opciones, el orden y el CSV, con la
+  columna «desde» en el día de Argentina), con tests.
 - `src/lib/server/sigo/follows.js`: lecturas y escrituras de `follows` y de las preferencias.
 - `src/lib/server/sigo/targets.js`: qué es cada cosa seguida y si la cuenta la puede seguir.
 - `src/lib/server/sigo/web.js`: el interruptor y la cuenta de la sesión.
