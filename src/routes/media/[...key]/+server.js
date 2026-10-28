@@ -19,11 +19,15 @@
  *   la copia si está en R2 (en caché para siempre, como el original) y, si todavía no está (una
  *   imagen de antes de la pasada de scripts/copias-chicas.js), una redirección al original que se
  *   guarda solo {@link MISSING_COPY_CACHE}, así la copia se ve apenas exista.
+ * - `Cache-Tag`: `img-<hash>` (el original y sus copias) o `file-<hash>`, para purgarlos de la
+ *   caché del borde cuando dejan de servirse ($lib/server/media/purge.js). Cloudflare la saca
+ *   antes de que llegue al navegador.
  */
 import { error } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
 import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { servableCopy, servableMedia } from '$lib/server/media/library.js';
+import { mediaCacheTag } from '$lib/server/media/purge.js';
 import { contentRange, disposition, parseRange } from '$lib/server/media/range.js';
 import { MEDIA_KEY } from '$lib/server/objects/types/imagen.js';
 import { FILE_KEY } from '$lib/server/objects/types/archivo.js';
@@ -54,7 +58,8 @@ export async function GET({ params, platform, request, locals }) {
 		'Cache-Control': found.cacheControl,
 		ETag: etag,
 		'X-Content-Type-Options': 'nosniff',
-		'Accept-Ranges': 'bytes'
+		'Accept-Ranges': 'bytes',
+		'Cache-Tag': String(mediaCacheTag(key))
 	});
 	if (found.kind === 'imagen') {
 		headers.set('Content-Security-Policy', SANDBOX);
@@ -103,7 +108,8 @@ async function serveCopy(key, platform, request, who) {
 		'Cache-Control': found.cacheControl,
 		ETag: etag,
 		'X-Content-Type-Options': 'nosniff',
-		'Content-Security-Policy': SANDBOX
+		'Content-Security-Policy': SANDBOX,
+		'Cache-Tag': String(mediaCacheTag(key))
 	});
 	if (request.headers.get('if-none-match') === etag) {
 		return new Response(null, { status: 304, headers });

@@ -22,7 +22,7 @@ Del sitio:
 | La página del perfil                         | 404 al toque                                                      |
 | Listas (`/amigues`), búsqueda, `/api/posts`  | hasta 5 minutos (`s-maxage=300`)                                  |
 | Sitemap y RSS                                | hasta 1 hora (`s-maxage=3600`)                                    |
-| La foto del perfil (`/media/img/…`)          | donde ya estaba en caché, hasta 1 día o hasta purgarla (paso 2)   |
+| La foto del perfil (`/media/img/…`)          | al toque con la purga automática; si no, hasta 1 día (paso 2)     |
 | Vista previa de un link (`/cdn-cgi/image/…`) | lo que ya estaba en caché, hasta purgar la foto original (paso 2) |
 
 La caché con `s-maxage` es la del borde de Cloudflare (`caches.default`, que el worker del adapter
@@ -41,11 +41,15 @@ las capturas y archive.org. Eso no se borra solo.
    alcanza con «No aparecer en buscadores» desde Mi rincón (`perfiles-buscadores` en el plan).
 2. **La foto.** Con el perfil oculto, `/media` ya no la sirve a nadie salvo a admins y a quien lo
    gestiona. Si la imagen no la usa nada más, sacarla de la biblioteca (Contenido › Biblioteca →
-   «Sacar de la biblioteca»). Ni ocultar ni sacar la borran de la caché del borde de Cloudflare:
-   donde alguien ya la pidió, se sigue sirviendo (hasta un día la foto de un perfil, hasta un año
-   una imagen que además es portada). Para cortarlo ya, **purgar a mano** (antes de sacarla,
-   «Abrir» muestra `/media/img/<hash>.<ext>`): panel de Cloudflare → zona `kinkyvibe.ar` →
-   **Caching** → **Configuration** → **Custom Purge** → **URL**, con estas tres direcciones:
+   «Sacar de la biblioteca»). Donde alguien ya la pidió, la caché del borde de Cloudflare la
+   seguiría sirviendo (hasta un día la foto de un perfil, hasta un año una imagen que además es
+   portada). **Con la purga automática configurada** (`CLOUDFLARE_PURGE_TOKEN` y
+   `CLOUDFLARE_ZONE_ID`; ver «Borrar» en `docs/imagenes.md`), ocultar el perfil, sacarlo de
+   Amigues, borrarlo o sacar la imagen ya la purgan solos, en todos los centros de datos. Si no
+   está configurada, o si a los pocos minutos `curl -sI` todavía da 200, **purgar a mano** (antes
+   de sacarla, «Abrir» muestra `/media/img/<hash>.<ext>`): panel de Cloudflare → zona
+   `kinkyvibe.ar` → **Caching** → **Configuration** → **Custom Purge** → **URL**, con estas tres
+   direcciones:
 
    ```text
    https://kinkyvibe.ar/media/img/<hash>.<ext>
