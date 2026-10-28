@@ -32,7 +32,16 @@ import { cp, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'no
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
-import { unstable_getMiniflareWorkerOptions, unstable_splitSqlQuery } from 'wrangler';
+
+/**
+ * wrangler, cargado solo si hace falta: importarlo cuesta más de un segundo de CPU por proceso (su
+ * bundle tiene ~15 MB) y cada archivo de pruebas con base es un proceso nuevo. Con la plantilla y
+ * las opciones del worker que arma el globalSetup (`startTemplateDB`), un archivo de pruebas no lo
+ * carga nunca: solo lo usan las migraciones (partir los `.sql`) y leer `wrangler.toml`.
+ * @type {Promise<typeof import('wrangler')> | undefined}
+ */
+let wranglerModule;
+const loadWrangler = () => (wranglerModule ??= import('wrangler'));
 
 const MIGRATIONS_DIR = path.resolve('migrations');
 
@@ -48,11 +57,20 @@ async function readMigrations(dir) {
 	});
 	const files = entries.filter((f) => f.endsWith('.sql')).sort();
 	const sqls = await Promise.all(files.map((file) => readFile(path.join(dir, file), 'utf8')));
-	const batches = sqls.map((sql) => unstable_splitSqlQuery(sql).filter((s) => s.trim()));
 	// Huella de los archivos (nombre y contenido), para saber si la plantilla es de estas migraciones.
 	const hash = createHash('sha256');
 	files.forEach((file, i) => hash.update(`${file}\0${sqls[i]}\0`));
-	return { files, batches, hash: hash.digest('hex') };
+	/** @type {Promise<string[][]> | undefined} */
+	let split;
+	return {
+		files,
+		hash: hash.digest('hex'),
+		/** Las sentencias de cada archivo (parte con wrangler, solo cuando se van a aplicar). */
+		batches: () =>
+			(split ??= loadWrangler().then(({ unstable_splitSqlQuery }) =>
+				sqls.map((sql) => unstable_splitSqlQuery(sql).filter((s) => s.trim()))
+			))
+	};
 }
 
 /** Las migraciones del repo, leídas una sola vez por proceso (los tests no las cambian). */
@@ -77,7 +95,7 @@ export async function applyMigrations(db, dir = MIGRATIONS_DIR) {
 	// Solo se cachea el directorio del repo: los tests que arman uno temporal lo pueden cambiar.
 	const migrations =
 		dir === MIGRATIONS_DIR ? await readRepoMigrations() : await readMigrations(dir);
-	const batches = migrations.batches.filter((statements) => statements.length);
+	const batches = (await migrations.batches()).filter((statements) => statements.length);
 	if (db instanceof TestD1Database) {
 		// Lo mismo, pero en un solo pedido al worker: allá corre un `batch` por archivo, en orden, y
 		// frena en el primero que falle (los anteriores quedan aplicados, como en el loop de abajo).
@@ -430,18 +448,48 @@ const TEMPLATE_DATA = 'data';
 const TEMPLATE_HASH = 'migrations.sha256';
 
 /**
+ * Variable de entorno con las opciones de miniflare que salen de `wrangler.toml` (en JSON): las
+ * lee una vez por corrida el globalSetup (`startTemplateDB`), así los procesos de las pruebas no
+ * cargan wrangler para leer el mismo archivo cada uno.
+ */
+export const WORKER_OPTIONS_ENV = 'KINKYVIBE_TEST_DB_WORKER_OPTIONS';
+
+/** Los bindings de `wrangler.toml` como opciones de miniflare, leídos con wrangler. */
+async function readWorkerOptions() {
+	const { unstable_getMiniflareWorkerOptions } = await loadWrangler();
+	// `envFiles: []`: sin leer `.dev.vars`/`.env` (como antes con getPlatformProxy). wrangler lo
+	// acepta en tiempo de ejecución aunque sus tipos todavía no lo declaren.
+	const options = /** @type {Parameters<typeof unstable_getMiniflareWorkerOptions>[2]} */ (
+		/** @type {unknown} */ ({ envFiles: [] })
+	);
+	return unstable_getMiniflareWorkerOptions('wrangler.toml', undefined, options).workerOptions;
+}
+
+/**
+ * Las opciones del worker: las que dejó el globalSetup en `WORKER_OPTIONS_ENV` o, si no hay (o no
+ * se pueden leer), las de `wrangler.toml` leídas acá.
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function testWorkerOptions() {
+	const json = process.env[WORKER_OPTIONS_ENV];
+	if (json) {
+		try {
+			return JSON.parse(json);
+		} catch {
+			// se leen de nuevo abajo
+		}
+	}
+	return /** @type {Record<string, unknown>} */ (await readWorkerOptions());
+}
+
+/**
  * Levanta miniflare con el worker de prueba sobre `dir` (lo que ya haya ahí, se usa).
  *
  * @param {string} dir
  */
 async function openTestDB(dir) {
 	const { Miniflare, convertV4MiniflareOptions } = loadMiniflare();
-	// `envFiles: []`: sin leer `.dev.vars`/`.env` (como antes con getPlatformProxy). wrangler lo
-	// acepta en tiempo de ejecución aunque sus tipos todavía no lo declaren.
-	const options = /** @type {Parameters<typeof unstable_getMiniflareWorkerOptions>[2]} */ (
-		/** @type {unknown} */ ({ envFiles: [] })
-	);
-	const { workerOptions } = unstable_getMiniflareWorkerOptions('wrangler.toml', undefined, options);
+	const workerOptions = await testWorkerOptions();
 	const d1 = /** @type {Record<string, unknown> | string[] | undefined} */ (
 		workerOptions.d1Databases
 	);
@@ -659,6 +707,10 @@ export async function buildTemplateDB(target) {
 export async function startTemplateDB() {
 	const target = await mkdtemp(path.join(storageRoot(), 'kinkyvibe-test-db-template-'));
 	process.env[TEMPLATE_ENV] = target;
+	// Las opciones del worker también se leen una vez acá (ver WORKER_OPTIONS_ENV). Si falla, cada
+	// proceso las lee solo, como antes.
+	const workerOptions = await readWorkerOptions().catch(() => null);
+	if (workerOptions) process.env[WORKER_OPTIONS_ENV] = JSON.stringify(workerOptions);
 	const building = buildTemplateDB(target).catch((error) => {
 		console.warn(
 			`testing.js: no se pudo armar la plantilla de la base (se migra en cada archivo): ${error}`
@@ -667,6 +719,7 @@ export async function startTemplateDB() {
 	return async () => {
 		await building;
 		delete process.env[TEMPLATE_ENV];
+		delete process.env[WORKER_OPTIONS_ENV];
 		await rm(target, { recursive: true, force: true });
 	};
 }
