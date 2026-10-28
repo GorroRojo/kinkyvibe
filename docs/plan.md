@@ -146,7 +146,8 @@ CI) va en la fase 0.
 - `wiki-html-default-seguro` · fase 0 · hecho · sitio · El texto de la wiki sin `wiki_body_html` guardado se muestra con la lista corta (como los eventos); la migración 0059 deja `libre` escrito en las páginas que ya estaban. Las imágenes de los textos con la lista corta (perfiles y demás), solo de la biblioteca propia (`/media/…`) · #384
 - `areas-toque-restos` · fase 0 · hecho · sitio · Toques de menos de 44px que pedían diseño: «Comprar entradas» en las tarjetas de las listas mide 44px en el celu (hecho, el botón mismo); el índice y «Enlace a esta sección» de los textos, las series hijas en la Kinkipedia y la línea de madres e hijas de un término quedan como están (gorrite: dejarlo así) · #335
 - `filtros-celu-probar` · fase 0 · sigue · sitio · Probar la barra de filtros en celulares reales y, si va, cerrar el PR de prototipos · #294, #283
-- `filtros-sin-efecto` · fase 0 · sigue · sitio · Esconder etiquetas del filtro que no cambiarían los resultados · #17
+- `filtros-sin-efecto` · fase 0 · hecho · sitio · Esconder etiquetas del filtro que no cambiarían los resultados · #17, #556
+- `filtros-sin-efecto-madres` · fase 0 · sigue · sitio · En el árbol de filtros, una madre que no cambiaría los resultados sigue a la vista porque abre su grupo («BDSM» después de «seguridad»); esconderla y mostrar sus hijas sueltas es una decisión de diseño · #17
 - `lectura-barra-progreso` · fase 0 · sigue · sitio · Barra de progreso de lectura: una barra fina arriba, solo en los textos largos de Material y Kinkipedia (gorrite, 12/10) · #19, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `lectura-ajustes` · fase 0 · algún día · sitio · Ajustes de lectura: tamaño de letra y tema; falta diseño · #20
 - `textos-desplegables` · fase 0 · sigue · sitio · Secciones desplegables y notas al pie en los textos · #22
