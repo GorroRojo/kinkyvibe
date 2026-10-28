@@ -248,14 +248,14 @@ CI) va en la fase 0.
 
 ### Pruebas y CI
 
-- `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una
+- `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una. Hecho: los procesos de las pruebas ya no cargan wrangler y `$app/server` es solo `getRequestEvent` en vitest (importar bajó de ~42 % a ~14 % del tiempo de la suite), una importación de referencia compartida en `importer-tandas`, el mail de más de `pausa-venta` (una tarea en segundo plano sin esperar) y e2e sin internet (`networkidle` esperaba a las imágenes de producción). Falta: que gorrite diga sí o no a cada candidata a borrar del PR y, si hace falta más, un solo workerd por proceso de vitest en vez de uno por archivo · #559, [pruebas-y-ci.md](pruebas-y-ci.md)
 - `auditoria-codigo-arreglos` · fase 0 · en curso · pruebas · Arreglos de la auditoría de salud del código que no necesitan a gorrite: pin de satori documentado, `migrations-lint` en la CI, corridas programadas (entradas y puerta de noche, reloj adelantado los domingos), modo `UPDATE_EMAIL_GOLDEN`, reglas de Svelte en ESLint, hora de Argentina en `dates.js` (migrados los archivos de plata, menos `tickets/stats.js`, que toca un PR abierto; quedan telegram, panel, búsqueda, contenido y los demás, de a uno) y limpiezas chicas
-- `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real (depende de: tests-auditoria)
+- `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real. No se reprodujo (28/10: cinco corridas a la par de `importer` e `importer-tandas` con la carga en 12-15, solo el error esperado); si vuelve, guardar el mensaje del error (depende de: tests-auditoria)
 - `test-estiloguard-lento` · fase 0 · hecho · pruebas · `estiloGuard` y `series-crear` pasaban el límite de 5 s con la máquina cargada: la preparación cara va en `beforeAll` · #325
 - `test-cuentas-lento` · fase 0 · hecho · pruebas · `cuentas.test.js` «límite de intentos por mail y por conexión» pasaba los 5 s con la máquina cargada: los mails del límite por conexión tienen cuenta con hash barato (queda uno sin cuenta) · #330
 - `tickets-ajustes-spec` · fase 0 · hecho · pruebas · `tests/tickets/ajustes.spec.js` buscaba la pestaña «Cobros», que se fue con la portada de Ajustes: ahora entra por la portada y su tarjeta · #330
 - `tests-consultas-batch` · fase 0 · hecho · pruebas · `importTags` de la semilla en tandas de `saveObjects` (1835 → 80 consultas) · #328
-- `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas
+- `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas (última vez: 28/10, con los tiempos de la CI del PR que sacó wrangler de cada archivo) · #559
 - `ci-cache-semilla` · fase 0 · sigue · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
 - `tests-rapidos` · fase 0 · hecho · pruebas · Pruebas y CI más rápidas, `test:related` · #307, #311, #312, #285
 - `prueba-fugas` · fase 0 · hecho · pruebas · Prueba de que lo privado no sale en público · #291
