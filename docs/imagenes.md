@@ -196,6 +196,9 @@ Lo elegido viaja en un campo oculto `imageId` (`''` = no se tocó, `none` = se s
 servidor crea el edge **en el mismo guardado** del objeto (eventos y material: `commitFiles` con
 `edges`; perfiles: `updateProfile` con `avatar`; series: después de guardar la etiqueta, con
 `linkImage`). Al elegir o sacar una imagen se saca también el campo viejo (`featured` / `image`).
+La portada que el selector muestra de entrada en esos editores (y la del original en «Cargar
+evento» desde otro) sale de un solo helper, `libraryCoverOf` (`src/lib/server/contenido/posts.js`):
+la dirección, su edge `portada` como la ve el panel, o null si no hay o no se pudo leer.
 
 ## Contenido → Biblioteca (la página del panel)
 
@@ -236,7 +239,8 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 
 - **Admins**: subir (imágenes, documentos y video), buscar en toda la biblioteca, elegir
   cualquiera y sacar imágenes y archivos.
-- **Cuentas que gestionan un perfil** (Mi rincón): subir y buscar **solo entre las que subieron**;
+- **Cuentas que gestionan un perfil** (Mi rincón, con el permiso «puede tener perfiles»; sin él,
+  `/imagenes` da 404 como a cualquiera): subir y buscar **solo entre las que subieron**;
   en su perfil solo pueden poner una imagen que subieron o la que el perfil ya tenía. **Borran una
   imagen que subieron, solo si nada la usa** (decisión de gorrite; ver «Borrar»).
   **Tope por cuenta**: 30 subidas y 200 MB en las últimas 24 horas

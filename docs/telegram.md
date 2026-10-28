@@ -41,8 +41,9 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
     `location_map` del evento);
   - «⭐ Seguir» (abajo).
 - **Buscar** busca en **todo el sitio** (eventos, material, Kinkipedia, series y amigues), con el
-  mismo índice y el mismo orden que el buscador del sitio (`/api/search-index.json`, ver «Modo
-  inline» abajo): solo lo que ve une visitante sin cuenta.
+  mismo índice, el mismo orden y la misma sintaxis que el buscador del sitio
+  (`/api/search-index.json` y [buscar.md](buscar.md), ver «Modo inline» abajo): solo lo que ve une
+  visitante sin cuenta.
   - «🔎 Buscar» manda un mensaje nuevo que abre «responder» (`force_reply`, Bot API 10.3) con
     «Cancelar»; la respuesta trae los resultados. `/buscar <texto>` los trae directo (también en
     grupos; en un grupo, `/buscar` solo explica `/buscar cuerdas`).
@@ -62,7 +63,9 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
        o 4, 2 hasta 7, 3 desde 8), cada palabra sola si eran varias («cuerdas zzz» → «cuerdas»), una
        etiqueta usada con nombre o alias parecido y, si lo buscado es una etiqueta del árbol
        (`resolveTag`, con alias y sin tildes), primero sus hijas, relacionadas y madres. Solo se
-       ofrece lo que trae algo.
+       ofrece lo que trae algo. Una palabra cambiada sale como se escribe en los títulos o los
+       nombres de etiquetas donde está («Guía», no «guia» como la guarda el índice; la forma más
+       usada, `writtenAs`).
     2. **La sección más cercana**: donde está la mayoría de lo de esa etiqueta (y sus parientes) o
        de la primera sugerencia, con el botón de la sección del inicio (ya filtrada por la
        etiqueta si está en esa sección, `c:<s>:0:<etiqueta>`). Si son eventos, «📅 Calendario»: la
@@ -162,7 +165,8 @@ token.
 **Deep links** (`t.me/<bot>?start=…`, solo `A-Za-z0-9_-`): `hoy`, `semana`, `finde`, `proximos`,
 `ev-<id>` (la tarjeta), `seguir-<id>`, `sigo`, `mis-entradas`, `fondo`, `buscar`, `inicio`
 (`mis-entradas` y no `entradas`: 8 letras se leería como un código de vincular). El código de vincular
-(8 letras y números) sigue entrando por `?start=<código>`.
+(8 letras y números) sigue entrando por `?start=<código>`; un deep link conocido de 8 letras
+(`proximos`) se mira antes y no cuenta como código (los códigos nunca llevan I ni O).
 
 ### Con token y sin token
 
@@ -192,6 +196,9 @@ ser admin (con el modo privacidad de fábrica solo ve los comandos y las respues
 - **Si un efímero no se puede** (la app no los soporta, pasaron los 15 segundos): lo más privado
   posible, contestar el botón con el link al chat privado con el bot (con token; sin token no se
   puede saber que falló).
+- Un comando para otro bot (`/ayuda@OtroBot`) no se contesta: le llega solo si el bot es admin
+  del grupo o tiene el modo privacidad apagado (`forOtherBot` en router.js; sin
+  `TELEGRAM_BOT_USERNAME` no se puede saber y se contesta como antes).
 - En grupos no hay fotos (un efímero de foto no puede volver a texto), ni «Buscar» con
   `force_reply`, ni nada de cuentas: «Lo que sigo» y «Seguir» son links al chat privado.
 - Telegram avisa que un efímero puede no llegar y desaparecer: por eso nada personal en
@@ -252,8 +259,11 @@ las pantallas).
   así no depende de que Telegram pueda bajar nada del sitio. Necesita el token del bot; **sin
   token** (o si Telegram rechaza la foto) la tarjeta sale como texto y «Ver la entrada» abre la
   página con el QR.
-- **Online**: sin QR (como su página y el mail); el link de la transmisión está en la página de la
-  entrada.
+- **Online**: sin QR (como su página y el mail). Si el link de la transmisión ya está cargado, la
+  tarjeta lo manda en el texto («El link de la transmisión: …») y con el botón «📺 Ver la
+  transmisión», con la misma regla que la página de la entrada: evento online y compra aprobada
+  (`streamLinkFor`, leído una vez por evento en `accountTickets`, tickets.js). Si todavía no está,
+  dice que llega por mail antes del evento y que también va a aparecer ahí.
 - **Sin vincular**: cómo conectar la cuenta, con «Abrir Mi rincón → Lo que sigo». **En un grupo**:
   «Esto se hace por chat privado…» y el link `?start=mis-entradas`, sin mirar ninguna cuenta.
 - **Privacidad**: el token de una entrada va solo en la foto y en el link de su tarjeta, por el
@@ -350,11 +360,14 @@ Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dó
 
 - **Qué busca**: lo mismo que el buscador del sitio, con su mismo índice
   (`publicSearchIndex` en `src/lib/server/search/publicIndex.js`, el de `/api/search-index.json`,
-  armado una vez por cambio de la base y compartido con el endpoint) y su mismo orden (`search` +
-  `groupHits`: próximos eventos, series, material, amigues, Kinkipedia, eventos pasados).
-- **Prefijos** (opcionales): `evento:`, `material:`, `wiki:` (o `kinkipedia:`, con las series),
-  `serie:`, `amigues:`. Con prefijo y sin texto: todo lo de ese tipo (los eventos, solo los
-  próximos; el material, del más nuevo).
+  armado una vez por cambio de la base y compartido con el endpoint), su mismo orden (`find` +
+  `groupHits`: próximos eventos, series, material, amigues, Kinkipedia, eventos pasados) y **la
+  misma sintaxis** ([buscar.md](buscar.md): frases, `-palabra`, `#etiqueta`, `@persona`, tipos,
+  `lugar:`, fechas). Buscar en el chat usa lo mismo.
+- **Tipos** (opcionales, en cualquier lugar de lo escrito): `evento:` (`e:`), `material:` (`m:`),
+  `wiki:` o `kinkipedia:` (`w:`, con las series), `serie:` (`s:`), `amigues:` (`a:`). Con un tipo
+  y nada más: todo lo de ese tipo (los eventos, solo los próximos; el material, del más nuevo),
+  también en Buscar.
 - **Sin texto**: los próximos eventos (del más cercano) y después 5 materiales recientes.
 - **Cada resultado**: título (con el ícono de la etiqueta en la Kinkipedia y las series), una
   descripción (la fecha y la zona en los eventos; el resumen en el material y la Kinkipedia; el
@@ -821,9 +834,10 @@ interruptor **Telegram para admins** (`telegram_admin`, `TELEGRAM_ADMIN_ENABLED`
 que además pide el bot prendido. Va en tres PR:
 
 1. La base y el estado a pedido: «📊 Estado» y «🔔 Mis avisos» (#315).
-2. **(este) El resumen diario de ventas y los avisos en el momento** (cada venta, cada
-   transferencia): abajo, «Los avisos que salen».
-3. El día del evento (resumen) y los recordatorios (el evento de mañana, falta el lugar o el link).
+2. El resumen diario de ventas y los avisos en el momento (cada venta, cada transferencia): abajo,
+   «Los avisos que salen» (#322).
+3. El día del evento (resumen) y los recordatorios (el evento de mañana, falta el lugar o el link):
+   abajo, «Día del evento y recordatorios».
 
 **Quién**: une admin con el Telegram vinculado desde el panel (el mismo vínculo que la puerta,
 `telegram_admin_links`) que **sigue** en `ADMINS`, mirado **en cada mensaje y cada botón** de
@@ -850,15 +864,14 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
 - **Solo cantidades**: las consultas son `SUM`/`COUNT` sobre `orders` (y la lista de espera); nunca
   leen nombres, mails, DNI, titulares, códigos ni tokens (`admin-privacy.test.js` llena la base con
   todo eso y revisa que no aparezca en ninguna pantalla). Lo de cada compra, en el panel.
-- **🔔 Mis avisos**: cinco tipos (resumen diario, cada venta, cada transferencia, día del evento,
-  recordatorios), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
+- **🔔 Mis avisos**: seis tipos (resumen diario, cada venta, cada transferencia, día del evento,
+  recordatorios y fallas en compras), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
   por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila = apagado): volver a
-  vincular no borra lo elegido. Ya salen el resumen diario, cada venta y cada transferencia (abajo);
-  el día del evento y los recordatorios, con el PR 3 (la pantalla lo dice).
+  vincular no borra lo elegido. Salen los seis (abajo).
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con sus pantallas en
   la vista previa.
 
-### Los avisos que salen (PR 2, `adminNotify.js`)
+### Los avisos que salen (`adminNotify.js`)
 
 Para todos:
 
@@ -874,7 +887,9 @@ Para todos:
   el panel ↗» (`/admin/eventos/<dirección>`).
 - **Nada dos veces**: antes de mandar se toma una fila de `telegram_admin_sent` (migración
   `0055`, clave `venta:<orden>`, `transferencia:<orden>` o `resumen:<día>:<evento>`); si Telegram
-  falla se suelta (el resumen se reintenta en la corrida siguiente). Si le admin bloqueó al bot, no
+  falla se suelta (el resumen se reintenta en la corrida siguiente), como mucho 3 intentos por aviso
+  y admin en el día (`ADMIN_NOTICE_ATTEMPTS`, en `rate_limits` con la clave hasheada): un chat que
+  falla siempre no se reintenta cada 15 minutos todo el día. Si le admin bloqueó al bot, no
   se reintenta y el vínculo sigue (lo usa la puerta). El cron borra las filas de más de 30 días.
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con su vista previa.
 
@@ -917,6 +932,65 @@ una confirmación):
   avisada a las 9 de la mañana ya no sirve.
 - Si Telegram falla en ese momento, ese aviso no se reintenta (el resumen diario la cuenta igual).
 
+**Día del evento y recordatorios** (PR 3, `runAdminEventDayCron`): el mismo cron, a la misma hora
+que el resumen diario (desde las 9 de Argentina, fuera del horario de silencio), aparte de él (su
+resultado sale como `telegramAdminDia`). Solo eventos con entradas de hoy o de mañana (día de
+Argentina) que **no** estén cancelados. Con o sin ventas:
+
+- **Día del evento** (quien prendió «Día del evento»), el día del evento: «📣 Hoy: <evento>» con la
+  hora, el total vendido contra el cupo, lo pendiente como en «📊 Estado» (reservas sin pagar y las
+  que vencen en la próxima hora, transferencias por confirmar, órdenes para revisar, la lista de
+  espera) y lo que falta (abajo). Clave `dia:<día>:<evento>`.
+- **Recordatorios** (quien prendió «Recordatorios»):
+  - el día antes: «⏰ Mañana: <evento>» con la hora, el total vendido y lo que falta. Clave
+    `manana:<día>:<evento>`;
+  - el mismo día, **solo si todavía falta algo** y solo a quien **no** prendió «Día del evento» (su
+    resumen ya lo dice): «⚠️ Hoy: <evento>» con lo que falta. Clave `falta:<día>:<evento>`.
+- **Lo que falta**: en un evento presencial, el lugar (sin lugar vinculado ni «Dónde» en texto,
+  `location`/`location_name`); en uno online (`config.online`), el link de la transmisión
+  (`event_ticket_settings.stream_link`). Mismo criterio que el «Dónde» de la página y las entradas.
+- Las mismas reglas que los demás: solo cantidades, «Ver en el panel ↗», una vez por día, evento y
+  admin (si Telegram falla, se reintenta en la corrida siguiente), sin migración nueva (usa
+  `telegram_admin_sent`). Los textos, en «Textos del bot» (sección «Estado y avisos (admins)»), con
+  su vista previa.
+
+### Fallas en compras (`purchaseAlerts.js`)
+
+Plan `errores-alertas`: enterarse en el momento si falla una compra, sin un Worker aparte, sin
+tocar el panel de Cloudflare, sin secretos nuevos y sin migración. Es un tipo más de «🔔 Mis
+avisos», **Fallas en compras** (`fallas_compra`, letra `f`), apagado como todos. Valen las reglas
+de arriba (a quién, interruptores, horario de silencio sin sonido).
+
+- **Qué se avisa** (`reportPurchaseFailure`, desde el lugar donde ya se registraba el error;
+  **nunca traba ni hace fallar** la compra): `reserva` (no se pudo reservar la compra, en
+  `checkout.js`), `mp_preferencia` (no se pudo crear el pago en Mercado Pago), `gratis` (no se
+  pudieron emitir entradas gratis), `mp_pago` (el webhook no pudo leer un pago de Mercado Pago),
+  `pago` (no se pudo aplicar un pago a su orden), `pago_no_coincide` (monto, moneda o medio no
+  coinciden con la orden, `processPayment`) y `mail_entradas` (el mail con las entradas no salió;
+  no cuenta cuando Resend dice «ahora no», que se reintenta solo).
+- **El texto** («⚠️ Falló una compra: no se pudo crear el pago en Mercado Pago. Orden: KV-1A2B3C4D ·
+  código de la falla: mp_preferencia. Van 3 desde las 14:30…»): qué falló, el código, la
+  referencia de la orden (o «sin identificar») y cuántas van en esa media hora. **Nunca** datos de
+  quien compra, montos ni el mensaje del error. «Ver en el panel ↗» abre la orden
+  (`/admin/eventos/<dirección>/ordenes#orden-<id>`) o, sin orden, Ventas. Textos
+  `admin.falla_compra` y `admin.falla_sin_orden` en «Textos del bot», con su vista previa.
+- **Uno por falla cada media hora**: por código, una fila de `telegram_admin_sent` por ventana fija
+  de 30 minutos (`falla:<código>:<inicio de la ventana>`), tomada con el mismo `INSERT … ON CONFLICT
+DO NOTHING`: dos fallas a la vez no mandan dos avisos. Las ventanas son fijas (:00 y :30), así
+  que en el borde pueden salir dos seguidos. El contador de cada ventana va en `rate_limits`
+  (`falla-compra:<código>`; se cuenta aunque nadie lo haya prendido).
+- **Tope**: 12 avisos de fallas por admin y por día de Argentina (`DAILY_CAP`). Lo que no se avisa
+  queda en los registros.
+- **Registros**: cada falla deja además una línea JSON `{"area":"compra","falla":"<código>",
+"orden":"KV-…"}` (se busca en Observability → Logs). Si lo que falla es la base, el aviso no
+  puede salir (no hay a quién leer): queda solo esa línea. Lo que se cae entero lo avisa
+  `vigilante-produccion`.
+- **Por qué no un Worker que mire los registros**: los Tail Workers y el Logpush de Workers piden
+  el plan pago y armar algo en el panel de Cloudflare; Workers Logs no manda alertas; Workers Issues
+  (beta) agrupa errores y puede mandarlos a un webhook, pero se configura en el panel y mira todos
+  los errores, no solo los de una compra. Avisar desde el mismo código usa lo que ya está (el bot,
+  «Mis avisos», `telegram_admin_sent`). Ver [workers-migracion.md](workers-migracion.md).
+
 ### Puesta en marcha del estado y los avisos (la hace gorrite)
 
 1. **Aplicar la migración `0054_telegram_admin_avisos.sql` en producción y en preview antes de
@@ -931,6 +1005,8 @@ una confirmación):
    de mergear** (0028). Solo crea una tabla: anda con el código de `main`. Después, prender
    «Resumen diario», «Cada venta» o «Cada transferencia» en «🔔 Mis avisos» y probar en un preview
    (una compra de prueba, o esperar al cron de las 9).
+5. PR 3 (sin migración): prender «Día del evento» o «Recordatorios» en «🔔 Mis avisos» y probar en
+   un preview con un evento de prueba para mañana o para hoy (a las 9, o con el cron a mano).
 
 ## Estadísticas de uso (0045)
 
@@ -974,6 +1050,11 @@ lista de arriba.
   - `inline`: lo buscado en el modo inline (solo la primera página: pedir «más» no es otra
     búsqueda). Las consultas que Telegram contesta desde su caché (120 segundos) no llegan al bot:
     se cuentan de menos;
+  - `sin_resultados`: una búsqueda que no encontró nada, **sin lo buscado** (la clave es solo
+    dónde: `busqueda`, en el bot, o `inline`, en el modo inline). En el bot cuenta la respuesta a
+    «🔎 Buscar», `/buscar <texto>` y `/evento <texto>` sin nada (no pasar de página ni volver a los
+    resultados); en el modo inline, la primera página sin nada aunque después se muestre lo de la
+    búsqueda parecida. Sale como columna en «Por semana» y en el detalle de la semana;
   - `objeto`: una cosa abierta en el bot (la tarjeta de un evento, la tarjeta compacta de Buscar o
     de una sección), como `evento:<dirección>`, `material:…`, `wiki:…`, `serie:…` o `amigues:…`;
   - `inline_elegido`: la cosa que alguien mandó desde el modo inline (`chosen_inline_result`);

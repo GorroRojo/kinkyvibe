@@ -86,7 +86,10 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 - **Las compras se ven solo con el mail verificado** (P7.5): una orden aparece si tiene el
   `account_id` de la cuenta o si su `buyer_email` (sin importar mayúsculas) es el mail verificado.
   Solo lectura: no se modifica ninguna orden. Se muestran las aprobadas, las que esperan la
-  transferencia y las reembolsadas.
+  transferencia y las reembolsadas. En un taller de varias partes con una sola entrada, la fecha
+  es la de la parte que toca: la primera que no pasó o, si pasaron todas, la última (la misma
+  regla que «Mis entradas» del bot, `ticketDate` en `src/lib/utils/partes.js`;
+  [talleres-partes.md](talleres-partes.md)).
 - **Las entradas gratis pedidas sin la sesión de la cuenta se preguntan** (decisión
   [0048](decisiones/0048-entradas-gratis-sin-sesion-se-preguntan.md), «No fui yo» parte 2 en
   [mails.md](mails.md#no-fui-yo)): cualquiera puede escribir un mail ajeno en el formulario de
@@ -357,6 +360,8 @@ Sin el permiso, la cuenta **no ve nada de perfiles**:
 - además, en `perfiles.js`: `listMyProfiles` y `getManagedProfile` (que usan casi todas las
   acciones) piden el permiso en la misma consulta, `createProfile` y `answerInvite` lo chequean
   antes, y `myInvites`, `listMyMemberInvites` y `listMyMemberships` no devuelven nada;
+- `/imagenes` (subir, buscar y borrar imágenes de la biblioteca para un perfil) da **404**, aunque
+  la cuenta siga anotada como gestora de un perfil (`imageAccess` de `src/lib/server/media/access.js`);
 - las **invitaciones** (a gestionar un proyecto o a ser integrante) no se le muestran ni las puede
   aceptar o rechazar, y el aviso por mail no sale (`sendInviteNotice`, que corre después de
   responder). **Quien invita recibe exactamente la misma respuesta de siempre** y ve la
@@ -367,6 +372,17 @@ Lo único de perfiles que sí ve una cuenta sin el permiso es **«¿Es tu perfil
 pública de un perfil (y en Mi rincón, la tarjeta «¿Ya estás en Amigues?» que lo explica): pide
 hacerse cargo de un perfil que ya existe y une admin lo revisa; para aprobarlo, le da el permiso
 antes ([amigues.md](amigues.md)). No hay ningún texto para pedir el permiso en sí.
+
+**Tus pedidos de perfiles** (Mi rincón, con o sin el permiso): la tarjeta sale solo si la cuenta
+pidió alguno, y lista **sus** pedidos «¿Es tu perfil?» (`myClaims` de
+`src/lib/server/amigues/claims.js`, hasta 50, del más nuevo al más viejo, sin los de perfiles
+borrados) con su estado: **Pendiente**, **Aprobado** o **No aprobado**, y cuándo se pidió y se
+resolvió. Nada de quién lo resolvió ni de otros pedidos. El nombre lleva a la página del perfil
+si no está oculto. En la página del perfil, si el último pedido de la cuenta no se aprobó, dice
+«no aprobado» en vez de volver a ofrecer «¿Es tu perfil?» (`claimStatusOf`); si se aprobó y la
+cuenta ya no lo gestiona, se puede volver a pedir. Solo cambia lo que se muestra: el servidor
+sigue aceptando un pedido nuevo. El aviso por mail al resolverse queda pendiente
+(`rincon-pedidos-mail` en el plan).
 
 Sacar el permiso **no borra nada**: los perfiles quedan y vuelven a verse si se prende de nuevo.
 Les admins los siguen viendo en el panel. Si une dueñe de un proyecto pierde el permiso, sigue

@@ -15,7 +15,8 @@
 	import { page } from '$app/stores';
 	import { argDateLong, isoDateTime, isoDay } from '$lib/utils/dates.js';
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
-	import { readingTimeLabel } from '$lib/utils/readingTime.js';
+	import ReadingProgress from '$lib/components/ReadingProgress.svelte';
+	import { readingTimeLabel, showsReadingProgress } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { articleAuthors, updatedDay } from '$lib/utils/autoria.js';
 	import { linkPreviewOf, materialDescription } from '$lib/utils/seo.js';
@@ -33,6 +34,12 @@
 	$: contentLang = (data.meta.tags ?? []).some((/** @type {string} */ t) => /^ingl[eé]s$/i.test(t))
 		? 'en'
 		: undefined;
+	// La barra de progreso de lectura, solo en los textos largos (ReadingProgress.svelte).
+	$: longText = showsReadingProgress(data.readingMinutes);
+	/** @type {HTMLElement | undefined} */
+	let articleEl;
+	/** @type {HTMLElement | undefined} */
+	let textEl;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
 	// bloque de estilos del componente.
@@ -69,7 +76,10 @@
 	type="article"
 	noindex={Boolean(data.meta.force_unlisted || data.meta.force_unpublished)}
 />
-<article class="h-entry">
+{#if longText}
+	<ReadingProgress from={articleEl} text={textEl} />
+{/if}
+<article class="h-entry" bind:this={articleEl}>
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 	<h1 id="title" class="p-name" lang={contentLang}>{data.meta.title}</h1>
 	{#if data.meta.authors && data.meta.authors.length > 0}
@@ -148,7 +158,7 @@
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
 		<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
 		     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
-		<div class="kv-texto-libre">
+		<div class="kv-texto-libre" bind:this={textEl}>
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			{@html ownStyle}
 			{#if data.parts}

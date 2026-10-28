@@ -21,6 +21,13 @@
 		refunded: 'Reembolsada'
 	};
 
+	/** El estado de un pedido «¿Es tu perfil?». @type {Record<string, string>} */
+	const CLAIM_STATUS = {
+		pending: 'Pendiente',
+		approved: 'Aprobado',
+		rejected: 'No aprobado'
+	};
+
 	let confirmDelete = '';
 
 	// «Mis datos»: el DNI entero solo llega con «Mostrar» (la respuesta de ?/mostrarDni).
@@ -167,6 +174,32 @@
 				perfil?». Lo revisa el equipo a mano y, si lo aprobamos, lo vas a poder editar desde acá.
 			</p>
 			<a class="pill-btn ghost start" href="/amigues">Ir a Amigues</a>
+		</section>
+	{/if}
+
+	{#if data.claims?.length}
+		<!-- Los pedidos «¿Es tu perfil?» de la cuenta: solo los suyos, con su estado. -->
+		<section class="surface-card" aria-labelledby="pedidos-title">
+			<h2 id="pedidos-title">Tus pedidos de perfiles</h2>
+			<ul class="orders">
+				{#each data.claims as c (c.id)}
+					<li>
+						{#if c.href}<a href={c.href}><strong>{c.profileTitle}</strong></a>{:else}<strong
+								>{c.profileTitle}</strong
+							>{/if}
+						<span>{CLAIM_STATUS[c.status] ?? c.status}</span>
+						<span class="hint"
+							>Pedido el {argDateLong(c.createdAt)}{#if c.decidedAt}, resuelto el {argDateLong(
+									c.decidedAt
+								)}{/if}</span
+						>
+					</li>
+				{/each}
+			</ul>
+			<p class="hint">
+				Los perfiles que pediste con «¿Es tu perfil?». Lo revisa el equipo a mano; si lo aprobamos,
+				lo editás desde Tus perfiles.
+			</p>
 		</section>
 	{/if}
 

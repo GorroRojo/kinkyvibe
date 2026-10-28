@@ -2,7 +2,8 @@
  * Los avisos para admins por Telegram, PR 2 (decisión 0041, docs/telegram.md «Estado y avisos
  * para admins»): el **resumen diario** de ventas y los avisos **de cada venta** y **de cada
  * transferencia**, y el de un **contracargo** de Mercado Pago (le llega a quien prendió «Cada
- * venta»). El día del evento y los recordatorios son del PR 3.
+ * venta»). PR 3: el **día del evento** (un resumen ese día) y los **recordatorios** (el evento de
+ * mañana; falta el lugar o el link de la transmisión), en {@link runAdminEventDayCron}.
  *
  * Reglas (las de 0029 y 0041):
  *
@@ -30,6 +31,10 @@ import { botText, botTextOverrides } from './texts.js';
 import { formatARS } from '$lib/utils/money.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { argentinaHour, isQuietHour } from './quiet.js';
+import { getStreamLink } from '$lib/server/tickets/stream.js';
+import { placeLine } from '$lib/utils/eventPlace.js';
+import { hitRateLimit } from '$lib/server/db/rateLimit.js';
+import { sha256Hex } from '$lib/server/hash.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/tickets/orders.js').Order} Order */
@@ -60,6 +65,14 @@ export const DAILY_EXPIRING_MS = 24 * 60 * 60 * 1000;
 
 /** Mensajes del resumen diario por corrida, como mucho (el resto sale en las siguientes). */
 export const ADMIN_NOTICE_BATCH = 50;
+
+/**
+ * Intentos por aviso y admin en un día: después de tantos fallos seguidos la fila queda tomada y
+ * no se reintenta más (como el reintento del mail de las entradas, tickets/unsentOrders.js). Las
+ * claves de los avisos ya llevan el día o la hora, así que el de mañana sale igual.
+ */
+export const ADMIN_NOTICE_ATTEMPTS = 3;
+const RETRY_RULE = Object.freeze({ limit: ADMIN_NOTICE_ATTEMPTS - 1, windowSeconds: 24 * 60 * 60 });
 
 /** Cuánto se guardan las filas de `telegram_admin_sent` (lo enviado). */
 export const SENT_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
@@ -355,7 +368,8 @@ export async function pruneSentNotices(db, now) {
 }
 
 /**
- * Manda un aviso a cada destinatarie, una sola vez por clave.
+ * Manda un aviso a cada destinatarie, una sola vez por clave. Si Telegram falla, la fila se suelta
+ * para la corrida siguiente, como mucho {@link ADMIN_NOTICE_ATTEMPTS} intentos por día.
  *
  * @param {{ db: D1Database, send: AdminSend, key: string, message: AdminMessage, now: number,
  *   recipients: { telegramUserId: string, githubId: number }[] }} input
@@ -371,7 +385,14 @@ async function deliverOnce({ db, send, key, message, now, recipients }) {
 		const result = await send(r.telegramUserId, message);
 		if (result === 'failed') {
 			out.failed += 1;
-			await releaseNotice(db, r.githubId, key);
+			// Se suelta para reintentar, salvo que ya haya fallado ADMIN_NOTICE_ATTEMPTS veces hoy.
+			const retry = await hitRateLimit(
+				db,
+				`telegram:aviso-admin:${await sha256Hex(`${r.githubId}:${key}`)}`,
+				RETRY_RULE,
+				now
+			);
+			if (retry.allowed) await releaseNotice(db, r.githubId, key);
 		} else if (result === 'blocked') {
 			// Bloqueó al bot o borró el chat: no se reintenta (el vínculo sigue, lo usa la puerta).
 			out.failed += 1;
@@ -668,4 +689,246 @@ export async function notifyMailQuota({
 		now,
 		recipients
 	});
+}
+
+// ---------------------------------------------------------------------------------------------
+// Día del evento y recordatorios (PR 3)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Lo que le falta a un evento para que llegue bien a quienes compraron: el lugar (presencial, sin
+ * lugar vinculado ni «Dónde» en texto) o el link de la transmisión (online, sin link cargado).
+ *
+ * @typedef {{ place: boolean, stream: boolean }} Missing
+ */
+
+/**
+ * @param {{ online: boolean, location?: unknown, location_name?: unknown }} config
+ * @param {{ hasVenue: boolean, hasStream: boolean }} found
+ * @returns {Missing}
+ */
+export function missingOf(config, { hasVenue, hasStream }) {
+	if (config.online) return { place: false, stream: !hasStream };
+	return { place: !hasVenue && !placeLine(config.location_name, config.location), stream: false };
+}
+
+/** @param {Missing} missing @param {BotTexts | null} [overrides] */
+const missingLines = (missing, overrides) => [
+	...(missing.place ? [botText('admin.falta_lugar', {}, overrides)] : []),
+	...(missing.stream ? [botText('admin.falta_link', {}, overrides)] : [])
+];
+
+/** El total del evento contra el cupo («Total: 15 de 60 vendidas»). @param {EventStatus} status @param {BotTexts | null} [overrides] */
+const totalLine = (status, overrides) =>
+	status.capacity === null
+		? botText('admin.total_sin_cupo', { vendidas: status.sold }, overrides)
+		: botText('admin.total', { vendidas: status.sold, cupo: status.capacity }, overrides);
+
+/**
+ * El resumen del día del evento: la hora, el total vendido contra el cupo, lo pendiente (reservas
+ * sin pagar y las que vencen en la próxima hora, transferencias por confirmar, órdenes para
+ * revisar, la lista de espera) y lo que falta (el lugar o el link). Solo cantidades.
+ *
+ * @param {{ title: string, start: string, status: EventStatus, missing: Missing }} input
+ * @param {number} now
+ * @param {BotTexts | null} [overrides]
+ */
+export function eventDayText({ title, start, status, missing }, now, overrides) {
+	const when = tgTime(start, now);
+	/** @type {string[]} */
+	const pending = [];
+	if (status.held > 0) {
+		pending.push(
+			botText('admin.reservas', { cantidad: status.held, por_vencer: status.expiring }, overrides)
+		);
+	}
+	if (status.transfers > 0) {
+		pending.push(botText('admin.transferencias', { cantidad: status.transfers }, overrides));
+	}
+	if (status.review > 0) {
+		pending.push(botText('admin.revisar', { cantidad: status.review }, overrides));
+	}
+	if (pending.length === 0) pending.push(botText('admin.nada_pendiente', {}, overrides));
+	if (status.waitlist) {
+		pending.push(botText('admin.espera', { cantidad: status.waitlist }, overrides));
+	}
+	return [
+		[
+			botText('admin.dia_titulo', { evento: title }, overrides),
+			...(when ? [`📅 ${when}`] : [])
+		].join('\n'),
+		totalLine(status, overrides),
+		pending.join('\n'),
+		missingLines(missing, overrides).join('\n'),
+		botText('admin.pie', {}, overrides)
+	]
+		.filter(Boolean)
+		.join('\n\n');
+}
+
+/**
+ * Un recordatorio: el del evento de mañana («⏰ Mañana: …», con el total vendido y lo que falta)
+ * o, el mismo día, el de lo que todavía falta («⚠️ Hoy: …»).
+ *
+ * @param {{ kind: 'manana' | 'falta', title: string, start: string, status: EventStatus,
+ *   missing: Missing }} input
+ * @param {number} now
+ * @param {BotTexts | null} [overrides]
+ */
+export function reminderText({ kind, title, start, status, missing }, now, overrides) {
+	const when = tgTime(start, now);
+	const head =
+		kind === 'manana'
+			? botText('admin.manana_titulo', { evento: title }, overrides)
+			: botText('admin.falta_titulo', { evento: title }, overrides);
+	return [
+		[head, ...(when ? [`📅 ${when}`] : [])].join('\n'),
+		totalLine(status, overrides),
+		missingLines(missing, overrides).join('\n'),
+		botText('admin.pie', {}, overrides)
+	]
+		.filter(Boolean)
+		.join('\n\n');
+}
+
+/**
+ * Lo del cron (cada 15 minutos), desde las {@link ADMIN_DAILY_HOUR} (hora de Argentina, fuera del
+ * horario de silencio), para los eventos con entradas que no están cancelados:
+ *
+ * - **Día del evento** (a quien prendió «Día del evento»): el día del evento, su resumen
+ *   ({@link eventDayText}), con o sin ventas. Clave `dia:<día>:<evento>`.
+ * - **Recordatorios** (a quien prendió «Recordatorios»): el día antes, «mañana es el evento» con lo
+ *   que falta (clave `manana:<día>:<evento>`); y el mismo día, solo si todavía falta el lugar o el
+ *   link y a quien no prendió «Día del evento» (su resumen ya lo dice; clave `falta:<día>:<evento>`).
+ *
+ * Una vez por día, evento y admin; si Telegram falla, se reintenta en la corrida siguiente. Aparte
+ * del resumen diario ({@link runAdminNoticesCron}): no cambia lo que ese devuelve.
+ *
+ * @param {{ db: D1Database, origin: string, token: string | undefined, fetch?: typeof fetch,
+ *   now?: number, list?: typeof listTicketedEvents, send?: AdminSend,
+ *   venues?: (db: D1Database, slugs: string[]) => Promise<Set<string>> }} input
+ *   `list`, `send` y `venues`, para los tests
+ * @returns {Promise<{ skipped: 'off' | 'token' | 'hour' | 'nobody' } | { sent: number,
+ *   failed: number, events: number }>}
+ */
+export async function runAdminEventDayCron({
+	db,
+	origin,
+	token,
+	fetch: fetchFn = fetch,
+	now = Date.now(),
+	list = listTicketedEvents,
+	send,
+	venues = async (d, slugs) =>
+		(await import('$lib/server/amigues/venues.js')).eventsWithVenueAmong(d, slugs)
+}) {
+	if (!(await adminBotEnabled(db))) return { skipped: 'off' };
+	if (!token && !send) return { skipped: 'token' };
+	if (!isDailyTime(now)) return { skipped: 'hour' };
+	const dayRecipients = await noticeRecipients(db, 'dia_evento');
+	const reminderRecipients = await noticeRecipients(db, 'recordatorios');
+	if (dayRecipients.length === 0 && reminderRecipients.length === 0) return { skipped: 'nobody' };
+
+	const today = argentinaDate(now);
+	const tomorrow = argentinaDate(now + DAY_MS);
+	const all = await list();
+	const configs = new Map(all.map((e) => [e.slug, e.config]));
+	const choices = adminEventChoices(all, now).filter((c) => {
+		if (c.cancelled) return false;
+		const day = argentinaDate(Date.parse(c.start));
+		return day === today || day === tomorrow;
+	});
+	const out = { sent: 0, failed: 0, events: 0 };
+	if (choices.length === 0) return out;
+
+	const overrides = await botTextOverrides(db);
+	const sender = send ?? adminSender(/** @type {string} */ (token), fetchFn, overrides);
+	const withVenue = await venues(
+		db,
+		choices.map((c) => c.slug)
+	);
+	const dayIds = new Set(dayRecipients.map((r) => r.githubId));
+	let budget = ADMIN_NOTICE_BATCH;
+	for (const choice of choices) {
+		if (budget <= 0) break;
+		const config = configs.get(choice.slug);
+		if (!config) continue;
+		const isToday = argentinaDate(Date.parse(choice.start)) === today;
+		const missing = missingOf(config, {
+			hasVenue: withVenue.has(choice.slug),
+			hasStream: config.online ? Boolean(await getStreamLink(db, choice.slug)) : false
+		});
+		const somethingMissing = missing.place || missing.stream;
+		/** @type {{ key: string, recipients: typeof dayRecipients, build: (s: EventStatus) => string }[]} */
+		const notices = [];
+		if (isToday) {
+			notices.push({
+				key: `dia:${today}:${choice.slug}`,
+				recipients: dayRecipients,
+				build: (status) =>
+					eventDayText(
+						{ title: choice.title, start: choice.start, status, missing },
+						now,
+						overrides
+					)
+			});
+			if (somethingMissing) {
+				notices.push({
+					key: `falta:${today}:${choice.slug}`,
+					recipients: reminderRecipients.filter((r) => !dayIds.has(r.githubId)),
+					build: (status) =>
+						reminderText(
+							{ kind: 'falta', title: choice.title, start: choice.start, status, missing },
+							now,
+							overrides
+						)
+				});
+			}
+		} else {
+			notices.push({
+				key: `manana:${today}:${choice.slug}`,
+				recipients: reminderRecipients,
+				build: (status) =>
+					reminderText(
+						{ kind: 'manana', title: choice.title, start: choice.start, status, missing },
+						now,
+						overrides
+					)
+			});
+		}
+		/** @type {EventStatus | null} */
+		let status = null;
+		let counted = false;
+		for (const notice of notices) {
+			if (budget <= 0) break;
+			const pendingFor = [];
+			for (const r of notice.recipients) {
+				const done = await db
+					.prepare(
+						'SELECT 1 AS ok FROM telegram_admin_sent WHERE github_id = ?1 AND notice_key = ?2'
+					)
+					.bind(r.githubId, notice.key)
+					.first();
+				if (!done) pendingFor.push(r);
+			}
+			if (pendingFor.length === 0) continue;
+			status ??= await eventStatus(db, choice.slug, config, now);
+			if (!counted) {
+				out.events += 1;
+				counted = true;
+			}
+			const r = await deliverOnce({
+				db,
+				send: sender,
+				key: notice.key,
+				message: { text: notice.build(status), panelUrl: panelUrl(origin, choice.slug) },
+				now,
+				recipients: pendingFor.slice(0, budget)
+			});
+			budget -= r.sent + r.failed;
+			out.sent += r.sent;
+			out.failed += r.failed;
+		}
+	}
+	return out;
 }

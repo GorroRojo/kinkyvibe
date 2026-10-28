@@ -115,6 +115,23 @@ function buildHaystack(tm, meta = {}) {
 }
 
 /**
+ * How many of `posts` each tag (canonical id) would keep if it were added to the filter: the post
+ * has it or one of its descendants, as `filterPosts` filters. A tag kept by every post wouldn't
+ * change the results.
+ * @param {Array<{meta: {tags?: string[]}}>} posts
+ * @param {TagManager} tm
+ * @returns {Map<string, number>}
+ */
+export function tagCoverage(posts, tm) {
+	/** @type {Map<string, number>} */
+	const res = new Map();
+	for (const post of posts) {
+		for (const t of postTags(tm, post)) res.set(t, (res.get(t) ?? 0) + 1);
+	}
+	return res;
+}
+
+/**
  * Filters posts by selected tags (AND, hierarchy-aware, alias-aware) and
  * free text (every word must appear in title, summary, authors or tag names).
  * @template {{meta: {tags?: string[], title?: string, summary?: string, authors?: string[]}}} P

@@ -937,7 +937,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Fallas en compras**: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y las fallas en compras, en el momento. Solo cantidades y links, nunca datos de quienes compran.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -965,6 +965,14 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'button',
 			'Mis avisos: recordatorios',
 			'Recordatorios',
+			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_fallas',
+			'admin',
+			'button',
+			'Mis avisos: fallas en compras',
+			'Fallas en compras',
 			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
 		),
 		f('admin.prendido', 'admin', 'toast', 'Mis avisos: al prender uno', 'Prendido: {aviso}', {
@@ -1076,6 +1084,39 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			}
 		),
 		f(
+			'admin.falla_compra',
+			'admin',
+			'line',
+			'Aviso «Fallas en compras»: algo de una compra falló',
+			'⚠️ **Falló una compra**: {falla}.\nOrden: {orden} · código de la falla: {codigo}\nVan {veces} desde las {desde}. El detalle está en los registros de Cloudflare (Workers Logs).',
+			{
+				vars: [
+					{
+						name: 'falla',
+						label: 'qué falló',
+						sample: 'no se pudo crear el pago en Mercado Pago'
+					},
+					{ name: 'orden', label: 'la referencia de la orden', sample: 'KV-1A2B3C4D' },
+					{ name: 'codigo', label: 'el código de la falla', sample: 'mp_preferencia' },
+					{ name: 'veces', label: 'cuántas van en esta media hora', sample: '3' },
+					{ name: 'desde', label: 'desde qué hora (Argentina)', sample: '14:30' }
+				],
+				required: ['falla', 'codigo'],
+				help: 'Como mucho uno por falla cada media hora, y 12 por día. Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.falla_sin_orden',
+			'admin',
+			'line',
+			'Aviso «Fallas en compras»: cuando no se sabe la orden',
+			'sin identificar',
+			{
+				max: 40,
+				help: 'Va en {orden} cuando la falla no tiene orden (por ejemplo, un pago que no se pudo leer).'
+			}
+		),
+		f(
 			'admin.resumen_titulo',
 			'admin',
 			'line',
@@ -1126,6 +1167,48 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				],
 				required: ['cantidad']
 			}
+		),
+		f(
+			'admin.dia_titulo',
+			'admin',
+			'line',
+			'Día del evento: el título del resumen de ese día',
+			'📣 **Hoy: {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.manana_titulo',
+			'admin',
+			'line',
+			'Recordatorios: el título del de la víspera (el evento es mañana)',
+			'⏰ **Mañana: {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.falta_titulo',
+			'admin',
+			'line',
+			'Recordatorios: el título del del mismo día, si todavía falta el lugar o el link',
+			'⚠️ **Hoy: {evento}**',
+			{
+				vars: [V.evento],
+				required: ['evento'],
+				help: 'Solo sale si falta algo, y no a quien prendió «Día del evento» (su resumen ya lo dice).'
+			}
+		),
+		f(
+			'admin.falta_lugar',
+			'admin',
+			'line',
+			'Día del evento y recordatorios: un evento presencial sin lugar (solo si falta)',
+			'📍 Todavía no tiene lugar: cargalo en el panel.'
+		),
+		f(
+			'admin.falta_link',
+			'admin',
+			'line',
+			'Día del evento y recordatorios: un evento online sin el link de la transmisión (solo si falta)',
+			'🔗 Todavía falta el link de la transmisión: cargalo en el panel y mandáselo a todes.'
 		),
 
 		// -----------------------------------------------------------------------------------------
@@ -1564,8 +1647,28 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'entradas.online',
 			'entradas',
 			'line',
-			'La entrada de un evento online (no lleva QR)',
-			'💻 Es online: el link de la transmisión está en tu entrada, en el sitio.'
+			'La entrada de un evento online, todavía sin el link de la transmisión (no lleva QR)',
+			'💻 Es online. Todavía no está el link de la transmisión: te lo mandamos por mail antes del evento y también va a aparecer acá.'
+		),
+		f(
+			'entradas.online_link',
+			'entradas',
+			'line',
+			'La entrada de un evento online, con el link de la transmisión ya cargado',
+			'💻 Es online. El link de la transmisión: {link}',
+			{
+				vars: [
+					{ name: 'link', label: 'el link de la transmisión', sample: 'https://ejemplo.com/vivo' }
+				],
+				required: ['link']
+			}
+		),
+		f(
+			'entradas.boton_transmision',
+			'entradas',
+			'button',
+			'La entrada de un evento online: el botón al link de la transmisión',
+			'📺 Ver la transmisión'
 		),
 		f(
 			'entradas.ver_qr',

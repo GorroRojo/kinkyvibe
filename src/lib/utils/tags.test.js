@@ -145,11 +145,7 @@ describe('tagsFactory (src/lib/utils/tags.js)', () => {
 		expect(tm.delete('nuevo')).toBe(false);
 	});
 
-	// BUG (reported, not fixed): tagManager.get() never returns undefined (it falls back to an
-	// orphan tag), so the `missingTags.push(...)` branches for unknown `related` ids and unknown
-	// [[wikilinks]] in descriptions are unreachable and missingTags is always [].
-	// Flip to `it` once fixed.
-	it.fails('missingTags reporta related/wikilinks que apuntan a tags inexistentes', () => {
+	it('missingTags reporta related/wikilinks que apuntan a tags inexistentes', () => {
 		const tm = tagsFactory([
 			{ id: 'a', related: ['no-existe'], description: 'ver [[tampoco-existe]]' }
 		]);

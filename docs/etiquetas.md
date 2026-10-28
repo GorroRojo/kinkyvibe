@@ -45,6 +45,15 @@ Se hace en PRs chicos, uno arriba del otro:
    `tagSlug()` (espacios → guiones) y `resolveTagSlug()` (`src/lib/utils/tagSlug.js`). El `slug`
    del objeto es solo interno.
 4. Se escribe solo con `saveObject()`, como todo objeto.
+5. **Un ciclo de madres no cuelga el sitio.** Fusionar ya no arma uno (#582), pero si llega por
+   otro lado (importador, semilla, una edición a mano en la base), todo lo que recorre el árbol
+   termina: `getAllChildren`/`getAllParents` no vuelven a abrir una etiqueta que ya está en el
+   camino que lleva hasta ella (en un árbol sin ciclos dan lo mismo que antes, repetidas
+   incluidas), `getColor` mira cada una una vez, y `TagGroup`, `GlosarioTree`/`GlosarioItem`, la
+   página `/wiki/<etiqueta>`, `tagSorter` y `leavesOf` cortan la rama en la etiqueta repetida.
+   Para encontrarlos: `node scripts/etiquetas-ciclos.js` (solo lee la base local; con `--sql` da
+   la consulta para correrla con `wrangler d1 execute … --remote --json` y `--desde=<archivo>` lee
+   esa salida).
 
 ## El tipo `etiqueta`
 
@@ -56,7 +65,7 @@ Archivo: `src/lib/server/objects/types/etiqueta.js`.
 | `key`            | `text`     | `id`: el nombre en los posts. Obligatorio, una línea, sin corchetes               |
 | `icon`           | `text`     | `icon` (un emoji)                                                                 |
 | `color`          | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
-| `description`    | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
+| `description`    | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas (si no existe, va como texto)  |
 | `image`          | `text`     | `image` (series): un nombre de las viejas imágenes de series o la de un evento    |
 | `body`           | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
 | `wiki_title`     | `text`     | `title` del `.md` de la wiki                                                      |
@@ -167,7 +176,8 @@ solo); hasta entonces el árbol está vacío y el editor lo avisa.
   la acción `guardar` acepta un solo cambio (`op`). Fusionar y renombrar sin alias piden
   confirmación antes (con lo que diga la vista previa del servidor). Guarda en la base (sin
   etiquetas en la base, la página pide cargar la semilla: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
-  operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después compara
+  operaciones que el editor del archivo (`applyTagOps`), así que valida igual (ni mover ni
+  fusionar dejan armar un ciclo de madres e hijas); después compara
   objeto por objeto y escribe solo lo que cambió. Diferencias:
   - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
   - el texto de la wiki y los demás datos que el archivo no tiene se conservan; si una etiqueta

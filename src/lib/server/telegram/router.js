@@ -134,6 +134,20 @@ export function parseCommand(text) {
 	return { name: match[1].toLowerCase(), args: (match[2] ?? '').trim() };
 }
 
+/**
+ * ¿El comando va para otro bot? «/ayuda@OtroBot» en un grupo donde este bot ve todos los mensajes
+ * (es admin o tiene el modo privacidad apagado): no se contesta. Sin el usuario del bot
+ * (`TELEGRAM_BOT_USERNAME`) no se puede saber y se contesta como antes.
+ *
+ * @param {unknown} text
+ * @param {string | null | undefined} botUsername
+ */
+export function forOtherBot(text, botUsername) {
+	if (typeof text !== 'string' || !botUsername) return false;
+	const to = /^\/[a-z0-9_]{1,32}@(\w+)/i.exec(text.trim())?.[1];
+	return !!to && to.toLowerCase() !== botUsername.toLowerCase();
+}
+
 /** Minúsculas y sin tildes, para buscar sin que importe cómo se escribió. */
 const fold = (/** @type {string} */ s) =>
 	s
@@ -369,7 +383,9 @@ async function siteMatches(query, ctx, deps) {
 	if (!source) return null;
 	return {
 		source,
-		docs: selectInline(source, { types: null, text: query }, ctx.now ?? Date.now())
+		// Con la misma sintaxis que el modo inline y el sitio (docs/buscar.md): `evento:` solo lista
+		// los próximos eventos.
+		docs: selectInline(source, parseInlineQuery(query), ctx.now ?? Date.now())
 	};
 }
 
@@ -380,13 +396,17 @@ async function siteMatches(query, ctx, deps) {
  * @param {number} page
  * @param {ScreenCtx} ctx
  * @param {Deps} deps
+ * @param {{ fresh?: boolean }} [opts] `fresh`: es una búsqueda nueva (no una página ni volver a
+ *   los resultados), así que si no encuentra nada se cuenta en las estadísticas
  * @returns {Promise<Screen>}
  */
-async function siteSearchScreen(rawQuery, page, ctx, deps) {
+async function siteSearchScreen(rawQuery, page, ctx, deps, { fresh = false } = {}) {
 	const query = clipQuery(rawQuery);
 	const found = query ? await siteMatches(query, ctx, deps) : null;
 	if (!found) return noticeScreen(htmlOf('errores.algo_salio_mal'));
 	if (found.docs.length === 0) {
+		// Solo que no encontró nada: ni quién ni qué (uso.js).
+		if (fresh) trackUso(deps.usage, 'sin_resultados', 'busqueda');
 		const help = noResultsHelp(found.source, query, ctx.now ?? Date.now(), await siteTags(deps));
 		return noResultsScreen(query, help, ctx, { extras: found.source.extras });
 	}
@@ -883,8 +903,10 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 			if (command.args.startsWith(ADMIN_START_PREFIX)) {
 				return adminLinkCommand(command.args, message, deps);
 			}
-			// El link `t.me/<bot>?start=<código>` de Mi rincón llega como "/start <código>".
-			if (START_CODE.test(command.args)) {
+			// El link `t.me/<bot>?start=<código>` de Mi rincón llega como "/start <código>". Un deep
+			// link conocido de 8 letras (`?start=proximos`) no es un código: el código nunca lleva
+			// I ni O (link.js), así que no se pisan.
+			if (START_CODE.test(command.args) && !parseStartParam(command.args)) {
 				const linkCommand = { name: 'vincular', args: command.args };
 				return textScreen(await accountCommand(linkCommand, message.chat, deps));
 			}
@@ -912,7 +934,7 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 			// Con texto («/buscar cuerdas», también en grupos): los resultados de todo el sitio.
 			if (command.args && deps.inline) {
 				trackUso(deps.usage, 'busqueda', normalizeSearch(command.args));
-				return siteSearchScreen(command.args, 0, ctx, deps);
+				return siteSearchScreen(command.args, 0, ctx, deps, { fresh: true });
 			}
 			return go({ screen: 'search' });
 		case 'fondo':
@@ -930,7 +952,10 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 			}
 			trackUso(deps.usage, 'busqueda', normalizeSearch(command.args));
 			const found = matchEvents(events, command.args);
-			if (found.length === 0) return noticeScreen(botText('eventos.no_encontrado'));
+			if (found.length === 0) {
+				trackUso(deps.usage, 'sin_resultados', 'busqueda');
+				return noticeScreen(botText('eventos.no_encontrado'));
+			}
 			if (found.length === 1) {
 				return cardFor(found[0], 'n', events, ctx, deps, { follow: followButton(found[0], ctx) });
 			}
@@ -998,14 +1023,15 @@ export async function planUpdate(update, deps) {
 			// encuentra nada). Sin él, como antes, los próximos eventos.
 			if (deps.inline) {
 				const ctx = screenCtx(deps, group, await accountsOf(deps));
-				return send(await siteSearchScreen(query, 0, ctx, deps));
+				return send(await siteSearchScreen(query, 0, ctx, deps, { fresh: true }));
 			}
 			const ctx = screenCtx(deps, group);
 			const found = matchEvents(await deps.listUpcoming(), query);
+			if (found.length === 0) trackUso(deps.usage, 'sin_resultados', 'busqueda');
 			return send(searchResultsScreen(query, found, ctx));
 		}
 		const command = parseCommand(message?.text);
-		if (!command) return null;
+		if (!command || forOtherBot(message?.text, deps.botUsername)) return null;
 		// `/estado` y `/avisos`: solo une admin vinculade, por privado (0041). Para cualquier otra
 		// persona, lo mismo que un comando que no existe.
 		if (ADMIN_COMMAND_NAMES.has(command.name)) {
@@ -1048,7 +1074,8 @@ async function planInline(inlineQuery, deps) {
 			// Enriquecidos solo con el token: sin él no hay vuelta atrás si Telegram los rechaza.
 			rich: Boolean(deps.inline.rich && deps.media),
 			origin: deps.origin,
-			now: deps.now
+			now: deps.now,
+			...(deps.usage ? { onEmpty: () => trackUso(deps.usage, 'sin_resultados', 'inline') } : {})
 		});
 	} catch (error) {
 		console.error('[telegram] error en el modo inline:', /** @type {Error} */ (error)?.name);

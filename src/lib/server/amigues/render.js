@@ -14,6 +14,7 @@
 import { rehype } from 'rehype';
 import customRehype from '$lib/utils/customRehype.js';
 import { renderPreviewHtml } from '$lib/utils/markdownPreview.js';
+import { tooDeepToRender } from '$lib/utils/htmlNesting.js';
 import { rehypeProfileHtml, rehypeProfilePageHtml } from './sanitize.js';
 
 /** `import foto from './media/Drux/1.webp'` (también con `$lib/posts/amigues/media/...`). */
@@ -107,5 +108,7 @@ export async function renderProfileBody(
 	const text = String(body ?? '').trim();
 	if (!text) return '';
 	const html = renderPreviewHtml(resolveMediaImports(text, resolveMedia));
+	// Miles de elementos uno adentro de otro rompen rehype (se queda sin pila): vacío, no un error.
+	if (tooDeepToRender(html, 'corta')) return '';
 	return String(await (firstImageEager ? profilePageProcessor : processor).process(html));
 }

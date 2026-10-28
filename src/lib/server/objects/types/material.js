@@ -24,7 +24,7 @@ const material = {
 	label: 'Material',
 	fields: {
 		summary: { kind: 'text', label: 'Resumen', max: 1000 },
-		body: { kind: 'longtext', label: 'Texto' },
+		body: { kind: 'longtext', label: 'Texto', markup: true },
 		// Cómo se muestra el texto (decisión 0004), como en `evento`: 'libre' o 'corta'
 		// (src/lib/server/contenido/render.js).
 		body_html: { kind: 'option', label: 'HTML del texto', options: ['libre', 'corta'] },

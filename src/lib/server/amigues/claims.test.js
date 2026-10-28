@@ -176,7 +176,8 @@ describe('resolver un pedido (admins)', () => {
 			claim: { status: 'rejected' }
 		});
 		expect(await getManagedProfile(t.db, a.id, p.slug)).toBeNull();
-		expect(await claimState(t.db, a.id, p.id)).toBe('none');
+		// rincon-pedidos: la página del perfil dice «no aprobado» en vez de volver a ofrecer el botón.
+		expect(await claimState(t.db, a.id, p.id)).toBe('rejected');
 	});
 
 	it('una persona tiene una sola dueñe; un proyecto puede sumar otra', async () => {

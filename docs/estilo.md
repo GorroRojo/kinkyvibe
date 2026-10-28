@@ -209,6 +209,10 @@ panel, violeta (`--link`, en `admin/+layout.svelte`). Aparece solo si la navegac
 final; con «reducir movimiento», queda quieta y entera. Es un `progressbar` sin valor con
 `aria-label="Cargando la página"`.
 
+**Barra de progreso de lectura.** En los textos largos de Material y Kinkipedia, otra línea de 3px
+arriba de todo, en violeta (`--2`), que se llena con el scroll (`ReadingProgress.svelte`; ver
+[contenido.md](contenido.md)). Decorativa (`aria-hidden`), por debajo de la barra de carga.
+
 ### Ajustes del 4/10 (decisión de gorrite)
 
 Comparando el encabezado del evento antes y después de la revisión, gorrite prefirió el aspecto
@@ -260,7 +264,8 @@ marca y su contraste no se tocan). En el resto:
 - **Avisos.** `UndoToast` se ve como `Notice`: su ícono, `--radius-m`, texto en negrita del tono
   y sin margen propio (el espacio lo pone la página). El texto de `Notice` ok y aviso pasa 4.5:1
   en claro (`--ok` es `--3-ink`; `--warn`, más oscuro). `SaveStatus` dice «Guardado» con el
-  ícono `Check` de Lucide.
+  ícono `Check` de Lucide. «Deshacer» es `type="button"` (dentro de un form no lo envía);
+  con `submit`, envía el form que lo rodea (deshacer un borrado, también sin JS).
 - **Diálogos y hojas.** La galería muestra `Dialog` en los tres tonos sin tocar nada, y la hoja
   entera. `--scrim` del mismo violeta en los dos temas.
 - **Tablas: se pueden ordenar.** En `Table`, una columna con `sort` (`'text'`, `'number'` o
@@ -270,8 +275,19 @@ marca y su contraste no se tocan). En el resto:
   número de la plata, no el texto «$ 24.000»), el texto en castellano con los números adentro en
   orden («KV-2» antes que «KV-10»), las celdas vacías al final y el orden es estable
   (`tableSort.js`). **Solo las filas que ya están en la página**: una lista que se pagina o se
-  corta en el servidor no se ordena (Cuentas ordena solo si llegaron todas, menos de 500). Lo
-  usan Comunidad › Personas, Comunidad › Cuentas y Ventas › Códigos. Las columnas a la derecha
+  corta en el servidor no se ordena en el navegador. Lo usan Comunidad › Personas, Comunidad ›
+  Cuentas y Ventas › Códigos.
+- **Listas que se ordenan en el servidor.** Con `presorted`, `Table` no reordena las filas: el
+  encabezado (el mismo botón, con `aria-sort`) cambia `sort` y avisa con `on:sort`, y la página
+  pide el orden nuevo. Comunidad › Cuentas (500 como mucho) lo lleva en la URL
+  (`?orden=mail-asc`, `creada-…`, `perfiles-…`; sin `?orden`, la más nueva primero, como
+  siempre): el servidor lo valida contra esas columnas (`parseAccountSort` en
+  `src/lib/admin/cuentas.js`; otro valor da el de siempre), desempata por id y la búsqueda y
+  «Ver todas» lo conservan. El foco queda en el encabezado (`goto` con `keepFocus`).
+- **Listas de tarjetas.** Ventas › Órdenes no es una tabla: lleva un selector «Ordenar» al lado
+  de «Mostrar» (más nuevas o más viejas primero, nombre, total, entradas), con `?orden=` en la
+  URL (sin volver a cargar la página). Trae todas las órdenes del evento, así que se ordenan en
+  el navegador con el comparador de `tableSort.js` y desempate por id (`src/lib/admin/orderSort.js`). Las columnas a la derecha
   (números) y las `nowrap` no se cortan: si no entran, la tabla se desliza de costado. Con
   `width` en las columnas, la tabla vacía conserva los anchos de la llena.
 
@@ -312,6 +328,12 @@ elección de gorrite sobre el prototipo «Filtros en el celu» (#283):
   (`src/lib/utils/popover.js`).
 - Todo lee y escribe `$filteredTags` y `?tags=` como antes (la URL la escribe PostList; el árbol
   tilda desde ahí).
+- **Sin etiquetas que no cambian nada** (#17): ni la barra ni el árbol ofrecen una etiqueta que
+  tienen todas las publicaciones a la vista, contando sus hijas como filtra `filterPosts` («BDSM»
+  después de «seguridad», si todo lo de seguridad es de BDSM; `tagCoverage` de
+  `$lib/utils/postSearch.js`). Salvo las elegidas y, en el árbol, las hijas de una elegida y las
+  madres con hijas a la vista (abren su grupo, aunque sumarlas no cambie nada). Con un solo
+  resultado, la barra sigue mostrando sus etiquetas.
 
 Lo controlan `src/lib/components/PostList.test.js`, `TagSearch.test.js`,
 `src/lib/utils/tagBar.test.js`, `src/lib/utils/popover.test.js`, `src/lib/styles/segmented.test.js`,

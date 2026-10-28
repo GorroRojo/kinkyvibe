@@ -64,6 +64,11 @@ sus plantillas propias) está en la ficha del evento.
 | Código para entrar        | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
 | Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
 
+**Reembolso: la línea de cómo se devuelve** (fija, no está en la plantilla) sale del total y el
+medio de la compra: total 0 → «Era una compra sin cargo: no hay dinero para devolver.»; si no,
+Mercado Pago, transferencia o efectivo con su frase, y cualquier otro medio con monto (una carga a
+mano con «otro») → «Te devolvimos el dinero.».
+
 **Lista de espera** (en construcción, interruptor `lista_espera`; ver abajo y
 [tickets.md](tickets.md#lista-de-espera-en-construcción)):
 
@@ -87,7 +92,9 @@ cambiar). Al mandar, cada parte sale de lo del evento → la plantilla general (
 → el texto del código (`resolveTemplate` en `templates.js`, `mergeTemplates` en
 `emailTemplates.js`). Las partes opcionales vacías = el texto de siempre; el texto plano solo
 cambia con asunto, título, texto o línea de ayuda propios. La vista previa de la ficha usa el
-título, la fecha y el lugar del evento con una compra de ejemplo. Van en su propia tabla (no en el
+título, la fecha y el lugar del evento con una compra de ejemplo; en un taller con una sola
+entrada, también la lista de partes y, en el recordatorio, la parte elegida (ver
+[talleres-partes.md](talleres-partes.md)). Van en su propia tabla (no en el
 objeto `evento`) porque los eventos todavía salen de sus `.md` y no siempre están en la base.
 
 **Plantilla común (diseño):** todos los mails (los de esta tabla y los de series, «Lo que sigo» e
@@ -257,6 +264,15 @@ base que no contesta), `sendTransferEmail` espera 2 segundos y lo vuelve a manda
 misma clave de idempotencia (`transfer-<orden>`: si el primero sí salió, Resend no lo duplica).
 Con el cupo terminado no reintenta. Si no sale, queda `[tickets] el mail de transferencia … no
 salió` en el log; el tope de mails a una dirección también anota el id de la orden.
+
+### Reintento de los avisos de series
+
+El aviso de edición nueva («Avisame si se repite», `src/lib/server/series/notify.js`) sale del
+mismo cron, hasta 50 por corrida. Si el mail falla, la fila de `series_notifications` se suelta y
+se reintenta en la corrida siguiente, como mucho 3 veces por día por suscripción y edición
+(`rate_limits`, la clave lleva el id de la suscripción y el slug). Los que ya gastaron los 3 del
+día no entran en la tanda, así que una dirección que falla siempre no frena a las de atrás; al otro
+día se vuelven a intentar, hasta que la edición deja de ser próxima.
 
 ### Cupo de Resend y errores pasajeros
 

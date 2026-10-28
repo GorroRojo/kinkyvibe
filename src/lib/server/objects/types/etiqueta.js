@@ -71,7 +71,7 @@ const etiqueta = {
 		color: { kind: 'text', label: 'Color', max: 40 },
 		description: { kind: 'longtext', label: 'Descripción', max: DESCRIPTION_MAX },
 		image: { kind: 'text', label: 'Imagen', max: 160 },
-		body: { kind: 'longtext', label: 'Texto de la wiki', max: WIKI_BODY_MAX },
+		body: { kind: 'longtext', label: 'Texto de la wiki', max: WIKI_BODY_MAX, markup: true },
 		wiki_title: { kind: 'text', label: 'Título de la wiki', max: 200 },
 		wiki_summary: { kind: 'longtext', label: 'Resumen de la wiki', max: 1000 },
 		wiki_authors: { kind: 'list', label: 'Autores de la wiki', max: 20 },

@@ -1,8 +1,8 @@
 /**
  * Borradores de eventos: un evento nuevo no listado (`force_unlisted: true`), «anunciado» y con la
  * marca `borrador: true`, que después se completa y se confirma. Es el mismo borrador que crea la importación de la planilla
- * (`buildImportedEvent` en sheetImport.js), por el mismo camino de guardado (`getRepoClient()`:
- * GitHub, el mock de `npm run dev:admin` o la capa demo de los previews).
+ * (`buildImportedEvent` en sheetImport.js), por el mismo camino de guardado (`getRepoClient()`,
+ * que guarda en la base).
  *
  * - `takenSlugsOnRepo`: las direcciones ocupadas en el repo ahora (dos listados);
  * - `commitDraftEvents`: arma los archivos de varios borradores (copiados de un evento anterior o
