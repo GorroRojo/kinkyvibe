@@ -192,7 +192,8 @@ CI) va en la fase 0.
 - `diseno-envoltorios` · fase 0 · sigue · diseño · Pasar los imports viejos a `$lib/components/ui` y borrar los envoltorios (gorrite, 5/10)
 - `diseno-restos-ui` · fase 0 · sigue · diseño · Revisar lo que quedó del paso 2 de la revisión de UI: links de texto, opciones como tarjetas, chips de monto, tablas editables, el encabezado de evento en otras páginas
 - `diseno-fijar` · fase 0 · sigue · diseño · Fijar el sistema: pruebas de capturas que frenen (hoy el informe de impacto ya fotografía cada grupo de `/estilo`, pero solo informa), reglas de CI (sin colores ni tamaños sueltos), sección de UI en CLAUDE.md (depende de: diseno-aprobar-componentes)
-- `diseno-ordenar-listas` · fase 0 · sigue · diseño · Ordenar las listas del panel que no son tablas o se paginan en el servidor (Ventas › Órdenes es una lista de tarjetas; Cuentas con 500 o más): orden en el servidor o pasar a `Table`
+- `diseno-ordenar-listas` · fase 0 · hecho · diseño · Ordenar las listas del panel que no son tablas o se paginan en el servidor (Ventas › Órdenes es una lista de tarjetas; Cuentas con 500 o más): orden en el servidor o pasar a `Table` · #590, [estilo.md](estilo.md)
+- `cuentas-indice-orden` · fase 0 · sigue · datos · Índice `accounts (created_at, id)` para la lista de Comunidad › Cuentas: hoy cada orden (también el de siempre, la más nueva primero) recorre todas las cuentas y ordena aparte (`EXPLAIN QUERY PLAN`: `SCAN a` + `USE TEMP B-TREE`); necesita una migración. Ordenar por perfiles no tiene índice posible (es una cuenta)
 
 ### Bot de Telegram
 

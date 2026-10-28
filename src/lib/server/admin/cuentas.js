@@ -107,16 +107,17 @@ const ACCOUNT_SELECT = `a.id, a.email, a.email_verified_at, a.password_hash IS N
  * los totales.
  *
  * @param {D1Database} db
- * @param {{ q?: string, limit?: number }} [opts]
+ * @param {{ q?: string, limit?: number, sort?: import('$lib/admin/cuentas.js').AccountSort }} [opts]
+ *   `sort`: el orden que se eligió en la tabla (`parseAccountSort`); sin él, la más nueva primero.
  */
-export async function listAccounts(db, { q = '', limit = LIST_LIMIT } = {}) {
+export async function listAccounts(db, { q = '', limit = LIST_LIMIT, sort } = {}) {
 	const needle = q.trim().toLowerCase().slice(0, 254);
 	const count = liveProfilesCount();
 	const where = needle ? "WHERE a.email LIKE ? ESCAPE '\\'" : '';
 	const { results } = await db
 		.prepare(
 			`SELECT ${ACCOUNT_SELECT}, ${count.sql} AS profiles FROM accounts a ${where}
-			ORDER BY a.created_at DESC, a.id LIMIT ?`
+			ORDER BY ${accountOrderBy(sort)} LIMIT ?`
 		)
 		.bind(...count.params, ...(needle ? [`%${likeEscape(needle)}%`] : []), limit)
 		.all();
@@ -587,3 +588,23 @@ export function countProfilesToReviewQuery() {
 		read: (results) => Number(rowsOf(results)[0]?.n ?? 0)
 	};
 }
+
+/**
+ * El ORDER BY de la lista de Cuentas: solo las columnas de `ACCOUNT_ORDER` (nunca texto de la
+ * URL) y, para desempatar, el id, así el corte de las 500 es siempre el mismo. Las cuentas
+ * borradas (sin mail) van al final al ordenar por mail, como las celdas vacías en `Table`.
+ *
+ * @param {import('$lib/admin/cuentas.js').AccountSort} [sort]
+ */
+function accountOrderBy(sort) {
+	const column = sort && Object.hasOwn(ACCOUNT_ORDER, sort.key) ? ACCOUNT_ORDER[sort.key] : null;
+	if (!column) return 'a.created_at DESC, a.id';
+	return `${column} ${sort?.dir === 'asc' ? 'ASC' : 'DESC'}, a.id`;
+}
+
+/** @type {Readonly<Record<string, string>>} */
+const ACCOUNT_ORDER = Object.freeze({
+	createdAt: 'a.created_at',
+	email: 'a.email IS NULL, a.email',
+	profiles: 'profiles'
+});
