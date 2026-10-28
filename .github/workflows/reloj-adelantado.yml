@@ -32,9 +32,9 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version-file: .node-version
           cache: npm
@@ -51,7 +51,7 @@ jobs:
       # no toca issues. Si falló antes de las pruebas (npm ci), también cuenta como falla.
       - name: Issue si falla
         if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           VITEST_OK: ${{ steps.vitest.outcome == 'success' }}
         with:
