@@ -558,6 +558,38 @@ aprobar").
   límites, que invitar no cambia la versión de la persona, visibilidad), que ninguna lectura
   pública o de otra cuenta vincula perfiles ni muestra quién gestiona.
 
+## Organizadores (prototipo)
+
+Plan `rol-organizadore`: un rol de organizadore con permisos sobre sus eventos. Esto es **un
+prototipo para mirar y decidir**, detrás del interruptor `rol_organizadore` (apagado; sin fila en
+`feature_flags`, apagado; `ROL_ORGANIZADORE_ENABLED=1` lo fuerza en local). Apagado no cambia nada:
+`/mi-rincon/organizo` da 404 y Mi rincón no muestra la tarjeta. Les admins siguen en el panel como
+siempre.
+
+- **Quién organiza (sin migración, sin tabla de roles):** la misma regla que las respuestas de
+  inscripción ([personas-eventos.md](personas-eventos.md)): la cuenta gestiona (dueñe o gestore en
+  `profile_managers`) un perfil que el evento **publicado** lista con el rol **Organiza** (edge
+  `persona`). Un «¿Es tu perfil?» aprobado deja a la cuenta como dueñe, así que también cuenta. Hace
+  falta el permiso «puede tener perfiles» (`requireMember`). Otro rol (Facilita, Enseña…) no alcanza.
+- **Una sola función decide:** `canManageEvent(db, account, eventSlug)` en
+  `src/lib/server/personas/organizadore.js`; las páginas y la acción entran por
+  `requireEventOrganizer` (interruptor, sesión, permiso y `canManageEvent`). Si no corresponde,
+  **404** (no 403), también para las acciones.
+- **Dónde:** Mi rincón → «Eventos que organizás» (la tarjeta va con «Tus perfiles») →
+  `/mi-rincon/organizo` (sus eventos) → `/mi-rincon/organizo/<evento>`.
+- **Qué ve:** la venta en totales (vendidas, reservadas sin pagar y cupo por tipo; recaudado,
+  comisión de Mercado Pago y lo que queda), nunca órdenes una por una; la lista para la puerta
+  (nombre y pronombres de cada entrada confirmada, el tipo y si ya entró). **Nunca** mails,
+  teléfonos, DNI ni quién compró cada entrada.
+- **Qué cambia:** solo el texto del evento (el cuerpo, en Markdown), por el mismo guardado que el
+  editor del panel (`commitFiles` del cliente de contenido, con el sha de lo que abrió: si alguien
+  guardó en el medio, avisa). Las propiedades (fecha, lugar, entradas, personas) quedan letra por
+  letra. Guarda como `cuenta:<id>` y **sin** permisos de superadmin, así que el texto se muestra con
+  el HTML acotado (decisión 0004). Cada guardado queda en Actividad (`event.organizer_edit`, autor
+  «cuentas (sitio)»: el perfil, el evento y el id de la cuenta).
+- **Pendiente de decidir** (en el PR del prototipo): quién cuenta como organizadore, qué plata ve,
+  cómo se da y se saca el rol, y la tabla que lo guardaría (`event_roles`).
+
 ## Dónde está el código
 
 - `src/lib/server/cuentas/`: `accounts.js` (cuentas, contraseña, borrado), `codes.js`,

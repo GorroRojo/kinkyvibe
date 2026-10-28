@@ -134,6 +134,19 @@ export const FLAGS = Object.freeze({
 			'ticket_combos y columnas buyer_email y source_order_id de discount_codes). ' +
 			'src/lib/server/tickets/combos.js.',
 		envVar: 'COMBO_CODIGOS_ENABLED'
+	},
+	rol_organizadore: {
+		label: 'Organizadores: sus eventos en Mi rincón (prototipo)',
+		description:
+			'Quien gestiona un perfil que figura con el rol «Organiza» en un evento ve en Mi rincón → ' +
+			'«Eventos que organizás» cómo va la venta de ESE evento (entradas, cupo y lo recaudado), ' +
+			'la lista para la puerta (solo nombres) y puede cambiar el texto del evento. Nada de mails ' +
+			'ni teléfonos de quienes compraron. Es un prototipo para mirar y decidir. Apagado, no se ve.',
+		tech:
+			'docs/cuentas.md, «Organizadores (prototipo)». Sin migración: organizar sale del rol ' +
+			'Organiza del evento y de profile_managers (src/lib/server/personas/organizadore.js, ' +
+			'canManageEvent). Apagado, /mi-rincon/organizo da 404.',
+		envVar: 'ROL_ORGANIZADORE_ENABLED'
 	}
 });
 
@@ -307,6 +320,15 @@ export function listaEsperaEnabled(platform) {
  */
 export function comboCodigosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'combo_codigos');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el prototipo de organizadores en Mi rincón? (docs/cuentas.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function rolOrganizadoreEnabled(platform) {
+	return isFlagOn(getDB(platform), 'rol_organizadore');
 }
 
 /**
