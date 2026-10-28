@@ -8,7 +8,7 @@
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { fmtDateTime } from '$lib/admin/format.js';
-	import { accountHref } from '$lib/admin/links.js';
+	import { sigoRankingHref, accountHref } from '$lib/admin/links.js';
 	import { PROFILES_HREF } from '$lib/admin/perfiles.js';
 	import { VISIBILITY_LABELS, actorLabel } from '$lib/admin/cuentas.js';
 	import { KIND_LABELS, ROLE_LABELS } from '$lib/utils/perfiles.js';
@@ -106,6 +106,17 @@
 			{#if p.kind === 'proyecto'}
 				<dt>Integrantes</dt>
 				<dd>{p.showMembers ? 'Se muestran' : 'No se muestran'}</dd>
+			{/if}
+			{#if data.followers !== null && data.followers !== undefined}
+				<dt>Lo siguen</dt>
+				<dd>
+					{data.followers === 0
+						? 'Ninguna cuenta lo sigue'
+						: `${data.followers} ${data.followers === 1 ? 'cuenta lo sigue' : 'cuentas lo siguen'}`}{#if data.followers > 0}{' · '}<a
+							href={sigoRankingHref(p.kind === 'lugar' ? 'lugar' : 'perfil')}
+							>quiénes, en Mensajes › Lo que sigo</a
+						>{/if}
+				</dd>
 			{/if}
 			<dt>Amigues</dt>
 			<dd>
