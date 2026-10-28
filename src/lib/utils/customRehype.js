@@ -131,7 +131,9 @@ export default function customRehype() {
 					const previous = parent.children[index + foundInParent];
 					const next = parent.children[index + 2 + foundInParent];
 					const lastCharOfPreviousNode = previous?.value?.slice(-1) ?? '';
-					const firstCharOfNextNode = next?.value[0] ?? '';
+					// El siguiente puede ser un elemento (sin `value`), p. ej. el link que arma el markdown
+					// en «[texto] (https://…)»: solo un texto puede empezar con «]».
+					const firstCharOfNextNode = next?.type === 'text' ? (next.value[0] ?? '') : '';
 					if (lastCharOfPreviousNode == '[' && firstCharOfNextNode == ']') {
 						previous.value = previous.value.slice(0, -1);
 						next.value = next.value.slice(1);
