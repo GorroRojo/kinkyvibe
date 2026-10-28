@@ -9,7 +9,8 @@ búsqueda (la que va dentro de una consulta viva) está en [buscar.md](buscar.md
 > **Estado (28/10):** acordado con gorrite, **casi nada hecho todavía**. Hoy anda Markdown con
 > los `[[término : texto]]` viejos (solo a la Kinkipedia) y las menciones `@`, y al guardar, los
 > `[[…]]`, `![[…]]`, `@` y `#` del cuerpo ya quedan como edges `enlaza` (abajo, «Al guardar»),
-> aunque todavía no se dibujen. La columna «Hoy» dice qué ya se dibuja; cada PR que suma algo la
+> aunque todavía no se dibujen. «Lo que enlaza acá» ya está, detrás del interruptor
+> `lo_que_enlaza` (apagado; abajo). La columna «Hoy» dice qué ya se dibuja; cada PR que suma algo la
 > actualiza.
 
 ## La idea
@@ -95,7 +96,7 @@ Cada uno se suma a esta tabla cuando se hace:
 - **Se guarda Markdown**: es lo que se edita, en los dos editores (abajo).
 - **Los enlaces van a la base**: al guardar, cada `[[…]]`, `![[…]]`, `@` y `#` se resuelve a un
   objeto y queda como una relación en el grafo (`edges`, con su tipo). De ahí salen «Lo que enlaza
-  acá» y `enlaza:` en la búsqueda. **Ya anda** (abajo, «Al guardar»).
+  acá» y `enlaza:` en la búsqueda. **Ya anda** (abajo, «Al guardar» y «Lo que enlaza acá»).
 - **Apuntan al objeto, no al título**: cambiarle el nombre a una entrada no rompe los enlaces y se
   ven con el nombre nuevo.
 - **Quién puede ver qué**: un enlace a algo que quien lee no puede ver se dibuja como texto
@@ -139,9 +140,8 @@ perfil y etiqueta (el texto de la wiki).
 - **`#etiqueta` no suma la etiqueta al objeto** (todavía): por ahora es un enlace como cualquier
   otro. Sumarla a las etiquetas del objeto (lo que dice la tabla de arriba) espera a que gorrite
   decida cómo convive con el campo de etiquetas del formulario.
-- **Quién puede ver qué** (para `enlaces-lo-que-enlaza` y quien dibuje los enlaces): el edge se
-  guarda aunque la otra punta sea oculta, «solo con cuenta» o un perfil sin aprobar; hoy nada
-  público lo lee. Quien lo lea muestra un edge solo si quien mira puede ver **las dos** puntas
+- **Quién puede ver qué** (para «Lo que enlaza acá», abajo, y quien dibuje los enlaces): el edge
+  se guarda aunque la otra punta sea oculta, «solo con cuenta» o un perfil sin aprobar. Quien lo lea muestra un edge solo si quien mira puede ver **las dos** puntas
   (`getEdges` con su `viewer`; los perfiles, además, aprobados, como `vinculosPublicos.js`), y un
   enlace a algo que quien mira no puede ver se dibuja **igual que uno a algo que no existe** (si se
   dibujaran distinto, se sabría que existe algo oculto con ese nombre).
@@ -149,6 +149,32 @@ perfil y etiqueta (el texto de la wiki).
   con `--apply`, vuelve a guardar con `saveObject()` los objetos que cambian, sin tocar sus datos
   (sube la versión, suma una fila «migracion» al historial, deja `updated_at` y lo importado sin
   editar como estaba). Para preview o producción no tiene opción: eso lo decide gorrite.
+
+### Lo que enlaza acá
+
+Al pie de la página de un evento, un material, un perfil y una entrada de la Kinkipedia (o de una
+etiqueta sin texto), la sección «Lo que enlaza acá»: las páginas cuyo cuerpo la enlaza (los edges
+`enlaza` que llegan), por título, con su tipo (Evento, Material, Amigues, Kinkipedia). Sin nada,
+no se ve. Detrás del interruptor **`lo_que_enlaza`** (`LO_QUE_ENLAZA_ENABLED`, apagado;
+[interruptores.md](interruptores.md)). Código: `src/lib/server/contenido/loQueEnlaza.js` y
+`src/lib/components/LoQueEnlaza.svelte`.
+
+- **Quién ve qué**: un edge sale solo si quien mira (anónime, con cuenta, admin) ve **las dos**
+  puntas: `visibleWhere` en las dos, `partVisibleWhere` (la parte de un taller que oculta sus
+  partes) y, en los perfiles, aprobados y no ocultos (`shownProfileSql`, como /amigues). Lo **no
+  listado** tampoco sale (se abre con el link, no aparece en listas), salvo para admins.
+- **En la Kinkipedia** cuenta también lo que enlaza a un alias de la etiqueta (`[[alias]]` lleva
+  a la misma página).
+- **Caché**: se lee en cada pedido, con quien mira; no se recuerda entre pedidos. La caché de 1
+  minuto ([0049](decisiones/0049-cache-de-1-minuto-sin-sesion.md)) guarda solo pedidos sin
+  cookies, o sea anónimes: la página guardada lleva solo lo que ve cualquiera (público → público).
+- **Una consulta por página**, por la dirección de la página (no por su id ya leído): con las
+  tandas automáticas sale en la misma ida a la base que lo demás de la página, y no suma idas
+  (`pedido-consultas.test.js`). Apagado, ninguna consulta. Como mucho 50 por página.
+- **Lo guardado antes de `enlaces-guardar`** no tiene edges hasta que se vuelve a guardar (o
+  `scripts/enlaces-backfill.js`, `enlaces-pasar-guardados`).
+- Que un `[[Título]]` lo gane un objeto oculto (la revisión de #564) no cambia acá: si quien mira no
+  lo ve, ese edge no sale.
 
 ## Los dos editores
 
@@ -168,7 +194,8 @@ Para los dos tipos de gente que escribe, y se pasa de uno al otro cuando se quie
   enlaces), `src/lib/utils/markdownPreview.js` (la vista previa del panel) y
   `src/lib/utils/jsonLd.js` (saca los corchetes para los datos estructurados).
   Al guardar: `src/lib/utils/enlaces.js` (qué nombra el texto) y
-  `src/lib/server/objects/enlaces.js` (a qué objeto, y el edge `enlaza`).
+  `src/lib/server/objects/enlaces.js` (a qué objeto, y el edge `enlaza`). «Lo que enlaza acá»:
+  `src/lib/server/contenido/loQueEnlaza.js`.
 - **Acordado**: un solo procesador de Markdown con las extensiones de arriba, que usan la página,
   la vista previa, el bot (los mensajes enriquecidos) y la búsqueda (el texto que se indexa).
   Cada extensión con sus tests: lo escrito → lo que se dibuja, y lo escrito → las relaciones que se

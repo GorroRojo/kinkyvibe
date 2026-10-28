@@ -25,6 +25,7 @@ import { mentionPronouns } from '$lib/server/pronouns';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 import { authorLinksFrom } from '$lib/utils/jsonLd.js';
 import { wikiLinkedTags } from '$lib/server/wiki/site.js';
+import { linksHere } from '$lib/server/contenido/loQueEnlaza.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -41,7 +42,9 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		// la base falla, como un lugar oculto (sin el «Dónde» del .md).
 		venue: eventPageVenue(getDB(platform), params.event, locals),
 		// Talleres en varias partes: el taller y sus partes (`null` si no es parte de ninguno).
-		partes: loadPartes(params.event, platform, locals)
+		partes: loadPartes(params.event, platform, locals),
+		// «Lo que enlaza acá» (interruptor `lo_que_enlaza`), por la dirección. Nunca tira.
+		linksHere: linksHere(platform, locals, { category: 'calendario', slug: params.event })
 	};
 	// Una parte de un taller con una sola entrada: el botón de compra es el del taller (si la
 	// entrada es la de este mismo evento, ya está en camino).
@@ -72,7 +75,8 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		partes,
 		pronouns,
 		workshopTickets,
-		wikiTags
+		wikiTags,
+		linksHereList
 	] = await Promise.all([
 		loadRelated(post, posts, platform),
 		early.ownTickets,
@@ -84,7 +88,8 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		mentionPronouns(platform, posts).catch(() => ({})),
 		partTickets,
 		// Las etiquetas cuyo chip lleva a la Kinkipedia.
-		wikiLinkedTags(platform, post.meta.tags).catch(() => [])
+		wikiLinkedTags(platform, post.meta.tags).catch(() => []),
+		early.linksHere
 	]);
 	const tickets = workshopTickets === undefined ? ownTickets : workshopTickets;
 	return {
@@ -99,6 +104,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		// de la lista que ve cualquiera, nunca de lo que ve quien tiene sesión.
 		authorLinks: authorLinksFrom(post.meta.authors, posts, post.meta.postID),
 		wikiTags,
+		linksHere: linksHereList,
 		// Con lugar, el «Dónde» del evento no sale del servidor.
 		post: venue ? { ...post, meta: stripMdPlace(post.meta) } : post
 	};
