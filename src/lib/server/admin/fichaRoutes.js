@@ -13,6 +13,7 @@ import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { arClock, arMidnight } from '$lib/utils/dates.js';
 import { setProfilePermission } from '$lib/server/admin/cuentas.js';
 import { addNote, deleteNote, personId, validateNote } from '$lib/server/admin/people.js';
 import { orderReference } from '$lib/utils/tickets.js';
@@ -45,10 +46,6 @@ export function fichaLoad(resolve, notFound) {
 	};
 }
 
-/** Un día en ms, y la diferencia de Argentina con UTC (−03:00, sin horario de verano). */
-const DAY_MS = 86_400_000;
-const AR_OFFSET_MS = -3 * 3_600_000;
-
 /**
  * Registra en Actividad que une admin abrió la ficha de una persona (`person.view`), con el mismo
  * destino que las notas (nunca el mail), una vez por admin, persona y día de Argentina. Un fallo
@@ -65,7 +62,9 @@ export async function logFichaView(db, locals, key, now = Date.now()) {
 		const target = await noteTarget(db, key);
 		if (!target) return;
 		const { targetType, targetId } = target.audit;
-		const dayStart = now - ((((now + AR_OFFSET_MS) % DAY_MS) + DAY_MS) % DAY_MS);
+		// Las 00:00 de hoy en Argentina (dates.js tiene el único desfasaje con UTC).
+		const today = arClock(now);
+		const dayStart = arMidnight(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
 		const seen = await db
 			.prepare(
 				`SELECT 1 FROM admin_audit WHERE action = 'person.view' AND actor_login = ?1
