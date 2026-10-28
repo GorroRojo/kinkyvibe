@@ -3,7 +3,9 @@
  * volante (docs/panel.md#agenda-impresa). Solo lee: los eventos listados del sitio
  * (`sitePosts`), su lugar como lo ve cualquiera (`feedVenues`: nunca una dirección oculta), sus
  * tipos de entrada (`getEventTicketsMany`) y su serie (ícono y descripción de la etiqueta). Lo
- * que se arma con eso está en $lib/utils/agendaImpresa.js (puro, con pruebas).
+ * que se arma con eso está en $lib/utils/agendaImpresa.js (puro, con pruebas). Para los posts
+ * de Instagram (docs/panel.md#instagram) cada fila trae además el resumen, la imagen, si es de
+ * KinkyVibe, quién organiza y el nombre del lugar cuando es público.
  */
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { feedVenues } from '$lib/server/amigues/venues.js';
@@ -13,12 +15,34 @@ import { getDB, logDBError } from '$lib/server/db';
 import { parseSiteDate } from '$lib/utils/dates.js';
 import { flyerRow, inRange } from '$lib/utils/agendaImpresa.js';
 import { seriesOfTags, seriesTagIds } from '$lib/utils/series.js';
+import { KINKYVIBE_TAG, isKinkyVibePost } from '$lib/utils/propinas.js';
+import { isPublicMediaUrl } from '$lib/utils/media.js';
+
+/**
+ * Lo que suman los posts de Instagram a cada fila.
+ * @typedef {{ summary: string, image: string, kinkyvibe: boolean, organizer: string,
+ *   placeName: string }} InstagramExtras
+ */
+
+/** @param {unknown} v */
+const text = (v) => (typeof v === 'string' ? v.trim() : '');
+
+/**
+ * El nombre del lugar, solo si es público: el del lugar vinculado con nivel «público» (su
+ * dirección se ve), o el «Nombre del lugar» en texto libre de un evento sin lugar vinculado.
+ * @param {Record<string, any>} meta
+ * @param {import('$lib/utils/venues.js').VenueView | null | undefined} venue
+ */
+function publicPlaceName(meta, venue) {
+	if (venue) return venue.level === 'public' ? text(venue.name) : '';
+	return text(meta?.location) ? text(meta?.location_name) : '';
+}
 
 /**
  * @param {App.Platform | undefined} platform
  * @param {{ from: string, to: string }} range días en hora de Argentina (`parseRange`)
  * @param {{ now?: number }} [opts]
- * @returns {Promise<(import('$lib/utils/agendaImpresa.js').FlyerRow & { start: string, series: string })[]>}
+ * @returns {Promise<(import('$lib/utils/agendaImpresa.js').FlyerRow & InstagramExtras & { start: string, series: string })[]>}
  */
 export async function agendaImpresaRows(platform, range, { now = Date.now() } = {}) {
 	const posts = (await sitePosts(platform))
@@ -68,6 +92,19 @@ export async function agendaImpresaRows(platform, range, { now = Date.now() } = 
 			},
 			{ now }
 		);
-		return { ...row, start: String(p.meta.start), series: tag ? (tag.visible_name ?? id) : '' };
+		const featured = text(p.meta.featured);
+		const authors = Array.isArray(p.meta.authors) ? p.meta.authors.map(text) : [];
+		const organizers = authors.filter((a) => a && a !== KINKYVIBE_TAG);
+		return {
+			...row,
+			start: String(p.meta.start),
+			series: tag ? (tag.visible_name ?? id) : '',
+			summary: text(p.meta.summary),
+			// Solo imágenes del propio sitio: la página las baja para meterlas en el PNG.
+			image: featured.startsWith('/') || isPublicMediaUrl(featured) ? featured : '',
+			kinkyvibe: isKinkyVibePost({ tags: eventTags }),
+			organizer: organizers.join(' y '),
+			placeName: publicPlaceName(p.meta, linked)
+		};
 	});
 }

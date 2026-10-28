@@ -4,10 +4,13 @@
 	 * cortar, en blanco y negro). Se eligen los eventos del rango, su orden, y se cambia a mano lo
 	 * que haga falta (ícono, subtítulo, lugar, precio, encabezado y pie); nada se guarda. Se
 	 * imprime o se guarda como PDF desde el navegador. Ver docs/panel.md#agenda-impresa.
+	 * Con `?modo=instagram`, en vez de la hoja arma el carrusel de la agenda del mes para Instagram
+	 * con los mismos eventos y cambios (InstagramPosts, docs/panel.md#instagram).
 	 */
 	import { ArrowDown, ArrowLeft, ArrowUp, Printer, RotateCcw } from '@lucide/svelte';
 	import { afterUpdate, onMount } from 'svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
+	import InstagramPosts from '$lib/components/admin/agenda/InstagramPosts.svelte';
 	import {
 		DEFAULT_FOOTER,
 		DEFAULT_HEADER,
@@ -23,7 +26,12 @@
 	export let data;
 
 	/** @typedef {(typeof data.events)[number]} AgendaEvent */
-	/** @typedef {{ icon: string, subtitle: string, place: string, price: string }} Edit */
+	/**
+	 * Lo que se cambia a mano de cada evento: lo de los volantes y, para Instagram, el texto, la
+	 * segunda línea del lugar, quién organiza (eventos amigos) y la estrella «Nuevo».
+	 * @typedef {{ icon: string, subtitle: string, place: string, price: string, summary: string,
+	 *   place2: string, organizer: string, nuevo: boolean }} Edit
+	 */
 
 	/** El orden de la lista (todos los eventos del rango). @type {string[]} */
 	let order = [];
@@ -40,14 +48,24 @@
 	let showQr = false;
 
 	/** @param {AgendaEvent} e @returns {Edit} */
-	const fromData = (e) => ({ icon: e.icon, subtitle: e.subtitle, place: e.place, price: e.price });
+	const fromData = (e) => ({
+		icon: e.icon,
+		subtitle: e.subtitle,
+		place: e.place,
+		price: e.price,
+		summary: e.summary,
+		place2: e.placeName,
+		organizer: e.organizer,
+		nuevo: false
+	});
 
 	/**
-	 * Al cambiar el rango: los eventos nuevos entran al final (los primeros 4, tildados) y los que
-	 * siguen conservan su orden, su tilde y lo que se les cambió.
+	 * Al cambiar el rango: los eventos nuevos entran al final (los primeros 4, tildados; en
+	 * Instagram, todos) y los que siguen conservan su orden, su tilde y lo que se les cambió.
 	 * @param {AgendaEvent[]} events
+	 * @param {string} mode
 	 */
-	function sync(events) {
+	function sync(events, mode) {
 		const slugs = events.map((e) => e.slug);
 		const kept = order.filter((s) => slugs.includes(s));
 		const fresh = slugs.filter((s) => !kept.includes(s));
@@ -55,20 +73,34 @@
 		order = [...kept, ...fresh];
 		checked = new Set([
 			...[...checked].filter((s) => slugs.includes(s)),
-			...(first ? fresh.slice(0, MAX_PER_FLYER) : [])
+			...(mode === 'instagram' ? fresh : first ? fresh.slice(0, MAX_PER_FLYER) : [])
 		]);
 		/** @type {Record<string, Edit>} */
 		const next = {};
 		for (const e of events) next[e.slug] = edits[e.slug] ?? fromData(e);
 		edits = next;
 	}
-	$: sync(data.events);
+	$: sync(data.events, data.mode);
+	$: instagram = data.mode === 'instagram';
 
 	$: bySlug = new Map(data.events.map((e) => [e.slug, e]));
 	$: picked = order.filter((s) => checked.has(s));
 	$: rows = picked
 		.slice(0, MAX_PER_FLYER)
 		.map((s) => withOverrides(/** @type {AgendaEvent} */ (bySlug.get(s)), edits[s]));
+	// En Instagram van todos los tildados (repartidos en varias placas).
+	$: igRows = picked.map((s) => {
+		const e = /** @type {AgendaEvent} */ (bySlug.get(s));
+		const x = edits[s];
+		return {
+			...e,
+			...withOverrides(e, x),
+			summary: x.summary.trim(),
+			place2: x.place2.trim(),
+			organizer: x.organizer.trim(),
+			nuevo: x.nuevo
+		};
+	});
 	$: layout = LAYOUTS[perSheet];
 	$: copies = Array.from({ length: layout.perSheet }, (_, i) => i);
 	// La orientación de la hoja al imprimir (2 por hoja: A4 apaisado). Texto fijo, sin datos.
@@ -143,13 +175,33 @@
 			><ArrowLeft size={16} aria-hidden="true" /> Agenda</a
 		>
 		<h1>Agenda impresa</h1>
-		<p class="help">
-			Volantes en blanco y negro para repartir, con los próximos eventos. Elegí cuáles van y en qué
-			orden, cambiá lo que haga falta (no se guarda en ningún lado) y tocá «Imprimir». Para un PDF,
-			elegí «Guardar como PDF»; en las opciones, márgenes «Ninguno» y «Gráficos de fondo» prendido.
-		</p>
+		<nav class="modes" aria-label="Qué armar">
+			<a href="/admin/eventos/agenda-impresa" aria-current={instagram ? undefined : 'page'}
+				>Volantes</a
+			>
+			<a
+				href="/admin/eventos/agenda-impresa?modo=instagram"
+				aria-current={instagram ? 'page' : undefined}>Instagram</a
+			>
+		</nav>
+		{#if instagram}
+			<p class="help">
+				El carrusel «agenda kinky» del mes para Instagram (primera versión): la portada con la
+				grilla, los eventos de KinkyVibe con su imagen, el Fondo y los eventos amigos. Elegí cuáles
+				van y en qué orden, cambiá lo que haga falta (no se guarda en ningún lado), bajá las placas
+				como PNG y copiá el texto del posteo.
+			</p>
+		{:else}
+			<p class="help">
+				Volantes en blanco y negro para repartir, con los próximos eventos. Elegí cuáles van y en
+				qué orden, cambiá lo que haga falta (no se guarda en ningún lado) y tocá «Imprimir». Para un
+				PDF, elegí «Guardar como PDF»; en las opciones, márgenes «Ninguno» y «Gráficos de fondo»
+				prendido.
+			</p>
+		{/if}
 
 		<form class="range" method="GET">
+			{#if instagram}<input type="hidden" name="modo" value="instagram" />{/if}
 			<label
 				>Desde <input class="kv-input" type="date" name="desde" value={data.range.from} /></label
 			>
@@ -175,7 +227,12 @@
 									<span class="emoji" aria-hidden="true">{edits[slug].icon}</span>
 									<span>
 										<strong>{e.title}</strong>
-										<small>{argDateList(e.start)}{e.series ? ` · ${e.series}` : ''}</small>
+										<small
+											>{argDateList(e.start)}{e.series ? ` · ${e.series}` : ''}{instagram &&
+											!e.kinkyvibe
+												? ' · evento amigo'
+												: ''}</small
+										>
 									</span>
 								</label>
 								<span class="moves">
@@ -205,13 +262,15 @@
 											bind:value={edits[slug].icon}
 										/></label
 									>
-									<label
-										>Subtítulo <input
-											class="kv-input"
-											bind:value={edits[slug].subtitle}
-											placeholder="Sin subtítulo"
-										/></label
-									>
+									{#if !instagram}
+										<label
+											>Subtítulo <input
+												class="kv-input"
+												bind:value={edits[slug].subtitle}
+												placeholder="Sin subtítulo"
+											/></label
+										>
+									{/if}
 									<label
 										>Lugar <input
 											class="kv-input"
@@ -226,6 +285,35 @@
 											placeholder="Sin precio"
 										/></label
 									>
+									{#if instagram}
+										{#if e.kinkyvibe}
+											<label
+												>Lugar, segunda línea <input
+													class="kv-input"
+													bind:value={edits[slug].place2}
+													placeholder="Nombre del lugar (si es público)"
+												/></label
+											>
+											<label
+												>Texto <textarea
+													class="kv-input"
+													rows="3"
+													bind:value={edits[slug].summary}
+													placeholder="Sin texto"></textarea></label
+											>
+											<label class="check"
+												><input type="checkbox" bind:checked={edits[slug].nuevo} /> Estrella «Nuevo»</label
+											>
+										{:else}
+											<label
+												>Quién organiza <input
+													class="kv-input"
+													bind:value={edits[slug].organizer}
+													placeholder="Sin nombre"
+												/></label
+											>
+										{/if}
+									{/if}
 									<button class="kv-btn ghost small" type="button" on:click={() => reset(slug)}
 										><RotateCcw size={14} aria-hidden="true" /> Volver a lo de los datos</button
 									>
@@ -238,7 +326,18 @@
 			<datalist id="agenda-iconos">
 				{#each ICON_CHOICES as icon (icon)}<option value={icon}></option>{/each}
 			</datalist>
-			{#if picked.length > MAX_PER_FLYER}
+			{#if instagram}
+				<p class="bulk">
+					<button
+						class="kv-btn ghost small"
+						type="button"
+						on:click={() => (checked = new Set(order))}>Tildar todos</button
+					>
+					<button class="kv-btn ghost small" type="button" on:click={() => (checked = new Set())}
+						>Destildar todos</button
+					>
+				</p>
+			{:else if picked.length > MAX_PER_FLYER}
 				<Notice tone="warn"
 					>Elegiste {picked.length}: en un volante entran {MAX_PER_FLYER}. Van los primeros {MAX_PER_FLYER}
 					de la lista.</Notice
@@ -248,100 +347,114 @@
 			{/if}
 		{/if}
 
-		<fieldset class="sheet-options">
-			<legend>La hoja</legend>
-			<label>Encabezado <textarea class="kv-input" rows="2" bind:value={header}></textarea></label>
-			<label>Pie <input class="kv-input" bind:value={footer} /></label>
-			<label
-				>Volantes por hoja
-				<select class="kv-input" bind:value={perSheet}>
-					{#each Object.entries(LAYOUTS) as [n, l] (n)}<option value={n}>{l.label}</option>{/each}
-				</select></label
-			>
-			<label class="check"
-				><input type="checkbox" bind:checked={background} /> Fondo con dibujos</label
-			>
-			<label class="check"
-				><input type="checkbox" bind:checked={showQr} /> QR al calendario en el pie</label
-			>
-		</fieldset>
+		{#if !instagram}
+			<fieldset class="sheet-options">
+				<legend>La hoja</legend>
+				<label>Encabezado <textarea class="kv-input" rows="2" bind:value={header}></textarea></label
+				>
+				<label>Pie <input class="kv-input" bind:value={footer} /></label>
+				<label
+					>Volantes por hoja
+					<select class="kv-input" bind:value={perSheet}>
+						{#each Object.entries(LAYOUTS) as [n, l] (n)}<option value={n}>{l.label}</option>{/each}
+					</select></label
+				>
+				<label class="check"
+					><input type="checkbox" bind:checked={background} /> Fondo con dibujos</label
+				>
+				<label class="check"
+					><input type="checkbox" bind:checked={showQr} /> QR al calendario en el pie</label
+				>
+			</fieldset>
 
-		<button
-			class="kv-btn print"
-			type="button"
-			on:click={() => window.print()}
-			disabled={!rows.length}><Printer size={18} aria-hidden="true" /> Imprimir</button
-		>
+			<button
+				class="kv-btn print"
+				type="button"
+				on:click={() => window.print()}
+				disabled={!rows.length}><Printer size={18} aria-hidden="true" /> Imprimir</button
+			>
+		{/if}
 	</section>
 
-	<section class="preview" aria-label="Vista previa de la hoja">
-		<div
-			bind:this={sheetEl}
-			class="sheet"
-			class:bg={background}
-			style:--sheet-w="{layout.sheetW}mm"
-			style:--sheet-h="{layout.sheetH}mm"
-			style:--cols={layout.cols}
-			style:--rows={layout.rows}
-			style:--s={layout.sheetW / layout.cols / 105}
-		>
-			{#each copies as copy (copy)}
-				<article class="flyer" aria-hidden={copy > 0 ? 'true' : undefined}>
-					<header class="f-head">
-						<img class="f-logo" src={logo} alt="Kinky Vibe" />
-						<svg class="spark" viewBox="0 0 24 24" aria-hidden="true"
-							><path
-								d="M12 1C13 8 16 11 23 12 16 13 13 16 12 23 11 16 8 13 1 12 8 11 11 8 12 1Z"
-							/></svg
-						>
-						<p class="f-title">{header}</p>
-						<svg class="spark" viewBox="0 0 24 24" aria-hidden="true"
-							><path
-								d="M12 1C13 8 16 11 23 12 16 13 13 16 12 23 11 16 8 13 1 12 8 11 11 8 12 1Z"
-							/></svg
-						>
-					</header>
-					<ul class="f-events">
-						{#each rows as row (row.slug)}
-							<li class="f-event">
-								<span class="f-icon" aria-hidden="true"><span>{row.icon}</span></span>
-								<div class="f-body">
-									<p class="f-pill">
-										<span
-											class="f-name"
-											class:long={row.title.length > 22}
-											class:longer={row.title.length > 34}>{row.title}</span
-										>
-										{#if row.subtitle}<span class="f-sub">{row.subtitle}</span>{/if}
-									</p>
-									<p class="f-line">{row.date}</p>
-									{#if row.place}
-										{@const [, main, note] = row.place.match(/^(.*?)(\s*\(.*\))?$/) ?? [
-											'',
-											row.place,
-											''
-										]}
-										<p class="f-line">{main}<span class="f-note">{note ?? ''}</span></p>
-									{/if}
-									{#if row.price}<p class="f-line">{row.price}</p>{/if}
-								</div>
-							</li>
-						{/each}
-					</ul>
-					<footer class="f-foot">
-						<span>{footer}</span>
-						{#if showQr}
-							<!-- El SVG lo arma el servidor (qrcode-generator) con una URL fija. -->
-							<!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG del QR armado en el servidor -->
-							<span class="f-qr">{@html data.qr}</span>
-						{/if}
-					</footer>
-				</article>
-			{/each}
-			{#if layout.cols > 1}<span class="cut cut-v" aria-hidden="true"></span>{/if}
-			{#if layout.rows > 1}<span class="cut cut-h" aria-hidden="true"></span>{/if}
-		</div>
-	</section>
+	{#if instagram}
+		<section class="preview" aria-label="Posts de Instagram">
+			<InstagramPosts
+				rows={igRows}
+				range={data.range}
+				logoUrl={logo}
+				fondoPercent={data.fondoPercent}
+			/>
+		</section>
+	{:else}
+		<section class="preview" aria-label="Vista previa de la hoja">
+			<div
+				bind:this={sheetEl}
+				class="sheet"
+				class:bg={background}
+				style:--sheet-w="{layout.sheetW}mm"
+				style:--sheet-h="{layout.sheetH}mm"
+				style:--cols={layout.cols}
+				style:--rows={layout.rows}
+				style:--s={layout.sheetW / layout.cols / 105}
+			>
+				{#each copies as copy (copy)}
+					<article class="flyer" aria-hidden={copy > 0 ? 'true' : undefined}>
+						<header class="f-head">
+							<img class="f-logo" src={logo} alt="Kinky Vibe" />
+							<svg class="spark" viewBox="0 0 24 24" aria-hidden="true"
+								><path
+									d="M12 1C13 8 16 11 23 12 16 13 13 16 12 23 11 16 8 13 1 12 8 11 11 8 12 1Z"
+								/></svg
+							>
+							<p class="f-title">{header}</p>
+							<svg class="spark" viewBox="0 0 24 24" aria-hidden="true"
+								><path
+									d="M12 1C13 8 16 11 23 12 16 13 13 16 12 23 11 16 8 13 1 12 8 11 11 8 12 1Z"
+								/></svg
+							>
+						</header>
+						<ul class="f-events">
+							{#each rows as row (row.slug)}
+								<li class="f-event">
+									<span class="f-icon" aria-hidden="true"><span>{row.icon}</span></span>
+									<div class="f-body">
+										<p class="f-pill">
+											<span
+												class="f-name"
+												class:long={row.title.length > 22}
+												class:longer={row.title.length > 34}>{row.title}</span
+											>
+											{#if row.subtitle}<span class="f-sub">{row.subtitle}</span>{/if}
+										</p>
+										<p class="f-line">{row.date}</p>
+										{#if row.place}
+											{@const [, main, note] = row.place.match(/^(.*?)(\s*\(.*\))?$/) ?? [
+												'',
+												row.place,
+												''
+											]}
+											<p class="f-line">{main}<span class="f-note">{note ?? ''}</span></p>
+										{/if}
+										{#if row.price}<p class="f-line">{row.price}</p>{/if}
+									</div>
+								</li>
+							{/each}
+						</ul>
+						<footer class="f-foot">
+							<span>{footer}</span>
+							{#if showQr}
+								<!-- El SVG lo arma el servidor (qrcode-generator) con una URL fija. -->
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG del QR armado en el servidor -->
+								<span class="f-qr">{@html data.qr}</span>
+							{/if}
+						</footer>
+					</article>
+				{/each}
+				{#if layout.cols > 1}<span class="cut cut-v" aria-hidden="true"></span>{/if}
+				{#if layout.rows > 1}<span class="cut cut-h" aria-hidden="true"></span>{/if}
+			</div>
+		</section>
+	{/if}
 </div>
 
 <style>
@@ -396,6 +509,31 @@
 	.help {
 		margin: 0;
 		color: var(--muted);
+	}
+	.modes {
+		display: flex;
+		gap: var(--space-3xs);
+		border-bottom: 1px solid var(--line);
+	}
+	.modes a {
+		padding: var(--space-3xs) var(--space-xs);
+		min-height: var(--tap);
+		display: inline-flex;
+		align-items: center;
+		color: var(--link);
+		font-weight: 700;
+		text-decoration: none;
+		border-bottom: 3px solid transparent;
+		margin-bottom: -1px;
+	}
+	.modes a[aria-current='page'] {
+		color: inherit;
+		border-bottom-color: currentColor;
+	}
+	.bulk {
+		display: flex;
+		gap: var(--space-2xs);
+		margin: 0;
 	}
 	.range {
 		display: flex;
@@ -465,6 +603,12 @@
 	}
 	.icon-input {
 		max-width: 6rem;
+	}
+	.fields label.check {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2xs);
+		font-weight: 400;
 	}
 	.fields .kv-btn {
 		justify-self: start;
