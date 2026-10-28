@@ -645,7 +645,9 @@ Sin token, el webhook **contesta en el mismo pedido** (un método de la API como
 token (0034), llama a la API en `waitUntil`. El token también lo usan el cron (avisos y comandos)
 y el botón «Actualizar comandos del bot»; todo pasa por `send.js` (`callTelegramApi`), el único
 lugar que llama a la API de Telegram. Nunca se loguea ni se devuelve la URL (lleva el token) y los
-errores se muestran sin él.
+errores se muestran sin él. Cada llamada espera a lo sumo 10 segundos (`TELEGRAM_TIMEOUT_MS`): si
+Telegram tarda más, se corta y cuenta como una falla común (`failed` / `ok: false`), así un Telegram
+lento no cuelga el cron, los avisos a admins ni un reenvío.
 
 ## Puesta en marcha (la hace gorrite)
 

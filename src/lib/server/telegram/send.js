@@ -13,6 +13,13 @@
 const API = 'https://api.telegram.org';
 
 /**
+ * Cuánto se espera a Telegram antes de cortar. Sin tope, un Telegram lento colgaba al que espera
+ * (el cron, un aviso a admins, un reenvío). Al cortar, `fetch` tira `TimeoutError` y cuenta como
+ * una falla más (`failed`, o `ok: false`), igual que un error de red.
+ */
+export const TELEGRAM_TIMEOUT_MS = 10_000;
+
+/**
  * Saca el token de un texto (por si Telegram o un error de red lo repiten).
  *
  * @param {string} text
@@ -62,28 +69,37 @@ function requestBody(body) {
  * **sin el token**. El token va en la URL (así lo pide Telegram): nunca se loguea ni se devuelve
  * la URL.
  *
- * @param {{ token: string, method: string, body: unknown, fetch?: typeof fetch }} input
+ * @param {{ token: string, method: string, body: unknown, fetch?: typeof fetch, timeoutMs?: number }} input
  * @returns {Promise<{ ok: true, status: number, result?: unknown } | { ok: false, status: number | null, error: string, description?: string }>}
  *   `result`: lo que devolvió Telegram (por ejemplo, el id de un `savePreparedInlineMessage`).
  */
-export async function callTelegramApi({ token, method, body, fetch: fetchFn = fetch }) {
+export async function callTelegramApi({
+	token,
+	method,
+	body,
+	fetch: fetchFn = fetch,
+	timeoutMs = TELEGRAM_TIMEOUT_MS
+}) {
 	let res;
+	/** @type {any} */
+	let data = null;
 	try {
 		res = await fetchFn(`${API}/bot${token}/${method}`, {
 			method: 'POST',
-			...requestBody(body)
+			...requestBody(body),
+			signal: AbortSignal.timeout(timeoutMs)
 		});
+		try {
+			data = await res.json();
+		} catch (error) {
+			// Si se pasó del tiempo leyendo el cuerpo, es una falla de conexión como cualquier otra.
+			if (/** @type {Error} */ (error)?.name === 'TimeoutError') throw error;
+			// Sin JSON: queda el código HTTP.
+		}
 	} catch (error) {
 		const name = scrub(String(/** @type {Error} */ (error)?.name ?? 'Error'), token).slice(0, 60);
 		console.error(`[telegram] no se pudo llamar a ${method}:`, name);
 		return { ok: false, status: null, error: `No se pudo conectar con Telegram (${name}).` };
-	}
-	/** @type {any} */
-	let data = null;
-	try {
-		data = await res.json();
-	} catch {
-		// Sin JSON: queda el código HTTP.
 	}
 	if (res.ok && data?.ok !== false) {
 		return data && 'result' in data
@@ -110,10 +126,16 @@ export async function callTelegramApi({ token, method, body, fetch: fetchFn = fe
  *
  * El token va en la URL (así lo pide Telegram): nunca se loguea la URL ni la respuesta entera.
  *
- * @param {{ token: string, chatId: string, text: string, fetch?: typeof fetch }} input
+ * @param {{ token: string, chatId: string, text: string, fetch?: typeof fetch, timeoutMs?: number }} input
  * @returns {Promise<'sent' | 'failed' | 'blocked'>}
  */
-export async function sendTelegramMessage({ token, chatId, text, fetch: fetchFn = fetch }) {
+export async function sendTelegramMessage({
+	token,
+	chatId,
+	text,
+	fetch: fetchFn = fetch,
+	timeoutMs = TELEGRAM_TIMEOUT_MS
+}) {
 	try {
 		const res = await fetchFn(`${API}/bot${token}/sendMessage`, {
 			method: 'POST',
@@ -123,7 +145,8 @@ export async function sendTelegramMessage({ token, chatId, text, fetch: fetchFn 
 				text,
 				parse_mode: 'HTML',
 				link_preview_options: { is_disabled: true }
-			})
+			}),
+			signal: AbortSignal.timeout(timeoutMs)
 		});
 		if (res.ok) return 'sent';
 		if (res.status === 403) return 'blocked';
