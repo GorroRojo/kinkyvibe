@@ -604,6 +604,7 @@ actualizá esta lista.
   código sigue andando.
 - **Topes por día con ventana móvil.** Los topes «por día» suman las últimas 24 horas, por hora
   (`hitRateLimit` en `src/lib/server/db/rateLimit.js`), así que la medianoche ya no los reinicia.
+  Un pedido rechazado no se anota (si no, seguir probando estiraría el bloqueo para siempre).
   Queda un borde: la sal de la «conexión» cambia a las 00:00 UTC, y los topes de mail + conexión
   vuelven a empezar con la sal nueva. Los topes por mail solo (10 por día) siguen contando, así
   que un mail recibe como mucho eso por día.

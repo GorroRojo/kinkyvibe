@@ -4,7 +4,7 @@
  * Las ventanas cortas (menos de {@link ROLLING_FROM_SECONDS}) son fijas: una fila por ventana.
  * Las largas (los topes «por día») son móviles: los intentos se anotan por hora y se suman las
  * últimas `windowSeconds` (con una ventana fija de 24 h, el cupo se podía gastar justo antes de
- * la medianoche UTC y otra vez justo después).
+ * la medianoche UTC y otra vez justo después). En las móviles, un intento rechazado no se anota.
  *
  * Los `bucket` nunca deben contener datos identificables (ni IPs): usamos hashes anónimos o
  * el slug de un evento. Cada llamada borra las filas más viejas que la ventana más larga
@@ -96,15 +96,26 @@ export async function hitRateLimit(
 	]);
 	const rows = /** @type {{ window_start: number, hits: number }[]} */ (recent.results);
 	const hits = rows.reduce((sum, r) => sum + Number(r.hits), 0);
+	if (hits <= limit) {
+		return { allowed: true, hits, retryAfter: slot + ROLLING_STEP_SECONDS - nowSeconds };
+	}
+	// Un intento rechazado no queda anotado: si contara, quien sigue probando (o un cron que
+	// reintenta cada tanto) nunca saldría del tope, porque cada rechazo se queda 24 h en la ventana.
+	await db
+		.prepare(
+			'UPDATE rate_limits SET hits = MAX(hits - ?3, 0) WHERE bucket = ?1 AND window_start = ?2'
+		)
+		.bind(bucket, slot, cost)
+		.run();
 	// Cuándo se libera lugar: cuando salen de la ventana las horas más viejas que sobran.
-	let left = hits;
+	let left = hits - cost;
 	let retryAfter = slot + ROLLING_STEP_SECONDS - nowSeconds;
 	for (const r of rows) {
-		if (left < limit) break;
+		if (left + cost <= limit) break;
 		left -= Number(r.hits);
 		retryAfter = Number(r.window_start) + windowSeconds - nowSeconds;
 	}
-	return { allowed: hits <= limit, hits, retryAfter };
+	return { allowed: false, hits, retryAfter };
 }
 
 /**
