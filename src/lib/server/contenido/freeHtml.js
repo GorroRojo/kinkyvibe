@@ -37,6 +37,7 @@ import rehypeSlug from 'rehype-slug';
 import toc from '@jsdevtools/rehype-toc';
 import customRehype from '$lib/utils/customRehype.js';
 import { resolveMediaImports } from '$lib/server/amigues/render.js';
+import { tooDeepToRender } from '$lib/utils/htmlNesting.js';
 
 /** Elementos cuyo texto no se toca (como smartypants). */
 const SKIP_TAGS = new Set([
@@ -915,6 +916,10 @@ export async function renderFreeBody(body, { resolveMedia = () => undefined, var
 			holdRawHtml(held)
 		]
 	});
+	// Miles de elementos uno adentro de otro rompen rehype (se queda sin pila): vacío, no un error.
+	// Cuenta también el HTML apartado (`held`), en su lugar: vuelve adentro del texto al final.
+	const whole = markup.replace(RAW_MARK, (_, n) => held[Number(n)] ?? '');
+	if (tooDeepToRender(whole, 'libre')) return { html: '', css: [] };
 	const file = await processor.process({ value: nofollow(markup), data: { held } });
 	// El HTML escrito a mano salió tal cual: una pasada más lo deja bien armado (una etiqueta sin
 	// cerrar se cierra adentro del texto y no se come el resto de la página).

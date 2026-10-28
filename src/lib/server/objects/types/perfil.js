@@ -174,7 +174,7 @@ const perfil = {
 	fields: {
 		kind: { kind: 'option', label: 'Tipo de perfil', options: PROFILE_KINDS, required: true },
 		bio: { kind: 'longtext', label: 'Presentación', max: BIO_MAX },
-		body: { kind: 'longtext', label: 'Texto de la página', max: BODY_MAX },
+		body: { kind: 'longtext', label: 'Texto de la página', max: BODY_MAX, markup: true },
 		pronouns: { kind: 'text', label: 'Pronombres', max: 40 },
 		pronouns_url: { kind: 'url', label: 'Link de pronombres', max: LINK_MAX_LENGTH },
 		links: { kind: 'list', label: 'Links', max: LINKS_MAX },
