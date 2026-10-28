@@ -11,6 +11,13 @@
 # largo ni `immutable`: 1 día. Lo de /_app/immutable/ lo pone el adapter (1 año, con hash).
 # Lo verifica src/lib/server/staticHeaders.test.js.
 
+# `/*`: los dos headers de seguridad que hooks.server.js (securityHeaders.js) pone en las páginas,
+# también en los estáticos, que no pasan por el Worker. Solo esos dos: nada de caché acá.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
 /favicon.ico
   Cache-Control: public, max-age=86400
 /favicon-16x16.png

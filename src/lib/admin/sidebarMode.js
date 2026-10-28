@@ -88,11 +88,17 @@ export function saveSidebarMode(login, mode) {
 }
 
 /**
+ * El cuerpo del script del <head>: fijo para todes (la clave va en el atributo `data-k` del
+ * propio script), así la CSP lo permite por su hash (svelte.config.js).
+ */
+export const SIDEBAR_SCRIPT_BODY = `try{var m=localStorage.getItem(document.currentScript.dataset.k);if(m==='iconos'||m==='oculto')document.documentElement.setAttribute('data-lateral',m)}catch(e){}`;
+
+/**
  * Script en línea para el <head> del panel: pone `data-lateral` antes de pintar. Solo lleva la
- * clave (sacada del login con {@link sidebarKey}, sin nada más de la persona).
+ * clave (sacada del login con {@link sidebarKey}: letras, números, guiones y `:`, nada que
+ * escapar en un atributo), sin nada más de la persona.
  * @param {string | null | undefined} login
  */
 export function sidebarHeadScript(login) {
-	const key = JSON.stringify(sidebarKey(login));
-	return `<script>try{var m=localStorage.getItem(${key});if(m==='iconos'||m==='oculto')document.documentElement.setAttribute('data-lateral',m)}catch(e){}</script>`;
+	return `<script data-k="${sidebarKey(login)}">${SIDEBAR_SCRIPT_BODY}</script>`;
 }
