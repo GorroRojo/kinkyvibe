@@ -572,6 +572,59 @@ guarda en ningún lado.
   español en `static/fonts/1797/` con su `LICENSE.txt`; se carga solo en esta página. El logo es el
   del sitio (`src/routes/logo.png`) pasado a blanco y negro con un filtro.
 
+### Instagram
+
+**Instagram** (pestaña de la misma página, `/admin/eventos/agenda-impresa?modo=instagram`) arma el
+carrusel mensual «agenda kinky» para Instagram, copiando los posts que publica KinkyVibe (primera
+versión, para ir ajustando con gorrite). Como los volantes, **solo lee**: usa los mismos eventos,
+el mismo orden, las mismas tildes y los mismos cambios a mano (cambiar de pestaña no los pierde).
+
+- **Qué rango**: sin `?desde=&hasta=`, la agenda del mes: si hoy es antes del día 20, de hoy al
+  fin de este mes; desde el 20, el mes que viene entero (`instagramRange`). Los eventos nuevos del
+  rango entran todos tildados.
+- **Las placas** (1080 × 1350, 4:5; `src/lib/utils/agendaInstagram.js`, puro):
+  - **portada**: «agenda kinky», la bajada y la grilla del mes (semana desde el domingo): círculo
+    amarillo los días con eventos de KinkyVibe, aro violeta los de eventos amigos;
+  - **eventos de KinkyVibe** (los que tienen la etiqueta KinkyVibe), de a 3 (o 2), con la imagen
+    del evento alternando derecha e izquierda: día y hora («SÁBADO 24. 20:00HS»), el precio de los
+    volantes, el resumen del evento y el lugar en dos líneas (la primera es el lugar de los
+    volantes, **como lo ve cualquiera**; la segunda, «Dirección x privado» o el nombre del lugar
+    solo si es público). Sin imagen, un recuadro violeta con el título. Estrella «Nuevo» a mano.
+    La primera imagen va a la izquierda, como en el .ai;
+  - **el Fondo**: «este mes el N % del precio de las entradas… está cubierto por el Fondo», con la
+    barra; N arranca con el porcentaje de este mes (`resolveFondoPercent`, el mismo que descuentan
+    las entradas) y se cambia a mano (o se saca la placa);
+  - **la lista de actividades** (se puede sacar): «Actividades de <mes>» en la banda ancha y los
+    eventos de KinkyVibe de a 8, con la imagen chica, el título y «jueves 8 de octubre I 19:00 hs I
+    lugar»;
+  - **otros eventos amigos** (los que no tienen la etiqueta KinkyVibe): en la última placa, debajo
+    del último evento de KinkyVibe (4 entran ahí; los demás, de a 4 en placas propias con el título
+    en la banda ancha y sin pie, como en el .ai), con quién organiza (los autores menos KinkyVibe),
+    la imagen chica, el título y «SÁB 10 DE OCTUBRE I ALMAGRO» (la 1797 no dibuja la barra «|»: los
+    posts usan una «I»).
+- **Qué se cambia a mano**, además de lo de los volantes: el texto (el resumen), la segunda línea
+  del lugar, la estrella «Nuevo» y, en los amigos, quién organiza; de las placas, el mes, la
+  bajada, el pie, cuántos eventos por placa, el Fondo y si va la lista de actividades.
+- **Cómo se baja**: cada placa es un SVG con el diseño en HTML adentro (`foreignObject`) y todo
+  embebido como `data:` (letras, dibujo de fondo, logo e imágenes): la vista previa es esa misma
+  imagen y «Descargar» la dibuja en un canvas y la guarda como PNG; «Descargar todas» baja una por
+  una. Las imágenes de los eventos se piden al propio sitio (`/media/img/…`; las de kinkyvibe.ar
+  con la dirección entera, las del modo demo, primero acá) y se recortan al cuadrado, así el canvas
+  no queda bloqueado; si una no carga, va el recuadro violeta. Anda en Chrome y Firefox (Safari
+  puede negarse a guardar el PNG).
+- **El texto del posteo** se arma con los eventos (día, título, lugar público, precio, los amigos y
+  los links), se puede cambiar antes de copiarlo y cuenta los 2200 caracteres de Instagram.
+- **Medidas, letras y dibujos**: posiciones, tamaños, interlineados y colores salen del .ai
+  original de los posts que mandó gorrite (no está en el repo). Las letras son las del .ai: 1797
+  POSTER, MEDIUM y SIGNAGE (`static/fonts/1797/`, CC BY 4.0, con su `LICENSE.txt`; SIGNAGE con el
+  espaciado −50 del .ai); la portada, que en el .ai va en Arial, usa Arimo (Google Fonts, SIL OFL
+  1.1, mismas medidas que Arial; en `static/fonts/agenda-instagram/` con su `OFL.txt`), angostada
+  para la Arial Narrow de los números. «agenda kinky» está en curvas en el .ai: va en Fredoka
+  angostada, la del sitio. Todas se declaran en un solo lugar (el CSS de las placas en
+  `agendaInstagram.js`) y se cargan solo en esta pestaña. El dibujo de fondo es el de los volantes
+  (`static/agenda-impresa/fondo.svg`) al doble de tamaño y en el lila del .ai, y el logo, el del
+  sitio pasado a violeta.
+
 ## El buscador
 
 **«Ir a… o buscar»** (opción C): el botón de la barra de arriba (y del header del celu) se llama

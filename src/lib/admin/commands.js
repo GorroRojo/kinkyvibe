@@ -72,7 +72,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	eventos: 'lista calendario agenda',
 	'eventos-nuevo': 'nuevo crear evento cargar duplicar',
 	'eventos-importar': 'importar planilla excel sheet',
-	'eventos-agenda-impresa': 'imprimir volante volantes flyer papel pdf repartir agenda impresa',
+	'eventos-agenda-impresa':
+		'imprimir volante volantes flyer papel pdf repartir agenda impresa instagram posts carrusel redes',
 	'eventos-agenda': 'agenda planilla tabla',
 	'eventos-lugares': 'lugares direccion mapa venue espacio donde aprobar rechazados',
 	'eventos-series': 'series ediciones recurrente repetir avisame',
