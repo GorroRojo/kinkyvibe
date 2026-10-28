@@ -238,7 +238,8 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   - **Anidado demasiado hondo**: rehype recorre el árbol con recursión, y miles de elementos uno
     adentro de otro (`<div>` × 5000, o `>` × 2000 en markdown) lo dejan sin pila (`RangeError`,
     error 500 para todes en esa página). Más de 500 niveles (`$lib/utils/htmlNesting.js`, una
-    cuenta aproximada y barata) no se guardan: el campo del texto (`markup: true` en
+    cuenta aproximada y barata que cierra lo que el navegador cierra solo, como `<li>a<li>b`, y no
+    cuenta lo de adentro de `<script>`/`<style>` ni el código de markdown) no se guardan: el campo del texto (`markup: true` en
     `objects/fields.js`: eventos, material, perfiles y wiki) da el error en el panel. Uno que ya
     estaba guardado se muestra vacío y deja una línea `area: 'contenido'` en los registros. Los
     textos de la semilla no pasan de 10 niveles.
