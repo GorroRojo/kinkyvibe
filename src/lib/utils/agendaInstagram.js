@@ -374,7 +374,9 @@ p { margin: 0; }
 .cal-foot { background: ${C.mint}; border-top: 2.4px solid ${C.ink}; height: 80.9px; line-height: 78.5px; text-align: center;
   font-weight: 700; font-style: italic; font-size: 28.1px; white-space: nowrap; }
 .events { position: absolute; left: 0; right: 0; top: 153.5px; bottom: 68px; display: flex; flex-direction: column; }
-.events .edge { flex: 1 1 0; min-height: 16px; }
+/* Arriba, como en el .ai (la primera imagen a 59,5 px de la banda), y lo que sobra queda abajo. */
+.events .edge { flex: 0 1 59.5px; min-height: 16px; }
+.events .edge.end { flex: 1 1 0; }
 .events .gap { flex: 0 1 38px; min-height: 8px; }
 .ev { display: flex; align-items: center; gap: 18px; padding: 0 76px; justify-content: flex-end; }
 .ev.left { flex-direction: row-reverse; }
@@ -389,9 +391,8 @@ p { margin: 0; }
 .pin { width: 46px; height: 70px; flex: none; }
 .pic { position: relative; flex: none; width: 309px; height: 309px; }
 .pic img, .pic .noimg { width: 100%; height: 100%; border-radius: 40px; border: 1px solid ${C.ink}; object-fit: cover; display: block; }
-.pic .noimg { background: ${C.purple}; color: #fff; padding: 0 26px; display: flex; align-items: center; font-size: 82px; line-height: 0.9; overflow: hidden; }
-.pic .noimg.long { font-size: 62px; }
-.pic .noimg.xlong { font-size: 48px; }
+.pic .noimg { background: ${C.purple}; color: #fff; padding: 26px; display: flex; align-items: center; line-height: 0.9; overflow: hidden;
+  overflow-wrap: anywhere; }
 .burst { position: absolute; top: -42px; left: -48px; width: 118px; height: 118px; }
 .burst svg { display: block; width: 100%; height: 100%; }
 .burst span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 29.5px;
@@ -423,7 +424,7 @@ p { margin: 0; }
 .friends-wrap h2 { flex: none; margin: 59.6px 0 0; height: 0; line-height: 0; text-align: center; color: ${C.purple}; font-size: 75.6px; font-weight: 400;
   }
 .friends-wrap .rule { flex: none; margin: ${(BASE.poster * 75.6 + 16.2 - 0.5).toFixed(1)}px auto 0; width: 798px; height: 10.8px; background: ${C.purple}; border: 1px solid ${C.ink}; }
-.friends-wrap .rows { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 25.5px; padding: 12px 0 20px; }
+.friends-wrap .rows { flex: 1 1 auto; display: flex; flex-direction: column; gap: 25.5px; padding: 24.6px 0 20px; }
 .fr { display: flex; align-items: center; padding-left: 142px; flex: none; }
 .fr .who { width: 140px; margin-right: 53px; text-align: right; font-size: 30px; line-height: 27px;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -434,7 +435,7 @@ p { margin: 0; }
 .fr .t1 { color: ${C.pink}; font-size: 40px; line-height: 36.5px; padding-top: 8px; margin-top: -8px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .fr .t2 { color: ${C.purple}; font-size: 30px; line-height: 30px; margin-top: 1.5px; text-transform: uppercase; }
-.only .friends-wrap .rows { gap: 74px; padding: 0; }
+.only .friends-wrap .rows { gap: 74px; padding: 96.3px 0 0; }
 .only .fr { padding-left: 105px; }
 .only .fr .who { width: 140px; margin-right: 12px; text-align: center; font-size: 30.2px; line-height: 26.7px; }
 .only .fr .thumb { width: 177px; height: 177px; }
@@ -493,7 +494,7 @@ function eventHtml(r, i, a) {
 	const img = a.images[r.slug];
 	const pic = img
 		? `<img src="${xml(img)}" alt=""/>`
-		: `<div class="noimg poster${noimgSize(r.title)}">${xml(r.title)}</div>`;
+		: `<div class="noimg poster" style="font-size:${noimgSize(r.title)}px">${xml(r.title)}</div>`;
 	const burst = r.nuevo ? `<div class="burst">${BURST}<span class="poster">Nuevo</span></div>` : '';
 	const date = slideDateLine(r.start);
 	return `<div class="ev ${side}"><div class="txt">
@@ -528,27 +529,70 @@ function listHtml(r, a) {
 	)}</p></div></div>`;
 }
 
+/** Los tamaños del título en el recuadro sin imagen (82 px es el del .ai). */
+const NOIMG_SIZES = [82, 72, 62, 54, 48, 42, 36, 32, 28];
+/** El lado de adentro del recuadro sin imagen (309 px menos el borde y 26 px de cada lado). */
+const NOIMG_INNER = 309 - 2 - 2 * 26;
+
+/** Los anchos de 1797 POSTER (en milésimas de em) de A–Z y 0–9, para medir los títulos. */
+const POSTER_W =
+	'362,356,366,363,315,303,368,374,182,233,367,305,493,371,368,351,369,356,343,324,368,373,475,363,362,345,368,247,366,363,353,348,348,313,348,348'
+		.split(',')
+		.map(Number);
+const POSTER_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
 /**
- * El tamaño del título en el recuadro sin imagen: a 82 px entran unas 10 letras por renglón y tres
- * o cuatro renglones; más largo, más chico.
+ * El ancho de una palabra en 1797 POSTER (va en mayúsculas), en em; lo que no está en la tabla
+ * cuenta de más, para no quedarse corto.
+ * @param {string} w
+ */
+const posterWidth = (w) =>
+	[
+		...w
+			.toUpperCase()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+	].reduce((t, ch) => {
+		const i = POSTER_CHARS.indexOf(ch);
+		if (i >= 0) return t + POSTER_W[i] / 1000;
+		return t + (/[.,:;'¡!]/.test(ch) ? 0.2 : /[()]/.test(ch) ? 0.22 : 0.45);
+	}, 0);
+
+/**
+ * El tamaño más grande al que el título entra entero en el recuadro sin imagen (renglones de 0,9
+ * em, cortando entre palabras): nunca queda cortado arriba ni abajo.
  * @param {string} title
  */
 const noimgSize = (title) => {
-	if (title.length > 48) return ' xlong';
-	const longest = Math.max(0, ...title.split(/\s+/).map((w) => w.length));
-	return title.length > 34 || longest > 10 ? ' long' : '';
+	const words = title.trim().split(/\s+/);
+	for (const size of NOIMG_SIZES) {
+		let lines = 1;
+		let width = 0;
+		let fits = true;
+		for (const word of words) {
+			const w = posterWidth(word) * size;
+			if (w > NOIMG_INNER) fits = false;
+			const next = width ? width + 0.15 * size + w : w;
+			if (next > NOIMG_INNER && width) {
+				lines += 1;
+				width = w;
+			} else width = next;
+		}
+		if (fits && lines * 0.9 * size <= NOIMG_INNER) return size;
+	}
+	return NOIMG_SIZES.at(-1);
 };
 
 /** Un precio más largo que esto va más chico, para que no ocupe dos renglones. */
 const PRICE_LONG = 36;
 
 /**
- * Los eventos de una placa, centrados con un espacio entre ellos que no pasa de 38 px (y se
- * achica si no entran): con menos eventos no quedan huecos enormes entre uno y otro.
+ * Los eventos de una placa, desde arriba como en el .ai, con 38 px entre uno y otro (que se
+ * achican si no entran): con menos eventos, lo que sobra queda abajo.
  * @param {string[]} items
  */
 const eventsColumn = (items) =>
-	`<div class="events"><div class="edge"></div>${items.join('<div class="gap"></div>')}<div class="edge"></div></div>`;
+	`<div class="events"><div class="edge"></div>${items.join('<div class="gap"></div>')}<div class="edge end"></div></div>`;
 
 const TOP = `<div class="pat" style="top:0;height:102px"></div><div class="band"></div>${tagHtml(445.55, 69.7, 1)}`;
 
@@ -634,7 +678,7 @@ ${slide.footer ? `<div class="foot signage">${xml(slide.footer)}</div>` : ''}`;
 <div class="list">${slide.rows.map((r) => listHtml(r, assets)).join('')}</div>`;
 	} else if (slide.row) {
 		// El evento arriba (con su alto) y el bloque gris de los amigos ocupa lo que queda hasta el
-		// pie, con las filas centradas: como los posts, sin huecos con pocos amigos.
+		// pie, con las filas desde arriba, como en el .ai.
 		inner = `${TOP}<div class="stack"><div class="solo">${eventHtml(slide.row, slide.index, assets)}</div>
 <div class="friends-wrap"><h2 class="poster">Otros eventos amigos:</h2><div class="rule"></div><div class="rows">${slide.friends
 			.map((r) => friendHtml(r, assets))
