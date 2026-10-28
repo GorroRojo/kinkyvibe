@@ -3,27 +3,42 @@
  * qué se busca y con qué filtros. Puro (sin base ni DOM): lo usan la paleta (para las acciones y
  * para saber si hace falta preguntarle al servidor) y /admin/buscar (para los registros).
  *
- * Operadores (sin mayúsculas ni tildes; ver docs/panel.md):
+ * La base la lee el parser compartido con el sitio y el bot (`parseSearch`, searchSyntax.js; la
+ * sintaxis está en docs/buscar.md); acá se suma lo del panel.
+ *
+ * Operadores (sin mayúsculas ni tildes; ver docs/buscar.md y docs/panel.md):
  * - `>tema`: solo acciones (tiene que ir al comienzo).
  * - `#shibari` o `etiqueta:shibari`: eventos con esa etiqueta (también por alias) y la etiqueta.
  * - `@ana` o `persona:ana`: solo personas y perfiles.
  * - `e:latex` o `evento:latex`: solo eventos; una palabra de pestaña al final (`puerta`,
- *   `ordenes`, `mail`, `ventas`, `duplicar`) lleva directo a esa pestaña del primero.
+ *   `ordenes`, `mail`, `ventas`, `duplicar`) lleva directo a esa pestaña del primero. Los demás
+ *   tipos de la base: `amigues:` (perfiles), `wiki:`/`kinkipedia:`/`serie:` (etiquetas);
+ *   `material:` no trae nada (el panel no busca material).
  * - `orden:ana`: solo órdenes; `orden:pendiente` o `estado:pendiente`, las órdenes en ese estado.
  * - `tipo:evento` (orden, persona, perfil, etiqueta, entrada, codigo, accion; con coma, varios).
  * - `lugar:palermo`: eventos en ese lugar.
  * - `hoy`, `mañana`, `semana` («esta semana»), `finde`: eventos en esos días (y las acciones
  *   siguen apareciendo, como «Abrir la puerta de hoy»); con `cuando:` también un día de la
- *   semana (`cuando:sabado`) o una fecha (`cuando:15/10`).
+ *   semana (`cuando:sabado`), una fecha (`cuando:15/10`), un mes (`cuando:noviembre`) o un rango
+ *   (`cuando:1/11..30/11`, `desde:1/11 hasta:30/11`). Los meses sueltos son texto en el panel.
  * - `"frase exacta"`: esas palabras juntas y en ese orden.
  * - `-palabra` (o `-"frase"`, `-#etiqueta`, `-tipo:orden`): sin eso.
  * Las palabras sueltas tienen que estar todas, en cualquier orden. Un `algo:` que no es un
  * operador se busca como texto (`20:30`, `foo:bar`).
  */
+import {
+	dayInWhen,
+	foldQuery,
+	parseSearch,
+	parseWhen,
+	QUERY_MAX,
+	splitQuery,
+	whenRange
+} from './searchSyntax.js';
 
 /**
  * @typedef {'actions' | 'events' | 'orders' | 'people' | 'profiles' | 'tags' | 'tickets' | 'codes'} SearchKind
- * @typedef {{ kind: 'hoy' | 'manana' | 'semana' | 'finde' } | { kind: 'weekday', weekday: number } | { kind: 'date', day: number, month: number, year?: number }} When
+ * @typedef {import('./searchSyntax.js').When} When
  * @typedef {'ingreso' | 'ordenes' | 'mail' | 'ventas' | 'duplicar'} EventTab
  * @typedef {'pending' | 'awaiting_transfer' | 'approved' | 'rejected' | 'cancelled' | 'refunded' | 'expired'} OrderStatus
  *
@@ -48,19 +63,7 @@
 /** Cuánto tiene que medir lo buscado (sin filtros) para buscar registros. */
 export const MIN_TERMS = 2;
 
-/**
- * Texto para comparar sin distinguir mayúsculas ni tildes ("Ñandú José" → "nandu jose"). Igual
- * que `foldText` de la parte del servidor, pero acá para que lo use también el navegador.
- * @param {unknown} value
- */
-export function foldQuery(value) {
-	return String(value ?? '')
-		.normalize('NFD')
-		.replace(/\p{Diacritic}/gu, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
-}
+export { foldQuery, parseWhen, splitQuery, whenRange };
 
 /** @type {Record<string, SearchKind[]>} */
 const TIPO = {
@@ -89,6 +92,19 @@ const TIPO = {
 	acciones: ['actions']
 };
 
+/**
+ * Los tipos de la sintaxis base (`evento:`, `amigues:`, `wiki:`…) en el panel: la Kinkipedia y las
+ * series son etiquetas; el material no está en el buscador del panel (no sale nada).
+ * @type {Record<import('./searchSyntax.js').DocType, SearchKind[]>}
+ */
+const BASE_KINDS = {
+	calendario: ['events'],
+	amigues: ['profiles'],
+	wiki: ['tags'],
+	serie: ['tags'],
+	material: []
+};
+
 /** Estados de una orden por cómo se dicen (el comienzo alcanza desde 4 letras: «pend»). */
 const STATUS_WORDS = /** @type {[string, OrderStatus][]} */ ([
 	['pendiente', 'pending'],
@@ -111,38 +127,6 @@ export function orderStatusWord(v) {
 	return null;
 }
 
-const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-
-/** Palabras de fecha que valen solas, sin `cuando:`. */
-const BARE_WHEN = /** @type {Record<string, 'hoy' | 'manana' | 'semana' | 'finde'>} */ ({
-	hoy: 'hoy',
-	manana: 'manana',
-	semana: 'semana',
-	finde: 'finde'
-});
-
-/**
- * Lo que va después de `cuando:` (o una palabra de fecha suelta).
- * @param {string} v ya sin tildes
- * @returns {When | null}
- */
-export function parseWhen(v) {
-	const bare = BARE_WHEN[v];
-	if (bare) return /** @type {When} */ ({ kind: bare });
-	const wd = WEEKDAYS.findIndex((d) => d === v || (v.length >= 3 && d.startsWith(v)));
-	if (wd !== -1) return { kind: 'weekday', weekday: wd };
-	const m = /^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2}|\d{4}))?$/.exec(v);
-	if (m) {
-		const day = Number(m[1]);
-		const month = Number(m[2]);
-		if (day < 1 || day > 31 || month < 1 || month > 12) return null;
-		if (!m[3]) return { kind: 'date', day, month };
-		const year = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
-		return { kind: 'date', day, month, year };
-	}
-	return null;
-}
-
 /** Palabras de pestaña de un evento (después de `e:`/`evento:`). */
 const TAB_WORDS = /** @type {Record<string, EventTab>} */ ({
 	puerta: 'ingreso',
@@ -154,74 +138,28 @@ const TAB_WORDS = /** @type {Record<string, EventTab>} */ ({
 	duplicar: 'duplicar'
 });
 
-const KEYS = new Set([
-	'etiqueta',
-	'persona',
-	'e',
-	'evento',
-	'orden',
-	'estado',
-	'tipo',
-	'lugar',
-	'cuando'
+const ALL_KINDS = /** @type {SearchKind[]} */ ([
+	'actions',
+	'events',
+	'orders',
+	'people',
+	'profiles',
+	'tags',
+	'tickets',
+	'codes'
 ]);
 
 /**
- * Parte lo escrito en pedazos: separa por espacios y respeta las comillas (`"dos palabras"`,
- * `lugar:"club x"`, `-"sin esto"`). Una comilla sin cerrar llega hasta el final.
- * @param {string} raw
- * @returns {{ neg: boolean, key: string | null, value: string, quoted: boolean, src: string }[]}
- */
-export function splitQuery(raw) {
-	const out = [];
-	const s = String(raw ?? '');
-	let i = 0;
-	while (i < s.length) {
-		while (i < s.length && /\s/.test(s[i])) i++;
-		if (i >= s.length) break;
-		const from = i;
-		let neg = false;
-		if (s[i] === '-' && i + 1 < s.length && !/\s/.test(s[i + 1])) {
-			neg = true;
-			i++;
-		}
-		/** @type {string | null} */
-		let key = null;
-		let value = '';
-		let quoted = false;
-		// `clave:` pegado a una comilla: el valor es lo de adentro.
-		const keyed = /^([\p{L}]+):"/u.exec(s.slice(i));
-		if (keyed) {
-			key = keyed[1];
-			i += keyed[0].length - 1;
-		}
-		if (s[i] === '"') {
-			quoted = true;
-			const end = s.indexOf('"', i + 1);
-			value = s.slice(i + 1, end === -1 ? s.length : end);
-			i = end === -1 ? s.length : end + 1;
-		} else {
-			let j = i;
-			while (j < s.length && !/\s/.test(s[j]) && s[j] !== '"') j++;
-			value = s.slice(i, j);
-			i = j;
-		}
-		if (!value && !quoted && !key) {
-			// Un `-` suelto pegado a una comilla rota, o similar: se ignora.
-			continue;
-		}
-		out.push({ neg, key, value, quoted, src: s.slice(from, i) });
-	}
-	return out;
-}
-
-/**
  * Lee lo escrito en el buscador del panel. Nunca falla: lo que no entiende queda como texto.
+ *
+ * La base (texto, frases, exclusiones, `#etiqueta`, tipos, `lugar:`, fechas) la lee el parser
+ * compartido (`parseSearch` de searchSyntax.js, docs/buscar.md); acá se suma lo del panel: `>`,
+ * `@`/`persona:`, `orden:`, `estado:`, `tipo:` y la palabra de pestaña.
  * @param {string} raw
  * @returns {ParsedQuery}
  */
 export function parseSearchQuery(raw) {
-	let s = String(raw ?? '').slice(0, 200);
+	let s = String(raw ?? '').slice(0, QUERY_MAX);
 	/** @type {ParsedQuery} */
 	const pq = {
 		raw: s,
@@ -246,16 +184,6 @@ export function parseSearchQuery(raw) {
 	let filtered = false;
 	/** @type {Set<SearchKind>} */
 	const notKinds = new Set();
-	let eventScope = false;
-	let whenIsFilter = false;
-	/** Palabras y frases como se escribieron (para `text`; las que se sacan quedan vacías). */
-	/** @type {string[]} */
-	const textParts = [];
-	/** Para cada palabra de `pq.words`, dónde está en `textParts`. */
-	/** @type {number[]} */
-	const wordAt = [];
-	/** @type {string[]} */
-	const actionParts = [];
 
 	/** @param {SearchKind[]} kinds */
 	const addScope = (kinds) => {
@@ -270,115 +198,66 @@ export function parseSearchQuery(raw) {
 		filtered = true;
 		pq.operators = true;
 	};
-	/** @param {string} original @param {boolean} [phrase] */
-	const addText = (original, phrase = false) => {
-		const f = foldQuery(original);
-		if (!f) return;
-		if (phrase) pq.phrases.push(f);
-		else {
-			pq.words.push(f);
-			wordAt.push(textParts.length);
-		}
-		textParts.push(original.trim());
-		actionParts.push(original.trim());
-	};
 
 	if (s.trimStart().startsWith('>')) {
 		addScope(['actions']);
 		s = s.trimStart().slice(1);
 	}
 
-	const tokens = splitQuery(s);
-	for (let ti = 0; ti < tokens.length; ti++) {
-		const t = tokens[ti];
-		let key = t.key;
-		let value = t.value;
-		if (!key && !t.quoted) {
-			const m = /^([\p{L}]+):(.*)$/su.exec(value);
-			if (m && KEYS.has(foldQuery(m[1]))) {
-				key = m[1];
-				value = m[2];
-			} else if (value.startsWith('#')) {
-				key = 'etiqueta';
-				value = value.slice(1);
-			} else if (value.startsWith('@')) {
-				key = 'persona';
-				value = value.slice(1);
-			}
-		}
-		const k = key ? foldQuery(key) : null;
-		const v = foldQuery(value);
+	const base = parseSearch(s, 'panel');
+	const words = [...base.words];
+	const phrases = [...base.phrases];
+	const parts = [...base.parts];
+	const plain = [...base.plain];
+	// `-lugar:palermo`: el panel lo saca como texto, como antes (no filtra por lugar al excluir).
+	pq.exclude = [...base.exclude, ...base.excludePlaces];
+	pq.excludeTags = [...base.excludeTags];
+	pq.tags = [...base.tags];
+	pq.places = [...base.places];
+	if (base.operators) pq.operators = true;
+	if (pq.tags.length) addFilter(['events', 'tags']);
+	if (pq.places.length) addFilter(['events']);
+	if (base.types) addScope(base.types.flatMap((t) => BASE_KINDS[t]));
+	for (const t of base.excludeTypes) for (const k of BASE_KINDS[t]) notKinds.add(k);
+	const eventScope = Boolean(base.types?.includes('calendario'));
 
-		if (k && !KEYS.has(k)) {
-			// `algo:"…"` con una clave que no existe: va como texto.
-			if (t.neg) pq.exclude.push(foldQuery(`${key}:${value}`));
-			else addText(`${key}:${value}`, t.quoted);
-			continue;
-		}
+	// Las fechas: `cuando:` (el último) manda; si no, la primera palabra de fecha suelta.
+	const hard = base.dates.filter((d) => !d.soft).at(-1);
+	const soft = base.dates.find((d) => d.soft);
+	pq.when = hard?.when ?? soft?.when ?? null;
 
-		if (!k) {
-			if (!v) continue;
-			if (t.neg) {
-				pq.exclude.push(v);
-				pq.operators = true;
-				continue;
-			}
-			if (t.quoted) {
-				addText(value, true);
-				pq.operators = true;
-				continue;
-			}
-			const bare = BARE_WHEN[v];
-			if (bare && !pq.when) {
-				pq.when = { kind: bare };
-				pq.operators = true;
-				actionParts.push(value);
-				// «esta semana»: el «esta» de antes no es texto.
-				const prev = tokens[ti - 1];
-				if (bare === 'semana' && prev && !prev.key && !prev.neg && !prev.quoted) {
-					if (foldQuery(prev.value) === 'esta' && pq.words.at(-1) === 'esta') {
-						pq.words.pop();
-						textParts[/** @type {number} */ (wordAt.pop())] = '';
-					}
-				}
-				continue;
-			}
-			addText(value);
-			continue;
-		}
-
-		// Operadores con clave.
-		if (t.neg) {
+	// Lo del panel, en el orden escrito: lo que suma texto va donde estaba (de atrás para adelante,
+	// así las posiciones siguen valiendo).
+	for (const x of [...base.extra].reverse()) {
+		const v = foldQuery(x.value);
+		/** @type {{ words: string[], phrases: string[], part: string }} */
+		const add = { words: [], phrases: [], part: '' };
+		/** @param {string} original @param {boolean} [phrase] */
+		const text = (original, phrase = false) => {
+			const f = foldQuery(original);
+			if (!f) return;
+			if (phrase) add.phrases.push(f);
+			else add.words.push(...f.split(' '));
+			add.part = original.trim();
+		};
+		if (x.neg) {
 			pq.operators = true;
-			if (k === 'etiqueta') {
-				if (v) pq.excludeTags.push(v);
-			} else if (k === 'tipo') {
+			if (x.op.id === 'tipo') {
 				for (const part of v.split(','))
 					for (const kind of TIPO[part.trim()] ?? []) notKinds.add(kind);
 			} else if (v) pq.exclude.push(v);
 			continue;
 		}
-		switch (k) {
-			case 'etiqueta':
-				if (!v) break;
-				pq.tags.push(v);
-				addFilter(['events', 'tags']);
-				break;
-			case 'persona':
+		switch (x.op.id) {
+			case 'persona-panel':
 				addScope(['people', 'profiles']);
-				if (value) addText(value, t.quoted);
-				break;
-			case 'e':
-			case 'evento':
-				addScope(['events']);
-				eventScope = true;
-				if (value) addText(value, t.quoted);
+				if (x.value) text(x.value, x.quoted);
 				break;
 			case 'orden': {
 				addScope(['orders']);
-				const st = t.quoted ? null : orderStatusWord(v);
+				const st = x.quoted ? null : orderStatusWord(v);
 				if (st) pq.status = st;
-				else if (value) addText(value, t.quoted);
+				else if (x.value) text(x.value, x.quoted);
 				break;
 			}
 			case 'estado': {
@@ -386,7 +265,7 @@ export function parseSearchQuery(raw) {
 				if (st) {
 					pq.status = st;
 					addFilter(['orders']);
-				} else if (value) addText(`${key}:${value}`);
+				} else if (x.value) text(`${x.key}:${x.value}`);
 				break;
 			}
 			case 'tipo': {
@@ -396,64 +275,48 @@ export function parseSearchQuery(raw) {
 					.filter(Boolean)
 					.flat();
 				if (kinds.length) addScope(kinds);
-				else if (value) addText(`${key}:${value}`);
+				else if (x.value) text(`${x.key}:${x.value}`);
 				break;
 			}
-			case 'lugar':
-				if (!v) break;
-				pq.places.push(v);
-				addFilter(['events']);
-				break;
-			case 'cuando': {
-				const w = parseWhen(v);
-				if (w) {
-					pq.when = w;
-					whenIsFilter = true;
-					pq.operators = true;
-				} else if (value) addText(`${key}:${value}`);
-				break;
-			}
+		}
+		words.splice(x.at.words, 0, ...add.words);
+		phrases.splice(x.at.phrases, 0, ...add.phrases);
+		if (add.part) {
+			parts.splice(x.at.parts, 0, add.part);
+			plain.splice(x.at.plain, 0, add.part);
 		}
 	}
 
 	// `e:latex puerta`: la última palabra de pestaña lleva a esa pestaña.
 	if (eventScope) {
-		for (let i = pq.words.length - 1; i >= 0; i--) {
-			const tab = TAB_WORDS[pq.words[i]];
-			if (tab && pq.words.length > 1) {
+		for (let i = words.length - 1; i >= 0; i--) {
+			const tab = TAB_WORDS[words[i]];
+			if (tab && words.length > 1) {
 				pq.tab = tab;
-				pq.words.splice(i, 1);
-				textParts[wordAt.splice(i, 1)[0]] = '';
+				const [word] = words.splice(i, 1);
+				const at = parts.findLastIndex((p) => foldQuery(p) === word);
+				if (at !== -1) parts.splice(at, 1);
 				break;
 			}
 		}
 	}
 
 	// Las fechas filtran eventos; las acciones siguen (salvo con `cuando:`, que es un filtro).
-	if (pq.when) addFilter(whenIsFilter ? ['events'] : ['events', 'actions']);
+	if (pq.when) addFilter(hard ? ['events'] : ['events', 'actions']);
 
 	/** @type {Set<SearchKind> | null} */
 	let kinds = scope;
 	if (filtered)
 		kinds = kinds ? new Set([...kinds].filter((x) => filterKinds.has(x))) : new Set(filterKinds);
 	if (notKinds.size) {
-		kinds ??= new Set(
-			/** @type {SearchKind[]} */ ([
-				'actions',
-				'events',
-				'orders',
-				'people',
-				'profiles',
-				'tags',
-				'tickets',
-				'codes'
-			])
-		);
+		kinds ??= new Set(ALL_KINDS);
 		for (const x of notKinds) kinds.delete(x);
 	}
 	pq.kinds = kinds ? [...kinds] : null;
-	pq.text = textParts.filter(Boolean).join(' ');
-	pq.actionText = actionParts.join(' ');
+	pq.words = words;
+	pq.phrases = phrases;
+	pq.text = parts.filter(Boolean).join(' ');
+	pq.actionText = plain.join(' ');
 	return pq;
 }
 
@@ -523,53 +386,10 @@ export function matchTerms(pq, ...fields) {
 	return together !== -1 ? together : Math.max(1, worst);
 }
 
-/** Desfase de Argentina (UTC−3, sin horario de verano). */
-const AR_OFFSET_MS = -3 * 60 * 60 * 1000;
-
-/** @param {number} ms */
-const dayOf = (ms) => new Date(ms + AR_OFFSET_MS).toISOString().slice(0, 10);
-
-/**
- * Días (Argentina, `YYYY-MM-DD`, ambos incluidos) que abarca una fecha pedida, contando desde
- * `now`. `semana`: de hoy al domingo; `finde`: de viernes a domingo (si ya es finde, de hoy al
- * domingo); un día de la semana: el próximo (hoy cuenta). Una fecha sin año: `null` (se compara
- * solo día y mes; ver {@link eventInWhen}).
- * @param {When} when
- * @param {number} [now]
- * @returns {{ from: string, to: string } | null}
- */
-export function whenRange(when, now = Date.now()) {
-	const DAY = 86_400_000;
-	const today = dayOf(now);
-	const wd = new Date(`${today}T12:00:00Z`).getUTCDay();
-	const plus = (/** @type {number} */ n) => dayOf(now + n * DAY);
-	switch (when.kind) {
-		case 'hoy':
-			return { from: today, to: today };
-		case 'manana':
-			return { from: plus(1), to: plus(1) };
-		case 'semana':
-			return { from: today, to: plus((7 - wd) % 7) };
-		case 'finde':
-			return wd === 5 || wd === 6 || wd === 0
-				? { from: today, to: plus((7 - wd) % 7) }
-				: { from: plus(5 - wd), to: plus(7 - wd) };
-		case 'weekday': {
-			const d = plus((when.weekday - wd + 7) % 7);
-			return { from: d, to: d };
-		}
-		case 'date': {
-			if (!when.year) return null;
-			const d = `${when.year}-${String(when.month).padStart(2, '0')}-${String(when.day).padStart(2, '0')}`;
-			return { from: d, to: d };
-		}
-	}
-	return null;
-}
-
 /**
  * ¿El evento (con `start` y `end` ISO con la hora de Argentina, `2031-10-10T21:00-03:00`) cae en
- * esos días? Un evento de varios días vale si alguno cae adentro.
+ * esos días? Un evento de varios días vale si alguno cae adentro (`dayInWhen`, compartido con el
+ * sitio y el bot).
  * @param {{ start?: string, end?: string }} e
  * @param {When} when
  * @param {number} [now]
@@ -579,14 +399,5 @@ export function eventInWhen(e, when, now = Date.now()) {
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return false;
 	const endRaw = (e.end || '').slice(0, 10);
 	const end = /^\d{4}-\d{2}-\d{2}$/.test(endRaw) && endRaw >= start ? endRaw : start;
-	if (when.kind === 'date' && !when.year) {
-		const [, m, d] = start.split('-').map(Number);
-		return m === when.month && d === when.day;
-	}
-	const range = whenRange(when, now);
-	return (
-		Boolean(range) &&
-		start <= /** @type {{ to: string }} */ (range).to &&
-		end >= /** @type {{ from: string }} */ (range).from
-	);
+	return dayInWhen(start, end, when, now);
 }
