@@ -100,12 +100,14 @@ export function clientOf(event) {
  *
  * @param {import('@sveltejs/kit').RequestEvent} event
  * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} [kind] el tipo de mail para Resend (`sendWithResend`): los códigos, salvo que se
+ *   diga otro
  * @returns {import('./index.js').SendMail}
  */
-export function mailSender(event, db) {
+export function mailSender(event, db, kind = 'codigo') {
 	return async (to, message, log) => {
 		try {
-			return await deliverEmail({ db, fetch: event.fetch, to, message, log });
+			return await deliverEmail({ db, fetch: event.fetch, to, message, log, kind });
 		} catch (e) {
 			console.error('[cuentas] no se pudo mandar el mail:', e);
 			return 'failed';

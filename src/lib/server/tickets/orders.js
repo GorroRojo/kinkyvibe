@@ -1092,6 +1092,27 @@ export async function markEmailSent(db, orderId, now = Date.now(), emailId = nul
 }
 
 /**
+ * El mail de las entradas no se mandó porque el dominio de la dirección no recibe correo
+ * (`domainAcceptsMail`, email/mx.js): la orden queda como si Resend hubiera avisado un rebote
+ * (`email_problem = 'bounced'`, sin id de Resend). Queda como enviada para que el reintento del cron
+ * no la vuelva a tomar; «Corregir el mail…» limpia la marca y la manda a la dirección nueva.
+ *
+ * @param {D1Database} db
+ * @param {string} orderId
+ * @param {number} [now]
+ */
+export async function markEmailUndeliverable(db, orderId, now = Date.now()) {
+	await db
+		.prepare(
+			`UPDATE orders SET email_sent_at = ?2, email_id = NULL, email_problem = 'bounced',
+				email_problem_at = ?2
+			WHERE id = ?1`
+		)
+		.bind(orderId, now)
+		.run();
+}
+
+/**
  * Corrige el mail de quien compró una orden aprobada de un evento (Órdenes → «Corregir el mail y
  * reenviar»). El mail queda como no enviado hasta que salga a la dirección nueva. `false` si la
  * orden no es de ese evento, no está aprobada o ya tenía esa dirección. Los códigos combo de la

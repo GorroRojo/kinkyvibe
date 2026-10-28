@@ -260,7 +260,7 @@ describe('resendUnsentOrderEmails', () => {
 			now: NOW + RETRY_ATTEMPTS * 15 * MIN,
 			limit: 1
 		});
-		expect(r).toEqual({ sent: 1, failed: 0, skipped: 1 });
+		expect(r).toEqual({ sent: 1, failed: 0, skipped: 0 });
 		expect(up.posts.map((p) => p.headers['Idempotency-Key'])).toEqual([`tickets-${ok.id}`]);
 		expect((await getOrder(t.db, broken.id))?.email_sent_at).toBeNull();
 	});

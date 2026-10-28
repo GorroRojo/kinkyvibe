@@ -6,7 +6,7 @@ import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { deliverEmail } from '$lib/server/tickets/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
-import { runSeriesNotifications } from './notify.js';
+import { NOTIFY_BATCH, runSeriesNotifications } from './notify.js';
 import { accountSubscriptions } from './subscriptions.js';
 import { avisameViaSigo } from '$lib/server/sigo/avisame.js';
 import { eventsForTag, seriesPage } from './index.js';
@@ -32,13 +32,22 @@ export async function requireSeriesDB(platform) {
  *
  * @param {D1Database} db
  * @param {typeof fetch} fetchFn
+ * @param {string} [kind] el tipo de mail para Resend (`sendWithResend`); «Lo que sigo» pasa `sigo`
  * @returns {import('./subscriptions.js').SeriesSend}
  */
-export function seriesSender(db, fetchFn) {
+export function seriesSender(db, fetchFn, kind = 'serie') {
 	return async (to, message, idempotencyKey) => {
 		try {
 			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
-			return await deliverEmail({ db, fetch: fetchFn, to, message, idempotencyKey, optOut: true });
+			return await deliverEmail({
+				db,
+				fetch: fetchFn,
+				to,
+				message,
+				idempotencyKey,
+				optOut: true,
+				kind
+			});
 		} catch (e) {
 			console.error('[series] no se pudo mandar el mail:', e);
 			return 'failed';
@@ -49,9 +58,11 @@ export function seriesSender(db, fetchFn) {
 /**
  * La parte de series del cron de mails.
  *
- * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number }} input
+ * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number, limit?: number }} input
+ *   `limit`: mails como mucho en esta corrida (lo que sobró de la tanda); nunca más de
+ *   {@link NOTIFY_BATCH}
  */
-export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now() }) {
+export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now(), limit }) {
 	const platform = /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }));
 	return runSeriesNotifications({
 		db,
@@ -62,7 +73,8 @@ export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now
 		tags: await siteTagManager(platform),
 		origin,
 		send: seriesSender(db, fetchFn),
-		now
+		now,
+		limit: Math.max(0, Math.min(limit ?? NOTIFY_BATCH, NOTIFY_BATCH))
 	});
 }
 

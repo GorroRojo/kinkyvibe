@@ -32,7 +32,7 @@
 </script>
 
 <svelte:head>
-	<title>{title} {shownPronoun ? `| ${shownPronoun}` : ''}</title>
+	<title>{title}{shownPronoun ? ` | ${shownPronoun}` : ''} · {SITE_NAME}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 	<!-- Sin `article:*`: son de `og:type` article y un perfil es `profile` (docs/compartir.md). -->

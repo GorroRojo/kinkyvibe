@@ -6,7 +6,8 @@
 	export let icon;
 </script>
 
-<svg role="img" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<!-- Decorativo: el link siempre lleva el nombre de la red en texto. -->
+<svg aria-hidden="true" focusable="false" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 	<path d={icon.path} />
 	<!-- {@html icon.svg.slice(71,-6)} -->
 </svg>

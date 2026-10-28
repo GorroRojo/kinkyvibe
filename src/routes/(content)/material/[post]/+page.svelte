@@ -1,6 +1,6 @@
 <script>
 	import { userConfig } from '$lib/utils/stores.js';
-	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
+	import { pastPostsLoader, relatedPostsFor } from '$lib/utils/allPosts';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import { materialSchema } from '$lib/utils/jsonLd.js';
@@ -28,6 +28,11 @@
 	$: authorsMeta = articleAuthors(data.meta.authors, data.authorsProfiles, $page.url.origin);
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
 	$: readingTime = readingTimeLabel(data.readingMinutes);
+	// Los materiales en inglés (etiqueta «inglés»): el título y el resumen con lang="en", así un
+	// lector de pantalla los pronuncia en inglés. El resto de la página sigue en castellano.
+	$: contentLang = (data.meta.tags ?? []).some((/** @type {string} */ t) => /^ingl[eé]s$/i.test(t))
+		? 'en'
+		: undefined;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
 	// bloque de estilos del componente.
@@ -35,13 +40,8 @@
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)));
+	$: if ($userConfig.show_past_events && data.relatedPastCount > 0) loadPast();
 </script>
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
@@ -71,7 +71,7 @@
 />
 <article class="h-entry">
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
-	<h1 id="title" class="p-name">{data.meta.title}</h1>
+	<h1 id="title" class="p-name" lang={contentLang}>{data.meta.title}</h1>
 	{#if data.meta.authors && data.meta.authors.length > 0}
 		{@const authors = data.meta.authors}
 		<address>
@@ -129,7 +129,7 @@
 	{/if}
 	{#if data.meta.summary}
 		<div class="content">
-			<p class="p-summary">
+			<p class="p-summary" lang={contentLang}>
 				{data.meta.summary}
 			</p>
 		</div>

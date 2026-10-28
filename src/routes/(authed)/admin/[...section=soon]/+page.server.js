@@ -11,7 +11,7 @@ import { navArea, soonItemAt } from '$lib/admin/nav.js';
 export function load({ locals, url }) {
 	requireAdmin(locals, url);
 	const item = soonItemAt(url.pathname);
-	if (!item) error(404, 'Not found');
+	if (!item) error(404, 'Esa sección no existe.');
 	return {
 		soon: {
 			id: item.id,

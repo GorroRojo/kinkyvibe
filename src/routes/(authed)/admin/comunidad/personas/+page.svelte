@@ -10,6 +10,7 @@
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { personHref } from '$lib/admin/links.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { argDate } from '$lib/utils/dates.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
@@ -94,11 +95,12 @@
 		{ label: 'gastado', key: 'spent' },
 		{
 			label: 'primera_visita',
-			value: (p) => (p.firstVisit ? new Date(p.firstVisit).toISOString().slice(0, 10) : '')
+			// El día en hora de Argentina (no UTC: un evento desde las 21:00 caía al día siguiente).
+			value: (p) => (p.firstVisit ? argDate(p.firstVisit) : '')
 		},
 		{
 			label: 'ultima_visita',
-			value: (p) => (p.lastVisit ? new Date(p.lastVisit).toISOString().slice(0, 10) : '')
+			value: (p) => (p.lastVisit ? argDate(p.lastVisit) : '')
 		},
 		{ label: 'notas', key: 'notes' }
 	];

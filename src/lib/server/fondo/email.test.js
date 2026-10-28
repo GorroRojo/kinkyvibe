@@ -46,7 +46,7 @@ describe('buildFondoLinkEmail', () => {
 			origin: 'https://kinkyvibe.example'
 		});
 		expect(subject).toBe(FONDO_MAIL_SUBJECT);
-		expect(subject).toBe('Tu link para elegir cómo aparecés en el Fondo KinkyVibe');
+		expect(subject).toBe('Tu link para elegir cómo aparecés en el Fondo Kinky Vibe');
 		expect(html).toContain(MAIL_LAYOUT_MARK);
 		const [button, ...rest] = buttons(html).filter(
 			(b) => new URL(b.href).host !== 'kinkyvibe.example'

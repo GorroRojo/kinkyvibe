@@ -16,14 +16,16 @@ import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { seriesSender } from '$lib/server/series/web.js';
 import { telegramSender } from '$lib/server/telegram/send.js';
 import { avisameViaSigo } from './avisame.js';
-import { runFollowNotifications } from './notify.js';
+import { FOLLOW_NOTIFY_BATCH, runFollowNotifications } from './notify.js';
 
 /**
  * @param {{ db: import('@cloudflare/workers-types').D1Database,
  *   platform: App.Platform | undefined, origin: string, fetch: typeof fetch, now?: number,
- *   send?: import('./notify.js').FollowSend,
+ *   send?: import('./notify.js').FollowSend, limit?: number,
  *   telegramSend?: import('$lib/server/telegram/send.js').TelegramSend }} input `send` y
- *   `telegramSend`: para las pruebas (si no, Resend y la API de Telegram)
+ *   `telegramSend`: para las pruebas (si no, Resend y la API de Telegram); `limit`: mails como
+ *   mucho en esta corrida (lo que sobró de la tanda; nunca más de {@link FOLLOW_NOTIFY_BATCH}). Los
+ *   avisos por Telegram tienen su propio tope.
  */
 export async function runSigoCron({
 	db,
@@ -32,7 +34,8 @@ export async function runSigoCron({
 	fetch: fetchFn,
 	now = Date.now(),
 	send,
-	telegramSend
+	telegramSend,
+	limit
 }) {
 	if (!(await avisameViaSigo(db))) return null;
 	return runFollowNotifications({
@@ -43,9 +46,10 @@ export async function runSigoCron({
 			platform ?? /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }))
 		),
 		origin,
-		send: send ?? seriesSender(db, fetchFn),
+		send: send ?? seriesSender(db, fetchFn, 'sigo'),
 		telegram: await telegramChannel(db, fetchFn, telegramSend),
-		now
+		now,
+		limit: Math.max(0, Math.min(limit ?? FOLLOW_NOTIFY_BATCH, FOLLOW_NOTIFY_BATCH))
 	});
 }
 

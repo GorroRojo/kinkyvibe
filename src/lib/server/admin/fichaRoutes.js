@@ -5,12 +5,15 @@
  * links viejos (del panel, de Actividad o de mails ya mandados) siguen andando.
  *
  * Solo admins: el `load` y cada action llaman a `requireAdmin`. Lo que cambia algo o muestra un
- * DNI queda en el registro de actividad, sin mails, sin el texto de las notas y sin el DNI.
+ * DNI queda en el registro de actividad, sin mails, sin el texto de las notas y sin el DNI. Abrir
+ * la ficha también (`person.view`, una vez por admin, persona y día): si llega una queja contra
+ * alguien del equipo, se puede saber qué fichas miró.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { arClock, arMidnight } from '$lib/utils/dates.js';
 import { setProfilePermission } from '$lib/server/admin/cuentas.js';
 import { addNote, deleteNote, personId, validateNote } from '$lib/server/admin/people.js';
 import { orderReference } from '$lib/utils/tickets.js';
@@ -38,8 +41,52 @@ export function fichaLoad(resolve, notFound) {
 		const key = await resolve(db, params);
 		const data = key ? await loadFicha(db, key) : null;
 		if (!data) error(404, notFound);
+		await logFichaView(db, locals, key);
 		return data;
 	};
+}
+
+/**
+ * Registra en Actividad que une admin abrió la ficha de una persona (`person.view`), con el mismo
+ * destino que las notas (nunca el mail), una vez por admin, persona y día de Argentina. Un fallo
+ * del registro no rompe la ficha.
+ *
+ * @param {D1Database} db
+ * @param {App.Locals} locals
+ * @param {FichaKey | null} key
+ * @param {number} [now]
+ */
+export async function logFichaView(db, locals, key, now = Date.now()) {
+	try {
+		if (!key) return;
+		const target = await noteTarget(db, key);
+		if (!target) return;
+		const { targetType, targetId } = target.audit;
+		// Las 00:00 de hoy en Argentina (dates.js tiene el único desfasaje con UTC).
+		const today = arClock(now);
+		const dayStart = arMidnight(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+		const seen = await db
+			.prepare(
+				`SELECT 1 FROM admin_audit WHERE action = 'person.view' AND actor_login = ?1
+					AND target_type = ?2 AND target_id = ?3 AND at >= ?4 LIMIT 1`
+			)
+			.bind(String(locals.user?.login ?? 'desconocide'), targetType, targetId, dayStart)
+			.first();
+		if (seen) return;
+		await logAdminAction(
+			db,
+			locals,
+			{
+				action: 'person.view',
+				targetType,
+				targetId,
+				summary: 'Abrió la ficha de una persona'
+			},
+			{ now }
+		);
+	} catch (e) {
+		console.error('[ficha] no se pudo registrar la vista', e);
+	}
 }
 
 /**

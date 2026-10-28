@@ -67,7 +67,9 @@ hace 5 min»…), resaltada si hay algo para mirar. La arma `src/lib/server/admi
 con una sola tanda a la base (ajustes guardados, interruptores, lo último del registro, propinas
 aprobadas) más lo de Automatizaciones; una tarjeta sin un dato barato y claro no lleva línea (el
 Fondo, si no hay uno fijado a mano ni llegó ninguno automático; cualquier parte que no se pudo
-leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
+leer). El Fondo automático dice de cuándo es si el último dato tiene más de un día («12 % de cada
+entrada (último dato hace 30 h)»): con fondo.kinkyvibe.ar caído se sigue cobrando ese (auditoría
+de confiabilidad, O36). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
 `NAV_GROUPS`, y cada página de Ajustes vuelve a la portada con «← Ajustes» (`areaBackLink`).
 
 **Opción C, parte 2** (gorrite, 11/10; [decisión 0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)):
@@ -180,7 +182,9 @@ cuenta borrada), así que los links viejos siguen andando. Las notas internas va
 cuenta borrada ya no tiene mail, así que sus notas quedan atadas a la cuenta (`account_id`,
 migración 0045, con `email` vacío). Borrar una nota pide confirmar y se recupera desde Actividad
 (`deleted_at`, migración 0049; decisión 0033). El DNI no viene con la página: cada
-«Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Propinas y códigos
+«Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Abrir la ficha
+también queda en Actividad (`person.view`, «Abrió la ficha de una persona», sin el mail), una vez
+por admin, persona y día de Argentina, y no se lista en la Actividad de la misma ficha. Propinas y códigos
 de ingreso no se pueden atar a una persona y no aparecen. Código: `src/lib/server/admin/ficha.js`
 (una sola tanda de consultas), `fichaRoutes.js` y `src/lib/components/admin/personas/Ficha.svelte`.
 
@@ -202,7 +206,8 @@ se puede compartir:
   vuelven (con el período anterior), vendidas y entraron, primera vez y vuelven, vuelven a la misma
   serie, vuelven por serie y asistencia por evento. Mismos períodos, por defecto 12 meses; cuentan
   los eventos que ya pasaron y **empezaron** en el período. Lee todas las órdenes: «primera vez» y
-  «ya habían venido» necesitan la historia completa.
+  «ya habían venido» necesitan la historia completa. Una venta sin mail (en la puerta es opcional)
+  no cuenta como persona, ni acá ni en «Personas» de Ventas.
 - **Visitas al sitio** (`/visitas`): las visitas anónimas ([analiticas.md](analiticas.md)), 7 /
   **30** (por defecto) / 90 días. Analytics Engine guarda el detalle unos 3 meses: más atrás solo
   quedan los totales por mes de `analytics_monthly`, y la página lo dice. Nunca lee las órdenes.
@@ -304,6 +309,19 @@ revisar" del Inicio.
   eventos próximos sin imagen», «2 perfiles nuevos para revisar», el chequeo nocturno con sus
   problemas o las etiquetas. Si la tarjeta tiene 7 filas, el botón dice 7 y el Inicio dice «7 cosas
   para revisar». Sin filas, «todo al día».
+- **Entradas con la configuración rota** (auditoría de confiabilidad, O19): un evento próximo y no
+  cancelado que tiene entradas pero cuya configuración ya no se puede leer (una regla endurecida
+  después, un dato editado a mano) no vende y la ficha lo muestra como «no vende». Con la opción
+  `broken`, `listTicketedEvents` (`src/lib/server/tickets/events.js`) los anota y «Para revisar»
+  suma una fila por evento («… no puede vender entradas: su configuración tiene un error», con el
+  error de validación y «Editar»).
+- **Cuando la base falla, el Inicio lo dice** (auditoría de confiabilidad, O18): cada consulta que
+  cae a su respaldo por un error queda anotada (el parámetro `failed` de `runQuery` y `runQueries`
+  en `src/lib/server/db/batch.js`, que pasa también por `combineQueries` y `mapQuery`) y el load
+  devuelve `unreadable`, solo con sus nombres (sin SQL ni mensajes de error). Arriba aparece en rojo
+  «No pudimos leer: … Lo que ves puede estar incompleto; si sigue así, avisale a gorrite.», y ni el
+  saludo ni la tarjeta vacía dicen «todo al día». El contador del menú y Ajustes no lo muestran
+  todavía (Ajustes ya usa `null` como «no se pudo leer»).
 - **Una sola fuente**: `src/lib/server/admin/review.js`. `reviewRows()` arma las filas (con los
   constructores de `inicio.js`: `reviewItems`, `transferMissingItem`, `onlineMismatchItem`,
   `profileReviewItems`, `claimReviewItems`, `groupReviewItems`, `integrityReviewRow`, y los de las
@@ -481,7 +499,8 @@ cambia datos ni la venta, y no bloquea guardar. Una sola función decide:
   que va a las etiquetas del editor. Saber qué eventos tienen lugar vinculado es una consulta más
   para todos (`listEventVenues`); sin base, mira solo el texto libre.
 
-**Celu**: la barra de abajo sigue igual (Inicio, Eventos, Puerta, Ventas, Más). "Más" muestra
+**Celu**: la barra de abajo sigue igual (Inicio, Eventos, Puerta, Ventas, Más). "Ventas" lleva el
+número de transferencias por confirmar y, cuando hay alguna, abre Transferencias. "Más" muestra
 las áreas y, al tocar una, sus secciones. Cuando llegue la Bandeja (fase 5), el cuarto lugar pasa a
 ser "Para revisar".
 
@@ -674,6 +693,21 @@ sección (`import()`), no con el resto del panel. Mientras llega se ve el texto 
 mismo tamaño con «Cargando el editor…»; si no se puede bajar, queda un campo de texto común. Si
 agregás otro editor pesado, cargalo igual.
 
+**Avisos para lectores de pantalla** (`src/lib/admin/announce.js`). Un `<p role="status">` que
+aparece junto con su texto (por ejemplo dentro de `{#if form?.x}`) no siempre se lee. Para eso hay
+dos regiones vivas fijas en el `body`: `announce(texto)` (cortés) y `announceNow(texto)`
+(urgente, repite aunque el texto sea igual: el resultado de un escaneo en la puerta). Desde un
+`use:enhance`, después de `update()`, `announceResult(result, 'clave')` lee el `message` que
+devolvió la acción (lo usan Órdenes y la ficha de una persona). El aviso visible queda como está.
+
+**Teclado en el celu.** La hoja «Más» funciona como un diálogo modal (foco adentro, Tab que da la
+vuelta, el resto del panel `inert`, Escape cierra y el foco vuelve a «Más» o al avatar). No es un
+`<dialog>` nativo a propósito: en la capa superior taparía la barra de carga y el aviso de
+deshacer. En el celu, el `html` del panel tiene `scroll-padding` del alto de las barras fijas
+(`--panel-scroll-top` arriba), así lo que recibe el foco no queda tapado; un `scroll-margin-top`
+nuevo le resta `--panel-scroll-top`. En la compu no: ahí el aviso de atajos, fijo abajo a la
+derecha, taparía «Guardar» al traerlo a la vista.
+
 ## Cómo probar
 
 ```sh
@@ -717,6 +751,11 @@ en la misma tanda que el borrado; «Recuperar» va por `undoDeletion` (también 
 | Notas internas de una persona           | borrado suave (`deleted_at`, 0049)               | `nota:<id>`                       | Nota interna            |
 
 ¹ Es solo el nombre de la fila (la forma de siempre): esos archivos ya no están en el repo (0032).
+
+**La excepción: las notas de la Agenda** (las notas por día de la tarjeta Agenda,
+`agenda_day_notes`, `src/lib/server/admin/dayNotes.js`) se borran de verdad (`DELETE`): no pasan
+por `panel_deletions` y no aparecen en «Borrados que podés recuperar». Una nota borrada por error
+solo vuelve con un backup o con Time Travel.
 
 Decisión 0030: las etiquetas, las series y los mails por evento se recuperan. Una etiqueta vuelve
 con sus datos y sus relaciones (nunca se fueron); si mientras tanto se creó otra con el mismo

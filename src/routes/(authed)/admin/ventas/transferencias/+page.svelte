@@ -268,11 +268,18 @@
 											cancelLabel: 'Volver',
 											tone: 'danger'
 										});
-										if (!ok) cancel();
+										if (!ok) return cancel();
+										busy = o.id;
+										return async ({ update }) => {
+											await update();
+											busy = null;
+										};
 									}}
 								>
 									<input type="hidden" name="order" value={o.id} />
-									<button class="kv-btn ghost" type="submit">Cancelar</button>
+									<button class="kv-btn ghost" type="submit" disabled={busy === o.id}
+										>Cancelar</button
+									>
 								</form>
 							</div>{/if}
 					</li>

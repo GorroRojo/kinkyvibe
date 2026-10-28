@@ -918,7 +918,7 @@ export function applyTicketsForm(frontmatter, form, initial, opts) {
 	if (!formChanged && !needsDoorKey(form, initial)) return frontmatter;
 	const doc = parseDocument(frontmatter.replace(/\r\n?/g, '\n'));
 	if (doc.errors.length) throw new Error(doc.errors[0].message);
-	// @ts-ignore frontmatter vacío
+	// @ts-expect-error frontmatter vacío
 	if (doc.contents === null) doc.contents = doc.createNode({});
 	if (!form.enabled) {
 		for (const key of TICKET_KEYS) doc.delete(key);

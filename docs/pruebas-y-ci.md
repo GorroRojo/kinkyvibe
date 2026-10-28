@@ -13,7 +13,7 @@ PR no entra hasta arreglarlo. Y además, nadie mergea sin que gorrite lo apruebe
 ## Qué corre en cada PR
 
 Lo de GitHub Actions que corre en cada PR está en un solo archivo, `.github/workflows/ci.yml`
-(los otros dos workflows son los vigilantes del repaso y de producción, ver abajo, que no corren en PRs). Corre en cada pull request (también cuando se edita su descripción, por el job
+(los otros workflows son los vigilantes del repaso y de producción y las corridas programadas de pruebas, ver abajo, que no corren en PRs). Corre en cada pull request (también cuando se edita su descripción, por el job
 `plan-pr`) y en cada push a `main`, con permiso de solo lectura sobre el repo (`permissions:
 contents: read`). Si pusheás de nuevo a la misma rama o editás la descripción, la corrida anterior
 se cancela (`concurrency`) y vuelve a correr todo. Los jobs de prueba corren en paralelo, usan
@@ -26,15 +26,15 @@ de formato) y se saltean `unit`, `tests`, `e2e` y `typecheck`; `ci-ok` igual da 
 cuenta lo salteado como bien. `plan` y `plan-pr` corren igual. En `main` (push) corre todo
 siempre (salvo `plan-pr`, que es solo de PRs).
 
-| Job (nombre en GitHub)          | Pasos, en orden                                                                                                                                                                                                                                                                                                                          | Cómo reproducirlo en tu compu                                                                    |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `unit`                          | **Lint** (`npm run lint`) → **Prettier** (`npm run format:check`)                                                                                                                                                                                                                                                                        | `npm run lint && npm run format:check`                                                           |
-| `tests (1/3)`, `(2/3)`, `(3/3)` | trae la caché de vitest → **Unit + content tests** repartidas en 3 máquinas por tiempo (`npx vitest run --shard=N/3 --fsModuleCache`): juntas corren todas                                                                                                                                                                               | `npx vitest run` (todas), `npx vitest run --shard=1/3` o `npm run test:related`                  |
-| `e2e`                           | **Build + seed + Chromium** en paralelo (`npm run build`, `node scripts/semilla.js` e instalar Chromium o, si está en caché, solo sus librerías del sistema) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → guardia del modo demo → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`) | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
-| `typecheck`                     | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                                                                                                        | `node scripts/svelte-check-ratchet.js`                                                           |
-| `plan`                          | **plan-lint** (`node scripts/plan-lint.js`, sin `npm ci`): en [plan.md](plan.md), ids únicos y bien escritos, fase y estado en cada ítem, cada uno en la sección de su fase, dependencias que existen y no están en una fase posterior, y las fases de `src/lib/admin/nav.js` iguales a las del plan (ver abajo)                         | `node scripts/plan-lint.js`                                                                      |
-| `plan-pr`                       | solo en PRs: **la línea `Plan:`** de la descripción (`node scripts/plan-pr.js`, lee el evento): `Plan: <id>[, <id>]` con ids que existen en el `plan.md` del PR, o `Plan: ninguno`. Los PRs de bots (Dependabot) no la necesitan                                                                                                         | —                                                                                                |
-| **`ci-ok`**                     | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `changes`, `docs`, `unit`, `tests`, `e2e`, `typecheck`, `plan` y `plan-pr` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                                                         | —                                                                                                |
+| Job (nombre en GitHub)          | Pasos, en orden                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Cómo reproducirlo en tu compu                                                                    |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `unit`                          | **Lint** (`npm run lint`) → **Prettier** (`npm run format:check`)                                                                                                                                                                                                                                                                                                                                                                                                      | `npm run lint && npm run format:check`                                                           |
+| `tests (1/3)`, `(2/3)`, `(3/3)` | trae la caché de vitest → **Unit + content tests** repartidas en 3 máquinas por tiempo (`npx vitest run --shard=N/3 --fsModuleCache`): juntas corren todas                                                                                                                                                                                                                                                                                                             | `npx vitest run` (todas), `npx vitest run --shard=1/3` o `npm run test:related`                  |
+| `e2e`                           | **Build + seed + Chromium** en paralelo (`npm run build`, `node scripts/semilla.js` e instalar Chromium o, si está en caché, solo sus librerías del sistema) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → guardia del modo demo → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`)                                                                                                                               | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
+| `typecheck`                     | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                                                                                                                                                                                                                                      | `node scripts/svelte-check-ratchet.js`                                                           |
+| `plan`                          | **plan-lint** (`node scripts/plan-lint.js`, sin `npm ci`): en [plan.md](plan.md), ids únicos y bien escritos, fase y estado en cada ítem, cada uno en la sección de su fase, dependencias que existen y no están en una fase posterior, y las fases de `src/lib/admin/nav.js` iguales a las del plan (ver abajo). Y **migrations-lint**: ninguna migración que ya está en main cambia, se borra o se renombra, y no hay dos con el mismo número ([datos.md](datos.md)) | `node scripts/plan-lint.js`, `node scripts/migrations-lint.js`                                   |
+| `plan-pr`                       | solo en PRs: **la línea `Plan:`** de la descripción (`node scripts/plan-pr.js`, lee el evento): `Plan: <id>[, <id>]` con ids que existen en el `plan.md` del PR, o `Plan: ninguno`. Los PRs de bots (Dependabot) no la necesitan                                                                                                                                                                                                                                       | —                                                                                                |
+| **`ci-ok`**                     | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `changes`, `docs`, `unit`, `tests`, `e2e`, `typecheck`, `plan` y `plan-pr` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                                                                                                                                                                                       | —                                                                                                |
 
 Fuera de `ci.yml` aparecen además:
 
@@ -61,6 +61,12 @@ todas las actualizaciones minor y patch de npm, otro con las de seguridad y otro
 de los workflows. Cada salto de major llega en su propio PR. Pasan por la misma CI y, como todo
 PR, se mergean solo con la aprobación de gorrite.
 
+Las actions de los workflows van **fijadas por SHA de commit**, con la versión en un comentario
+(`uses: actions/checkout@<sha> # v7.0.1`): un tag se puede mover, un SHA no. Dependabot entiende
+ese formato y actualiza SHA y comentario juntos. Para sumar una action a mano, sacá el SHA con un
+comando (`git ls-remote --tags https://github.com/actions/<nombre>`, el `^{}` si el tag es
+anotado), nunca tipeado.
+
 Dependabot regenera `package-lock.json` desde cero, y ahí se caen los peers opcionales. Por eso
 `@types/node` (de la versión mayor de `.node-version`) es una devDependency explícita: sin ella,
 svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet falla.
@@ -70,7 +76,8 @@ svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet f
 (y a mano desde la pestaña Actions, «Run workflow»), así que no está en los `needs` de `ci-ok`.
 Sin Claude, mira si hay algún PR con la etiqueta `repaso-semanal` creado en los últimos 8 días
 (la rutina de Claude de los lunes lo abre siempre). Si no hay, abre el issue «El repaso semanal
-del plan no corrió» con esa etiqueta, salvo que ya haya uno abierto; si vuelve a haber un PR de
+del plan no corrió» con esa etiqueta y asignado al dueño del repo (así le llega la
+notificación), salvo que ya haya uno abierto; si vuelve a haber un PR de
 repaso y el issue sigue abierto, lo cierra con un comentario. Permisos: `contents: read`,
 `issues: write`, `pull-requests: read`. La etiqueta `repaso-semanal` la crea el vigilante la
 primera vez que abre el issue si todavía no existe (también se puede crear a mano en Issues →
@@ -109,6 +116,23 @@ node -e "import('./scripts/vigilante-produccion.js').then(async (m) => console.l
 
 La lógica está en `scripts/vigilante-produccion.js` (la decisión de abrir, cerrar o no hacer nada
 es una función pura, con pruebas en `scripts/vigilante-produccion.test.js`).
+
+**Corridas programadas de pruebas.** Pruebas que no corren en cada PR (por lentas, o porque miran
+el futuro) corren solas, fuera de `ci-ok`, y avisan con un issue con la etiqueta
+`pruebas-programadas` (`scripts/vigilante-pruebas.js`): si la corrida falla, abre uno (o le suma un
+comentario con el link a la corrida nueva si ya está abierto); cuando vuelve a pasar, lo cierra.
+El issue lleva solo el link a la corrida, nunca trazas. Solo las corridas en `main` tocan issues;
+todas se pueden lanzar a mano desde la pestaña Actions («Run workflow»).
+
+- **Entradas nocturno** (`.github/workflows/entradas-nocturno.yml`, 06:41 UTC todos los días):
+  siembra la base (`node scripts/semilla.js`) y corre el juego de entradas y puerta
+  (`npx playwright test -c playwright.tickets.config.js`). Issue «Las pruebas E2E de entradas y
+  puerta fallaron»; lo que deja Playwright queda 7 días como artifact `playwright-tickets`.
+- **Reloj adelantado** (`.github/workflows/reloj-adelantado.yml`, domingos 05:37 UTC): la suite de
+  vitest con `SHIFT_DAYS=30` (`scripts/vitest/shift-clock.js`, que `vite.config.js` carga solo con
+  esa variable: `Date.now()`, `new Date()` y `Date()` sin argumentos dan la hora real más N días).
+  Encuentra pruebas que dependen de la fecha real antes de que fallen solas en todos los PRs.
+  Issue «Las pruebas fallan con el reloj adelantado». En local: `SHIFT_DAYS=30 npx vitest run <archivo>`.
 
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
@@ -151,8 +175,9 @@ Detalles de `tests`:
   `gh run download <id> -p 'vitest-durations-*' -D /tmp/tiempos && node scripts/vitest/merge-durations.js /tmp/tiempos/*/vitest-durations.json`.
   Desde una sesión de Claude en la nube, `gh` no baja artifacts: el tool del MCP de GitHub
   `actions_get` con `download_workflow_run_artifact` da un link temporal para bajar cada zip.
-  Tienen que ser tiempos de la CI: medidos en otra máquina (`npm run test:durations`) las
-  proporciones cambian y el reparto sale torcido.
+  Tienen que ser tiempos de la CI: medidos en otra máquina las proporciones cambian y el reparto
+  sale torcido. Por eso `npm run test:durations` (todas las pruebas en tu compu, con el reporter)
+  escribe en la carpeta temporal del sistema (`vitest-durations.json`) y nunca en el repo.
 - **Caché**: cada parte guarda y recupera `node_modules/.vite` (cuánto tardó cada archivo la
   última vez: los lentos arrancan primero) y `node_modules/.vitest-cache` (los módulos ya
   transformados, `--fsModuleCache`, solo en la CI). La clave lleva la parte, el hash de
@@ -165,7 +190,13 @@ commiteá el resultado. `.prettierignore` tiene además una lista **temporal** d
 todavía no tienen formato porque los tocan ramas abiertas; cuando esas ramas entran, se formatean
 y se sacan de la lista.
 La configuración está en `eslint.config.js` (formato plano; las rutas ignoradas también van ahí,
-ya no hay `.eslintrc` ni `.eslintignore`).
+ya no hay `.eslintrc` ni `.eslintignore`). En los `.svelte` corren, en error, tres reglas de Svelte
+sin ruido: `svelte/no-at-html-tags` (cada `{@html}` lleva arriba
+`<!-- eslint-disable-next-line svelte/no-at-html-tags -- por qué es seguro -->`),
+`svelte/no-unused-svelte-ignore` (un `svelte-ignore` que ya no tapa nada se borra; ojo, marca cada
+código por separado: borrá solo el que señala) y `svelte/no-immutable-reactive-statements` (un `$:`
+que no depende de nada reactivo es un `const`). `npm run lint` lleva
+`--report-unused-disable-directives`: un `eslint-disable` que ya no hace falta también es error.
 
 ## Los tipos de pruebas
 
@@ -183,11 +214,18 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   `vite.config.js`, `migrations/`, `src/tests/`, `scripts/vitest/`…), corre todas. Lo que va
   después de `--` le llega a vitest (`npm run test:related -- --maxWorkers=2`);
   `TEST_RELATED_BASE` cambia la base. Ojo: un archivo que una prueba lee con `readFile` (y no
-  importa) no cuenta como relacionado; la CI igual corre todas.
+  importa) no cuenta como relacionado; la CI igual corre todas. Al final lista, como aviso, el
+  código cambiado (de `src/` o `scripts/`) que no tiene ninguna prueba al lado (ni `algo.test.js`
+  ni otra prueba de su carpeta que lo nombre): ahí «pasó» puede querer decir «no había nada que
+  probar».
 - **Etiquetas en las pruebas**: sin base, el árbol de etiquetas está vacío; `src/tests/setup.js`
   (en `setupFiles` de `vite.config.js`) pone las de la semilla como respaldo para todas las
   pruebas. Las que necesitan contenido real lo leen de la semilla (`src/lib/server/semilla/testing.js`).
   (El viejo chequeo de los `.md`, `src/tests/content.test.js`, se fue con ellos: 0032.)
+- **Fechas**: una prueba con fechas cercanas (un evento el mes que viene, una venta que cierra en
+  unos días) pasa un `now` fijo a la función o usa `vi.useFakeTimers()` con `vi.setSystemTime()`;
+  nunca depende del reloj real ni mueve las fechas al futuro lejano. La corrida semanal del reloj
+  adelantado (arriba) avisa si alguna se escapa.
 - **`$app/server` en las pruebas** (`scripts/vite/app-server-tests.js`): es
   `src/tests/app-server.js`, que reexporta solo `getRequestEvent` (la misma función de SvelteKit).
   El de verdad carga el manifiesto y la raíz generados de la app (con el runtime de Svelte del
@@ -198,8 +236,11 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   durante la prueba siguiente (con la máquina cargada, como en la CI) y ensucian lo que esa mide
   (un mail de más). Esperalas en la prueba o en un `afterEach` (ver
   `src/lib/server/tickets/pausa-venta.test.js`).
-- **Mails "golden"**: `src/lib/server/tickets/email.golden.json` guarda cómo sale cada mail; si
-  cambiás un mail a propósito, actualizá ese archivo en el mismo PR y explicalo.
+- **Mails "golden"**: `src/lib/server/tickets/email.golden.json` y
+  `src/lib/server/email/mails.text.json` guardan cómo sale cada mail; si cambiás un mail a
+  propósito, regenerálos con `UPDATE_EMAIL_GOLDEN=1` (ver [mails.md](mails.md), «Cambiar un mail
+  desde el código») en el mismo PR y explicalo. Ante un conflicto en un golden, tomá cualquier lado
+  y regenerá.
 - **Componentes con clics** (`*.dom.test.js`): se montan en jsdom con `@testing-library/svelte`
   (proyecto `dom` de `vite.config.js`, con el Svelte del navegador); el resto de las pruebas
   (proyecto `unit`) sigue en Node y renderiza con `svelte/server`. Ejemplo:
@@ -277,10 +318,10 @@ direcciones directas. Es de vitest, sin navegador. Si agregás una salida públi
 
 Hay dos juegos, con configuraciones distintas:
 
-| Juego                       | Config                         | Contra qué corre                                                            | ¿En CI?                                                                      |
-| --------------------------- | ------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Humo (`tests/*.spec.js`)    | `playwright.config.js`         | el build de producción (`vite preview`, puerto 4173)                        | **Sí** (job `e2e`, con un reintento)                                         |
-| Entradas (`tests/tickets/`) | `playwright.tickets.config.js` | `npm run dev:tickets` en el puerto 5371, con Mercado Pago y admin simulados | **No**, por decisión de gorrite: correlo a mano si tocás entradas o el panel |
+| Juego                       | Config                         | Contra qué corre                                                            | ¿En CI?                                                                                                                                  |
+| --------------------------- | ------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Humo (`tests/*.spec.js`)    | `playwright.config.js`         | el build de producción (`vite preview`, puerto 4173)                        | **Sí** (job `e2e`, con un reintento)                                                                                                     |
+| Entradas (`tests/tickets/`) | `playwright.tickets.config.js` | `npm run dev:tickets` en el puerto 5371, con Mercado Pago y admin simulados | **No** en cada PR, por decisión de gorrite: correlo a mano si tocás entradas o el panel. Sí todas las noches (Entradas nocturno, arriba) |
 
 El juego de entradas cubre la compra, la gorra, el editor de eventos, Ajustes y cada link del
 menú del panel (`tests/tickets/menu.spec.js`). Como la CI no lo corre, si tu PR toca esas partes
@@ -343,13 +384,21 @@ entera), junto con la línea `Plan: <id>` o `Plan: ninguno` ([plan.md](plan.md))
 `docs/plan.md` o el `phase` de `nav.js`, corré también `node scripts/plan-lint.js`. No se dice "los
 tests pasan" sin haberlos corrido. La CI corre siempre la suite entera.
 
+Si el PR toca los crons o el Worker (`src/lib/server/scheduled.js`, `worker/index.js`,
+`src/lib/server/backup/` o `src/routes/api/cron/`), la CI no los ejecuta en el runtime de Workers:
+corré además `npm run build && npm run preview:worker`, dispará los dos crons en local (el de
+cada 15 minutos y el nocturno: `preview:worker` corre con `--test-scheduled`, así que se disparan
+con `curl "http://localhost:8880/__scheduled?cron=*/15+*+*+*+*"` y `cron=0+6+*+*+*`) y pegá lo que
+respondieron en el PR
+(auditoría de confiabilidad, O41).
+
 ## Cuando algo está en rojo
 
 1. Abrí el chequeo en rojo en el PR ("Details") y buscá el primer error del log.
 2. Según cuál:
    - **Lint**: `npm run lint` en tu compu muestra lo mismo; arreglalo (o `npm run format` si es
      formato).
-   - **Unit tests** (job `unit`): `npx vitest run <archivo>` reproduce.
+   - **Unit tests** (jobs `tests (N/3)`): `npx vitest run <archivo>` reproduce.
    - **Build** (job `e2e`, paso «Build + seed + Chromium»): `npm run build`; suele ser un import
      roto. Si falla la semilla o Chromium en el mismo paso, el log los muestra:
      `node scripts/semilla.js` reproduce la semilla.

@@ -111,6 +111,7 @@
 					<address class="p-author">
 						{authors ? authors.join(', ') : ''}
 					</address>
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- texto fijo, solo entidades de espacio -->
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
 					<time class="dt-published" datetime={isoDay(date)}>
 						{date ? argDateList(date, { time: false }) : ''}

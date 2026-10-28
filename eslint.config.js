@@ -11,6 +11,9 @@ export default [
 			// Lo que .eslintrc ignoraba por defecto: archivos y carpetas que empiezan con punto
 			// (por ejemplo src/routes/.well-known y .claude/worktrees).
 			'**/.*',
+			// …salvo las rutas de src/routes/.well-known, que son código del sitio.
+			'!src/routes/.well-known/',
+			'!src/routes/.well-known/**',
 			// Antes en .eslintignore.
 			'build/',
 			'.svelte-kit/',
@@ -48,6 +51,16 @@ export default [
 		rules: {
 			// Unused parameters often document a callback signature; only flag unused bindings.
 			'no-unused-vars': ['error', { args: 'none' }]
+		}
+	},
+	{
+		// Reglas de Svelte sin ruido (docs/pruebas-y-ci.md, «Lint»): cada `{@html}` lleva su
+		// `eslint-disable-next-line svelte/no-at-html-tags` con el motivo (qué lo hace seguro).
+		files: ['**/*.svelte'],
+		rules: {
+			'svelte/no-at-html-tags': 'error',
+			'svelte/no-unused-svelte-ignore': 'error',
+			'svelte/no-immutable-reactive-statements': 'error'
 		}
 	},
 	{

@@ -69,7 +69,8 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
   - sus **perfiles de persona** (también los que ya había borrado) **se vacían**: sin
     presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
     sin los proyectos de los que eran parte, sin su fila de gestión, sus bloqueos ni sus invitaciones
-    de proyectos pendientes, y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
+    de proyectos pendientes, sin las versiones que guardó desde Mi rincón (`object_revisions` con
+    `source = 'cuenta'`, abajo), y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
     todas las cuentas borradas, así nada los vincula entre sí). La fila queda, borrada (borrado
     suave), solo para que la dirección no la use otra persona;
   - cada **proyecto** pasa a quien lo gestiona hace más tiempo, con sus datos (son del proyecto), o se
@@ -153,13 +154,19 @@ nada de estas tablas para sumarlas.
 
 | Qué                           | Límite                                      |
 | ----------------------------- | ------------------------------------------- |
-| Pedir código, por mail        | 3 cada 15 minutos y 10 por día              |
-| Pedir código, mail + conexión | 4 por día                                   |
+| Pedir código, por mail        | 5 cada 15 minutos y 10 por día              |
+| Pedir código, mail + conexión | 3 cada 15 minutos y 4 por día               |
 | Pedir código, por conexión    | 10 cada 15 minutos                          |
 | Escribir código, por conexión | 20 cada 15 minutos (además de 5 por código) |
 | Contraseña, por mail          | 10 cada 15 minutos                          |
 | Contraseña, por conexión      | 20 cada 15 minutos                          |
 | Mails de cuentas, en total    | 300 por hora (códigos y avisos)             |
+
+Los topes de mail + conexión son más bajos que los del mail solo: desde una sola conexión nadie
+gasta todo el cupo de un mail ajeno (quien pide sus propios códigos ve lo mismo de siempre: 3
+seguidos).
+
+"Por día" es en las últimas 24 horas (ventana móvil, por hora), no desde la medianoche.
 
 "Conexión" es el `clientHash` de las entradas: la IP con una sal que cambia cada día, hasheada.
 Una IPv6 cuenta por su red /64 entera (`clientNetwork` en `src/lib/server/tickets/safeguards.js`):
@@ -168,8 +175,9 @@ dejaría saltar los límites. Las IPv4 cuentan igual que antes.
 
 El **tope global** (`src/lib/server/cuentas/mailCap.js`) suma todos los mails de cuentas que
 salen (códigos para entrar, códigos para confirmar y avisos de invitación), de cualquier conexión
-y a cualquier mail: estos mails usan la misma cuenta de Resend que los de las entradas, y así
-nunca se comen ese cupo. Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
+y a cualquier mail. Estos mails usan la misma cuenta de Resend que los de las entradas: el tope
+acota cuánto gastan, pero es por hora y no garantiza que no se coman el cupo (ver «Límites
+conocidos»). Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
 un código responde "Estamos mandando muchos mails en este momento. Probá en un rato." (el mismo
 texto para cualquier mail, así no dice nada de la dirección) y los avisos de invitación no salen
 (la invitación se crea igual y aparece en Mi rincón).
@@ -207,8 +215,9 @@ el código por mail sigue andando.
   solo se van filas que nunca más se usan. Si falla, lo escribe en el log y la corrida sigue; en el
   log va solo cuántas borró.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
-  cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
-  saca acceso.
+  cuenta, también la de ese navegador, desvincula el Telegram (`unlinkAccount`: el chat y los
+  códigos pendientes) y anula el link del calendario personal (`revokeFeeds`; para volver a usarlo
+  se crea uno nuevo), y vuelve a `/ingresar` con un aviso. No pide código: solo saca acceso.
 - `hooks.server.js` carga `locals.member` (`{ id, email, readingSpeed, canHaveProfiles }`) solo
   si hay cookie (y base). La velocidad de lectura y el permiso de perfiles vienen en la misma
   consulta que la sesión (`getSessionAccount`), así el layout y Mi rincón no vuelven a leer la
@@ -447,6 +456,12 @@ aprobar").
   Un perfil de persona tiene una sola fila (su dueñe). La fila de le dueñe se crea en la misma
   tanda que el perfil (opción `also` de `saveObject()`): o entran los dos o ninguno.
 
+- **Historial**: crear o editar un perfil desde Mi rincón guarda, en la misma tanda, la versión
+  que quedó en `object_revisions` con `source = 'cuenta'` (`revisionStatement`,
+  `src/lib/server/contenido/revisions.js`). Si alguien escribe algo en un perfil y después lo
+  borra, les admins pueden ver qué decía. Por ahora no hay pantalla: se mira en la base. Al borrar
+  la cuenta, las versiones `'cuenta'` de sus perfiles de persona se borran (abajo).
+
 - **Invitaciones a gestionar** en `profile_invites`: solo el hash del mail (el mismo de
   `login_codes`), vencen a los 14 días. `invited_by` pasa a `NULL` si se borra de verdad la
   cuenta que invitó.
@@ -590,15 +605,21 @@ actualizá esta lista.
 - **Límites por conexión.** Alguien con muchas IPv4 distintas puede repartir pedidos entre ellas.
   El tope global de 300 mails por hora es el respaldo, pero también se puede llenar a propósito:
   mientras dure (como mucho una hora) nadie recibe códigos nuevos. Las sesiones abiertas no se
-  ven afectadas.
+  ven afectadas. Además, como es por hora, en un día deja pasar muchos más mails que el cupo
+  diario de algunos planes de Resend: un abuso sostenido podría agotar ese cupo y dejar sin mail
+  las entradas hasta que se renueve. Cuánto margen hay depende del plan de Resend (lo decide
+  gorrite); un tope diario atado al plan sería el arreglo.
 - **Turnstile** (o una regla de rate limiting de Cloudflare en `/ingresar`) queda como opción para
   más adelante: necesita claves y configuración en el panel de Cloudflare.
 - **Contraseña bloqueada por otres.** Diez contraseñas mal escritas para un mail, desde cualquier
   conexión, no dejan entrar con contraseña a ese mail por hasta 15 minutos. Entrar con
   código sigue andando.
-- **Ventana diaria fija (UTC).** Los topes por día se reinician a medianoche UTC: alrededor de esa
-  hora se pueden pedir hasta el doble de códigos para un mail. Con 5 intentos por código, adivinar
-  uno sigue siendo muy improbable.
+- **Topes por día con ventana móvil.** Los topes «por día» suman las últimas 24 horas, por hora
+  (`hitRateLimit` en `src/lib/server/db/rateLimit.js`), así que la medianoche ya no los reinicia.
+  Un pedido rechazado no se anota (si no, seguir probando estiraría el bloqueo para siempre).
+  Queda un borde: la sal de la «conexión» cambia a las 00:00 UTC, y los topes de mail + conexión
+  vuelven a empezar con la sal nueva. Los topes por mail solo (10 por día) siguen contando, así
+  que un mail recibe como mucho eso por día.
 - **PBKDF2 con 100.000 iteraciones**, el máximo de Workers (OWASP pide 600.000). Ver "Contraseña".
 - **Hash del mail sin secreto.** En `login_codes`, `rate_limits` y `profile_invites` se guarda
   `SHA-256` del mail con un prefijo fijo: con acceso a la base, se puede confirmar si un mail

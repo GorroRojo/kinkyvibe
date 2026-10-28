@@ -266,7 +266,7 @@ describe('sesiones sin cookie (después del backup)', () => {
 				.all();
 			expect(results.map((r) => r.h)).toEqual(['a', 'b', 'c']);
 			// En el log, solo cuántas.
-			expect(log).toHaveBeenCalledWith('sesiones viejas: 2 borrada(s)');
+			expect(log).toHaveBeenCalledWith('[sesiones] sesiones viejas: 2 borrada(s)');
 			// Otra vez: nada más que borrar.
 			expect(await runSessionCleanup({ DB: t.db }, new Date(now))).toBe(0);
 		} finally {

@@ -265,7 +265,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'inicio',
 			'message',
 			'Fondo: si no se pudieron leer los números',
-			'**💗 Fondo Kinky Vibe**\n\nAhora no pude leer los números del Fondo. Mirálos en {fondo}',
+			'**💗 Fondo Kinky Vibe**\n\nAhora no pude leer los números del Fondo. Miralos en {fondo}',
 			{ vars: [{ name: 'fondo', label: 'la dirección del Fondo', sample: 'fondo.kinkyvibe.ar' }] }
 		),
 		f('inicio.fondo_boton', 'inicio', 'button', 'Fondo: el botón', 'Sumate al Fondo ↗'),
@@ -471,8 +471,9 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'message',
 			'Seguir: las opciones de un evento',
 			'**⭐ Seguir**\n\nDe «{evento}» podés seguir estas etiquetas y series (tocá una):\n\n' +
-				'Te avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, ' +
-				'prendé la columna Telegram en Mi rincón → Lo que sigo.',
+				// Seguir desde el bot también prende los avisos por Telegram (decisión 0036).
+				'Te avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. ' +
+				'Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.',
 			{ vars: [V.evento] }
 		),
 		f(
@@ -1054,6 +1055,24 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				],
 				required: ['orden', 'evento'],
 				help: 'Les llega a quienes prendieron «Cada venta». Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.mails_cupo',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: Resend frenó los mails por el cupo',
+			'📭 Resend frenó los mails por el cupo. Compras aprobadas que esperan el mail con sus entradas: {pendientes}. Se reintentan solas cada 15 minutos; mirá el Inicio del panel.',
+			{
+				vars: [
+					{
+						name: 'pendientes',
+						label: 'cuántas órdenes aprobadas de las últimas 48 h no tienen el mail',
+						sample: '4'
+					}
+				],
+				required: ['pendientes'],
+				help: 'Les llega a quienes prendieron «Cada venta», como mucho uno por hora. Nunca dice quién compró.'
 			}
 		),
 		f(

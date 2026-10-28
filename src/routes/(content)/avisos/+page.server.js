@@ -6,9 +6,11 @@
  * Ver $lib/server/series/subscriptions.js.
  */
 import { error, fail } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { seriesPage } from '$lib/server/series/index.js';
 import { markEditionsSeen } from '$lib/server/series/notify.js';
 import {
+	SUBSCRIBE_MIN_MS,
 	subscribeAccount,
 	subscribeEmail,
 	unsubscribeAccount
@@ -76,7 +78,9 @@ export const actions = {
 						client: await clientOf(event),
 						send: seriesSender(db, fetch),
 						origin: siteOrigin(url),
-						now
+						now,
+						// Mismo tiempo de respuesta esté o no suscripte (en dev y tests, sin espera).
+						minDurationMs: dev ? 0 : SUBSCRIBE_MIN_MS
 					});
 		if (!r.ok) return fail(r.status, { error: r.message, email });
 		return { ok: true, status: r.status, seriesName: series.name };

@@ -13,6 +13,8 @@
 	$: slug = encodeURIComponent($page.params.slug ?? '');
 </script>
 
+<svelte:head><title>{data.def.label} · {data.event?.title ?? ''} · Panel</title></svelte:head>
+
 <section class="head">
 	<a class="back" href="/admin/eventos/{slug}/mails">← Plantillas del evento</a>
 	<h2>

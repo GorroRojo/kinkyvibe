@@ -201,7 +201,7 @@
 	/** @param {Event} e */
 	function onSlugInput(e) {
 		slugEdited = true;
-		// @ts-ignore
+		// @ts-expect-error currentTarget es el input
 		slug = e.currentTarget.value.toLowerCase().replace(/\s+/g, '-');
 	}
 	function resetSlug() {
@@ -487,16 +487,16 @@
 
 	/** Enter in a text field must not submit the form. @param {KeyboardEvent} e */
 	function preventEnterSubmit(e) {
-		// @ts-ignore
+		// @ts-expect-error target es un elemento
 		if (e.key === 'Enter' && e.target?.tagName === 'INPUT') e.preventDefault();
 	}
 </script>
 
 <svelte:head>
-	<title>{source ? 'Duplicar evento' : 'Nuevo evento'} · KV Admin</title>
+	<title>{source ? 'Duplicar evento' : 'Nuevo evento'} · Panel</title>
 </svelte:head>
 
-<main class="nuevo kv-admin">
+<div class="nuevo kv-admin">
 	<p class="back"><a href="/admin/eventos">← Eventos</a></p>
 
 	{#if data.mock}
@@ -968,7 +968,7 @@
 			</form>
 		{/if}
 	</EventForm>
-</main>
+</div>
 
 <style lang="scss">
 	.review-warnings {

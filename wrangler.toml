@@ -25,12 +25,29 @@ preview_urls = true
 # cada deploy borraría las que no estén en este archivo. Los secrets nunca se borran.
 keep_vars = true
 
+# Sin `[cache]` (Workers Cache) a propósito: cobra los archivos estáticos, que hoy son gratis, y no
+# mira las cookies (le daría la página anónima a quien tiene sesión). Ver docs/workers-migracion.md,
+# «No prender Workers Cache».
+
+# Tope de CPU por invocación (pedidos y crons): 15 s en vez de los 30 s por defecto. Es un freno de
+# costo contra un pedido que se cuelga en un bucle, no de velocidad. Medido en local con la semilla
+# (27/10/2026): el cron nocturno entero (backup + integridad) ~1 s de pared y `/og` 1,2–3 s; en
+# producción la base es unas 5 veces la semilla. Ver docs/workers-migracion.md, «Tope de CPU».
+[limits]
+cpu_ms = 15000
+
 # Los archivos que genera el adapter de SvelteKit (ver wrangler.adapter.toml).
 [assets]
 directory = ".svelte-kit/cloudflare"
 binding = "ASSETS"
 
 [observability]
+enabled = true
+
+# Workers Issues (docs/workers-migracion.md, «Enterarse de los errores»): agrupa las excepciones,
+# las respuestas 5xx y los `console.error`. Tiene que estar acá: sin la clave en el archivo, la
+# próxima publicación lo apaga. A quién le llega el aviso se arma en el panel (Issues → Automations).
+[observability.issues]
 enabled = true
 
 # Ubicación del Worker (docs/workers-migracion.md, «Ubicación del Worker»): sin `[placement]`, a

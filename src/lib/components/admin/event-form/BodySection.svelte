@@ -48,18 +48,13 @@
 <fieldset class="card body-card" id="sec-texto">
 	<SectionHeading section="texto" />
 	{#if withPreview}
-		<div class="panes-toggle" role="tablist" aria-label="Texto">
-			<button
-				type="button"
-				role="tab"
-				aria-selected={pane === 'editar'}
-				on:click={() => (pane = 'editar')}>Editar</button
+		<!-- Dos botones que se excluyen (aria-pressed): no son pestañas, que piden flechas y un tabpanel. -->
+		<div class="panes-toggle" role="group" aria-label="Texto">
+			<button type="button" aria-pressed={pane === 'editar'} on:click={() => (pane = 'editar')}
+				>Editar</button
 			>
-			<button
-				type="button"
-				role="tab"
-				aria-selected={pane === 'vista'}
-				on:click={() => (pane = 'vista')}>Vista previa</button
+			<button type="button" aria-pressed={pane === 'vista'} on:click={() => (pane = 'vista')}
+				>Vista previa</button
 			>
 		</div>
 	{/if}
@@ -152,7 +147,7 @@
 			cursor: pointer;
 			min-height: 2.4rem;
 		}
-		button[aria-selected='true'] {
+		button[aria-pressed='true'] {
 			background: var(--accent);
 			color: var(--accent-ink);
 			border-color: var(--accent);

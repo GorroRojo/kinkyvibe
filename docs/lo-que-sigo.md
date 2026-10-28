@@ -175,7 +175,9 @@ prendido. Van al mail de la cuenta, uno por cuenta, evento y tipo
 
 Cada mail lleva el link a Mi rincón → Lo que sigo y otro para no recibir más mails de lo que sigue
 (`/avisos/sigo/<cuenta>.<firma>`, sin entrar y aunque el interruptor esté apagado; apaga los
-dos mails de todo, lo seguido y el calendario quedan). Hasta 50 mails por corrida.
+dos mails de todo, lo seguido y el calendario quedan). Hasta 50 mails por corrida, y nunca más de
+lo que sobró del «de a cuántos» después de la tanda, el reintento de entradas y las series
+(`mailBudgetLeft`); los avisos por Telegram van aparte.
 
 ### «Avisame si se repite» (`src/lib/server/sigo/avisame.js`)
 
@@ -188,7 +190,10 @@ Con `lo_que_sigo` prendido:
   `created_at` = cuándo se confirmaron y su id en `series_subscription_id`. La fila vieja se
   borra en la misma tanda, así no llegan dos avisos. El link de baja de los mails que ya salieron
   (`/avisos/baja/<id>.<firma>`) sigue andando: apaga el mail de lo nuevo de esa etiqueta;
-- **sin cuenta**, nada cambia: el mail con doble confirmación y los avisos de siempre.
+- **sin cuenta**, nada cambia: el mail con doble confirmación y los avisos de siempre. Un mail
+  ya suscripto recibe la misma respuesta que uno nuevo, con los mismos límites, y en producción
+  la respuesta tarda lo mismo (`SUBSCRIBE_MIN_MS` en `src/lib/server/series/subscriptions.js`:
+  al menos 1,2 s, más que lo que suele tardar mandar el mail).
 
 En las páginas, con cuenta, «Avisame» dice que es seguir la serie y lleva a Lo que sigo
 (`seriesAccountState` devuelve `sigo`). En `/wiki/<serie>` no se muestra: el botón «Seguir» de la
@@ -228,7 +233,7 @@ que se vuelva a prender.
 - El recordatorio sale cuando faltan 24 horas o menos (no a una hora fija del día anterior).
 - «Avisame» con cuenta deja también «en mi calendario» prendido.
 
-### Decidido por Claude, a confirmar con gorrite
+### Decidido por Claude, A CONFIRMAR con gorrite
 
 - Los mails de «Lo que sigo» usan su propia clave de firma (`sigo_mail_stop_key`).
 - El calendario personal existe siempre (el interruptor `series` quedó fijo); «Lo que sigo» le

@@ -486,7 +486,7 @@
 						>Imagen (series) <input
 							class="kv-input"
 							bind:value={fields.image}
-							placeholder="Ej.: serie.webp (de src/lib/assets)"
+							placeholder="Ej.: serie.webp"
 						/></label
 					>
 

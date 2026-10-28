@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	let mayorDeEdad = true;
 	// localStorage puede tirar error (modo privado, datos bloqueados): entonces se pregunta igual,
@@ -19,10 +19,37 @@
 			// sin almacenamiento: no se recuerda
 		}
 	}
-	onMount(() => {
+	onMount(async () => {
 		mayorDeEdad = savedAnswer();
 		saveAnswer(mayorDeEdad);
+		// El foco entra al diálogo (en «Sí»): si no, un lector de pantalla puede leer la página tapada
+		// sin enterarse de la pregunta, y con Tab se llegaba al fondo.
+		if (!mayorDeEdad) {
+			await tick();
+			focusables()[0]?.focus();
+		}
 	});
+
+	/** Los botones del diálogo (se buscan por su título: así el marcado no cambia). */
+	function focusables() {
+		const dialog = document.getElementById('age-modal-title')?.closest('[role="dialog"]');
+		return /** @type {HTMLElement[]} */ ([...(dialog?.querySelectorAll('button, a[href]') ?? [])]);
+	}
+
+	/**
+	 * Tab y Mayús+Tab dan la vuelta adentro del diálogo mientras está abierto. Escape no hace nada,
+	 * como antes (cerrar no es contestar).
+	 * @param {KeyboardEvent} e
+	 */
+	function trapTab(e) {
+		if (mayorDeEdad || e.key !== 'Tab') return;
+		const items = focusables();
+		if (!items.length) return;
+		const i = items.indexOf(/** @type {HTMLElement} */ (document.activeElement));
+		const next = i === -1 ? 0 : (i + (e.shiftKey ? -1 : 1) + items.length) % items.length;
+		e.preventDefault();
+		items[next].focus();
+	}
 </script>
 
 {#if !mayorDeEdad}
@@ -42,6 +69,8 @@
 		</div>
 	</div>
 {/if}
+
+<svelte:window on:keydown={trapTab} />
 
 <style>
 	.background {

@@ -14,6 +14,7 @@
 	import Agenda from '$lib/components/admin/inicio/Agenda.svelte';
 	import SalesCard from '$lib/components/admin/inicio/SalesCard.svelte';
 	import TodayThumb from '$lib/components/admin/inicio/TodayThumb.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
@@ -73,8 +74,8 @@
 	// varias, como «3 transferencias», también). El botón «Para revisar» de arriba cuenta lo mismo:
 	// las dos salen de `reviewRows` (src/lib/server/admin/review.js, decisión 0030).
 	$: reviewCount = data.todo.length;
-	$: checkinItem = navItem('checkin');
-	$: checkinGeneral = checkinItem ? navLink(checkinItem) : null;
+	const checkinItem = navItem('checkin');
+	const checkinGeneral = checkinItem ? navLink(checkinItem) : null;
 	$: todayEvent = data.todayEvents.find((e) => e.ticketed) ?? data.todayEvents[0];
 	$: checkinQuick = todayEvent?.ticketed ? checkinHref(todayEvent.slug) : checkinGeneral;
 
@@ -152,6 +153,8 @@
 			·
 			{#if reviewCount}
 				<a href="#para-revisar">{plural(reviewCount, 'cosa para revisar', 'cosas para revisar')}</a>
+			{:else if data.unreadable?.length}
+				no pudimos leer todo
 			{:else}
 				todo al día
 			{/if}
@@ -160,6 +163,13 @@
 			{/if}
 		</p>
 	</header>
+
+	{#if data.unreadable?.length}
+		<Notice tone="error" role={null}>
+			No pudimos leer: {data.unreadable.join(', ')}. Lo que ves puede estar incompleto; si sigue
+			así, avisale a gorrite.
+		</Notice>
+	{/if}
 
 	<div class="layout">
 		<div class="main-col">
@@ -206,7 +216,7 @@
 						><ScanLine size={18} aria-hidden="true" /> Puerta</a
 					>
 				{/if}
-				<a class="kv-btn ghost" href="/admin/ventas/codigos"
+				<a class="kv-btn ghost" href="/admin/ventas/codigos#nuevo"
 					><Tag size={18} aria-hidden="true" /> Nuevo código</a
 				>
 			</nav>
@@ -368,7 +378,9 @@
 							<EmptyState
 								icon={Sparkles}
 								title="Nada para revisar"
-								text="Todo al día. ¡Bien ahí!"
+								text={data.unreadable?.length
+									? 'Puede faltar algo: no pudimos leer todo (mirá el aviso de arriba).'
+									: 'Todo al día. ¡Bien ahí!'}
 							/>
 						{/if}
 					</Card>

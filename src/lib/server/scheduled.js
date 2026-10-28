@@ -10,6 +10,7 @@ import { copyMedia } from './backup/media.js';
 import { deleteStaleSessions } from './cuentas/sessionAge.js';
 import { SITE_URL, siteOriginFrom } from '../utils/site.js';
 import { runAnalyticsRollup } from './analytics/report.js';
+import { checkOrdersConsistency } from './db/consistency.js';
 import {
 	checkObjectsIntegrity,
 	hasObjectsSchema,
@@ -68,9 +69,9 @@ export async function runReminders(env, ctx, appFetch) {
 	const body = (await response.text()).slice(0, 300);
 	if (!response.ok) {
 		// Tirar el error hace que la corrida figure como fallida en Cloudflare (Cron Events).
-		throw new Error(`recordatorios: ${response.status} ${body}`);
+		throw new Error(`[recordatorios] ${response.status} ${body}`);
 	}
-	console.log(`recordatorios: ${body}`);
+	console.log(`[recordatorios] ${body}`);
 	return body;
 }
 
@@ -82,16 +83,18 @@ export async function runReminders(env, ctx, appFetch) {
  * @param {Date} now
  */
 export async function runBackup(env, now) {
-	if (!env.DB) throw new Error('backup: falta el binding DB');
-	if (!env.BACKUPS) throw new Error('backup: falta el binding BACKUPS (bucket de R2)');
+	if (!env.DB) throw new Error('[backup] falta el binding DB');
+	if (!env.BACKUPS) throw new Error('[backup] falta el binding BACKUPS (bucket de R2)');
 	const result = await nightlyBackup({ db: env.DB, bucket: env.BACKUPS, now });
 	const deleted = result.pruneError
 		? `la poda falló (${result.pruneError}); se reintenta mañana`
-		: result.deleted.length
-			? result.deleted.join(', ')
-			: 'ninguno';
+		: result.pruneSkipped
+			? `ninguno (poda salteada: ${result.pruneSkipped})`
+			: result.deleted.length
+				? result.deleted.join(', ')
+				: 'ninguno';
 	console.log(
-		`backup: ${result.key} (${result.bytes} bytes, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
+		`[backup] ${result.key} (${result.bytes} bytes comprimido, ${result.sqlBytes} bytes de SQL, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
 	);
 	return result;
 }
@@ -100,8 +103,9 @@ export async function runBackup(env, now) {
 const MAX_LOGGED_PROBLEMS = 50;
 
 /**
- * Chequeo nocturno de integridad de los objetos (src/lib/server/objects/integrity.js), después
- * del backup. **Nunca hace fallar la corrida**: guarda el resultado en `integrity_runs` (el
+ * Chequeo nocturno de integridad de los objetos (src/lib/server/objects/integrity.js) y de
+ * consistencia de las órdenes y las entradas (src/lib/server/db/consistency.js), después del
+ * backup. **Nunca hace fallar la corrida**: guarda el resultado en `integrity_runs` (el
  * Inicio del panel lo muestra en "Para revisar") y escribe en el log los códigos e ids (sin
  * datos). Si el chequeo mismo falla, lo escribe en el log y sigue. No arregla nada solo.
  *
@@ -121,7 +125,17 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 			);
 			return null;
 		}
-		const problems = await checkObjectsIntegrity(env.DB);
+		// El bucket de medios (binding MEDIA de wrangler.toml), para ver que no falten archivos.
+		const media = /** @type {{ MEDIA?: import('@cloudflare/workers-types').R2Bucket }} */ (env)
+			.MEDIA;
+		const problems = await checkObjectsIntegrity(env.DB, { bucket: media ?? null });
+		// Y la consistencia de las órdenes y las entradas (db/consistency.js; solo lee, nunca
+		// tira): sus problemas van en la misma corrida, a «Para revisar».
+		problems.push(
+			.../** @type {import('./objects/integrity.js').Problem[]} */ (
+				/** @type {unknown} */ (await checkOrdersConsistency(env.DB))
+			)
+		);
 		await recordIntegrityRun(env.DB, problems, now.getTime());
 		if (!problems.length) console.log('integridad de objetos: sin problemas');
 		for (const p of problems.slice(0, MAX_LOGGED_PROBLEMS)) {
@@ -186,14 +200,14 @@ export async function runMediaCopy(env, limits) {
 export async function runSessionCleanup(env, now = new Date()) {
 	try {
 		if (!env.DB) {
-			console.error('sesiones viejas: falta el binding DB; no se limpió');
+			console.error('[sesiones] sesiones viejas: falta el binding DB; no se limpió');
 			return null;
 		}
 		const deleted = await deleteStaleSessions(env.DB, now.getTime());
-		console.log(`sesiones viejas: ${deleted} borrada(s)`);
+		console.log(`[sesiones] sesiones viejas: ${deleted} borrada(s)`);
 		return deleted;
 	} catch (error) {
-		console.error('sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
+		console.error('[sesiones] sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
 		return null;
 	}
 }

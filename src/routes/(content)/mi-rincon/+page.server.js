@@ -27,6 +27,8 @@ import {
 	unconfirmedFreeOrders
 } from '$lib/server/cuentas/orders.js';
 import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
+import { unlinkAccount } from '$lib/server/telegram/link.js';
+import { revokeFeeds } from '$lib/server/series/feeds.js';
 import {
 	checkConfirmCode,
 	closeAccount,
@@ -398,6 +400,10 @@ export const actions = {
 		const { db, member } = await requireMember(event);
 		try {
 			await destroyOtherSessions(db, member.id, undefined);
+			// «En todos lados» también corta lo que no es una sesión: el Telegram vinculado y el link
+			// del calendario personal (quien tenía el celu o la cuenta los podía seguir usando).
+			await unlinkAccount(db, member.id);
+			await revokeFeeds(db, member.id);
 			await endSession(event, db);
 		} catch (e) {
 			logDBError('cuentas: cerrar todas las sesiones', e);

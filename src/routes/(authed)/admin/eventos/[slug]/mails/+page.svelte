@@ -15,6 +15,8 @@
 	$: slug = $page.params.slug ?? '';
 </script>
 
+<svelte:head><title>Plantillas de mails · {data.event?.title ?? slug} · Panel</title></svelte:head>
+
 <div class="kv-stack settings">
 	<p class="kv-note">
 		Podés cambiar el texto de los mails que les llegan a quienes compran para este evento. Lo que no

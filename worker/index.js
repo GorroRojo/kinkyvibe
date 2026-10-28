@@ -32,6 +32,11 @@
  * Baja en un clic (RFC 8058, src/lib/server/email/oneClick.js): el POST sin `Origin` que manda el
  * servidor de correo a una página de baja llega a SvelteKit con el `Origin` del sitio; si no, su
  * chequeo CSRF lo rechaza con 403. Solo esas rutas y solo sin `Origin`.
+ *
+ * Clave de caché (src/lib/server/cacheKey.js): los GET a las rutas públicas cacheables que no leen
+ * el query (`/media/`, `/og/`, `/api/posts`, `/api/search-index.json`, los `.ics` públicos) le
+ * llegan al adapter sin query y sin `cache-control`, así caen siempre en la misma entrada de su
+ * caché. Las visitas se anotan con el pedido original.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import app from '../.svelte-kit/cloudflare/_worker.js';
@@ -41,6 +46,7 @@ import { withEdgeCache } from '../src/lib/server/edgeCache.js';
 import { startServerTiming } from '../src/lib/server/serverTiming.js';
 import { createD1Stats, d1ServerTiming, d1Timer } from '../src/lib/server/d1Timing.js';
 import { allowOneClickPost } from '../src/lib/server/email/oneClick.js';
+import { normalizeCacheableRequest } from '../src/lib/server/cacheKey.js';
 import buildVersion from '../.svelte-kit/cloudflare/_app/version.json';
 
 /**
@@ -62,14 +68,15 @@ export default {
 	 */
 	async fetch(incoming, env, ctx) {
 		const request = allowOneClickPost(incoming);
+		const appRequest = normalizeCacheableRequest(request);
 		const timing = startServerTiming();
 		const d1 = createD1Stats();
 		const og = new URL(request.url).pathname.startsWith('/og/');
 		const appEnv = { ...env, DB: timedDB(env.DB), ...(og ? { OG_RENDER: renderOg } : {}) };
 		const response = await withEdgeCache(
-			request,
+			appRequest,
 			ctx,
-			() => d1Context.run(d1, () => app.fetch(request, appEnv, ctx)),
+			() => d1Context.run(d1, () => app.fetch(appRequest, appEnv, ctx)),
 			{
 				cache: typeof caches === 'undefined' ? undefined : /** @type {any} */ (caches).default,
 				version: buildVersion.version,

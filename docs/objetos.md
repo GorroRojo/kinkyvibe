@@ -126,6 +126,12 @@ pura (recibe filas, devuelve problemas) y se prueba sin base. Encuentra:
 | `too_many_edges`       | más relaciones de las permitidas (por ejemplo, dos lugares)                      |
 | `orphan`               | un objeto vivo sin una relación obligatoria                                      |
 | `fts_out_of_sync`      | el índice de búsqueda no coincide con los objetos                                |
+| `media_missing`        | una imagen o un archivo vivo cuyo archivo no está en R2 (bucket `MEDIA`)         |
+
+`media_missing` lista las claves de `img/` y `file/` del bucket (un pedido por cada mil archivos,
+más barato que un `head` por objeto) y las compara con las imágenes y archivos sin borrar. Sin el
+binding `MEDIA` (o si listar falla, que queda en el log) ese chequeo se saltea. No borra nada: un
+archivo que falta se vuelve a subir desde la biblioteca.
 
 **El chequeo nunca hace fallar el cron** (el backup queda como bueno igual). Guarda cada corrida
 en `integrity_runs` (las últimas 30; de cada una, el total y los primeros 50 problemas: código,
@@ -240,8 +246,14 @@ Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
 Los eventos de calendario (paso 5 de 0026), con los mismos nombres de campo que el frontmatter de
 los `.md` (`summary`, `status`, `start`, `end`, `link`, `tags`, `authors`, `featured`,
 `location`…; `force_unlisted` → `unlisted`, `force_unpublished` → visibilidad `hidden`). Lo que el
-tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos núcleo). Columnas
-generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. La
+tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos núcleo). `start` y
+`end` (clase `datetime`) se guardan siempre en hora de Argentina (`2026-10-02T20:00-03:00`): una
+fecha con `Z` u otra zona se reescribe al validar (`fields.js`; sin zona, se rechaza). Columnas
+generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. Hoy
+se leen `start_at` (el mes del evento en las ventas, `admin/saleMonth.js`) y `unlisted`; `end_at`,
+`event_status` y los índices `objects_evento_start` y `objects_evento_status` no los usa ninguna
+consulta todavía (auditoría de plata, D31): quedan para cuando se ordene o filtre en SQL, sin
+`DROP` (son virtuales: no se guardan, y una migración más no vale la pena). La
 importación, la lectura (solo la base) y el historial (`object_revisions`):
 [contenido.md](contenido.md) («En la base»).
 

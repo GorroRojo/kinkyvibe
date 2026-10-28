@@ -11,7 +11,10 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   direcciones** (`/amigues/Gorro_Rojo` sigue andando). **Solo la base**: los `.md` ya no están en
   el repo ([0032](decisiones/0032-borrar-los-md.md); el último commit con ellos tiene el tag
   `posts-md-final`).
-- `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
+- `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`, que conserva las
+  etiquetas `?tags=` y la búsqueda elegidas) y página de cada uno. El filtro no muestra el botón de
+  un tipo sin ningún perfil que quien mira pueda ver (por ejemplo «Lugares» sin lugares públicos),
+  salvo el elegido; `?tipo=` anda igual con todos.
 - **"Es mi perfil"**: cualquier cuenta pide hacerse cargo de un perfil que ya existe, tenga o no
   el permiso "puede tener perfiles" (gorrite, 26/10: en vez de un canal para pedir el permiso,
   reclamar un perfil). Pedir no da nada: une admin lo revisa en el panel y lo aprueba (la cuenta
@@ -98,8 +101,9 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   nunca el objeto. **El contacto se muestra** (decisión de gorrite,
   [0023](decisiones/0023-contacto-publico.md)): los links, el mail y el teléfono de la ficha
   (públicos a propósito, están en el repo) salen en "Contacto" de la página del perfil o del lugar
-  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). El
-  cumpleaños y la identidad de género se importan pero no se muestran, como antes.
+  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). Los links
+  web (y el botón del primero) llevan `rel="nofollow ugc noopener noreferrer"`: los escribe quien
+  gestiona el perfil, como el texto. El cumpleaños y la identidad de género se importan pero no se muestran, como antes.
 - **Quienes gestionan no se muestran nunca**; integrantes de un proyecto, solo con `show_members`,
   solo aceptades, aprobades y visibles para quien mira.
 - **«Se muestra al público» es una sola regla** para perfiles y lugares: quien mira lo puede ver
@@ -428,7 +432,7 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
   «Dejar como texto».
 - **Qué se ve**: con el lugar elegido, la página dice qué eventos se van a ver distinto y por qué
   (`eventFit`, la misma lista blanca que la página del evento).
-- **Privacidad** (decidido por Claude, a confirmar): cada evento queda con el nivel del lugar,
+- **Privacidad** (decidido por Claude, **A CONFIRMAR**): cada evento queda con el nivel del lugar,
   salvo que el evento mostraba menos (por ejemplo, solo el nombre): entonces lleva ese nivel como
   propio en el edge (`linkPrivacy`). Nunca muestra del lugar más de lo que el lugar deja ver por
   defecto, aunque el evento mostrara más en su texto.

@@ -102,6 +102,14 @@ function telegram() {
 	const fetchFn = async (input, init) => {
 		const url = new URL(String(input));
 		if (url.host !== 'api.telegram.org') throw new Error(`fetch inesperado a ${url.host}`);
+		// El chequeo de salud del webhook (una vez por hora, webhookHealth.js) no es un mensaje: se
+		// contesta con un webhook sano y no cuenta en `sent`.
+		if (url.pathname.endsWith('/getWebhookInfo')) {
+			return new Response(
+				JSON.stringify({ ok: true, result: { url: 'https://kinkyvibe.ar/api/telegram' } }),
+				{ status: 200 }
+			);
+		}
 		sent.push(JSON.parse(String(init?.body)));
 		return new Response(JSON.stringify({ ok: true }), { status: 200 });
 	};

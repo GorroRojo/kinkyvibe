@@ -6,7 +6,8 @@ paso desde el panel de Cloudflare, en orden. Nada de esto se hace solo al mergea
 
 > **Estado (octubre 2026): la migración está hecha.** El sitio corre como Worker en
 > kinkyvibe.ar, Pages está desconectado, el Worker `kinkyvibe-cron` se borró y la carpeta
-> `workers/cron/` ya no está en el repo. Los pasos quedan como registro (y para un rollback).
+> `workers/cron/` ya no está en el repo. Los pasos quedan como registro; cómo se vuelve atrás
+> hoy está en [Volver atrás](#volver-atrás-rollback).
 
 ## En pocas palabras
 
@@ -59,6 +60,21 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   es un 404, una línea JSON en los logs (`"area":"error"`, con `id`, estado, método, ruta, el
   `cf-ray` del pedido, el mensaje y el principio del stack). La página de un error 5xx muestra ese
   `id` («pasanos este código»): se busca en **Observability → Logs** y aparece el error exacto.
+- **Workers Issues** (`[observability.issues]` en `wrangler.toml`): Cloudflare agrupa en
+  **Observability → Issues** las excepciones, las invocaciones fallidas (también los `throw` de los
+  crons), las respuestas 5xx y los `console.error`. La clave tiene que quedar en el archivo: sin
+  ella, la próxima publicación lo apaga. Que alguien se entere es aparte: gorrite arma en el panel
+  una automatización de Issues (**Issues → Automations**) hacia un webhook o un chat; mientras no
+  esté, los Issues se ven solo entrando al panel. Después de prenderlo, conviene mirar que una
+  corrida de cron fallida aparezca ahí.
+- **Convención de logs** (para que se encuentren en Observability → Logs y no tapen lo importante
+  en Issues): cada línea empieza con el área entre corchetes y en minúsculas (`[backup]`,
+  `[recordatorios]`, `[tickets]`, `[mails]`, `[telegram]`, `[auth]`, `[analiticas]`,
+  `[sesiones]`, `[conciliacion]`…), en castellano y sin datos de personas (ids sí; mails,
+  nombres o tokens nunca). `console.error` solo para lo que alguien tiene que mirar (va a Issues);
+  `console.warn` para una degradación que se arregla sola o con un reintento; `console.log` para
+  resultados (cuántos mails salieron, qué backup se guardó). Quedan líneas viejas sin corchetes
+  (por ejemplo, las de la integridad de los objetos en `scheduled.js`): se pasan al tocarlas.
 - **Salud**: `GET /api/health` (`src/routes/api/health/+server.js`) responde un JSON con `ok`, `db`,
   `migrations` y `sha`, sin caché, para un monitor externo o para mirar después de un deploy. `db`:
   la base responde (`SELECT 1`); sin base, 503. `migrations`: `ok` si la base tiene aplicada la
@@ -126,21 +142,35 @@ hasta el paso 3. El dominio kinkyvibe.ar sigue en Pages.
 ### 3. Variables y secretos de producción
 
 **Worker kinkyvibe → Settings → Variables and Secrets**, con el selector en **Production**.
-Cargá las mismas que tiene Pages en Production (paso 0). Los secretos como **Secret**, el resto
-como **Text**. Las que usa el código (solo nombres):
+Los secretos como **Secret**, el resto como **Text**. Este es el **inventario** de lo que lee el
+código en producción (solo nombres, nunca valores): para qué es, qué pasa si falta y con qué hay
+que sincronizarlo al rotarlo. Quién tiene acceso a cada cuenta: ver Mesa.
 
-| Nombre                                                                                                           | Tipo   | Para qué                                                    |
-| ---------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------- |
-| `GITHUB_CLIENT_ID`                                                                                               | Text   | Login de admin con GitHub                                   |
-| `GITHUB_CLIENT_SECRET`                                                                                           | Secret | Login de admin con GitHub                                   |
-| `MP_ACCESS_TOKEN`                                                                                                | Secret | Mercado Pago                                                |
-| `MP_WEBHOOK_SECRET`                                                                                              | Secret | Firma de los webhooks de Mercado Pago                       |
-| `RESEND_API_KEY`                                                                                                 | Secret | Mails                                                       |
-| `CRON_SECRET`                                                                                                    | Secret | El mismo valor que hoy (lo usan el cron y `/api/cron/*`)    |
-| `SITE_URL`                                                                                                       | Text   | `https://kinkyvibe.ar`                                      |
-| `TICKETS_CLIENT_SALT`                                                                                            | Secret | Si está en Pages                                            |
-| `TICKETS_TRANSFER_INFO`                                                                                          | Secret | Si está en Pages (datos de transferencia: nunca en el repo) |
-| `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL` | Text   | Si están en Pages                                           |
+| Nombre                                                                                                           | Tipo         | Para qué                                                                                    | Si falta                                                                                        | Al rotar                                                                                                              |
+| ---------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_CLIENT_ID`                                                                                               | Text         | Login de admin con GitHub (OAuth App).                                                      | Nadie puede entrar al panel con GitHub.                                                         | Va con el secreto (la OAuth App de producción; la de los Previews está en `wrangler.toml`).                           |
+| `GITHUB_CLIENT_SECRET`                                                                                           | Secret       | Login de admin con GitHub.                                                                  | Igual que arriba.                                                                               | Generar uno nuevo en la OAuth App, cargarlo y borrar el viejo.                                                        |
+| `MP_ACCESS_TOKEN`                                                                                                | Secret       | Cobros con Mercado Pago, reembolsos, conciliación del cron.                                 | Sin Mercado Pago: la compra online no lo ofrece y el webhook no puede leer pagos.               | Panel de MP (credenciales de producción).                                                                             |
+| `MP_WEBHOOK_SECRET`                                                                                              | Secret       | Verificar la firma de los webhooks de MP.                                                   | Todo webhook se rechaza (503): los pagos solo entran por la página de estado o la conciliación. | Panel de MP (Webhooks → clave secreta): cambiarla allá y acá a la vez.                                                |
+| `RESEND_API_KEY`                                                                                                 | Secret       | Todos los mails.                                                                            | No sale ningún mail; el log dice `falta RESEND_API_KEY` y quedan para reintentar.               | Panel de Resend (API keys).                                                                                           |
+| `RESEND_WEBHOOK_SECRET`                                                                                          | Secret       | Rebotes y quejas de Resend ([mails.md](mails.md)).                                          | El webhook contesta 503 y no se registran rebotes.                                              | Panel de Resend (Webhooks).                                                                                           |
+| `CRON_SECRET`                                                                                                    | Secret       | Protege `/api/cron/*` (el cron del Worker lo usa por dentro).                               | El cron contesta 503: no salen recordatorios, tandas ni backups manuales.                       | Solo acá (el cron lo lee del mismo Worker).                                                                           |
+| `FONDO_MAIL_SECRET`                                                                                              | Secret       | Clave compartida con fondo.kinkyvibe.ar ([mails.md](mails.md), [propinas.md](propinas.md)). | Esos endpoints contestan 401 siempre.                                                           | El mismo valor en el Worker del Fondo, a la vez.                                                                      |
+| `TELEGRAM_BOT_TOKEN`                                                                                             | Secret       | El bot de Telegram ([telegram.md](telegram.md)).                                            | El bot no contesta ni manda avisos.                                                             | @BotFather; después `npm run telegram:webhook`.                                                                       |
+| `TELEGRAM_WEBHOOK_SECRET`                                                                                        | Secret       | Verificar los pedidos que manda Telegram.                                                   | El webhook del bot contesta 503.                                                                | Volver a registrar el webhook con `npm run telegram:webhook` (si no, Telegram sigue mandando el viejo y todo da 401). |
+| `TELEGRAM_BOT_USERNAME`                                                                                          | Text         | Links `t.me/<bot>` del sitio y del panel.                                                   | Sin links al bot ni vínculo de admins.                                                          | —                                                                                                                     |
+| `CF_ACCOUNT_ID`, `CF_ANALYTICS_TOKEN`                                                                            | Text, Secret | Leer las visitas ([analiticas.md](analiticas.md)).                                          | Estadísticas → Visitas vacía y sin resumen mensual.                                             | Token nuevo en Cloudflare (solo lectura de Analytics Engine).                                                         |
+| `INDEXNOW_KEY`                                                                                                   | Secret       | Avisar a los buscadores ([seo.md](seo.md)).                                                 | No se avisa (nada más).                                                                         | Cualquier clave nueva válida.                                                                                         |
+| `SITE_URL`                                                                                                       | Text         | Origen público para links de mails y de MP.                                                 | Se usa el origen del pedido.                                                                    | —                                                                                                                     |
+| `TICKETS_CLIENT_SALT`                                                                                            | Secret       | Sal del hash anónimo de los límites anti-abuso.                                             | Se usa una fija que igual rota cada día.                                                        | Cualquier texto largo al azar; cambiarla solo reinicia los contadores del día.                                        |
+| `TICKETS_TRANSFER_INFO`                                                                                          | Secret       | Respaldo de los datos para transferir (nunca en el repo).                                   | Se usan los de Ajustes de venta; sin ninguno, no se ofrece transferencia.                       | —                                                                                                                     |
+| `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL` | Text         | Respaldos de Ajustes de venta ([tickets.md](tickets.md#variables-de-entorno)).              | Los valores por defecto.                                                                        | —                                                                                                                     |
+| `TICKETS_PAUSED`, `MAILS_PAUSED`                                                                                 | Text         | Pausas de emergencia ([interruptores.md](interruptores.md#pausas-de-emergencia)).           | Sin pausa (lo normal).                                                                          | —                                                                                                                     |
+| `*_ENABLED`                                                                                                      | Text         | Fuerzan un interruptor prendido o apagado ([interruptores.md](interruptores.md)).           | Manda el interruptor del panel.                                                                 | —                                                                                                                     |
+
+Para revisar que no falte nada: `grep -rhoE "env\.[A-Z_]+" src` y los `FLAGS` de
+`src/lib/server/flags.js`. Lo que solo existe en desarrollo (`MP_MOCK`, `ADMIN_DEV_MOCK`,
+`TICKETS_DEV_*`, `FONDO_PERCENT_OVERRIDE`) no va en producción.
 
 `EMAIL_ALLOWLIST` **no** va en producción (es solo para Previews). Detalle de cada variable:
 [`docs/tickets.md`](tickets.md).
@@ -168,7 +198,7 @@ Los Previews **no heredan nada de producción**.
 
 > Desde la noche del 1/10/2026 `wrangler.toml` tiene `workers_dev = false`: con el dominio ya en
 > el Worker, `kinkyvibe.<tu-subdominio>.workers.dev` era una segunda puerta pública a producción.
-> Si hubiera que repetir este paso (por ejemplo, después de un rollback), poné `workers_dev = true`
+> Si hubiera que repetir este paso (por ejemplo, volviendo a Pages y de nuevo al Worker), poné `workers_dev = true`
 > en una rama, probá y volvé a apagarlo. Los Previews de cada rama no dependen de esto: siguen
 > andando mientras `preview_urls = true`.
 
@@ -282,6 +312,37 @@ local nunca la usan.
 - **Sacarla del todo:** en `worker/index.js`, llamar a `app.fetch` directo en vez de
   `withEdgeCache`.
 
+## Clave de caché de las rutas públicas
+
+Las respuestas con `cache-control` público (`/media/…`, `/og/…`, `/api/posts`,
+`/api/search-index.json`, `/calendario.ics`, `/ics/etiqueta/…`) las guarda la caché del adapter
+(`caches.default`, por centro de datos), que busca por la URL completa y se saltea si el pedido trae
+`cache-control: no-cache`. Esas rutas no leen el query ni la sesión, así que `worker/index.js` les
+pasa el pedido normalizado (`src/lib/server/cacheKey.js`): sin query y sin `cache-control` ni
+`pragma`. Variaciones del mismo pedido caen en la misma entrada y no vuelven a hacer el trabajo. Las
+visitas (`trackPageView`) se anotan con el pedido original. Una ruta nueva entra en la lista solo si
+no lee ni el query ni la sesión.
+
+Los `.ics` públicos (`/calendario.ics` y los de etiqueta) salen con `icsResponse`
+(`public, max-age=900`): un calendario suscripto los baja cada hora. `/ics/mio` es privado y queda
+fuera de la lista.
+
+- **Verificar:** `Server-Timing` dice `0 consultas` en la segunda de dos llamadas seguidas, aunque
+  cambie el query: `curl -s -o /dev/null -D - 'https://kinkyvibe.ar/api/posts?x=1' | grep -i
+server-timing` (y después con `?x=2`).
+- **Riesgo que queda:** pedidos a recursos que no existen (404, que el adapter no guarda); lo frena
+  una regla de la zona, no el código.
+
+### No prender Workers Cache
+
+Workers Cache (el bloque `[cache]` de `wrangler.toml`, o el interruptor del panel) parece arreglar
+de una vez la caché de las páginas, pero no conviene: **cobra los archivos estáticos** (hoy son
+gratis), arranca en frío en cada deploy (varios por día) y **no mira las cookies** del pedido, así
+que le daría la página anónima a quien tiene sesión. Para cachear, usar `caches.default` desde
+`worker/index.js` como la caché de 1 minuto (excluye todo pedido con cookie de sesión y nunca guarda
+`(authed)`) y la clave normalizada de arriba. Hoy `wrangler.toml` no tiene `[cache]`, y así tiene
+que quedar.
+
 ## Caché de los archivos estáticos (`_headers`)
 
 Los archivos de `static/` (favicon, íconos, `site.webmanifest`, `og-*.jpg`, `fonts/`) los sirve
@@ -297,7 +358,43 @@ si lo encuentra en `static/`, el build falla.
   día en verse. Lo que tiene hash ya está en `/_app/immutable/`.
 - **Archivo nuevo en `static/`**: sumarle su regla (o a `DEFAULT_ON_PURPOSE` si debe quedar con el
   header por defecto, como `robots.txt`). Lo chequea `src/lib/server/staticHeaders.test.js`.
-- **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control`.
+- **Headers de seguridad (`/*`)**: una sola regla para todo con `X-Content-Type-Options: nosniff`
+  y `Referrer-Policy: strict-origin-when-cross-origin`, los mismos que `securityHeaders.js` pone
+  en las páginas; sin ella, los estáticos (`/robots.txt` incluido) salían sin esos dos. Nunca
+  caché en esa regla.
+- **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control` (y
+  `curl -sI https://kinkyvibe.ar/robots.txt | grep -i nosniff`).
+
+## Headers de seguridad y CSP
+
+- `src/lib/server/securityHeaders.js` (desde `hooks.server.js`) pone en todas las respuestas del
+  Worker `nosniff`, `Referrer-Policy` y `Permissions-Policy` (cámara solo para el propio sitio,
+  que la usa el escáner de la puerta del panel; sin micrófono ni ubicación), y no deja embeber el
+  panel, las entradas ni las cuentas en un iframe. Los estáticos llevan los dos primeros por `_headers`.
+- **CSP en modo solo reporte** (`kit.csp.reportOnly` en `svelte.config.js`): el header es
+  `Content-Security-Policy-Report-Only`, así que **no bloquea nada**; el navegador avisa a
+  `POST /api/csp` lo que bloquearía, y esa ruta lo loguea (directiva y origen, nada de la URL
+  completa) en los logs del Worker: `[csp] script-src bloquearía https://… (en /evento)`.
+  SvelteKit pone un nonce a sus scripts; el beacon de Web Analytics lleva
+  `nonce="%sveltekit.nonce%"` en `app.html`; los dos scripts del `<head>` del panel (tema y
+  lateral) tienen contenido fijo y van por hash (si se cambia su texto, el hash se recalcula solo
+  al compilar).
+- **Para aplicarla** (decisión de gorrite, después de unas semanas mirando los logs): pasar las
+  mismas directivas de `reportOnly` a `directives`, ajustando lo que haya aparecido (por ejemplo,
+  achicar `frame-src` a los embeds que de verdad se usan). Ojo con la caché de 1 minuto para quien
+  no tiene sesión: guarda el HTML con su nonce y lo repite durante ese minuto; para una política
+  que bloquea conviene no cachear o usar hashes.
+
+## Tamaño de los pedidos
+
+Workers corta los cuerpos en 100 MB. Las rutas que reciben algo de afuera leen el cuerpo con
+`src/lib/server/http/body.js` (`readJsonCapped`, `readTextCapped`, `readBytesCapped`): con un
+`content-length` mayor que el tope ni empiezan a leer, y sin ese header (chunked) leen de a
+pedazos y cortan apenas se pasa, sin guardar el cuerpo entero. Topes: 8 KB las de la mini app y la
+puerta de Telegram, 64 KB el webhook del bot y el de Mercado Pago, 300 bytes `/api/visto`, 4 KB la
+velocidad de lectura y la búsqueda de direcciones, el de Resend el suyo y `POST /imagenes` 25 MB
+más el formulario. Una ruta nueva que lea un cuerpo de afuera usa estas funciones, no
+`request.json()`.
 
 ## Cuánto tardó: `Server-Timing`
 
@@ -359,21 +456,74 @@ manda lo pendiente y olvida lo leído; si la tanda falla, cada consulta se corre
 Un `curl` sin `-H 'accept: text/html'` nunca usa la caché de 1 minuto (`BYPASS`): mide la página
 recién hecha, que es lo que ve quien llega cuando no hay una guardada.
 
+## Tope de CPU (`[limits] cpu_ms`)
+
+`wrangler.toml` pone `cpu_ms = 15000`: cada invocación (un pedido o una corrida de cron) puede usar
+hasta 15 s de CPU en vez de los 30 s por defecto. Es un freno de costo (un pedido colgado en un
+bucle gasta la mitad), no mejora la velocidad. Rige también para los crons.
+
+Medido en local el 27/10/2026, build de producción con la semilla pública (`npm run db:semilla`,
+7.179 filas, 5 MB de SQL) en `wrangler dev`:
+
+- **Cron nocturno** (`/__scheduled?cron=0+6+*+*+*`: backup, integridad y lo demás): ~1,1 s de pared
+  en total. El volcado + gzip solo, medido en Node con `process.cpuUsage`: 1,0–1,3 s de CPU (incluye
+  el costo del proxy local de D1).
+- **`/og/…`** (dibujar una tarjeta): 1,2–3,0 s de pared (la primera incluye iniciar el WebAssembly).
+
+La CPU es como mucho el tiempo de pared. Producción tiene unas 5 veces las filas de la semilla, así
+que el backup andaría por ~5 s: 15 s deja unas 3 veces de margen. Si un día el backup se acerca
+(Observability → cpuTime del cron de las 6:00 UTC), subir el número o sacar el bloque; nunca
+bajarlo sin medir. En el panel: Settings → CPU Limits muestra el valor vigente.
+
+## Bots: Bot Fight Mode apagado
+
+**A CONFIRMAR** por gorrite (lo propone la auditoría de costos; no se tocó nada en el panel). Bot
+Fight Mode (Security → Settings → Bot traffic), la opción gratis contra bots, queda **apagado**:
+
+- **No admite excepciones**, ni con reglas propias ni con «Skip». Puede desafiar pedidos de
+  servidor a servidor que no son navegadores: el webhook de Mercado Pago
+  (`/api/mercadopago/webhook`), el del bot de Telegram (`/api/telegram`) y el pedido del Worker
+  del Fondo (`/api/fondo/mi-link`). Si se cortan, quedan órdenes pagadas sin aprobar y sin mail.
+- **Contra bots, en cambio:** AI Crawl Control para los rastreadores de IA y la regla de rate
+  limiting de la zona (una en el plan Free), las dos excluyendo siempre esas tres rutas, y las
+  alertas de presupuesto para enterarse.
+- **Si alguna vez hace falta más:** Super Bot Fight Mode es del plan Pro de la zona y sí admite
+  una regla «Skip»; crearla **antes** de prenderlo.
+- **Verificar (panel):** Security → Settings → Bot traffic sigue apagado y en Security → Analytics
+  no hay eventos de Bot Fight Mode.
+
 ## Volver atrás (rollback)
 
-Si algo sale mal después del paso 8:
+Si una publicación rompió algo, hay tres caminos, del más rápido al más lento. La base es la misma
+en todas las versiones: volver atrás el código no toca los datos.
 
-1. **Worker kinkyvibe → Settings → Domains & Routes**: quitar `kinkyvibe.ar`.
-2. **Pages kinkyvibe → Custom domains → Set up a custom domain** → `kinkyvibe.ar` (Pages vuelve a
-   crear el CNAME). El proyecto de Pages sigue con su último deploy y sus variables.
-3. Pages no tiene crons: hay que volver a deployar el Worker `kinkyvibe-cron`. Su código ya no
-   está en el repo: recuperá la carpeta `workers/cron/` del historial de git
-   (`git log --diff-filter=D -- workers/cron` da el commit que la borró; está entera en el
-   anterior) y, desde ahí, `npx wrangler deploy` y `npx wrangler secret put CRON_SECRET` (los
-   pasos están en su `README.md`).
+1. **Volver a la versión anterior del Worker** (necesita la cuenta de Cloudflare): **Workers →
+   kinkyvibe → Deployments** → la versión anterior → **Rollback**, o `npx wrangler rollback`.
+   Cloudflare guarda las últimas 100 versiones; no cambia los recursos conectados (base, buckets,
+   variables) y no deja volver a una versión que usaba un binding que ya no existe. Dura **hasta
+   el próximo push a `main`**, que vuelve a publicar lo que haya en `main`: por eso el paso 2 va
+   igual.
+2. **Revertir el PR en `main`** (lo puede hacer una sesión de noche, sin la cuenta de
+   Cloudflare): `git revert -m 1 <sha del merge>` en una rama nueva, PR, CI verde y merge, como
+   cualquier otro PR ([decisión 0027](decisiones/0027-merges-de-noche.md)); Workers Builds publica
+   solo. Avisarle a gorrite.
+3. **Volver la base atrás** solo si el problema fue de datos (un script que borró o pisó filas),
+   nunca por un problema de código. Time Travel ([Restaurar un backup](#restaurar-un-backup), a)
+   pisa **todo** lo escrito después, ventas y webhooks de Mercado Pago incluidos. Antes: un backup
+   manual (`POST /api/cron/backup`, paso 6) y anotar el bookmark que da
+   `npx wrangler d1 time-travel info kinkyvibe`, para poder volver y rehacer lo posterior.
 
-La base es la misma en los dos, así que no se pierde nada al ir y volver. Si el problema es solo
-de una versión del código, más rápido: **Worker → Deployments → (versión anterior) → Rollback**.
+**Por qué revertir el código es seguro con la base:** las migraciones solo agregan (tablas,
+columnas con nulos o con valor por defecto) y se aplican en producción antes del merge
+([decisión 0028](decisiones/0028-migraciones-antes-del-merge.md)). El código anterior no usa lo
+nuevo y sigue andando con la base ya migrada. Una migración no se «des-aplica».
+
+**Volver a Pages** (el camino de la migración) ya no es una opción real: Pages está desconectado,
+el Worker `kinkyvibe-cron` se borró y el proyecto viejo de Pages queda solo por las dudas
+(`cf-dashboard-limpiar` en el plan). Si alguna vez hiciera falta, los pasos eran quitar
+`kinkyvibe.ar` del Worker (Settings → Domains & Routes), ponerlo en Pages (Custom domains) y
+volver a publicar el Worker del cron desde el historial de git (`workers/cron/`). No ensayar la
+vuelta atrás prendiendo `workers_dev`: abriría otra URL pública a producción.
 
 ## Lista de verificación
 
@@ -384,9 +534,9 @@ de una versión del código, más rápido: **Worker → Deployments → (versió
 - [ ] Login de admin con GitHub y el panel `/admin` (solo en kinkyvibe.ar).
 - [ ] Página de compra de un evento con entradas (sin comprar de verdad).
 - [ ] **Trigger Events → View events**: recordatorios cada 15 minutos con respuesta `{"sent":…,"failed":…}` en los
-      logs (**Observability → Logs**, buscar `recordatorios:`).
+      logs (**Observability → Logs**, buscar `[recordatorios]`).
 - [ ] Al día siguiente: en R2 → `kinkyvibe-backups` → `d1/` hay un archivo de hoy (buscar
-      `backup:` en los logs).
+      `[backup]` en los logs).
 - [ ] Un Preview: la URL del PR anda, usa la base de prueba (`/api/preview-status`) y el modo demo.
 - [ ] Mercado Pago: el siguiente webhook real llega bien (Observability → Logs,
       `/api/mercadopago/webhook` con 200).
@@ -404,10 +554,18 @@ de una versión del código, más rápido: **Worker → Deployments → (versió
 - **Cuánto tiempo:** todos los de los **últimos 30 días**; el primero de **cada mes durante 12
   meses**; y el primero de **cada año, para siempre**. Los manuales y cualquier otro archivo del
   bucket **nunca** se borran solos. Un backup viejo solo se borra después de que el de esa noche
-  quedó guardado y verificado. **Si borrar los viejos falla, la corrida no falla**: el backup ya
+  quedó guardado y verificado: se sube con su SHA-256 (R2 rechaza la subida si no coincide, y queda
+  en los metadatos como `sha256`), se relee entero, se compara el SHA-256 y se descomprime para ver
+  que da los mismos bytes de SQL; si algo no da, la corrida falla. **Tampoco se poda** si el backup
+  nuevo tiene menos del 90 % de las filas o menos tablas que el nocturno anterior: el log dice
+  `[backup] no se podan los backups viejos: …` y los de antes quedan hasta que alguien mire la
+  base. **Si borrar los viejos falla, la corrida no falla**: el backup ya
   está guardado, el log dice `[backup] la poda de los backups viejos falló` y la noche siguiente se
-  vuelve a intentar (`nightlyBackup` en `src/lib/server/backup/index.js`). (Con la base actual cada
-  archivo pesa unos pocos KB: el costo de R2 es cero en la práctica.)
+  vuelve a intentar (`nightlyBackup` en `src/lib/server/backup/index.js`). El tamaño real de cada
+  backup (comprimido y del SQL, en bytes) queda en el log (la línea `[backup]` de cada noche) y
+  en los metadatos del archivo (`sqlBytes`); el costo de R2 es cero en la práctica.
+- **Memoria:** el SQL se comprime a medida que sale (`streamDatabase` en `backup/dump.js`): en la
+  memoria del Worker (128 MB) queda solo lo comprimido, nunca el volcado entero.
 - **Además** D1 tiene **Time Travel**: volver la base a cualquier minuto de los últimos 30 días,
   sin hacer nada de antemano.
 - **Extra recomendado:** una vez por mes, bajá el último backup a tu compu
@@ -460,12 +618,19 @@ Después, según el caso: copiar a mano solo las filas que hagan falta (consulta
 o pasar el sitio a la base restaurada cambiando el `database_id` de `DB` en `wrangler.toml` por el
 de `kinkyvibe-restaurada` (copiado de `npx wrangler d1 list --json`, **nunca a mano**) en un PR.
 
-Detalles del formato: `PRAGMA defer_foreign_keys` al principio, las tablas, las filas (enteros
+Detalles del formato: cada tabla se lee de a 500 filas por cursor (por `rowid` o, en las
+`WITHOUT ROWID`, por su clave primaria), no por `OFFSET`, así que una escritura durante el
+volcado no repite ni saltea filas. `PRAGMA defer_foreign_keys` al principio, las tablas, las filas (enteros
 grandes, decimales, textos y BLOBs exactos), después índices, vistas y triggers. Las tablas
 virtuales FTS se recrean (con contenido externo, con `'rebuild'`). Los contadores AUTOINCREMENT
-siguen desde el id más alto restaurado (D1 no deja escribir `sqlite_sequence`). Una fila de más
-de ~100 KB no se podría restaurar con `wrangler d1 execute` (límite de D1 por sentencia): hoy no
-hay ninguna así.
+siguen desde el id más alto restaurado (D1 no deja escribir `sqlite_sequence`). D1 acepta como
+mucho 100.000 bytes por sentencia, y un texto de más de ~45 KB ya los pasaría (el cuerpo de un
+objeto viaja dos veces, en `data` y en `search_text`, y una tilde son dos bytes): un INSERT que
+pasaría 90.000 bytes sale con sus textos más largos vacíos y después un
+`UPDATE … SET col = col || '<trozo>'` por cada trozo de 60.000 bytes como mucho (la fila se ubica
+por su `rowid`, o por su clave en una tabla `WITHOUT ROWID`). La sentencia más larga queda anotada
+(`maxStatementBytes` en los metadatos del archivo y en las cantidades del final) y
+`scripts/d1-restore.js` se niega a restaurar, con un mensaje claro, si pasa de 100.000.
 
 ## Después de migrar (PR de limpieza)
 

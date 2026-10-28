@@ -9,6 +9,7 @@
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
+	import { announceResult } from '$lib/admin/announce.js';
 	import { invalidateAll } from '$app/navigation';
 	import { Check, IdCard, ReceiptText, Rss, StickyNote, Trash2, UserRound } from '@lucide/svelte';
 	import { fmtDate, fmtDateTime } from '$lib/admin/format.js';
@@ -169,6 +170,7 @@
 					async ({ result, update }) => {
 						await update();
 						if (result.type === 'success') body = '';
+						announceResult(result, 'note');
 					}}
 			>
 				<label class="kv-field">
@@ -200,6 +202,10 @@
 										tone: 'danger'
 									});
 									if (!ok) cancel();
+									return async ({ result, update }) => {
+										await update();
+										announceResult(result, 'note');
+									};
 								}}
 							>
 								<input type="hidden" name="id" value={n.id} />
@@ -272,7 +278,11 @@
 							{:else}
 								<form class="inline" method="POST" action="?/dni" use:enhance={showDni}>
 									<input type="hidden" name="guardado" value="1" />
-									<button class="kv-btn ghost small" type="submit">Mostrar</button>
+									<button
+										class="kv-btn ghost small"
+										type="submit"
+										aria-label="Mostrar el DNI guardado (queda registrado)">Mostrar</button
+									>
 								</form>
 								{#if dniErrors.guardado}<small class="muted">{dniErrors.guardado}</small>{/if}
 							{/if}
@@ -303,9 +313,10 @@
 					action="?/permiso"
 					use:enhance={() => {
 						saving = true;
-						return async ({ update }) => {
+						return async ({ result, update }) => {
 							await update();
 							saving = false;
+							announceResult(result, 'permiso');
 						};
 					}}
 				>
@@ -403,7 +414,12 @@
 									{:else}
 										<form class="inline" method="POST" action="?/dni" use:enhance={showDni}>
 											<input type="hidden" name="orden" value={o.id} />
-											<button class="kv-btn ghost small" type="submit">Mostrar</button>
+											<button
+												class="kv-btn ghost small"
+												type="submit"
+												aria-label="Mostrar el DNI de la compra de {o.event} (queda registrado)"
+												>Mostrar</button
+											>
 										</form>
 										{#if dniErrors[`orden:${o.id}`]}<small class="muted"
 												>{dniErrors[`orden:${o.id}`]}</small
