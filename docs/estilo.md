@@ -339,7 +339,16 @@ componente se ve aunque ninguna página principal lo use.
 
 El ícono grande de cada tipo para `PageHeader` (sin imagen) sale de `typeIcon` en
 `$lib/admin/typeIcons.js`: lo usan la ficha de un perfil (persona, proyecto o lugar), la de un
-material y, en Eventos › Series, la tarjeta de una serie sin imagen.
+material y, en Eventos › Series, la tarjeta de una serie sin imagen. En el sitio, las tarjetas de
+las filas y de la grilla (`$lib/components/Card.svelte`) sin imagen muestran el mismo ícono
+(`cardTypeIcon` en `$lib/utils/cardIcon.js`), grande y blanco sobre el degradé del color del post,
+en vez de un degradé liso.
+
+En la portada, la fila «Talleres y eventos» muestra una tarjeta por taller, serie o título: la
+edición más próxima (`upcomingEventCards` en `$lib/utils/portada.js`). Las partes de un taller y
+las ediciones de una serie (aunque tengan títulos distintos) van juntas; sin taller ni serie, solo
+los eventos con el mismo título exacto. Dos eventos que solo se parecen en el nombre siguen
+separados.
 
 Los imports viejos (`$lib/components/admin/panel/Card.svelte`, `Badge`, `EmptyState`,
 `PageHeader`, `Tabs`, `ConfirmDialog`, `$lib/components/TagChip.svelte` y

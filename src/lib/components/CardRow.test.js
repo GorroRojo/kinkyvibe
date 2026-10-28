@@ -66,14 +66,11 @@ describe('CardRow: la imagen de las tarjetas', () => {
 		});
 		const list = [noCover(0), noCover(1), noCover(2), post(3), post(4)];
 		const tags = imgs(render(CardRow, { props: { items: list, eager: 2 } }).body);
-		expect(tags.map((t) => t.includes('fetchpriority="high"'))).toEqual([
-			false,
-			false,
-			false,
-			true,
-			false
-		]);
-		expect(tags[3]).toContain('loading="eager"');
-		expect(tags[4]).toContain('loading="lazy"');
+		// Las tarjetas sin imagen no tienen <img> (llevan el ícono del tipo, Card.svelte): quedan
+		// las dos con imagen, la 4.ª y la 5.ª de la fila.
+		expect(tags).toHaveLength(2);
+		expect(tags.map((t) => t.includes('fetchpriority="high"'))).toEqual([true, false]);
+		expect(tags[0]).toContain('loading="eager"');
+		expect(tags[1]).toContain('loading="lazy"');
 	});
 });
