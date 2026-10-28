@@ -143,7 +143,7 @@ describe('adminEventChoices', () => {
 				ev('lejos', 30 * 86_400_000),
 				ev('paso', -3 * 86_400_000),
 				ev('hoy', 2 * 3_600_000),
-				ev('cancelado', 86_400_000, { status: 'cancelled' }),
+				ev('cancelado', 86_400_000, { status: 'cancelado' }),
 				{ slug: 'sin-fecha', config: { title: 'x' } }
 			],
 			NOW

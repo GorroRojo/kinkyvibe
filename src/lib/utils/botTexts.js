@@ -936,7 +936,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta y cada transferencia, en el momento. Solo cantidades y links, nunca datos de quienes compran.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -1107,6 +1107,48 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				],
 				required: ['cantidad']
 			}
+		),
+		f(
+			'admin.dia_titulo',
+			'admin',
+			'line',
+			'Día del evento: el título del resumen de ese día',
+			'📣 **Hoy: {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.manana_titulo',
+			'admin',
+			'line',
+			'Recordatorios: el título del de la víspera (el evento es mañana)',
+			'⏰ **Mañana: {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.falta_titulo',
+			'admin',
+			'line',
+			'Recordatorios: el título del del mismo día, si todavía falta el lugar o el link',
+			'⚠️ **Hoy: {evento}**',
+			{
+				vars: [V.evento],
+				required: ['evento'],
+				help: 'Solo sale si falta algo, y no a quien prendió «Día del evento» (su resumen ya lo dice).'
+			}
+		),
+		f(
+			'admin.falta_lugar',
+			'admin',
+			'line',
+			'Día del evento y recordatorios: un evento presencial sin lugar (solo si falta)',
+			'📍 Todavía no tiene lugar: cargalo en el panel.'
+		),
+		f(
+			'admin.falta_link',
+			'admin',
+			'line',
+			'Día del evento y recordatorios: un evento online sin el link de la transmisión (solo si falta)',
+			'🔗 Todavía falta el link de la transmisión: cargalo en el panel y mandáselo a todes.'
 		),
 
 		// -----------------------------------------------------------------------------------------

@@ -193,7 +193,7 @@ CI) va en la fase 0.
 
 ### Bot de Telegram
 
-- `bot-avisos-admin-3` · fase 0 · sigue · bot · Telegram para admins, parte 3: el resumen del día del evento y los recordatorios (el evento de mañana, falta el lugar o el link de la transmisión) (depende de: bot-avisos-admin) · [0041](decisiones/0041-telegram-para-admins.md)
+- `bot-avisos-admin-3` · fase 0 · hecho · bot · Telegram para admins, parte 3: el resumen del día del evento («📣 Hoy») y los recordatorios («⏰ Mañana», y «⚠️ Hoy» si todavía falta el lugar o el link de la transmisión), a las 9 con el resumen diario; sin migración (depende de: bot-avisos-admin) · #565, [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-avisos-admin-probar` · fase 0 · hecho · bot · Prender `telegram_admin` en un preview y probarlo con un Telegram vinculado (la migración 0054 ya está en preview y producción) (depende de: bot-avisos-admin)
 - `bot-avisos-admin-2-probar` · fase 0 · hecho · bot · Telegram para admins, parte 2: aplicar la migración 0055 en preview y producción antes de mergear #322, y probarlo en un preview con una compra de prueba y el cron de las 9 (depende de: bot-avisos-admin)
 - `bot-estadisticas-prender` · fase 0 · hecho · bot · Estadísticas de uso del bot: aplicar la migración 0057 en preview y producción antes de mergear, `/setinlinefeedback` al 100 % en @BotFather y volver a registrar el webhook (`npm run telegram:webhook`), y prender «Telegram: estadísticas de uso», primero en un preview (depende de: bot-estadisticas) · [telegram.md](telegram.md#puesta-en-marcha-de-las-estadísticas-la-hace-gorrite)
