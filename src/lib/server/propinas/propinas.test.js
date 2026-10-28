@@ -131,15 +131,10 @@ describe('destino (KinkyVibe o el Fondo)', () => {
 		expect(row?.destination).toBe('fondo');
 	});
 
-	it('la base rechaza un destino desconocido (el CHECK de la migración 0022)', async () => {
-		await expect(
-			t.db
-				.prepare(
-					`INSERT INTO tips (id, amount, status, post_category, post_slug, destination, created_at, updated_at)
-					VALUES ('11111111-1111-4111-8111-111111111111', 1000, 'pending', 'material', 'x', 'otro', 1, 1)`
-				)
-				.run()
-		).rejects.toThrow(/CHECK/);
+	it('un destino desconocido no se guarda (desde la migración 0070 lo controla createTip)', async () => {
+		await expect(newTip({ destination: /** @type {any} */ ('otro') })).rejects.toThrow(/Destino/);
+		const { results } = await t.db.prepare("SELECT id FROM tips WHERE destination = 'otro'").all();
+		expect(results).toHaveLength(0);
 	});
 
 	it('el pago (webhook) no cambia el destino: aprobada y después reembolsada sigue siendo del Fondo', async () => {
@@ -240,15 +235,15 @@ describe('origen (publicación o el Fondo, migración 0052)', () => {
 		expect(odd).toMatchObject({ source: 'fondo', post_category: 'material', post_slug: '' });
 	});
 
-	it('la base rechaza un origen desconocido (el CHECK de la migración 0052)', async () => {
-		await expect(
-			t.db
-				.prepare(
-					`INSERT INTO tips (id, amount, post_category, post_slug, source, created_at, updated_at)
-					VALUES ('x', 1000, 'material', 'guia', 'otro', 1, 1)`
-				)
-				.run()
-		).rejects.toThrow();
+	it('un origen desconocido se guarda como «post» (desde la migración 0070 la base no lo controla)', async () => {
+		const tip = await createTip(t.db, {
+			amount: 1000,
+			message: null,
+			category: 'material',
+			slug: 'guia',
+			source: /** @type {any} */ ('otro')
+		});
+		expect(tip.source).toBe('post');
 	});
 
 	it('preferencia sin publicación; panel con una fila del Fondo; CSV con el origen', async () => {

@@ -4,12 +4,16 @@ import { isValidCronSecret } from '$lib/server/cron.js';
 import { applyPayment, reserveOrder } from './orders.js';
 import {
 	DEFAULT_REMINDERS,
+	EVE_TIME,
 	describeReminder,
+	describeScheduledReminder,
 	dueReminderOrders,
+	dueReminderPlan,
 	parseReminders,
 	reminderDueAt,
 	reminderId,
 	reminderKey,
+	reminderSchedule,
 	sendDueReminders
 } from './reminders.js';
 import { validateSalesSettings } from './settings.js';
@@ -203,6 +207,183 @@ describe('envío de recordatorios', () => {
 			failed: 0,
 			remaining: 0
 		});
+	});
+});
+
+describe('evento que empieza antes de las 9: el «mismo día» sale la noche anterior', () => {
+	const reminders = DEFAULT_REMINDERS;
+	const SAME_DAY = DEFAULT_REMINDERS[1];
+	/** @param {string} iso */
+	const at = (iso) => Date.parse(iso);
+	/** @param {number} start */
+	const schedule = (start) =>
+		reminderSchedule(reminders, start).map(({ reminder, due, eve }) => ({
+			id: reminderId(reminder),
+			due,
+			eve
+		}));
+
+	it('el borde de las 9:00 (hora de Argentina, UTC−3 todo el año)', () => {
+		expect(EVE_TIME).toBe('20:00');
+		// 8:59: la noche anterior a las 20:00.
+		expect(schedule(at('2026-12-12T08:59:00-03:00'))).toEqual([
+			{ id: 'h48', due: at('2026-12-10T08:59:00-03:00'), eve: false },
+			{ id: 'd0-0900', due: at('2026-12-11T20:00:00-03:00'), eve: true }
+		]);
+		// Justo a las 9:00: a la hora de empezar no sirve; también la noche anterior.
+		expect(schedule(at('2026-12-12T09:00:00-03:00'))[1]).toEqual({
+			id: 'd0-0900',
+			due: at('2026-12-11T20:00:00-03:00'),
+			eve: true
+		});
+		// 9:01: como siempre, el mismo día a las 9:00.
+		expect(schedule(at('2026-12-12T09:01:00-03:00'))[1]).toEqual({
+			id: 'd0-0900',
+			due: at('2026-12-12T09:00:00-03:00'),
+			eve: false
+		});
+	});
+
+	it('la fecha es la de Argentina, aunque en UTC ya sea otro día', () => {
+		// Domingo 00:30 en Argentina = domingo 03:30 UTC: la noche anterior es el sábado a las 20:00
+		// de Argentina (23:00 UTC del sábado).
+		const start = at('2026-12-13T00:30:00-03:00');
+		expect(schedule(start)[1]).toEqual({
+			id: 'd0-0900',
+			due: at('2026-12-12T20:00:00-03:00'),
+			eve: true
+		});
+		expect(new Date(schedule(start)[1].due).toISOString()).toBe('2026-12-12T23:00:00.000Z');
+		// 1 de enero a las 7 en Argentina: la noche anterior es el 31/12 (cambia el año).
+		expect(schedule(at('2027-01-01T07:00:00-03:00'))[1].due).toBe(at('2026-12-31T20:00:00-03:00'));
+		// Sin horario de verano: el mismo corrimiento en pleno invierno.
+		expect(schedule(at('2026-07-15T08:00:00-03:00'))[1].due).toBe(at('2026-07-14T20:00:00-03:00'));
+		// Lo que antes salía igual sigue igual: el «día anterior» configurado no se mueve.
+		const dayBefore = {
+			kind: /** @type {const} */ ('day_at'),
+			days: 1,
+			time: '20:00',
+			enabled: true
+		};
+		expect(reminderSchedule([dayBefore], at('2026-12-12T08:00:00-03:00'))).toEqual([
+			{ reminder: dayBefore, due: at('2026-12-11T20:00:00-03:00'), eve: false }
+		]);
+	});
+
+	it('no se duplica con otro recordatorio de último momento', () => {
+		const start = at('2026-12-12T08:00:00-03:00');
+		// «El día anterior a las 20:00» activado: ya hay uno la noche anterior, no sale otro.
+		const withDayBefore = [
+			...reminders,
+			{ kind: /** @type {const} */ ('day_at'), days: 1, time: '20:00', enabled: true }
+		];
+		expect(reminderSchedule(withDayBefore, start).map((s) => reminderId(s.reminder))).toEqual([
+			'h48',
+			'd1-2000'
+		]);
+		// «12 horas antes» (20:00 del día anterior también): lo mismo.
+		const with12h = [
+			...reminders,
+			{ kind: /** @type {const} */ ('hours_before'), hours: 12, enabled: true }
+		];
+		expect(reminderSchedule(with12h, start).map((s) => reminderId(s.reminder))).toEqual([
+			'h48',
+			'h12'
+		]);
+		// Dos «el mismo día» (9:00 y 10:00): uno solo pasa a la noche anterior.
+		const twoSameDay = [SAME_DAY, { ...SAME_DAY, time: '10:00' }];
+		expect(reminderSchedule(twoSameDay, start)).toEqual([
+			{ reminder: SAME_DAY, due: at('2026-12-11T20:00:00-03:00'), eve: true }
+		]);
+		// Desactivado: nada.
+		expect(reminderSchedule([{ ...SAME_DAY, enabled: false }], start)).toEqual([]);
+	});
+
+	it('se manda una vez, la noche anterior, con el mismo id, y el mail dice «es mañana»', async () => {
+		const start = at('2026-12-12T08:00:00-03:00');
+		const event = { slug: 'fiesta', start, reminders: true, cancelled: false };
+		await order(start - 10 * 24 * H);
+		/** @type {string[]} */
+		const sent = [];
+		/** @type {any[]} */
+		const got = [];
+		const send = async (/** @type {any} */ o, /** @type {any} */ r) => {
+			sent.push(reminderKey(r));
+			got.push(r);
+			return true;
+		};
+		// A las 19:59 del día anterior: todavía no (el de 48 h ya salió).
+		await sendDueReminders(t.db, {
+			events: [event],
+			reminders,
+			now: at('2026-12-11T19:59:00-03:00'),
+			send
+		});
+		expect(sent).toEqual(['h48']);
+		// A las 20:00: el «mismo día», con su id de siempre.
+		await sendDueReminders(t.db, {
+			events: [event],
+			reminders,
+			now: at('2026-12-11T20:00:00-03:00'),
+			send
+		});
+		expect(sent).toEqual(['h48', 'd0-0900']);
+		expect(got[1]).toMatchObject({ kind: 'day_at', days: 0, time: '09:00', eve: true });
+		// Las corridas siguientes (también a la mañana del evento) no lo repiten.
+		for (const now of [at('2026-12-11T23:00:00-03:00'), at('2026-12-12T07:45:00-03:00')]) {
+			await sendDueReminders(t.db, { events: [event], reminders, now, send });
+		}
+		// Si después el evento pasa a las 10, el de las 9:00 tampoco vuelve a salir (mismo id).
+		await sendDueReminders(t.db, {
+			events: [{ ...event, start: at('2026-12-12T10:00:00-03:00') }],
+			reminders,
+			now: at('2026-12-12T09:15:00-03:00'),
+			send
+		});
+		expect(sent).toEqual(['h48', 'd0-0900']);
+		const { results } = await t.db
+			.prepare('SELECT reminder_id, status FROM reminder_sends ORDER BY reminder_id')
+			.all();
+		expect(results).toEqual([
+			{ reminder_id: 'd0-0900', status: 'sent' },
+			{ reminder_id: 'h48', status: 'sent' }
+		]);
+		const { buildReminderEmail } = await import('./email.js');
+		const mail = buildReminderEmail({
+			order: /** @type {any} */ ({ id: 'x', buyer_name: 'Ale' }),
+			tickets: /** @type {any} */ ([{ token: 't'.repeat(43), code: 'ABC234', holder_name: 'Ale' }]),
+			reminder: got[1],
+			event: { title: 'Fiesta', start: '2026-12-12T08:00-03:00', location: 'Lugar' },
+			typeName: 'General',
+			origin: 'https://kinkyvibe.ar',
+			contactEmail: 'c@example.com'
+		});
+		expect(mail.subject).toBe('Recordatorio: Fiesta es mañana');
+	});
+
+	it('quien compra después de las 20:00 del día anterior no lo recibe', async () => {
+		const start = at('2026-12-12T08:00:00-03:00');
+		const event = { slug: 'fiesta', start, reminders: true, cancelled: false };
+		await order(at('2026-12-11T21:00:00-03:00'));
+		const due = await dueReminderOrders(t.db, {
+			events: [event],
+			reminders,
+			now: at('2026-12-12T07:00:00-03:00')
+		});
+		expect(due).toHaveLength(0);
+		expect(
+			dueReminderPlan({ events: [event], reminders, now: at('2026-12-12T07:00:00-03:00') })
+		).toMatchObject([
+			{ id: 'h48', eve: false },
+			{ id: 'd0-0900', eve: true, due: at('2026-12-11T20:00:00-03:00') }
+		]);
+	});
+
+	it('texto para el panel', () => {
+		expect(describeScheduledReminder(SAME_DAY, false)).toBe('el mismo día a las 9:00');
+		expect(describeScheduledReminder(SAME_DAY, true)).toBe(
+			'el mismo día a las 9:00 → el día anterior a las 20:00 (empieza antes)'
+		);
 	});
 });
 

@@ -50,3 +50,23 @@ export async function hitRateLimit(db, bucket, { limit, windowSeconds }, now = D
 		retryAfter: windowStart + windowSeconds - nowSeconds
 	};
 }
+
+/**
+ * Devuelve un intento registrado con {@link hitRateLimit} en la misma ventana (por ejemplo, un
+ * envío que no llegó a hacerse porque el servicio dijo «ahora no»). Nunca baja de 0.
+ *
+ * @param {D1Database} db
+ * @param {string} bucket
+ * @param {Pick<RateLimitRule, 'windowSeconds'>} rule
+ * @param {number} [now] milisegundos, el mismo que se le pasó a `hitRateLimit`
+ */
+export async function releaseRateLimitHit(db, bucket, { windowSeconds }, now = Date.now()) {
+	const nowSeconds = Math.floor(now / 1000);
+	const windowStart = nowSeconds - (nowSeconds % windowSeconds);
+	await db
+		.prepare(
+			'UPDATE rate_limits SET hits = hits - 1 WHERE bucket = ?1 AND window_start = ?2 AND hits > 0'
+		)
+		.bind(bucket, windowStart)
+		.run();
+}

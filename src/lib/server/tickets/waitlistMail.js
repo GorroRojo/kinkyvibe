@@ -17,6 +17,7 @@
 import { signLink, verifyLink } from '$lib/server/signedLinks.js';
 import { deliverEmail } from './index.js';
 import { claimSend, finishSend } from './sendState.js';
+import { resendBackoff } from './email.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
@@ -102,16 +103,22 @@ export async function checkWaitlistLinkToken(db, use, token) {
  * Manda los mails de la lista por el camino de siempre (`deliverEmail`: Resend, el filtro
  * `routeEmail` de los previews con EMAIL_ALLOWLIST y el remitente de los ajustes).
  *
+ * `batch`: lo usa una tanda (`sendBatch` en sendState.js): un «ahora no» de Resend (cupo, tasa,
+ * 5xx; `resendBackoff`) sigue de largo como error, así la tanda no gasta el intento y se corta.
+ * Sin él (la anotación, el panel) nunca tira.
+ *
  * @param {D1Database} db
  * @param {typeof fetch} fetchFn
+ * @param {{ batch?: boolean }} [options]
  * @returns {WaitlistSend}
  */
-export function waitlistSender(db, fetchFn) {
+export function waitlistSender(db, fetchFn, { batch = false } = {}) {
 	return async (to, message, idempotencyKey) => {
 		try {
 			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
 			return await deliverEmail({ db, fetch: fetchFn, to, message, idempotencyKey, optOut: true });
 		} catch (e) {
+			if (batch && resendBackoff(e)) throw e;
 			console.error('[lista de espera] no se pudo mandar el mail:', e);
 			return 'failed';
 		}

@@ -21,6 +21,8 @@
 	export let errors = {};
 	export let submitText = '';
 	export let submitDisabled = false;
+	/** El mail de quien compra: se muestra antes de pagar para que se vea un error de tipeo. */
+	export let email = '';
 
 	/** Porcentaje de comisión para mostrar (773 → "7,73 %"). */
 	$: feeText =
@@ -72,6 +74,14 @@
 		{/each}
 	</ul>
 </details>
+
+{#if email.trim()}
+	<!-- Antes de pagar, el mail a la vista: un error de tipeo se ve acá y no después. -->
+	<p class="send-to">
+		Te mandamos las entradas a <strong>{email.trim()}</strong>. Revisá que esté bien.
+		<slot name="edit-email" />
+	</p>
+{/if}
 
 <label class="accept">
 	<input type="checkbox" name="accept" required aria-invalid={errors.accept ? 'true' : undefined} />
@@ -168,6 +178,11 @@
 	}
 	.conditions li {
 		margin: 0.25em 0;
+	}
+	.send-to {
+		margin: 0;
+		font-size: var(--step--1);
+		overflow-wrap: anywhere;
 	}
 	.accept {
 		display: flex;

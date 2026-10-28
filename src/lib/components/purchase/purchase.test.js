@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import TicketPurchase from '../TicketPurchase.svelte';
+import Compra from '../evento/Compra.svelte';
 import StepIndicator from './StepIndicator.svelte';
 import PurchaseSummary from './PurchaseSummary.svelte';
 import { PURCHASE_STEPS } from '$lib/utils/purchaseSteps.js';
@@ -266,6 +267,39 @@ describe('TicketPurchase', () => {
 		expect(body).not.toContain('<form');
 		expect(body).not.toContain('Pasos de la compra');
 	});
+
+	it('venta en pausa (TICKETS_PAUSED): el texto de la pausa, sin formulario', () => {
+		const { body } = render(TicketPurchase, {
+			props: {
+				tickets: { ...tickets, open: false, reason: 'paused', pausedMessage: 'Volvemos en un rato' }
+			}
+		});
+		expect(body).toMatch(/<p class="closed[^"]*"[^>]*>Volvemos en un rato<\/p>/);
+		expect(body).not.toContain('<form');
+	});
+});
+
+describe('Compra (página del evento)', () => {
+	it('venta en pausa: el texto en lugar del botón «Comprar entradas»', () => {
+		const { body } = render(Compra, {
+			props: {
+				slug: 'evento-inventado',
+				tickets: {
+					open: false,
+					reason: 'paused',
+					pausedMessage: 'Volvemos en un rato',
+					priceFrom: 8000,
+					gorraSuggested: null,
+					left: null,
+					opensAt: null,
+					closesAt: null,
+					door: null
+				}
+			}
+		});
+		expect(textOf(body)).toContain('Volvemos en un rato');
+		expect(body).not.toContain('/calendario/evento-inventado/entradas');
+	});
 });
 
 describe('TicketPurchase con cuenta (datos guardados)', () => {
@@ -381,6 +415,18 @@ describe('+18 y nombre elegido (gorrite, 26/10)', () => {
 		expect(hint?.[1].trim()).toBe(
 			'Como querés que te nombremos. No tiene que ser el del documento.'
 		);
+	});
+});
+
+describe('PayStep: el mail a la vista antes de pagar', () => {
+	it('dice a qué mail van las entradas; sin mail, nada', async () => {
+		const { default: PayStep } = await import('./PayStep.svelte');
+		const withEmail = render(PayStep, { props: { tickets, email: ' persona@gmai.com ' } });
+		expect(textOf(withEmail.body).replace(/\s+/g, ' ')).toContain(
+			'Te mandamos las entradas a persona@gmai.com. Revisá que esté bien.'
+		);
+		const without = render(PayStep, { props: { tickets } });
+		expect(textOf(without.body)).not.toContain('Te mandamos las entradas a');
 	});
 });
 

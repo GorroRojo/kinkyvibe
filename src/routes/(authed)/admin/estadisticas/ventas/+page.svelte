@@ -67,6 +67,11 @@
 	{#if serieLabel}
 		<p class="kv-note">Solo la serie <b>{serieLabel}</b>.</p>
 	{/if}
+	<p class="kv-note">
+		Los números cuentan por el <b>mes del evento</b> (cuándo empieza, en hora de Argentina): las ventas
+		de los eventos del período, hasta los de este mes. El gráfico «Ventas en el tiempo» va por fecha de
+		compra.
+	</p>
 	<div class="kv-stats">
 		<Stat
 			label="Entradas vendidas"
@@ -86,7 +91,7 @@
 	</div>
 
 	<div class="kv-stack">
-		<Card title="Ventas en el tiempo">
+		<Card title="Ventas en el tiempo (por fecha de compra)">
 			{#key `${s.period}|${s.serie}`}
 				<SalesOverTime sales={s.sales} />
 			{/key}
@@ -223,7 +228,7 @@
 				</div>
 			</div>
 			<p class="kv-note">
-				Por fecha de compra, solo aprobadas. El Fondo de las suscripciones (fondo.kinkyvibe.ar) no
+				Por mes del evento, solo aprobadas. El Fondo de las suscripciones (fondo.kinkyvibe.ar) no
 				entra acá: está en el Inicio.
 			</p>
 		</Card>

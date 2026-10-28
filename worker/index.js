@@ -28,6 +28,10 @@
  * esperó a la base, y si el isolate es nuevo; src/lib/server/serverTiming.js y d1Timing.js), para
  * medir desde afuera. Para contar las consultas, el binding `DB` que recibe SvelteKit va envuelto
  * (siempre el mismo envoltorio) y cada pedido corre con su contador en `d1Context`.
+ *
+ * Baja en un clic (RFC 8058, src/lib/server/email/oneClick.js): el POST sin `Origin` que manda el
+ * servidor de correo a una página de baja llega a SvelteKit con el `Origin` del sitio; si no, su
+ * chequeo CSRF lo rechaza con 403. Solo esas rutas y solo sin `Origin`.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import app from '../.svelte-kit/cloudflare/_worker.js';
@@ -36,6 +40,7 @@ import { trackPageView } from '../src/lib/server/analytics/track.js';
 import { withEdgeCache } from '../src/lib/server/edgeCache.js';
 import { startServerTiming } from '../src/lib/server/serverTiming.js';
 import { createD1Stats, d1ServerTiming, d1Timer } from '../src/lib/server/d1Timing.js';
+import { allowOneClickPost } from '../src/lib/server/email/oneClick.js';
 import buildVersion from '../.svelte-kit/cloudflare/_app/version.json';
 
 /**
@@ -55,7 +60,8 @@ export default {
 	 * @param {Record<string, unknown>} env
 	 * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
 	 */
-	async fetch(request, env, ctx) {
+	async fetch(incoming, env, ctx) {
+		const request = allowOneClickPost(incoming);
 		const timing = startServerTiming();
 		const d1 = createD1Stats();
 		const og = new URL(request.url).pathname.startsWith('/og/');

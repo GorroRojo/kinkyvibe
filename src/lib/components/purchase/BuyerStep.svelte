@@ -9,6 +9,7 @@
 	 * próxima» (nombre y pronombres) y, aparte, «Recordar mi DNI» (docs/cuentas.md).
 	 */
 	import SignupFieldInputs from '$lib/components/SignupFieldInputs.svelte';
+	import EmailTypoHint from './EmailTypoHint.svelte';
 
 	export let buyerName = '';
 	export let buyerPronouns = '';
@@ -35,6 +36,8 @@
 	export let errors = {};
 
 	$: indexes = Array.from({ length: count }, (_, n) => n);
+	/** El mail como quedó al salir del campo: recién ahí se mira si parece mal escrito. */
+	let emailChecked = email;
 </script>
 
 <fieldset class="group">
@@ -86,19 +89,24 @@
 		</div>
 	</div>
 	<div class="row">
-		<label class="field">
-			<span>Email (ahí mandamos {count === 1 ? 'la entrada' : 'las entradas'})</span>
+		<div class="field">
+			<label for="entradas-tu-email"
+				>Email (ahí mandamos {count === 1 ? 'la entrada' : 'las entradas'})</label
+			>
 			<input
+				id="entradas-tu-email"
 				type="email"
 				name="email"
 				autocomplete="email"
 				maxlength="254"
 				required
 				bind:value={email}
+				on:change={() => (emailChecked = email)}
 				aria-invalid={errors.email ? 'true' : undefined}
 			/>
+			<EmailTypoHint bind:email bind:checked={emailChecked} />
 			{#if errors.email}<span class="field-error">{errors.email}</span>{/if}
-		</label>
+		</div>
 		<label class="field">
 			<span>DNI (número de documento)</span>
 			<input
@@ -242,7 +250,8 @@
 		gap: 0.25em;
 		min-width: 0;
 	}
-	.field > span:first-child {
+	.field > span:first-child,
+	.field > label:first-child {
 		font-weight: bold;
 		font-size: var(--step--1);
 	}

@@ -14,6 +14,7 @@ import {
 	readTicketsForm,
 	tierPreview,
 	tiersForMode,
+	tiersOnlineMax,
 	validateTicketsForm,
 	withTypeIds
 } from './ticketsEditor.js';
@@ -349,5 +350,73 @@ tickets:
 		// Vacío sigue valiendo: se cobra el precio de siempre.
 		form.types[0].doorPrice = '';
 		expect(validateTicketsForm(form).errors).toEqual([]);
+	});
+});
+
+describe('aviso: los tramos suman menos que el cupo', () => {
+	const TIERED = `title: Fiesta de prueba
+start: 2026-12-12T21:00-03:00
+tickets:
+  - id: general
+    name: General
+    capacity: 40
+    tiers:
+      - id: preventa-1
+        name: Preventa 1
+        price: 8000
+        quantity: 10
+      - id: preventa-2
+        name: Preventa 2
+        price: 9000
+        quantity: 20
+        until: 2026-12-01T23:59-03:00
+puerta: true
+`;
+	/** @param {string[]} warnings */
+	const tierWarning = (warnings) => warnings.find((w) => w.includes('los tramos suman'));
+
+	it('avisa cuántas se venden online y qué pasa con el resto (puerta o a mano), sin bloquear', () => {
+		const form = formOf(TIERED);
+		expect(tiersOnlineMax(form.types[0])).toBe(30);
+		const { errors, warnings } = validateTicketsForm(form);
+		expect(errors).toEqual([]);
+		expect(tierWarning(warnings)).toBe(
+			'Entrada 1 («General»): los tramos suman 30 entradas y el cupo es de 40. Online se venden como mucho 30: cuando se terminan los tramos, el tipo figura «Agotado» en la página aunque queden lugares. Las otras 10 solo se venden en la puerta o cargándolas a mano. Si es a propósito (para guardar lugares para la puerta), está bien; si no, subí la cantidad de un tramo o dejá el último sin cantidad.'
+		);
+		// El servidor arma la misma configuración (no es un error).
+		expect(parseTicketConfig(metaOf(TIERED))?.types[0].capacity).toBe(40);
+	});
+
+	it('sin puerta (o en un evento online), el resto solo se carga a mano; una sola entrada en singular', () => {
+		const noDoor = formOf(TIERED.replace('puerta: true', 'puerta: false'));
+		noDoor.types[0].capacity = '31';
+		expect(tierWarning(validateTicketsForm(noDoor).warnings)).toContain(
+			'La entrada que queda solo se puede cargar a mano (no hay venta en la puerta).'
+		);
+		const online = formOf(TIERED);
+		online.modalidad = 'online';
+		expect(tierWarning(validateTicketsForm(online).warnings)).toContain(
+			'Las otras 10 solo se pueden cargar a mano (no hay venta en la puerta).'
+		);
+	});
+
+	it('no avisa: tramos que llegan al cupo, un tramo sin cantidad («el resto»), sin cupo, o precio fijo', () => {
+		const exact = formOf(TIERED);
+		exact.types[0].capacity = '30';
+		expect(tierWarning(validateTicketsForm(exact).warnings)).toBeUndefined();
+		const more = formOf(TIERED);
+		more.types[0].capacity = '25';
+		expect(tierWarning(validateTicketsForm(more).warnings)).toBeUndefined();
+		const rest = formOf(TIERED);
+		rest.types[0].tiers[1].quantity = '';
+		expect(tiersOnlineMax(rest.types[0])).toBeNull();
+		expect(tierWarning(validateTicketsForm(rest).warnings)).toBeUndefined();
+		const unlimited = formOf(TIERED);
+		unlimited.types[0].capacity = '';
+		expect(tierWarning(validateTicketsForm(unlimited).warnings)).toBeUndefined();
+		const fixed = formOf(FM);
+		expect(tiersOnlineMax(fixed.types[1])).toBeNull();
+		// El evento de arriba: su último tramo no tiene cantidad.
+		expect(tierWarning(validateTicketsForm(fixed).warnings)).toBeUndefined();
 	});
 });

@@ -139,6 +139,16 @@
 			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
 			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
 		</section>
+	{:else}
+		<!-- Sin el permiso de perfiles: reclamar uno que ya existe sí se puede (lo revisa el equipo). -->
+		<section class="surface-card" aria-labelledby="amigues-title">
+			<h2 id="amigues-title">¿Ya estás en Amigues?</h2>
+			<p class="hint">
+				Si ya hay un perfil tuyo (o de tu proyecto o lugar) en Amigues, abrilo y tocá «¿Es tu
+				perfil?». Lo revisa el equipo a mano y, si lo aprobamos, lo vas a poder editar desde acá.
+			</p>
+			<a class="pill-btn ghost start" href="/amigues">Ir a Amigues</a>
+		</section>
 	{/if}
 
 	<section class="surface-card" id="mis-datos" aria-labelledby="datos-title">
@@ -417,8 +427,9 @@
 		<details open={form?.action === 'borrar'}>
 			<summary>Quiero borrar mi cuenta</summary>
 			<p>
-				Se borra tu cuenta con tu mail y tu contraseña, y se cierran todas tus sesiones. Tus compras
-				y entradas siguen valiendo: quedan en el sistema, sin cuenta.{#if data.canHaveProfiles}
+				Se borra tu cuenta con tu mail y tu contraseña, lo que seguís, el link de tu calendario y
+				las invitaciones que te llegaron, y se cierran todas tus sesiones. Tus compras y entradas
+				siguen valiendo: quedan en el sistema, sin cuenta.{#if data.canHaveProfiles}
 					Tus perfiles de persona se vacían y se borran; los proyectos que gestionás con otras
 					personas quedan para elles.{/if} No se puede deshacer.
 			</p>
