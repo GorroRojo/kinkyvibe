@@ -10,6 +10,8 @@ import {
 	firstStepWithErrors,
 	furthestReachable,
 	gorraAmountFor,
+	acceptError,
+	acceptLabel,
 	payStepErrors,
 	purchaseSummary,
 	stepFromParams,
@@ -210,13 +212,47 @@ describe('paso «Tus datos»', () => {
 describe('paso «Pagar»', () => {
 	const methods = ['mercadopago', 'transferencia'];
 
+	// El texto cambió a propósito (gorrite, 26/10): antes decía «Tenés que confirmar que tenés 18
+	// años o más…», solo por quien compra; ahora cubre a la persona de cada entrada. La casilla
+	// sigue siendo obligatoria igual.
 	it('pide aceptar las condiciones', () => {
 		expect(payStepErrors({ method: 'mercadopago', methods, free: false, accept: true })).toEqual(
 			{}
 		);
 		expect(payStepErrors({ method: 'mercadopago', methods, free: false, accept: false })).toEqual({
-			accept: 'Tenés que confirmar que tenés 18 años o más y aceptar las condiciones.'
+			accept:
+				'Tenés que confirmar que la persona de la entrada tiene 18 años o más y aceptar las condiciones.'
 		});
+		expect(
+			payStepErrors({ method: 'mercadopago', methods, free: false, accept: false, count: 3 })
+		).toEqual({
+			accept:
+				'Tenés que confirmar que todas las personas de las entradas tienen 18 años o más y aceptar las condiciones.'
+		});
+		// Con cualquier cantidad, marcada no hay error y sin marcar siempre lo hay.
+		for (const count of [1, 2, 20]) {
+			expect(
+				payStepErrors({ method: 'mercadopago', methods, free: true, accept: true, count })
+			).toEqual({});
+			expect(
+				payStepErrors({ method: 'mercadopago', methods, free: true, accept: false, count }).accept
+			).toBe(acceptError(count));
+		}
+	});
+
+	it('la casilla de +18 cubre a todas las personas de las entradas (en plural con varias)', () => {
+		expect(acceptLabel(1)).toBe(
+			'La persona de esta entrada tiene 18 años o más y acepto las condiciones de compra.'
+		);
+		expect(acceptLabel(2)).toBe(
+			'Todas las personas de estas entradas tienen 18 años o más y acepto las condiciones de compra.'
+		);
+		expect(acceptLabel(5)).toBe(acceptLabel(2));
+		// Ya no habla solo de quien compra.
+		for (const n of [1, 2]) {
+			expect(acceptLabel(n)).not.toMatch(/^Tengo/);
+			expect(acceptError(n)).not.toContain('que tenés 18');
+		}
 	});
 
 	it('el medio de pago, solo si hay que elegir y no es sin cargo', () => {

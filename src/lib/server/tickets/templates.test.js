@@ -660,3 +660,40 @@ describe('guardar y restaurar (D1)', () => {
 		expect(await getTemplateOverride(null, 'tickets')).toBeNull();
 	});
 });
+
+describe('mail de las entradas: la línea fija de +18 (gorrite, 26/10)', () => {
+	const cases = new Map(emailCases().map(([name, fn, input]) => [name, { fn, input }]));
+	/** @param {string} name @param {any} [template] */
+	const mail = (name, template) => {
+		const c = /** @type {{ fn: string, input: any }} */ (cases.get(name));
+		return build(c.fn, { ...c.input, template });
+	};
+
+	it('presencial: la edad y que puede pedirse documento, en el HTML y en el texto', () => {
+		const { html, text } = mail('tickets-presencial');
+		const line = 'Solo para personas mayores de 18 años. Puede pedirse documento en la puerta.';
+		expect(html).toContain(`<p><strong>${line}</strong></p>`);
+		expect(text).toContain(`\n${line}\n`);
+	});
+
+	it('online: solo la edad (no hay puerta)', () => {
+		for (const name of ['tickets-online-sin-link', 'tickets-online-con-link']) {
+			const { html, text } = mail(name);
+			expect(html, name).toContain(
+				'<p><strong>Solo para personas mayores de 18 años.</strong></p>'
+			);
+			expect(text, name).not.toContain('documento');
+		}
+	});
+
+	it('una plantilla editada no la saca (la pone el código)', () => {
+		const { html, text } = mail('tickets-presencial', {
+			subject: 'Asunto propio',
+			heading: 'Título propio',
+			body: 'Texto propio',
+			help: 'Ayuda propia'
+		});
+		expect(html).toContain('Solo para personas mayores de 18 años.');
+		expect(text).toContain('Solo para personas mayores de 18 años.');
+	});
+});

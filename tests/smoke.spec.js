@@ -576,6 +576,7 @@ test.describe('experiencia', () => {
 		await page.goto('/');
 		const modal = page.getByRole('heading', { name: '¿Sos mayor de 18 años?' });
 		await expect(modal).toBeVisible();
+		await expect(page.getByText('Este sitio habla de sexualidad y BDSM.')).toBeVisible();
 		await page.getByRole('button', { name: 'Sí' }).click();
 		await expect(modal).toBeHidden();
 		await page.reload();

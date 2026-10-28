@@ -21,6 +21,7 @@ import {
 	parseFeePercent,
 	publicLeft,
 	purchaseConditions,
+	adultsOnlyText,
 	refundPolicy,
 	remainingOf,
 	unitPrice,
@@ -517,6 +518,15 @@ describe('condiciones de compra', () => {
 			online: true
 		});
 		expect(online.join(' ')).not.toMatch(/QR|puerta|transferencia/);
+	});
+});
+
+describe('línea fija de +18', () => {
+	it('con puerta avisa que puede pedirse documento; online, solo la edad', () => {
+		expect(adultsOnlyText()).toBe(
+			'Solo para personas mayores de 18 años. Puede pedirse documento en la puerta.'
+		);
+		expect(adultsOnlyText(true)).toBe('Solo para personas mayores de 18 años.');
 	});
 });
 

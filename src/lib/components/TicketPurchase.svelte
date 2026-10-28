@@ -266,7 +266,8 @@
 			method,
 			methods: tickets.methods,
 			free,
-			accept: Boolean(accept?.checked)
+			accept: Boolean(accept?.checked),
+			count
 		});
 	}
 
@@ -676,6 +677,7 @@
 								{tickets}
 								bind:method
 								{free}
+								{count}
 								{conditions}
 								{errors}
 								{submitText}

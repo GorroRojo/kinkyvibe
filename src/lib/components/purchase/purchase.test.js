@@ -379,6 +379,45 @@ describe('PayStep: la transferencia dice hasta cuándo se guarda el lugar (decis
 	});
 });
 
+describe('+18 y nombre elegido (gorrite, 26/10)', () => {
+	/** La casilla `accept` (con su texto) del formulario entero. */
+	const acceptBox = (/** @type {string} */ body) => {
+		const m = body.match(/<label class="accept[^"]*">[\s\S]*?<\/label>/);
+		return m ? m[0] : '';
+	};
+
+	it('la casilla de +18 habla de la persona de la entrada; con varias, de todas, en plural', () => {
+		const one = render(TicketPurchase, { props: { tickets } }).body;
+		expect(textOf(acceptBox(one)).trim()).toBe(
+			'La persona de esta entrada tiene 18 años o más y acepto las condiciones de compra.'
+		);
+		const three = render(TicketPurchase, {
+			props: { tickets, result: { values: { type: 'general', quantity: '3' } } }
+		}).body;
+		expect(textOf(acceptBox(three)).trim()).toBe(
+			'Todas las personas de estas entradas tienen 18 años o más y acepto las condiciones de compra.'
+		);
+		expect(three).not.toContain('Tengo 18 años o más');
+	});
+
+	it('la casilla sigue siendo obligatoria (misma validación que antes)', async () => {
+		const { default: PayStep } = await import('./PayStep.svelte');
+		for (const count of [1, 2]) {
+			const box = acceptBox(render(PayStep, { props: { tickets, count } }).body);
+			expect(box).toMatch(/<input type="checkbox" name="accept" required/);
+		}
+	});
+
+	it('«Tu nombre» aclara que no tiene que ser el del documento', () => {
+		const { body } = render(TicketPurchase, { props: { tickets } });
+		expect(body).toMatch(/name="name"[^>]*aria-describedby="entradas-tu-nombre-ayuda"/);
+		const hint = body.match(/<small class="hint[^"]*" id="entradas-tu-nombre-ayuda">([^<]*)</);
+		expect(hint?.[1].trim()).toBe(
+			'Como querés que te nombremos. No tiene que ser el del documento.'
+		);
+	});
+});
+
 describe('PayStep: el mail a la vista antes de pagar', () => {
 	it('dice a qué mail van las entradas; sin mail, nada', async () => {
 		const { default: PayStep } = await import('./PayStep.svelte');

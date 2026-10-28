@@ -463,7 +463,8 @@ export { LOW_STOCK };
  * @returns {{ open: boolean, reason: TicketsView['reason'], pausedMessage: string | null,
  *   priceFrom: number | null,
  *   gorraSuggested: number | null, left: number | null, opensAt: number | null,
- *   closesAt: number | null, door: TicketsView['door'] }}
+ *   closesAt: number | null, door: TicketsView['door'], online: boolean }}
+ * `online`: para la línea de +18 (sin «documento en la puerta» si es online).
  */
 export function summarizeTickets(view) {
 	const candidates = view.open
@@ -485,7 +486,8 @@ export function summarizeTickets(view) {
 		left: view.open && left !== null && left < LOW_STOCK ? left : null,
 		opensAt: view.opensAt,
 		closesAt: view.closesAt,
-		door: view.door
+		door: view.door,
+		online: Boolean(view.online)
 	};
 }
 
