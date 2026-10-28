@@ -38,6 +38,7 @@ import { getEventInfo } from '$lib/server/tickets/events.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
 import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
+import { myClaims } from '$lib/server/amigues/claims.js';
 import {
 	editSavedBuyer,
 	isSavedBuyerField,
@@ -68,47 +69,54 @@ export async function load(event) {
 	const { db, member } = await requireMember(event);
 	// La base está lejos: lo que no depende de otra cosa se lee a la par. La velocidad de lectura
 	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
-	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed] = await Promise.all([
-		getAccount(db, member.id),
-		// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
-		// parte 2). No van en la lista hasta que la persona dice que son suyas.
-		verifiedEmail(db, member.id)
-			.then((email) =>
-				Promise.all([
-					ordersForAccount(db, member.id, { email }),
-					unconfirmedFreeOrders(db, member.id, { email })
-				])
-			)
-			.then(
-				([orders, unconfirmed]) => ({ orders, unconfirmed, error: false }),
-				(e) => {
-					logDBError('cuentas: compras', e);
+	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, claims] =
+		await Promise.all([
+			getAccount(db, member.id),
+			// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
+			// parte 2). No van en la lista hasta que la persona dice que son suyas.
+			verifiedEmail(db, member.id)
+				.then((email) =>
+					Promise.all([
+						ordersForAccount(db, member.id, { email }),
+						unconfirmedFreeOrders(db, member.id, { email })
+					])
+				)
+				.then(
+					([orders, unconfirmed]) => ({ orders, unconfirmed, error: false }),
+					(e) => {
+						logDBError('cuentas: compras', e);
+						return {
+							orders: /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]),
+							unconfirmed: /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]),
+							error: true
+						};
+					}
+				),
+			// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
+			getSavedBuyer(db, member.id).then(
+				(saved) => ({ saved, error: false }),
+				() => {
+					console.error('[cuentas] no se pudieron leer los datos guardados');
 					return {
-						orders: /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]),
-						unconfirmed: /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]),
+						saved: /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({}),
 						error: true
 					};
 				}
 			),
-		// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
-		getSavedBuyer(db, member.id).then(
-			(saved) => ({ saved, error: false }),
-			() => {
-				console.error('[cuentas] no se pudieron leer los datos guardados');
-				return {
-					saved: /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({}),
-					error: true
-				};
-			}
-		),
-		member.canHaveProfiles ?? canHaveProfiles(db, member.id),
-		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
-		// calendario personal (docs/lo-que-sigo.md).
-		sigoEnabled(event.platform),
-		member.readingSpeed !== undefined
-			? member.readingSpeed
-			: getReadingSpeed(db, member.id).catch(() => null)
-	]);
+			member.canHaveProfiles ?? canHaveProfiles(db, member.id),
+			// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
+			// calendario personal (docs/lo-que-sigo.md).
+			sigoEnabled(event.platform),
+			member.readingSpeed !== undefined
+				? member.readingSpeed
+				: getReadingSpeed(db, member.id).catch(() => null),
+			// Los pedidos «¿Es tu perfil?» de la cuenta, con su estado (pendiente, aprobado, no
+			// aprobado). Si falla, la tarjeta no sale.
+			myClaims(db, member.id).catch((e) => {
+				logDBError('cuentas: pedidos de perfiles', e);
+				return [];
+			})
+		]);
 	if (!account) {
 		await endSession(event, db);
 		redirect(303, LOGIN);
@@ -149,7 +157,8 @@ export async function load(event) {
 		// La velocidad de lectura de la cuenta (null: la de siempre). $lib/utils/readingSpeed.js.
 		readingSpeed,
 		orders: orders.map(listed),
-		unconfirmed: unconfirmed.map(listed)
+		unconfirmed: unconfirmed.map(listed),
+		claims
 	};
 }
 

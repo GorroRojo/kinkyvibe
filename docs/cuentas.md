@@ -359,6 +359,17 @@ pública de un perfil (y en Mi rincón, la tarjeta «¿Ya estás en Amigues?» q
 hacerse cargo de un perfil que ya existe y une admin lo revisa; para aprobarlo, le da el permiso
 antes ([amigues.md](amigues.md)). No hay ningún texto para pedir el permiso en sí.
 
+**Tus pedidos de perfiles** (Mi rincón, con o sin el permiso): la tarjeta sale solo si la cuenta
+pidió alguno, y lista **sus** pedidos «¿Es tu perfil?» (`myClaims` de
+`src/lib/server/amigues/claims.js`, hasta 50, del más nuevo al más viejo, sin los de perfiles
+borrados) con su estado: **Pendiente**, **Aprobado** o **No aprobado**, y cuándo se pidió y se
+resolvió. Nada de quién lo resolvió ni de otros pedidos. El nombre lleva a la página del perfil
+si no está oculto. En la página del perfil, si el último pedido de la cuenta no se aprobó, dice
+«no aprobado» en vez de volver a ofrecer «¿Es tu perfil?» (`claimStatusOf`); si se aprobó y la
+cuenta ya no lo gestiona, se puede volver a pedir. Solo cambia lo que se muestra: el servidor
+sigue aceptando un pedido nuevo. El aviso por mail al resolverse queda pendiente
+(`rincon-pedidos-mail` en el plan).
+
 Sacar el permiso **no borra nada**: los perfiles quedan y vuelven a verse si se prende de nuevo.
 Les admins los siguen viendo en el panel. Si une dueñe de un proyecto pierde el permiso, sigue
 contando como dueñe (el proyecto no queda sin dueñe en los datos), pero no lo puede gestionar.
