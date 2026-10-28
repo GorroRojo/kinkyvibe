@@ -104,10 +104,27 @@ export async function pruneBackups({ bucket, now = new Date() }) {
 /**
  * El trabajo del cron nocturno: backup y, solo si salió bien, limpieza.
  *
+ * **La limpieza nunca hace fallar la corrida**: el backup de esa noche ya quedó guardado y
+ * verificado, así que si borrar los viejos falla (un Bucket lock sobre `d1/` que todavía no los
+ * deja borrar, un error de R2) se escribe en el log, se devuelve `pruneError` y la corrida sigue
+ * (el chequeo de integridad, el resumen y la limpieza de sesiones de scheduled.js). Los viejos se
+ * vuelven a intentar borrar la noche siguiente.
+ *
  * @param {{ db: D1Database, bucket: R2Bucket, now?: Date }} input
+ * @returns {Promise<Awaited<ReturnType<typeof backupDatabase>> & { deleted: string[],
+ *   pruneError?: string }>}
  */
 export async function nightlyBackup({ db, bucket, now = new Date() }) {
 	const backup = await backupDatabase({ db, bucket, now });
-	const deleted = await pruneBackups({ bucket, now });
-	return { ...backup, deleted };
+	try {
+		const deleted = await pruneBackups({ bucket, now });
+		return { ...backup, deleted };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(
+			`[backup] la poda de los backups viejos falló; el backup ${backup.key} ya se hizo`,
+			error
+		);
+		return { ...backup, deleted: [], pruneError: message };
+	}
 }

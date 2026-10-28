@@ -12,6 +12,8 @@
 		wikiTermSchema
 	} from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
+	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
+	import { tagSlug } from '$lib/utils/tagSlug.js';
 	import { tagManager, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
@@ -187,6 +189,10 @@
 		path={$page.url.pathname}
 		origin={$page.url.origin}
 	/>
+	<!-- La propina, solo en las páginas con texto de la Kinkipedia (todas son de KinkyVibe). -->
+	{#if data.html}
+		<TipBlock category="wiki" slug={tagSlug(data?.tag?.id ?? data?.meta?.wiki ?? '')} />
+	{/if}
 	<hr />
 	<div class="lineage">
 		<div class="ascendance">

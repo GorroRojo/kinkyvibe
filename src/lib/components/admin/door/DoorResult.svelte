@@ -3,7 +3,12 @@
 	 * Resultado grande del modo puerta: verde "Adelante", amarillo "Ya ingresó", rosa "Anulada",
 	 * "De otro evento" o "QR inválido". Tocar el bloque (o "Ver compra") abre la compra completa.
 	 *
-	 * Eventos: `undo`, `details`, `reveal` (DNI completo, solo con `canReveal`).
+	 * Eventos: `undo`, `details`, `reveal` (DNI completo, solo con `canReveal`), `discard`
+	 * (descartar una venta sin conexión que todavía no se mandó).
+	 *
+	 * Después de una venta (UX V12): si ya está en el servidor, «¿Te equivocaste? Ver la orden»
+	 * lleva a la orden en el panel (el reembolso se hace ahí, con su confirmación); si todavía está
+	 * en la cola del celu, se puede descartar. Con un link de puerta no va ninguna de las dos.
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { invalidTitle } from '$lib/admin/doorOffline.js';
@@ -30,6 +35,11 @@
 	export let canUndo = false;
 	/** Tocar el DNI parcial pide el completo (solo admins; con un link de puerta, no). */
 	export let canReveal = true;
+	/** Link a la orden en el panel (Ventas › Órdenes); `null` si todavía no está en el servidor. */
+	/** @type {string | null} */
+	export let orderHref = null;
+	/** La venta sin conexión todavía está en la cola del celu: se puede descartar. */
+	export let canDiscard = false;
 
 	const dispatch = createEventDispatcher();
 
@@ -141,6 +151,13 @@
 					{scan.result === 'sold' ? 'pendiente de sincronizar' : 'sin conexión'}</span
 				>{/if}
 		</p>
+		{#if scan.result === 'sold' && !scan.offline && orderHref}
+			<a class="fix" href={orderHref} on:click|stopPropagation>¿Te equivocaste? Ver la orden</a>
+		{:else if scan.result === 'sold' && scan.offline && canDiscard}
+			<button type="button" class="fix" on:click|stopPropagation={() => dispatch('discard', card)}>
+				¿Te equivocaste? Descartar esta venta
+			</button>
+		{/if}
 		<button type="button" class="more" on:click|stopPropagation={details}>
 			Ver compra <ChevronRight size={18} />
 		</button>
@@ -296,6 +313,22 @@
 	}
 	.bad .pill {
 		background: rgba(0, 0, 0, 0.25);
+	}
+	.fix {
+		align-self: flex-start;
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 700;
+		color: inherit;
+		background: none;
+		border: 0;
+		padding: var(--space-2xs) 0;
+		min-height: 2.75rem;
+		display: inline-flex;
+		align-items: center;
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+		cursor: pointer;
 	}
 	.more {
 		align-self: flex-end;

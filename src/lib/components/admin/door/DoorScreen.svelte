@@ -12,7 +12,7 @@
 	 */
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { deserialize } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import {
 		ArrowLeft,
 		CircleCheck,
@@ -40,6 +40,8 @@
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
 	import WaitlistDoorNote from '$lib/components/admin/WaitlistDoorNote.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
+	import { askConfirm } from '$lib/admin/confirm.js';
+	import { orderHref } from '$lib/admin/orderFormat.js';
 	import { CHECKIN_LIST_PARAM } from '$lib/utils/doorEvents.js';
 	import {
 		FREE_DOOR_MESSAGE,
@@ -76,11 +78,14 @@
 		markRecentSynced,
 		doorConnectionNote,
 		applySaleSyncResults,
+		discardQueuedSale,
 		emptyDoorState,
 		doorRecentKey,
 		dropLinkDoor,
 		forgetLinkDoor,
 		isPendingSaleTicket,
+		markRecentDiscarded,
+		pendingSaleId,
 		offlineSaleLimits,
 		pendingNote,
 		queueOfflineSale,
@@ -139,6 +144,8 @@
 	let sound = false;
 	let wakeOk = false;
 	let syncing = false;
+	/** Preguntando si se descarta una venta sin conexión: mientras tanto no se sincroniza. */
+	let discarding = false;
 	/** @type {{ holder: string, result: string, at: number | null, by: string | null }[]} */
 	let conflicts = [];
 	/**
@@ -524,6 +531,63 @@
 		}
 	}
 
+	// --- Descartar una venta sin conexión que todavía no se mandó (UX V12) ---
+	/**
+	 * Solo saca la venta de la cola de este celu: no toca el servidor ni la plata. Pregunta antes en
+	 * la página (`askConfirm`, nunca `window.confirm`). Una venta que ya se sincronizó es una orden:
+	 * se revisa (y si hace falta se reembolsa) desde el panel. Con un link de puerta no se descarta:
+	 * las ventas sin mandar nunca se borran del celu (decisión 0035), las carga o las descarta une admin.
+	 * @param {string} saleId
+	 */
+	async function discardSale(saleId) {
+		if (linkMode) return;
+		const sale = door.sales.find((s) => s.id === saleId);
+		if (!sale)
+			return say('Esa venta ya se mandó al servidor: si te equivocaste, buscala en Órdenes.');
+		if (syncing) return say('Se está sincronizando: esperá un momento y probá de nuevo.');
+		discarding = true;
+		let ok = false;
+		try {
+			ok = await askConfirm({
+				title: `¿Descartar la venta de ${sale.buyer}?`,
+				text: `${sale.quantity} × ${sale.type}${sale.total === null ? '' : `, ${formatARS(sale.total)}`} (${METHOD_TEXT[sale.method] ?? sale.method}, a las ${hhmm(sale.at)}). Todavía no se mandó al servidor: se borra solo de este celu y sus entradas dejan de contar como adentro. Si cobraste, devolvé la plata a mano.`,
+				confirmLabel: 'Descartar la venta',
+				cancelLabel: 'No, dejarla',
+				tone: 'permanent'
+			});
+		} finally {
+			discarding = false;
+		}
+		if (!ok) return;
+		const r = discardQueuedSale(door, saleId, { confirmed: true });
+		if (!r.ok) {
+			say('Esa venta ya se mandó al servidor: si te equivocaste, buscala en Órdenes.');
+			return;
+		}
+		door = r.state;
+		persist();
+		if (!online) counts = localCounts(door.list);
+		recent = markRecentDiscarded(recent, saleId, r.sale.buyer);
+		persistRecent();
+		if (scan?.card && pendingSaleId(scan.card.ticketId) === saleId) scan = null;
+		if (purchase?.ticketId && pendingSaleId(purchase.ticketId) === saleId) purchaseOpen = false;
+		say(`Se descartó la venta de ${r.sale.buyer}: no se va a mandar.`);
+	}
+
+	/** «←» sin conexión: salir de la Puerta deja de poder volver a abrirla hasta que haya señal. */
+	/** @param {MouseEvent} e */
+	async function leave(e) {
+		if (online) return;
+		e.preventDefault();
+		const ok = await askConfirm({
+			title: 'Estás sin conexión',
+			text: 'Si salís, la Puerta no vuelve a cargar hasta que haya conexión. Lo que marcaste y vendiste queda guardado en este celu.',
+			confirmLabel: 'Salir igual',
+			cancelLabel: 'Quedarme'
+		});
+		if (ok) goto(backHref);
+	}
+
 	// --- Sin conexión: lista y sincronización ---
 	async function refreshList() {
 		if (!online || linkEnded) return;
@@ -559,10 +623,24 @@
 			.map((x) => x.id);
 		recent = markRecentSynced(recent, synced);
 		persistRecent();
-		// El resultado grande de una venta que ya se registró deja de decir «pendiente».
+		// El resultado grande de una venta que ya se registró deja de decir «pendiente» y pasa a
+		// tener la orden del servidor (para «¿Te equivocaste? Ver la orden»).
 		if (scan?.offline && scan.result === 'sold' && scan.card) {
-			const id = scan.card.ticketId.split(':')[1];
-			if (synced.includes(id)) scan = { ...scan, offline: false };
+			const id = pendingSaleId(scan.card.ticketId);
+			const done = /** @type {{ id: string, result: string, orderId?: string, ref?: string }[]} */ (
+				r.data.syncSales.results
+			).find((x) => x.id === id && x.result !== 'rejected' && x.orderId);
+			if (done)
+				scan = {
+					...scan,
+					offline: false,
+					card: {
+						...scan.card,
+						orderId: /** @type {string} */ (done.orderId),
+						orderRef: done.ref || scan.card.orderRef
+					}
+				};
+			else if (synced.includes(id)) scan = { ...scan, offline: false };
 		}
 		saleWarnings = [...applied.warnings, ...saleWarnings].slice(0, 20);
 		setCounts(r.data.counts);
@@ -581,7 +659,8 @@
 	}
 
 	async function sync() {
-		if (syncing || !online || linkEnded || (!door.queue.length && !door.sales.length)) return;
+		if (syncing || discarding || !online || linkEnded || (!door.queue.length && !door.sales.length))
+			return;
 		syncing = true;
 		try {
 			if (door.sales.length) await syncSales();
@@ -1048,7 +1127,9 @@
 	<div class="door">
 		<header class="bar">
 			{#if !linkMode}
-				<a class="round" href={backHref} aria-label="Salir de Puerta"><ArrowLeft size={24} /></a>
+				<a class="round" href={backHref} aria-label="Salir de Puerta" on:click={leave}
+					><ArrowLeft size={24} /></a
+				>
 			{/if}
 			<div class="heading">
 				<h1>{data.title}</h1>
@@ -1087,6 +1168,7 @@
 				<WifiOff size={20} />
 				<span>
 					<strong>{connection.title}</strong>
+					{#if connection.keep}<strong class="keep">{connection.keep}</strong>{/if}
 					{connection.detail}
 					{#if pendingText}<strong class="pending">{pendingText}</strong>{/if}
 				</span>
@@ -1229,7 +1311,16 @@
 						series={data.series}
 						dni={scan.card ? (revealed[scan.card.ticketId] ?? null) : null}
 						canUndo={scan.result === 'ok'}
+						orderHref={!linkMode && scan.result === 'sold' && scan.card
+							? orderHref(ordersHref, scan.card.orderId)
+							: null}
+						canDiscard={Boolean(
+							!linkMode &&
+							scan.card &&
+							door.sales.some((x) => x.id === pendingSaleId(scan?.card?.ticketId ?? ''))
+						)}
 						on:undo={undo}
+						on:discard={(e) => discardSale(pendingSaleId(e.detail.ticketId))}
 						canReveal={!linkMode}
 						on:reveal={reveal}
 						on:details={openDetails}
@@ -1677,9 +1768,17 @@
 					</li>
 				{/each}
 			</ul>
-			{#if !purchase.offline && !linkMode}
-				<a class="link-btn" href="{ordersHref}#orden-{purchase.id}"
+			{#if !linkMode && !purchase.offline && orderHref(ordersHref, purchase.id)}
+				<a class="link-btn" href={orderHref(ordersHref, purchase.id)}
 					>Ver la orden en la ficha del evento</a
+				>
+			{:else if !linkMode && door.sales.some((x) => x.id === pendingSaleId(purchase.ticketId))}
+				<!-- Venta sin conexión todavía en la cola del celu: se puede descartar (pregunta antes). -->
+				<button
+					type="button"
+					class="danger-btn"
+					on:click={() => discardSale(pendingSaleId(purchase.ticketId))}
+					>Descartar esta venta (todavía no se mandó al servidor)</button
 				>
 			{/if}
 		{/if}
@@ -1733,6 +1832,31 @@
 					</p>
 				{/if}
 			{:else}
+				{#if door.sales.length}
+					<!-- Ventas sin conexión que todavía no se mandaron: se pueden descartar de este celu. -->
+					<h3 class="sub">Ventas sin sincronizar</h3>
+					<ul class="queued">
+						{#each door.sales as q (q.id)}
+							<li>
+								<span>
+									<strong>{q.buyer}</strong> · {q.quantity} × {q.type}{q.total === null
+										? ''
+										: ` · ${formatARS(q.total)}`} · {hhmm(q.at)}
+								</span>
+								<button
+									type="button"
+									class="danger-btn small"
+									disabled={syncing}
+									on:click={() => discardSale(q.id)}>Descartar</button
+								>
+							</li>
+						{/each}
+					</ul>
+					<p class="muted small">
+						Descartar solo la borra de este celu. Las que ya se mandaron son órdenes: se revisan en
+						Órdenes.
+					</p>
+				{/if}
 				<a class="link-btn" href={ordersHref}>Ver todas las órdenes del evento</a>
 				<a class="link-btn" href="/admin/eventos/{encodeURIComponent(data.slug)}/ordenes/cargar"
 					>Cargar entradas a mano (invitaciones, cortesías)</a
@@ -1786,6 +1910,8 @@
 		max-width: 40rem;
 		margin: 0 auto;
 		box-sizing: border-box;
+		/* Sin «tirar para recargar» (UX V12): sin conexión, recargar deja la Puerta en blanco. */
+		overscroll-behavior-y: contain;
 	}
 	@media (min-width: 700px) {
 		.door {
@@ -1793,8 +1919,10 @@
 			min-height: 100dvh;
 		}
 	}
+	:global(html:has(.door)),
 	:global(body:has(.door)) {
 		background: #16121a;
+		overscroll-behavior-y: contain;
 	}
 	h1,
 	h2,
@@ -1870,6 +1998,7 @@
 		background: hsl(45, 60%, 17%);
 		color: var(--warn);
 	}
+	.banner .keep,
 	.banner .pending {
 		display: block;
 		margin-top: var(--space-3xs);
@@ -2305,6 +2434,48 @@
 		color: var(--text);
 		text-decoration: none;
 		font-weight: 700;
+	}
+	.danger-btn {
+		display: block;
+		width: 100%;
+		padding: var(--space-xs);
+		min-height: 2.75rem;
+		border-radius: 2em;
+		border: 2px solid var(--bad);
+		background: var(--bad-bg);
+		color: var(--bad);
+		font: inherit;
+		font-weight: 700;
+		cursor: pointer;
+	}
+	.danger-btn.small {
+		width: auto;
+		padding: var(--space-3xs) var(--space-xs);
+		font-size: var(--text-sm);
+	}
+	.danger-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+	.queued {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+	.queued li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2xs);
+		flex-wrap: wrap;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
+		background: var(--surface-2);
+		font-size: var(--text-sm);
+		overflow-wrap: anywhere;
 	}
 	.option {
 		display: flex;
