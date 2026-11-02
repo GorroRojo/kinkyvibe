@@ -54,6 +54,10 @@ mismo código.
 - **Backups: andando.** Copia de toda la base cada noche (03:00 de Argentina) en R2: las de los
   últimos 30 días, una por mes durante 12 meses y una por año para siempre. Simulacros y
   restauración con `npm run db:restore`.
+- **Fotos y archivos (26/10):** copia nocturna de la biblioteca a un segundo bucket, que nunca
+  borra, y Bucket lock de 30 días en `img/` y `file/` (paso de panel de gorrite)
+  ([imagenes.md](../imagenes.md#copia-de-la-biblioteca-y-bloqueo-contra-borrados)). Las dos copias
+  están en la misma cuenta de Cloudflare: una copia fuera de la cuenta sigue pendiente.
 - **CI más rápida** (#121): `unit` (lint y vitest) y `e2e` (build y Playwright) corren en
   paralelo, con Chromium en caché. `ci-ok` sigue siendo el único chequeo obligatorio.
 - Limpiezas hechas en #122: recordatorios en tandas, sin `buffer` y sin la action `load`. Falta

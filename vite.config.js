@@ -3,12 +3,18 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { configDefaults, defineConfig } from 'vitest/config';
 import { deployBranchFromEnv } from './src/lib/server/deployBranch.js';
 import { commitShaFromEnv, latestMigrationName } from './src/lib/server/buildInfo.js';
+import { appServerForTests } from './scripts/vite/app-server-tests.js';
 import { lucideDeepImports } from './scripts/vite/lucide-deep-imports.js';
 import DurationSequencer from './scripts/vitest/sequencer.js';
 
 export default defineConfig({
-	// En vitest, los íconos se importan de a uno (ver scripts/vite/lucide-deep-imports.js).
-	plugins: [sveltekit(), process.env.VITEST ? lucideDeepImports() : null],
+	// En vitest, los íconos se importan de a uno (ver scripts/vite/lucide-deep-imports.js) y
+	// `$app/server` es solo `getRequestEvent` (scripts/vite/app-server-tests.js).
+	plugins: [
+		sveltekit(),
+		process.env.VITEST ? lucideDeepImports() : null,
+		process.env.VITEST ? appServerForTests() : null
+	],
 	// Rama del deploy (Workers Builds; '' en local): ver
 	// src/lib/server/deployBranch.js y src/lib/server/deploy.js.
 	// La última migración de migrations/ y el commit del build (Workers Builds; '' en local), para

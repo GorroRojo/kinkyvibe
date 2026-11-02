@@ -15,6 +15,7 @@
 		TIP_SOURCE_LABELS,
 		TIP_STATUS_LABELS,
 		monthLabel,
+		tipCategoryLabel,
 		tipPostPath
 	} from '$lib/utils/propinas.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -48,7 +49,7 @@
 					label: p.slug,
 					value: p.total,
 					text: formatARS(p.total),
-					sub: `${p.category} · ${tipsText(p.count)}`,
+					sub: `${tipCategoryLabel(p.category)} · ${tipsText(p.count)}`,
 					href: tipPostPath(p.category, p.slug)
 				}
 	);

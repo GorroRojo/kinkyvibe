@@ -110,8 +110,7 @@ anuncia los del calendario, y `/calendario` además su `.ics` (`type="text/calen
 helpers (`feedEntry`, `feedPosts`, `escapeXml`): los 30 eventos y los 20 materiales más nuevos (así
 los eventos cargados en tanda no tapan el material), con la descripción del Atom (del evento, la
 fecha adelante; nunca el lugar), `dc:creator`, `category`, `language` y `lastBuildDate` (la fecha
-de la entrada más nueva, no «ahora»). Sin redirecciones ni imagen. El aviso temporal
-(`FEED_ONLY_ITEMS`) se va el 27/10 (ítem `rss-aviso-sacar`).
+de la entrada más nueva, no «ahora»). Sin redirecciones ni imagen.
 
 **Los calendarios `.ics` públicos** (`/calendario.ics` y `/ics/etiqueta/<etiqueta>.ics`) llevan de
 los pasados solo los que terminaron en los últimos 90 días (`publicIcsSince` en

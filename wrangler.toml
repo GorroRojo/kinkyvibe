@@ -43,7 +43,7 @@ enabled = true
 
 # Crons (UTC). Tienen que coincidir con src/lib/server/scheduled.js (lo verifica un test).
 # - cada 15 minutos: recordatorios de entradas;
-# - 06:00 UTC (03:00 en Argentina): backup de la base a R2.
+# - 06:00 UTC (03:00 en Argentina): backup de la base a R2 y copia de la biblioteca.
 # Solo corren en producción (los Previews no ejecutan crons).
 [triggers]
 crons = ["*/15 * * * *", "0 6 * * *"]
@@ -73,6 +73,13 @@ dataset = "kinkyvibe_visitas"
 [[r2_buckets]]
 binding = "MEDIA"
 bucket_name = "kinkyvibe-media"
+
+# Copia de la biblioteca (docs/imagenes.md, «Copia de la biblioteca»): el cron nocturno copia ahí lo
+# nuevo de `img/` y `file/` y nunca borra nada. Solo producción: los Previews no tienen este binding
+# (y no corren crons). El bucket se crea a mano una vez, antes de publicar esto.
+[[r2_buckets]]
+binding = "MEDIA_COPIA"
+bucket_name = "kinkyvibe-media-copia"
 
 # Transformaciones de imágenes de Cloudflare (docs/compartir.md): las miniaturas de las portadas
 # del collage de las imágenes de vista previa (`/og/…`). Cada miniatura distinta cuenta una vez
