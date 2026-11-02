@@ -53,7 +53,7 @@ describe('crear', () => {
 		expect(r.ok).toBe(true);
 		const token = tokenOf(r);
 		expect(token).toMatch(/^kvc1_[A-Za-z0-9_-]{43}$/);
-		const rows = await t.db.prepare('SELECT * FROM mcp_llaves').all();
+		const rows = await t.db.prepare('SELECT * FROM mcp_keys').all();
 		expect(rows.results).toHaveLength(1);
 		expect(JSON.stringify(rows.results)).not.toContain(token.slice(5));
 		expect(rows.results[0].name).toBe('Rutinas de la compu');
@@ -99,7 +99,7 @@ describe('verificar', () => {
 
 	it('de une admin que ya no está en la lista, no vale', async () => {
 		const token = tokenOf(await createLlave(t.db, ana, 'rutinas', NOW));
-		await t.db.prepare('UPDATE mcp_llaves SET admin_id = 1').run();
+		await t.db.prepare('UPDATE mcp_keys SET admin_id = 1').run();
 		expect(await llaveAdmin(t.db, token, NOW)).toBeNull();
 	});
 });

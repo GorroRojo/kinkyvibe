@@ -4,7 +4,7 @@
  * programadas, que corren sin nadie frente a la pantalla y no pueden volver a pasar por la
  * pantalla «¿Conectar Claude?» cuando vence la conexión de OAuth.
  *
- * - Se muestra una sola vez, al crearla. En la base queda solo su SHA-256 (tabla `mcp_llaves`,
+ * - Se muestra una sola vez, al crearla. En la base queda solo su SHA-256 (tabla `mcp_keys`,
  *   migración 0072), con un nombre, cuándo se usó por última vez y cuándo vence ({@link LLAVE_TTL_MS}).
  * - Es de le admin que la creó: vale como su token de acceso en `/mcp` (Bearer), con los mismos
  *   controles en cada pedido que un token de OAuth: el id sigue en `ADMINS`, el interruptor
@@ -80,7 +80,7 @@ export function cleanLlaveName(v) {
 export async function listLlaves(db, adminId) {
 	const { results } = await db
 		.prepare(
-			`SELECT id, name, created_at, expires_at, last_used_at, revoked_at FROM mcp_llaves
+			`SELECT id, name, created_at, expires_at, last_used_at, revoked_at FROM mcp_keys
 			WHERE admin_id = ?1 ORDER BY created_at DESC, id DESC LIMIT 20`
 		)
 		.bind(adminId)
@@ -117,7 +117,7 @@ export async function createLlave(db, admin, rawName, now = Date.now()) {
 	const token = LLAVE_PREFIX + toBase64url(crypto.getRandomValues(new Uint8Array(32)));
 	const row = await db
 		.prepare(
-			`INSERT INTO mcp_llaves (admin_id, name, token_hash, created_at, created_by, expires_at)
+			`INSERT INTO mcp_keys (admin_id, name, token_hash, created_at, created_by, expires_at)
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6)
 			RETURNING id, name, created_at, expires_at, last_used_at, revoked_at`
 		)
@@ -138,7 +138,7 @@ export async function revokeLlave(db, admin, id, now = Date.now()) {
 	if (typeof n !== 'number' || !Number.isSafeInteger(n) || n <= 0) return false;
 	const r = await db
 		.prepare(
-			'UPDATE mcp_llaves SET revoked_at = ?3 WHERE id = ?1 AND admin_id = ?2 AND revoked_at IS NULL'
+			'UPDATE mcp_keys SET revoked_at = ?3 WHERE id = ?1 AND admin_id = ?2 AND revoked_at IS NULL'
 		)
 		.bind(n, admin.id, now)
 		.run();
@@ -155,13 +155,11 @@ export async function revokeAllLlaves(db, adminId, now = Date.now()) {
 	const r =
 		adminId === null
 			? await db
-					.prepare('UPDATE mcp_llaves SET revoked_at = ?1 WHERE revoked_at IS NULL')
+					.prepare('UPDATE mcp_keys SET revoked_at = ?1 WHERE revoked_at IS NULL')
 					.bind(now)
 					.run()
 			: await db
-					.prepare(
-						'UPDATE mcp_llaves SET revoked_at = ?2 WHERE admin_id = ?1 AND revoked_at IS NULL'
-					)
+					.prepare('UPDATE mcp_keys SET revoked_at = ?2 WHERE admin_id = ?1 AND revoked_at IS NULL')
 					.bind(adminId, now)
 					.run();
 	return r.meta.changes;
@@ -183,7 +181,7 @@ export async function llaveAdmin(db, token, now = Date.now()) {
 		await db
 			.prepare(
 				`SELECT id, admin_id, name, created_at, expires_at, last_used_at, revoked_at
-				FROM mcp_llaves WHERE token_hash = ?1`
+				FROM mcp_keys WHERE token_hash = ?1`
 			)
 			.bind(await sha256Hex(/** @type {string} */ (token)))
 			.first()
@@ -196,7 +194,7 @@ export async function llaveAdmin(db, token, now = Date.now()) {
 	if (llave.createdAt < (await validSince(db, admin.id))) return null;
 	if (llave.lastUsedAt === null || now - llave.lastUsedAt >= LAST_USED_STEP_MS) {
 		await db
-			.prepare('UPDATE mcp_llaves SET last_used_at = ?2 WHERE id = ?1')
+			.prepare('UPDATE mcp_keys SET last_used_at = ?2 WHERE id = ?1')
 			.bind(llave.id, now)
 			.run();
 	}
