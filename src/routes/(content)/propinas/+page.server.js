@@ -3,7 +3,8 @@
  * Sin JavaScript (o si algo falló), muestra el mismo formulario con los errores.
  *
  * `?de=fondo` (con el interruptor `propinas_fondo`): el formulario para dejar una propina para el
- * Fondo Kinky Vibe sin publicación, al que lleva «Una vez» de fondo.kinkyvibe.ar. `&monto=<n>`
+ * Fondo Kinky Vibe sin publicación, al que lleva «Una vez» de fondo.kinkyvibe.ar. `/propinas` a
+ * secas muestra el mismo formulario (toda propina va al Fondo igual). `&monto=<n>`
  * solo elige el monto de entrada si está dentro del mínimo y el máximo; el servidor vuelve a
  * validar el monto del POST (`validateTip`).
  */
@@ -23,8 +24,8 @@ export async function load({ url, setHeaders, platform }) {
 	setHeaders({ 'x-robots-tag': 'noindex' });
 	const de = url.searchParams.get('de') ?? '';
 	const fondoEnabled = await propinasFondoEnabled(platform);
-	// `?de=fondo`: desde fondo.kinkyvibe.ar (sin publicación).
-	if (de === TIP_SOURCE_FONDO && fondoEnabled) {
+	// `?de=fondo`: desde fondo.kinkyvibe.ar (sin publicación); a secas, lo mismo.
+	if ((de === TIP_SOURCE_FONDO || de === '') && fondoEnabled) {
 		return {
 			post: null,
 			fondo: true,
