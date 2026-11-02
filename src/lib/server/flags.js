@@ -146,6 +146,21 @@ export const FLAGS = Object.freeze({
 			'docs/conector-claude.md. Servidor MCP en /mcp con OAuth propio (/mcp/autorizar, /mcp/token, ' +
 			'/mcp/registro y los /.well-known/oauth-*). Sin migraciones. Apagado, todo eso da 404.',
 		envVar: 'CONECTOR_CLAUDE_ENABLED'
+	},
+	conector_claude_edicion: {
+		label: 'Conector de Claude: cambios',
+		description:
+			'Con el conector de Claude prendido, Claude además puede cambiar algunas cosas, siempre en ' +
+			'dos pasos: primero muestra exactamente qué va a cambiar y después, con el OK, lo guarda ' +
+			'como el panel (con historial). Por ahora: los datos de un evento (título, fecha y hora, ' +
+			'lugar, descripción, precios, si está listado) y crear un código de descuento. Cada cambio ' +
+			'queda en Actividad, con quién lo confirmó, y hay un tope de cambios por día. Apagado, ' +
+			'Claude solo lee.',
+		tech:
+			'docs/conector-claude.md («Cambios»). Herramientas vista_previa y aplicar en /mcp; necesita ' +
+			'también conector_claude y la migración 0072 (llaves para rutinas y confirmado por). Tope ' +
+			'por día: CONECTOR_CLAUDE_CAMBIOS_POR_DIA (50 si no está).',
+		envVar: 'CONECTOR_CLAUDE_EDICION_ENABLED'
 	}
 });
 

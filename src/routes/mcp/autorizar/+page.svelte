@@ -18,7 +18,13 @@
 		<p>
 			Claude va a poder <b>leer</b> el sitio como vos (<b>{data.login}</b>): buscar y leer eventos,
 			material, perfiles y etiquetas (también lo oculto), ver las ventas y las órdenes de cada
-			evento y los próximos eventos. No puede cambiar nada.
+			evento y los próximos eventos.
+			{#if data.edit}
+				Además, va a poder <b>cambiar</b> algunos datos de los eventos y crear códigos de descuento, siempre
+				mostrando antes qué va a cambiar y guardando como el panel, con historial.
+			{:else}
+				No puede cambiar nada.
+			{/if}
 		</p>
 		<p>Cada pedido de Claude queda en Actividad a tu nombre.</p>
 		<p class="dest">

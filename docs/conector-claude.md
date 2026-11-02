@@ -1,4 +1,4 @@
-# Conector de Claude (solo lectura)
+# Conector de Claude
 
 ## Qué hace
 
@@ -13,8 +13,10 @@ por la dirección (slug).
 - Cada pedido de Claude queda en **Actividad** a nombre de le admin (familia «Conector de Claude»).
 - Está detrás del interruptor `conector_claude` (Ajustes → Interruptores), **apagado**. Apagado,
   no existe (404).
-- Es la parte 1 de tres (plan: `conector-claude-lectura`); editar (`conector-claude-edicion`) y lo
-  de plata (`proto-conector-claude`) van después. Decisión [0003](decisiones/0003-superadmins-y-permisos.md):
+- Con un segundo interruptor, `conector_claude_edicion` (**apagado**), Claude además puede
+  **cambiar** algunas cosas, siempre en dos pasos (ver [Cambios](#cambios)).
+- Es la parte 1 y 2 de tres (plan: `conector-claude-lectura`, `conector-claude-edicion`); lo de
+  plata (`proto-conector-claude`) va después. Decisión [0003](decisiones/0003-superadmins-y-permisos.md):
   «Claude puede operar el panel con un conector, siempre con permiso».
 
 ## Lo que nunca se tiene que romper
@@ -23,8 +25,14 @@ por la dirección (slug).
   token de acceso firmado por el sitio, para `/mcp`, sin vencer, de un id que siga en `ADMINS` y
   emitido después de su último «Cerrar mis conexiones». Le admin de prueba ([demo.md](demo.md))
   solo puede autorizar en un preview, nunca en producción.
-- **Solo lectura.** Ninguna herramienta escribe nada (salvo el registro en Actividad y el límite de
-  pedidos). Todas van marcadas `readOnlyHint`.
+- **Leer no cambia nada.** Las herramientas de lectura no escriben nada (salvo el registro en
+  Actividad y el límite de pedidos) y van marcadas `readOnlyHint`.
+- **Cambiar, solo lo que el panel ya hace y por su mismo código**, nunca SQL a mano: el editor de
+  eventos (acción «Guardar» de la pestaña Editar) y el alta de códigos (Ventas → Códigos). Con su
+  validación, el control de que nadie guardó en el medio, el historial y lo que sigue a un
+  guardado (lugar, lista de espera, aviso de cambio de fecha).
+- **Lo que se aplica es exactamente lo que se vio**: `aplicar` no guarda si lo que había cambió
+  desde la vista previa o si las entradas no son las mismas.
 - **Sin SQL ni ids en las entradas.** Las herramientas reciben texto, un slug o un nombre; el
   servidor resuelve. Si un nombre coincide con varios, devuelve las opciones para volver a pedir.
 - **Las reglas de privacidad del panel**: el DNI nunca sale (ni los últimos 3), ni el id del pago
@@ -32,8 +40,8 @@ por la dirección (slug).
   datos de un objeto se sacan las claves sensibles (las mismas que saca Actividad,
   `sanitizeDetail`). Los mails de amigues son públicos a propósito (decisión 0010), como en el
   panel.
-- **Sin tablas nuevas.** Nada de lo de abajo necesita migración: si algún día hace falta una
-  (por ejemplo, para listar conexiones), va en su propio PR.
+- **Una sola migración** (`0072`): las llaves para rutinas y «confirmado por» en el historial. La
+  lectura no la necesita.
 
 ## Cómo sumarlo en claude.ai (gorrite, una vez prendido)
 
@@ -63,12 +71,14 @@ de preview es otra (datos inventados): las conexiones de un preview no valen en 
 
 ## Cómo cortarlo
 
-| Para                             | Hacé                                                                                                                                        |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Desconectar Claude de tu cuenta  | Ajustes → Admins → «Cerrar mis conexiones de Claude» (ningún token tuyo de antes vale). En claude.ai, además, «Desconectar» en el conector. |
-| Desconectar a todes              | Ajustes → Admins → «Cerrar las de todes» (cambia la clave de las firmas: ningún token de nadie vale).                                       |
-| Apagarlo                         | Ajustes → Interruptores → apagar «Conector de Claude». De golpe y sin panel: variable `CONECTOR_CLAUDE_ENABLED=0` en Cloudflare.            |
-| Que une ex admin no pueda usarlo | Sacarle de `ADMINS`: sus tokens dejan de valer en el siguiente pedido.                                                                      |
+| Para                             | Hacé                                                                                                                                                             |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Desconectar Claude de tu cuenta  | Ajustes → Admins → «Cerrar mis conexiones de Claude» (ningún token tuyo de antes vale). En claude.ai, además, «Desconectar» en el conector.                      |
+| Desconectar a todes              | Ajustes → Admins → «Cerrar las de todes» (cambia la clave de las firmas: ningún token de nadie vale).                                                            |
+| Apagarlo                         | Ajustes → Interruptores → apagar «Conector de Claude». De golpe y sin panel: variable `CONECTOR_CLAUDE_ENABLED=0` en Cloudflare.                                 |
+| Que une ex admin no pueda usarlo | Sacarle de `ADMINS`: sus tokens dejan de valer en el siguiente pedido.                                                                                           |
+| Que Claude no cambie nada        | Ajustes → Interruptores → apagar «Conector de Claude: cambios» (sigue leyendo). De golpe: `CONECTOR_CLAUDE_EDICION_ENABLED=0`.                                   |
+| Cortar una rutina                | Ajustes → Admins → «Llaves para rutinas» → «Revocar» (o «Revocar todas mis llaves»). «Cerrar mis conexiones» y «Cerrar las de todes» también revocan las llaves. |
 
 Además, una conexión dura como mucho 30 días; después Claude pide «Conectar» otra vez. Si no se
 usa en 20 horas, también (el token de renovación vence).
@@ -86,6 +96,64 @@ Fuera de `vite dev`, los eventos de prueba de la venta (`prueba-entradas-*`) no 
 el buscador del panel. Cada herramienta anota en Actividad `conector.<herramienta>` con un resumen
 («Claude: miró las ventas de «…»»), sin datos de compradores. Autorizar (`conector.autorizar`) y
 cerrar conexiones (`conector.cerrar`, `conector.cerrar_todes`) también quedan.
+
+## Cambios
+
+Con `conector_claude` y `conector_claude_edicion` prendidos aparecen dos herramientas más. Todo
+cambio va en dos pasos: `vista_previa` muestra exactamente qué va a cambiar (lo que el bot del
+equipo muestra para pedir el ✅) y `aplicar` lo guarda, con las mismas entradas más la huella y la
+versión de la vista previa. En un chat con une admin pueden ir una atrás de la otra; lo que importa
+es que `aplicar` nunca guarda algo distinto de lo que alguien vio.
+
+| Herramienta    | Qué recibe                                                                                                       | Qué devuelve                                                                                                                                                                         |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `vista_previa` | `operacion`, `evento` (slug o nombre), `cambios`                                                                 | `resumen` (el antes y después en un texto corto), `cambios` (`[{ campo, antes, despues }]`), `avisos`, `hash`, `version`, `objetivo`, `titulo`, `enlaces`. No guarda nada.           |
+| `aplicar`      | lo mismo, más `hash` y `version` de la vista previa; opcional `confirmado_por` (hasta 40) y `pedido` (hasta 500) | `aplicado: true`, `resumen`, `avisos`, `confirmado_por`, `enlaces`; o `aplicado: false` con `motivo` (`cambió`, `no coincide`, `tope por día`, `el panel no lo guardó`) y `mensaje`. |
+
+Operaciones:
+
+- **`editar_evento`** (`evento` obligatorio). `cambios`, alguno de: `titulo`; `inicio` y `fin`
+  (`AAAA-MM-DDTHH:MM`, hora de Argentina; `fin` vacío saca la hora de fin; si cambia `inicio` sin
+  `fin`, el fin se mueve igual, como en el editor); `lugar` (nombre o slug de un lugar que ya
+  existe; vacío, sin lugar); `descripcion` (el texto en markdown; no en un evento con HTML libre);
+  `precios` (`[{ tipo, precio }]`: el nombre de un tipo de entrada con precio fijo y el precio en
+  pesos; las tandas, la gorra, el cupo y lo demás de la venta, desde el panel); `visibilidad`
+  (`listado` o `no_listado`, el «No listado» del editor).
+- **`crear_codigo`** (`evento` opcional: sin él, vale para todos). `cambios`: `codigo`, `tipo`
+  (`porcentaje` o `monto`), `valor`, y si hace falta `desde`, `hasta` (`AAAA-MM-DDTHH:MM`),
+  `usos_maximos`, `entradas_maximas`. Los mismos campos y la misma validación que el formulario.
+
+Lo que no está (el estado del evento, sus etiquetas, la imagen, las personas, borradores nuevos):
+desde el panel.
+
+- **La huella** (`hash`) cubre la operación, el objetivo, las entradas ya normalizadas (con los
+  nombres resueltos en el servidor) y la versión de lo que había; la firma el servidor con su
+  clave. La **versión** de un evento es la de su texto y su lugar; la de un código, «nuevo».
+- **«Confirmado por»**: el historial del objeto guarda quién guardó (le admin dueñe de la conexión),
+  que fue por Claude y quién lo confirmó; la pestaña Editar del evento muestra «Última edición: …,
+  Claude, confirmado por Mel (autorizó @login)», o solo «Claude» si no vino `confirmado_por` (el
+  chat de le propie admin). En Actividad: `conector.aplicar`, a nombre de le admin, con «Claude,
+  confirmado por Mel: editó el evento «…» (título, precio de «General»)». El texto del `pedido` no
+  se guarda en Actividad. Cada vista previa queda también (`conector.vista_previa`).
+- **Tope por día**: 50 cambios aplicados en las últimas 24 horas, entre todes (se cambia con la
+  variable `CONECTOR_CLAUDE_CAMBIOS_POR_DIA`). Al llegar, `aplicar` contesta «Se llegó al tope de
+  50 cambios por día del conector de Claude…» y no guarda nada. Las vistas previas no cuentan.
+
+## Rutinas que corren solas
+
+La conexión de claude.ai vence (si no se usa en 20 horas, o a los 30 días), y una rutina programada
+no puede volver a tocar «Permitir». Para eso están las **llaves para rutinas**:
+
+1. En el sitio: Ajustes → Admins → «Llaves para rutinas» → nombre (p. ej. «Rutinas de mi compu»)
+   → «Crear llave». Se muestra **una sola vez**: copiala.
+2. En la compu de la rutina (Claude Code):
+   `claude mcp add --transport http kinkyvibe https://kinkyvibe.ar/mcp --header "Authorization: Bearer <llave>"`.
+3. La rutina usa el conector como cualquier chat: `vista_previa`, y `aplicar` con `confirmado_por`
+   (quién tocó ✅) y `pedido`.
+
+La llave vale como su admin, con los mismos controles en cada pedido (sigue en `ADMINS`, los
+interruptores), hasta que se revoque o pase un año. La tarjeta muestra cuándo se usó por última vez.
+Hasta 5 vigentes por admin.
 
 ## Cómo funciona
 
@@ -131,7 +199,9 @@ claude.ai ──POST /mcp/token (code + code_verifier)           ──▶ token
 | ------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | OAuth (tokens, PKCE, vueltas, cortes) | `src/lib/server/mcp/oauth.js`                                                                  |
 | Protocolo MCP (JSON-RPC)              | `src/lib/server/mcp/rpc.js`                                                                    |
-| Herramientas                          | `src/lib/server/mcp/tools.js`                                                                  |
+| Herramientas de lectura               | `src/lib/server/mcp/tools.js`                                                                  |
+| Cambios (vista previa y aplicar)      | `src/lib/server/mcp/edicion.js`, `cambios.js`, `editarEvento.js`, `crearCodigo.js`             |
+| Llaves para rutinas                   | `src/lib/server/mcp/llaves.js`, Ajustes → Admins                                               |
 | Rutas                                 | `src/routes/mcp/` (`+server.js`, `token`, `registro`, `autorizar`) y `src/routes/.well-known/` |
 | Interruptor, límites, respuestas      | `src/lib/server/mcp/http.js`, `conector_claude` en `src/lib/server/flags.js`                   |
 | Cortar conexiones                     | Ajustes → Admins (`src/routes/(authed)/admin/ajustes/admins/`)                                 |
@@ -153,9 +223,12 @@ inventado o con el de renovación en lugar del de acceso: 401. Con
 todo 404. El chequeo CSRF de SvelteKit no corre en `vite dev`: el POST de tokens sin `Origin` se
 prueba en un preview.
 
+Los cambios: con `CONECTOR_CLAUDE_EDICION_ENABLED=1` también, `vista_previa` y `aplicar` sobre un
+evento de la semilla; después, la pestaña Editar muestra «Claude, confirmado por …». Las pruebas:
+`src/lib/server/mcp/*.test.js`.
+
 ## Lo que viene
 
-- Parte 2 (`conector-claude-edicion`): editar por el mismo guardado del panel, con el historial a
-  nombre de Claude.
+- Crear borradores con el mismo par vista previa y aplicar (`conector-claude-borradores`).
 - Si hace falta ver y cortar cada conexión por separado (no solo «todas las mías»), una tabla de
   conexiones: migración aparte.

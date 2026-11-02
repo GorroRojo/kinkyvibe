@@ -1,5 +1,6 @@
 /**
- * Las herramientas del conector de Claude (docs/conector-claude.md). Todas solo leen.
+ * Las herramientas de lectura del conector de Claude (docs/conector-claude.md). Todas solo leen;
+ * las de cambios (`vista_previa` y `aplicar`) están en ./edicion.js.
  *
  * - Nunca reciben SQL ni ids numéricos: un evento u objeto se pide por su dirección (slug) o por su
  *   nombre, y acá se resuelve. Si el nombre no alcanza (varios parecidos), se devuelven las
@@ -18,6 +19,7 @@ import { getAllCounts, summarizeEvent } from '$lib/server/admin/sales.js';
 import { listEvents } from '$lib/server/eventos/index.js';
 import { getObject, searchObjects } from '$lib/server/objects/read.js';
 import { getEdges } from '$lib/server/objects/edges.js';
+import { listRevisions, revisionAuthorLabel } from '$lib/server/contenido/revisions.js';
 import {
 	getEventTickets,
 	isTestEventSlug,
@@ -34,12 +36,15 @@ import { getCounts, foldText } from '$lib/server/tickets/orders.js';
  *   db: D1Database,
  *   user: { id: number, login: string },
  *   fetch: typeof fetch,
- *   now: number
+ *   now: number,
+ *   platform?: App.Platform,
+ *   origin: string
  * }} ToolContext
  *
  * @typedef {{
  *   result: Record<string, unknown>,
- *   log: { summary: string, targetType?: string, targetId?: string, detail?: unknown }
+ *   log: { summary: string, targetType?: string, targetId?: string, detail?: unknown },
+ *   isError?: boolean
  * }} ToolOutput
  */
 
@@ -137,7 +142,7 @@ async function visibleEvents() {
  * Un evento por slug o nombre: `{ event }` o `{ options }` si hay varios (o ninguno).
  * @param {string} query
  */
-async function resolveEvent(query) {
+export async function resolveEvent(query) {
 	const events = await visibleEvents();
 	const bySlug = events.find((e) => e.slug === query);
 	if (bySlug) return { event: bySlug };
@@ -272,7 +277,10 @@ export const TOOLS = {
 				};
 			}
 			const o = r.object;
-			const edges = await getEdges(ctx.db, o.id, viewerOf(ctx)).catch(() => []);
+			const [edges, [last]] = await Promise.all([
+				getEdges(ctx.db, o.id, viewerOf(ctx)).catch(() => []),
+				listRevisions(ctx.db, o.id, { limit: 1 }).catch(() => [])
+			]);
 			return {
 				result: {
 					encontrado: true,
@@ -282,7 +290,14 @@ export const TOOLS = {
 					visibilidad: o.visibility,
 					version: o.version,
 					creado: { cuando: new Date(o.created_at).toISOString(), por: o.created_by },
-					editado: { cuando: new Date(o.updated_at).toISOString(), por: o.updated_by },
+					editado: {
+						cuando: new Date(o.updated_at).toISOString(),
+						por: o.updated_by,
+						// Un cambio del conector: «Claude, confirmado por …» (el historial).
+						...(last?.source === 'claude' && last.version === o.version
+							? { como: revisionAuthorLabel(last) }
+							: {})
+					},
 					datos: sanitizeDetail(o.data),
 					relaciones: edges.map((e) => ({
 						tipo_de_relacion: e.kind,
@@ -496,7 +511,7 @@ export const TOOLS = {
 	}
 };
 
-/** La lista para `tools/list`, todas marcadas como de solo lectura. */
+/** La lista para `tools/list` de las de lectura, todas marcadas como de solo lectura. */
 export function toolList() {
 	return Object.values(TOOLS).map((t) => ({
 		...t.definition,

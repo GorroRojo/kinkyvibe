@@ -545,6 +545,14 @@ privacidad del panel (sin DNI). Ajustes → Admins tiene la tarjeta «Conector d
 dirección para copiar, «Cerrar mis conexiones de Claude» y «Cerrar las de todes». Cada pedido queda
 en Actividad a nombre de le admin (familia «Conector de Claude», `conector.*`).
 
+Con **«Conector de Claude: cambios»** (`conector_claude_edicion`, apagado) Claude también puede
+editar datos de un evento y crear códigos, siempre con vista previa y por el mismo guardado del
+panel. Esos guardados quedan en el historial con `source = 'claude'` y quién los confirmó: la
+pestaña Editar del evento muestra «Última edición: …, Claude, confirmado por Mel (autorizó
+@login)» (o solo «Claude»), y Actividad, `conector.aplicar` a nombre de le admin con el resumen
+«Claude, confirmado por Mel: editó el evento …». Ajustes → Admins suma la tarjeta «Llaves para
+rutinas» (crear, ver el último uso, revocar de a una o todas).
+
 ## Agenda impresa
 
 **Agenda impresa** (`/admin/eventos/agenda-impresa`, botón en la Agenda y «Ir a…»): arma la hoja

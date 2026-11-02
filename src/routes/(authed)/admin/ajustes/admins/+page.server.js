@@ -11,6 +11,11 @@
  * «Conector de Claude» (interruptor `conector_claude`, docs/conector-claude.md): la dirección para
  * sumarlo en claude.ai, «Cerrar mis conexiones» (ningún token tuyo de antes vale) y «Cerrar las de
  * todes» (cambia la clave de las firmas). Las dos quedan en el registro.
+ *
+ * «Llaves para rutinas» (docs/conector-claude.md, $lib/server/mcp/llaves.js): llaves de larga
+ * duración para las rutinas programadas de cada admin. La llave se muestra una sola vez, al crearla;
+ * cada admin ve y revoca solo las suyas. «Cerrar mis conexiones» también revoca las tuyas, y
+ * «Cerrar las de todes», las de todes. Crear y revocar quedan en el registro (sin la llave).
  */
 import { fail } from '@sveltejs/kit';
 import { ADMINS, requireAdmin } from '$lib/server/auth';
@@ -18,6 +23,14 @@ import { getDB, logDBError } from '$lib/server/db';
 import { isFlagOn } from '$lib/server/flags.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { closeConnections, resourceOf, rotateKey } from '$lib/server/mcp/oauth.js';
+import {
+	LLAVES_MAX,
+	createLlave,
+	isLive,
+	listLlaves,
+	revokeAllLlaves,
+	revokeLlave
+} from '$lib/server/mcp/llaves.js';
 import {
 	adminStartParam,
 	createAdminLinkCode,
@@ -65,6 +78,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 	let linked = new Set();
 	/** @type {{ linkedAt: number } | null} */
 	let myLink = null;
+	/** @type {import('$lib/server/mcp/llaves.js').Llave[]} */
+	let llaves = [];
 	if (db && Number.isSafeInteger(me.id)) {
 		try {
 			linked = await linkedAdminIds(db);
@@ -72,7 +87,13 @@ export async function load({ locals, url, platform, setHeaders }) {
 		} catch (error) {
 			logDBError('admins: vínculos de Telegram', error);
 		}
+		try {
+			llaves = await listLlaves(db, me.id);
+		} catch (error) {
+			logDBError('admins: llaves del conector', error);
+		}
 	}
+	const now = Date.now();
 	return {
 		admins: ADMINS.map((a) => ({
 			id: a.id,
@@ -88,7 +109,9 @@ export async function load({ locals, url, platform, setHeaders }) {
 		},
 		claude: {
 			on: db ? await isFlagOn(db, 'conector_claude') : false,
-			url: resourceOf(url.origin)
+			url: resourceOf(url.origin),
+			llaves: llaves.map((l) => ({ ...l, live: isLive(l, now) })),
+			llavesMax: LLAVES_MAX
 		}
 	};
 }
@@ -150,6 +173,7 @@ export const actions = {
 		if (!db) return fail(503, { claudeError: 'No hay base de datos disponible.' });
 		try {
 			await closeConnections(db, me);
+			await revokeAllLlaves(db, me.id);
 		} catch (error) {
 			logDBError('admins: cerrar conexiones de Claude', error);
 			return fail(500, { claudeError: 'No se pudieron cerrar. Probá de nuevo.' });
@@ -158,7 +182,10 @@ export const actions = {
 			action: 'conector.cerrar',
 			summary: 'Conector de Claude: cerró sus conexiones'
 		});
-		return { claudeMessage: 'Listo: Claude ya no puede leer con tus conexiones de antes.' };
+		return {
+			claudeMessage:
+				'Listo: Claude ya no puede usar tus conexiones de antes ni tus llaves para rutinas.'
+		};
 	},
 
 	cerrarClaudeTodes: async ({ locals, url, platform }) => {
@@ -166,6 +193,7 @@ export const actions = {
 		if (!db) return fail(503, { claudeError: 'No hay base de datos disponible.' });
 		try {
 			await rotateKey(db);
+			await revokeAllLlaves(db, null);
 		} catch (error) {
 			logDBError('admins: cerrar todas las conexiones de Claude', error);
 			return fail(500, { claudeError: 'No se pudieron cerrar. Probá de nuevo.' });
@@ -174,6 +202,68 @@ export const actions = {
 			action: 'conector.cerrar_todes',
 			summary: 'Conector de Claude: cerró las conexiones de todes'
 		});
-		return { claudeMessage: 'Listo: ninguna conexión de Claude de antes sirve más, de nadie.' };
+		return {
+			claudeMessage:
+				'Listo: ninguna conexión ni llave para rutinas de Claude de antes sirve más, de nadie.'
+		};
+	},
+
+	crearLlave: async ({ locals, url, platform, request }) => {
+		const { me, db } = claudeAction(locals, url, platform);
+		if (!db) return fail(503, { llaveError: 'No hay base de datos disponible.' });
+		const form = await request.formData();
+		let r;
+		try {
+			r = await createLlave(db, me, form.get('nombre'));
+		} catch (error) {
+			logDBError('admins: crear llave del conector', error);
+			return fail(500, { llaveError: 'No se pudo crear. Probá de nuevo.' });
+		}
+		if (!r.ok) return fail(400, { llaveError: r.message });
+		await logAdminAction(db, locals, {
+			action: 'conector.llave_crear',
+			summary: `Conector de Claude: creó la llave para rutinas «${r.llave.name}»`,
+			detail: { id: r.llave.id }
+		});
+		// La llave se muestra esta sola vez (no se guarda: solo su huella).
+		return { llaveNueva: r.token, llaveNombre: r.llave.name };
+	},
+
+	revocarLlave: async ({ locals, url, platform, request }) => {
+		const { me, db } = claudeAction(locals, url, platform);
+		if (!db) return fail(503, { llaveError: 'No hay base de datos disponible.' });
+		const form = await request.formData();
+		const id = String(form.get('id') ?? '');
+		let ok;
+		try {
+			ok = await revokeLlave(db, me, id);
+		} catch (error) {
+			logDBError('admins: revocar llave del conector', error);
+			return fail(500, { llaveError: 'No se pudo revocar. Probá de nuevo.' });
+		}
+		if (!ok) return fail(404, { llaveError: 'Esa llave no está (o ya estaba revocada).' });
+		await logAdminAction(db, locals, {
+			action: 'conector.llave_revocar',
+			summary: 'Conector de Claude: revocó una llave para rutinas',
+			detail: { id: Number(id) }
+		});
+		return { llaveMessage: 'Listo: esa llave ya no sirve.' };
+	},
+
+	revocarLlaves: async ({ locals, url, platform }) => {
+		const { me, db } = claudeAction(locals, url, platform);
+		if (!db) return fail(503, { llaveError: 'No hay base de datos disponible.' });
+		let n;
+		try {
+			n = await revokeAllLlaves(db, me.id);
+		} catch (error) {
+			logDBError('admins: revocar llaves del conector', error);
+			return fail(500, { llaveError: 'No se pudieron revocar. Probá de nuevo.' });
+		}
+		await logAdminAction(db, locals, {
+			action: 'conector.llave_revocar',
+			summary: `Conector de Claude: revocó todas sus llaves para rutinas (${n})`
+		});
+		return { llaveMessage: 'Listo: ninguna de tus llaves sirve más.' };
 	}
 };
