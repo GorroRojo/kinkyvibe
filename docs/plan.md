@@ -295,7 +295,7 @@ CI) va en la fase 0.
 - `vivo-durable-objects` · fase 1 · algún día · infra · Presencia («alguien está editando») y contadores en vivo con un Durable Object
 - `r2-ciclo-vida` · fase 1 · algún día · infra · Regla de R2 que limpie subidas a medias después de un día
 - `seguridad-endurecer` · fase 1 · espera gorrite · infra · Endurecer la configuración de GitHub y Cloudflare: ver Mesa
-- `auditoria-seguridad` · fase 1 · espera gorrite · infra · Auditoría de seguridad en una sesión aparte de gorrite, antes de la fase 4: ver Mesa
+- `auditoria-seguridad` · fase 1 · en curso · infra · Auditoría de seguridad: los arreglos que no necesitan a gorrite están hechos (incluido lo del acceso de admins que espera el conector); lo que queda: ver Mesa (gorrite, 2/11: va primero) · #530
 - `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
 - `perf-js-matcher` · fase 1 · hecho · infra · El matcher de las secciones «Próximamente» (`src/params/soon.js`) usa una lista de URLs sin íconos (`soonSections.js`, comparada con `nav.js` en una prueba): todas las páginas dejan de bajar el menú del panel · #394
