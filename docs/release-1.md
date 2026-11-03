@@ -194,6 +194,10 @@ tardó 0,37 s, así que los tiempos sirven para comparar entre sí, no como núm
   en un Custom Domain y la CDN no guarda lo que responde un Worker; para eso hay que usar la Cache
   API (`caches.default`) desde el Worker. Hoy cada pedido lo arma el Worker de cero (salvo lo que
   recuerda el isolate, abajo).
+  _Actualización (auditoría de comunidad, T32): ya no es así. El worker de `adapter-cloudflare`
+  guarda en `caches.default` toda respuesta GET con `Cache-Control` público y estado menor a 400,
+  y la responde desde ahí antes de llegar a la app (sin `cf-cache-status`, porque es la Cache API).
+  Es una caché por centro de datos; ver `docs/moderacion.md`._
 - Los tiempos más altos (≈1 s) coinciden con el primer pedido: probablemente un isolate nuevo, que
   tiene que cargar y procesar ~600 `.md` compilados (`fetchMarkdownPosts`, en serie) antes de
   responder.

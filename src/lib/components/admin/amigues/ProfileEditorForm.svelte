@@ -301,7 +301,9 @@
 	<details class="contact">
 		<summary>Contacto y otros datos de la ficha</summary>
 		<p class="kv-note">
-			Los cargó cada amigue en su ficha pública. La página no los muestra (como antes).
+			Se muestran en el sitio: el mail y el teléfono (en la página del perfil, en «Guardar en tus
+			contactos» y en los datos para buscadores) y la ocupación (en la lista de Amigues). No se
+			muestran: el cumpleaños y la identidad de género.
 		</p>
 		<div class="kv-grid-2">
 			<label class="kv-field"
