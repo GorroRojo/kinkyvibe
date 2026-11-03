@@ -5,7 +5,7 @@
  * tope por persona. Datos inventados.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { groupHits, prepareIndex, search } from '$lib/utils/search';
+import { find, groupHits, prepareIndex } from '$lib/utils/search';
 import {
 	EMPTY_MATERIAL,
 	INLINE_CACHE_SECONDS,
@@ -132,10 +132,12 @@ describe('selectInline', () => {
 		expect(hrefs.length).toBe(2 + EMPTY_MATERIAL);
 	});
 
-	it('con texto: el mismo orden que la búsqueda del sitio (search + groupHits)', () => {
+	it('con texto: el mismo orden que la búsqueda del sitio (find + groupHits)', () => {
 		const prepared = prepareIndex({ v: 1, docs, tags: {} });
 		for (const q of ['cuerdas', 'evento', 'material nota', 'persona']) {
-			const site = groupHits(search(prepared, q), NOW).flatMap((g) => g.hits.map((h) => h.doc.h));
+			const site = groupHits(find(prepared, q, { now: NOW }), NOW).flatMap((g) =>
+				g.hits.map((h) => h.doc.h)
+			);
 			expect(
 				selectInline(source, { types: null, text: q }, NOW).map((d) => d.h),
 				q

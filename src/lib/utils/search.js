@@ -498,14 +498,21 @@ function docDay(iso) {
  * `noviembre`), que filtran eventos y, si no dejan nada, vuelven a ser texto.
  * @param {PreparedIndex} index
  * @param {string} q
- * @param {{ limit?: number, now?: number }} [opts]
+ * @param {{ limit?: number, now?: number, types?: readonly SearchDoc['c'][] | null }} [opts]
+ * `types`: los tipos de un operador de tipo que se sacó antes de lo escrito (el bot,
+ * `parseInlineQuery`), como si siguiera ahí (así también vale la regla de respaldo).
  * @returns {SearchHit[]}
  */
-export function find(index, q, { limit = 1000, now = Date.now() } = {}) {
-	const pq = parseSearch(q, 'sitio');
+export function find(index, q, { limit = 1000, now = Date.now(), types = null } = {}) {
+	/** @param {import('./searchSyntax.js').ParsedSearch} pq */
+	const typed = (pq) => {
+		if (types?.length) pq.types = [...new Set([...(pq.types ?? []), ...types])];
+		return pq;
+	};
+	const pq = typed(parseSearch(q, 'sitio'));
 	let hits = findParsed(index, pq, now);
 	if (hits.length === 0 && pq.dates.some((d) => d.soft)) {
-		hits = findParsed(index, parseSearch(q, 'sitio', { datesAsText: true }), now);
+		hits = findParsed(index, typed(parseSearch(q, 'sitio', { datesAsText: true })), now);
 	}
 	return hits.slice(0, limit);
 }

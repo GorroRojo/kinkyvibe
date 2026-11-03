@@ -138,6 +138,13 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 		f('inicio.boton_fondo', 'inicio', 'button', 'Botón del inicio: Fondo', '💗 Fondo'),
 		f('inicio.boton_ayuda', 'inicio', 'button', 'Botón del inicio: ayuda', '❓ Ayuda'),
 		f(
+			'inicio.boton_como_buscar',
+			'inicio',
+			'button',
+			'Botón de la ayuda: cómo buscar',
+			'🔎 Cómo buscar'
+		),
+		f(
 			'inicio.boton_calendario',
 			'inicio',
 			'button',
@@ -1258,6 +1265,24 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'🔎 Escribí qué buscás: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.',
 			{
 				help: 'El bot reconoce la respuesta por este mensaje: cambiarlo no rompe los que ya se mandaron.'
+			}
+		),
+		f(
+			'sitio.como_buscar',
+			'sitio',
+			'message',
+			'Cómo buscar (el botón «🔎 Cómo buscar» de la ayuda)',
+			'**🔎 ¿Cómo buscar?**\n\nEn /buscar y en el modo inline podés escribir palabras sueltas o sumar alguno de estos:\n\n{lista}',
+			{
+				vars: [
+					{
+						name: 'lista',
+						label: 'cada operador con lo que hace y un ejemplo (sale del registro de la búsqueda)',
+						sample: '• <b>evento: · e:</b>: Solo eventos.\n<code>evento: cuerdas</code>',
+						html: true
+					}
+				],
+				required: ['lista']
 			}
 		),
 		f(

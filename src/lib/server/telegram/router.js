@@ -383,7 +383,9 @@ async function siteMatches(query, ctx, deps) {
 	if (!source) return null;
 	return {
 		source,
-		docs: selectInline(source, { types: null, text: query }, ctx.now ?? Date.now())
+		// Con la misma sintaxis que el modo inline y el sitio (docs/buscar.md): `evento:` solo lista
+		// los próximos eventos.
+		docs: selectInline(source, parseInlineQuery(query), ctx.now ?? Date.now())
 	};
 }
 
