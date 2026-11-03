@@ -16,6 +16,7 @@ import { botAccounts } from '$lib/server/telegram/link.js';
 import { botAdminLink } from '$lib/server/telegram/adminLink.js';
 import { botDoor } from '$lib/server/telegram/puerta.js';
 import { botAdmin } from '$lib/server/telegram/adminData.js';
+import { queueAdminLinkedNotice } from '$lib/server/telegram/adminNotify.js';
 import { botUsername } from '$lib/server/telegram/web.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { botTextOverrides } from '$lib/server/telegram/texts.js';
@@ -60,8 +61,14 @@ export async function POST({ request, url, platform, fetch }) {
 			db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db, platform) : null,
 		// Vincular el Telegram de une admin (0037): `/start adm_<código>` del panel, con
 		// `telegram_puerta` o `telegram_admin` prendido (no depende de «Lo que sigo»). Con los dos
-		// apagados, el bot contesta que no se puede.
-		adminLink: db && (puerta || admin) ? botAdminLink(db) : null,
+		// apagados, el bot contesta que no se puede. Al vincular, les otres admins con Telegram
+		// reciben un aviso (con `telegram_admin`; nunca traba el vínculo).
+		adminLink:
+			db && (puerta || admin)
+				? botAdminLink(db, {
+						onLinked: (who) => queueAdminLinkedNotice({ db, platform, admin: who, fetch })
+					})
+				: null,
 		// «🚪 Puerta» en el inicio para les admins vinculades (0037): una consulta por id de
 		// Telegram, solo al mostrar el inicio por chat privado.
 		door: db && puerta ? botDoor(db) : null,
