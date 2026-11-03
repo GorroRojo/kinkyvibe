@@ -9,9 +9,9 @@
  * primer filtro flojo ({@link looseLike}) y la comparación de verdad se hace acá. Sin columnas
  * nuevas ni migraciones: con cientos o pocos miles de filas alcanza.
  *
- * Entiende los operadores de `$lib/utils/searchQuery.js` (`#etiqueta`, `@persona`, `e:evento`,
- * `orden:`, `estado:`, `tipo:`, `lugar:`, `hoy`/`semana`/`finde`, `"frase"`, `-palabra`): cada
- * función recibe lo escrito o lo ya leído (`ParsedQuery`).
+ * Entiende los operadores de `$lib/utils/searchQuery.js` (la sintaxis base de docs/buscar.md,
+ * compartida con el sitio y el bot, más `@persona`, `orden:`, `estado:`, `tipo:` y las pestañas):
+ * cada función recibe lo escrito o lo ya leído (`ParsedQuery`).
  *
  * Solo para admins (Q30). El DNI nunca sale de la base: si alguien busca por DNI, la consulta
  * devuelve solo los últimos 3 dígitos para mostrar "DNI ···123". Las búsquedas no se guardan.
@@ -32,6 +32,7 @@ import {
 	matchTerms,
 	parseSearchQuery
 } from '$lib/utils/searchQuery.js';
+import { QUERY_MAX } from '$lib/utils/searchSyntax.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -46,7 +47,8 @@ import {
  */
 
 export const MIN_QUERY = 2;
-export const MAX_QUERY = 80;
+/** Largo máximo de lo buscado: el mismo en los tres buscadores (docs/buscar.md). */
+export const MAX_QUERY = QUERY_MAX;
 
 const STATUS_LABEL = /** @type {Record<string, string>} */ ({
 	pending: 'pendiente',

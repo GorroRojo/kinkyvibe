@@ -9,6 +9,7 @@
 import { REVIEW_LINK } from './nav.js';
 import { buildCommands, fold } from './commands.js';
 import { createItems } from './createMenu.js';
+import { searchHelp } from '$lib/utils/searchSyntax.js';
 
 /**
  * Una fila de Fijados o Recientes en la paleta vacía: `place` dice que el ícono es el de su
@@ -64,36 +65,32 @@ export const SEARCH_HELP_COMMAND = Object.freeze({
 });
 
 /**
- * Los ejemplos de la ayuda «Cómo buscar», en orden. `q`: lo que se escribe (al tocarlo, la
- * paleta lo busca); `also`: otras formas de lo mismo. Datos inventados.
- * @type {readonly { q: string, also?: string[], text: string }[]}
+ * Lo del panel que no es un operador del registro de la búsqueda (no tiene clave): `>` al
+ * principio y la palabra de pestaña. Datos inventados.
+ * @type {readonly { q: string, forms?: string[], text: string }[]}
  */
-export const SEARCH_TIPS = Object.freeze([
-	{ q: '#shibari', also: ['etiqueta:shibari'], text: 'Eventos con esa etiqueta (vale un alias)' },
-	{ q: '@ana', also: ['persona:ana'], text: 'Solo personas y perfiles' },
+const PANEL_ONLY_TIPS = Object.freeze([
 	{
 		q: 'e:fiesta puerta',
-		also: ['evento:fiesta'],
-		text: 'Solo eventos; con puerta, órdenes, mail, ventas o duplicar, directo a esa pestaña'
+		text: 'Con puerta, órdenes, mail, ventas o duplicar al final, directo a esa pestaña del evento.'
 	},
-	{ q: 'estado:pendiente', also: ['orden:ana'], text: 'Órdenes en ese estado, o solo órdenes' },
-	{
-		q: 'tipo:entrada',
-		text: 'Un solo tipo: evento, orden, persona, perfil, etiqueta, entrada, codigo o accion'
-	},
-	{ q: 'lugar:palermo', text: 'Eventos en ese lugar' },
-	{
-		q: 'finde',
-		also: ['hoy', 'mañana', 'semana', 'cuando:sabado', 'cuando:15/10'],
-		text: 'Eventos de esos días'
-	},
-	{ q: '"frase exacta"', text: 'Esas palabras juntas y en ese orden' },
-	{
-		q: 'fiesta -latex',
-		also: ['-#latex', '-tipo:orden'],
-		text: 'Sin esa palabra, esa etiqueta o ese tipo'
-	},
-	{ q: '>tema', text: 'Solo acciones' }
+	{ q: '>tema', text: 'Solo acciones (tiene que ir al principio).' }
+]);
+
+/**
+ * Los ejemplos de la ayuda «Cómo buscar», en orden, armados desde el registro de la búsqueda
+ * (`searchHelp('panel')` en searchSyntax.js: las frases, las exclusiones y cada operador que anda
+ * en el panel, también los de solo el panel) más lo de {@link PANEL_ONLY_TIPS}. `q`: el ejemplo (al
+ * tocarlo, la paleta lo busca); `forms`: cómo se escribe el operador (forma larga, corta o signo).
+ * @type {readonly { q: string, forms?: string[], text: string }[]}
+ */
+export const SEARCH_TIPS = Object.freeze([
+	...searchHelp('panel').map((row) => ({
+		q: row.example,
+		forms: row.label.split(' · '),
+		text: row.help
+	})),
+	...PANEL_ONLY_TIPS
 ]);
 
 /**
