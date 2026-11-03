@@ -28,6 +28,7 @@ import { postToMarkdown } from '$lib/server/contenido/markdown.js';
 import { coreTypes } from '$lib/server/objects/types/index.js';
 import { splitMarkdown } from '$lib/utils/eventDraft.js';
 import { tagSlug } from '$lib/utils/tagSlug.js';
+import { argFormat } from '$lib/utils/dates.js';
 import { parseDocument } from 'yaml';
 import { ToolInputError } from './tools.js';
 import {
@@ -306,11 +307,7 @@ export async function planUndo(ctx, args) {
 		throw new ToolInputError(
 			`En la versión ${rev.version} estaba borrado: borrar se hace desde el panel (y se recupera desde Actividad).`
 		);
-	const when = new Date(rev.savedAt).toLocaleString('es-AR', {
-		timeZone: 'America/Argentina/Buenos_Aires',
-		dateStyle: 'short',
-		timeStyle: 'short'
-	});
+	const when = argFormat({ dateStyle: 'short', timeStyle: 'short' }).format(rev.savedAt);
 	const head = `Volver ${TYPE_TEXT[tipo]} «${object.title}» a la versión ${rev.version} (del ${when}, ${revisionAuthorLabel(rev)}):`;
 	/** @type {string[]} */
 	const warnings = rev.edges
