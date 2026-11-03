@@ -44,6 +44,11 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
   mismo índice, el mismo orden y la misma sintaxis que el buscador del sitio
   (`/api/search-index.json` y [buscar.md](buscar.md), ver «Modo inline» abajo): solo lo que ve une
   visitante sin cuenta.
+  - **«🔎 Cómo buscar»** (botón de ❓ Ayuda y `/ayuda`, `sa`): la sintaxis que entiende, armada
+    desde el registro de operadores (`searchHelp('bot')` en `searchSyntax.js`): cada operador con
+    su forma larga y corta, qué hace y un ejemplo para copiar, con «🔎 Buscar», «‹ Volver» (a la
+    ayuda) e «🏠 Inicio». El encabezado es «Textos del bot» `sitio.como_buscar`; la lista no se
+    escribe a mano: sumar un operador al registro lo suma acá.
   - «🔎 Buscar» manda un mensaje nuevo que abre «responder» (`force_reply`, Bot API 10.3) con
     «Cancelar»; la respuesta trae los resultados. `/buscar <texto>` los trae directo (también en
     grupos; en un grupo, `/buscar` solo explica `/buscar cuerdas`).

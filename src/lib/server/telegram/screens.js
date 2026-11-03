@@ -17,6 +17,7 @@ import { encodeAdminNav } from './adminNav.js';
 import { botText, currentBotTexts } from './texts.js';
 import { renderBotText, renderBotTextPlain } from '$lib/utils/botTexts.js';
 import { formatARS } from '$lib/utils/money.js';
+import { searchHelp } from '$lib/utils/searchSyntax.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 /** @typedef {import('./nav.js').ListView} ListView */
@@ -614,7 +615,44 @@ export function fondoScreen(fondo, ctx) {
  * @returns {Screen}
  */
 export function helpScreen(ctx, { accounts = false } = {}) {
-	return { text: formatHelp(ctx.origin, { accounts }), keyboard: [[homeButton()]] };
+	return {
+		text: formatHelp(ctx.origin, { accounts }),
+		keyboard: [
+			[
+				{
+					text: botText('inicio.boton_como_buscar'),
+					callback_data: encodeNav({ screen: 'search_help' })
+				}
+			],
+			[homeButton()]
+		]
+	};
+}
+
+/**
+ * «🔎 Cómo buscar» (desde ❓ Ayuda): la sintaxis de búsqueda del bot, armada desde el registro de
+ * operadores (`searchHelp('bot')` en searchSyntax.js): cómo se escribe cada uno, qué hace y un
+ * ejemplo para copiar. Sumar un operador al registro lo suma acá.
+ *
+ * @returns {Screen}
+ */
+export function searchHelpScreen() {
+	const lista = searchHelp('bot')
+		.map(
+			(row) =>
+				`• <b>${escapeHtml(row.label)}</b>: ${escapeHtml(row.help)}\n<code>${escapeHtml(row.example)}</code>`
+		)
+		.join('\n');
+	return {
+		text: botText('sitio.como_buscar', { lista }),
+		keyboard: [
+			[{ text: botText('inicio.boton_buscar'), callback_data: encodeNav({ screen: 'search' }) }],
+			[
+				{ text: botText('inicio.boton_volver'), callback_data: encodeNav({ screen: 'help' }) },
+				homeButton()
+			]
+		]
+	};
 }
 
 /** Un aviso con «🏠 Inicio» (evento que ya no está, error…). @param {string} text @returns {Screen} */
