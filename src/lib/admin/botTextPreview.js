@@ -777,7 +777,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'admin.aviso_transferencia',
 			'admin.aviso_dia',
 			'admin.aviso_recordatorios',
-			'admin.aviso_conector'
+			'admin.aviso_conector',
+			'admin.aviso_fallas'
 		],
 		build: (t) => ({
 			html: t('admin.avisos'),
@@ -788,6 +789,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[{ text: `⬜ ${t('admin.aviso_dia')}` }],
 				[{ text: `⬜ ${t('admin.aviso_recordatorios')}` }],
 				[{ text: `⬜ ${t('admin.aviso_conector')}` }],
+				[{ text: `⬜ ${t('admin.aviso_fallas')}` }],
 				[{ text: t('admin.boton_estado') }, { text: t('inicio.boton_inicio') }]
 			]
 		})
@@ -847,6 +849,30 @@ export const PREVIEW_SCREENS = Object.freeze([
 				t('admin.conector_autorizo', { admins: '@admin-de-ejemplo' }),
 				t('admin.conector_confirmo', { nombres: 'Mel, Juan' })
 			].join('\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_falla_compra',
+		label: 'Avisos (admins): falló una compra',
+		keys: ['admin.falla_compra', 'admin.falla_sin_orden'],
+		build: (t) => ({
+			html: [
+				t('admin.falla_compra', {
+					falla: 'no se pudo crear el pago en Mercado Pago',
+					orden: 'KV-1A2B3C4D',
+					codigo: 'mp_preferencia',
+					veces: 3,
+					desde: '14:30'
+				}),
+				t('admin.falla_compra', {
+					falla: 'el webhook no pudo leer un pago de Mercado Pago',
+					orden: t('admin.falla_sin_orden'),
+					codigo: 'mp_pago',
+					veces: 1,
+					desde: '15:00'
+				})
+			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})
 	},
