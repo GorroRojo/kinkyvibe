@@ -263,3 +263,7 @@ a la guía sin tocar nada más.
   escribir cierra la guía. Falta `/ayuda/buscar` (`buscar-guia-visible`).
 - **Bot**: «🔎 Cómo buscar» en ❓ Ayuda (`searchHelpScreen` en `telegram/screens.js`), con cada
   ejemplo en `<code>` para copiarlo. Falta la línea en el mensaje de Buscar.
+- **Panel**: «Cómo buscar» de la paleta (`SEARCH_TIPS` en `paletteActions.js`, desde
+  `searchHelp('panel')`, con «Solo en el panel»; ver [panel.md](panel.md)). `helpFor` en el
+  registro cambia o saca un operador de la guía de un buscador: el panel no lista `material:` y su
+  `@` es `persona:`.

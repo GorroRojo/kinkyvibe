@@ -25,12 +25,15 @@
  *   engines: readonly Engine[],
  *   public: boolean,
  *   example: string,
- *   help: string
+ *   help: string,
+ *   helpFor?: Partial<Record<Engine, string | null>>
  * }} Operator
  * `names`: cómo se escribe (sin tildes ni mayúsculas, la primera es la forma larga de la guía);
  * `short`: las formas cortas; `prefix`: el signo que lo reemplaza (`#`, `@`); `types`: qué tipos
  * de resultado deja (los de tipo) o cuál implica (los que solo sirven para eventos); `public`: un
  * operador que no es público nunca anda en el sitio ni en el bot, aunque se lo liste ahí por error.
+ * `helpFor`: otra explicación para la guía de un buscador, o `null` para no listarlo en esa guía
+ * (lo que ese buscador lee pero no usa, o que ahí significa otra cosa).
  */
 
 const ALL = /** @type {const} */ (['sitio', 'bot', 'panel']);
@@ -58,7 +61,9 @@ export const OPERATORS = Object.freeze([
 		engines: ALL,
 		public: true,
 		example: 'material: consentimiento',
-		help: 'Solo material.'
+		help: 'Solo material.',
+		// El panel no busca material: lo lee, pero no encuentra nada.
+		helpFor: { panel: null }
 	},
 	{
 		id: 'wiki',
@@ -111,7 +116,9 @@ export const OPERATORS = Object.freeze([
 		engines: ALL,
 		public: true,
 		example: '@gorrite',
-		help: 'Lo que esa persona firma u organiza.'
+		help: 'Lo que esa persona firma u organiza.',
+		// En el panel, `@` es su `persona:` (personas y perfiles), que va en la guía con su `@`.
+		helpFor: { panel: null }
 	},
 	{
 		id: 'lugar',
@@ -157,6 +164,7 @@ export const OPERATORS = Object.freeze([
 	{
 		id: 'persona-panel',
 		names: ['persona'],
+		prefix: '@',
 		kind: 'extra',
 		engines: PANEL,
 		public: false,
@@ -856,7 +864,7 @@ export const SEARCH_BASICS = Object.freeze([
  */
 export function operatorLabel(op) {
 	const forms = [];
-	if (op.prefix) forms.push(`${op.prefix}${op.names[0] ?? 'nombre'}`);
+	if (op.prefix) forms.push(`${op.prefix}${op.prefix === '@' ? 'nombre' : (op.names[0] ?? '')}`);
 	if (op.names[0]) forms.push(`${op.names[0]}:`);
 	for (const s of op.short ?? []) forms.push(`${s}:`);
 	return forms.join(' · ');
@@ -873,7 +881,10 @@ export function operatorLabel(op) {
  */
 export function searchHelp(engine) {
 	const ops = OPERATORS.filter(
-		(op) => op.engines.includes(engine) && (op.public || engine === 'panel')
+		(op) =>
+			op.engines.includes(engine) &&
+			(op.public || engine === 'panel') &&
+			op.helpFor?.[engine] !== null
 	);
 	return [
 		...SEARCH_BASICS,
@@ -881,7 +892,7 @@ export function searchHelp(engine) {
 			id: op.id,
 			label: operatorLabel(op),
 			example: op.example,
-			help: op.help
+			help: op.helpFor?.[engine] ?? op.help
 		}))
 	];
 }

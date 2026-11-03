@@ -676,8 +676,7 @@
 							<span class="exs"
 								><button type="button" class="ex" on:click={() => tryExample(tip.q)}
 									><code>{tip.q}</code></button
-								>{#each tip.also ?? [] as other (other)}<code class="also">{other}</code
-									>{/each}</span
+								>{#each tip.forms ?? [] as form (form)}<code class="also">{form}</code>{/each}</span
 							>
 							<span>{tip.text}</span>
 						</li>
