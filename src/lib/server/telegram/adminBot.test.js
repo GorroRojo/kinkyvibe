@@ -225,7 +225,7 @@ describe('las pantallas', () => {
 		expect(s.text).not.toContain('Total');
 		expect(s.text).toContain('✅ Sin reservas sin pagar ni nada para revisar.');
 		expect(s.text).not.toContain('lista de espera');
-		expect(s.text).toContain('Solo cantidades');
+		expect(s.text).not.toContain('Solo cantidades');
 		// Sin https, sin el link al panel (Telegram no acepta links locales).
 		expect(buttons(s).some((b) => 'url' in b)).toBe(false);
 	});

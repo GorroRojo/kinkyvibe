@@ -916,13 +916,6 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'Estado: sin reservas ni nada para revisar',
 			'✅ Sin reservas sin pagar ni nada para revisar.'
 		),
-		f(
-			'admin.pie',
-			'admin',
-			'line',
-			'Estado: el pie',
-			'Solo cantidades: lo de cada compra está en el panel.'
-		),
 		f('admin.boton_actualizar', 'admin', 'button', 'Estado: actualizar', '🔄 Actualizar'),
 		f(
 			'admin.boton_panel',
@@ -936,7 +929,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta y cada transferencia, en el momento. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta y cada transferencia, en el momento.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,

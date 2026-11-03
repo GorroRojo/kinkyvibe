@@ -171,12 +171,7 @@ export function adminStatusScreen(choice, status, ctx) {
 		...(when ? [`📅 ${when}`] : []),
 		...(choice.cancelled ? [escapeHtml(botText('admin.cancelado'))] : [])
 	];
-	const text = [
-		head.join('\n'),
-		typeLines(status).join('\n'),
-		pendingLines(status).join('\n'),
-		botText('admin.pie')
-	]
+	const text = [head.join('\n'), typeLines(status).join('\n'), pendingLines(status).join('\n')]
 		.filter(Boolean)
 		.join('\n\n');
 	/** @type {Button[]} */

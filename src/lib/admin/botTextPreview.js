@@ -701,7 +701,6 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'admin.transferencias',
 			'admin.revisar',
 			'admin.espera',
-			'admin.pie',
 			'admin.boton_actualizar',
 			'admin.boton_panel'
 		],
@@ -720,8 +719,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 					t('admin.transferencias', { cantidad: 2 }),
 					t('admin.revisar', { cantidad: 1 }),
 					t('admin.espera', { cantidad: 5 })
-				].join('\n'),
-				t('admin.pie')
+				].join('\n')
 			].join('\n\n'),
 			buttons: [
 				[{ text: t('admin.boton_actualizar') }, { text: t('admin.boton_panel'), link: true }],
@@ -741,8 +739,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 					t('admin.tipo', { tipo: 'General', vendidas: 0, cupo: 50 }),
 					t('admin.total_sin_cupo', { vendidas: 0 })
 				].join('\n'),
-				t('admin.nada_pendiente'),
-				t('admin.pie')
+				t('admin.nada_pendiente')
 			].join('\n\n'),
 			buttons: [
 				[{ text: t('admin.boton_actualizar') }, { text: t('admin.boton_panel'), link: true }],
@@ -832,8 +829,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 					t('admin.transferencias', { cantidad: 2 }),
 					t('admin.revisar', { cantidad: 1 }),
 					t('admin.espera', { cantidad: 5 })
-				].join('\n'),
-				t('admin.pie')
+				].join('\n')
 			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})
@@ -850,8 +846,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 					t('admin.reservas', { cantidad: 2, por_vencer: 1 }),
 					t('admin.transferencias', { cantidad: 1 })
 				].join('\n'),
-				t('admin.falta_lugar'),
-				t('admin.pie')
+				t('admin.falta_lugar')
 			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})
@@ -864,8 +859,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 			html: [
 				`${t('admin.manana_titulo', { evento: 'Taller online de ejemplo' })}\n📅 vie 10 ene · 19:00`,
 				t('admin.total_sin_cupo', { vendidas: 12 }),
-				t('admin.falta_link'),
-				t('admin.pie')
+				t('admin.falta_link')
 			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})
@@ -878,8 +872,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 			html: [
 				`${t('admin.falta_titulo', { evento: 'Taller online de ejemplo' })}\n📅 vie 10 ene · 19:00`,
 				t('admin.total_sin_cupo', { vendidas: 14 }),
-				t('admin.falta_link'),
-				t('admin.pie')
+				t('admin.falta_link')
 			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})

@@ -249,14 +249,7 @@ export function dailySummaryText(
 	if (status.waitlist) {
 		pending.push(botText('admin.espera', { cantidad: status.waitlist }, overrides));
 	}
-	return [
-		head.join('\n'),
-		sales.join('\n'),
-		pending.join('\n'),
-		botText('admin.pie', {}, overrides)
-	]
-		.filter(Boolean)
-		.join('\n\n');
+	return [head.join('\n'), sales.join('\n'), pending.join('\n')].filter(Boolean).join('\n\n');
 }
 
 /**
@@ -693,8 +686,7 @@ export function eventDayText({ title, start, status, missing }, now, overrides) 
 		].join('\n'),
 		totalLine(status, overrides),
 		pending.join('\n'),
-		missingLines(missing, overrides).join('\n'),
-		botText('admin.pie', {}, overrides)
+		missingLines(missing, overrides).join('\n')
 	]
 		.filter(Boolean)
 		.join('\n\n');
@@ -718,8 +710,7 @@ export function reminderText({ kind, title, start, status, missing }, now, overr
 	return [
 		[head, ...(when ? [`📅 ${when}`] : [])].join('\n'),
 		totalLine(status, overrides),
-		missingLines(missing, overrides).join('\n'),
-		botText('admin.pie', {}, overrides)
+		missingLines(missing, overrides).join('\n')
 	]
 		.filter(Boolean)
 		.join('\n\n');
