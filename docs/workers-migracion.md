@@ -297,7 +297,43 @@ si lo encuentra en `static/`, el build falla.
   día en verse. Lo que tiene hash ya está en `/_app/immutable/`.
 - **Archivo nuevo en `static/`**: sumarle su regla (o a `DEFAULT_ON_PURPOSE` si debe quedar con el
   header por defecto, como `robots.txt`). Lo chequea `src/lib/server/staticHeaders.test.js`.
-- **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control`.
+- **Headers de seguridad (`/*`)**: una sola regla para todo con `X-Content-Type-Options: nosniff`
+  y `Referrer-Policy: strict-origin-when-cross-origin`, los mismos que `securityHeaders.js` pone
+  en las páginas; sin ella, los estáticos (`/robots.txt` incluido) salían sin esos dos. Nunca
+  caché en esa regla.
+- **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control` (y
+  `curl -sI https://kinkyvibe.ar/robots.txt | grep -i nosniff`).
+
+## Headers de seguridad y CSP
+
+- `src/lib/server/securityHeaders.js` (desde `hooks.server.js`) pone en todas las respuestas del
+  Worker `nosniff`, `Referrer-Policy` y `Permissions-Policy` (cámara solo para el propio sitio,
+  que la usa el escáner de la puerta del panel; sin micrófono ni ubicación), y no deja embeber el
+  panel, las entradas ni las cuentas en un iframe. Los estáticos llevan los dos primeros por `_headers`.
+- **CSP en modo solo reporte** (`kit.csp.reportOnly` en `svelte.config.js`): el header es
+  `Content-Security-Policy-Report-Only`, así que **no bloquea nada**; el navegador avisa a
+  `POST /api/csp` lo que bloquearía, y esa ruta lo loguea (directiva y origen, nada de la URL
+  completa) en los logs del Worker: `[csp] script-src bloquearía https://… (en /evento)`.
+  SvelteKit pone un nonce a sus scripts; el beacon de Web Analytics lleva
+  `nonce="%sveltekit.nonce%"` en `app.html`; los dos scripts del `<head>` del panel (tema y
+  lateral) tienen contenido fijo y van por hash (si se cambia su texto, el hash se recalcula solo
+  al compilar).
+- **Para aplicarla** (decisión de gorrite, después de unas semanas mirando los logs): pasar las
+  mismas directivas de `reportOnly` a `directives`, ajustando lo que haya aparecido (por ejemplo,
+  achicar `frame-src` a los embeds que de verdad se usan). Ojo con la caché de 1 minuto para quien
+  no tiene sesión: guarda el HTML con su nonce y lo repite durante ese minuto; para una política
+  que bloquea conviene no cachear o usar hashes.
+
+## Tamaño de los pedidos
+
+Workers corta los cuerpos en 100 MB. Las rutas que reciben algo de afuera leen el cuerpo con
+`src/lib/server/http/body.js` (`readJsonCapped`, `readTextCapped`, `readBytesCapped`): con un
+`content-length` mayor que el tope ni empiezan a leer, y sin ese header (chunked) leen de a
+pedazos y cortan apenas se pasa, sin guardar el cuerpo entero. Topes: 8 KB las de la mini app y la
+puerta de Telegram, 64 KB el webhook del bot y el de Mercado Pago, 300 bytes `/api/visto`, 4 KB la
+velocidad de lectura y la búsqueda de direcciones, el de Resend el suyo y `POST /imagenes` 25 MB
+más el formulario. Una ruta nueva que lea un cuerpo de afuera usa estas funciones, no
+`request.json()`.
 
 ## Cuánto tardó: `Server-Timing`
 

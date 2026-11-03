@@ -446,7 +446,9 @@ describe('cuentas', () => {
 			status: 400
 		});
 		const { RATE_LIMITS } = await import('$lib/server/cuentas/index.js');
-		for (let i = 0; i < RATE_LIMITS.codeRequestEmail.limit; i++) await confirmCode('password');
+		// Misma conexión: el tope de mail + conexión (más bajo que el del mail solo).
+		for (let i = 0; i < RATE_LIMITS.codeRequestEmailClient.limit; i++)
+			await confirmCode('password');
 		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 		try {
 			expect(await m.rincon.actions.confirmar(ev({ para: 'delete' }))).toMatchObject({
