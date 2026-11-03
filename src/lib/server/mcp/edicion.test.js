@@ -4,11 +4,13 @@
  * «Crear» de Ventas → Códigos):
  *
  * - sin «Conector de Claude: cambios», las herramientas ni aparecen (y llamarlas falla);
+ * - con una conexión de solo `lectura` tampoco: hace falta el permiso `edicion` (o una llave);
  * - vista previa → aplicar guarda exactamente lo que se vio, con «Claude, confirmado por …» en el
  *   historial y en Actividad;
  * - una vista previa vieja (alguien guardó en el medio) no se aplica;
  * - entradas distintas o una huella tocada no se aplican;
- * - el tope por día corta, y un cambio que no se guarda no cuenta;
+ * - no hay tope por día: el cambio 51 del día se guarda igual;
+ * - la descripción de un evento con HTML libre se cambia, y sigue con HTML libre (como el panel);
  * - crear un código pasa por la validación del panel.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,7 +58,7 @@ const setFlag = (key, on) =>
 		.run();
 
 /** Los módulos con la base registrada (como hooks.server.js) y los interruptores. */
-async function setup({ edit = true } = {}) {
+async function setup({ edit = true, canEdit = true } = {}) {
 	vi.resetModules();
 	const repo = await import('$lib/server/contenido/repo.js');
 	repo.setContentDB(t.db);
@@ -69,6 +71,7 @@ async function setup({ edit = true } = {}) {
 	const ctx = {
 		db: t.db,
 		user: { id: admin.id, login: admin.login },
+		canEdit,
 		fetch: globalThis.fetch,
 		now: Date.now(),
 		platform: /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: t.db } })),
@@ -124,12 +127,37 @@ describe('los interruptores', () => {
 		expect(r.isError).toBe(true);
 	});
 
+	it('con una conexión de solo `lectura`, no aparecen y aplicar se rechaza sin guardar', async () => {
+		const s = await setup({ canEdit: false });
+		const names = await s.list();
+		expect(names).toContain('leer');
+		expect(names).not.toContain('vista_previa');
+		expect(names).not.toContain('aplicar');
+		const before = (await eventRow(SLUG)).version;
+		const p = await s.call('vista_previa', change);
+		expect(p.isError).toBe(true);
+		expect(p.content[0].text).toMatch(/solo tiene permiso de lectura/);
+		const a = await s.call('aplicar', { ...change, hash: 'x'.repeat(43), version: 'x' });
+		expect(a.isError).toBe(true);
+		expect(a.content[0].text).toMatch(/solo tiene permiso de lectura/);
+		expect((await eventRow(SLUG)).version).toBe(before);
+	});
+
+	it('con `edicion`, vista previa y aplicar andan', async () => {
+		const s = await setup({ canEdit: true });
+		expect(await s.list()).toEqual(expect.arrayContaining(['vista_previa', 'aplicar']));
+		const prev = (await s.call('vista_previa', change)).structuredContent;
+		const a = await s.call('aplicar', { ...change, hash: prev.hash, version: prev.version });
+		expect(a.isError).toBe(false);
+		expect(a.structuredContent.aplicado).toBe(true);
+	});
+
 	it('con los dos prendidos, aparecen con sus anotaciones', async () => {
 		const s = await setup();
 		const tools = /** @type {any} */ (
 			await s.rpc.handleMessage(
 				{ jsonrpc: '2.0', id: 1, method: 'tools/list' },
-				/** @type {any} */ ({ db: t.db })
+				/** @type {any} */ ({ db: t.db, canEdit: true })
 			)
 		).result.tools;
 		const aplicar = tools.find((/** @type {any} */ x) => x.name === 'aplicar');
@@ -245,22 +273,56 @@ describe('vista previa y aplicar', () => {
 		expect(Number(refused?.n)).toBe(2);
 	});
 
-	it('el tope por día corta con un mensaje claro y no guarda nada', async () => {
+	it('no hay tope por día: con 50 cambios aplicados hoy, el 51 se guarda igual', async () => {
 		const s = await setup();
-		const { DAILY_BUCKET } = await import('./cambios.js');
-		// 50 cambios ya aplicados en esta hora.
-		const slot = Math.floor(Date.now() / 1000 / 3600) * 3600;
-		await t.db
-			.prepare('INSERT INTO rate_limits (bucket, window_start, hits) VALUES (?1, ?2, 50)')
-			.bind(DAILY_BUCKET, slot)
-			.run();
+		// 50 cambios ya aplicados hoy, repartidos en las últimas 23 horas.
+		const now = Date.now();
+		for (let i = 0; i < 50; i++) {
+			await t.db
+				.prepare(
+					`INSERT INTO admin_audit (at, actor_id, actor_login, action, summary, detail)
+					VALUES (?1, ?2, ?3, 'conector.aplicar', 'Claude: editó un evento', ?4)`
+				)
+				.bind(
+					now - (i + 1) * 27 * 60 * 1000,
+					admin.id,
+					admin.login,
+					JSON.stringify({ operacion: 'editar_evento', aplicado: true })
+				)
+				.run();
+		}
 		const before = (await eventRow(SLUG)).version;
 		const prev = (await s.call('vista_previa', change)).structuredContent;
 		const a = await s.call('aplicar', { ...change, hash: prev.hash, version: prev.version });
-		expect(a.isError).toBe(true);
-		expect(a.structuredContent.motivo).toBe('tope por día');
-		expect(a.structuredContent.mensaje).toMatch(/tope de 50 cambios por día/);
-		expect((await eventRow(SLUG)).version).toBe(before);
+		expect(a.isError).toBe(false);
+		expect(a.structuredContent.aplicado).toBe(true);
+		expect(a.structuredContent).not.toHaveProperty('motivo');
+		expect((await eventRow(SLUG)).version).toBe(before + 1);
+	});
+
+	it('cambia la descripción de un evento con HTML libre y la deja con HTML libre, como el panel', async () => {
+		const s = await setup();
+		const before = await eventRow(SLUG);
+		// Lo importado cuenta como HTML libre de superadmin (decisión 0004).
+		expect(JSON.parse(before.data).body_html).toBe('libre');
+		const desc = {
+			operacion: 'editar_evento',
+			evento: SLUG,
+			cambios: { descripcion: 'Texto nuevo con <span class="destacado">HTML</span> inventado.' }
+		};
+		const p = await s.call('vista_previa', desc);
+		expect(p.isError).toBe(false);
+		const a = await s.call('aplicar', {
+			...desc,
+			hash: p.structuredContent.hash,
+			version: p.structuredContent.version
+		});
+		expect(a.isError).toBe(false);
+		const after = await eventRow(SLUG);
+		expect(after.version).toBe(before.version + 1);
+		const data = JSON.parse(after.data);
+		expect(data.body).toContain('<span class="destacado">HTML</span>');
+		expect(data.body_html).toBe('libre');
 	});
 
 	it('valida con las reglas del panel antes de mostrar nada', async () => {

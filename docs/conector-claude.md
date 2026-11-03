@@ -54,7 +54,8 @@ por la dirección (slug).
    Admins → «Conector de Claude»). La «Configuración avanzada» se deja vacía: Claude se registra
    solo. Si la pide, el ID de cliente es `kinkyvibe-claude`, sin secreto.
 4. «Conectar»: se abre el sitio. Si no tenés sesión, entrás con GitHub; después, la pantalla
-   «¿Conectar Claude?» dice qué va a poder leer y a dónde vuelve (`claude.ai`). «Permitir».
+   «¿Conectar Claude?» dice qué va a poder leer (y cambiar, si Claude pidió el permiso
+   `edicion`) y a dónde vuelve (`claude.ai`). «Permitir».
    Permitilo solo si recién lo pediste vos desde Claude: si alguien te pasa un link a esa
    pantalla, cancelá (la pantalla lo avisa, y no se puede mostrar dentro de otra página).
 5. En una conversación, prendé el conector (menú de herramientas) y pedí: «¿cómo viene la venta de
@@ -99,23 +100,24 @@ cerrar conexiones (`conector.cerrar`, `conector.cerrar_todes`) también quedan.
 
 ## Cambios
 
-Con `conector_claude` y `conector_claude_edicion` prendidos aparecen dos herramientas más. Todo
+Con `conector_claude` y `conector_claude_edicion` prendidos, y una conexión con el permiso
+`edicion` (ver «Permisos» abajo), aparecen dos herramientas más. Todo
 cambio va en dos pasos: `vista_previa` muestra exactamente qué va a cambiar (lo que el bot del
 equipo muestra para pedir el ✅) y `aplicar` lo guarda, con las mismas entradas más la huella y la
 versión de la vista previa. En un chat con une admin pueden ir una atrás de la otra; lo que importa
 es que `aplicar` nunca guarda algo distinto de lo que alguien vio.
 
-| Herramienta    | Qué recibe                                                                                                       | Qué devuelve                                                                                                                                                                         |
-| -------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `vista_previa` | `operacion`, `evento` (slug o nombre), `cambios`                                                                 | `resumen` (el antes y después en un texto corto), `cambios` (`[{ campo, antes, despues }]`), `avisos`, `hash`, `version`, `objetivo`, `titulo`, `enlaces`. No guarda nada.           |
-| `aplicar`      | lo mismo, más `hash` y `version` de la vista previa; opcional `confirmado_por` (hasta 40) y `pedido` (hasta 500) | `aplicado: true`, `resumen`, `avisos`, `confirmado_por`, `enlaces`; o `aplicado: false` con `motivo` (`cambió`, `no coincide`, `tope por día`, `el panel no lo guardó`) y `mensaje`. |
+| Herramienta    | Qué recibe                                                                                                       | Qué devuelve                                                                                                                                                               |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vista_previa` | `operacion`, `evento` (slug o nombre), `cambios`                                                                 | `resumen` (el antes y después en un texto corto), `cambios` (`[{ campo, antes, despues }]`), `avisos`, `hash`, `version`, `objetivo`, `titulo`, `enlaces`. No guarda nada. |
+| `aplicar`      | lo mismo, más `hash` y `version` de la vista previa; opcional `confirmado_por` (hasta 40) y `pedido` (hasta 500) | `aplicado: true`, `resumen`, `avisos`, `confirmado_por`, `enlaces`; o `aplicado: false` con `motivo` (`cambió`, `no coincide`, `el panel no lo guardó`) y `mensaje`.       |
 
 Operaciones:
 
 - **`editar_evento`** (`evento` obligatorio). `cambios`, alguno de: `titulo`; `inicio` y `fin`
   (`AAAA-MM-DDTHH:MM`, hora de Argentina; `fin` vacío saca la hora de fin; si cambia `inicio` sin
   `fin`, el fin se mueve igual, como en el editor); `lugar` (nombre o slug de un lugar que ya
-  existe; vacío, sin lugar); `descripcion` (el texto en markdown; no en un evento con HTML libre);
+  existe; vacío, sin lugar); `descripcion` (el texto en markdown; se guarda con las reglas de HTML de le admin que autorizó, como en el panel: HTML libre, ver abajo);
   `precios` (`[{ tipo, precio }]`: el nombre de un tipo de entrada con precio fijo y el precio en
   pesos; las tandas, la gorra, el cupo y lo demás de la venta, desde el panel); `visibilidad`
   (`listado` o `no_listado`, el «No listado» del editor).
@@ -135,9 +137,29 @@ desde el panel.
   chat de le propie admin). En Actividad: `conector.aplicar`, a nombre de le admin, con «Claude,
   confirmado por Mel: editó el evento «…» (título, precio de «General»)». El texto del `pedido` no
   se guarda en Actividad. Cada vista previa queda también (`conector.vista_previa`).
-- **Tope por día**: 50 cambios aplicados en las últimas 24 horas, entre todes (se cambia con la
-  variable `CONECTOR_CLAUDE_CAMBIOS_POR_DIA`). Al llegar, `aplicar` contesta «Se llegó al tope de
-  50 cambios por día del conector de Claude…» y no guarda nada. Las vistas previas no cuentan.
+- **HTML libre** (gorrite, 3/11: «html libre está bien, sólo lo hacemos nosotres por ahora»): lo
+  que guarda el conector usa las mismas reglas de HTML que cuando le admin que autorizó guarda en el
+  panel. Les admins del panel son superadmins ([0003](decisiones/0003-superadmins-y-permisos.md)),
+  así que una descripción nueva queda con HTML libre ([0004](decisiones/0004-modelo-de-contenido.md));
+  también se puede cambiar la de un evento que ya tenía HTML libre.
+- **Sin tope de cambios** (gorrite, 3/11: «Sin tope: aviso por Telegram si hay muchos cambios en
+  una hora»). Cuando en la última hora (ventana móvil) se aplicaron **20 cambios o más**
+  (`BURST_THRESHOLD` en `src/lib/server/mcp/avisoCambios.js`; es una constante, no una variable),
+  les admins que prendieron **«Cambios de Claude»** en «🔔 Mis avisos» del bot (apagado por
+  defecto, como todos los avisos de admins; [telegram.md](telegram.md)) reciben por Telegram:
+
+  > ⚠️ Claude aplicó 20 cambios en la última hora desde el conector.
+  > Autorizó: @login
+  > Confirmado por: Mel, Juan
+
+  «Autorizó» son les admins dueñes de las conexiones que aplicaron; «Confirmado por», los nombres
+  de `confirmado_por` (la línea no sale si no vino ninguno). Nada del pedido ni de compradores.
+  Cuenta las filas `conector.aplicar` de Actividad con `detail.aplicado` (los rechazados no
+  cuentan). Sale **una vez por hora como mucho**: antes de mandar se toma una fila del bucket
+  `mcp-aviso-cambios` de `rate_limits` solo si no hay otra de la última hora; si no le llegó a nadie
+  (Telegram falló), se suelta y el próximo cambio reintenta. Corre en segundo plano después de
+  guardar (`waitUntil`): sin el bot, sin «Telegram para admins», sin `TELEGRAM_BOT_TOKEN` o con
+  Telegram caído, el cambio se guarda igual y el problema solo queda en el log.
 
 ## Rutinas que corren solas
 
@@ -151,8 +173,8 @@ no puede volver a tocar «Permitir». Para eso están las **llaves para rutinas*
 3. La rutina usa el conector como cualquier chat: `vista_previa`, y `aplicar` con `confirmado_por`
    (quién tocó ✅) y `pedido`.
 
-La llave vale como su admin, con los mismos controles en cada pedido (sigue en `ADMINS`, los
-interruptores), hasta que se revoque o pase un año. La tarjeta muestra cuándo se usó por última vez.
+La llave vale como su admin, con permiso de cambiar (como una conexión con `edicion`: la creaste
+para eso) y los mismos controles en cada pedido (sigue en `ADMINS`, los interruptores), hasta que se revoque o pase un año. La tarjeta muestra cuándo se usó por última vez.
 Hasta 5 vigentes por admin.
 
 ## Cómo funciona
@@ -173,6 +195,18 @@ claude.ai ──POST /mcp/token (code + code_verifier)           ──▶ token
   respuesta en JSON, sin sesiones ni SSE (`GET /mcp` da 405, como permite la especificación). El SDK
   oficial de TypeScript está pensado para Node (Express y sus transportes); para cuatro
   herramientas de lectura no hacía falta sumar una dependencia.
+- **Permisos** (gorrite, 3/11): dos scopes de OAuth, `lectura` y `edicion` (`SCOPES` en
+  `oauth.js`). El `WWW-Authenticate` del 401 y los metadatos (`scopes_supported`) anuncian los dos
+  (`scope="lectura edicion"`). Si Claude pide `edicion`, la pantalla «¿Conectar Claude?» dice que
+  va a poder **leer y cambiar** (y, si los cambios están apagados en el sitio, que va a poder cuando
+  se prendan); si pide solo `lectura` o no manda `scope`, que no puede cambiar nada. El permiso
+  queda en el código y en los tokens, y se mantiene al renovar; un scope desconocido vuelve a
+  Claude con `invalid_scope`. `vista_previa` y `aplicar` solo aparecen (y solo andan) con un
+  token con `edicion` **y** los dos interruptores prendidos; con uno de solo `lectura`, Claude
+  recibe «Esta conexión solo tiene permiso de lectura…». Las **llaves para rutinas** (`kvc1_…`)
+  cuentan como con `edicion`: le admin las crea a propósito, para rutinas que cambian cosas. Las
+  conexiones de antes de este cambio tienen solo `lectura`: para cambiar hay que volver a
+  conectar el conector en Claude.
 - **OAuth 2.1 sin guardar tokens** (`src/lib/server/mcp/oauth.js`): el código y los tokens son JSON
   firmados con HMAC-SHA256 con una clave al azar que se crea sola en `ticket_settings`
   (`mcp_oauth_clave`, como los links firmados). El código vale 60 s y un solo uso; cada token de

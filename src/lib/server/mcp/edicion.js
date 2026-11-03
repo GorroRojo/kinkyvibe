@@ -1,7 +1,8 @@
 /**
  * Las herramientas de cambios del conector de Claude (docs/conector-claude.md, «Cambios»):
  * `vista_previa` y `aplicar`. Solo con los interruptores `conector_claude` y
- * `conector_claude_edicion` prendidos; con el segundo apagado ni aparecen en `tools/list`.
+ * `conector_claude_edicion` prendidos y una conexión con el permiso `edicion` (o una llave para
+ * rutinas, ./oauth.js y ./llaves.js); si no, ni aparecen en `tools/list`.
  *
  * - `vista_previa` recibe la operación, el objetivo (por nombre o slug) y los cambios; los valida con
  *   las reglas del panel y devuelve el antes y después en palabras, la huella y la versión de lo
@@ -9,8 +10,11 @@
  * - `aplicar` recibe lo mismo más la huella y la versión. Si lo que hay cambió desde la vista previa,
  *   o las entradas no dan la misma huella, no guarda nada. Si no, guarda por el mismo código que el
  *   panel (./editarEvento.js, ./crearCodigo.js), con «confirmado por» en el historial y en
- *   Actividad, y cuenta para el tope por día (./cambios.js).
+ *   Actividad. Sin tope por día: si hay muchos cambios en una hora, sale un aviso por Telegram a
+ *   les admins (./avisoCambios.js, lo dispara ./rpc.js después de anotarlo en Actividad). Guarda
+ *   con las reglas de HTML de le admin que autorizó, como el panel (decisión 0004).
  */
+import { isAdmin } from '$lib/server/auth';
 import { runAsPanelAuthor } from '$lib/server/contenido/author.js';
 import { eventHref } from '$lib/admin/nav.js';
 import {
@@ -19,8 +23,7 @@ import {
 	cleanConfirmedBy,
 	cleanRequest,
 	editingOn,
-	hashMatches,
-	takeDailySlot
+	hashMatches
 } from './cambios.js';
 import {
 	EVENT_FIELDS,
@@ -240,6 +243,11 @@ const targetLog = (p) =>
 
 /** Sin el interruptor de cambios: un error claro. @param {ToolContext} ctx */
 async function requireEditing(ctx) {
+	if (ctx.canEdit !== true) {
+		throw new ToolInputError(
+			'Esta conexión solo tiene permiso de lectura. Para cambiar, volvé a conectar el conector en Claude y permití también los cambios.'
+		);
+	}
 	if (!(await editingOn(ctx.db))) {
 		throw new ToolInputError(
 			'Los cambios del conector están apagados (Ajustes → Interruptores → «Conector de Claude: cambios»). Claude solo puede leer.'
@@ -365,20 +373,17 @@ export const EDIT_TOOLS = {
 					'Las entradas no son las de la vista previa (o el hash no es el que dio). No se guardó nada: hacé una vista previa nueva con lo que se quiere cambiar.'
 				);
 			}
-			const slot = await takeDailySlot(ctx.db, ctx.now);
-			if (!slot.ok) return refused('tope por día', slot.message);
-			let r;
-			try {
-				r = await runAsPanelAuthor(
-					{ login: ctx.user.login, name: null, superadmin: false, claude: { confirmedBy } },
-					() => p.apply(ctx)
-				);
-			} catch (error) {
-				await slot.release();
-				throw error;
-			}
+			// Como cuando le admin guarda en el panel: les admins son superadmins (HTML libre).
+			const r = await runAsPanelAuthor(
+				{
+					login: ctx.user.login,
+					name: null,
+					superadmin: isAdmin(ctx.user),
+					claude: { confirmedBy }
+				},
+				() => p.apply(ctx)
+			);
 			if (!r.ok) {
-				await slot.release();
 				return r.stale
 					? refused(
 							'cambió',
@@ -403,6 +408,8 @@ export const EDIT_TOOLS = {
 					// Sin el texto del pedido (puede tener datos de alguien): solo si vino y su largo.
 					detail: {
 						operacion: p.operation,
+						// Lo que cuenta ./avisoCambios.js (los cambios aplicados en la última hora).
+						aplicado: true,
 						campos: p.changes.map((c) => c.campo),
 						confirmado_por: confirmedBy,
 						pedido_largo: request ? request.length : 0

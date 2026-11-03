@@ -83,6 +83,8 @@ describe('verificar', () => {
 		expect(await mcpAdmin(t.db, bearer(token), 'https://ejemplo.test', NOW + 2000)).toEqual({
 			id: ana.id,
 			login: ana.login,
+			// Una llave cuenta como con permiso de cambiar: le admin la creó para una rutina.
+			canEdit: true,
 			via: 'llave'
 		});
 	});

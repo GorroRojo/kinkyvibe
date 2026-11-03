@@ -35,11 +35,15 @@ import { getCounts, foldText } from '$lib/server/tickets/orders.js';
  * @typedef {{
  *   db: D1Database,
  *   user: { id: number, login: string },
+ *   canEdit?: boolean,
  *   fetch: typeof fetch,
  *   now: number,
  *   platform?: App.Platform,
  *   origin: string
  * }} ToolContext
+ *
+ * `canEdit`: la conexión tiene el permiso `edicion` (o es una llave para rutinas); sin él, ni
+ * aparecen las herramientas de cambios.
  *
  * @typedef {{
  *   result: Record<string, unknown>,

@@ -822,11 +822,12 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
 - **Solo cantidades**: las consultas son `SUM`/`COUNT` sobre `orders` (y la lista de espera); nunca
   leen nombres, mails, DNI, titulares, códigos ni tokens (`admin-privacy.test.js` llena la base con
   todo eso y revisa que no aparezca en ninguna pantalla). Lo de cada compra, en el panel.
-- **🔔 Mis avisos**: cinco tipos (resumen diario, cada venta, cada transferencia, día del evento,
-  recordatorios), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
-  por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila = apagado): volver a
-  vincular no borra lo elegido. Ya salen el resumen diario, cada venta y cada transferencia (abajo);
-  el día del evento y los recordatorios, con el PR 3 (la pantalla lo dice).
+- **🔔 Mis avisos**: seis tipos (resumen diario, cada venta, cada transferencia, día del evento,
+  recordatorios y cambios de Claude), **todos apagados al empezar**; tocar uno lo prende o lo apaga
+  (✅/⬜). Se guarda por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila =
+  apagado): volver a vincular no borra lo elegido. Ya salen el resumen diario, cada venta, cada
+  transferencia y los cambios de Claude (abajo); el día del evento y los recordatorios, con el PR 3
+  (la pantalla lo dice).
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con sus pantallas en
   la vista previa.
 
@@ -883,6 +884,14 @@ una confirmación):
 - En el horario de silencio salen igual, pero **sin sonido** (`disable_notification`): una venta
   avisada a las 9 de la mañana ya no sirve.
 - Si Telegram falla en ese momento, ese aviso no se reintenta (el resumen diario la cuenta igual).
+
+**Cambios de Claude** (`conector_claude`, letra `c`): el conector de Claude no tiene tope de
+cambios; cuando en la última hora (ventana móvil) se aplicaron 20 o más, sale «⚠️ Claude aplicó 20
+cambios en la última hora desde el conector.», con «Autorizó: @login» (les admins dueñes de la
+conexión) y, si vino, «Confirmado por: Mel» (los nombres de «confirmado por»), y «Ver en el panel ↗»
+a Actividad. Una vez por hora como mucho, nunca traba un cambio y si Telegram falla el próximo
+cambio reintenta. Detalle en [conector-claude.md](conector-claude.md#cambios)
+(`src/lib/server/mcp/avisoCambios.js`).
 
 ### Puesta en marcha del estado y los avisos (la hace gorrite)
 

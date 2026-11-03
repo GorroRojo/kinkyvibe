@@ -1,7 +1,7 @@
 /**
  * Lo común a los cambios del conector de Claude (./cambios.js): la huella (determinista, distinta
- * ante cualquier cambio de las entradas o de la versión, imposible de armar sin la clave), el tope
- * por día, los interruptores y «confirmado por». En un D1 de miniflare.
+ * ante cualquier cambio de las entradas o de la versión, imposible de armar sin la clave), los
+ * interruptores y «confirmado por». En un D1 de miniflare. (Sin tope por día: ./avisoCambios.js.)
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -13,10 +13,8 @@ import {
 	claudeLabel,
 	cleanConfirmedBy,
 	cleanRequest,
-	dailyLimit,
 	editingOn,
-	hashMatches,
-	takeDailySlot
+	hashMatches
 } from './cambios.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -88,32 +86,6 @@ describe('la huella', () => {
 		const h = await changeHash(t.db, spec());
 		await t.db.prepare('DELETE FROM ticket_settings WHERE key = ?1').bind(HASH_KEY_SETTING).run();
 		expect(await hashMatches(t.db, spec(), h)).toBe(false);
-	});
-});
-
-describe('el tope por día', () => {
-	it('lee la variable o usa 50', () => {
-		expect(dailyLimit(undefined)).toBe(50);
-		expect(dailyLimit('')).toBe(50);
-		expect(dailyLimit('10')).toBe(10);
-		expect(dailyLimit('0')).toBe(50);
-		expect(dailyLimit('muchos')).toBe(50);
-		expect(dailyLimit('5000')).toBe(50);
-	});
-
-	it('deja pasar hasta el tope, después avisa en castellano, y devolver libera el lugar', async () => {
-		const now = Date.UTC(2026, 10, 2, 15);
-		const a = await takeDailySlot(t.db, now, 2);
-		const b = await takeDailySlot(t.db, now + 1000, 2);
-		expect(a.ok && b.ok).toBe(true);
-		const c = await takeDailySlot(t.db, now + 2000, 2);
-		expect(c.ok).toBe(false);
-		if (!c.ok) expect(c.message).toMatch(/tope de 2 cambios por día/);
-		// Un cambio que al final no se guardó devuelve su lugar.
-		if (b.ok) await b.release();
-		expect((await takeDailySlot(t.db, now + 3000, 2)).ok).toBe(true);
-		// Al día siguiente hay lugar otra vez.
-		expect((await takeDailySlot(t.db, now + 25 * 60 * 60 * 1000, 2)).ok).toBe(true);
 	});
 });
 

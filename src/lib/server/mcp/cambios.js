@@ -8,18 +8,15 @@
  *   en el servidor) y la versión de lo que había. `aplicar` vuelve a normalizar las entradas, mira
  *   que la versión siga siendo la misma y recalcula la huella: si algo no coincide, no guarda nada.
  *   Sin la clave no se puede armar una huella que `aplicar` acepte.
- * - **El tope por día** ({@link takeDailySlot}): los cambios aplicados en las últimas 24 horas,
- *   entre todes (`rate_limits`, ventana móvil). Un cambio que al final no se guarda devuelve su
- *   lugar.
+ * - **Sin tope** (gorrite, 3/11): si hay muchos cambios en una hora, les admins reciben un aviso
+ *   por Telegram (./avisoCambios.js).
  * - **Los interruptores**: leer necesita `conector_claude`; cambiar, además
  *   `conector_claude_edicion` ({@link editingOn}).
  * - **«Confirmado por» y el pedido** ({@link cleanConfirmedBy}, {@link cleanRequest}): texto libre y
  *   corto, sin caracteres de control. El pedido no va a Actividad (puede tener datos de alguien):
  *   solo su largo.
  */
-import { env } from '$env/dynamic/private';
 import { isFlagOn } from '$lib/server/flags.js';
-import { hitRateLimit, releaseRateLimitHit } from '$lib/server/db/rateLimit.js';
 import { storedSecret } from '$lib/server/signedLinks.js';
 import { timingSafeEqual } from '$lib/server/hash.js';
 import { toBase64url } from '$lib/utils/base64.js';
@@ -29,28 +26,9 @@ import { toBase64url } from '$lib/utils/base64.js';
 /** Fila de `ticket_settings` con la clave de las huellas. */
 export const HASH_KEY_SETTING = 'mcp_cambios_clave';
 
-/** El tope de cambios aplicados por día si no se configura otro. */
-export const DEFAULT_DAILY_LIMIT = 50;
-
-/** El bucket de `rate_limits` del tope por día (sin datos de nadie). */
-export const DAILY_BUCKET = 'mcp-cambios';
-
-/** La ventana del tope: las últimas 24 horas. */
-export const DAILY_WINDOW = 24 * 60 * 60;
-
 /** Largo máximo de «confirmado por» y del pedido. */
 export const CONFIRMED_BY_MAX = 40;
 export const REQUEST_MAX = 500;
-
-/**
- * El tope por día: la variable `CONECTOR_CLAUDE_CAMBIOS_POR_DIA` (un entero de 1 a 1000) o
- * {@link DEFAULT_DAILY_LIMIT}.
- * @param {string | undefined} [raw] para tests
- */
-export function dailyLimit(raw = env.CONECTOR_CLAUDE_CAMBIOS_POR_DIA) {
-	const n = Number(String(raw ?? '').trim());
-	return Number.isSafeInteger(n) && n >= 1 && n <= 1000 ? n : DEFAULT_DAILY_LIMIT;
-}
 
 /**
  * ¿Se puede cambiar? Hace falta el conector prendido y el interruptor de cambios.
@@ -153,27 +131,4 @@ export async function changeHash(db, spec) {
 export async function hashMatches(db, spec, hash) {
 	if (typeof hash !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(hash)) return false;
 	return timingSafeEqual(await changeHash(db, spec), hash);
-}
-
-/**
- * Toma un lugar del tope por día. Si no hay, el mensaje para Claude.
- * @param {D1Database} db
- * @param {number} now
- * @param {number} [limit]
- * @returns {Promise<{ ok: true, release: () => Promise<void> } | { ok: false, message: string }>}
- */
-export async function takeDailySlot(db, now, limit = dailyLimit()) {
-	const rule = { limit, windowSeconds: DAILY_WINDOW };
-	const r = await hitRateLimit(db, DAILY_BUCKET, rule, now);
-	if (!r.allowed) {
-		const hours = Math.max(1, Math.ceil(r.retryAfter / 3600));
-		return {
-			ok: false,
-			message:
-				`Se llegó al tope de ${limit} cambios por día del conector de Claude. ` +
-				`No se guardó nada. Se libera lugar en ${hours === 1 ? 'una hora' : `unas ${hours} horas`}; ` +
-				'si es urgente, hacelo desde el panel.'
-		};
-	}
-	return { ok: true, release: () => releaseRateLimitHit(db, DAILY_BUCKET, rule, now) };
 }

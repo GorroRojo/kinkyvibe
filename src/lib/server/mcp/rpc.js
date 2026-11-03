@@ -13,6 +13,7 @@ import { logDBError } from '$lib/server/db';
 import { TOOLS, ToolInputError, toolList } from './tools.js';
 import { EDIT_TOOLS } from './edicion.js';
 import { editingOn } from './cambios.js';
+import { queueBurstAlert } from './avisoCambios.js';
 
 /** Versiones del protocolo que entiende el servidor, la más nueva primero. */
 export const PROTOCOL_VERSIONS = Object.freeze(['2025-11-25', '2025-06-18', '2025-03-26']);
@@ -40,12 +41,12 @@ const EDIT_INSTRUCTIONS =
 	'lo que se mostró.';
 
 /**
- * Las herramientas que se pueden usar ahora: las de lectura y, con los cambios prendidos, las de
- * cambios.
+ * Las herramientas que se pueden usar ahora: las de lectura y, con los cambios prendidos y una
+ * conexión con permiso de cambiar (`edicion` o una llave), las de cambios.
  * @param {import('./tools.js').ToolContext} ctx
  */
 async function availableTools(ctx) {
-	const edit = await editingOn(ctx.db).catch(() => false);
+	const edit = ctx.canEdit === true && (await editingOn(ctx.db).catch(() => false));
 	return { edit, tools: edit ? { ...TOOLS, ...EDIT_TOOLS } : TOOLS };
 }
 
@@ -127,10 +128,17 @@ async function callTool(params, ctx) {
 	const tool = Object.hasOwn(tools, name) ? tools[name] : null;
 	const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
 	const locals = { user: ctx.user };
+	if (!tool && Object.hasOwn(EDIT_TOOLS, name) && ctx.canEdit !== true) {
+		return errorResult(
+			'Esta conexión solo tiene permiso de lectura. Para cambiar, volvé a conectar el conector en Claude y permití también los cambios.'
+		);
+	}
 	if (!tool) return errorResult(`No existe la herramienta «${name.slice(0, 60)}».`);
 	try {
 		const { result, log, isError = false } = await tool.run(ctx, args);
 		await logAdminAction(ctx.db, locals, { action: `conector.${name}`, ...log });
+		// Sin tope de cambios: si hay muchos en una hora, aviso por Telegram (nunca traba nada).
+		if (name === 'aplicar' && !isError) await queueBurstAlert(ctx);
 		return {
 			content: [{ type: 'text', text: JSON.stringify(result) }],
 			structuredContent: result,

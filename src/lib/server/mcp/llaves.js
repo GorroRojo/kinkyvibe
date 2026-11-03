@@ -209,13 +209,16 @@ export async function llaveAdmin(db, token, now = Date.now()) {
  * @param {Request} request
  * @param {string} origin
  * @param {number} [now]
- * @returns {Promise<{ id: number, login: string, via: 'llave' | 'oauth' } | null>}
+ * Una llave cuenta como con permiso de cambiar (`canEdit`): le admin la crea a propósito para una
+ * rutina. Un token de OAuth, solo si se dio con `edicion` (./oauth.js).
+ *
+ * @returns {Promise<{ id: number, login: string, canEdit: boolean, via: 'llave' | 'oauth' } | null>}
  */
 export async function mcpAdmin(db, request, origin, now = Date.now()) {
 	const m = /^Bearer (kvc1_[A-Za-z0-9_-]+)$/.exec(request.headers.get('authorization') ?? '');
 	if (m) {
 		const admin = await llaveAdmin(db, m[1], now);
-		return admin ? { ...admin, via: 'llave' } : null;
+		return admin ? { ...admin, canEdit: true, via: 'llave' } : null;
 	}
 	const admin = await bearerAdmin(db, request, origin, now);
 	return admin ? { ...admin, via: 'oauth' } : null;

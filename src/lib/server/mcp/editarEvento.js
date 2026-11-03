@@ -14,8 +14,9 @@
  *   de espera y el aviso de cambio de fecha. Nunca SQL a mano.
  * - **La versión** de lo que había: el sha del texto del evento (el mismo que el editor manda para
  *   que no se pise nada) y el lugar elegido (que no está en el texto).
- * - **Descripción con HTML libre**: si el texto del evento se muestra con HTML libre, no se cambia
- *   desde acá (se haría con la lista corta y se podría perder algo): desde el panel.
+ * - **HTML libre**: la descripción se guarda con las reglas de HTML de le admin que autorizó, como
+ *   cuando guarda en el panel (les admins son superadmins: HTML libre, decisiones 0003 y 0004). Un
+ *   evento con HTML libre también se puede cambiar (gorrite, 3/11).
  */
 import { findDbEvent } from '$lib/server/contenido/repo.js';
 import { markdownToPost } from '$lib/server/contenido/markdown.js';
@@ -142,7 +143,6 @@ export function findVenue(venues, query) {
  *   meta: Record<string, any>,
  *   frontmatter: string,
  *   body: string,
- *   bodyHtml: string | null,
  *   title: string,
  *   venue: import('$lib/utils/venueChoice.js').VenueChoice,
  *   venues: VenueOption[]
@@ -166,14 +166,12 @@ export async function eventState(db, slug) {
 		);
 	}
 	const [venue, venues] = await Promise.all([eventVenueChoice(db, slug), venueOptions(db)]);
-	const bodyHtml = file.object.data?.body_html;
 	return {
 		raw: file.raw,
 		sha: file.sha,
 		meta: doc.toJS() ?? {},
 		frontmatter,
 		body,
-		bodyHtml: typeof bodyHtml === 'string' ? bodyHtml : null,
 		title: file.object.title,
 		venue,
 		venues
@@ -432,11 +430,6 @@ export async function planEventChange(
 	if (inputs.descripcion !== undefined) {
 		const before = state.body.trim();
 		if (inputs.descripcion !== before) {
-			if (state.bodyHtml === 'libre') {
-				throw new EventChangeError(
-					'El texto de este evento se muestra con HTML libre: la descripción se cambia desde el panel.'
-				);
-			}
 			body = bodyOf(inputs.descripcion);
 			changes.push({
 				campo: 'descripción',

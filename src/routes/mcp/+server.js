@@ -94,6 +94,7 @@ export async function POST(event) {
 	const reply = await handleMessage(body.value, {
 		db,
 		user: { id: user.id, login: user.login },
+		canEdit: user.canEdit,
 		fetch,
 		now: Date.now(),
 		platform,

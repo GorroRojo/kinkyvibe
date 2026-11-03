@@ -15,7 +15,8 @@ import {
 	authorizeRedirect,
 	isLoopbackRedirect,
 	issueCode,
-	parseAuthorizeRequest
+	parseAuthorizeRequest,
+	scopeCanEdit
 } from '$lib/server/mcp/oauth.js';
 
 /**
@@ -42,8 +43,10 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const { req } = parsed;
 	return {
 		login: admin.login,
-		// Con «Conector de Claude: cambios» prendido, la pantalla dice que también puede cambiar.
-		edit: await editingOn(db),
+		// Si Claude pidió el permiso `edicion`, la pantalla dice que también va a poder cambiar (y
+		// si los cambios todavía están apagados en el sitio).
+		edit: scopeCanEdit(req.scope),
+		editOn: await editingOn(db),
 		destination: new URL(req.redirectUri).host,
 		loopback: isLoopbackRedirect(req.redirectUri),
 		// Lo que vuelve en el formulario, tal cual llegó (se controla otra vez al permitir).
@@ -80,7 +83,7 @@ export const actions = {
 			{ user: admin },
 			{
 				action: 'conector.autorizar',
-				summary: `Conector de Claude: autorizó una conexión (vuelve a ${destination})`
+				summary: `Conector de Claude: autorizó una conexión ${scopeCanEdit(parsed.req.scope) ? 'para leer y cambiar' : 'para leer'} (vuelve a ${destination})`
 			}
 		);
 		redirect(
