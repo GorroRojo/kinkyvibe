@@ -188,7 +188,7 @@ no se ve. Detrás del interruptor **`lo_que_enlaza`** (`LO_QUE_ENLAZA_ENABLED`, 
 Etiquetas › **Enlaces que faltan** (`/admin/etiquetas/falta`, en el menú del panel debajo de
 Árbol de etiquetas y con un botón arriba de Etiquetas; solo admins): los `[[…]]`, `@` y `#` de los cuerpos que no llevan a ningún objeto, de lo que más se
 escribe a lo que menos, con cuántas veces y en qué objetos (con link a su editor y a su página, y
-si son «solo con cuenta» u ocultos). Es la lista de qué escribir para hacer crecer la Kinkipedia.
+si son «solo con cuenta» u ocultos), en lista y detalle (abajo). Es la lista de qué escribir para hacer crecer la Kinkipedia.
 Código: `src/lib/server/contenido/enlacesFalta.js`.
 
 - **Se calcula al abrir la página** (no hay tabla): dos consultas en fila, los cuerpos (como mucho
@@ -208,6 +208,21 @@ Código: `src/lib/server/contenido/enlacesFalta.js`.
     su entrada en la Kinkipedia como siempre.
 - **En el menú** (gorrite, 3/11/2026): `etiquetas-falta` en `src/lib/admin/nav.js`, área
   Etiquetas.
+- **Lista y detalle** (gorrite, 3/11/2026, opción C de tres diseños): a la izquierda los nombres,
+  de lo más escrito a lo menos, con una barrita de cuántas veces; al elegir uno, a la derecha
+  (abajo en el celular) qué falta («Mención a un perfil que no existe» o «Página de la Kinkipedia
+  que no existe»), «Escrito N veces en N textos.», el botón grande para crearlo y «Dónde se
+  escribe»: cada texto con su tipo, si es «solo con cuenta» u oculto, y botones para editarlo y
+  ver su página.
+  - **El nombre elegido va en la URL** (`?nombre=@x`, como se escribe): los nombres son links, así
+    que se puede compartir y anda sin JavaScript. Elegir uno no vuelve a calcular la lista (el
+    `load` no lee `?nombre=`; lo lee la página).
+  - Sin `?nombre=`: en la compu se ve el primero; en el celular, solo la lista (el detalle de ese
+    primero se esconde con CSS, así que no depende de JavaScript). Con uno elegido en el celular,
+    la lista se achica y el foco pasa al detalle; en la compu el foco se queda en la lista.
+  - Un `?nombre=` que ya no falta (lo crearon, o se escribió distinto) avisa «… ya no falta (o no
+    se escribe así).» y muestra el primero.
+  - Prueba: `src/routes/(authed)/admin/etiquetas/falta/falta-render.test.js`.
 
 ## Los dos editores
 
