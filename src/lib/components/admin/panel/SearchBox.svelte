@@ -674,9 +674,11 @@
 					{#each SEARCH_TIPS as tip (tip.q)}
 						<li>
 							<span class="exs"
-								><button type="button" class="ex" on:click={() => tryExample(tip.q)}
-									><code>{tip.q}</code></button
-								>{#each tip.forms ?? [] as form (form)}<code class="also">{form}</code>{/each}</span
+								>{#if tip.label}<code class="also">{tip.label}</code>{/if}<button
+									type="button"
+									class="ex"
+									on:click={() => tryExample(tip.q)}><code>{tip.q}</code></button
+								></span
 							>
 							<span>{tip.text}</span>
 						</li>
