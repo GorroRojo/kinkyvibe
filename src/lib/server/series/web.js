@@ -34,9 +34,10 @@ export async function requireSeriesDB(platform) {
  *
  * @param {D1Database} db
  * @param {typeof fetch} fetchFn
+ * @param {string} [kind] el tipo de mail para Resend (`sendWithResend`); «Lo que sigo» pasa `sigo`
  * @returns {import('./subscriptions.js').SeriesSend}
  */
-export function seriesSender(db, fetchFn) {
+export function seriesSender(db, fetchFn, kind = 'serie') {
 	return async (to, message, idempotencyKey) => {
 		try {
 			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
@@ -47,7 +48,8 @@ export function seriesSender(db, fetchFn) {
 				message,
 				idempotencyKey,
 				from: AVISOS_FROM_EMAIL,
-				optOut: true
+				optOut: true,
+				kind
 			});
 		} catch (e) {
 			console.error('[series] no se pudo mandar el mail:', e);

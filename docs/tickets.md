@@ -1,10 +1,10 @@
-# Venta de entradas (fase 1, prototipo)
+# Venta de entradas (fase 1)
 
 > Referencia completa. Para la versión corta (qué no se puede romper, cómo probar, tareas comunes) ver [entradas.md](entradas.md); los mails, en [mails.md](mails.md); la base, en [datos.md](datos.md).
 
 Permite que la gente compre entradas para un evento del calendario desde el sitio, pague con **Mercado Pago (Checkout Pro)** o **transferencia bancaria**, y reciba por email un **QR por entrada**. Hay **códigos de descuento**, el **Fondo KinkyVibe** (que cubre parte de cada entrada, y al que se puede aportar pagando una entrada solidaria), un **recargo por la comisión de Mercado Pago** y entradas **"a la gorra"** (cada quien elige cuánto paga; en eventos online, con el link de la transmisión en lugar de QR). Les organizadores ven quién compró en `/admin/ventas`, confirman transferencias, cargan el alias para transferir y la comisión en **Ajustes de venta** y controlan el ingreso en la puerta escaneando el QR (o tipeando el código corto de la entrada) con el celu.
 
-> Estado: prototipo probado solo con Mercado Pago y Resend **simulados** (el entorno donde se escribió no tenía acceso a sus APIs). Antes de vender de verdad hay que probarlo con las credenciales de prueba de MP y resolver la lista de [pendientes](#pendientes-antes-de-vender-de-verdad).
+> Estado: en producción, con Mercado Pago y Resend reales. El evento piloto ya vendió y los mails salieron (`lanzamiento-piloto` en el [plan](plan.md), 12/10). Lo que queda abierto antes de abrir la venta a todes está en [pendientes](#pendientes-antes-de-vender-de-verdad); los mails, en [mails.md](mails.md). En dev (`npm run dev:tickets`) los dos siguen simulados.
 
 ## Cómo se activa en un evento
 

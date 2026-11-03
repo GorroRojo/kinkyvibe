@@ -41,7 +41,7 @@
 	import Quienes from '$lib/components/evento/Quienes.svelte';
 	import Serie from '$lib/components/evento/Serie.svelte';
 	import {
-		eventPageTitle,
+		eventTabTitle,
 		isPastEvent,
 		mainSeries,
 		nextEdition,
@@ -149,7 +149,7 @@
 	)}
 />
 <svelte:head>
-	<title>{eventPageTitle(data.meta)} · Kinky Vibe</title>
+	<title>{eventTabTitle(data.meta)}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />

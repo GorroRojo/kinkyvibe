@@ -70,15 +70,16 @@ function wikiStamp(list) {
 export async function publicSearchIndex(platform) {
 	const tagManager = currentSiteTags();
 	const db = getDB(platform);
-	const contentStamp = await siteContentStamp(platform);
 	const profiles = Boolean(db);
-	const wiki = (await siteTagSource(platform)).wiki ?? [];
-	const key = JSON.stringify([
-		contentStamp,
-		wikiStamp(wiki),
-		profiles ? await profilesStamp(/** @type {any} */ (db)) : null,
-		profiles ? await eventVenuesStamp(/** @type {any} */ (db)) : null
+	// Las marcas, a la par: cada una es una ida y vuelta a la base y ninguna depende de otra.
+	const [contentStamp, source, profileStamp, venueStamp] = await Promise.all([
+		siteContentStamp(platform),
+		siteTagSource(platform),
+		profiles ? profilesStamp(/** @type {any} */ (db)) : null,
+		profiles ? eventVenuesStamp(/** @type {any} */ (db)) : null
 	]);
+	const wiki = source.wiki ?? [];
+	const key = JSON.stringify([contentStamp, wikiStamp(wiki), profileStamp, venueStamp]);
 	const entry = dev ? undefined : indexCache.get(tagManager);
 	if (entry && entry.key === key) return entry.built;
 	return readAndKeep(
