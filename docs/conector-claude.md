@@ -27,11 +27,12 @@ por la dirección (slug).
   pedidos). Todas van marcadas `readOnlyHint`.
 - **Sin SQL ni ids en las entradas.** Las herramientas reciben texto, un slug o un nombre; el
   servidor resuelve. Si un nombre coincide con varios, devuelve las opciones para volver a pedir.
-- **Las reglas de privacidad del panel**: el DNI nunca sale (ni los últimos 3), ni el id del pago
-  de Mercado Pago, ni las notas internas de una orden, ni las respuestas de inscripción. De los
-  datos de un objeto se sacan las claves sensibles (las mismas que saca Actividad,
-  `sanitizeDetail`). Los mails de amigues son públicos a propósito (decisión 0010), como en el
-  panel.
+- **Muestra lo mismo que el panel le muestra a le admin** que usa el conector, ni más ni menos
+  (gorrite, 3/11/2026). Una orden, como la pestaña Ventas › Órdenes: del DNI, los últimos 3
+  dígitos, como la lista (el completo se pide aparte en el panel, con «Mostrar»); el pago de
+  Mercado Pago, la nota, las entradas y las respuestas a las preguntas, como ahí. Un objeto, con
+  todos sus datos, como el editor. Lo que el panel no muestra, el conector tampoco. Los mails de
+  amigues son públicos a propósito (decisión 0010), como en el panel.
 - **Sin tablas nuevas.** Nada de lo de abajo necesita migración: si algún día hace falta una
   (por ejemplo, para listar conexiones), va en su propio PR.
 
@@ -78,8 +79,8 @@ usa en 20 horas, también (el token de renovación vence).
 | Herramienta        | Qué recibe                                                                                                                            | Qué devuelve                                                                                                                                                                                                                                                                   |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `buscar`           | `texto`; opcional `tipo` (evento, material, perfil, etiqueta, lugar) y `limite`                                                       | tipo, slug, título, visibilidad y enlaces (al sitio y al panel) de lo que coincide, también lo oculto. Usa el índice de búsqueda de la base (`searchObjects`, sin tildes, cada palabra como comienzo).                                                                         |
-| `leer`             | `nombre` (slug o nombre); opcional `tipo`                                                                                             | todos los campos del objeto (los públicos y los del panel, sin claves sensibles), quién y cuándo lo creó y editó, sus relaciones y sus enlaces; o las opciones si hay varios.                                                                                                  |
-| `ventas`           | `evento` (slug o nombre); opcional `estado` (todas, aprobadas, pendientes, reembolsadas, vencidas, canceladas) y `limite` (hasta 500) | el resumen de la pestaña Ventas (vendidas, reservadas, cupo, recaudado, neto sin la comisión de MP, Fondo, por tipo, órdenes por estado) y las órdenes: referencia `KV-…`, nombre, pronombres, mail, tipo, cantidad, total, código, medio, estado, fecha y cuántes ingresaron. |
+| `leer`             | `nombre` (slug o nombre); opcional `tipo`                                                                                             | todos los datos del objeto, como el editor del panel, quién y cuándo lo creó y editó, sus relaciones y sus enlaces; o las opciones si hay varios.                                                                                                                              |
+| `ventas`           | `evento` (slug o nombre); opcional `estado` (todas, aprobadas, pendientes, reembolsadas, vencidas, canceladas) y `limite` (hasta 500) | el resumen de la pestaña Ventas (vendidas, reservadas, cupo, recaudado, neto sin la comisión de MP, Fondo, por tipo, órdenes por estado) y las órdenes como en la pestaña Órdenes: referencia, nombre, últimos 3 del DNI, mail, montos, su estado, pago MP, nota y respuestas. |
 | `eventos_proximos` | opcional `dias` (hasta 365) y `limite`                                                                                                | los eventos desde hoy: slug, título, fechas, lugar, si está oculto, sin publicar o es borrador, y si vende entradas, vendidas, reservadas y cupo.                                                                                                                              |
 
 Fuera de `vite dev`, los eventos de prueba de la venta (`prueba-entradas-*`) no aparecen, como en
