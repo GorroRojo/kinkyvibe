@@ -10,7 +10,7 @@ import { ordersForAccount } from '$lib/server/cuentas/orders.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { streamLinkFor } from '$lib/server/tickets/index.js';
 import { readWorkshop } from '$lib/server/eventos/partes.js';
-import { partsCoveredBy } from '$lib/utils/partes.js';
+import { partsCoveredBy, ticketParts as coveredTicketParts } from '$lib/utils/partes.js';
 import { chatAccount } from './seguir.js';
 import { shortHash } from './nav.js';
 
@@ -23,7 +23,7 @@ import { shortHash } from './nav.js';
  * `streamLink`: en un evento online, el link de la transmisión si ya está cargado (con la misma
  * regla que la página de la entrada: solo compras aprobadas, que son las únicas que llegan acá).
  *
- * @typedef {{ n: number, start: string | null, end: string | null, cancelled: boolean }} BotTicketPart
+ * @typedef {import('$lib/utils/partes.js').TicketPart} BotTicketPart
  * @typedef {{
  *   id: string, token: string, code: string | null, holder: string, pronouns: string,
  *   type: string, slug: string, title: string, start: string | null, end: string | null,
@@ -58,15 +58,7 @@ const isoOrNull = (v) => {
  */
 async function ticketParts(db, slug) {
 	try {
-		const parts = partsCoveredBy(await readWorkshop(db, slug), slug);
-		return parts
-			? parts.map((p) => ({
-					n: p.n,
-					start: p.start,
-					end: p.end,
-					cancelled: p.status === 'cancelado'
-				}))
-			: null;
+		return coveredTicketParts(partsCoveredBy(await readWorkshop(db, slug), slug));
 	} catch {
 		console.error('[telegram] mis entradas: no se pudieron leer las partes de un taller');
 		return null;

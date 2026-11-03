@@ -21,8 +21,14 @@
  * queda en «próximas» hasta 12 horas después de su última parte (sin las canceladas), y la lista
  * y la tarjeta muestran la fecha de la parte que toca, con «Parte 2 de 3».
  */
-import { eventEnd } from '$lib/utils/dates.js';
-import { partLabel } from '$lib/utils/partes.js';
+import {
+	DATE_GRACE_MS,
+	isPastDate,
+	partLabel,
+	startMs,
+	ticketDate,
+	ticketDates
+} from '$lib/utils/partes.js';
 import { qrPng } from '$lib/server/tickets/qr.js';
 import { escapeHtml } from './format.js';
 import { truncate } from './keyboards.js';
@@ -37,7 +43,10 @@ import { botText } from './texts.js';
 /** @typedef {import('./screens.js').Button} Button */
 
 /** Cuánto después del fin del evento una entrada sigue en «próximas». */
-export const TICKET_GRACE_MS = 12 * 60 * 60 * 1000;
+export const TICKET_GRACE_MS = DATE_GRACE_MS;
+
+// La fecha que toca mostrar (la regla vive en $lib/utils/partes.js; también la usa Mi rincón).
+export { ticketDate };
 
 /** Cuántas entradas pasadas se muestran, como mucho (las más nuevas). */
 export const PAST_TICKETS_MAX = 30;
@@ -57,54 +66,7 @@ const homeButton = () => ({
  */
 export const ticketQrText = (origin, token) => `${origin}/entradas/t/${token}`;
 
-/**
- * Una fecha de la entrada: la del evento o la de una parte del taller (`n`, de `total`).
- *
- * @typedef {{ start: string | null, end: string | null, n?: number, total?: number }} TicketDate
- */
-
-/** @param {{ start: string | null }} d */
-const startMs = (d) => (d.start ? Date.parse(d.start) : NaN);
-
-/**
- * ¿Esa fecha ya pasó (más las 12 horas)? Sin fecha (un evento que ya no está), sí.
- *
- * @param {TicketDate} d
- * @param {number} now
- */
-function isPastDate(d, now) {
-	if (!d.start || !Number.isFinite(startMs(d))) return true;
-	const end = eventEnd(d.start, d.end ?? undefined).getTime();
-	return (Number.isFinite(end) ? end : startMs(d)) + TICKET_GRACE_MS < now;
-}
-
-/**
- * Las fechas que cubre la entrada, de la primera a la última: las de las partes del taller (sin
- * las canceladas) o, si no es un taller (o están todas canceladas), la del evento.
- *
- * @param {BotTicket} t
- * @returns {TicketDate[]}
- */
-function ticketDates(t) {
-	const total = t.parts?.length ?? 0;
-	const parts = (t.parts ?? [])
-		.filter((p) => !p.cancelled && Number.isFinite(startMs(p)))
-		.map((p) => ({ start: p.start, end: p.end, n: p.n, total }))
-		.sort((a, b) => startMs(a) - startMs(b));
-	return parts.length ? parts : [{ start: t.start, end: t.end }];
-}
-
-/**
- * La fecha que toca mostrar: la primera parte que todavía no pasó o, si pasaron todas, la última.
- *
- * @param {BotTicket} t
- * @param {number} now
- * @returns {TicketDate}
- */
-export function ticketDate(t, now) {
-	const dates = ticketDates(t);
-	return dates.find((d) => !isPastDate(d, now)) ?? dates[dates.length - 1];
-}
+/** @typedef {import('$lib/utils/partes.js').TicketDate} TicketDate */
 
 /**
  * ¿La entrada es de un evento que ya pasó? La de un taller, cuando pasó su última parte. Sin
