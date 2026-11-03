@@ -247,20 +247,37 @@ const META_TEXT = /** @type {Record<string, string>} */ ({
 	force_unpublished: 'oculto',
 	tickets: 'entradas',
 	link: 'link',
-	link_text: 'texto del link',
-	updated_date: 'actualizado'
+	link_text: 'texto del link'
 });
 
+/**
+ * Propiedades técnicas que el guardado del panel escribe solo: vuelven igual al deshacer, pero no
+ * se listan en el antes y después. Cada una dice qué valor tiene (sin la clave, su valor por
+ * defecto): si es el mismo de los dos lados, no hay cambio para mostrar. `updated_date` (la fecha
+ * de «Actualizado», que cada guardado pone en hoy) no se muestra nunca, como en una edición.
+ * @type {Record<string, (v: unknown) => unknown>}
+ */
+const TECHNICAL = {
+	updated_date: () => null,
+	// El editor escribe `puerta: true` (lo mismo que no tenerla) en un evento con venta.
+	puerta: (v) => v ?? true
+};
+
+/** ¿Esa propiedad es igual de los dos lados, o es técnica sin cambio que mostrar? @param {string} k @param {unknown} x @param {unknown} y */
+const sameProperty = (k, x, y) =>
+	Object.hasOwn(TECHNICAL, k)
+		? JSON.stringify(TECHNICAL[k](x)) === JSON.stringify(TECHNICAL[k](y))
+		: JSON.stringify(x) === JSON.stringify(y);
+
 /** El antes y después entre dos textos de un post. @param {string} a @param {string} b */
-function textChanges(a, b) {
+export function textChanges(a, b) {
 	const pa = splitMarkdown(a);
 	const pb = splitMarkdown(b);
 	const ma = parseDocument(pa.frontmatter).toJS() ?? {};
 	const mb = parseDocument(pb.frontmatter).toJS() ?? {};
 	const out = [];
 	for (const k of new Set([...Object.keys(ma), ...Object.keys(mb)])) {
-		// «Actualizado» vuelve también, pero no se lista (como en una edición).
-		if (k === 'updated_date' || JSON.stringify(ma[k]) === JSON.stringify(mb[k])) continue;
+		if (sameProperty(k, ma[k], mb[k])) continue;
 		out.push({
 			campo: META_TEXT[k] ?? `propiedad «${k}»`,
 			antes: short(valueText(ma[k])),

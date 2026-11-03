@@ -44,11 +44,16 @@ import {
 	profileChanges
 } from './editarPerfil.js';
 import { linksFor } from './historial.js';
+import { normalizeNewTagInputs, savePanelTag } from './editarEtiqueta.js';
+import { dbTagsForAdmin } from '$lib/server/etiquetas/panel.js';
+import { planDbTagEdit } from '$lib/server/etiquetas/editor.js';
+import { readOps } from '$lib/utils/tagConfig.js';
+import { tagSlug } from '$lib/utils/tagSlug.js';
 
 /** @typedef {import('./tools.js').ToolContext} ToolContext */
 
 /** Los tipos de los que se crea un borrador. */
-export const DRAFT_TYPES = Object.freeze(['evento', 'material', 'perfil', 'lugar']);
+export const DRAFT_TYPES = Object.freeze(['evento', 'material', 'perfil', 'lugar', 'etiqueta']);
 
 /** Los campos de `cambios` de un borrador de evento. */
 const EVENT_DRAFT_FIELDS = Object.freeze(['titulo', 'inicio', 'fin', 'copia_de']);
@@ -251,6 +256,51 @@ export async function planDraft(ctx, args) {
 								created: { slug: wanted, links: linksFor('material', wanted) }
 							}
 						: { ok: false, stale: r.conflict, message: r.message };
+				}
+			};
+		}
+		if (tipo === 'etiqueta') {
+			const op = normalizeNewTagInputs(args.cambios);
+			// Las reglas del editor de etiquetas (nombre, que no exista, la madre), antes de mostrar.
+			const fromDb = await dbTagsForAdmin(ctx.platform, ctx.user.login);
+			if (!fromDb) throw new ToolInputError('No se pueden leer las etiquetas de la base.');
+			try {
+				planDbTagEdit(fromDb.records, readOps([op]));
+			} catch (e) {
+				throw new ToolInputError(/** @type {Error} */ (e).message);
+			}
+			const changes = [
+				{ campo: 'nombre', antes: '', despues: op.id },
+				...(op.parent ? [{ campo: 'etiqueta madre', antes: '', despues: op.parent }] : []),
+				...(op.visible_name
+					? [{ campo: 'nombre para mostrar', antes: '', despues: op.visible_name }]
+					: []),
+				...(op.icon ? [{ campo: 'ícono', antes: '', despues: op.icon }] : []),
+				...(op.description
+					? [{ campo: 'descripción', antes: '', despues: valueText(op.description) }]
+					: [])
+			];
+			return {
+				...common,
+				head: 'Crear la etiqueta (queda publicada al toque: las etiquetas no tienen borrador):',
+				inputs: { ...op },
+				target: `etiqueta:nuevo:${op.id}`,
+				targetTitle: op.id,
+				targetLog: { targetType: 'tag', targetId: op.id },
+				changes,
+				warnings: [
+					'Una etiqueta nueva no se deshace desde acá: para sacarla, borrala desde el panel (Etiquetas).'
+				],
+				links: { panel: '/admin/etiquetas' },
+				apply: async (c) => {
+					const r = await savePanelTag(c, op);
+					return r.ok
+						? {
+								ok: true,
+								warnings: [],
+								created: { slug: tagSlug(op.id), links: { panel: '/admin/etiquetas' } }
+							}
+						: { ok: false, stale: false, message: r.message };
 				}
 			};
 		}

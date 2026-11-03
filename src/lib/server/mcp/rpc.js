@@ -41,7 +41,7 @@ const EDIT_INSTRUCTIONS =
 	'solo después de que la persona vea el resumen y diga que sí, `aplicar` con las mismas ' +
 	'entradas más el `hash` y la `version` que dio la vista previa. Nunca apliques algo distinto de ' +
 	'lo que se mostró. `editar_objeto` cambia lo que edita el panel (eventos, material, perfiles, ' +
-	'lugares, etiquetas y la Kinkipedia), `crear_borrador` crea uno sin publicar y `deshacer` vuelve ' +
+	'lugares, etiquetas y la Kinkipedia), `crear_borrador` crea uno sin publicar (o una etiqueta nueva) y `deshacer` vuelve ' +
 	'un objeto a una versión anterior (también un deshacer se deshace). Nada de plata ni mails: ' +
 	'cancelar un evento, ventas, reembolsos y envíos se hacen desde el panel.';
 

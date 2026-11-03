@@ -105,7 +105,8 @@ const OPERATION_TEXT = /** @type {Record<string, string>} */ ({
 		'editar un evento, material, perfil, lugar, etiqueta o entrada de la Kinkipedia (`tipo` y `objeto`)',
 	editar_evento: 'lo mismo que `editar_objeto` con `tipo: evento` (el evento va en `evento`)',
 	crear_codigo: 'crear un código de descuento',
-	crear_borrador: 'crear un borrador sin publicar de un evento, material, perfil o lugar',
+	crear_borrador:
+		'crear un borrador sin publicar de un evento, material, perfil o lugar, o una etiqueta nueva',
 	deshacer:
 		'volver un objeto a una versión anterior (la de antes del último guardado, o `a_version`, el número que muestra `historial`)'
 });
@@ -121,7 +122,7 @@ const BASE_PROPERTIES = {
 		type: 'string',
 		enum: [...EDIT_TYPES],
 		description:
-			'En `editar_objeto` y `deshacer`: qué es el objeto. En `crear_borrador`: evento, material, perfil o lugar.'
+			'En `editar_objeto` y `deshacer`: qué es el objeto. En `crear_borrador`: evento, material, perfil, lugar o etiqueta.'
 	},
 	objeto: {
 		type: 'string',
@@ -164,7 +165,7 @@ const BASE_PROPERTIES = {
 			CODE_FIELDS.join(', ') +
 			'. Borrador de evento: titulo, inicio, fin, copia_de; de material: titulo, slug, resumen, ' +
 			'descripcion, etiquetas, personas, link, texto_del_link, propiedades; de perfil o lugar: los ' +
-			'campos de un perfil (nace oculto). `deshacer` no lleva `cambios`.',
+			'campos de un perfil (nace oculto); de etiqueta: nombre, madre, nombre_visible, icono, descripcion (se publica al toque). `deshacer` no lleva `cambios`.',
 		additionalProperties: true
 	}
 };
@@ -436,7 +437,9 @@ function whatOf(p) {
 		case 'crear_codigo':
 			return `el código de descuento ${p.target}`;
 		case 'crear_borrador':
-			return `un borrador de ${p.tipo} «${p.targetTitle}»`;
+			return p.tipo === 'etiqueta'
+				? `la etiqueta nueva «${p.targetTitle}»`
+				: `un borrador de ${p.tipo} «${p.targetTitle}»`;
 		case 'deshacer':
 			return `volver atrás ${typeText(p)} «${p.targetTitle}»`;
 		default:
@@ -450,7 +453,9 @@ function doneOf(p) {
 		case 'crear_codigo':
 			return `creó el código de descuento ${p.target}`;
 		case 'crear_borrador':
-			return `creó un borrador de ${p.tipo} «${p.targetTitle}»`;
+			return p.tipo === 'etiqueta'
+				? `creó la etiqueta «${p.targetTitle}»`
+				: `creó un borrador de ${p.tipo} «${p.targetTitle}»`;
 		case 'deshacer':
 			return `volvió ${typeText(p)} «${p.targetTitle}» a la versión ${p.inputs.a_version} (${fieldsOf(p)})`;
 		default:

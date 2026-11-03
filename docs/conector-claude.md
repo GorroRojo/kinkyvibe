@@ -130,8 +130,8 @@ Operaciones (`operacion`):
   abajo. Cada tipo se guarda por el «Guardar» de su editor del panel.
 - **`editar_evento`** (de #607, sigue igual): lo mismo que `editar_objeto` con `tipo: evento`; el
   evento va en `evento`.
-- **`crear_borrador`**: `tipo` (evento, material, perfil, lugar) y `cambios` (ver
-  [Borradores](#borradores)).
+- **`crear_borrador`**: `tipo` (evento, material, perfil, lugar, etiqueta) y `cambios` (ver
+  [Borradores](#borradores)); una etiqueta nueva se publica al toque.
 - **`deshacer`**: `tipo`, `objeto` y opcional `a_version` (ver [Deshacer](#deshacer)). Sin
   `cambios`.
 - **`crear_codigo`** (`evento` opcional: sin él, vale para todos). `cambios`: `codigo`, `tipo`
@@ -196,7 +196,9 @@ el control de que nadie guardó en el medio y lo que sigue a un guardado). Lo qu
   versiones seguidas (el texto y, enseguida, el lugar, con los mismos datos): cuentan como un solo
   guardado.
 - **La vista previa** dice «Volver el evento «…» a la versión N (del …, de …):» y el antes y después
-  de cada campo que cambia. Si ya está así, no hay nada que deshacer. Una versión borrada no se
+  de cada campo que cambia. Lo técnico que el guardado del panel escribe solo (la fecha de
+  «Actualizado», `puerta: true`, que es lo mismo que no tenerla) vuelve igual, pero no se lista
+  (`TECHNICAL` en `historial.js`; gorrite, 3/11). Si ya está así, no hay nada que deshacer. Una versión borrada no se
   restaura (borrar y recuperar, desde el panel); un objeto en su primera versión (un borrador recién
   creado, por ejemplo) tampoco: se borra desde el panel.
 - **Las relaciones**: desde la migración `0073` cada versión guarda también sus relaciones
@@ -227,6 +229,12 @@ el control de que nadie guardó en el medio y lo que sigue a un guardado). Lo qu
   `texto_del_link`, `propiedades`. Queda no listado.
 - **perfil** y **lugar**: «Nuevo perfil»: `titulo` y los campos de un perfil (sin imagen). Nace
   oculto (`quien_lo_ve: oculto`).
+- **etiqueta** (gorrite, 3/11): una etiqueta nueva, por el «Guardar» de Etiquetas (un cambio
+  `create`, con las reglas del editor: el nombre, que no exista otra ni un alias igual, la madre).
+  `cambios`: `nombre` (el nombre exacto) y opcional `madre` (una etiqueta que ya existe),
+  `nombre_visible`, `icono`, `descripcion`; el color y la imagen, después con `editar_objeto`. Las
+  etiquetas no tienen borrador: queda publicada al toque. No se deshace desde acá (es su primera
+  versión): se borra desde el panel, como renombrar, mover o fusionar.
 
 ## Lo que no hace
 

@@ -230,3 +230,40 @@ export async function savePanelWiki(ctx, { slug, values, version, remove = false
 		conflict: Boolean(r?.data?.wiki?.conflict)
 	};
 }
+
+/** Las claves de `cambios` de una etiqueta nueva. */
+export const NEW_TAG_FIELDS = Object.freeze([
+	'nombre',
+	'madre',
+	'nombre_visible',
+	'icono',
+	'descripcion'
+]);
+
+/**
+ * El cambio `create` del editor de etiquetas para una etiqueta nueva, normalizado.
+ * @param {unknown} raw
+ */
+export function normalizeNewTagInputs(raw) {
+	if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+		throw new ToolInputError(`\`cambios\` es un objeto con: ${NEW_TAG_FIELDS.join(', ')}.`);
+	const input = /** @type {Record<string, unknown>} */ (raw);
+	const unknown = Object.keys(input).filter((k) => !NEW_TAG_FIELDS.includes(k));
+	if (unknown.length)
+		throw new ToolInputError(
+			`En una etiqueta nueva no va ${unknown.map((k) => `«${k.slice(0, 30)}»`).join(', ')}. Lo que sí: ${NEW_TAG_FIELDS.join(', ')} (el color y la imagen, después, con \`editar_objeto\`).`
+		);
+	const id = oneLine(input.nombre, 61);
+	if (!id) throw new ToolInputError('Falta `nombre` (el nombre exacto de la etiqueta).');
+	/** @type {{ type: 'create', id: string, parent?: string, visible_name?: string, icon?: string, description?: string }} */
+	const op = { type: 'create', id };
+	const parent = oneLine(input.madre, 100);
+	if (parent) op.parent = parent;
+	const visible = oneLine(input.nombre_visible, 60);
+	if (visible) op.visible_name = visible;
+	const icon = oneLine(input.icono, 16);
+	if (icon) op.icon = icon;
+	const description = String(normalizeBody(input.descripcion) ?? '').slice(0, 2000);
+	if (description) op.description = description;
+	return op;
+}

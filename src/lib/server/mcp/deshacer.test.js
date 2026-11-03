@@ -200,6 +200,12 @@ describe('deshacer', () => {
 		expect(undo.preview.structuredContent.resumen).toMatch(
 			/título: Fiesta Renovada → Fiesta Inventada de Prueba/
 		);
+		// Lo técnico que escribe el guardado (la fecha de «Actualizado», `puerta: true`) vuelve, pero
+		// no se lista.
+		expect(undo.preview.structuredContent.resumen).not.toMatch(/actualizado|puerta/);
+		expect(
+			undo.preview.structuredContent.cambios.map((/** @type {any} */ c) => c.campo)
+		).not.toContain('propiedad «puerta»');
 		expect(undo.applied.isError, undo.applied.content[0].text).toBe(false);
 		expect(await rawOf(s.repo, 'calendario', EVENT)).toBe(original);
 		await expectClaudeRevision(await objectId('evento', EVENT));
@@ -309,6 +315,19 @@ describe('a qué versión vuelve deshacer', () => {
 		// Lo de ahora no quedó en el historial: vuelve a lo último que sí.
 		expect(undoTarget([text, older], 5)?.version).toBe(2);
 		expect(undoTarget([older], 1)).toBeNull();
+	});
+});
+
+describe('el antes y después de un deshacer', () => {
+	it('no lista lo técnico que escribe el guardado, pero sí un cambio de verdad', async () => {
+		const { textChanges } = await import('./historial.js');
+		const md = (/** @type {string} */ fm) => `---\ntitle: Fiesta\n${fm}---\n\nTexto\n`;
+		// `puerta: true` es lo mismo que no tenerla; «Actualizado» no se muestra nunca.
+		expect(textChanges(md('puerta: true\nupdated_date: 2031-01-01\n'), md(''))).toEqual([]);
+		// Sin puerta (false) sí es un cambio.
+		expect(textChanges(md('puerta: false\n'), md(''))).toEqual([
+			{ campo: 'propiedad «puerta»', antes: 'false', despues: '(vacío)' }
+		]);
 	});
 });
 
@@ -509,6 +528,62 @@ describe('editar todo lo que edita el panel', () => {
 		);
 		expect(after.body ?? '').toBe('');
 		expect(after.icon).toBe('🎭');
+	});
+
+	it('etiqueta nueva: por el «Guardar» de Etiquetas, publicada al toque', async () => {
+		const s = await setup();
+		const { importTags } = await import('$lib/server/etiquetas/importer.js');
+		await importTags(
+			t.db,
+			{ rawTags: [{ id: 'root', children: ['Prácticas'] }, { id: 'Prácticas' }] },
+			{ actor: 'test' }
+		);
+		const args = {
+			operacion: 'crear_borrador',
+			tipo: 'etiqueta',
+			cambios: {
+				nombre: 'Nudos Inventados',
+				madre: 'Prácticas',
+				icono: '🪢',
+				descripcion: 'Una etiqueta inventada.'
+			}
+		};
+		const made = await s.change(args);
+		expect(made.preview.structuredContent.resumen).toMatch(/Crear la etiqueta/);
+		expect(made.preview.structuredContent.avisos[0]).toMatch(/borrala desde el panel/);
+		expect(made.applied.isError, made.applied.content[0].text).toBe(false);
+		const row = /** @type {any} */ (
+			await t.db
+				.prepare(
+					`SELECT id, data FROM objects WHERE type = 'etiqueta' AND json_extract(data, '$.key') = ?1`
+				)
+				.bind('Nudos Inventados')
+				.first()
+		);
+		expect(JSON.parse(row.data)).toMatchObject({
+			icon: '🪢',
+			description: 'Una etiqueta inventada.'
+		});
+		await expectClaudeRevision(Number(row.id));
+		const { listAudit } = await import('$lib/server/admin/audit.js');
+		const applied = (
+			await listAudit(t.db, { targetType: 'tag', targetId: 'Nudos Inventados' })
+		).find((/** @type {any} */ a) => a.action === 'conector.aplicar');
+		expect(applied?.summary).toBe(
+			'Claude, confirmado por Mel: creó la etiqueta «Nudos Inventados»'
+		);
+		// Otra vez con el mismo nombre: la regla del editor la frena antes de mostrar nada.
+		const again = await s.call('vista_previa', args);
+		expect(again.isError).toBe(true);
+		expect(again.content[0].text).toMatch(/Ya existe/);
+		// Y se edita como cualquier etiqueta.
+		const edit = await s.change({
+			operacion: 'editar_objeto',
+			tipo: 'etiqueta',
+			objeto: 'Nudos Inventados',
+			cambios: { icono: '🎗️' }
+		});
+		expect(edit.applied.isError, edit.applied.content[0].text).toBe(false);
 	});
 
 	it('borradores: evento, material y perfil, sin publicar', async () => {
