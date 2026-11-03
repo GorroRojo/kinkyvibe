@@ -13,6 +13,11 @@
  *
  * Todo lo que toca localStorage va en try/catch: en modo privado o con el almacenamiento lleno,
  * el modo puerta sigue andando (solo que sin copia para usar sin conexión).
+ *
+ * Avisos de puerta (decisión 0053): la marca `notice` de la lista guardada vale hasta
+ * `noticeUntil` (unos días después del evento, `doorNoticeKeepUntil`). Pasado eso, el celu la saca
+ * de lo guardado (`stripStaleNotices` al leer, `pruneDoorNotices` en todas las listas al abrir el
+ * panel); el resto de la lista y lo que falta sincronizar quedan como estaban.
  */
 import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
 
@@ -21,15 +26,17 @@ import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
  * @typedef {{
  *   ticketId: string, orderId: string, orderRef: string, holder: string, pronouns: string,
  *   type: string, typeId: string, buyer: string, email: string, dniTail: string, code: string,
- *   at: number | null, by: string | null, firstTime: boolean | null, hash: string, valid: boolean
- * }} OfflineTicket
+ *   at: number | null, by: string | null, firstTime: boolean | null, hash: string, valid: boolean,
+ *   notice?: boolean
+ * }} OfflineTicket `notice`: coincide con un aviso de puerta (decisión 0053): la pantalla muestra
+ *   solo `DOOR_NOTICE_TEXT`.
  */
 /**
  * Lo que se muestra de una entrada al escanearla (`ticketCard` en $lib/server/tickets/door.js).
  * @typedef {{
  *   ticketId: string, orderId: string, orderRef: string, holder: string, pronouns: string,
  *   type: string, buyer: string, email: string, dniTail: string, code: string,
- *   at: number | null, by: string | null, firstTime: boolean | null
+ *   at: number | null, by: string | null, firstTime: boolean | null, notice?: boolean
  * }} DoorCard
  */
 /**
@@ -64,8 +71,8 @@ import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
 /**
  * @typedef {{
  *   list: OfflineTicket[], queue: QueueItem[], savedAt: number | null,
- *   sales: QueuedSale[], failed: FailedSale[]
- * }} DoorState
+ *   sales: QueuedSale[], failed: FailedSale[], noticeUntil?: number | null
+ * }} DoorState `noticeUntil`: hasta cuándo puede quedar `notice` en `list` (sin fecha, nada).
  */
 /**
  * @typedef {{
@@ -277,22 +284,108 @@ export function localSearch(list, query, limit = 8) {
 		.slice(0, limit);
 }
 
-/** @param {string} slug */
-const key = (slug) => `kv-door:${slug}`;
+/**
+ * Dónde se guarda la puerta en el celu: la del panel en `kv-door:<slug>` y la puerta con link
+ * aparte, en `kv-puerta-link:<slug>` (así lo que se borra de un link nunca toca lo del panel).
+ */
+export const DOOR_PREFIX = 'kv-door';
+export const LINK_DOOR_PREFIX = 'kv-puerta-link';
+
+/** @typedef {{ link?: boolean }} DoorStorageOpts `link`: la puerta con link */
+
+/**
+ * @param {string} slug
+ * @param {DoorStorageOpts} [opts]
+ */
+const key = (slug, { link = false } = {}) => `${link ? LINK_DOOR_PREFIX : DOOR_PREFIX}:${slug}`;
+
+/**
+ * Dónde se guardan los «Últimos escaneos».
+ * @param {string} slug
+ * @param {DoorStorageOpts} [opts]
+ */
+export function doorRecentKey(slug, { link = false } = {}) {
+	return `${link ? LINK_DOOR_PREFIX : DOOR_PREFIX}-recent:${slug}`;
+}
+
+/**
+ * Saca la marca `notice` de la lista si ya pasó `noticeUntil` (o si no tiene). No toca nada más:
+ * ni la cola ni las ventas por sincronizar. Devuelve el mismo estado si no había nada que sacar.
+ * Con `link` (la puerta con link) la saca siempre: el servidor nunca la manda en la lista de un
+ * link (decisión 0053) y el celu tampoco la guarda.
+ *
+ * @param {DoorState} state
+ * @param {number} now
+ * @param {DoorStorageOpts} [opts]
+ * @returns {DoorState}
+ */
+export function stripStaleNotices(state, now, { link = false } = {}) {
+	if (!link && state.noticeUntil && now <= state.noticeUntil) return state;
+	if (!state.list.some((t) => 'notice' in t)) return state;
+	return { ...state, list: state.list.map(({ notice: _notice, ...t }) => t) };
+}
+
+/**
+ * Recorre todas las listas guardadas en el celu (de cualquier evento, del panel y de links) y les
+ * saca la marca `notice` si ya pasó su `noticeUntil` (en las de links, siempre). Se llama al abrir
+ * el panel, para que no queden avisos de eventos viejos en el celu aunque nadie vuelva a abrir esa
+ * puerta.
+ *
+ * @param {Storage | undefined | null} storage
+ * @param {number} [now]
+ * @returns {number} cuántas listas cambió
+ */
+export function pruneDoorNotices(storage, now = Date.now()) {
+	let changed = 0;
+	try {
+		if (!storage) return 0;
+		/** @type {{ slug: string, opts: DoorStorageOpts }[]} */
+		const found = [];
+		for (let i = 0; i < storage.length; i++) {
+			const k = storage.key(i);
+			for (const link of [false, true]) {
+				const prefix = `${link ? LINK_DOOR_PREFIX : DOOR_PREFIX}:`;
+				if (k?.startsWith(prefix)) found.push({ slug: k.slice(prefix.length), opts: { link } });
+			}
+		}
+		for (const { slug, opts } of found) {
+			const state = readDoorState(storage, slug, opts);
+			const clean = stripStaleNotices(state, now, opts);
+			if (clean !== state && saveDoorState(storage, slug, clean, opts)) changed++;
+		}
+	} catch {
+		// sin almacenamiento: no hay nada guardado
+	}
+	return changed;
+}
 
 /** @returns {DoorState} */
 export function emptyDoorState() {
-	return { list: [], queue: [], savedAt: null, sales: [], failed: [] };
+	return { list: [], queue: [], savedAt: null, sales: [], failed: [], noticeUntil: null };
+}
+
+/**
+ * La lista guardada del evento, sin la marca `notice` si ya pasó su `noticeUntil` (con `link`,
+ * siempre sin ella).
+ *
+ * @param {Storage | undefined | null} storage
+ * @param {string} slug
+ * @param {DoorStorageOpts & { now?: number }} [opts]
+ * @returns {DoorState}
+ */
+export function loadDoorState(storage, slug, { now = Date.now(), ...opts } = {}) {
+	return stripStaleNotices(readDoorState(storage, slug, opts), now, opts);
 }
 
 /**
  * @param {Storage | undefined | null} storage
  * @param {string} slug
+ * @param {DoorStorageOpts} [opts]
  * @returns {DoorState}
  */
-export function loadDoorState(storage, slug) {
+function readDoorState(storage, slug, opts) {
 	try {
-		const raw = storage?.getItem(key(slug));
+		const raw = storage?.getItem(key(slug, opts));
 		const parsed = raw ? JSON.parse(raw) : null;
 		if (parsed && Array.isArray(parsed.list) && Array.isArray(parsed.queue)) {
 			return {
@@ -301,7 +394,8 @@ export function loadDoorState(storage, slug) {
 				savedAt: Number(parsed.savedAt) || null,
 				// Lo guardado antes de las ventas sin conexión no tiene estas listas.
 				sales: Array.isArray(parsed.sales) ? parsed.sales : [],
-				failed: Array.isArray(parsed.failed) ? parsed.failed : []
+				failed: Array.isArray(parsed.failed) ? parsed.failed : [],
+				noticeUntil: Number(parsed.noticeUntil) || null
 			};
 		}
 	} catch {
@@ -314,15 +408,87 @@ export function loadDoorState(storage, slug) {
  * @param {Storage | undefined | null} storage
  * @param {string} slug
  * @param {DoorState} state
+ * @param {DoorStorageOpts} [opts]
  * @returns {boolean} si se pudo guardar
  */
-export function saveDoorState(storage, slug, state) {
+export function saveDoorState(storage, slug, state, opts) {
 	try {
 		if (!storage) return false;
-		storage.setItem(key(slug), JSON.stringify(state));
+		// Con la página abierta más allá de `noticeUntil`, tampoco se vuelve a guardar la marca (con
+		// un link, nunca).
+		storage.setItem(key(slug, opts), JSON.stringify(stripStaleNotices(state, Date.now(), opts)));
 		return true;
 	} catch {
 		return false;
+	}
+}
+
+/**
+ * Puerta con link que ya no anda (venció, la revocaron) o que se cierra en el celu: borra la lista
+ * guardada (nombres, mails), los ingresos marcados sin conexión y los «Últimos escaneos», pero
+ * **nunca** las ventas hechas sin conexión que no se mandaron ni las que el servidor no pudo
+ * registrar: una venta que pasó no se pierde (decisión 0035), queda para mostrársela a une admin.
+ * Nunca toca lo de la puerta del panel (`kv-door:`).
+ *
+ * @param {Storage | undefined | null} storage
+ * @param {string} slug
+ * @returns {DoorState} lo que quedó (solo `sales` y `failed`)
+ */
+export function forgetLinkDoor(storage, slug) {
+	const prev = loadDoorState(storage, slug, { link: true });
+	const kept = { ...emptyDoorState(), sales: prev.sales, failed: prev.failed };
+	try {
+		storage?.removeItem(doorRecentKey(slug, { link: true }));
+		if (kept.sales.length || kept.failed.length) saveDoorState(storage, slug, kept, { link: true });
+		else storage?.removeItem(key(slug, { link: true }));
+	} catch {
+		// sin almacenamiento: no había nada guardado
+	}
+	return kept;
+}
+
+/**
+ * `forgetLinkDoor` para todas las puertas con link guardadas en el celu (en /puerta, sin un link
+ * vivo). Devuelve las que conservan ventas sin mandar o sin registrar.
+ *
+ * @param {Storage | undefined | null} storage
+ * @returns {{ slug: string, sales: QueuedSale[], failed: FailedSale[] }[]}
+ */
+export function forgetAllLinkDoors(storage) {
+	/** @type {Set<string>} */
+	const slugs = new Set();
+	try {
+		if (!storage) return [];
+		for (let i = 0; i < storage.length; i++) {
+			const k = storage.key(i) ?? '';
+			const m = k.match(/^kv-puerta-link(?:-recent)?:(.+)$/);
+			if (m) slugs.add(m[1]);
+		}
+	} catch {
+		return [];
+	}
+	/** @type {{ slug: string, sales: QueuedSale[], failed: FailedSale[] }[]} */
+	const left = [];
+	for (const slug of slugs) {
+		const kept = forgetLinkDoor(storage, slug);
+		if (kept.sales.length || kept.failed.length)
+			left.push({ slug, sales: kept.sales, failed: kept.failed });
+	}
+	return left;
+}
+
+/**
+ * Borra del celu lo que quedó de una puerta con link (las ventas sin mandar), cuando une admin ya
+ * las cargó.
+ * @param {Storage | undefined | null} storage
+ * @param {string} slug
+ */
+export function dropLinkDoor(storage, slug) {
+	try {
+		storage?.removeItem(key(slug, { link: true }));
+		storage?.removeItem(doorRecentKey(slug, { link: true }));
+	} catch {
+		// sin almacenamiento
 	}
 }
 

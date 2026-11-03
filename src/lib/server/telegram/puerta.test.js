@@ -9,6 +9,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { clearFlagCache, setFlag } from '$lib/server/flags.js';
 import { sellAtDoor } from '$lib/server/tickets/door.js';
+import { addDoorNotice } from '$lib/server/tickets/doorNotices.js';
 import { createAdminLinkCode, consumeAdminLinkCode, unlinkAdminTelegram } from './adminLink.js';
 import {
 	DOOR_EVENTS_MAX,
@@ -153,6 +154,39 @@ describe('doorCheckIn', () => {
 		expect((await doorCheckIn({ ...input, eventSlug: 'otro-evento' })).body).toEqual({
 			result: 'wrong-event'
 		});
+	});
+
+	it('aviso de puerta (decisión 0053): solo `notice: true` en eventos de Kinky Vibe, nunca el motivo', async () => {
+		await link(5003);
+		await addDoorNotice(
+			t.db,
+			/** @type {App.Locals} */ (/** @type {unknown} */ ({ user: ADMIN })),
+			{ email: 'prueba@example.com', expiry: '6m', reason: 'Motivo inventado', now: NOW }
+		);
+		const kv = await ticket();
+		/** @param {string} code @param {boolean} kinkyVibe */
+		const scan = (code, kinkyVibe) =>
+			doorCheckIn({
+				db: t.db,
+				initData: initData(5003),
+				token: TOKEN,
+				eventSlug: EVENT,
+				code,
+				now: NOW,
+				eventConfig: async () => ({ fondoEnabled: kinkyVibe })
+			});
+		const r = await scan(kv.token, true);
+		expect(r.body).toEqual({
+			result: 'ok',
+			holder: 'Persona Inventada',
+			checkedInAt: NOW,
+			notice: true
+		});
+		expect(JSON.stringify(r)).not.toContain('Motivo inventado');
+		// Un evento que no es de Kinky Vibe: nada, y el ingreso se marca igual.
+		const other = await ticket();
+		const plain = await scan(other.token, false);
+		expect(plain.body).toEqual({ result: 'ok', holder: 'Persona Inventada', checkedInAt: NOW });
 	});
 
 	it('sin permiso: 403 y no toca la entrada', async () => {

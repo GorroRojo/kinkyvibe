@@ -69,7 +69,7 @@ export async function revokeToken(token, { clientId, clientSecret }, fetchFn = f
 		);
 		return res.status === 204;
 	} catch (e) {
-		console.log('Could not revoke GitHub token: ' + e);
+		console.warn('[auth] no se pudo revocar el token de GitHub: ' + e);
 		return false;
 	}
 }
