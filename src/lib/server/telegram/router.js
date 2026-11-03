@@ -134,6 +134,20 @@ export function parseCommand(text) {
 	return { name: match[1].toLowerCase(), args: (match[2] ?? '').trim() };
 }
 
+/**
+ * ¿El comando va para otro bot? «/ayuda@OtroBot» en un grupo donde este bot ve todos los mensajes
+ * (es admin o tiene el modo privacidad apagado): no se contesta. Sin el usuario del bot
+ * (`TELEGRAM_BOT_USERNAME`) no se puede saber y se contesta como antes.
+ *
+ * @param {unknown} text
+ * @param {string | null | undefined} botUsername
+ */
+export function forOtherBot(text, botUsername) {
+	if (typeof text !== 'string' || !botUsername) return false;
+	const to = /^\/[a-z0-9_]{1,32}@(\w+)/i.exec(text.trim())?.[1];
+	return !!to && to.toLowerCase() !== botUsername.toLowerCase();
+}
+
 /** Minúsculas y sin tildes, para buscar sin que importe cómo se escribió. */
 const fold = (/** @type {string} */ s) =>
 	s
@@ -1007,7 +1021,7 @@ export async function planUpdate(update, deps) {
 			return send(searchResultsScreen(query, found, ctx));
 		}
 		const command = parseCommand(message?.text);
-		if (!command) return null;
+		if (!command || forOtherBot(message?.text, deps.botUsername)) return null;
 		// `/estado` y `/avisos`: solo une admin vinculade, por privado (0041). Para cualquier otra
 		// persona, lo mismo que un comando que no existe.
 		if (ADMIN_COMMAND_NAMES.has(command.name)) {
