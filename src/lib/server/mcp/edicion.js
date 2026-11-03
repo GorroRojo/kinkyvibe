@@ -4,19 +4,27 @@
  * `conector_claude_edicion` prendidos y una conexión con el permiso `edicion` (o una llave para
  * rutinas, ./oauth.js y ./llaves.js); si no, ni aparecen en `tools/list`.
  *
- * - `vista_previa` recibe la operación, el objetivo (por nombre o slug) y los cambios; los valida con
- *   las reglas del panel y devuelve el antes y después en palabras, la huella y la versión de lo
- *   que había. No guarda nada.
+ * - `vista_previa` recibe la operación ({@link OPERATIONS}: editar un objeto, crear un código o un
+ *   borrador, deshacer), el objetivo (por nombre o slug) y los cambios; los valida con las reglas
+ *   del panel y devuelve el antes y después en palabras, la huella y la versión de lo que había.
+ *   No guarda nada.
  * - `aplicar` recibe lo mismo más la huella y la versión. Si lo que hay cambió desde la vista previa,
  *   o las entradas no dan la misma huella, no guarda nada. Si no, guarda por el mismo código que el
- *   panel (./editarEvento.js, ./crearCodigo.js), con «confirmado por» en el historial y en
+ *   panel (./editarEvento.js, ./editarMaterial.js, ./editarPerfil.js, ./editarEtiqueta.js,
+ *   ./crearCodigo.js, ./borradores.js, ./historial.js), con «confirmado por» en el historial y en
  *   Actividad. Sin tope por día: si hay muchos cambios en una hora, sale un aviso por Telegram a
  *   les admins (./avisoCambios.js, lo dispara ./rpc.js después de anotarlo en Actividad). Guarda
  *   con las reglas de HTML de le admin que autorizó, como el panel (decisión 0004).
+ * - Nada de plata ni mails: ni ventas, ni reembolsos, ni envíos, ni cancelar un evento
+ *   (./editarEvento.js, `eventMailGuard`).
  */
 import { isAdmin } from '$lib/server/auth';
 import { runAsPanelAuthor } from '$lib/server/contenido/author.js';
 import { eventHref } from '$lib/admin/nav.js';
+import { dbTagsForAdmin } from '$lib/server/etiquetas/panel.js';
+import { planDbTagEdit } from '$lib/server/etiquetas/editor.js';
+import { readOps } from '$lib/utils/tagConfig.js';
+import { tagSlug } from '$lib/utils/tagSlug.js';
 import {
 	changeHash,
 	claudeLabel,
@@ -28,13 +36,44 @@ import {
 import {
 	EVENT_FIELDS,
 	EventChangeError,
+	STATUS_VALUES,
+	VISIBILITY_VALUES,
 	eventBase,
 	eventState,
 	normalizeEventInputs,
 	planEventChange,
-	savePanelEvent,
-	VISIBILITY_VALUES
+	savePanelEvent
 } from './editarEvento.js';
+import { PostChangeError } from './editarPost.js';
+import {
+	MATERIAL_FIELDS,
+	materialBase,
+	materialState,
+	normalizeMaterialInputs,
+	planMaterialChange,
+	savePanelMaterial
+} from './editarMaterial.js';
+import {
+	PROFILE_FIELDS,
+	applyProfileInputs,
+	checkProfileValues,
+	normalizeProfileInputs,
+	profileBase,
+	profileChanges,
+	profileState,
+	savePanelProfile
+} from './editarPerfil.js';
+import {
+	TAG_FIELDS,
+	WIKI_FIELDS,
+	normalizeTagInputs,
+	normalizeWikiInputs,
+	planTagChange,
+	planWikiChange,
+	savePanelTag,
+	savePanelWiki,
+	wikiValues
+} from './editarEtiqueta.js';
 import {
 	CODE_FIELDS,
 	CodeChangeError,
@@ -44,17 +83,31 @@ import {
 	savePanelCode,
 	ticketedSlugs
 } from './crearCodigo.js';
+import { DRAFT_TYPES, planDraft } from './borradores.js';
+import { linksFor, planUndo } from './historial.js';
+import { EDIT_TYPES, LOG_TYPE, TYPE_TEXT, editType, findTarget } from './objetos.js';
 import { ToolInputError, resolveEvent } from './tools.js';
 
 /** @typedef {import('./tools.js').ToolContext} ToolContext */
 /** @typedef {import('./tools.js').ToolOutput} ToolOutput */
 
 /** Las operaciones que existen. */
-export const OPERATIONS = Object.freeze(['editar_evento', 'crear_codigo']);
+export const OPERATIONS = Object.freeze([
+	'editar_objeto',
+	'editar_evento',
+	'crear_codigo',
+	'crear_borrador',
+	'deshacer'
+]);
 
 const OPERATION_TEXT = /** @type {Record<string, string>} */ ({
-	editar_evento: 'editar un evento',
-	crear_codigo: 'crear un código de descuento'
+	editar_objeto:
+		'editar un evento, material, perfil, lugar, etiqueta o entrada de la Kinkipedia (`tipo` y `objeto`)',
+	editar_evento: 'lo mismo que `editar_objeto` con `tipo: evento` (el evento va en `evento`)',
+	crear_codigo: 'crear un código de descuento',
+	crear_borrador: 'crear un borrador sin publicar de un evento, material, perfil o lugar',
+	deshacer:
+		'volver un objeto a una versión anterior (la de antes del último guardado, o `a_version`, el número que muestra `historial`)'
 });
 
 /** El esquema de entrada común (sin la huella). */
@@ -62,66 +115,228 @@ const BASE_PROPERTIES = {
 	operacion: {
 		type: 'string',
 		enum: [...OPERATIONS],
+		description: OPERATIONS.map((o) => `\`${o}\`: ${OPERATION_TEXT[o]}.`).join(' ')
+	},
+	tipo: {
+		type: 'string',
+		enum: [...EDIT_TYPES],
 		description:
-			'`editar_evento`: cambia datos de un evento. `crear_codigo`: crea un código de descuento.'
+			'En `editar_objeto` y `deshacer`: qué es el objeto. En `crear_borrador`: evento, material, perfil o lugar.'
+	},
+	objeto: {
+		type: 'string',
+		description:
+			'En `editar_objeto` y `deshacer`: el objeto, por su dirección (slug) o su nombre (una etiqueta, también por su nombre exacto).'
 	},
 	evento: {
 		type: 'string',
 		description:
-			'El evento, por slug o nombre. Obligatorio en `editar_evento`; en `crear_codigo`, el ' +
-			'evento del código (sin `evento`, vale para todos).'
+			'En `editar_evento`, el evento (slug o nombre). En `crear_codigo`, el evento del código (sin `evento`, vale para todos).'
+	},
+	a_version: {
+		type: 'integer',
+		minimum: 1,
+		description: 'En `deshacer`: la versión a la que volver (opcional; la muestra `historial`).'
 	},
 	cambios: {
 		type: 'object',
 		description:
-			'En `editar_evento`, alguno de: `titulo`; `inicio` y `fin` («AAAA-MM-DDTHH:MM», hora de ' +
-			'Argentina; `fin` vacío saca la hora de fin; si cambia `inicio` sin `fin`, el fin se mueve ' +
-			'igual); `lugar` (nombre o slug de un lugar que ya existe; vacío: sin lugar); `descripcion` ' +
-			'(el texto, en markdown); `precios` (lista de `{ tipo, precio }`: el nombre de un tipo de ' +
-			'entrada con precio fijo y el precio en pesos); `visibilidad` (`listado` o `no_listado`). ' +
-			'En `crear_codigo`: `codigo` (3 a 32 letras, números, - o _), `tipo` (`porcentaje` o ' +
-			'`monto`), `valor` (entero), y si hace falta `desde`, `hasta` («AAAA-MM-DDTHH:MM»), ' +
-			'`usos_maximos`, `entradas_maximas`.',
-		properties: {
-			titulo: { type: 'string' },
-			inicio: { type: 'string' },
-			fin: { type: 'string' },
-			lugar: { type: 'string' },
-			descripcion: { type: 'string' },
-			precios: {
-				type: 'array',
-				items: {
-					type: 'object',
-					properties: { tipo: { type: 'string' }, precio: { type: 'integer', minimum: 0 } },
-					required: ['tipo', 'precio']
-				}
-			},
-			visibilidad: { type: 'string', enum: [...VISIBILITY_VALUES] },
-			codigo: { type: 'string' },
-			tipo: { type: 'string', enum: ['porcentaje', 'monto'] },
-			valor: { type: 'integer', minimum: 1 },
-			desde: { type: 'string' },
-			hasta: { type: 'string' },
-			usos_maximos: { type: 'integer', minimum: 1 },
-			entradas_maximas: { type: 'integer', minimum: 1 }
-		},
-		additionalProperties: false
+			'Lo que cambia (o lo del borrador). Evento: ' +
+			EVENT_FIELDS.join(', ') +
+			' (`estado`: ' +
+			STATUS_VALUES.join(', ') +
+			'; `visibilidad`: ' +
+			VISIBILITY_VALUES.join(', ') +
+			'; `personas`: `[{ nombre, rol }]`, el nombre es la dirección de un perfil o un nombre libre; ' +
+			'`etiquetas`: la lista entera; `imagen`: la dirección o el nombre de una imagen de la biblioteca, ' +
+			'vacío la saca; `entradas`: `[{ tipo, precio? | a_la_gorra?: { minimo, sugerido } | tandas?: ' +
+			'[{ nombre, precio, cantidad?, hasta? }], cupo? }]`, un tipo que no existe se suma; `precios`: ' +
+			'`[{ tipo, precio }]`; `propiedades`: `{ clave: valor }` de otras propiedades del texto, `null` ' +
+			'la saca; fechas «AAAA-MM-DDTHH:MM», hora de Argentina). Material: ' +
+			MATERIAL_FIELDS.join(', ') +
+			'. Perfil o lugar: ' +
+			PROFILE_FIELDS.join(', ') +
+			' (`quien_lo_ve`: publico, miembres, oculto). Etiqueta: ' +
+			TAG_FIELDS.join(', ') +
+			'. Kinkipedia: ' +
+			WIKI_FIELDS.join(', ') +
+			'. Código: ' +
+			CODE_FIELDS.join(', ') +
+			'. Borrador de evento: titulo, inicio, fin, copia_de; de material: titulo, slug, resumen, ' +
+			'descripcion, etiquetas, personas, link, texto_del_link, propiedades; de perfil o lugar: los ' +
+			'campos de un perfil (nace oculto). `deshacer` no lleva `cambios`.',
+		additionalProperties: true
 	}
 };
 
 /**
+ * @typedef {{ ok: true, warnings: string[], created?: { slug: string, links: Record<string, string> } }
+ *   | { ok: false, stale: boolean, message: string }} ApplyResult
+ *
  * @typedef {{
  *   operation: string,
+ *   tipo?: string,
+ *   head: string,
  *   target: string,
  *   targetTitle: string,
+ *   targetLog: { targetType: string, targetId: string },
  *   inputs: Record<string, unknown>,
  *   base: string,
  *   changes: Array<{ campo: string, antes: string, despues: string }>,
  *   warnings: string[],
  *   links: Record<string, string>,
- *   apply: (ctx: ToolContext) => Promise<{ ok: true, warnings: string[] } | { ok: false, stale: boolean, message: string }>
+ *   apply: (ctx: ToolContext) => Promise<ApplyResult>
  * }} Plan
  */
+
+/**
+ * Lo que haría `editar_objeto` (o `editar_evento`), ya validado.
+ * @param {ToolContext} ctx
+ * @param {string} operation
+ * @param {string} tipo
+ * @param {string} query
+ * @param {unknown} cambios
+ * @returns {Promise<Plan>}
+ */
+async function planEdit(ctx, operation, tipo, query, cambios) {
+	const { object, slug } = await findTarget(ctx, tipo, query);
+	const common = {
+		operation,
+		tipo,
+		// `editar_evento` dice lo mismo que en #607 (lo lee el bot del equipo).
+		head:
+			operation === 'editar_evento'
+				? `Cambiar en «${object.title}»:`
+				: `Cambiar en ${TYPE_TEXT[tipo]} «${object.title}»:`,
+		target: operation === 'editar_evento' ? slug : `${tipo}:${slug}`,
+		targetTitle: object.title,
+		targetLog: { targetType: LOG_TYPE[tipo], targetId: slug },
+		links: linksFor(tipo, slug)
+	};
+	if (tipo === 'evento') {
+		const state = await eventState(ctx, slug);
+		if (!state) throw new ToolInputError('Ese evento no está en la base (o está borrado).');
+		const inputs = await normalizeEventInputs(ctx, cambios, state);
+		const plan = await planEventChange(ctx, slug, state, inputs);
+		const base = eventBase(state);
+		return {
+			...common,
+			links: { panel: eventHref(slug), publico: `/calendario/${slug}` },
+			inputs,
+			base,
+			changes: plan.changes,
+			warnings: plan.warnings,
+			apply: async (c) => {
+				const r = await savePanelEvent(c, {
+					slug,
+					content: plan.content,
+					sha: state.sha,
+					venue: plan.venue,
+					image: plan.image
+				});
+				if (r.ok) return r;
+				// ¿Alguien guardó en el medio? (el panel lo dice con un mensaje general)
+				const now = await eventState(c, slug).catch(() => null);
+				const stale = !now || eventBase(now) !== base;
+				return { ok: false, stale, message: r.message };
+			}
+		};
+	}
+	if (tipo === 'material') {
+		const state = await materialState(ctx, slug);
+		if (!state) throw new ToolInputError('Ese material no está en la base (o está borrado).');
+		const inputs = await normalizeMaterialInputs(ctx, cambios);
+		const plan = await planMaterialChange(ctx, state, inputs);
+		const base = materialBase(state);
+		return {
+			...common,
+			inputs,
+			base,
+			changes: plan.changes,
+			warnings: plan.warnings,
+			apply: async (c) => {
+				const r = await savePanelMaterial(c, {
+					slug,
+					content: plan.content,
+					sha: state.sha,
+					image: plan.image
+				});
+				if (r.ok) return r;
+				const now = await materialState(c, slug).catch(() => null);
+				const stale = r.conflict || !now || materialBase(now) !== base;
+				return { ok: false, stale, message: r.message };
+			}
+		};
+	}
+	if (tipo === 'perfil' || tipo === 'lugar') {
+		const state = await profileState(ctx, object, slug);
+		const inputs = await normalizeProfileInputs(ctx, cambios, { lugar: tipo === 'lugar' });
+		const values = applyProfileInputs(state.values, inputs);
+		const image = /** @type {number | null | undefined} */ (inputs.imagen);
+		const changes = await profileChanges(ctx, state.values, values, {
+			before: state.imageId,
+			after: image
+		});
+		if (!changes.length) throw new ToolInputError('Eso ya está así: no hay nada para cambiar.');
+		checkProfileValues(values, object.data);
+		return {
+			...common,
+			inputs,
+			base: profileBase(state),
+			changes,
+			warnings: [],
+			apply: async (c) => {
+				const r = await savePanelProfile(c, { slug, values, image });
+				return r.ok ? r : { ok: false, stale: r.conflict, message: r.message };
+			}
+		};
+	}
+	if (tipo === 'etiqueta') {
+		const inputs = normalizeTagInputs(cambios);
+		const { op, changes } = planTagChange(object, inputs);
+		if (!changes.length) throw new ToolInputError('Eso ya está así: no hay nada para cambiar.');
+		// Las reglas del editor de etiquetas (la imagen, el color…), antes de mostrar nada.
+		const fromDb = await dbTagsForAdmin(ctx.platform, ctx.user.login);
+		if (!fromDb) throw new ToolInputError('No se pueden leer las etiquetas de la base.');
+		try {
+			planDbTagEdit(fromDb.records, readOps([op]));
+		} catch (e) {
+			throw new ToolInputError(/** @type {Error} */ (e).message);
+		}
+		return {
+			...common,
+			inputs,
+			base: String(object.version),
+			changes,
+			warnings: [],
+			apply: async (c) => {
+				const r = await savePanelTag(c, op);
+				return r.ok ? r : { ok: false, stale: false, message: r.message };
+			}
+		};
+	}
+	// kinkipedia
+	const inputs = normalizeWikiInputs(cambios);
+	const before = wikiValues(object);
+	const { after, changes } = planWikiChange(before, inputs);
+	if (!changes.length) throw new ToolInputError('Eso ya está así: no hay nada para cambiar.');
+	if (!after.title && !after.summary && !after.body)
+		throw new ToolInputError('La entrada tiene que tener al menos título, resumen o texto.');
+	const wikiSlug = tagSlug(String(object.data.key ?? ''));
+	return {
+		...common,
+		head: `Cambiar en la entrada de la Kinkipedia de «${object.title}»:`,
+		links: linksFor('kinkipedia', wikiSlug),
+		inputs: { ...inputs },
+		base: String(object.version),
+		changes,
+		warnings: [],
+		apply: async (c) => {
+			const r = await savePanelWiki(c, { slug: wikiSlug, values: after, version: object.version });
+			return r.ok ? r : { ok: false, stale: r.conflict, message: r.message };
+		}
+	};
+}
 
 /**
  * Lo que haría el cambio, ya validado: objetivo, entradas normalizadas, versión, antes y después y
@@ -136,52 +351,36 @@ export async function planChange(ctx, args) {
 	if (!OPERATIONS.includes(operation))
 		throw new ToolInputError(`\`operacion\` es una de: ${OPERATIONS.join(', ')}.`);
 	const eventQuery = typeof args.evento === 'string' ? args.evento.trim().slice(0, 200) : '';
-	/** Resuelve el evento por slug o nombre (como `ventas`). */
-	const findEvent = async () => {
-		const r = await resolveEvent(eventQuery);
-		if (r.event) return r.event;
-		throw new ToolInputError(
-			r.options?.length
-				? `Hay varios eventos que coinciden con «${eventQuery}»: ${r.options
-						.map((o) => `${o.titulo} (${o.slug})`)
-						.join(', ')}. Volvé a pedir con el slug.`
-				: `No encontré ningún evento «${eventQuery}».`
-		);
-	};
 	try {
 		if (operation === 'editar_evento') {
 			if (!eventQuery) throw new ToolInputError('Falta `evento` (slug o nombre).');
-			const ev = await findEvent();
-			const state = await eventState(ctx.db, ev.slug);
-			if (!state) throw new ToolInputError('Ese evento no está en la base (o está borrado).');
-			const inputs = normalizeEventInputs(args.cambios, state);
-			const plan = await planEventChange(ctx.db, ev.slug, state, inputs);
-			const base = eventBase(state);
-			return {
-				operation,
-				target: ev.slug,
-				targetTitle: state.title,
-				inputs,
-				base,
-				changes: plan.changes,
-				warnings: plan.warnings,
-				links: { panel: eventHref(ev.slug), publico: `/calendario/${ev.slug}` },
-				apply: async (c) => {
-					const r = await savePanelEvent(c, {
-						slug: ev.slug,
-						content: plan.content,
-						sha: state.sha,
-						venue: plan.venue
-					});
-					if (r.ok) return r;
-					// ¿Alguien guardó en el medio? (el panel lo dice con un mensaje general)
-					const now = await eventState(c.db, ev.slug).catch(() => null);
-					const stale = !now || eventBase(now) !== base;
-					return { ok: false, stale, message: r.message };
-				}
-			};
+			return await planEdit(ctx, operation, 'evento', eventQuery, args.cambios);
 		}
+		if (operation === 'editar_objeto') {
+			const tipo = editType(args.tipo);
+			const query =
+				typeof args.objeto === 'string' ? args.objeto : tipo === 'evento' ? eventQuery : '';
+			return await planEdit(ctx, operation, tipo, query, args.cambios);
+		}
+		if (operation === 'crear_borrador') {
+			if (!DRAFT_TYPES.includes(String(args.tipo)))
+				throw new ToolInputError(`\`tipo\` de un borrador es uno de: ${DRAFT_TYPES.join(', ')}.`);
+			return await planDraft(ctx, args);
+		}
+		if (operation === 'deshacer') return await planUndo(ctx, args);
 		// crear_codigo
+		/** Resuelve el evento por slug o nombre (como `ventas`). */
+		const findEvent = async () => {
+			const r = await resolveEvent(eventQuery);
+			if (r.event) return r.event;
+			throw new ToolInputError(
+				r.options?.length
+					? `Hay varios eventos que coinciden con «${eventQuery}»: ${r.options
+							.map((o) => `${o.titulo} (${o.slug})`)
+							.join(', ')}. Volvé a pedir con el slug.`
+					: `No encontré ningún evento «${eventQuery}».`
+			);
+		};
 		const ticketed = await ticketedSlugs();
 		const ev = eventQuery ? await findEvent() : null;
 		if (ev && !ticketed.includes(ev.slug))
@@ -193,8 +392,10 @@ export async function planChange(ctx, args) {
 			throw new ToolInputError(`Ya existe un código ${inputs.codigo}. Elegí otro.`);
 		return {
 			operation,
+			head: `Crear el código de descuento ${inputs.codigo}:`,
 			target: inputs.codigo,
 			targetTitle: inputs.codigo,
+			targetLog: { targetType: 'discount', targetId: inputs.codigo },
 			inputs,
 			base: 'nuevo',
 			changes: describeCode(inputs, ev?.title ?? null),
@@ -208,7 +409,11 @@ export async function planChange(ctx, args) {
 			}
 		};
 	} catch (error) {
-		if (error instanceof EventChangeError || error instanceof CodeChangeError)
+		if (
+			error instanceof EventChangeError ||
+			error instanceof PostChangeError ||
+			error instanceof CodeChangeError
+		)
 			throw new ToolInputError(error.message);
 		throw error;
 	}
@@ -216,30 +421,45 @@ export async function planChange(ctx, args) {
 
 /** El antes y después en un texto corto (lo que el bot muestra para pedir el ✅). @param {Plan} p */
 export function summaryText(p) {
-	const head =
-		p.operation === 'editar_evento'
-			? `Cambiar en «${p.targetTitle}»:`
-			: `Crear el código de descuento ${p.target}:`;
 	const lines = p.changes.map((c) =>
 		c.antes ? `• ${c.campo}: ${c.antes} → ${c.despues}` : `• ${c.campo}: ${c.despues}`
 	);
-	return [head, ...lines, ...p.warnings.map((w) => `⚠️ ${w}`)].join('\n');
+	return [p.head, ...lines, ...p.warnings.map((w) => `⚠️ ${w}`)].join('\n');
 }
 
+/** Cómo se nombra el tipo del objeto. @param {Plan} p */
+const typeText = (p) => TYPE_TEXT[p.tipo ?? 'evento'];
+
 /** Para Actividad: de qué es el cambio. @param {Plan} p */
-const whatOf = (p) =>
-	p.operation === 'editar_evento'
-		? `un cambio en el evento «${p.targetTitle}»`
-		: `el código de descuento ${p.target}`;
+function whatOf(p) {
+	switch (p.operation) {
+		case 'crear_codigo':
+			return `el código de descuento ${p.target}`;
+		case 'crear_borrador':
+			return `un borrador de ${p.tipo} «${p.targetTitle}»`;
+		case 'deshacer':
+			return `volver atrás ${typeText(p)} «${p.targetTitle}»`;
+		default:
+			return `un cambio en ${typeText(p)} «${p.targetTitle}»`;
+	}
+}
+
+/** Para Actividad: qué se hizo. @param {Plan} p */
+function doneOf(p) {
+	switch (p.operation) {
+		case 'crear_codigo':
+			return `creó el código de descuento ${p.target}`;
+		case 'crear_borrador':
+			return `creó un borrador de ${p.tipo} «${p.targetTitle}»`;
+		case 'deshacer':
+			return `volvió ${typeText(p)} «${p.targetTitle}» a la versión ${p.inputs.a_version} (${fieldsOf(p)})`;
+		default:
+			return `editó ${typeText(p)} «${p.targetTitle}» (${fieldsOf(p)})`;
+	}
+}
 
 /** Para Actividad: qué campos cambian (sin los valores, que pueden ser largos). @param {Plan} p */
 const fieldsOf = (p) => p.changes.map((c) => c.campo).join(', ');
-
-/** @param {Plan} p */
-const targetLog = (p) =>
-	p.operation === 'editar_evento'
-		? { targetType: 'event', targetId: p.target }
-		: { targetType: 'discount', targetId: p.target };
 
 /** Sin el interruptor de cambios: un error claro. @param {ToolContext} ctx */
 async function requireEditing(ctx) {
@@ -272,7 +492,7 @@ export const EDIT_TOOLS = {
 			inputSchema: {
 				type: 'object',
 				properties: BASE_PROPERTIES,
-				required: ['operacion', 'cambios'],
+				required: ['operacion'],
 				additionalProperties: false
 			}
 		},
@@ -300,7 +520,7 @@ export const EDIT_TOOLS = {
 				},
 				log: {
 					summary: `Claude: vista previa de ${whatOf(p)} (${fieldsOf(p)})`,
-					...targetLog(p),
+					...p.targetLog,
 					detail: { operacion: p.operation, campos: p.changes.map((c) => c.campo) }
 				}
 			};
@@ -335,7 +555,7 @@ export const EDIT_TOOLS = {
 						description: 'El pedido original, en palabras. Opcional.'
 					}
 				},
-				required: ['operacion', 'cambios', 'hash', 'version'],
+				required: ['operacion', 'hash', 'version'],
 				additionalProperties: false
 			}
 		},
@@ -357,7 +577,7 @@ export const EDIT_TOOLS = {
 				result: { aplicado: false, motivo: why, mensaje: message },
 				log: {
 					summary: `${who}: no se aplicó ${whatOf(p)} (${why})`,
-					...targetLog(p),
+					...p.targetLog,
 					detail: { operacion: p.operation, motivo: why }
 				}
 			});
@@ -400,11 +620,12 @@ export const EDIT_TOOLS = {
 					resumen: summaryText(p),
 					avisos: r.warnings,
 					confirmado_por: confirmedBy,
-					enlaces: p.links
+					enlaces: r.created?.links ?? p.links,
+					...(r.created ? { creado: r.created.slug } : {})
 				},
 				log: {
-					summary: `${who}: ${p.operation === 'editar_evento' ? `editó el evento «${p.targetTitle}» (${fieldsOf(p)})` : `creó el código de descuento ${p.target}`}`,
-					...targetLog(p),
+					summary: `${who}: ${doneOf(p)}`,
+					...p.targetLog,
 					// Sin el texto del pedido (puede tener datos de alguien): solo si vino y su largo.
 					detail: {
 						operacion: p.operation,

@@ -29,7 +29,7 @@ import { venuePlaceMeta, stripMdPlace } from '$lib/utils/eventPlace.js';
 import { ANON, canSee, getObject } from '$lib/server/objects/index.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
 import { saveObject } from '$lib/server/objects/save.js';
-import { revisionStatement } from '$lib/server/contenido/revisions.js';
+import { panelRevisionStatement } from '$lib/server/contenido/author.js';
 import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
@@ -694,7 +694,7 @@ async function writeVenueEdge(db, eventSlug, lugar, { by, now }) {
 								WHERE object_id = ?1 AND imported_version = ?2`
 							)
 							.bind(event.id, event.version, event.version + 1),
-						revisionStatement(db, self, 'lugar')
+						panelRevisionStatement(db, self, 'lugar')
 					]
 				}
 			);
