@@ -228,6 +228,10 @@ arriba y «Fondo y finanzas» por mes), así cierran entre sí:
   desaparezca).
 - Las propinas «Para el Fondo» que suma el «Neto del fondo» del Inicio no tienen evento: van por su
   fecha de aprobación.
+- «Recaudado» y lo neto restan los reembolsos parciales hechos en Mercado Pago, y lo neto usa la
+  comisión que cobró MP cuando el pago la informó; si no, la estimada con la tasa de Ajustes, y lo
+  dice («Neto estimado»; en un mes mezclado, cuánto de la comisión es estimado). Detalle en
+  [tickets.md](tickets.md#meta-de-venta).
 - No cambian: «Ventas en el tiempo» y «Ventas por día» de la ficha (fecha de compra, muestran cuándo
   se vendió), ni los totales por evento.
 

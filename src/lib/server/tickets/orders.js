@@ -27,7 +27,7 @@ import { capacityLimit, discountUsesLimit, tierLimit } from './overrides.js';
 import { answersStatement } from './signupFields.js';
 import { markPurchasedStatement } from './waitlist.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
-import { MP_FEE_SQL } from '$lib/utils/salesGoal.js';
+import { MP_FEE_ESTIMATED_SQL, MP_FEE_SQL, REVENUE_SQL } from '$lib/utils/salesGoal.js';
 
 // El código corto se normaliza también en el navegador (modo puerta sin conexión).
 export { TICKET_CODE_LENGTH, normalizeTicketCode };
@@ -50,6 +50,7 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   email_id?: string | null, email_problem?: 'bounced' | 'complained' | 'suppressed' | null,
  *   email_problem_at?: number | null,
  *   refunded_at?: number | null, refunded_by?: string | null,
+ *   mp_fee_amount?: number | null, refunded_amount?: number | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
  *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
  *   admin_note?: string | null, ticket_tier?: string | null,
@@ -665,7 +666,10 @@ function expireStatement(db, eventSlug, now) {
  * `mpFee`: la comisión de Mercado Pago de las órdenes aprobadas (MP_FEE_SQL en
  * $lib/utils/salesGoal.js), para lo neto de la meta de venta.
  *
- * @returns {Promise<Map<string, { sold: number, held: number, revenue: number, fondo: number, contribution: number, surcharge: number, mpFee: number }>>}
+ * `revenue`: lo cobrado menos los reembolsos parciales hechos en MP (REVENUE_SQL);
+ * `mpFeeEstimated`: la parte de `mpFee` que es estimada (MP no informó la comisión).
+ *
+ * @returns {Promise<Map<string, { sold: number, held: number, revenue: number, fondo: number, contribution: number, surcharge: number, mpFee: number, mpFeeEstimated: number }>>}
  */
 export async function getCounts(db, eventSlug, now = Date.now()) {
 	const { results } = await db
@@ -673,11 +677,12 @@ export async function getCounts(db, eventSlug, now = Date.now()) {
 			`SELECT ticket_type,
 				SUM(CASE WHEN status = 'approved' THEN quantity ELSE 0 END) AS sold,
 				SUM(CASE WHEN status IN ${HOLDING} AND expires_at > ?2 THEN quantity ELSE 0 END) AS held,
-				SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS revenue,
+				SUM(CASE WHEN status = 'approved' THEN ${REVENUE_SQL} ELSE 0 END) AS revenue,
 				SUM(CASE WHEN status = 'approved' THEN fondo_amount ELSE 0 END) AS fondo,
 				SUM(CASE WHEN status = 'approved' THEN fondo_contribution ELSE 0 END) AS contribution,
 				SUM(CASE WHEN status = 'approved' THEN surcharge_amount ELSE 0 END) AS surcharge,
-				SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee
+				SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee,
+				SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_ESTIMATED_SQL} ELSE 0 END) AS mp_fee_estimated
 			FROM orders WHERE event_slug = ?1 GROUP BY ticket_type`
 		)
 		.bind(eventSlug, now)
@@ -692,7 +697,8 @@ export async function getCounts(db, eventSlug, now = Date.now()) {
 				fondo: Number(r.fondo ?? 0),
 				contribution: Number(r.contribution ?? 0),
 				surcharge: Number(r.surcharge ?? 0),
-				mpFee: Number(r.mp_fee ?? 0)
+				mpFee: Number(r.mp_fee ?? 0),
+				mpFeeEstimated: Number(r.mp_fee_estimated ?? 0)
 			}
 		])
 	);
@@ -804,9 +810,90 @@ export function nextStatus(current, currentPaymentId, incoming, paymentId) {
  *   status: string,
  *   external_reference?: string | null,
  *   transaction_amount?: number,
- *   currency_id?: string
+ *   currency_id?: string,
+ *   transaction_amount_refunded?: number,
+ *   fee_details?: { type?: string, fee_payer?: string, amount?: number }[]
  * }} MPPayment
+ *
+ * `transaction_amount_refunded` y `fee_details` son campos del pago de `GET /v1/payments/{id}`
+ * (verificados en la documentación de MP con su búsqueda de documentación, 2026-10-26: ejemplo de
+ * respuesta con `transaction_amount_refunded`, `transaction_details.net_received_amount` y
+ * `fee_details: [{ type: 'mercadopago_fee', fee_payer: 'collector', amount }]`). Solo se usan
+ * para los reportes del panel ({@link paymentAmounts}).
  */
+
+/**
+ * Lo que dice un pago de MP para los reportes del panel, en pesos enteros (redondeados):
+ * - `fee`: la comisión que cobró MP a la cuenta (la suma de `fee_details[].amount` con
+ *   `fee_payer = 'collector'`; las que paga quien compra, como la financiación de las cuotas, no
+ *   son nuestras), o `null` si el pago no trae `fee_details` (entonces el panel la estima);
+ * - `refunded`: lo reembolsado (`transaction_amount_refunded`), o `null` si no viene.
+ * Valores raros (negativos, no numéricos) cuentan como que no vinieron.
+ *
+ * @param {MPPayment} payment
+ * @returns {{ fee: number | null, refunded: number | null }}
+ */
+export function paymentAmounts(payment) {
+	/** @type {number | null} */
+	let fee = null;
+	if (Array.isArray(payment.fee_details)) {
+		let sum = 0;
+		let valid = true;
+		for (const f of payment.fee_details) {
+			if (!f || f.fee_payer !== 'collector') continue;
+			const amount = Number(f.amount);
+			if (!Number.isFinite(amount) || amount < 0) valid = false;
+			else sum += amount;
+		}
+		fee = valid ? Math.round(sum) : null;
+	}
+	const raw = payment.transaction_amount_refunded;
+	const refundedNumber = raw === undefined || raw === null ? NaN : Number(raw);
+	const refunded =
+		Number.isFinite(refundedNumber) && refundedNumber >= 0 ? Math.round(refundedNumber) : null;
+	return { fee, refunded };
+}
+
+/**
+ * Guarda en la orden la comisión real de MP y el reembolso parcial de un pago (solo reportes:
+ * no cambia el estado, ni las entradas, ni manda nada). Solo si el pago es el de la orden
+ * (`mp_payment_id`) y la orden está aprobada; el reembolso parcial solo mientras el pago sigue
+ * aprobado (un reembolso total pasa la orden a `refunded`, como siempre, y no se anota acá).
+ * Idempotente: si ya estaba igual no escribe. Nunca tira: si falla (por ejemplo, sin la migración
+ * 0069) se loguea y el pago sigue su curso.
+ *
+ * @param {D1Database} db
+ * @param {string} orderId
+ * @param {MPPayment} payment
+ * @returns {Promise<boolean>} si cambió algo
+ */
+export async function recordPaymentAmounts(db, orderId, payment) {
+	try {
+		const { fee, refunded } = paymentAmounts(payment);
+		const partial = payment.status === 'approved' && refunded !== null ? refunded : null;
+		if (fee === null && partial === null) return false;
+		const res = await db
+			.prepare(
+				`UPDATE orders SET mp_fee_amount = COALESCE(?3, mp_fee_amount),
+					refunded_amount = CASE WHEN ?4 IS NULL THEN refunded_amount
+						WHEN ?4 > 0 THEN MIN(?4, total) ELSE NULL END
+				WHERE id = ?1 AND mp_payment_id = ?2 AND status = 'approved'
+					AND payment_method = 'mercadopago'
+					AND (mp_fee_amount IS NOT COALESCE(?3, mp_fee_amount)
+						OR refunded_amount IS NOT (CASE WHEN ?4 IS NULL THEN refunded_amount
+							WHEN ?4 > 0 THEN MIN(?4, total) ELSE NULL END))`
+			)
+			.bind(orderId, String(payment.id), fee, partial)
+			.run();
+		return res.meta.changes === 1;
+	} catch (error) {
+		console.error(
+			`[tickets] no se pudo guardar la comisión o el reembolso parcial del pago ${payment.id} (orden ${orderId}):`,
+			error
+		);
+		return false;
+	}
+}
 
 /**
  * Aplica un pago (ya obtenido de la API de MP, nunca del body del webhook) a su orden.
@@ -816,6 +903,9 @@ export function nextStatus(current, currentPaymentId, incoming, paymentId) {
  *   (la plata entró), pero si con eso el tipo de entrada pasa su cupo queda como `late_payment`
  *   (`capacityOf` dice el cupo; si no se sabe, también se marca);
  * - otro pago aprobado para una orden ya aprobada queda como `duplicate_payment`.
+ *
+ * Después, solo para los reportes, guarda la comisión que cobró MP y lo reembolsado en un pago que
+ * sigue aprobado (reembolso parcial hecho desde MP): {@link recordPaymentAmounts}.
  *
  * @param {D1Database} db
  * @param {MPPayment} payment
@@ -827,7 +917,23 @@ export function nextStatus(current, currentPaymentId, incoming, paymentId) {
  *   tickets: Ticket[]
  * }>}
  */
-export async function applyPayment(db, payment, { now = Date.now(), capacityOf } = {}) {
+export async function applyPayment(db, payment, options = {}) {
+	const result = await applyPaymentStatus(db, payment, options);
+	// Solo reportes (comisión real y reembolso parcial): no cambia el resultado ni el estado.
+	if (result.order && (result.outcome === 'updated' || result.outcome === 'unchanged')) {
+		await recordPaymentAmounts(db, result.order.id, payment);
+	}
+	return result;
+}
+
+/**
+ * El estado de {@link applyPayment} (todo lo que decide la orden y las entradas).
+ * @param {D1Database} db
+ * @param {MPPayment} payment
+ * @param {{ now?: number, capacityOf?: (order: Order) => Promise<number | null> }} [options]
+ * @returns {ReturnType<typeof applyPayment>}
+ */
+async function applyPaymentStatus(db, payment, { now = Date.now(), capacityOf } = {}) {
 	const paymentId = String(payment.id);
 	const order = await getOrder(db, String(payment.external_reference ?? ''));
 	if (!order) return { outcome: 'unknown-order', order: null, newlyApproved: false, tickets: [] };
