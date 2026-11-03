@@ -888,14 +888,16 @@ export function buildDateChangeEmail({
 export function buildRefundEmail({ order, event, typeName, contactEmail, origin, template }) {
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
 	const subject = custom.subject ?? `Reembolso de tu compra · ${event.title}`;
-	const how =
-		order.payment_method === 'mercadopago'
+	// «Sin cargo» solo si no se cobró nada: una carga a mano con medio «otro» y monto sí se cobró.
+	const how = !order.total
+		? 'Era una compra sin cargo: no hay dinero para devolver.'
+		: order.payment_method === 'mercadopago'
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
 			: order.payment_method === 'transferencia'
 				? 'Te devolvimos el dinero por transferencia.'
 				: order.payment_method === 'efectivo'
 					? 'Te devolvimos el dinero en efectivo.'
-					: 'Era una compra sin cargo: no hay dinero para devolver.';
+					: 'Te devolvimos el dinero.';
 	const amount = order.total ? ` de ${formatARS(order.total)}` : '';
 	const html = mailLayout({
 		origin,
