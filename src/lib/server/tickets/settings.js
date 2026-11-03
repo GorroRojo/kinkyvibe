@@ -50,6 +50,13 @@ export const MAIL_FOOTER_LIMITS = Object.freeze({
 export const DEFAULT_FROM_EMAIL = 'KinkyVibe <entradas@kinkyvibe.ar>';
 export const DEFAULT_REPLY_TO = 'entradas@kinkyvibe.ar';
 
+/**
+ * Remitente fijo de los avisos (series, «Lo que sigo», lista de espera; decisión de gorrite del
+ * 3/11/2026): otra dirección, así una queja por spam a un aviso no les pega a los mails de
+ * entradas, códigos y reembolsos, que siguen con el de los ajustes. La respuesta es la de siempre.
+ */
+export const AVISOS_FROM_EMAIL = 'KinkyVibe <avisos@kinkyvibe.ar>';
+
 const EMAIL_RE = /^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/;
 
 /**
