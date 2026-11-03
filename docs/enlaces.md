@@ -46,7 +46,7 @@ lo guarda y lo dibuja el sitio.
 | `[[Consentimiento#En la práctica]]`   | Enlace a una sección.                                                                      | Obsidian            | —                         |
 | `[[Consentimiento#^a1b2]]`            | Enlace a un párrafo (más adelante).                                                        | Obsidian            | —                         |
 | `![[Taller de cuerdas nivel 1]]`      | El objeto incrustado como tarjeta (un evento con su fecha y su botón, una imagen…).        | Obsidian            | —                         |
-| `#cuerdas`                            | Etiqueta dentro del texto (enlaza a la etiqueta y se la suma al objeto).                   | Obsidian            | —                         |
+| `#cuerdas`                            | Etiqueta dentro del texto (enlaza a la etiqueta; no se la suma al objeto, ver abajo).      | Obsidian            | —                         |
 | `#[[reducción de daños]]`             | Etiqueta con espacios.                                                                     | Logseq              | —                         |
 | `@nombre`                             | Mención de un perfil del sitio (enlaza a su página).                                       | nuestra             | sí                        |
 | `> [!aviso] Título`                   | Un aviso destacado (tipos: `aviso`, `nota`, `idea`…).                                      | Obsidian            | —                         |
@@ -127,6 +127,10 @@ perfil y etiqueta (el texto de la wiki).
   - `[[nombre]]`: primero una etiqueta (lo que hacen hoy los `[[…]]`), si no el objeto con ese
     título (sin mayúsculas), si no el de esa dirección. Si empatan dos tipos gana material, después
     evento, perfil y etiqueta; en el mismo tipo, el más viejo.
+  - **Lo público gana** (gorrite, 3 nov 2026): si el nombre lleva a algo que cualquiera puede ver
+    (público; un perfil, además, aprobado y no oculto) y también a algo oculto, «solo con cuenta» o
+    sin aprobar, gana lo público, antes que las reglas de arriba. Si solo lleva a algo que no es
+    público, apunta ahí igual (no es «falta»). «No listado» cuenta como público.
 - **Qué se guarda**: un edge `enlaza` por objeto, en el orden del texto (`position`), sin `data`,
   como mucho 200 por objeto. Se suman los nuevos y se sacan los que el texto ya no nombra; los demás
   edges (`persona`, `etiqueta`, `lugar`…) no se tocan. Nadie los manda a mano (es un error).
@@ -136,9 +140,9 @@ perfil y etiqueta (el texto de la wiki).
 - **Lo que se guarda junto con otros**: en una importación grande (`saveObjects`), un enlace a un
   objeto que se crea en la misma tanda todavía no se encuentra; el próximo guardado (o
   `scripts/enlaces-backfill.js`) lo suma.
-- **`#etiqueta` no suma la etiqueta al objeto** (todavía): por ahora es un enlace como cualquier
-  otro. Sumarla a las etiquetas del objeto (lo que dice la tabla de arriba) espera a que gorrite
-  decida cómo convive con el campo de etiquetas del formulario.
+- **`#etiqueta` no suma la etiqueta al objeto**: es un enlace `enlaza` como cualquier otro; el
+  campo de etiquetas y sus edges `etiqueta` no cambian. gorrite no está segure de que tenga que
+  sumarla (3 nov 2026), así que queda para más adelante (`enlaces-etiqueta-suma`, «algún día»).
 - **Quién puede ver qué** (para `enlaces-lo-que-enlaza` y quien dibuje los enlaces): el edge se
   guarda aunque la otra punta sea oculta, «solo con cuenta» o un perfil sin aprobar; hoy nada
   público lo lee. Quien lo lea muestra un edge solo si quien mira puede ver **las dos** puntas
@@ -148,7 +152,9 @@ perfil y etiqueta (el texto de la wiki).
 - **Lo ya guardado**: `node scripts/enlaces-backfill.js` (solo la base local) cuenta qué cambiaría;
   con `--apply`, vuelve a guardar con `saveObject()` los objetos que cambian, sin tocar sus datos
   (sube la versión, suma una fila «migracion» al historial, deja `updated_at` y lo importado sin
-  editar como estaba). Para preview o producción no tiene opción: eso lo decide gorrite.
+  editar como estaba). Para preview o producción no tiene opción. En producción se corre una vez
+  que el diseño de los enlaces esté asentado (gorrite, 3 nov 2026: «una vez estemos bien con el
+  diseño sí»); hasta entonces, no (`enlaces-pasar-guardados`).
 
 ## Los dos editores
 
