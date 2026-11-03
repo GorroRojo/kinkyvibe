@@ -167,7 +167,8 @@ solo); hasta entonces el árbol está vacío y el editor lo avisa.
   la acción `guardar` acepta un solo cambio (`op`). Fusionar y renombrar sin alias piden
   confirmación antes (con lo que diga la vista previa del servidor). Guarda en la base (sin
   etiquetas en la base, la página pide cargar la semilla: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
-  operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después compara
+  operaciones que el editor del archivo (`applyTagOps`), así que valida igual (ni mover ni
+  fusionar dejan armar un ciclo de madres e hijas); después compara
   objeto por objeto y escribe solo lo que cambió. Diferencias:
   - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
   - el texto de la wiki y los demás datos que el archivo no tiene se conservan; si una etiqueta
