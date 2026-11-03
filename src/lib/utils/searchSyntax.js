@@ -793,3 +793,69 @@ export function splitTypes(raw, engine) {
 	}
 	return { types: types.size ? [...types] : null, text: rest.join(' ') };
 }
+
+/* ------------------------------------------------------------------ */
+/* «¿Cómo buscar?»                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Una línea de la ayuda «¿Cómo buscar?»: cómo se escribe, un ejemplo y qué hace.
+ * @typedef {{ id: string, label: string, example: string, help: string }} SearchHelpRow
+ */
+
+/**
+ * Lo de la base que no es un operador del registro (no tiene nombre) pero anda igual en los tres
+ * buscadores: las frases y las exclusiones. Va arriba de los operadores en la ayuda.
+ * @type {readonly SearchHelpRow[]}
+ */
+export const SEARCH_BASICS = Object.freeze([
+	{
+		id: 'frase',
+		label: '"…"',
+		example: '"reducción de daños"',
+		help: 'Esas palabras juntas y en ese orden.'
+	},
+	{
+		id: 'sin',
+		label: '-',
+		example: 'taller -online',
+		help: 'Sin esa palabra (también -#etiqueta o -evento:).'
+	}
+]);
+
+/**
+ * Cómo se escribe un operador en la ayuda: la forma larga y las cortas (`evento: · e:`), o el
+ * signo (`#etiqueta · etiqueta:`, `@nombre`).
+ * @param {Operator} op
+ */
+export function operatorLabel(op) {
+	const forms = [];
+	if (op.prefix) forms.push(`${op.prefix}${op.names[0] ?? 'nombre'}`);
+	if (op.names[0]) forms.push(`${op.names[0]}:`);
+	for (const s of op.short ?? []) forms.push(`${s}:`);
+	return forms.join(' · ');
+}
+
+/**
+ * La ayuda «¿Cómo buscar?» de un buscador, armada desde el registro (`OPERATORS`): las frases y
+ * las exclusiones ({@link SEARCH_BASICS}) y después cada operador que anda en ese buscador (en el
+ * sitio y el bot, solo los públicos), con su ejemplo y su explicación. Sumar un operador al
+ * registro lo suma a la ayuda de la paleta del sitio, del bot y del panel.
+ *
+ * @param {Engine} engine
+ * @returns {SearchHelpRow[]}
+ */
+export function searchHelp(engine) {
+	const ops = OPERATORS.filter(
+		(op) => op.engines.includes(engine) && (op.public || engine === 'panel')
+	);
+	return [
+		...SEARCH_BASICS,
+		...ops.map((op) => ({
+			id: op.id,
+			label: operatorLabel(op),
+			example: op.example,
+			help: op.help
+		}))
+	];
+}

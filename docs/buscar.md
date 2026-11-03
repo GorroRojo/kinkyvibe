@@ -249,3 +249,12 @@ acá, se cambia ahí en el mismo PR.
 - **Bot**: «🔎 Cómo buscar» en ❓ Ayuda, y una línea en el mensaje de Buscar.
 - **Panel**: la línea de ayuda de la paleta abre todo, incluido «Solo en el panel».
 - Muestra la forma larga y la corta al lado (`evento:` (o `e:`)).
+
+**Hoy**: la guía sale del registro (`searchHelp(buscador)` en `searchSyntax.js`: las frases y las
+exclusiones, `SEARCH_BASICS`, y cada operador de ese buscador con su forma larga y corta, su ejemplo
+y su explicación; en el sitio y el bot, solo los públicos). Sumar un operador al registro lo suma
+a la guía sin tocar nada más.
+
+- **Sitio**: el botón «?» de la barra del buscador, y «¿Cómo buscar?» con el buscador vacío o sin
+  resultados (`SearchPalette.svelte`). Cada ejemplo se puede tocar y queda escrito en el buscador;
+  escribir cierra la guía. Falta `/ayuda/buscar` (`buscar-guia-visible`).
