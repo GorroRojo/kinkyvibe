@@ -48,6 +48,7 @@ import { partsCoveredBy, ticketDate, ticketParts } from '$lib/utils/partes.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
 import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
+import { myClaims } from '$lib/server/amigues/claims.js';
 import {
 	editSavedBuyer,
 	isSavedBuyerField,
@@ -79,7 +80,7 @@ export async function load(event) {
 	const { db, member } = await requireMember(event);
 	// La base está lejos: lo que no depende de otra cosa se lee a la par. La velocidad de lectura
 	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
-	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, sessions] =
+	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, sessions, claims] =
 		await Promise.all([
 			getAccount(db, member.id),
 			// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
@@ -124,6 +125,12 @@ export async function load(event) {
 			listSessions(db, member.id, event.cookies.get(SESSION_COOKIE)).catch((e) => {
 				logDBError('cuentas: sesiones', e);
 				return null;
+			}),
+			// Los pedidos «¿Es tu perfil?» de la cuenta, con su estado (pendiente, aprobado, no
+			// aprobado). Si falla, la tarjeta no sale.
+			myClaims(db, member.id).catch((e) => {
+				logDBError('cuentas: pedidos de perfiles', e);
+				return [];
 			})
 		]);
 	if (!account) {
@@ -193,7 +200,8 @@ export async function load(event) {
 		unconfirmed: unconfirmed.map(listed),
 		// Sin el token ni su hash: cada una con su id público (session.js).
 		sessions,
-		now: Date.now()
+		now: Date.now(),
+		claims
 	};
 }
 
