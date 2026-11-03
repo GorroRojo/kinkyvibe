@@ -253,8 +253,8 @@ acá, se cambia ahí en el mismo PR.
 - **Panel**: la línea de ayuda de la paleta abre todo, incluido «Solo en el panel».
 - Muestra la forma larga y la corta al lado (`evento:` (o `e:`)).
 
-**Hoy**: la guía sale del registro (`searchHelp(buscador)` en `searchSyntax.js`: las frases y las
-exclusiones, `SEARCH_BASICS`, y cada operador de ese buscador con su forma larga y corta, su ejemplo
+**Hoy**: la guía sale del registro (`searchHelp(buscador)` en `searchSyntax.js`: las frases, las
+exclusiones y las palabras de fecha sueltas, `SEARCH_BASICS`, y cada operador de ese buscador con su forma larga y corta, su ejemplo
 y su explicación; en el sitio y el bot, solo los públicos). Sumar un operador al registro lo suma
 a la guía sin tocar nada más.
 
