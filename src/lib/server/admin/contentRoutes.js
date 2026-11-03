@@ -24,8 +24,8 @@ import {
 } from './posts.js';
 import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { FileChangedError, PathExistsError } from '$lib/server/contenido/cliente.js';
-import { findImage, imageOf } from '$lib/server/media/library.js';
-import { resolveContentSlug } from '$lib/server/contenido/posts.js';
+import { findImage } from '$lib/server/media/library.js';
+import { libraryCoverOf } from '$lib/server/contenido/posts.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
 import {
 	contentProblems,
@@ -84,15 +84,8 @@ async function materialImage(platform, locals, slug, legacyUrl) {
  * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
  */
 async function materialLibraryImage(platform, locals, slug) {
-	const db = getDB(platform);
-	if (!db || !slug) return null;
-	try {
-		const ref = await resolveContentSlug(db, 'material', slug);
-		return ref ? await imageOf(db, ref.id, 'portada', adminViewer(locals)) : null;
-	} catch {
-		// Sin la de la biblioteca, se muestra la del repo.
-		return null;
-	}
+	if (!slug) return null;
+	return libraryCoverOf(getDB(platform), 'material', slug, adminViewer(locals));
 }
 
 /**

@@ -50,7 +50,7 @@ import {
 	publicLinksOf,
 	withPublicLinks
 } from './vinculosPublicos.js';
-import { imageOfFrom } from '$lib/server/media/library.js';
+import { imageOf, imageOfFrom } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
 import { authorProfilePosts, authorSlugs, toPublic } from '$lib/server/amigues/asPost.js';
 import {
@@ -915,6 +915,27 @@ export async function resolveContentSlug(db, category, slug) {
  */
 export function resolveEventSlug(db, slug) {
 	return resolveContentSlug(db, EVENT_CATEGORY, slug);
+}
+
+/**
+ * La portada de la biblioteca (edge `portada`) de la publicación de una dirección, o null (sin
+ * base, sin esa dirección o si no se pudo leer: entonces el editor muestra la vieja del repo). La
+ * usan los editores del panel (material y eventos) y «Cargar evento» desde otro.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} category
+ * @param {string} slug
+ * @param {Viewer} viewer
+ * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
+ */
+export async function libraryCoverOf(db, category, slug, viewer) {
+	if (!db) return null;
+	try {
+		const ref = await resolveContentSlug(db, category, slug);
+		return ref ? await imageOf(db, ref.id, 'portada', viewer) : null;
+	} catch {
+		return null;
+	}
 }
 
 /**
