@@ -839,7 +839,8 @@ export function splitTypes(raw, engine) {
 
 /**
  * Lo de la base que no es un operador del registro (no tiene nombre) pero anda igual en los tres
- * buscadores: las frases y las exclusiones. Va arriba de los operadores en la ayuda.
+ * buscadores: las frases, las exclusiones y las palabras de fecha sueltas. Va arriba de los
+ * operadores en la ayuda.
  * @type {readonly SearchHelpRow[]}
  */
 export const SEARCH_BASICS = Object.freeze([
@@ -854,6 +855,12 @@ export const SEARCH_BASICS = Object.freeze([
 		label: '-',
 		example: 'taller -online',
 		help: 'Sin esa palabra (también -#etiqueta o -evento:).'
+	},
+	{
+		id: 'fechas',
+		label: 'hoy · mañana · semana · finde',
+		example: 'finde',
+		help: 'Eventos de esos días.'
 	}
 ]);
 
