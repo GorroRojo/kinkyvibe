@@ -102,9 +102,17 @@
 	let newAlias = '';
 	let childName = '';
 	// `?etiqueta=<id>` (el buscador del panel): abre el árbol con esa etiqueta elegida.
+	// `?nueva=<nombre>` (Enlaces que faltan): «Nueva etiqueta» con ese nombre ya puesto; se crea
+	// recién con «Crear».
 	onMount(() => {
-		const id = new URL(location.href).searchParams.get('etiqueta');
+		const params = new URL(location.href).searchParams;
+		const id = params.get('etiqueta');
 		if (id && byIdNow().has(id)) selectTag(id);
+		const nueva = (params.get('nueva') ?? '').trim().slice(0, 200);
+		if (nueva && !selected) {
+			childName = nueva;
+			tick().then(() => document.getElementById('nueva-etiqueta-nombre')?.focus());
+		}
 	});
 
 	/** @param {string} id */
@@ -675,7 +683,13 @@
 							childName.trim()
 						)}
 				>
-					<label>Nombre <input class="kv-input" bind:value={childName} /></label>
+					<label
+						>Nombre <input
+							id="nueva-etiqueta-nombre"
+							class="kv-input"
+							bind:value={childName}
+						/></label
+					>
 					<label
 						>Dentro de <input
 							class="kv-input"

@@ -185,8 +185,8 @@ no se ve. Detrás del interruptor **`lo_que_enlaza`** (`LO_QUE_ENLAZA_ENABLED`, 
 
 ### Enlaces que faltan (panel)
 
-Etiquetas › **Enlaces que faltan** (`/admin/etiquetas/falta`, botón arriba de Etiquetas; solo
-admins): los `[[…]]`, `@` y `#` de los cuerpos que no llevan a ningún objeto, de lo que más se
+Etiquetas › **Enlaces que faltan** (`/admin/etiquetas/falta`, en el menú del panel debajo de
+Árbol de etiquetas y con un botón arriba de Etiquetas; solo admins): los `[[…]]`, `@` y `#` de los cuerpos que no llevan a ningún objeto, de lo que más se
 escribe a lo que menos, con cuántas veces y en qué objetos (con link a su editor y a su página, y
 si son «solo con cuenta» u ocultos). Es la lista de qué escribir para hacer crecer la Kinkipedia.
 Código: `src/lib/server/contenido/enlacesFalta.js`.
@@ -197,11 +197,14 @@ Código: `src/lib/server/contenido/enlacesFalta.js`.
   (541 cuerpos, 426 enlaces, 40 que faltan en 16 nombres), ~270 ms en local.
 - **Se resuelve igual que al guardar**, sin mirar visibilidad: lo que lleva a algo oculto no falta.
 - `[[x]]`, `![[x]]` y `#x` cuentan como un mismo nombre (sin mayúsculas); `@x` va aparte.
-- **No crea la página**: el panel no tiene todavía cómo crear una etiqueta, un perfil o una
-  publicación con un nombre dado desde un link. Se crea a mano o se corrige el texto
-  (`enlaces-falta-crear` del plan).
-- No está en el menú (el mapa del panel es de gorrite, [0038](decisiones/0038-navegacion-del-panel-opcion-c.md)):
-  se llega desde Etiquetas o por la dirección.
+- **Un botón por nombre para crear la página** (gorrite, 3/11/2026), por el formulario de siempre
+  con el nombre ya puesto; nada se guarda hasta confirmarlo ahí (`createFor`):
+  - `@nombre` → «Crear perfil»: Perfil nuevo (`/admin/comunidad/perfiles/nuevo?nombre=…`);
+  - `[[nombre]]`, `![[nombre]]` y `#nombre` → «Crear etiqueta»: «Nueva etiqueta» del árbol
+    (`/admin/etiquetas?nueva=…`), porque hoy un `[[…]]` lleva a la Kinkipedia. Después se escribe
+    su entrada en la Kinkipedia como siempre.
+- **En el menú** (gorrite, 3/11/2026): `etiquetas-falta` en `src/lib/admin/nav.js`, área
+  Etiquetas.
 
 ## Los dos editores
 

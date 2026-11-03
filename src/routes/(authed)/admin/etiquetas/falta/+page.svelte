@@ -4,7 +4,7 @@
 	 * de lo que más se escribe a lo que menos (la lista de qué escribir para hacer crecer la
 	 * Kinkipedia). Cada nombre lleva los objetos que lo usan, con link a su editor y a su página.
 	 */
-	import { ExternalLink, Unlink } from '@lucide/svelte';
+	import { ExternalLink, Plus, Unlink } from '@lucide/svelte';
 	import { Badge, Card, EmptyState, PageHeader } from '$lib/components/ui';
 
 	/** @type {import('./$types').PageData} */
@@ -24,7 +24,6 @@
 <PageHeader
 	title="Enlaces que faltan"
 	subtitle="Lo que los textos nombran con [[…]], @ o # y todavía no existe: cuántas veces se escribe y dónde."
-	back={{ href: '/admin/etiquetas', label: 'Etiquetas' }}
 />
 
 <p class="note">
@@ -32,7 +31,7 @@
 		? ' (los editados más recientemente; hay más)'
 		: ''}
 	con {data.references} enlaces. Un nombre que lleva a algo oculto no falta: existe. Para que deje de
-	faltar, creá la etiqueta, el perfil o la publicación con ese nombre, o corregí el texto.
+	faltar, creá la página con su botón (abre el formulario con el nombre ya puesto) o corregí el texto.
 </p>
 
 {#if data.items.length}
@@ -43,6 +42,10 @@
 					<div class="head">
 						<code class="name">{item.name}</code>
 						<Badge tone="warn">{item.count} {item.count === 1 ? 'vez' : 'veces'}</Badge>
+						<!-- Al formulario de siempre con el nombre ya cargado: nada se guarda hasta confirmarlo. -->
+						<a class="kv-btn ghost small" href={item.create.href}
+							><Plus size={14} aria-hidden="true" /> {item.create.label}</a
+						>
 					</div>
 					<ul class="sources">
 						{#each item.sources as s (s.id)}

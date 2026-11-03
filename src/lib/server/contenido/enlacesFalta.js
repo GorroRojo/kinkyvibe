@@ -27,10 +27,35 @@ export const FALTA_MAX_OBJECTS = 3000;
  */
 
 /**
- * Un nombre que falta: cómo se escribe (`[[…]]`, `@…` o `#…`, con la forma de la primera vez),
- * cuántas veces aparece en total y en qué objetos.
- * @typedef {{ name: string, form: BodyReference['form'], count: number, sources: FaltaSource[] }} FaltaItem
+ * Un nombre que falta: cómo se escribe (`[[…]]`, `@…` o `#…`, con la forma de la primera vez), el
+ * nombre solo (`target`), cuántas veces aparece en total, en qué objetos y cómo crear la página
+ * ({@link createFor}).
+ * @typedef {{
+ *   name: string, target: string, form: BodyReference['form'], count: number,
+ *   sources: FaltaSource[], create: { href: string, label: string }
+ * }} FaltaItem
  */
+
+/** Largo máximo del nombre que va en el link para crear (como `PREFILL_MAX` de Perfil nuevo). */
+const CREATE_NAME_MAX = 200;
+
+/**
+ * Cómo crear lo que falta, por el formulario de siempre del panel con el nombre ya cargado (nada
+ * se guarda hasta que le admin lo confirma ahí):
+ * - `@nombre` → Perfil nuevo (`/admin/comunidad/perfiles/nuevo?nombre=…`);
+ * - `[[nombre]]`, `![[nombre]]` y `#nombre` → «Nueva etiqueta» del árbol
+ *   (`/admin/etiquetas?nueva=…`): hoy un `[[…]]` lleva a la Kinkipedia, que es el texto de una
+ *   etiqueta.
+ *
+ * @param {BodyReference['form']} form
+ * @param {string} target
+ */
+export function createFor(form, target) {
+	const name = encodeURIComponent(target.trim().slice(0, CREATE_NAME_MAX));
+	if (form === 'mencion')
+		return { href: `/admin/comunidad/perfiles/nuevo?nombre=${name}`, label: 'Crear perfil' };
+	return { href: `/admin/etiquetas?nueva=${name}`, label: 'Crear etiqueta' };
+}
 
 /**
  * La misma cosa escrita de dos maneras cuenta una vez: sin mayúsculas, y `[[x]]`, `![[x]]` y `#x`
@@ -94,7 +119,15 @@ export async function missingLinks(db, { max = FALTA_MAX_OBJECTS } = {}) {
 			const key = keyOf(ref);
 			let item = items.get(key);
 			if (!item) {
-				item = { name: written(ref), form: ref.form, count: 0, sources: [], seen: new Set() };
+				item = {
+					name: written(ref),
+					target: ref.target,
+					form: ref.form,
+					count: 0,
+					sources: [],
+					create: createFor(ref.form, ref.target),
+					seen: new Set()
+				};
 				items.set(key, item);
 			}
 			item.count++;
