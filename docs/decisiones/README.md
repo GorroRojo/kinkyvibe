@@ -126,6 +126,7 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0054](0054-paypal-en-las-propinas.md): PayPal en las propinas: una app compartida con el Fondo,
   en dólares netos, con una cotización propia (MEP «compra» + un ajuste de gorrite) y retiros para
   comparar (2/11)
+- [0055](0055-cotizacion-sin-interruptor.md): la cotización para kv-fondo anda aunque el interruptor `paypal` esté apagado.
 
 ### Comunidad y suscripciones
 

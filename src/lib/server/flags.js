@@ -140,13 +140,13 @@ export const FLAGS = Object.freeze({
 		description:
 			'En construcción. Por ahora prende la parte de PayPal de Ajustes → Propinas: la cotización ' +
 			'del dólar con la que se estiman en pesos las propinas en dólares, el ajuste en % de esa ' +
-			'cotización, los retiros y el reparto por mes del Fondo. También le pasa a ' +
-			'fondo.kinkyvibe.ar la cotización y lo de PayPal. Todavía no se puede pagar con PayPal. ' +
-			'Apagado, nada de esto se ve.',
+			'cotización, los retiros y el reparto por mes del Fondo, y le pasa a fondo.kinkyvibe.ar ' +
+			'lo de PayPal. Todavía no se puede pagar con PayPal. Apagado, nada de esto se ve (la ' +
+			'cotización le llega igual a fondo.kinkyvibe.ar).',
 		tech:
 			'docs/propinas.md («PayPal: cotización, ajuste y retiros»), decisión 0054. Necesita la ' +
-			'migración 0071. Apagado, GET /api/fondo/cotizacion da 404 y GET /api/fondo/propinas-total ' +
-			'no trae `paypal`. El cron diario de la cotización corre igual (no se ve).',
+			'migración 0071. Apagado, GET /api/fondo/propinas-total no trae `paypal`. ' +
+			'GET /api/fondo/cotizacion y el cron diario de la cotización andan igual (no se ven).',
 		envVar: 'PAYPAL_ENABLED'
 	},
 	conector_claude: {
