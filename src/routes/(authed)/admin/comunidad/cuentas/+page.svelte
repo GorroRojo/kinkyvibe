@@ -6,6 +6,7 @@
 	import '$lib/admin/panel-forms.scss';
 	import { CircleUser } from '@lucide/svelte';
 	import { fmtDate } from '$lib/admin/format.js';
+	import { argDate } from '$lib/utils/dates.js';
 	import { accountHref } from '$lib/admin/links.js';
 	import { PROFILES_HREF } from '$lib/admin/perfiles.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -20,7 +21,8 @@
 	export let data;
 
 	/** @param {number | null | undefined} ms */
-	const day = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
+	// El día en hora de Argentina (no UTC: lo de desde las 21:00 caía al día siguiente).
+	const day = (ms) => (ms ? argDate(ms) : '');
 	// Se ordena solo si están todas en la página: con 500 o más, el servidor manda las 500 más
 	// nuevas (las demás se buscan por mail) y ordenar esas sería un orden falso.
 	$: complete = data.accounts.length < 500;

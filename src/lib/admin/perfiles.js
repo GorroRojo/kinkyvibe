@@ -8,6 +8,7 @@
 import { profileHref } from './links.js';
 import { VISIBILITY_LABELS } from './cuentas.js';
 import { KIND_LABELS, ROLE_LABELS } from '$lib/utils/perfiles.js';
+import { argDate } from '$lib/utils/dates.js';
 
 /** La URL de la lista. */
 export const PROFILES_HREF = '/admin/comunidad/perfiles';
@@ -142,7 +143,8 @@ export function profileRowHref(p) {
 }
 
 /** @param {number | null | undefined} ms */
-const day = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
+// El día en hora de Argentina (no UTC: lo creado desde las 21:00 caía al día siguiente).
+const day = (ms) => (ms ? argDate(ms) : '');
 
 /**
  * @param {Readonly<Record<string, string>>} labels

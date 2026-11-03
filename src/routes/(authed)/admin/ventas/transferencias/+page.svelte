@@ -69,8 +69,8 @@
 		{ label: 'pronombres', key: 'pronouns' },
 		{ label: 'email', key: 'email' },
 		{ label: 'codigo', value: (r) => r.discountCode ?? '' },
-		{ label: 'pedida', value: (r) => new Date(r.createdAt).toISOString() },
-		{ label: 'vence', value: (r) => new Date(r.expiresAt).toISOString() },
+		{ label: 'pedida', value: (r) => new Date(r.createdAt) },
+		{ label: 'vence', value: (r) => new Date(r.expiresAt) },
 		{
 			label: 'estado',
 			value: (r) =>
