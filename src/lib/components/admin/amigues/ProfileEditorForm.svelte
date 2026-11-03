@@ -233,7 +233,7 @@
 	{#if kind === 'proyecto'}
 		<label class="kv-check">
 			<input type="checkbox" name="show_members" bind:checked={values.show_members} />
-			Mostrar integrantes (solo los que aceptaron y se pueden ver)
+			Mostrar integrantes (solo quienes aceptaron y se pueden ver)
 		</label>
 	{/if}
 

@@ -147,7 +147,7 @@
 			<button
 				type="button"
 				class="tiles"
-				aria-label="Mapa con el punto elegido. Hacé clic para moverlo."
+				aria-label="Mapa con el punto elegido. Tocalo para moverlo."
 				on:click={clickMap}
 			>
 				{#each map.tiles as t (`${t.x}-${t.y}-${t.left}`)}
@@ -184,7 +184,7 @@
 					></small
 				>
 			</div>
-			<p class={noteClass}>Hacé clic en el mapa o usá las flechas para ajustar el punto.</p>
+			<p class={noteClass}>Tocá el mapa o usá las flechas para ajustar el punto.</p>
 			<div class={rowClass}>
 				<button class={useClass} type="button" on:click={use}>Usar esta ubicación</button>
 			</div>

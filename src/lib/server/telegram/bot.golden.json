@@ -1142,7 +1142,7 @@
 		]
 	},
 	"fondo sin números": {
-		"text": "<b>💗 Fondo Kinky Vibe</b>\n\nAhora no pude leer los números del Fondo. Mirálos en fondo.kinkyvibe.ar",
+		"text": "<b>💗 Fondo Kinky Vibe</b>\n\nAhora no pude leer los números del Fondo. Miralos en fondo.kinkyvibe.ar",
 		"keyboard": [
 			[
 				{
@@ -1322,7 +1322,7 @@
 		]
 	},
 	"seguir opciones": {
-		"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+		"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 		"keyboard": [
 			[
 				{
@@ -3577,7 +3577,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4285,7 +4285,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4328,7 +4328,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4384,7 +4384,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4427,7 +4427,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4477,7 +4477,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4520,7 +4520,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4570,7 +4570,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4613,7 +4613,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4663,7 +4663,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4706,7 +4706,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4756,7 +4756,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4799,7 +4799,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4849,7 +4849,7 @@
 				"method": "editMessageText",
 				"chat_id": 42,
 				"message_id": 9,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -4892,7 +4892,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true

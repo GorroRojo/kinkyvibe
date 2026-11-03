@@ -415,7 +415,7 @@
 </script>
 
 <svelte:head>
-	<title>Editar · {meta.title ?? postID} · {embedded ? 'Panel' : 'KV Admin'}</title>
+	<title>Editar · {meta.title ?? postID} · Panel</title>
 </svelte:head>
 
 <svelte:element this={embedded ? 'div' : 'main'} class="edit kv-admin" class:embedded>
@@ -610,6 +610,10 @@
 					></small
 				>{/if}
 			<SaveStatus {saving} message={savedMessage} />
+			{#if !changed && !saving && !problems.length && !savedMessage}
+				<!-- Por qué «Guardar» está apagado: en el celu el `title` no se ve al tocar. -->
+				<small class="idle">No hay cambios para guardar</small>
+			{/if}
 			<SaveButton
 				id="save"
 				{saving}
@@ -636,5 +640,9 @@
 	.blocked {
 		flex: 1 1 12em;
 		color: var(--bad, #b00020);
+	}
+	.idle {
+		flex: 1 1 12em;
+		color: var(--muted);
 	}
 </style>

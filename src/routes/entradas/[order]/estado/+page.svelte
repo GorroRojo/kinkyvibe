@@ -25,6 +25,20 @@
 		liveText = card?.querySelector('h1')?.textContent?.trim() ?? '';
 	});
 
+	// Compra aprobada: se borra el borrador del formulario de compra (TicketPurchase, en
+	// sessionStorage de esta pestaña). Con Mercado Pago queda hasta acá para que un pago rechazado
+	// vuelva al formulario con los datos cargados.
+	$effect(() => {
+		if (order.status !== 'approved') return;
+		try {
+			for (const key of Object.keys(sessionStorage)) {
+				if (key.startsWith('kv-entradas:')) sessionStorage.removeItem(key);
+			}
+		} catch {
+			// sin sessionStorage: no hay nada que borrar
+		}
+	});
+
 	// Mientras esperamos la confirmación, volvemos a consultar cada vez más espaciado (5, 10, 20 y
 	// después 30 segundos; 8 veces, unos 3 minutos: `nextOrderPollDelay`). Solo se recarga la orden
 	// (`kv:orden`), no el layout del sitio.
@@ -184,7 +198,7 @@
 			<dd>−{formatARS(order.discountAmount)} (código {order.discountCode})</dd>
 		{/if}
 		{#if order.surcharge}
-			<dt>Recargo MP</dt>
+			<dt>Recargo Mercado Pago</dt>
 			<dd>+{formatARS(order.surcharge)}</dd>
 		{/if}
 		<dt>Total</dt>

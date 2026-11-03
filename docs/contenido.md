@@ -219,7 +219,7 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
 - **Cómo se ve el texto** (decisión 0004: superadmins pueden usar HTML libre). Cada texto guarda
   cómo se muestra (`data.body_html`):
   - libre (lo que vino de los `.md` y lo que guarda une superadmin): `freeHtml.js` lo arma con el
-    mismo camino que usaba mdsvex (rehype-slug, rehype-toc, `customRehype`, comillas tipográficas,
+    mismo camino que usaba mdsvex (rehype-slug, rehype-toc: el índice solo con 2 títulos o más, `customRehype`, comillas tipográficas,
     menciones y wiki). Lee el markdown como el parser de mdsvex donde CommonMark lo lee distinto
     (énfasis con `*` pegado o con espacios, una etiqueta HTML que corta el párrafo, listas) y no
     toca el HTML escrito a mano (como mdsvex: sin comillas tipográficas, menciones ni anclas
