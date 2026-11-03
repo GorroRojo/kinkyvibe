@@ -164,10 +164,12 @@ export const FLAGS = Object.freeze({
 	conector_claude_edicion: {
 		label: 'Conector de Claude: cambios',
 		description:
-			'Con el conector de Claude prendido, Claude además puede cambiar algunas cosas, siempre en ' +
-			'dos pasos: primero muestra exactamente qué va a cambiar y después, con el OK, lo guarda ' +
-			'como el panel (con historial). Por ahora: los datos de un evento (título, fecha y hora, ' +
-			'lugar, descripción, precios, si está listado) y crear un código de descuento. Cada cambio ' +
+			'Con el conector de Claude prendido, Claude además puede cambiar lo que edita el panel, ' +
+			'siempre en dos pasos: primero muestra exactamente qué va a cambiar y después, con el OK, lo ' +
+			'guarda como el panel (con historial). Edita eventos, material, perfiles, lugares, etiquetas ' +
+			'y la Kinkipedia, crea borradores sin publicar y códigos de descuento, y puede deshacer ' +
+			'cualquier cambio (volver a una versión anterior). Nada de plata ni mails: cancelar un ' +
+			'evento, las ventas y los reembolsos se hacen desde el panel. Cada cambio ' +
 			'queda en Actividad, con quién lo confirmó; si hay muchos en una hora, les admins que lo ' +
 			'prendieron en «Mis avisos» reciben un aviso por Telegram. Apagado, Claude solo lee.',
 		tech:

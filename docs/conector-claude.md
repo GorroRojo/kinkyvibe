@@ -14,9 +14,12 @@ por la dirección (slug).
 - Está detrás del interruptor `conector_claude` (Ajustes → Interruptores), **apagado**. Apagado,
   no existe (404).
 - Con un segundo interruptor, `conector_claude_edicion` (**apagado**), Claude además puede
-  **cambiar** algunas cosas, siempre en dos pasos (ver [Cambios](#cambios)).
-- Es la parte 1 y 2 de tres (plan: `conector-claude-lectura`, `conector-claude-edicion`); lo de
-  plata (`proto-conector-claude`) va después. Decisión [0003](decisiones/0003-superadmins-y-permisos.md):
+  **cambiar** lo que edita el panel (eventos, material, perfiles, lugares, etiquetas y la
+  Kinkipedia), crear borradores sin publicar y **deshacer** cualquier cambio, siempre en dos pasos
+  (ver [Cambios](#cambios) y [Deshacer](#deshacer)). gorrite, 3/11: «editar todo, siempre que se
+  pueda deshacer».
+- Es la parte 1 y 2 de tres (plan: `conector-claude-lectura`, `conector-claude-edicion`,
+  `conector-claude-borradores`); lo de plata (`proto-conector-claude`) va después. Decisión [0003](decisiones/0003-superadmins-y-permisos.md):
   «Claude puede operar el panel con un conector, siempre con permiso».
 
 ## Lo que nunca se tiene que romper
@@ -27,10 +30,16 @@ por la dirección (slug).
   solo puede autorizar en un preview, nunca en producción.
 - **Leer no cambia nada.** Las herramientas de lectura no escriben nada (salvo el registro en
   Actividad y el límite de pedidos) y van marcadas `readOnlyHint`.
-- **Cambiar, solo lo que el panel ya hace y por su mismo código**, nunca SQL a mano: el editor de
-  eventos (acción «Guardar» de la pestaña Editar) y el alta de códigos (Ventas → Códigos). Con su
-  validación, el control de que nadie guardó en el medio, el historial y lo que sigue a un
-  guardado (lugar, lista de espera, aviso de cambio de fecha).
+- **Cambiar, solo lo que el panel ya hace y por su mismo código**, nunca SQL a mano: el «Guardar»
+  de la pestaña Editar de un evento, del editor de material, del editor de perfiles (también los
+  lugares), de una etiqueta y de la entrada de la Kinkipedia; las altas de borradores (Agenda,
+  Nuevo material, Nuevo perfil) y de códigos (Ventas → Códigos). Con su validación, el control de
+  que nadie guardó en el medio, el historial y lo que sigue a un guardado (lugar, lista de espera,
+  aviso de cambio de fecha).
+- **Todo cambio se puede deshacer**: cada guardado deja una versión en el historial, con sus
+  relaciones, y `deshacer` vuelve a cualquiera por el mismo guardado (ver [Deshacer](#deshacer)).
+- **Nada de plata ni mails**: ni ventas, ni reembolsos, ni envíos, ni cancelar un evento (ver
+  [Lo que no hace](#lo-que-no-hace)).
 - **Lo que se aplica es exactamente lo que se vio**: `aplicar` no guarda si lo que había cambió
   desde la vista previa o si las entradas no son las mismas.
 - **Sin SQL ni ids en las entradas.** Las herramientas reciben texto, un slug o un nombre; el
@@ -41,8 +50,8 @@ por la dirección (slug).
   Mercado Pago, la nota, las entradas y las respuestas a las preguntas, como ahí. Un objeto, con
   todos sus datos, como el editor. Lo que el panel no muestra, el conector tampoco. Los mails de
   amigues son públicos a propósito (decisión 0010), como en el panel.
-- **Una sola migración** (`0072`): las llaves para rutinas y «confirmado por» en el historial. La
-  lectura no la necesita.
+- **Dos migraciones**: `0072` (las llaves para rutinas y «confirmado por» en el historial) y
+  `0073` (las relaciones de cada versión del historial, para deshacer). La lectura no las necesita.
 
 ## Cómo sumarlo en claude.ai (gorrite, una vez prendido)
 
@@ -93,6 +102,7 @@ usa en 20 horas, también (el token de renovación vence).
 | `leer`             | `nombre` (slug o nombre); opcional `tipo`                                                                                             | todos los datos del objeto, como el editor del panel, quién y cuándo lo creó y editó, sus relaciones y sus enlaces; o las opciones si hay varios.                                                                                                                              |
 | `ventas`           | `evento` (slug o nombre); opcional `estado` (todas, aprobadas, pendientes, reembolsadas, vencidas, canceladas) y `limite` (hasta 500) | el resumen de la pestaña Ventas (vendidas, reservadas, cupo, recaudado, neto sin la comisión de MP, Fondo, por tipo, órdenes por estado) y las órdenes como en la pestaña Órdenes: referencia, nombre, últimos 3 del DNI, mail, montos, su estado, pago MP, nota y respuestas. |
 | `eventos_proximos` | opcional `dias` (hasta 365) y `limite`                                                                                                | los eventos desde hoy: slug, título, fechas, lugar, si está oculto, sin publicar o es borrador, y si vende entradas, vendidas, reservadas y cupo.                                                                                                                              |
+| `historial`        | `tipo` (evento, material, perfil, lugar, etiqueta, kinkipedia), `objeto` (slug o nombre); opcional `limite` (hasta 50)                | `version_actual` y `versiones`: `[{ version, cuando, quien, origen, cambios, es_la_actual?, deshacer_vuelve_aca?, sin_relaciones_guardadas? }]`. `cambios` son los nombres de los campos que cambiaron, no los valores.                                                        |
 
 Fuera de `vite dev`, los eventos de prueba de la venta (`prueba-entradas-*`) no aparecen, como en
 el buscador del panel. Cada herramienta anota en Actividad `conector.<herramienta>` con un resumen
@@ -108,30 +118,42 @@ equipo muestra para pedir el ✅) y `aplicar` lo guarda, con las mismas entradas
 versión de la vista previa. En un chat con une admin pueden ir una atrás de la otra; lo que importa
 es que `aplicar` nunca guarda algo distinto de lo que alguien vio.
 
-| Herramienta    | Qué recibe                                                                                                       | Qué devuelve                                                                                                                                                               |
-| -------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vista_previa` | `operacion`, `evento` (slug o nombre), `cambios`                                                                 | `resumen` (el antes y después en un texto corto), `cambios` (`[{ campo, antes, despues }]`), `avisos`, `hash`, `version`, `objetivo`, `titulo`, `enlaces`. No guarda nada. |
-| `aplicar`      | lo mismo, más `hash` y `version` de la vista previa; opcional `confirmado_por` (hasta 40) y `pedido` (hasta 500) | `aplicado: true`, `resumen`, `avisos`, `confirmado_por`, `enlaces`; o `aplicado: false` con `motivo` (`cambió`, `no coincide`, `el panel no lo guardó`) y `mensaje`.       |
+| Herramienta    | Qué recibe                                                                                                       | Qué devuelve                                                                                                                                                                                                   |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vista_previa` | `operacion` y, según la operación, `tipo`, `objeto`, `evento`, `a_version`, `cambios`                            | `resumen` (el antes y después en un texto corto), `cambios` (`[{ campo, antes, despues }]`), `avisos`, `hash`, `version`, `objetivo`, `titulo`, `enlaces`. No guarda nada.                                     |
+| `aplicar`      | lo mismo, más `hash` y `version` de la vista previa; opcional `confirmado_por` (hasta 40) y `pedido` (hasta 500) | `aplicado: true`, `resumen`, `avisos`, `confirmado_por`, `enlaces` (y `creado`, la dirección de un borrador); o `aplicado: false` con `motivo` (`cambió`, `no coincide`, `el panel no lo guardó`) y `mensaje`. |
 
-Operaciones:
+Operaciones (`operacion`):
 
-- **`editar_evento`** (`evento` obligatorio). `cambios`, alguno de: `titulo`; `inicio` y `fin`
-  (`AAAA-MM-DDTHH:MM`, hora de Argentina; `fin` vacío saca la hora de fin; si cambia `inicio` sin
-  `fin`, el fin se mueve igual, como en el editor); `lugar` (nombre o slug de un lugar que ya
-  existe; vacío, sin lugar); `descripcion` (el texto en markdown; se guarda con las reglas de HTML de le admin que autorizó, como en el panel: HTML libre, ver abajo);
-  `precios` (`[{ tipo, precio }]`: el nombre de un tipo de entrada con precio fijo y el precio en
-  pesos; las tandas, la gorra, el cupo y lo demás de la venta, desde el panel); `visibilidad`
-  (`listado` o `no_listado`, el «No listado» del editor).
+- **`editar_objeto`**: `tipo` (evento, material, perfil, lugar, etiqueta, kinkipedia), `objeto`
+  (slug o nombre; una etiqueta, también su nombre exacto) y `cambios`, alguno de los campos de
+  abajo. Cada tipo se guarda por el «Guardar» de su editor del panel.
+- **`editar_evento`** (de #607, sigue igual): lo mismo que `editar_objeto` con `tipo: evento`; el
+  evento va en `evento`.
+- **`crear_borrador`**: `tipo` (evento, material, perfil, lugar, etiqueta) y `cambios` (ver
+  [Borradores](#borradores)); una etiqueta nueva se publica al toque.
+- **`deshacer`**: `tipo`, `objeto` y opcional `a_version` (ver [Deshacer](#deshacer)). Sin
+  `cambios`.
 - **`crear_codigo`** (`evento` opcional: sin él, vale para todos). `cambios`: `codigo`, `tipo`
   (`porcentaje` o `monto`), `valor`, y si hace falta `desde`, `hasta` (`AAAA-MM-DDTHH:MM`),
   `usos_maximos`, `entradas_maximas`. Los mismos campos y la misma validación que el formulario.
 
-Lo que no está (el estado del evento, sus etiquetas, la imagen, las personas, borradores nuevos):
-desde el panel.
+Los `cambios` de cada tipo (lo que no se manda queda como está; fechas `AAAA-MM-DDTHH:MM`, hora de
+Argentina):
+
+| Tipo              | Campos                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| evento y material | `titulo`; `descripcion` (markdown, con las reglas de HTML de le admin que autorizó: HTML libre, ver abajo); `resumen`; `etiquetas` (la lista entera); `personas` (`[{ nombre, rol }]`: `nombre` es la dirección de un perfil, que va como perfil, o un nombre libre; la lista entera); `visibilidad` (`listado` o `no_listado`); `imagen` (la dirección o el nombre de una imagen de la biblioteca; vacío la saca); `link`, `texto_del_link`; `propiedades` (`{ clave: valor }` para otras propiedades del texto, como `original_published_date` o `redirect`; `null` la saca; las que tienen su campo, o las de la venta, no van acá) |
+| evento (además)   | `inicio` y `fin` (`fin` vacío saca la hora de fin; si cambia `inicio` sin `fin`, el fin se mueve igual, como en el editor); `lugar` (nombre o slug de un lugar que ya existe; vacío, sin lugar); `estado` (`anunciado`, `abierto` o `agotadas`; cancelar, no: ver abajo); `precios` (`[{ tipo, precio }]`, como en #607: un tipo que ya existe, con precio fijo); `entradas` (`[{ tipo, precio? \| a_la_gorra?: { minimo, sugerido } \| tandas?: [{ nombre, precio, cantidad?, hasta? }], cupo? }]`: un tipo que no existe se suma; `cupo: null`, sin límite; una tanda que ya existe se reconoce por su nombre)                       |
+| perfil y lugar    | `titulo`; `tipo_de_perfil` (persona, proyecto, lugar; un lugar no cambia de tipo); `visibilidad` (`listado` o `no_listado`); `quien_lo_ve` (`publico`, `miembres`, `oculto`); `bio`, `descripcion`, `pronombres`, `link_de_pronombres`, `texto_del_link`, `email`, `telefono`, `cumpleanos`, `identidad_de_genero`, `que_hace`, `direccion`, `barrio`, `ciudad`, `accesibilidad`, `como_llegar`; `links`, `etiquetas`, `autores` (listas); `no_indexar`, `mostrar_miembres` (sí/no); `latitud`, `longitud`; `privacidad` (la del lugar); `imagen`                                                                                      |
+| etiqueta          | `nombre_visible`, `icono`, `color`, `descripcion`, `imagen` (un archivo de la biblioteca vieja, como en el panel). Renombrar, mover, fusionar y los alias, desde el panel: cambian muchas publicaciones y deshacerlos no es volver una versión atrás                                                                                                                                                                                                                                                                                                                                                                                   |
+| kinkipedia        | `titulo`, `resumen`, `autores`, `etiquetas`, `texto` (la entrada de la wiki de una etiqueta que ya existe)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 - **La huella** (`hash`) cubre la operación, el objetivo, las entradas ya normalizadas (con los
   nombres resueltos en el servidor) y la versión de lo que había; la firma el servidor con su
-  clave. La **versión** de un evento es la de su texto y su lugar; la de un código, «nuevo».
+  clave. La **versión** de un evento o un material es la del objeto más el sha de su texto; la de
+  un perfil, una etiqueta o una entrada de la Kinkipedia, la del objeto (sube con cada guardado);
+  la de un código o un borrador, «nuevo».
 - **«Confirmado por»**: el historial del objeto guarda quién guardó (le admin dueñe de la conexión),
   que fue por Claude y quién lo confirmó; la pestaña Editar del evento muestra «Última edición: …,
   Claude, confirmado por Mel (autorizó @login)», o solo «Claude» si no vino `confirmado_por` (el
@@ -161,6 +183,75 @@ desde el panel.
   (Telegram falló), se suelta y el próximo cambio reintenta. Corre en segundo plano después de
   guardar (`waitUntil`): sin el bot, sin «Telegram para admins», sin `TELEGRAM_BOT_TOKEN` o con
   Telegram caído, el cambio se guarda igual y el problema solo queda en el log.
+
+## Deshacer
+
+`deshacer` vuelve un objeto a una versión anterior de su historial, con el mismo par
+`vista_previa` y `aplicar` y por el mismo guardado del panel que una edición (con su validación,
+el control de que nadie guardó en el medio y lo que sigue a un guardado). Lo que se guarda es una
+**versión nueva**, de Claude y con «confirmado por», así que un deshacer también se deshace.
+
+- **A qué versión**: sin `a_version`, a la de antes del último guardado; con `a_version`, a esa (el
+  número que muestra `historial`). Un «Guardar» del editor de eventos que cambia el lugar deja dos
+  versiones seguidas (el texto y, enseguida, el lugar, con los mismos datos): cuentan como un solo
+  guardado.
+- **La vista previa** dice «Volver el evento «…» a la versión N (del …, de …):» y el antes y después
+  de cada campo que cambia. Lo técnico que el guardado del panel escribe solo (la fecha de
+  «Actualizado», `puerta: true`, que es lo mismo que no tenerla) vuelve igual, pero no se lista
+  (`TECHNICAL` en `historial.js`; gorrite, 3/11). Si ya está así, no hay nada que deshacer. Una versión borrada no se
+  restaura (borrar y recuperar, desde el panel); un objeto en su primera versión (un borrador recién
+  creado, por ejemplo) tampoco: se borra desde el panel.
+- **Las relaciones**: desde la migración `0073` cada versión guarda también sus relaciones
+  (`object_revisions.edges`: etiquetas, personas con perfil, imagen, lugar…), y deshacer las
+  devuelve. Una versión de antes no las tiene: deshacer devuelve los datos y deja las relaciones
+  como están, y la vista previa lo avisa. La `0073` agrega la versión actual de cada evento,
+  material, perfil y etiqueta con sus relaciones, así lo primero que se cambie después se puede
+  deshacer.
+- **Historial en todos los editores**: el editor de perfiles y el de etiquetas guardaban sin
+  historial; ahora dejan su versión como los eventos (decisión 0004, «historial: todo»). Lo que pide
+  el conector queda como «Claude, confirmado por …» también en la Kinkipedia, el lugar de un
+  evento, los perfiles y las etiquetas (`panelRevisionStatement` en
+  `src/lib/server/contenido/author.js`).
+- **Lo mismo que una edición**: deshacer hasta un evento cancelado, o cambiar el cupo o el estado
+  con gente en la lista de espera, tampoco se hace (ver abajo).
+
+## Borradores
+
+`crear_borrador` crea uno sin publicar por el alta del panel; lo demás se completa después con
+`editar_objeto`:
+
+- **evento**: el «Borrador» de la Agenda: `cambios` con `titulo`, `inicio` y opcional `fin` (el
+  mismo día) y `copia_de` (un evento para duplicar, como en la agenda). Queda no listado, con
+  `status: anunciado` y la marca `borrador: true` («A confirmar»). La dirección la elige el panel
+  al guardar y vuelve en `creado`.
+- **material**: «Nuevo material»: `titulo` y lo que pide el formulario (al menos una etiqueta y une
+  autore en `personas`, con rol `Autore`); opcional `slug`, `resumen`, `descripcion`, `link`,
+  `texto_del_link`, `propiedades`. Queda no listado.
+- **perfil** y **lugar**: «Nuevo perfil»: `titulo` y los campos de un perfil (sin imagen). Nace
+  oculto (`quien_lo_ve: oculto`).
+- **etiqueta** (gorrite, 3/11): una etiqueta nueva, por el «Guardar» de Etiquetas (un cambio
+  `create`, con las reglas del editor: el nombre, que no exista otra ni un alias igual, la madre).
+  `cambios`: `nombre` (el nombre exacto) y opcional `madre` (una etiqueta que ya existe),
+  `nombre_visible`, `icono`, `descripcion`; el color y la imagen, después con `editar_objeto`. Las
+  etiquetas no tienen borrador: queda publicada al toque. No se deshace desde acá (es su primera
+  versión): se borra desde el panel, como renombrar, mover o fusionar.
+
+## Lo que no hace
+
+Nada que mande mails ni mueva plata (gorrite, 3/11): ni ventas, ni reembolsos, ni envíos, ni
+confirmar transferencias (eso es `proto-conector-claude`, para mirar y decidir). En los eventos:
+
+- **Cancelar**: `estado: cancelado` (y `propiedades.status`, y deshacer hasta una versión cancelada)
+  se rechaza con «Cancelar un evento no se hace desde el conector…». En el panel, cancelar cierra
+  la lista de espera (el cron le manda un mail a cada persona anotada) y abre «Reembolsar todas»
+  (decisión 0051). El conector no lo hace ni a medias.
+- **Con gente en la lista de espera**, no cambia el estado ni la venta salvo los precios (el cupo,
+  las tandas, un tipo nuevo, el cierre): un lugar que se libera le manda la oferta por mail a la
+  próxima persona. Desde el panel.
+- **La fecha sí**: cambiarla solo anota el cambio y la ficha ofrece «Avisar a les compradores»,
+  que nunca sale solo (como en #607). La vista previa lo avisa si hay entradas vendidas.
+- **La venta**: los medios de pago, la meta, la lista de espera, la puerta y prender o apagar la
+  venta, desde el panel (`propiedades` no los acepta).
 
 ## Rutinas que corren solas
 
@@ -230,17 +321,18 @@ claude.ai ──POST /mcp/token (code + code_verifier)           ──▶ token
 
 ## Dónde está el código
 
-| Qué                                   | Dónde                                                                                          |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| OAuth (tokens, PKCE, vueltas, cortes) | `src/lib/server/mcp/oauth.js`                                                                  |
-| Protocolo MCP (JSON-RPC)              | `src/lib/server/mcp/rpc.js`                                                                    |
-| Herramientas de lectura               | `src/lib/server/mcp/tools.js`                                                                  |
-| Cambios (vista previa y aplicar)      | `src/lib/server/mcp/edicion.js`, `cambios.js`, `editarEvento.js`, `crearCodigo.js`             |
-| Llaves para rutinas                   | `src/lib/server/mcp/llaves.js`, Ajustes → Admins                                               |
-| Rutas                                 | `src/routes/mcp/` (`+server.js`, `token`, `registro`, `autorizar`) y `src/routes/.well-known/` |
-| Interruptor, límites, respuestas      | `src/lib/server/mcp/http.js`, `conector_claude` en `src/lib/server/flags.js`                   |
-| Cortar conexiones                     | Ajustes → Admins (`src/routes/(authed)/admin/ajustes/admins/`)                                 |
-| POST de tokens sin `Origin`           | `src/lib/server/mcp/tokenPost.js`, `worker/index.js`                                           |
+| Qué                                   | Dónde                                                                                                                                                                                           |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OAuth (tokens, PKCE, vueltas, cortes) | `src/lib/server/mcp/oauth.js`                                                                                                                                                                   |
+| Protocolo MCP (JSON-RPC)              | `src/lib/server/mcp/rpc.js`                                                                                                                                                                     |
+| Herramientas de lectura               | `src/lib/server/mcp/tools.js`                                                                                                                                                                   |
+| Cambios (vista previa y aplicar)      | `src/lib/server/mcp/edicion.js`, `cambios.js`, `objetos.js`, `editarPost.js`, `editarEvento.js`, `editarMaterial.js`, `editarPerfil.js`, `editarEtiqueta.js`, `borradores.js`, `crearCodigo.js` |
+| Historial y deshacer                  | `src/lib/server/mcp/historial.js`; la versión con relaciones en `src/lib/server/contenido/revisions.js`                                                                                         |
+| Llaves para rutinas                   | `src/lib/server/mcp/llaves.js`, Ajustes → Admins                                                                                                                                                |
+| Rutas                                 | `src/routes/mcp/` (`+server.js`, `token`, `registro`, `autorizar`) y `src/routes/.well-known/`                                                                                                  |
+| Interruptor, límites, respuestas      | `src/lib/server/mcp/http.js`, `conector_claude` en `src/lib/server/flags.js`                                                                                                                    |
+| Cortar conexiones                     | Ajustes → Admins (`src/routes/(authed)/admin/ajustes/admins/`)                                                                                                                                  |
+| POST de tokens sin `Origin`           | `src/lib/server/mcp/tokenPost.js`, `worker/index.js`                                                                                                                                            |
 
 ## Cómo probar
 
@@ -259,11 +351,12 @@ todo 404. El chequeo CSRF de SvelteKit no corre en `vite dev`: el POST de tokens
 prueba en un preview.
 
 Los cambios: con `CONECTOR_CLAUDE_EDICION_ENABLED=1` también, `vista_previa` y `aplicar` sobre un
-evento de la semilla; después, la pestaña Editar muestra «Claude, confirmado por …». Las pruebas:
-`src/lib/server/mcp/*.test.js`.
+evento de la semilla; después, la pestaña Editar muestra «Claude, confirmado por …». Deshacer:
+`historial` del mismo evento, `vista_previa` con `operacion: deshacer` y `aplicar`; el texto
+vuelve a ser el de antes. Las pruebas: `src/lib/server/mcp/*.test.js` (`deshacer.test.js`: deshacer,
+cada tipo, los borradores y lo que no se hace) y `src/lib/server/db/migration0073.test.js`.
 
 ## Lo que viene
 
-- Crear borradores con el mismo par vista previa y aplicar (`conector-claude-borradores`).
 - Si hace falta ver y cortar cada conexión por separado (no solo «todas las mías»), una tabla de
   conexiones: migración aparte.

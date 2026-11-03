@@ -222,7 +222,11 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   (`src/lib/posts/<categoría>/<dirección>.md`) y las lleva a la base (editor, cargar y duplicar,
   agenda y borradores, importar la planilla, borrar y deshacer, las etiquetas). Lo que no es una
   publicación de la base no se puede guardar (`NotInRepoError`). Cada guardado es una versión nueva
-  con historial (`object_revisions`, `source = 'panel'`).
+  con historial (`object_revisions`, `source = 'panel'`). Desde la migración `0073`, cada versión
+  guarda también las relaciones del objeto como quedaron (`object_revisions.edges`: etiquetas,
+  personas con perfil, imagen, lugar), y el editor de perfiles y el de etiquetas también dejan su
+  versión: así el conector de Claude puede volver a cualquiera ([conector-claude.md](conector-claude.md),
+  «Deshacer»).
 - **Quién guarda** es siempre el **login de GitHub** de le admin (`saved_by`/`updated_by`):
   hooks.server.js corre el pedido de cada admin con `resolveAsPanelAuthor` (`contenido/author.js`).
   Ahí también se decide `body_html`: si el texto no cambió queda como estaba; si cambió, `'libre'`

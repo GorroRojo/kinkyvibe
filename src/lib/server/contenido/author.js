@@ -9,6 +9,7 @@
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { isAdmin } from '$lib/server/auth';
+import { revisionStatement } from './revisions.js';
 
 /**
  * @typedef {{
@@ -57,4 +58,22 @@ export function resolveAsPanelAuthor(event, resolve) {
 	return runAsPanelAuthor({ login: user.login, name: user.name ?? null, superadmin: true }, () =>
 		resolve(event)
 	);
+}
+
+/**
+ * La versión del historial de un guardado del panel: como `revisionStatement(db, self, source)`,
+ * salvo que el pedido sea del conector de Claude ({@link runAsPanelAuthor} con `claude`): entonces
+ * queda como `source` = 'claude', con quién lo confirmó (docs/conector-claude.md). Para los
+ * guardados que no pasan por el cliente del repo (perfiles, etiquetas, la Kinkipedia, el lugar de
+ * un evento).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {import('../objects/save.js').SavedRef} self
+ * @param {import('./revisions.js').REVISION_SOURCES[number]} source
+ */
+export function panelRevisionStatement(db, self, source) {
+	const claude = panelAuthor()?.claude;
+	return claude
+		? revisionStatement(db, self, 'claude', claude.confirmedBy)
+		: revisionStatement(db, self, source);
 }

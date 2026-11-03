@@ -3,7 +3,8 @@
  * base, con publicación inmediata (sin PRs) y control de versión: si alguien guardó mientras se
  * editaba, no se guarda nada y la página muestra qué cambió, con lo que se había escrito intacto.
  *
- * Escribe solo con saveObject(). `kind` lo puede cambiar une admin (por ejemplo, al revisar la
+ * Escribe solo con saveObject(), con el historial (`object_revisions`) en la misma tanda, como los
+ * eventos y el material (decisión 0004; antes los perfiles se guardaban sin historial). `kind` lo puede cambiar une admin (por ejemplo, al revisar la
  * clasificación de la importación); al cambiarlo se sacan los campos que el tipo nuevo no tiene.
  */
 import { error } from '@sveltejs/kit';
@@ -22,6 +23,7 @@ import perfilType, {
 } from '$lib/server/objects/types/perfil.js';
 import { parseCoordinate } from '$lib/utils/venues.js';
 import { approveNewStatement, approvalOf } from './approvals.js';
+import { panelRevisionStatement } from '$lib/server/contenido/author.js';
 import { resolveProfileSlug } from './profiles.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -397,7 +399,7 @@ export async function saveProfileFromPanel(
 				visibility: /** @type {any} */ (values.visibility || current.visibility),
 				...(avatar !== undefined ? { edges: { avatar: avatar ? [avatar] : [] } } : {})
 			},
-			{ actor, now }
+			{ actor, now, also: (self) => [panelRevisionStatement(db, self, 'panel')] }
 		);
 		return { ok: true, profile };
 	} catch (e) {
@@ -444,7 +446,14 @@ export async function createProfileFromPanel(db, values, { actor, now = Date.now
 					data: formToData(values),
 					visibility: /** @type {any} */ (values.visibility || 'public')
 				},
-				{ actor, now, also: (self) => [approveNewStatement(db, self, actor, now)] }
+				{
+					actor,
+					now,
+					also: (self) => [
+						approveNewStatement(db, self, actor, now),
+						panelRevisionStatement(db, self, 'panel')
+					]
+				}
 			);
 			return { ok: true, profile };
 		} catch (e) {
