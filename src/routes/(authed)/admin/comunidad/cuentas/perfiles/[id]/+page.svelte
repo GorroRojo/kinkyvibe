@@ -66,8 +66,7 @@
 {#if deleted && p.deletedAt}
 	<form class="undo-form" method="POST" action="?/deshacer" use:enhance={submit('deshacer')}>
 		<input type="hidden" name="id" value={deleted.id} />
-		<!-- El botón Deshacer de UndoToast no tiene `type`: dentro del form, lo envía. -->
-		<UndoToast busy={busy === 'deshacer'} message="Borraste «{deleted.title}»." />
+		<UndoToast submit busy={busy === 'deshacer'} message="Borraste «{deleted.title}»." />
 	</form>
 	<p class="kv-note">
 		Si te arrepentís más tarde, lo podés recuperar desde <a href="/admin/ajustes/actividad"

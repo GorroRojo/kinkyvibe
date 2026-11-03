@@ -4,6 +4,8 @@
 	 * Props: `message`, `busy` (deshaciendo: el botón se apaga), `floating` (default false: va en
 	 * el flujo de la página; true: flota abajo, como un toast), `canUndo` (default true: muestra el
 	 * botón), `error` (el aviso es un error: en rojo). Eventos: `undo`, `close` (solo con `floating`).
+	 * `submit` (default false): Deshacer envía el `<form>` que lo rodea (sin JS también); si no, es
+	 * `type="button"` y solo avisa `undo`, así dentro de un form no lo envía.
 	 * Se ve como `Notice` (gorrite, 12/10): su ícono de Lucide, el mismo radio, texto en negrita y
 	 * sin margen propio (el espacio lo pone la página, como con los avisos).
 	 */
@@ -12,6 +14,7 @@
 
 	export let message = '';
 	export let busy = false;
+	export let submit = false;
 	export let floating = false;
 	export let error = false;
 	export let canUndo = true;
@@ -30,13 +33,20 @@
 	>
 	<span class="actions">
 		{#if canUndo}
-			<button class="kv-btn ghost" on:click={() => dispatch('undo')} disabled={busy}
+			<button
+				type={submit ? 'submit' : 'button'}
+				class="kv-btn ghost"
+				on:click={() => dispatch('undo')}
+				disabled={busy}
 				><Undo2 size={16} aria-hidden="true" /> {busy ? 'Deshaciendo…' : 'Deshacer'}</button
 			>
 		{/if}
 		{#if floating}
-			<button class="close" on:click={() => dispatch('close')} aria-label="Cerrar el aviso"
-				><X size={16} aria-hidden="true" /></button
+			<button
+				type="button"
+				class="close"
+				on:click={() => dispatch('close')}
+				aria-label="Cerrar el aviso"><X size={16} aria-hidden="true" /></button
 			>
 		{/if}
 	</span>
