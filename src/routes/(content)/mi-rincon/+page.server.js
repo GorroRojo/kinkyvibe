@@ -52,6 +52,7 @@ import {
 	maskDni,
 	withoutSavedField
 } from '$lib/utils/savedBuyer.js';
+import { accountAvatarKeys, mediaPurgeEnabled, schedulePurge } from '$lib/server/media/purge.js';
 
 /** Lo que hay que escribir para confirmar el borrado. */
 const DELETE_CONFIRMATION = 'borrar';
@@ -478,7 +479,13 @@ export const actions = {
 		try {
 			const bad = await confirmed(event, db, member, 'delete', form, 'borrar');
 			if (bad) return bad;
+			// Las fotos de sus perfiles, antes de soltarlos (después ya no se sabe cuáles eran).
+			const avatars = mediaPurgeEnabled(event.platform?.env)
+				? await accountAvatarKeys(db, member.id).catch(() => [])
+				: [];
 			await closeAccount(db, member.id);
+			// Dejan de servirse: que tampoco queden en la caché del borde.
+			schedulePurge(event.platform, avatars);
 			await endSession(event, db);
 		} catch (e) {
 			logDBError('cuentas: borrar', e);
