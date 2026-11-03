@@ -1,13 +1,14 @@
 /**
  * El servidor MCP del conector de Claude (docs/conector-claude.md). Solo admins, con el token de
- * `/mcp/token`; sin token (o con uno que no vale), 401 con el `WWW-Authenticate` que hace que
+ * `/mcp/token` o una llave para rutinas (Ajustes → Admins, $lib/server/mcp/llaves.js); sin token (o con uno que no vale), 401 con el `WWW-Authenticate` que hace que
  * Claude pida el permiso. Apagado (interruptor `conector_claude`), 404.
  */
 import { logDBError } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { readJsonCapped } from '$lib/server/http/body.js';
 import { connectorDB, noStoreJson } from '$lib/server/mcp/http.js';
-import { bearerAdmin, wwwAuthenticate } from '$lib/server/mcp/oauth.js';
+import { mcpAdmin } from '$lib/server/mcp/llaves.js';
+import { wwwAuthenticate } from '$lib/server/mcp/oauth.js';
 import { PROTOCOL_VERSIONS, RPC, handleMessage, rpcError } from '$lib/server/mcp/rpc.js';
 
 /** Pedidos por admin por minuto (Claude hace unos pocos por pregunta). */
@@ -38,7 +39,7 @@ export async function POST(event) {
 	if (!originAllowed(request.headers.get('origin'), url)) {
 		return noStoreJson(rpcError(null, RPC.INVALID_REQUEST, 'Origen no permitido.'), 403);
 	}
-	const user = await bearerAdmin(db, request, url.origin);
+	const user = await mcpAdmin(db, request, url.origin);
 	if (!user) {
 		const sent = request.headers.has('authorization');
 		return noStoreJson(
@@ -90,7 +91,15 @@ export async function POST(event) {
 			400
 		);
 	}
-	const reply = await handleMessage(body.value, { db, user, fetch, now: Date.now() });
+	const reply = await handleMessage(body.value, {
+		db,
+		user: { id: user.id, login: user.login },
+		canEdit: user.canEdit,
+		fetch,
+		now: Date.now(),
+		platform,
+		origin: url.origin
+	});
 	if (!reply) return new Response(null, { status: 202, headers: { 'cache-control': 'no-store' } });
 	return noStoreJson(reply);
 }

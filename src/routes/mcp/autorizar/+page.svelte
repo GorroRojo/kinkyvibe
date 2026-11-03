@@ -16,9 +16,19 @@
 		<img src={logo} alt="" width="72" height="72" />
 		<h1 id="consent-title">¿Conectar Claude?</h1>
 		<p>
-			Claude va a poder <b>leer</b> el sitio como vos (<b>{data.login}</b>): buscar y leer eventos,
+			Claude va a poder <b>leer</b>{#if data.edit}
+				y <b>cambiar</b>{/if} el sitio como vos (<b>{data.login}</b>): buscar y leer eventos,
 			material, perfiles y etiquetas (también lo oculto), ver las ventas y las órdenes de cada
-			evento y los próximos eventos. No puede cambiar nada.
+			evento y los próximos eventos.
+			{#if data.edit}
+				Además, va a poder <b>cambiar</b> algunos datos de los eventos y crear códigos de descuento,
+				siempre mostrando antes qué va a cambiar y guardando como el panel, con historial.
+				{#if !data.editOn}
+					Los cambios todavía están apagados en el sitio: va a poder cuando se prendan.
+				{/if}
+			{:else}
+				No puede cambiar nada.
+			{/if}
 		</p>
 		<p>Cada pedido de Claude queda en Actividad a tu nombre.</p>
 		<p class="dest">

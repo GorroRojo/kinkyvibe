@@ -11,7 +11,15 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { isAdmin } from '$lib/server/auth';
 
 /**
- * @typedef {{ login: string, name?: string | null, superadmin: boolean }} PanelAuthor
+ * @typedef {{
+ *   login: string,
+ *   name?: string | null,
+ *   superadmin: boolean,
+ *   claude?: { confirmedBy: string | null }
+ * }} PanelAuthor
+ *
+ * `claude`: el guardado lo pidió el conector de Claude (docs/conector-claude.md) a nombre de esta
+ * persona: el historial lo anota como `source` = 'claude', con quién lo confirmó.
  */
 
 /** @type {AsyncLocalStorage<PanelAuthor>} */

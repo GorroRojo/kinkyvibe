@@ -759,7 +759,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'admin.aviso_venta',
 			'admin.aviso_transferencia',
 			'admin.aviso_dia',
-			'admin.aviso_recordatorios'
+			'admin.aviso_recordatorios',
+			'admin.aviso_conector'
 		],
 		build: (t) => ({
 			html: t('admin.avisos'),
@@ -769,6 +770,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[{ text: `⬜ ${t('admin.aviso_transferencia')}` }],
 				[{ text: `⬜ ${t('admin.aviso_dia')}` }],
 				[{ text: `⬜ ${t('admin.aviso_recordatorios')}` }],
+				[{ text: `⬜ ${t('admin.aviso_conector')}` }],
 				[{ text: t('admin.boton_estado') }, { text: t('inicio.boton_inicio') }]
 			]
 		})
@@ -808,6 +810,19 @@ export const PREVIEW_SCREENS = Object.freeze([
 					monto: '$ 10.000'
 				})
 			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_aviso_conector',
+		label: 'Avisos (admins): muchos cambios de Claude en una hora',
+		keys: ['admin.conector_cambios', 'admin.conector_autorizo', 'admin.conector_confirmo'],
+		build: (t) => ({
+			html: [
+				t('admin.conector_cambios', { cantidad: 20 }),
+				t('admin.conector_autorizo', { admins: '@admin-de-ejemplo' }),
+				t('admin.conector_confirmo', { nombres: 'Mel, Juan' })
+			].join('\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})
 	},

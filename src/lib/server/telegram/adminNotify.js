@@ -191,6 +191,39 @@ export function chargebackNoticeText({ reference, eventTitle, amount }, override
 	);
 }
 
+/** «a, b y 3 más». @param {string[]} names */
+function listOf(names) {
+	const shown = names.slice(0, 10);
+	const rest = names.length - shown.length;
+	return rest > 0 ? `${shown.join(', ')} y ${rest} más` : shown.join(', ');
+}
+
+/**
+ * El texto: «⚠️ Claude aplicó 20 cambios en la última hora desde el conector.», quién autorizó y,
+ * si vino, quién confirmó (los logins de les admins y los nombres de «confirmado por»; nada
+ * del pedido ni de compradores). Lo arma y lo manda ../mcp/avisoCambios.js.
+ *
+ * @param {{ count: number, admins: string[], confirmedBy: string[] }} input
+ * @param {BotTexts | null} [overrides]
+ */
+export function connectorBurstText({ count, admins, confirmedBy }, overrides = null) {
+	return [
+		botText('admin.conector_cambios', { cantidad: count }, overrides),
+		...(admins.length
+			? [
+					botText(
+						'admin.conector_autorizo',
+						{ admins: listOf(admins.map((a) => `@${a}`)) },
+						overrides
+					)
+				]
+			: []),
+		...(confirmedBy.length
+			? [botText('admin.conector_confirmo', { nombres: listOf(confirmedBy) }, overrides)]
+			: [])
+	].join('\n');
+}
+
 /**
  * El resumen diario de un evento: lo vendido desde ayer contra el cupo, las transferencias nuevas
  * y lo pendiente (reservas sin pagar y las que vencen en 24 horas, transferencias por confirmar,

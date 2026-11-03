@@ -19,6 +19,11 @@
  * - **Clientes**: no se registran de verdad. `/mcp/registro` (registro dinámico, RFC 7591) y el
  *   ID de cliente fijo devuelven siempre {@link CLIENT_ID}; lo que se controla es adónde vuelve el
  *   código: solo a la vuelta de claude.ai (o claude.com) o a un puerto local (Claude Code).
+ * - **Permisos** (gorrite, 3/11): {@link SCOPE} (`lectura`) y {@link EDIT_SCOPE} (`edicion`). La
+ *   pantalla de permiso dice que Claude también va a poder cambiar cosas solo si Claude pidió
+ *   `edicion`, y las herramientas de cambios piden un token con ese permiso (además de los dos
+ *   interruptores). Sin `scope` en el pedido, solo `lectura`. Las conexiones de antes (solo
+ *   `lectura`) tienen que volver a conectarse para cambiar.
  */
 import { ADMINS } from '$lib/server/auth';
 import { isPreviewDeploy } from '$lib/server/deploy.js';
@@ -33,8 +38,37 @@ import { fromBase64url, toBase64url } from '$lib/utils/base64.js';
 /** El ID de cliente que usa Claude (registro dinámico o escrito a mano en «Configuración avanzada»). */
 export const CLIENT_ID = 'kinkyvibe-claude';
 
-/** El único permiso que existe: leer. */
+/** El permiso de leer (lo tiene toda conexión). */
 export const SCOPE = 'lectura';
+
+/** El permiso de cambiar (las herramientas `vista_previa` y `aplicar`). */
+export const EDIT_SCOPE = 'edicion';
+
+/** Los permisos que existen, en orden. */
+export const SCOPES = Object.freeze([SCOPE, EDIT_SCOPE]);
+
+/** Los dos permisos, como van en `scope` (lo que se anuncia y pide Claude). */
+export const ALL_SCOPES = SCOPES.join(' ');
+
+/**
+ * Los permisos pedidos, ya ordenados: `'lectura'` o `'lectura edicion'` (`edicion` incluye
+ * leer). Sin `scope`, `'lectura'`. `null` si no pide ninguno que exista.
+ * @param {string | null} raw
+ * @returns {string | null}
+ */
+export function grantedScope(raw) {
+	if (raw === null) return SCOPE;
+	const asked = raw.split(' ').filter(Boolean);
+	if (!asked.some((s) => SCOPES.includes(s))) return null;
+	return asked.includes(EDIT_SCOPE) ? ALL_SCOPES : SCOPE;
+}
+
+/** ¿Un `scope` guardado en un token es uno de los que se dan? @param {unknown} scope */
+const isGrantedScope = (scope) => scope === SCOPE || scope === ALL_SCOPES;
+
+/** ¿Ese `scope` deja cambiar? @param {unknown} scope */
+export const scopeCanEdit = (scope) =>
+	typeof scope === 'string' && scope.split(' ').includes(EDIT_SCOPE);
 
 /** La ruta del servidor MCP. */
 export const MCP_PATH = '/mcp';
@@ -89,9 +123,9 @@ export function protectedResourceMetadata(origin) {
 	return {
 		resource: resourceOf(origin),
 		authorization_servers: [origin],
-		scopes_supported: [SCOPE],
+		scopes_supported: [...SCOPES],
 		bearer_methods_supported: ['header'],
-		resource_name: 'KinkyVibe (solo lectura, admins)'
+		resource_name: 'KinkyVibe (lectura y cambios, admins)'
 	};
 }
 
@@ -106,7 +140,7 @@ export function authServerMetadata(origin) {
 		authorization_endpoint: `${origin}/mcp/autorizar`,
 		token_endpoint: `${origin}/mcp/token`,
 		registration_endpoint: `${origin}/mcp/registro`,
-		scopes_supported: [SCOPE],
+		scopes_supported: [...SCOPES],
 		response_types_supported: ['code'],
 		response_modes_supported: ['query'],
 		grant_types_supported: ['authorization_code', 'refresh_token'],
@@ -125,7 +159,7 @@ export function wwwAuthenticate(origin, error) {
 	return (
 		'Bearer ' +
 		(error ? `error="${error}", ` : '') +
-		`resource_metadata="${resourceMetadataUrl(origin)}", scope="${SCOPE}"`
+		`resource_metadata="${resourceMetadataUrl(origin)}", scope="${ALL_SCOPES}"`
 	);
 }
 
@@ -218,7 +252,7 @@ export async function readToken(db, token, type, now = Date.now()) {
 		return null;
 	}
 	if (!p || p.v !== 1 || p.t !== type || typeof p.exp !== 'number' || p.exp <= now) return null;
-	if (!adminById(p.sub) || typeof p.jti !== 'string' || p.scope !== SCOPE) return null;
+	if (!adminById(p.sub) || typeof p.jti !== 'string' || !isGrantedScope(p.scope)) return null;
 	return p;
 }
 
@@ -311,7 +345,7 @@ export async function stillValid(db, p, now = Date.now()) {
  * @param {Request} request
  * @param {string} origin
  * @param {number} [now]
- * @returns {Promise<{ id: number, login: string } | null>}
+ * @returns {Promise<{ id: number, login: string, canEdit: boolean } | null>}
  */
 export async function bearerAdmin(db, request, origin, now = Date.now()) {
 	const m = /^Bearer ([A-Za-z0-9._-]+)$/.exec(request.headers.get('authorization') ?? '');
@@ -320,17 +354,19 @@ export async function bearerAdmin(db, request, origin, now = Date.now()) {
 	if (!p || p.aud !== resourceOf(origin)) return null;
 	if (!(await stillValid(db, p, now))) return null;
 	const admin = /** @type {{ id: number, login: string }} */ (adminById(p.sub));
-	return { id: admin.id, login: admin.login };
+	return { id: admin.id, login: admin.login, canEdit: scopeCanEdit(p.scope) };
 }
 
 /**
  * Un token de acceso y uno de renovación nuevos (la respuesta de `/mcp/token`).
  * @param {D1Database} db
- * @param {{ sub: number, aud: string, auth: number, cid: string }} who
+ * @param {{ sub: number, aud: string, auth: number, cid: string, scope: string }} who `scope`:
+ *   el del código o el token de renovación (no cambia al renovar)
  * @param {number} [now]
  */
 export async function issueTokens(db, who, now = Date.now()) {
-	const base = { ...who, iat: now, scope: SCOPE };
+	if (!isGrantedScope(who.scope)) throw new RangeError('scope inválido');
+	const base = { ...who, iat: now };
 	const [access, refresh] = await Promise.all([
 		signToken(db, { ...base, t: 'access', exp: now + ACCESS_TTL_MS }),
 		signToken(db, { ...base, t: 'refresh', exp: now + REFRESH_TTL_MS })
@@ -340,7 +376,7 @@ export async function issueTokens(db, who, now = Date.now()) {
 		token_type: 'Bearer',
 		expires_in: Math.floor(ACCESS_TTL_MS / 1000),
 		refresh_token: refresh,
-		scope: SCOPE
+		scope: who.scope
 	};
 }
 
@@ -349,8 +385,11 @@ export async function issueTokens(db, who, now = Date.now()) {
  *   redirectUri: string,
  *   challenge: string,
  *   state: string | null,
- *   resource: string
+ *   resource: string,
+ *   scope: string
  * }} AuthorizeRequest
+ *
+ * `scope`: lo que se da ({@link grantedScope}): `'lectura'` o `'lectura edicion'`.
  */
 
 /**
@@ -391,15 +430,14 @@ export function parseAuthorizeRequest(params, origin) {
 	const challenge = get('code_challenge');
 	if (get('code_challenge_method') !== 'S256' || !isChallenge(challenge))
 		return back('invalid_request', 'Hace falta PKCE con S256.');
-	const scope = get('scope');
-	if (scope !== null && !scope.split(' ').includes(SCOPE))
-		return back('invalid_scope', `El único permiso es «${SCOPE}».`);
+	const scope = grantedScope(get('scope'));
+	if (!scope) return back('invalid_scope', `Los permisos son «${SCOPE}» y «${EDIT_SCOPE}».`);
 	const resource = get('resource') ?? resourceOf(origin);
 	if (resource !== resourceOf(origin))
 		return back('invalid_target', 'Este servidor solo autoriza su /mcp.');
 	return {
 		ok: true,
-		req: { redirectUri, challenge: /** @type {string} */ (challenge), state, resource }
+		req: { redirectUri, challenge: /** @type {string} */ (challenge), state, resource, scope }
 	};
 }
 
@@ -431,7 +469,7 @@ export function issueCode(db, admin, req, now = Date.now()) {
 		iat: now,
 		exp: now + CODE_TTL_MS,
 		auth: now,
-		scope: SCOPE,
+		scope: req.scope,
 		cid: CLIENT_ID,
 		ru: req.redirectUri,
 		cc: req.challenge

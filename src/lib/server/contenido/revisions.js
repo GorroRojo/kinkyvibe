@@ -23,7 +23,10 @@ export const REVISION_SOURCES = /** @type {const} */ ([
 	'partes',
 	'migracion',
 	// Los eventos de prueba del modo demo (src/lib/server/demo/seedEvents.js), solo en un preview.
-	'demo'
+	'demo',
+	// Un cambio del conector de Claude (docs/conector-claude.md): `saved_by` es le admin que lo
+	// autorizó y `confirmed_by`, si vino, quién del equipo lo confirmó (migración 0072).
+	'claude'
 ]);
 
 /**
@@ -33,8 +36,19 @@ export const REVISION_SOURCES = /** @type {const} */ ([
  * @param {D1Database} db
  * @param {SavedRef} self lo que recibe `also`
  * @param {(typeof REVISION_SOURCES)[number]} source
+ * @param {string | null} [confirmedBy] solo con `source` = 'claude': quién confirmó el cambio
  */
-export function revisionStatement(db, self, source) {
+export function revisionStatement(db, self, source, confirmedBy = null) {
+	if (source === 'claude') {
+		return db
+			.prepare(
+				`INSERT INTO object_revisions (object_id, version, slug, title, data, visibility, deleted_at,
+					saved_at, saved_by, source, confirmed_by)
+				SELECT id, version, slug, title, data, visibility, deleted_at, updated_at, updated_by, ?4, ?5
+				FROM objects WHERE (?1 IS NOT NULL AND id = ?1) OR (?1 IS NULL AND type = ?2 AND slug = ?3)`
+			)
+			.bind(self.id, self.type, self.slug, source, confirmedBy || null);
+	}
 	return db
 		.prepare(
 			`INSERT INTO object_revisions (object_id, version, slug, title, data, visibility, deleted_at,
@@ -46,9 +60,23 @@ export function revisionStatement(db, self, source) {
 }
 
 /**
+ * Quién hizo un guardado, para mostrar: «Claude, confirmado por Mel» o «Claude» en un cambio del
+ * conector (más le admin que lo autorizó, si se pide), y el login de siempre en todo lo demás.
+ *
+ * @param {{ savedBy: string, source: string, confirmedBy?: string | null }} r
+ * @param {{ withAdmin?: boolean }} [opts] sumar «(autorizó @login)» en los de Claude
+ */
+export function revisionAuthorLabel(r, { withAdmin = false } = {}) {
+	if (r.source !== 'claude') return r.savedBy ? `@${r.savedBy}` : '—';
+	const who = r.confirmedBy ? `Claude, confirmado por ${r.confirmedBy}` : 'Claude';
+	return withAdmin && r.savedBy ? `${who} (autorizó @${r.savedBy})` : who;
+}
+
+/**
  * @typedef {{
  *   version: number, slug: string, title: string, data: Record<string, unknown>,
- *   visibility: string, deleted: boolean, savedAt: number, savedBy: string, source: string
+ *   visibility: string, deleted: boolean, savedAt: number, savedBy: string, source: string,
+ *   confirmedBy: string | null
  * }} Revision
  */
 
@@ -64,7 +92,8 @@ export function revisionStatement(db, self, source) {
 export async function listRevisions(db, objectId, { limit = 50 } = {}) {
 	const { results } = await db
 		.prepare(
-			`SELECT version, slug, title, data, visibility, deleted_at, saved_at, saved_by, source
+			`SELECT version, slug, title, data, visibility, deleted_at, saved_at, saved_by, source,
+				confirmed_by
 			FROM object_revisions WHERE object_id = ?1 ORDER BY version DESC LIMIT ?2`
 		)
 		.bind(objectId, Math.min(Math.max(1, limit), 500))
@@ -85,7 +114,8 @@ export async function listRevisions(db, objectId, { limit = 50 } = {}) {
 			deleted: r.deleted_at != null,
 			savedAt: Number(r.saved_at),
 			savedBy: String(r.saved_by),
-			source: String(r.source)
+			source: String(r.source),
+			confirmedBy: r.confirmed_by == null ? null : String(r.confirmed_by)
 		};
 	});
 }

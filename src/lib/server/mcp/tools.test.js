@@ -50,7 +50,8 @@ const ctx = () => ({
 	db: t.db,
 	user: { id: 1, login: 'admin-de-prueba' },
 	fetch: /** @type {typeof fetch} */ (async () => new Response('{}')),
-	now: NOW
+	now: NOW,
+	origin: 'https://ejemplo.test'
 });
 
 /** Una orden con todo lo que muestra el panel: DNI, pago de MP, nota, entradas y respuestas. */
