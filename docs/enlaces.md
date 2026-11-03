@@ -209,7 +209,10 @@ Código: `src/lib/server/contenido/enlacesFalta.js`.
   - `@nombre` → «Crear perfil»: Perfil nuevo (`/admin/comunidad/perfiles/nuevo?nombre=…&oculto=1`),
     que **arranca oculto** (gorrite, 3/11/2026: «Que arranque oculto»): `?oculto=1` deja «Quién lo
     puede ver» en Oculto, y se puede cambiar antes de crearlo. Perfil nuevo abierto desde otro lado
-    sigue arrancando público;
+    sigue arrancando público. Con Oculto elegido (desde acá o al cambiarlo, en cualquier Perfil
+    nuevo) el botón dice «Crear oculto» y el subtítulo «Queda oculto: no aparece en Amigues hasta
+    que lo cambies.»; con las otras, «Crear y publicar» y «Se publica en Amigues al guardar.»
+    (gorrite, 3/11/2026);
   - `[[nombre]]`, `![[nombre]]` y `#nombre` → «Crear etiqueta»: «Nueva etiqueta» del árbol
     (`/admin/etiquetas?nueva=…`), porque hoy un `[[…]]` lleva a la Kinkipedia. Después se escribe
     su entrada en la Kinkipedia como siempre.

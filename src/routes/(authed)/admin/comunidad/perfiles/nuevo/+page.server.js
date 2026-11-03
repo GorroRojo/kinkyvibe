@@ -16,7 +16,9 @@ const PREFILL_MAX = 200;
  *
  * `?oculto=1` arranca con «Quién lo puede ver» en Oculto (lo usa «Crear perfil» de Etiquetas →
  * Enlaces que faltan: un perfil creado desde ahí arranca oculto; docs/enlaces.md). Se puede
- * cambiar en el formulario antes de crearlo. Sin el parámetro, arranca público como siempre.
+ * cambiar en el formulario antes de crearlo. Sin el parámetro, arranca público como siempre. Con
+ * Oculto elegido, el botón dice «Crear oculto» y el subtítulo avisa que no aparece en Amigues
+ * (+page.svelte).
  *
  * @type {import('./$types').PageServerLoad}
  */
