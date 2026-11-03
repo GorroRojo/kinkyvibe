@@ -148,6 +148,18 @@ export const FLAGS = Object.freeze({
 			'migración 0071. Apagado, GET /api/fondo/cotizacion da 404 y GET /api/fondo/propinas-total ' +
 			'no trae `paypal`. El cron diario de la cotización corre igual (no se ve).',
 		envVar: 'PAYPAL_ENABLED'
+	},
+	conector_claude: {
+		label: 'Conector de Claude (solo lectura)',
+		description:
+			'Les admins pueden sumar el sitio como conector en claude.ai y pedirle a Claude que busque ' +
+			'y lea eventos, material, perfiles y etiquetas, que muestre las ventas de un evento y los ' +
+			'próximos eventos. Solo lee: no cambia nada. Cada admin entra con su cuenta y cada pedido ' +
+			'queda en Actividad a su nombre. Apagado, el conector no contesta.',
+		tech:
+			'docs/conector-claude.md. Servidor MCP en /mcp con OAuth propio (/mcp/autorizar, /mcp/token, ' +
+			'/mcp/registro y los /.well-known/oauth-*). Sin migraciones. Apagado, todo eso da 404.',
+		envVar: 'CONECTOR_CLAUDE_ENABLED'
 	}
 });
 
@@ -330,6 +342,15 @@ export function comboCodigosEnabled(platform) {
  */
 export function paypalEnabled(platform) {
 	return isFlagOn(getDB(platform), 'paypal');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el conector de Claude? (docs/conector-claude.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function conectorClaudeEnabled(platform) {
+	return isFlagOn(getDB(platform), 'conector_claude');
 }
 
 /**
