@@ -315,7 +315,7 @@ export function search(index, q, { limit = 1000 } = {}) {
 		for (const word of index.vocab) {
 			const quality = matchQuality(term, word);
 			if (quality === 0) continue;
-			// @ts-ignore
+			// @ts-expect-error toda palabra de vocab está en postings
 			for (const [doc, mask] of index.postings.get(word)) {
 				if (ti > 0 && !scores.has(doc)) continue;
 				const s = quality * fieldsWeight(mask);
@@ -347,7 +347,6 @@ export function search(index, q, { limit = 1000 } = {}) {
 		if (title === phrase) bonus += 8;
 		else if (title.startsWith(phrase)) bonus += 4;
 		else if (phrase.length > 2 && title.includes(phrase)) bonus += 2;
-		// @ts-ignore
 		hits.push({ i, doc, score: score + bonus, words });
 	}
 	hits.sort((a, b) => b.score - a.score || a.doc.t.localeCompare(b.doc.t));

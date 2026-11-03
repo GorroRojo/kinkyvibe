@@ -57,7 +57,7 @@
 	/**@type ProcessedPost[]*/
 	$: outerFilteredPosts = posts.filter(
 		(/**@type {ProcessedPost}*/ p) =>
-			// @ts-ignore
+			// @ts-expect-error índice con el nombre de la propiedad del filtro
 			(!filter || (filter && p[filter.prop] == filter.value)) &&
 			($userConfig.show_past_events ||
 				parseSiteDate(p.meta.start).getTime() > Date.now() ||
@@ -265,7 +265,7 @@
 	const motion = listMotion(() => listEl);
 
 	$: allTags.set([
-		// @ts-ignore
+		// @ts-expect-error reduce arranca con [] (never[])
 		...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
 		...$tagManager.tagIDs()
 	]);

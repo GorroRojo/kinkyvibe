@@ -226,7 +226,6 @@ const TAB = 2; // prettier's default tabWidth, used to measure lines indented wi
 /** Printed width of a string, like prettier's getStringWidth (emoji and CJK count as 2). */
 export function textWidth(/** @type {string} */ s) {
 	let w = 0;
-	// eslint-disable-next-line no-undef
 	const seg = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter() : null;
 	const graphemes = seg ? Array.from(seg.segment(s), (x) => x.segment) : Array.from(s);
 	for (const g of graphemes) {

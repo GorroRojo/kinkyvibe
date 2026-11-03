@@ -1,6 +1,6 @@
 <script>
 	import { userConfig } from '$lib/utils/stores.js';
-	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
+	import { pastPostsLoader, relatedPostsFor } from '$lib/utils/allPosts';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import { materialSchema } from '$lib/utils/jsonLd.js';
@@ -35,13 +35,8 @@
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)));
+	$: if ($userConfig.show_past_events && data.relatedPastCount > 0) loadPast();
 </script>
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->

@@ -201,7 +201,7 @@
 	/** @param {Event} e */
 	function onSlugInput(e) {
 		slugEdited = true;
-		// @ts-ignore
+		// @ts-expect-error currentTarget es el input
 		slug = e.currentTarget.value.toLowerCase().replace(/\s+/g, '-');
 	}
 	function resetSlug() {
@@ -487,7 +487,7 @@
 
 	/** Enter in a text field must not submit the form. @param {KeyboardEvent} e */
 	function preventEnterSubmit(e) {
-		// @ts-ignore
+		// @ts-expect-error target es un elemento
 		if (e.key === 'Enter' && e.target?.tagName === 'INPUT') e.preventDefault();
 	}
 </script>

@@ -54,7 +54,7 @@
 	async function start() {
 		problem = null;
 		try {
-			// @ts-ignore BarcodeDetector todavía no está en los tipos de TypeScript.
+			// @ts-expect-error BarcodeDetector todavía no está en los tipos de TypeScript.
 			detector ??= new window.BarcodeDetector({ formats: ['qr_code'] });
 			stream = await navigator.mediaDevices.getUserMedia({
 				video: { facingMode: facing },
@@ -138,7 +138,6 @@
 
 <div class="scanner" class:running>
 	{#if running}
-		<!-- svelte-ignore a11y-media-has-caption -->
 		<video bind:this={video} playsinline muted></video>
 		<span class="frame" aria-hidden="true"></span>
 	{/if}

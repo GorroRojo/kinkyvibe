@@ -71,9 +71,7 @@ export function stripScriptAndStyle(text) {
  * @param {string} body
  */
 export function renderPreviewHtml(body) {
-	const md = wikiLinksToMarkdown(
-		stripScriptAndStyle(String(body ?? '').replace(/\r\n?/g, '\n'))
-	);
+	const md = wikiLinksToMarkdown(stripScriptAndStyle(String(body ?? '').replace(/\r\n?/g, '\n')));
 	return micromark(md, {
 		allowDangerousHtml: true,
 		extensions: [gfm()],

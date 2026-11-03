@@ -436,7 +436,6 @@
 		<slot />
 	{:else}
 		<div class="app">
-			<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 			<aside
 				class="side"
 				class:open={drawerOpen}

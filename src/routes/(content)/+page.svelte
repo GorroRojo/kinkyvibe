@@ -10,17 +10,12 @@
 	import { page } from '$app/stores';
 	export let data;
 	import { userConfig } from '$lib/utils/stores';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { pastPostsLoader } from '$lib/utils/allPosts';
 	import { organizationSchema, websiteSchema } from '$lib/utils/jsonLd.js';
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (allPosts = posts))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (allPosts = posts));
+	$: if ($userConfig.show_past_events) loadPast();
 
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
 	$: previewTexts = linkPreviewOf($page.data).texts;
