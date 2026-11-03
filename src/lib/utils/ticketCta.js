@@ -29,7 +29,7 @@ import { argDayMonth } from './dates.js';
  * - `buy`: botón «Comprar entradas»;
  * - `note`: aviso sin link («Agotadas», «Venta cerrada»…);
  * - `none`: vende entradas acá pero la tarjeta no muestra nada (terminó o se canceló: eso ya lo
- *   dice el encabezado de la tarjeta).
+ *   dice el encabezado de la tarjeta; o la venta está en pausa de emergencia: ni botón ni aviso).
  */
 
 /**
@@ -77,6 +77,7 @@ export function ticketCta(meta, states, { past = false } = {}) {
 		case 'notyet':
 			return { kind: 'note', text: state.opensAt ? opensText(state.opensAt) : 'Venta pronto' };
 		case 'cancelled':
+		case 'paused':
 			return { kind: 'none' };
 		default:
 			return { kind: 'note', text: 'Venta no disponible' };

@@ -60,6 +60,10 @@ describe('ticketCta (lo que muestra la tarjeta)', () => {
 		});
 	});
 
+	it('venta en pausa de emergencia: nada (ni «Comprar entradas» ni «Venta no disponible»)', () => {
+		expect(ticketCta(meta(), states({ reason: 'paused' }))).toEqual({ kind: 'none' });
+	});
+
 	it('todavía no abre: cuándo abre', () => {
 		const opensAt = Date.parse('2099-10-05T20:00-03:00');
 		expect(ticketCta(meta(), states({ reason: 'notyet', opensAt }))).toEqual({
