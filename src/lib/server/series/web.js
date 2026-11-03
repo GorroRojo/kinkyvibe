@@ -5,6 +5,7 @@ import { error } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { deliverEmail } from '$lib/server/tickets/index.js';
+import { AVISOS_FROM_EMAIL } from '$lib/server/tickets/settings.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { runSeriesNotifications } from './notify.js';
 import { accountSubscriptions } from './subscriptions.js';
@@ -27,8 +28,9 @@ export async function requireSeriesDB(platform) {
 }
 
 /**
- * Manda los mails de series por el camino de siempre (`deliverEmail`: Resend, el filtro
- * `routeEmail` de los previews y el remitente de los ajustes).
+ * Manda los mails de series y de «Lo que sigo» por el camino de siempre (`deliverEmail`: Resend
+ * y el filtro `routeEmail` de los previews), desde el remitente de los avisos
+ * (`AVISOS_FROM_EMAIL`, avisos@) y con la respuesta de los ajustes.
  *
  * @param {D1Database} db
  * @param {typeof fetch} fetchFn
@@ -38,7 +40,15 @@ export function seriesSender(db, fetchFn) {
 	return async (to, message, idempotencyKey) => {
 		try {
 			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
-			return await deliverEmail({ db, fetch: fetchFn, to, message, idempotencyKey, optOut: true });
+			return await deliverEmail({
+				db,
+				fetch: fetchFn,
+				to,
+				message,
+				idempotencyKey,
+				from: AVISOS_FROM_EMAIL,
+				optOut: true
+			});
 		} catch (e) {
 			console.error('[series] no se pudo mandar el mail:', e);
 			return 'failed';
