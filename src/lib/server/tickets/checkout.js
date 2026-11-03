@@ -178,6 +178,14 @@ export function methodsFor(config, transferReady) {
 }
 
 /**
+ * ¿Está prendida la pausa de emergencia de la venta (`TICKETS_PAUSED`)? Para las tarjetas de las
+ * listas (listStates.js), que tienen que decir lo mismo que la página del evento.
+ */
+export function salesPaused() {
+	return ticketsPausedMessage() !== null;
+}
+
+/**
  * ¿Se puede comprar este tipo ahora? Abierto por horario, no esperando a otro tipo (encadenado)
  * y con lugar. Es la misma regla que usa `getTicketsView` (`available > 0 && !closed`).
  *
