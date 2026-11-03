@@ -18,6 +18,7 @@ import {
 import { buildStreamLinkEmail, buildTicketEmail, sendWithResend } from './email.js';
 import { fixtureOrder, fixtureTickets } from './email.fixtures.js';
 import { textOf } from '$lib/testing/html.js';
+import { orderReference } from '$lib/utils/tickets.js';
 import { buildIcsFeed } from '$lib/utils/icsFeed.js';
 import { fakeEvent } from '../series/fixtures.js';
 
@@ -277,7 +278,8 @@ describe('el mail con las entradas', () => {
 		).toBe(google.href);
 		const head = mail.html.split('</head>')[0];
 		const data = jsonLdOf(head);
-		expect(data.reservationNumber).toBe(base.order.id);
+		// El número de compra corto, el mismo que dice el mail.
+		expect(data.reservationNumber).toBe(orderReference(base.order.id));
 		expect(data.underName.name).toBe('Persona Demo');
 	});
 
@@ -351,6 +353,19 @@ describe('el mail con las entradas', () => {
 			message: { subject, html, text }
 		});
 		expect(bodies[0].headers).toEqual({ 'Content-Language': 'es' });
+		// Las cabeceras de un mail en particular (baja en un clic) se suman a esas.
+		const oneClick = {
+			'List-Unsubscribe': '<https://kinkyvibe.example/avisos/sigo/x.firma>',
+			'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+		};
+		await sendWithResend({
+			fetch,
+			apiKey: 're_inventada',
+			from: 'a@example.com',
+			to: 'b@example.com',
+			message: { subject, html, text, headers: oneClick }
+		});
+		expect(bodies[1].headers).toEqual({ 'Content-Language': 'es', ...oneClick });
 	});
 });
 

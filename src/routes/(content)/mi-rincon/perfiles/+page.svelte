@@ -36,7 +36,12 @@
 	<p class="hint">
 		Con una cuenta podés tener varios perfiles: los tuyos (nadie ve que son de la misma cuenta) y
 		los de proyectos que gestionás con otras personas. Quiénes gestionan un proyecto no se muestra
-		nunca. Por ahora los perfiles no tienen página pública; la vamos a sumar pronto.
+		nunca. Cada perfil tiene su página en <a href="/amigues">Amigues</a> (según la visibilidad que elijas)
+		cuando une admin lo aprueba; hasta entonces lo ven solo vos y quienes lo gestionan.
+	</p>
+	<p class="hint">
+		¿Ya hay un perfil tuyo (o de tu proyecto o lugar) en Amigues? Abrilo y tocá «¿Es tu perfil?»: lo
+		revisa el equipo y, si lo aprobamos, aparece acá.
 	</p>
 
 	{#if data.invites.length}

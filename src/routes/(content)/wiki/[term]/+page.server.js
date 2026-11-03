@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { currentRelated } from '$lib/utils';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
@@ -24,8 +24,8 @@ import { followButtonState } from '$lib/server/sigo/button.js';
  *
  * @type {import("./$types").PageServerLoad}
  */
-export async function load({ params, platform, locals }) {
-	const { entry, key, tags, known, fromDb, canonicalPath } = await siteWikiEntry(
+export async function load({ params, platform, locals, url, request }) {
+	const { entry, key, tags, known, fromDb, canonicalPath, canonicalTerm } = await siteWikiEntry(
 		platform,
 		params.term
 	);
@@ -33,6 +33,17 @@ export async function load({ params, platform, locals }) {
 	// los buscadores toman como «soft 404»). Solo si el árbol salió de la base: sin base, el árbol es
 	// el de respaldo (vacío) y una caída no tiene que convertir toda la wiki en 404.
 	if (!known && fromDb) error(404, 'Not found');
+	// Las otras formas de la dirección (/wiki/bdsm, /wiki/Bdsm, un alias, con espacios) van con un
+	// 301 a la canónica, con la misma consulta. Se compara el segmento ya decodificado (`params`), así
+	// %C3%A9 y «é» son lo mismo. Con la misma guarda que el 404: sin base, nunca.
+	if (
+		fromDb &&
+		known &&
+		canonicalTerm !== null &&
+		params.term !== canonicalTerm &&
+		(request.method === 'GET' || request.method === 'HEAD')
+	)
+		redirect(301, canonicalPath + url.search);
 	const children = tags.get(key)?.getAllChildren() ?? [];
 	/** @param {ProcessedPost[]} list */
 	const relatedOf = (list) =>

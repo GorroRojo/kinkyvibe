@@ -200,7 +200,7 @@ export const actions = {
 			resend: {
 				ok: sent,
 				message: sent
-					? `Reenviamos las entradas de ${orderReference(order.id)}.`
+					? `Le pedimos a Resend que mande las entradas de ${orderReference(order.id)}. Si no le llegan, fijate en Resend → Suppressions si la dirección está bloqueada.`
 					: 'No se pudo mandar el mail (ver logs).'
 			}
 		};

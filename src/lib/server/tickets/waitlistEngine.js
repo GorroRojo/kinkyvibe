@@ -26,6 +26,7 @@
 import { getDB } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { isFlagOn } from '$lib/server/flags.js';
+import { logMailsPaused, mailsPaused, ticketsPausedMessage } from '$lib/server/emergencia.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { signLink } from '$lib/server/signedLinks.js';
 import {
@@ -33,6 +34,7 @@ import {
 	effectiveWaitlistSettings,
 	holdUntil
 } from '$lib/utils/waitlistHold.js';
+import { autoSubmitted } from './email.js';
 import { mailBatchSize } from './batchSize.js';
 import { salesState, typeAvailability, typeClosesAt } from './config.js';
 import { HOLDING } from './discounts.js';
@@ -610,11 +612,17 @@ const templateOf = (m) =>
  * @param {D1Database} db
  * @param {{ limit: number, send: WaitlistSend, origin: string, contactEmail?: string,
  *   now?: number, eventSlug?: string | null, configOf?: ConfigOf }} input
- * @returns {Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {Promise<import('./sendState.js').BatchResult>}
  */
 export async function sendWaitlistMails(db, input) {
 	const { limit, send, origin, now = Date.now(), eventSlug = null } = input;
 	const configOf = input.configOf ?? getEventTickets;
+	// Pausa de emergencia de los mails (MAILS_PAUSED): nada sale ni gasta intentos. Lo pendiente
+	// sale del estado de cada anotación, así que va en la primera tanda después de la pausa.
+	if (mailsPaused()) {
+		logMailsPaused('los mails de la lista de espera');
+		return { sent: 0, failed: 0, remaining: 0 };
+	}
 	await expireStaleClaims(db, 'waitlist_sends', now);
 	const items = await pendingWaitlistMails(db, { now, eventSlug });
 	/** @type {Map<string, Promise<EventTickets | null>>} */
@@ -645,7 +653,11 @@ export async function sendWaitlistMails(db, input) {
 		claim: (m) => ({ entryId: m.id, key: [m.kind, m.kind === 'closed' ? 0 : m.round] }),
 		send: async (m) => {
 			const config = await configFor(m.event_slug);
-			const event = { title: config?.title || m.event_slug, start: config?.start ?? null };
+			const event = {
+				title: config?.title || m.event_slug,
+				start: config?.start ?? null,
+				end: config?.end ?? null
+			};
 			const typeName = m.ticket_type
 				? (config?.types.find((t) => t.id === m.ticket_type)?.name ?? m.ticket_type)
 				: null;
@@ -682,7 +694,11 @@ export async function sendWaitlistMails(db, input) {
 									reason: m.end_reason === 'event_cancelled' ? 'event_cancelled' : 'closed',
 									eventUrl: `${origin.replace(/\/+$/, '')}/calendario/${encodeURIComponent(m.event_slug)}`
 								});
-			const result = await send(m.email, message, waitlistIdempotencyKey(m.kind, m.id, m.round));
+			const result = await send(
+				m.email,
+				autoSubmitted(message),
+				waitlistIdempotencyKey(m.kind, m.id, m.round)
+			);
 			return result !== 'failed';
 		}
 	});
@@ -693,13 +709,13 @@ export async function sendWaitlistMails(db, input) {
  * `runMailQueueWith`), con el envío de siempre (`deliverEmail`).
  *
  * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number }} input
- * @returns {(limit: number) => Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {(limit: number) => Promise<import('./sendState.js').BatchResult>}
  */
 export function waitlistMailBatch({ db, origin, fetch: fetchFn, now }) {
 	return (limit) =>
 		sendWaitlistMails(db, {
 			limit,
-			send: waitlistSender(db, fetchFn),
+			send: waitlistSender(db, fetchFn, { batch: true }),
 			origin,
 			contactEmail: contactEmail(),
 			...(now ? { now } : {})
@@ -707,8 +723,10 @@ export function waitlistMailBatch({ db, origin, fetch: fetchFn, now }) {
 }
 
 /**
- * @typedef {'no-db' | 'off' | 'idle' | 'throttled' | 'done' | 'error'} NudgeOutcome
+ * @typedef {'no-db' | 'off' | 'paused' | 'idle' | 'throttled' | 'done' | 'error'} NudgeOutcome
  * - `off`: interruptor apagado; `idle`: el evento no tiene a nadie esperando ni con oferta;
+ * - `paused`: una pausa de emergencia (`TICKETS_PAUSED` o `MAILS_PAUSED`): la lista no avanza (un
+ *   lugar guardado que no se puede comprar o del que nadie se entera se vencería igual);
  * - `throttled`: ya hubo un empujón para este evento en el último minuto (el cron sigue);
  * - `done`: avanzó la lista (y, con `fetch` y `origin`, mandó los mails de ese evento).
  */
@@ -740,6 +758,7 @@ async function nudge({ platform, db: given, eventSlug, origin, fetch: fetchFn, n
 	const db = given ?? getDB(platform);
 	if (!db || !eventSlug) return 'no-db';
 	if (!(await isFlagOn(db, 'lista_espera'))) return 'off';
+	if (ticketsPausedMessage() !== null || mailsPaused()) return 'paused';
 	const live = await db
 		.prepare(
 			`SELECT 1 AS ok FROM waitlist_entries WHERE event_slug = ?1
@@ -756,7 +775,7 @@ async function nudge({ platform, db: given, eventSlug, origin, fetch: fetchFn, n
 	if (fetchFn && origin) {
 		await sendWaitlistMails(db, {
 			limit: mailBatchSize((await getSalesSettings(db)).mail_batch_size),
-			send: waitlistSender(db, fetchFn),
+			send: waitlistSender(db, fetchFn, { batch: true }),
 			origin,
 			contactEmail: contactEmail(),
 			eventSlug,

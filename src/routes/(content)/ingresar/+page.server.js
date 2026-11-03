@@ -1,5 +1,5 @@
 /**
- * "Ingresar": cuentas del público (docs/cuentas.md), con código por mail o con contraseña.
+ * "Entrar" (/ingresar): cuentas del público (docs/cuentas.md), con código por mail o con contraseña.
  * Aparte del login de admins (/login, con GitHub).
  *
  * `?next=` solo acepta rutas de este mismo sitio (safeRedirect).

@@ -322,6 +322,14 @@ export function seoTags({ title, description, url, image, type = 'website', noin
 	);
 }
 
+/**
+ * ¿Va al sitemap? No las publicaciones que redirigen a otro sitio (responden 307: no hay nada que
+ * indexar) ni los perfiles de persona que pidieron no aparecer en buscadores (`meta.noindex`,
+ * docs/amigues.md). IndexNow usa la misma regla (src/lib/server/seo/indexnow.js).
+ * @param {{ meta: { redirect?: unknown, noindex?: unknown } }} post
+ */
+export const inSitemap = (post) => !post.meta.redirect && !post.meta.noindex;
+
 /** «a», «a y b», «a, b y c». @param {string[]} items */
 export function joinList(items) {
 	if (items.length <= 1) return items.join('');

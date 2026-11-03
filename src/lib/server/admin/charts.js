@@ -11,6 +11,7 @@ import { dayNumber } from '$lib/admin/salesChart.js';
 import { eventSeriesTags, seriesTagIndex } from '$lib/utils/series.js';
 import { normalizeEmail } from './people.js';
 import { lastMonths, monthKey, monthLabel } from './stats.js';
+import { saleAt } from './saleMonth.js';
 
 /** @typedef {import('./people.js').PersonOrder} PersonOrder */
 /** @typedef {import('./people.js').EventInfo} EventInfo */
@@ -143,7 +144,7 @@ export function attendanceReturn(orders, perEvent, events = new Map(), seriesInd
 }
 
 /**
- * Fondo y finanzas por mes (fecha de compra, aprobadas): lo que cubrió el Fondo (descuentos
+ * Fondo y finanzas por mes (el mes del evento, ./saleMonth.js; aprobadas): lo que cubrió el Fondo (descuentos
  * `fondo`), lo que se aportó (opciones solidarias), el neto (aportado − usado) y el recargo de
  * Mercado Pago que pagaron les compradores.
  * @param {PersonOrder[]} orders
@@ -158,7 +159,7 @@ export function fondoByMonth(orders, { now = Date.now(), months = 12 } = {}) {
 	);
 	for (const o of orders) {
 		if (o.status !== 'approved') continue;
-		const r = map.get(monthKey(o.created_at));
+		const r = map.get(monthKey(saleAt(o)));
 		if (!r) continue;
 		r.used += o.fondo_amount;
 		r.contributed += o.fondo_contribution;

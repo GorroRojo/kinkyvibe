@@ -73,6 +73,9 @@ export function profileForm(form) {
 		links: field(form, 'links', 4000),
 		visibility: field(form, 'visibility', 20),
 		show_members: form.get('show_members') === 'on',
+		// La casilla «No aparecer en buscadores» (solo personas): el formulario manda `buscadores`
+		// para saber que la tenía (una casilla apagada no se manda); sin eso, queda como estaba.
+		...(form.has('buscadores') ? { noindex: form.get('noindex') === 'on' } : {}),
 		// Solo el formulario de un lugar trae sus campos (sin ellos, quedan como estaban).
 		...(form.has('venue_privacy') ? { venue: venueForm(form) } : {})
 	};

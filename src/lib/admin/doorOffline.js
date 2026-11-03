@@ -370,7 +370,9 @@ export function markRecentUndone(recent, ticketId, holder) {
  *   una lista bajada y guardada en el celu (aunque el evento no tenga entradas todavía); `savedAt`:
  *   su hora, ya formateada («21:40»); `canSell`: la pantalla ofrece «Vender en puerta» (no en una
  *   parte de un taller ni en un evento solo anticipadas)
- * @returns {null | { kind: 'ready' | 'offline', title: string, detail: string }}
+ * Sin conexión, además, `keep`: que no cierren ni recarguen la pestaña (sin service worker, la
+ * página no vuelve a cargar sin conexión; UX V12).
+ * @returns {null | { kind: 'ready' | 'offline', title: string, detail: string, keep?: string }}
  */
 export function doorConnectionNote({ online, saved, savedAt, canSell = true }) {
 	if (online) {
@@ -381,6 +383,7 @@ export function doorConnectionNote({ online, saved, savedAt, canSell = true }) {
 			detail: `La lista quedó guardada en este celu${savedAt ? ` (${savedAt})` : ''}: si se corta internet, podés seguir validando.`
 		};
 	}
+	const keep = 'No cierres ni recargues esta pestaña: sin conexión no vuelve a cargar.';
 	const selling = canSell
 		? ' Podés vender en la puerta: las ventas quedan en este celu y se mandan solas cuando vuelve.'
 		: '';
@@ -388,12 +391,14 @@ export function doorConnectionNote({ online, saved, savedAt, canSell = true }) {
 		return {
 			kind: 'offline',
 			title: 'Sin conexión.',
+			keep,
 			detail: `No hay lista guardada en este celu, así que no se puede validar. Cuando vuelva la conexión se baja sola.${selling}`
 		};
 	const list = savedAt ? ` (${savedAt})` : '';
 	return {
 		kind: 'offline',
 		title: 'Sin conexión.',
+		keep,
 		detail: canSell
 			? `Podés seguir validando QR y códigos, buscar personas con la lista guardada${list} y vender en la puerta; los ingresos y las ventas se mandan solos cuando vuelve. Ver el DNI completo necesita conexión.`
 			: `Podés seguir validando QR y códigos y buscar personas con la lista guardada${list}; los ingresos se mandan solos cuando vuelve. Ver el DNI completo necesita conexión.`
@@ -511,6 +516,62 @@ export function isPendingSaleTicket(ticketId) {
 }
 
 /**
+ * El id (del celu) de la venta sin conexión de una entrada «pendiente de sincronizar»
+ * (`local:<venta>:<n>`); '' si la entrada ya es del servidor.
+ * @param {string} ticketId
+ */
+export function pendingSaleId(ticketId) {
+	return isPendingSaleTicket(ticketId) ? (String(ticketId).split(':')[1] ?? '') : '';
+}
+
+/**
+ * Descarta una venta sin conexión que todavía no se mandó al servidor (UX V12: una venta errada
+ * se deshace en la Puerta solo mientras está en la cola del celu). Saca la venta de la cola y sus
+ * entradas locales (y algún ingreso encolado de esas entradas). Una venta que ya se sincronizó no
+ * está en la cola: no se descarta acá (es una orden: se reembolsa desde el panel, con su
+ * confirmación). Sin `confirmed` no hace nada: la pantalla pregunta antes en la página.
+ * No cambia `state`: devuelve el estado nuevo.
+ *
+ * @param {DoorState} state
+ * @param {string} saleId
+ * @param {{ confirmed?: boolean }} [o]
+ * @returns {{ ok: true, state: DoorState, sale: QueuedSale }
+ *   | { ok: false, reason: 'unconfirmed' | 'not-queued' }}
+ */
+export function discardQueuedSale(state, saleId, { confirmed = false } = {}) {
+	const sale = saleId ? state.sales.find((s) => s.id === saleId) : undefined;
+	if (!sale) return { ok: false, reason: 'not-queued' };
+	if (!confirmed) return { ok: false, reason: 'unconfirmed' };
+	const orderId = `local:${sale.id}`;
+	const ticketPrefix = `${orderId}:`;
+	return {
+		ok: true,
+		sale,
+		state: {
+			...state,
+			sales: state.sales.filter((s) => s.id !== sale.id),
+			list: state.list.filter((t) => t.orderId !== orderId),
+			queue: state.queue.filter((q) => !String(q.ticketId ?? '').startsWith(ticketPrefix))
+		}
+	};
+}
+
+/**
+ * «Últimos escaneos» después de descartar una venta sin conexión: deja de figurar como vendida.
+ * @param {RecentScan[]} recent
+ * @param {string} saleId
+ * @param {string} buyer
+ * @returns {RecentScan[]}
+ */
+export function markRecentDiscarded(recent, saleId, buyer) {
+	return recent.map((r) =>
+		r.result === 'sold' && r.ticketId && pendingSaleId(r.ticketId) === saleId
+			? { ...r, result: 'undone', title: `${buyer} · venta descartada`, sub: 'no se mandó' }
+			: r
+	);
+}
+
+/**
  * Lo que se le manda al servidor (`?/syncSales`), en el orden en que se vendió.
  * @param {QueuedSale[]} sales
  */
@@ -583,7 +644,7 @@ export function applySaleSyncResults(state, results) {
 export function markRecentSynced(recent, saleIds) {
 	const ids = new Set(saleIds);
 	return recent.map((r) => {
-		const id = r.ticketId && isPendingSaleTicket(r.ticketId) ? r.ticketId.split(':')[1] : '';
+		const id = r.ticketId ? pendingSaleId(r.ticketId) : '';
 		return id && ids.has(id) ? { ...r, sub: 'sincronizada' } : r;
 	});
 }

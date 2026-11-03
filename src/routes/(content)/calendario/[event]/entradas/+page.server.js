@@ -90,9 +90,10 @@ export async function load({ params, platform, fetch, locals, setHeaders, url })
 	// Con cuenta: nombre, pronombres, DNI guardados y el mail de la cuenta, para completar «Tus
 	// datos», solo con la venta abierta. Es de esta persona: la página no se guarda en ningún caché.
 	const account = tickets.open ? accountRead : null;
-	// Quien tiene un lugar guardado ya está en la lista: no se le ofrece anotarse.
+	// Quien tiene un lugar guardado ya está en la lista: no se le ofrece anotarse. Con la venta en
+	// pausa (TICKETS_PAUSED), tampoco: la página muestra solo el texto de la pausa.
 	const waitlist =
-		tickets.open || !waitlistOn || offer?.state === 'valid'
+		tickets.open || tickets.reason === 'paused' || !waitlistOn || offer?.state === 'valid'
 			? null
 			: await waitlistView(platform, params.event, locals);
 	// Con datos de la cuenta, el mail de la cuenta en el formulario o una oferta de la lista, la

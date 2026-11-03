@@ -238,6 +238,8 @@ function parseLinks(value) {
  * @prop {string | string[]} [links]
  * @prop {string} [visibility]
  * @prop {boolean} [show_members] solo proyectos
+ * @prop {boolean} [noindex] solo personas: «No aparecer en buscadores» (sin el campo, queda como
+ *   estaba)
  * @prop {Record<string, string>} [venue] solo lugares: {@link ACCOUNT_VENUE_FIELDS},
  *   {@link ACCOUNT_VENUE_COORDINATES} y `venue_privacy` ('' = sin elegir: la dirección completa)
  */
@@ -291,6 +293,11 @@ function profileData(kind, input, current = {}) {
 	};
 	if (kind === 'proyecto') data.show_members = input.show_members === true;
 	else delete data.show_members;
+	// «No aparecer en buscadores»: solo personas; apagado no se guarda (el valor por defecto, decisión
+	// de gorrite: los perfiles aparecen en Google salvo que lo pidan).
+	if (kind !== 'persona') delete data.noindex;
+	else if (input.noindex === true) data.noindex = true;
+	else if (input.noindex === false) delete data.noindex;
 	if (kind === 'lugar') return accountVenueData(input.venue, data);
 	return data;
 }

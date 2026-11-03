@@ -253,21 +253,27 @@ describe('perfiles de la base', () => {
 		expect(mine.claim).toEqual({ state: 'manager' });
 	});
 
-	it('"Es mi perfil": botón para cuentas con permiso, pedido guardado, sin revelar otros', async () => {
+	it('"Es mi perfil": botón para cualquier cuenta, pedido guardado, sin revelar otros', async () => {
 		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
 		const m = await modules();
 		expect((await profilePage(m, 'Yuyo')).claim).toBeNull();
+		// Sin sesión, la action no guarda nada.
+		const anon = /** @type {any} */ (
+			await m.page.actions.esMiPerfil(fakeEvent({ params: { profile: 'Yuyo' }, form: {} }))
+		);
+		expect(anon.status).toBe(401);
+		// Sin el permiso de perfiles también se pide (lo revisa el equipo).
 		const without = await makeAccount(t.db, 'sin-permiso', { profiles: false });
-		expect((await profilePage(m, 'Yuyo', { member: without })).claim).toBeNull();
-		expect(
-			(
-				await thrown(() =>
-					m.page.actions.esMiPerfil(
-						fakeEvent({ params: { profile: 'Yuyo' }, form: {}, member: without })
-					)
-				)
-			)?.status
-		).toBe(404);
+		expect((await profilePage(m, 'Yuyo', { member: without })).claim).toEqual({ state: 'none' });
+		const r0 = /** @type {any} */ (
+			await m.page.actions.esMiPerfil(
+				fakeEvent({ params: { profile: 'Yuyo' }, form: {}, member: without })
+			)
+		);
+		expect(r0.claim.ok).toBe(true);
+		expect((await profilePage(m, 'Yuyo', { member: without })).claim).toEqual({
+			state: 'pending'
+		});
 
 		const me = await makeAccount(t.db, 'persona-prueba');
 		const other = await makeAccount(t.db, 'otra-persona');
@@ -288,7 +294,10 @@ describe('perfiles de la base', () => {
 		const n = await t.db
 			.prepare("SELECT COUNT(*) AS n FROM profile_claims WHERE status = 'pending'")
 			.first();
-		expect(n?.n).toBe(2);
+		expect(n?.n).toBe(3);
+		// Nadie pasó a gestionarlo: hace falta que une admin apruebe.
+		const managers = await t.db.prepare('SELECT COUNT(*) AS n FROM profile_managers').first();
+		expect(managers?.n).toBe(0);
 	});
 
 	it('un perfil que no existe: 404', async () => {

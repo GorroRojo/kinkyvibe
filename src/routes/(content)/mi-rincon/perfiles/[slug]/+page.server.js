@@ -113,6 +113,7 @@ export async function load(event) {
 			pronouns: profile.data.pronouns ?? '',
 			links: (profile.data.links ?? []).join('\n'),
 			show_members: profile.data.show_members === true,
+			noindex: kind === 'persona' && profile.data.noindex === true,
 			venue:
 				kind === 'lugar'
 					? {

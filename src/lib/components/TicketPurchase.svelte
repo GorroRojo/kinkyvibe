@@ -501,7 +501,9 @@
 		notyet: tickets.opensAt
 			? `${saleWindowText({ opensAt: tickets.opensAt })}.`
 			: 'La venta todavía no abrió.',
-		unavailable: 'La venta online no está disponible en este momento.'
+		unavailable: 'La venta online no está disponible en este momento.',
+		// Pausa de emergencia (TICKETS_PAUSED): el texto que cargaron les admins.
+		paused: tickets.pausedMessage || 'La venta de entradas está en pausa por un rato.'
 	};
 
 	$: submitText = pending
@@ -678,7 +680,14 @@
 								{errors}
 								{submitText}
 								submitDisabled={pending || !selected || (Boolean(gorra) && gorraAmount === null)}
+								{email}
 							>
+								<button
+									slot="edit-email"
+									type="button"
+									class="edit-email js-only"
+									on:click={() => goTo(STEP_BUYER)}>Cambiarlo</button
+								>
 								<button
 									slot="back"
 									type="button"
@@ -803,6 +812,14 @@
 		background: none;
 		color: var(--2-dark);
 		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
+	}
+	/* «Cambiarlo», al lado del mail en el paso Pagar: un link, no un botón grande. */
+	button.edit-email {
+		background: none;
+		color: var(--2-dark);
+		text-decoration: underline;
+		padding: 0.2em 0.1em;
+		min-height: 44px;
 	}
 	button.back:hover {
 		background: color-mix(in srgb, var(--2) 10%, white);

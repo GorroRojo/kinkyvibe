@@ -107,6 +107,21 @@ test('render deja afuera las publicaciones que redirigen a otro sitio', () => {
 	expect(xml).not.toContain('en-la-tienda');
 });
 
+test('render deja afuera los perfiles que pidieron no aparecer en buscadores', () => {
+	const xml = render(
+		['/amigues'],
+		[
+			post('/amigues/Persona_Inventada', { published_date: '2025-01-01T00:00:00Z' }),
+			post('/amigues/Sin_Buscadores', { noindex: true, published_date: '2026-02-02T00:00:00Z' })
+		],
+		[]
+	);
+	expect(xml).toContain('<loc>https://kinkyvibe.ar/amigues/Persona_Inventada</loc>');
+	expect(xml).not.toContain('Sin_Buscadores');
+	// Tampoco cuenta para la fecha de /amigues (no se nota cuándo lo editaron).
+	expect(xml).not.toContain('2026-02-02');
+});
+
 describe('GET /sitemap.xml', () => {
 	test('lista los posts y las entradas de la Kinkipedia', async () => {
 		const res = await GET(/** @type {any} */ ({}));

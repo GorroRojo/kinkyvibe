@@ -49,6 +49,51 @@
 		<p class="kv-flash bad" role="alert">{form.error}</p>
 	{/if}
 
+	<!-- Pausas de emergencia (docs/interruptores.md): no se tocan desde acá, a propósito (se
+	     cortan aunque la base o el panel anden mal). -->
+	<section id="pausas" class="kv-stack" aria-label="Pausas de emergencia">
+		<Card title="Pausas de emergencia">
+			<p class="kv-note">
+				Para frenar de golpe la venta online o los mails en tanda si algo sale mal. Se prenden y se
+				apagan desde el panel de Cloudflare (Workers → kinkyvibe → Settings → Variables and
+				Secrets): las puede tocar quien tiene acceso a esa cuenta.
+			</p>
+			<ul class="pauses">
+				<li>
+					{#if data.pauses.tickets}
+						<Badge tone="bad">en pausa</Badge>
+						<strong>Venta online de entradas.</strong>
+						<span>Les compradores ven: «{data.pauses.tickets}»</span>
+					{:else}
+						<Badge tone="ok">andando</Badge>
+						<strong>Venta online de entradas.</strong>
+					{/if}
+					<span class="kv-note">
+						Variable TICKETS_PAUSED. Frena las compras con Mercado Pago, las reservas por
+						transferencia y las entradas gratis. La puerta, la carga a mano, los pagos ya empezados
+						y los reembolsos siguen.
+					</span>
+				</li>
+				<li>
+					{#if data.pauses.mails}
+						<Badge tone="bad">en pausa</Badge>
+						<strong>Mails en tanda.</strong>
+						{#if data.pauses.mails !== '1'}<span>Nota: «{data.pauses.mails}»</span>{/if}
+					{:else}
+						<Badge tone="ok">andando</Badge>
+						<strong>Mails en tanda.</strong>
+					{/if}
+					<span class="kv-note">
+						Variable MAILS_PAUSED. Frena recordatorios, «Enviar el link a todes», «Avisar a les
+						compradores», «Mail a compradores», series, «Lo que sigo» y la lista de espera: quedan
+						para cuando se saque. Los mails de cada compra (entradas, transferencia, reembolso,
+						códigos para ingresar) salen siempre.
+					</span>
+				</li>
+			</ul>
+		</Card>
+	</section>
+
 	{#each data.flags as f (f.key)}
 		<Card title={f.label}>
 			<!-- Interruptor: se guarda apenas se toca (sin botón Guardar; decisión de gorrite). -->
@@ -123,6 +168,19 @@
 	.saved {
 		color: var(--ok);
 		font-size: var(--text-sm);
+	}
+	.pauses {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: var(--space-xs);
+	}
+	.pauses li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: var(--space-2xs);
 	}
 	.state {
 		display: flex;

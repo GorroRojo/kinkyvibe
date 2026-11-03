@@ -289,6 +289,33 @@ export async function buyerLocation(db, eventSlug) {
 }
 
 /**
+ * «Cómo llegar» y «Accesibilidad» del lugar de un evento para los mails de quien compró (entradas y
+ * recordatorios): **solo lo que la página del evento le muestra a cualquiera** (ANON), o sea solo
+ * en el nivel «Nombre + dirección» y con el lugar visible y aprobado (`venueView`). En los demás
+ * niveles son textos libres que pueden nombrar el lugar, y el sitio tampoco se los muestra a quien
+ * compró (a quien compró solo le da además el nombre y la dirección: {@link buyerLocation}).
+ * `null` sin base, sin lugar, sin ninguno de los dos textos o si algo falla (nunca tira: el mail
+ * sale sin el recuadro).
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} eventSlug
+ * @returns {Promise<{ howTo: string | null, accessibility: string | null } | null>}
+ */
+export async function venueNotesForMail(db, eventSlug) {
+	if (!db) return null;
+	try {
+		const view = await publicVenueForEvent(db, eventSlug, ANON);
+		if (view?.level !== 'public') return null;
+		const howTo = view.howTo ?? null;
+		const accessibility = view.accessibility ?? null;
+		return howTo || accessibility ? { howTo, accessibility } : null;
+	} catch (e) {
+		console.error('[lugares] no se pudo leer cómo llegar para el mail', e);
+		return null;
+	}
+}
+
+/**
  * Para los calendarios .ics dinámicos (etiqueta o serie, "lo tuyo"): el lugar de cada evento de
  * `slugs` que tiene uno, como lo ve cualquiera en la página del evento (ANON), para
  * `feedLocation`. Vacío sin base (entonces el .ics usa lo del .md, como la página). Si algo

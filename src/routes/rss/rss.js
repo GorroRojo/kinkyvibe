@@ -10,24 +10,6 @@ const siteTitle = 'Kinky Vibe';
 const siteDescription =
 	'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 
-/**
- * Items that exist only in the feed (not on the site). Used on 2026-09-29 to apologize after
- * fixing the feed: it used to be invalid XML (unescaped `&` in titles), and once it parsed,
- * feed readers showed every old post as new. Remove this item after a few weeks.
- */
-const FEED_ONLY_ITEMS = [
-	{
-		guid: `${siteURL}/rss#perdon-por-el-spam-2026-09`,
-		link: siteURL,
-		title: 'Ups perdón usuaries de RSS, juro que es por una buena causa!',
-		description:
-			'Estamos haciendo grandes y super importantes cambios en el sitio y uno fue un arreglo al RSS que gatilló todos esos posts que te llegaron recién. Mala mía perdón. Pero te doy exclusiva para recompensar: muy pronto vas a poder comprar las entradas para los eventos directo desde el sitio! Sin más google forms que andan flojos ni tener que mandar comprobantes. Eso y mucho más se vieneee. Gracias por seguirnos por acá, me intriga muchísimo quiénes realmente usan RSS con el sitio jsaj. -gorrite',
-		date: '2026-09-29T19:00:00-03:00',
-		// Drops out of the feed after this date.
-		until: '2026-10-27T00:00:00-03:00'
-	}
-];
-
 /** Cuántos eventos y cuántos materiales lista el feed (los más nuevos de cada uno). */
 export const RSS_EVENTS = 30;
 export const RSS_MATERIAL = 20;
@@ -65,29 +47,20 @@ export const render = (posts, now = 0) => {
 <link>${siteURL}</link>
 <language>es-AR</language>${newest ? `\n<lastBuildDate>${rssDate(newest)}</lastBuildDate>` : ''}
 <atom:link href="${siteURL}/rss" rel="self" type="application/rss+xml"/>
-${FEED_ONLY_ITEMS.filter((item) => Date.now() < new Date(item.until).getTime())
+${entries
 	.map(
-		(item) => `<item>
-<guid isPermaLink="false">${escapeXml(item.guid)}</guid>
-<title>${escapeXml(item.title)}</title>
-<link>${escapeXml(item.link)}</link>
-<description>${escapeXml(item.description)}</description>${pubDate(item.date)}
-</item>`
+		(e) =>
+			[
+				'<item>',
+				`<guid isPermaLink="true">${escapeXml(e.url)}</guid>`,
+				`<title>${escapeXml(e.title)}</title>`,
+				`<link>${escapeXml(e.url)}</link>`,
+				`<description>${escapeXml(e.summary || e.title)}</description>`,
+				...e.authors.map((name) => `<dc:creator>${escapeXml(name)}</dc:creator>`),
+				...e.tags.map((tag) => `<category>${escapeXml(tag)}</category>`)
+			].join('\n') + `${pubDate(e.published)}\n</item>`
 	)
-	.join('')}${entries
-		.map(
-			(e) =>
-				[
-					'<item>',
-					`<guid isPermaLink="true">${escapeXml(e.url)}</guid>`,
-					`<title>${escapeXml(e.title)}</title>`,
-					`<link>${escapeXml(e.url)}</link>`,
-					`<description>${escapeXml(e.summary || e.title)}</description>`,
-					...e.authors.map((name) => `<dc:creator>${escapeXml(name)}</dc:creator>`),
-					...e.tags.map((tag) => `<category>${escapeXml(tag)}</category>`)
-				].join('\n') + `${pubDate(e.published)}\n</item>`
-		)
-		.join('')}
+	.join('')}
 </channel>
 </rss>
 `;

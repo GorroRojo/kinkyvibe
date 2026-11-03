@@ -5,7 +5,7 @@
 import { escapeHtml } from '$lib/server/tickets/email.js';
 import { MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
 import { argDateTimeLong, parseSiteDate } from '$lib/utils/dates.js';
-import { expiresInText } from '$lib/utils/expiry.js';
+import { ARGENTINA_TIME_NOTE, expiresInText } from '$lib/utils/expiry.js';
 
 /** @typedef {{ subject: string, html: string, text: string }} Message */
 
@@ -79,7 +79,9 @@ export function buildNewEditionEmail({
 	unsubscribeUrl,
 	origin
 }) {
-	const when = editionDate(start);
+	// Con el huso (la variable de «Lo que sigo», editionDate, queda como está).
+	const date = editionDate(start);
+	const when = date ? `${date} (${ARGENTINA_TIME_NOTE})` : '';
 	const subject = `Hay nueva edición de ${seriesName}`;
 	const text = [
 		'Hola:',

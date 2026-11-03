@@ -21,6 +21,7 @@ import { ADMINS } from '$lib/server/auth';
 import { rowsOf, runQueries } from '$lib/server/db/batch.js';
 import { loadAutomations } from '$lib/server/admin/automatizaciones.js';
 import { FLAGS, envOverride } from '$lib/server/flags.js';
+import { emergencyPauses } from '$lib/server/emergencia.js';
 import { parsePercent } from '$lib/server/tickets/fondo.js';
 import { transferReadyFromSettings } from '$lib/server/tickets/index.js';
 import { readSalesSettings, salesSettingsStatement } from '$lib/server/tickets/settings.js';
@@ -98,9 +99,12 @@ export function effectiveFlags(saved, env) {
  *   mpReady: boolean,
  *   automations: Awaited<ReturnType<typeof loadAutomations>> | null,
  *   fondoDevPercent?: number | null,
+ *   pauses?: { tickets: string | null, mails: string | null },
  *   now: number
  * }} input `fondoDevPercent`: en `vite dev`, el de `FONDO_PERCENT_OVERRIDE` (como
- *   `resolveFondoPercent`: va después del fijado a mano y antes de lo automático)
+ *   `resolveFondoPercent`: va después del fijado a mano y antes de lo automático). `pauses`: las
+ *   pausas de emergencia (`emergencyPauses`); prendidas, la tarjeta de Interruptores lo dice
+ *   antes que nada.
  * @returns {Record<string, AjusteStatus>} por id de sección de `$lib/admin/nav.js`
  */
 export function buildAjustesStatus({
@@ -111,6 +115,7 @@ export function buildAjustesStatus({
 	mpReady,
 	automations,
 	fondoDevPercent = null,
+	pauses = { tickets: null, mails: null },
 	now
 }) {
 	/** @type {Record<string, AjusteStatus>} */
@@ -158,6 +163,17 @@ export function buildAjustesStatus({
 		out['ajustes-interruptores'] = off
 			? { text: `${off} en prueba`, tone: 'warn' }
 			: { text: 'Todos prendidos' };
+	}
+	// Las pausas de emergencia (TICKETS_PAUSED, MAILS_PAUSED) mandan sobre lo demás: se tienen que
+	// ver aunque no haya base.
+	const paused = [pauses.tickets ? 'la venta' : '', pauses.mails ? 'los mails en tanda' : '']
+		.filter(Boolean)
+		.join(' y ');
+	if (paused) {
+		out['ajustes-interruptores'] = {
+			text: `En pausa: ${paused}`,
+			tone: 'warn'
+		};
 	}
 
 	if (automations) {
@@ -238,5 +254,13 @@ export async function loadAjustesStatus({ db, env = {}, mpReady = false, now = D
 		}
 	}
 	const fondoDevPercent = dev ? parsePercent(env.FONDO_PERCENT_OVERRIDE) : null;
-	return buildAjustesStatus({ ...data, flags, mpReady, automations, fondoDevPercent, now });
+	return buildAjustesStatus({
+		...data,
+		flags,
+		mpReady,
+		automations,
+		fondoDevPercent,
+		pauses: emergencyPauses(env),
+		now
+	});
 }

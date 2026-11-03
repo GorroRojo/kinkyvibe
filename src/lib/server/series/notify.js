@@ -17,7 +17,9 @@
  */
 import { seriesEditions, seriesTagIds, splitEditions } from '$lib/utils/series.js';
 import { buildNewEditionEmail } from './email.js';
+import { autoSubmitted } from '$lib/server/tickets/email.js';
 import { deleteExpiredPending, unsubscribeUrl } from './subscriptions.js';
+import { oneClickHeaders } from '$lib/server/email/oneClick.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -128,18 +130,23 @@ export async function runSeriesNotifications({
 			.bind(id, slug, now)
 			.run();
 		if (Number(claim.meta?.changes ?? 0) !== 1) continue;
-		const message = buildNewEditionEmail({
-			seriesName: edition.seriesName,
-			title: edition.title,
-			start: edition.start,
-			eventUrl: origin + edition.path,
-			unsubscribeUrl: await unsubscribeUrl(db, origin, id),
-			origin
-		});
+		const unsubscribe = await unsubscribeUrl(db, origin, id);
+		const message = {
+			...buildNewEditionEmail({
+				seriesName: edition.seriesName,
+				title: edition.title,
+				start: edition.start,
+				eventUrl: origin + edition.path,
+				unsubscribeUrl: unsubscribe,
+				origin
+			}),
+			// Baja en un clic (RFC 8058): el mismo link del pie (email/oneClick.js).
+			headers: oneClickHeaders(unsubscribe)
+		};
 		/** @type {'sent' | 'simulated' | 'failed'} */
 		let result = 'failed';
 		try {
-			result = await send(String(row.email), message, `series-${id}-${slug}`);
+			result = await send(String(row.email), autoSubmitted(message), `series-${id}-${slug}`);
 		} catch (error) {
 			console.error('[series] no se pudo mandar un aviso:', error);
 		}

@@ -562,6 +562,14 @@ export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
 				errors.push(`${label}: el sugerido es demasiado alto (¿sobra un cero?).`);
 		} else if (t.mode === 'tiers') {
 			validateTiers(t, label, sales, errors);
+			const online = tiersOnlineMax(t);
+			if (capacity !== null && online !== null && online < capacity) {
+				const rest = capacity - online;
+				const door = form.door && form.modalidad !== 'online';
+				warnings.push(
+					`${label}: los tramos suman ${entradas(online)} y el cupo es de ${capacity}. Online se venden como mucho ${online}: cuando se terminan los tramos, el tipo figura «Agotado» en la página aunque queden lugares. ${rest === 1 ? 'La entrada que queda' : `Las otras ${rest}`} ${door ? `solo ${rest === 1 ? 'se vende' : 'se venden'} en la puerta o ${rest === 1 ? 'cargándola' : 'cargándolas'} a mano` : `solo ${rest === 1 ? 'se puede cargar' : 'se pueden cargar'} a mano (no hay venta en la puerta)`}. Si es a propósito (para guardar lugares para la puerta), está bien; si no, subí la cantidad de un tramo o dejá el último sin cantidad.`
+				);
+			}
 		} else {
 			const price = parseAmount(t.price);
 			if (price === null || price <= 0)
@@ -774,6 +782,26 @@ function validateTiers(t, label, sales, errors) {
 				`${label}: no se puede borrar el tramo «${id}»: ya tiene ${entradas(n)} vendidas o reservadas.`
 			);
 	}
+}
+
+/**
+ * Cuántas entradas de un tipo con tramos se pueden vender online como mucho: la suma de las
+ * cantidades de sus tramos, si todos tienen cantidad (las fechas solo pueden cerrar un tramo
+ * antes). `null` si alguno no tiene cantidad (es «el resto»: sin tope por tramos) o no se puede
+ * leer. Solo para avisar en el editor: lo que pasa de verdad lo decide `stockOf` al comprar.
+ *
+ * @param {TicketTypeForm} t
+ * @returns {number | null}
+ */
+export function tiersOnlineMax(t) {
+	if (t.mode !== 'tiers' || !t.tiers.length) return null;
+	let sum = 0;
+	for (const tr of t.tiers) {
+		const q = tr.quantity.trim() ? parseCount(tr.quantity) : null;
+		if (q === null || q < 1) return null;
+		sum += q;
+	}
+	return sum;
 }
 
 /**

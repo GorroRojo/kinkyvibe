@@ -1,19 +1,26 @@
 /**
  * Ajustes → Interruptores: prender y apagar funciones nuevas (decisión 0001: todo sale apagado y
  * se prende desde acá). Ver src/lib/server/flags.js. Solo admins; queda en el registro.
+ * Arriba, las pausas de emergencia (TICKETS_PAUSED, MAILS_PAUSED; $lib/server/emergencia.js): solo
+ * se ven, se prenden y se apagan en el panel de Cloudflare.
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { FLAGS, listFlags, setFlag } from '$lib/server/flags.js';
+import { emergencyPauses } from '$lib/server/emergencia.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
-	return { dbAvailable: Boolean(db), flags: db ? await listFlags(db) : [] };
+	return {
+		dbAvailable: Boolean(db),
+		flags: db ? await listFlags(db) : [],
+		pauses: emergencyPauses()
+	};
 }
 
 /** @type {import('./$types').Actions} */

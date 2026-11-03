@@ -222,6 +222,30 @@
 					</label>
 				{/each}
 			</fieldset>
+			{#if p.kind === 'persona'}
+				<fieldset>
+					<legend>Buscadores</legend>
+					<!-- Avisa que el formulario trae la casilla (apagada no se manda). -->
+					<input type="hidden" name="buscadores" value="1" />
+					<label class="choice">
+						<input type="checkbox" name="noindex" checked={values.noindex} />
+						<span>No aparecer en buscadores <small class="hint">(Google, Bing y otros)</small></span
+						>
+					</label>
+					<p class="hint">
+						Tu perfil se sigue viendo en el sitio igual que ahora: sale en Amigues y se abre con el
+						link. Lo que cambia: les pedimos a los buscadores que no lo muestren, no va en la lista
+						de páginas que les pasamos y, si alguien comparte el link, la vista previa muestra solo
+						tu nombre, sin tu foto ni tu presentación.
+					</p>
+					<p class="hint">
+						Lo que no hace: Google puede tardar días o semanas en sacarlo de sus resultados; no
+						borra las copias que ya guardaron otros sitios ni las vistas previas que ya se mandaron
+						en chats; y no lo esconde de quien entra al sitio (para eso, elegí «Solo personas con
+						cuenta» u «Oculto»). Con esas dos opciones ya no aparece en buscadores.
+					</p>
+				</fieldset>
+			{/if}
 			{#if venue}
 				<fieldset>
 					<legend>El lugar</legend>

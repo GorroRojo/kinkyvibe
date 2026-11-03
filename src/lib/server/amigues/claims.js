@@ -3,8 +3,13 @@
  * importada, por ejemplo). Une admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza
  * (decisión de gorrite, 1/10). Tabla `profile_claims` (migración 0017).
  *
+ * Lo pide cualquier cuenta, tenga o no el permiso "puede tener perfiles" (gorrite, 26/10: en vez
+ * de un canal para pedir el permiso, reclamar un perfil que ya existe). El pedido nunca da nada
+ * solo: une admin lo revisa y, para aprobarlo, la cuenta tiene que tener el permiso (se lo da en
+ * el panel antes de aprobar).
+ *
  * Lo que nunca se tiene que romper:
- * - solo cuentas con el permiso "puede tener perfiles" (sin él, como si el botón no existiera);
+ * - pedir no da nada: solo aprobar (une admin, con la cuenta ya con el permiso) suma une dueñe;
  * - una cuenta ve solo SUS pedidos: la respuesta es la misma haya o no otros pedidos o dueñes
  *   (nada dice si alguien más lo reclamó ni quién lo gestiona);
  * - límites por cuenta y por conexión, contados antes de mirar el perfil;
@@ -15,7 +20,6 @@
 import { getObject } from '$lib/server/objects/index.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
-import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
 import {
 	MAX_PROFILES_PER_ACCOUNT,
 	PROFILE_TYPE,
@@ -35,8 +39,9 @@ export const CLAIM_RATE_LIMITS = Object.freeze({
 export const CLAIM_MESSAGE_MAX = 500;
 
 export const CLAIM_MESSAGES = Object.freeze({
-	sent: 'Listo: le mandamos tu pedido a les admins. Cuando lo revisen, el perfil va a aparecer en Mi rincón → Perfiles.',
-	already: 'Ya pediste este perfil. Les admins lo van a revisar pronto.',
+	sent: 'Listo: le mandamos tu pedido al equipo. Lo revisamos a mano y, si lo aprobamos, el perfil aparece en Mi rincón → Perfiles para que lo edites.',
+	already:
+		'Ya pediste este perfil: lo revisa el equipo. Si lo aprobamos, aparece en Mi rincón → Perfiles.',
 	manager: 'Ya gestionás este perfil: lo encontrás en Mi rincón → Perfiles.',
 	tooMany: 'Mandaste muchos pedidos seguidos. Probá de nuevo mañana.',
 	notFound: 'No encontramos ese perfil.'
@@ -89,9 +94,6 @@ export async function createClaim(
 	db,
 	{ accountId, profileId, message = '', connection, now = Date.now() }
 ) {
-	if (!(await canHaveProfiles(db, accountId))) {
-		return { ok: false, status: 404, message: CLAIM_MESSAGES.notFound };
-	}
 	const perAccount = await hitRateLimit(
 		db,
 		`amigues:claim:a:${await sha256Hex(`amigues:account:${accountId}`)}`,

@@ -22,7 +22,7 @@ import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read
 import { visibleWhere } from '$lib/server/objects/visibility.js';
 import { isAdmin } from '$lib/server/auth';
 import { MEMBER_EDGE, PROFILE_TYPE, memberViewer } from '$lib/server/cuentas/perfiles.js';
-import { profileKindOf } from '$lib/server/objects/types/perfil.js';
+import { profileKindOf, profileNoindex } from '$lib/server/objects/types/perfil.js';
 import { pronounLabel } from '$lib/utils/mentions';
 import { textOrNull as s } from '$lib/utils/text.js';
 import { batchesReads } from '$lib/server/db/autoBatch.js';
@@ -392,8 +392,11 @@ export async function groupMembers(db, group, viewer) {
  *   publishedDate: string | null,
  *   updatedDate: string | null,
  *   image: string | null,
- *   imported: boolean
+ *   imported: boolean,
+ *   noindex: boolean
  * }} PublicProfile
+ * `noindex`: una persona que pidió no aparecer en buscadores (`profileNoindex`): no va al
+ * sitemap ni a IndexNow y su página lleva `noindex`.
  */
 
 /**
@@ -429,7 +432,8 @@ export function publicProfile(o, { legacySlug, image = null, tags }) {
 		publishedDate: s(d.published_date),
 		updatedDate: s(d.updated_date),
 		image,
-		imported: Boolean(legacySlug)
+		imported: Boolean(legacySlug),
+		noindex: profileNoindex(d)
 	};
 }
 
@@ -459,7 +463,9 @@ export function profileAsPost(p) {
 				category: 'amigues',
 				layout: 'amigues',
 				postID: p.slug,
-				kind: p.kind
+				kind: p.kind,
+				// Fuera del sitemap y de IndexNow (sitemap.js, seo/indexnow.js).
+				...(p.noindex ? { noindex: true } : {})
 			}
 		})
 	);

@@ -1,7 +1,8 @@
 <script>
 	/**
-	 * "Es mi perfil": para cuentas con el permiso de perfiles, en la página de un perfil que no
-	 * gestionan. Muestra solo el estado de ESTA cuenta (nunca si alguien más lo pidió).
+	 * "Es mi perfil": para cualquier cuenta, en la página de un perfil que no gestiona. Pedirlo no
+	 * da nada: lo revisa el equipo. Muestra solo el estado de ESTA cuenta (nunca si alguien más lo
+	 * pidió ni si alguien lo gestiona).
 	 * Props: `state` ('none' | 'pending' | 'manager'), `result` (lo que devolvió la action, si hubo).
 	 */
 	import { enhance } from '$app/forms';
@@ -23,7 +24,9 @@
 			Gestionás este perfil: lo editás en <a href="/mi-rincon/perfiles">Mi rincón</a>.
 		</p>
 	{:else if state === 'pending'}
-		<p class="msg">Pediste este perfil. Les admins lo van a revisar pronto.</p>
+		<p class="msg">
+			Pediste este perfil: lo revisa el equipo. Si lo aprobamos, aparece en Mi rincón → Perfiles.
+		</p>
 	{:else if !open}
 		<button type="button" class="link" on:click={() => (open = true)}>¿Es tu perfil?</button>
 	{:else}
@@ -39,11 +42,15 @@
 			}}
 		>
 			<p>
-				Si este perfil es tuyo (o de tu proyecto o lugar), pedilo y une admin te lo pasa a tu
-				cuenta. Así lo vas a poder editar desde Mi rincón.
+				Si este perfil es tuyo (o de tu proyecto o lugar), pedilo. Lo revisa el equipo a mano: si lo
+				aprobamos, te lo pasamos a tu cuenta y lo editás desde Mi rincón → Perfiles. Hasta entonces
+				no cambia nada en el perfil.
 			</p>
 			<label>
-				<span>Contanos algo para confirmar que sos vos (opcional)</span>
+				<span
+					>Contanos algo que nos ayude a confirmar que es tuyo (opcional): por ejemplo, dónde
+					publicás o cómo te conocemos</span
+				>
 				<textarea name="mensaje" maxlength="500" rows="3"></textarea>
 			</label>
 			<button type="submit" class="kv-cta" disabled={busy}>Es mi perfil</button>

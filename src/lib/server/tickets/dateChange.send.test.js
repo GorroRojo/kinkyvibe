@@ -167,14 +167,23 @@ describe('sendDateChangeEmails', () => {
 		expect(keys[0]).toBe(`datechange-${o.order.id}-${change.version}`);
 
 		const lines = mail.text.split('\n');
-		expect(lines).toContain('Fecha nueva: sábado 21 de noviembre de 2099, 21:00 a 02:00');
-		expect(lines).toContain('Antes era: sábado 14 de noviembre de 2099, 22:00 a 03:00');
+		expect(lines).toContain(
+			'Fecha nueva: sábado 21 de noviembre de 2099, 21:00 a 02:00 (hora de Argentina y Uruguay)'
+		);
+		expect(lines).toContain(
+			'Antes era: sábado 14 de noviembre de 2099, 22:00 a 03:00 (hora de Argentina y Uruguay)'
+		);
 		expect(lines).toContain('Lugar Inventado · Calle Falsa 123');
 		const text = textOf(mail.html);
 		expect(text).toContain('Fecha nueva');
-		expect(text).toContain('sábado 21 de noviembre de 2099, 21:00 a 02:00');
-		expect(text).toContain('Antes era: sábado 14 de noviembre de 2099, 22:00 a 03:00');
-		expect(text).toContain('Ver mis entradas');
+		expect(text).toContain(
+			'sábado 21 de noviembre de 2099, 21:00 a 02:00 (hora de Argentina y Uruguay)'
+		);
+		expect(text).toContain(
+			'Antes era: sábado 14 de noviembre de 2099, 22:00 a 03:00 (hora de Argentina y Uruguay)'
+		);
+		// Una sola entrada: el botón lleva a esa entrada.
+		expect(text).toContain('Ver mi entrada');
 
 		// El .ics: mismo UID que el de las entradas, la fecha nueva y un SEQUENCE más alto.
 		expect(mail.attachments[0].filename).toBe('evento-de-prueba.ics');
@@ -231,7 +240,7 @@ describe('sendDateChangeEmails', () => {
 		const { sent, fetch } = captureFetch();
 		await tickets.sendDateChangeEmails({ db: t.db, change, origin: 'https://kv.example', fetch });
 		expect(sent[0].text).not.toContain('Link de la transmisión');
-		expect(textOf(sent[0].html)).toContain('Ver mis entradas');
+		expect(textOf(sent[0].html)).toContain('Ver mi entrada');
 	});
 
 	it('un recordatorio después del cambio no vuelve a un SEQUENCE más bajo', async () => {
