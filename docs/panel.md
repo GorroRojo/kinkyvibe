@@ -98,6 +98,14 @@ de confiabilidad, O36). Ajustes **no lleva pestañas** (ni la lista ▾ del celu
   del encabezado bajan debajo de las pestañas, más chicas: Editar y «⋯ Acciones» (Ver página,
   Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»). Desde
   el 12/10 `menu` es lo de siempre en `Tabs`: una barra nueva también pasa a la lista (gorrite).
+- **El «Dónde» de un evento en el panel**: un lugar vinculado («Sucede en») manda sobre el
+  «Dónde» en texto libre que pudo quedar de antes, como en la página pública (`eventPlace.js`).
+  Les admins ven todo: va el nombre del lugar y su barrio (o su ciudad) aunque la página lo
+  oculte (`panelPlaceText` en `$lib/admin/eventFormat.js`). Así en el encabezado de la ficha
+  (`panelVenueRow`, en el load del layout), en los próximos eventos y el bloque de ventas del
+  Inicio (`eventVenuesQuery`, en la segunda tanda) y en la lista de Eventos (nombre del lugar,
+  con la misma consulta de `listEventVenues`; también en la búsqueda y en la columna «lugar» del
+  CSV). La agenda (su planilla edita el texto libre) y `/admin/checkin` siguen con el texto libre.
 - **Más ágil**: mientras SvelteKit trae la página siguiente (`$navigating`) hay una barrita de 3
   px arriba de todo (aparece después de 120 ms, así lo rápido no parpadea; quieta con movimiento
   reducido) y el link o botón que se tocó queda «cargando» (`data-pending` y `aria-busy`, estilo

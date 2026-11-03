@@ -51,6 +51,8 @@ import {
 } from '$lib/admin/links.js';
 import { onlineReviewTest } from '$lib/admin/eventList.js';
 import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
+import { panelVenueText } from '$lib/admin/eventFormat.js';
+import { panelEventVenuesFrom, panelEventVenuesStatement } from '$lib/server/amigues/venues.js';
 import { parseEventDate, todayInArgentina } from '$lib/utils/eventDraft.js';
 import {
 	TAG_EDGE,
@@ -128,6 +130,25 @@ function query(what, fallback, statements, read) {
  * @param {string[]} slugs
  */
 const placeholders = (slugs) => slugs.map(() => '?').join(', ');
+
+/**
+ * El lugar vinculado («Sucede en») de cada evento de `slugs`, en una sentencia para todos: en el
+ * Inicio manda sobre el «Dónde» en texto libre, como en la página del evento. Vacío sin eventos,
+ * sin base o si falla (queda el texto libre).
+ * @param {string[]} slugs
+ * @returns {BatchQuery<Map<string, import('$lib/admin/eventFormat.js').PanelVenue>>}
+ */
+export function eventVenuesQuery(slugs) {
+	return query(
+		'lugares de los eventos',
+		new Map(),
+		(db) => {
+			const statement = panelEventVenuesStatement(db, slugs);
+			return statement ? [statement] : [];
+		},
+		(results) => panelEventVenuesFrom(rowsOf(results))
+	);
+}
 
 /**
  * @typedef {{ sold: number, held: number, revenue: number, fondo: number, contribution: number,
@@ -972,9 +993,11 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
  *   streamLinks?: Set<string>,
  *   reminders?: Map<string, number>,
  *   stuck?: { reminders: Map<string, number>, streamLinks: Map<string, number> },
+ *   venues?: Map<string, import('$lib/admin/eventFormat.js').PanelVenue>,
  *   now: number,
  *   skip?: (slug: string) => boolean
- * }} input
+ * }} input `venues`: el lugar vinculado de cada evento ({@link eventVenuesQuery}); manda sobre
+ *   el «Dónde» en texto libre en `location`.
  * @returns {UpcomingEvent[]}
  */
 export function upcomingEvents({
@@ -987,6 +1010,7 @@ export function upcomingEvents({
 	streamLinks = new Set(),
 	reminders = new Map(),
 	stuck = { reminders: new Map(), streamLinks: new Map() },
+	venues = new Map(),
 	now,
 	skip = () => false
 }) {
@@ -1036,7 +1060,12 @@ export function upcomingEvents({
 			title: e.title,
 			start: e.start,
 			day,
-			location: e.location,
+			// Un lugar vinculado manda sobre el «Dónde» en texto libre (como en la página).
+			location: venues.has(e.slug)
+				? panelVenueText(
+						/** @type {import('$lib/admin/eventFormat.js').PanelVenue} */ (venues.get(e.slug))
+					) || e.location
+				: e.location,
 			status: config?.status ?? e.status,
 			// Borrador = la marca de la agenda (`borrador: true`), que espera «Confirmar». Un evento no
 			// listado a propósito no es un borrador: no se destaca ni se pide revisarlo (una sola
