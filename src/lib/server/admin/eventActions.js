@@ -138,8 +138,19 @@ export const eventTicketActions = {
 				action: 'order.reviewed',
 				targetType: 'order',
 				targetId: order.id,
-				summary: `Marcó como revisada la orden ${orderReference(order.id)}`,
-				detail: { event: params.slug }
+				summary:
+					order.needs_review === 'duplicate_payment' && order.review_detail
+						? `Marcó como revisada la orden ${orderReference(order.id)} (pago duplicado: Mercado Pago n.° ${order.review_detail})`
+						: `Marcó como revisada la orden ${orderReference(order.id)}`,
+				// Lo que decía la marca (en un pago duplicado, el número del otro pago) queda acá:
+				// clearReview lo borra de la orden.
+				detail: {
+					event: params.slug,
+					reason: order.needs_review ?? (order.offline_review ? 'door_offline' : null),
+					reviewDetail: order.review_detail ?? null,
+					offlineReview: order.offline_review ?? null,
+					total: order.total
+				}
 			});
 		}
 		return {

@@ -1369,6 +1369,28 @@ export const SECTIONS = [
 	// De acá en adelante, tablas de migraciones posteriores (panel de admin): si la base no las
 	// tiene, la sección se saltea.
 	{
+		table: 'waitlist_entries',
+		requires: ['waitlist_entries'],
+		optional: true,
+		// Las anotaciones de la lista de espera de los eventos de prueba (las que se hicieron en la
+		// demo): una comprada apunta a su orden y sin borrarla antes el reset de `orders` fallaba por
+		// la clave foránea (auditoría de plata, D30). Sus mails (`waitlist_sends`) se borran en
+		// cascada.
+		reset: ["DELETE FROM waitlist_entries WHERE event_slug LIKE 'demo-%';"],
+		rows: () => []
+	},
+	{
+		table: 'event_date_changes',
+		requires: ['event_date_changes', 'date_change_sends'],
+		optional: true,
+		// Los cambios de fecha de los eventos de prueba y sus avisos (hechos en la demo).
+		reset: [
+			`DELETE FROM date_change_sends WHERE order_id IN ${DEMO_ORDERS};`,
+			"DELETE FROM event_date_changes WHERE event_slug LIKE 'demo-%';"
+		],
+		rows: () => []
+	},
+	{
 		table: 'event_mail_sends',
 		requires: ['event_mail_sends', 'event_mail_recipients'],
 		optional: true,

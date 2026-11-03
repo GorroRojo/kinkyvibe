@@ -151,8 +151,9 @@
 						Pago aprobado con la reserva ya vencida y sin cupo libre: puede haber más entradas
 						vendidas que el cupo. Decidí si se acepta o se reembolsa.
 					{:else if o.needsReview === 'duplicate_payment'}
-						Llegó otro pago aprobado (Mercado Pago n.° {o.reviewDetail}) para esta orden, que ya
-						estaba pagada: posible cobro doble. Revisalo en Mercado Pago y reembolsá el que sobre.
+						Llegó otro pago aprobado de {formatARS(o.total)} (Mercado Pago n.° {o.reviewDetail})
+						para esta orden, que ya estaba pagada: posible cobro doble. Revisalo en Mercado Pago y
+						reembolsá el que sobre.
 					{:else if o.needsReview === 'door_offline'}
 						Venta en la puerta hecha sin conexión: al sincronizarse pasó un límite o quedó
 						registrada con otro total que el que se cobró ({o.reviewDetail}). Se guardó igual;
