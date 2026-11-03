@@ -108,6 +108,8 @@ CI) va en la fase 0.
 - `entradas-editor-preventas-arreglo` · fase 0 · hecho · entradas · Editor de entradas: keys únicas también con un borrador recuperado (se colgaba: «Sacar» muerto), «Preventas» con errores a la vista ya no deja la tarjeta vacía (Chromium, fieldset y container queries) y «Sacar» desactivado que explica por qué · #348
 - `fondo-propinas-unicas` · fase 0 · hecho · fondo · Donaciones de una vez al Fondo con las propinas, el total del mes para kv-fondo y el mail «tu link» · #287, #268
 - `propinas-kinkipedia` · fase 0 · hecho · fondo · Propina al pie de las páginas de la Kinkipedia con texto; las clases de publicación de las propinas viven en el código (`TIP_POST_KINDS`) y la base ya no tiene listas fijas, así sumar una no pide migración (gorrite, 27/10) · #543
+- `paypal-base` · fase 0 · en curso · fondo · Base sin credenciales para PayPal en las propinas, detrás del interruptor `paypal`: cotización MEP diaria (cron, DolarApi y ArgentinaDatos), ajuste en % en el panel, retiros, reparto por mes Fondo, `GET /api/fondo/cotizacion` y `paypal` en `propinas-total` (migración 0071; gorrite, 2/11) · [0054](decisiones/0054-paypal-en-las-propinas.md), [propinas.md](propinas.md#paypal-cotización-ajuste-y-retiros), #265
+- `paypal-cobro` · fase 0 · sigue · fondo · Pagar una propina con PayPal en el formulario (también `?de=fondo`): orden con `custom_id` `kv-propina:`, webhook propio en la app compartida, lo neto y la base del día en `tips`, y cómo se ven en la lista, el CSV y la actividad del Inicio; espera las credenciales de prueba (depende de: paypal-base) · [0054](decisiones/0054-paypal-en-las-propinas.md), #265
 
 ### Legales
 
@@ -136,6 +138,7 @@ CI) va en la fase 0.
 - `estadisticas-pestanas` · fase 0 · hecho · panel · Estadísticas en pestañas (Ventas, Asistencia, Visitas) · #258
 - `buscador-panel` · fase 0 · hecho · panel · Buscador del panel: tildes, acciones y operadores · #259, #269
 - `moderar-ocultar` · fase 0 · hecho · panel · «Ocultar» un perfil desde el panel también le saca la aprobación para /amigues: si quien lo gestiona lo vuelve a hacer público desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo · #385, [amigues.md](amigues.md)
+- `cuentas-suspender` · fase 0 · hecho · panel · «Suspender cuenta» desde la ficha de la cuenta: cierra todas sus sesiones, no la deja entrar (código, contraseña ni bot de Telegram) y queda en Actividad; motivo opcional solo para admins; los perfiles públicos se moderan aparte (migración 0065, va a producción antes del merge) · #520, [cuentas.md](cuentas.md#suspender-una-cuenta)
 - `lugares-ocultos-fuera-de-aprobar` · fase 0 · hecho · panel · Un lugar oculto ya no aparece en Eventos › Lugares › «Para aprobar» ni en «Rechazados»: ocultar le saca la aprobación, pero aprobarlo desde ahí no lo volvía a mostrar · #390, [amigues.md](amigues.md)
 
 ### Sitio público
@@ -245,13 +248,13 @@ CI) va en la fase 0.
 
 ### Pruebas y CI
 
-- `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una
-- `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real (depende de: tests-auditoria)
+- `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una. Hecho: los procesos de las pruebas ya no cargan wrangler y `$app/server` es solo `getRequestEvent` en vitest (importar bajó de ~42 % a ~14 % del tiempo de la suite), una importación de referencia compartida en `importer-tandas`, el mail de más de `pausa-venta` (una tarea en segundo plano sin esperar) y e2e sin internet (`networkidle` esperaba a las imágenes de producción). Falta: que gorrite diga sí o no a cada candidata a borrar del PR y, si hace falta más, un solo workerd por proceso de vitest en vez de uno por archivo · #559, [pruebas-y-ci.md](pruebas-y-ci.md)
+- `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real. No se reprodujo (28/10: cinco corridas a la par de `importer` e `importer-tandas` con la carga en 12-15, solo el error esperado); si vuelve, guardar el mensaje del error (depende de: tests-auditoria)
 - `test-estiloguard-lento` · fase 0 · hecho · pruebas · `estiloGuard` y `series-crear` pasaban el límite de 5 s con la máquina cargada: la preparación cara va en `beforeAll` · #325
 - `test-cuentas-lento` · fase 0 · hecho · pruebas · `cuentas.test.js` «límite de intentos por mail y por conexión» pasaba los 5 s con la máquina cargada: los mails del límite por conexión tienen cuenta con hash barato (queda uno sin cuenta) · #330
 - `tickets-ajustes-spec` · fase 0 · hecho · pruebas · `tests/tickets/ajustes.spec.js` buscaba la pestaña «Cobros», que se fue con la portada de Ajustes: ahora entra por la portada y su tarjeta · #330
 - `tests-consultas-batch` · fase 0 · hecho · pruebas · `importTags` de la semilla en tandas de `saveObjects` (1835 → 80 consultas) · #328
-- `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas
+- `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas (última vez: 28/10, con los tiempos de la CI del PR que sacó wrangler de cada archivo) · #559
 - `ci-cache-semilla` · fase 0 · sigue · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
 - `tests-rapidos` · fase 0 · hecho · pruebas · Pruebas y CI más rápidas, `test:related` · #307, #311, #312, #285
 - `prueba-fugas` · fase 0 · hecho · pruebas · Prueba de que lo privado no sale en público · #291
@@ -296,8 +299,8 @@ CI) va en la fase 0.
 - `vivo-durable-objects` · fase 1 · algún día · infra · Presencia («alguien está editando») y contadores en vivo con un Durable Object
 - `r2-ciclo-vida` · fase 1 · algún día · infra · Regla de R2 que limpie subidas a medias después de un día
 - `seguridad-endurecer` · fase 1 · espera gorrite · infra · Endurecer la configuración de GitHub y Cloudflare: ver Mesa
-- `auditoria-seguridad` · fase 1 · espera gorrite · infra · Auditoría de seguridad en una sesión aparte de gorrite, antes de la fase 4: ver Mesa
-- `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
+- `auditoria-seguridad` · fase 1 · en curso · infra · Auditoría de seguridad: los arreglos que no necesitan a gorrite están hechos (incluido lo del acceso de admins que espera el conector); lo que queda: ver Mesa (gorrite, 2/11: va primero) · #530
+- `conector-claude-lectura` · fase 1 · hecho · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados. Servidor MCP en `/mcp` con OAuth propio sin migraciones, detrás del interruptor `conector_claude`, apagado hasta que gorrite lo pruebe en un preview (gorrite, 2/11: va primero) (depende de: auditoria-seguridad) · #569 · [conector-claude.md](conector-claude.md)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
 - `perf-js-matcher` · fase 1 · hecho · infra · El matcher de las secciones «Próximamente» (`src/params/soon.js`) usa una lista de URLs sin íconos (`soonSections.js`, comparada con `nav.js` en una prueba): todas las páginas dejan de bajar el menú del panel · #394
 - `perf-js-barrel` · fase 1 · hecho · infra · La página del evento importa `Button` y `TagChip` por su archivo y ESLint no deja usar el barril `$lib/components/ui` en las páginas públicas ni en sus componentes (todos los componentes, estilos y partes del panel que bajaban sin usarse) · #393
@@ -357,7 +360,7 @@ CI) va en la fase 0.
 - `perfiles-reclamar` · fase 2 · hecho · cuentas · «¿Es tu perfil?» para cualquier cuenta, también sin el permiso de perfiles (gorrite, 26/10: reclamar un perfil que ya existe en vez de pedir el permiso); pedir no da nada, lo sigue aprobando une admin (con el permiso dado antes); Mi rincón lo explica sin el permiso y Perfiles ya no dice que los perfiles no tienen página pública · #514, [amigues.md](amigues.md)
 - `rincon-pedidos` · fase 2 · sigue · cuentas · Mi rincón lista los pedidos «¿Es tu perfil?» de la cuenta con su estado (pendiente, aprobado, no aprobado) y la página del perfil dice «no aprobado» en vez de volver a ofrecer el botón; aviso por mail al resolverse (depende de: perfiles-reclamar)
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
-- `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
+- `sesiones-dispositivos` · fase 2 · hecho · cuentas · Ver dónde hay una sesión abierta y cerrarla: «Dónde tenés la sesión abierta» en Mi rincón (navegador, cuándo, «Cerrar esta», «Cerrar todas las demás»), migración 0066 · #523, [cuentas.md](cuentas.md#sesiones-srclibservercuentassessionjs)
 - `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
 - `enlaces-guardar` · fase 2 · sigue · contenido · Al guardar, los `[[…]]`, `@` y `#` del cuerpo se vuelven relaciones del grafo, por objeto (no por título) (depende de: enlaces-sintaxis)
 - `enlaces-lo-que-enlaza` · fase 2 · sigue · sitio · «Lo que enlaza acá» en cada página, respetando quién puede ver qué (depende de: enlaces-guardar)

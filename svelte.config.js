@@ -2,6 +2,43 @@ import { preprocessMeltUI, sequence } from '@melt-ui/pp';
 import adapter from '@sveltejs/adapter-cloudflare';
 import sveltePreprocess from 'svelte-preprocess';
 import autoprefixer from 'autoprefixer';
+import { createHash } from 'node:crypto';
+import { THEME_SCRIPT_BODY } from './src/lib/admin/theme.js';
+import { SIDEBAR_SCRIPT_BODY } from './src/lib/admin/sidebarMode.js';
+
+/** `'sha256-…'` de un script en línea de contenido fijo, para la CSP. @param {string} body */
+const scriptHash = (body) => `sha256-${createHash('sha256').update(body).digest('base64')}`;
+
+/**
+ * Content-Security-Policy en modo **solo reporte** (docs/workers-migracion.md, «Headers de
+ * seguridad y CSP»): el navegador no bloquea nada, solo avisa a `/api/csp` lo que bloquearía.
+ * SvelteKit pone un nonce a sus propios scripts; los dos del <head> del panel van por hash
+ * (su contenido es fijo); el beacon de Web Analytics y el script de Telegram, por dominio.
+ * `style-src` necesita 'unsafe-inline' (Svelte y el HTML libre usan estilos en línea); `img-src`,
+ * `media-src` y `frame-src` aceptan cualquier https: por las imágenes y los embeds del HTML libre.
+ * Para aplicarla de verdad: mismas directivas en `directives` en vez de `reportOnly`.
+ * @type {import('@sveltejs/kit').CspDirectives}
+ */
+const CSP_DIRECTIVES = {
+	'default-src': ['self'],
+	'script-src': [
+		'self',
+		'https://static.cloudflareinsights.com',
+		'https://telegram.org',
+		/** @type {any} */ (scriptHash(THEME_SCRIPT_BODY)),
+		/** @type {any} */ (scriptHash(SIDEBAR_SCRIPT_BODY))
+	],
+	'style-src': ['self', 'unsafe-inline'],
+	'img-src': ['self', 'data:', 'blob:', 'https:'],
+	'font-src': ['self', 'data:'],
+	'connect-src': ['self', 'https://cloudflareinsights.com'],
+	'media-src': ['self', 'blob:', 'https:'],
+	'frame-src': ['self', 'https:'],
+	'worker-src': ['self', 'blob:'],
+	'object-src': ['none'],
+	'base-uri': ['self'],
+	'report-uri': ['/api/csp']
+};
 
 /**
  * adapter-cloudflare con `emulate()` a prueba de requests concurrentes.
@@ -38,6 +75,10 @@ const config = {
 	kit: {
 		alias: {
 			$lib: '/src/lib/'
+		},
+		csp: {
+			mode: 'nonce',
+			reportOnly: CSP_DIRECTIVES
 		},
 		adapter: cfAdapter({
 			// Dónde escribir el Worker de SvelteKit al compilar para Workers (no es wrangler.toml
