@@ -188,6 +188,17 @@ siempre los minutos de siempre y el navegador los cambia después de hidratar so
 eligió otra velocidad. Dónde se guarda (navegador y cuenta) y quién gana al entrar:
 [cuentas.md](cuentas.md), «Velocidad de lectura». También se elige en Mi rincón.
 
+**Barra de progreso de lectura** (idea de #19, decisión 0044; pedido de gorrite, 12/10). En los
+textos largos de Material y de la Kinkipedia, una línea fina (3px) arriba de todo se llena mientras
+se lee: empieza cuando el borde de arriba de la ventana llega al título y se llena cuando el de
+abajo llega al final del texto (no cuenta la propina, «Más cosas de…» ni la lista de abajo).
+«Largo» sale del tiempo de lectura: 3 minutos o más a la velocidad de siempre
+(`MIN_MINUTES_FOR_PROGRESS` y `showsReadingProgress` en `src/lib/utils/readingTime.js`, unas 600
+palabras), no a la elegida, así está o no está igual para todes y el servidor ya la dibuja. La
+dibuja `src/lib/components/ReadingProgress.svelte`: fija y con `transform`, sin correr nada; en
+violeta (`--2`), para no confundirse con la barra de carga rosa, que queda por encima; decorativa
+(`aria-hidden`); con «reducir movimiento», sigue al scroll sin el suavizado cortito.
+
 ## En la base (solo la base)
 
 **Eventos** y **material** (`material`, mismo camino; ver `src/lib/server/contenido/categories.js`).
