@@ -52,6 +52,7 @@ describe('«¿Cómo buscar?» (searchHelp, desde el registro)', () => {
 			const pq = parseSearch(row.example, 'sitio');
 			if (row.id === 'frase') expect(pq.phrases).toEqual(['reduccion de danos']);
 			else if (row.id === 'sin') expect(pq.exclude).toEqual(['online']);
+			else if (row.id === 'fechas') expect(pq.dates.map((d) => d.when.kind)).toEqual(['finde']);
 			else expect(pq.operators).toBe(true);
 		}
 	});
