@@ -135,6 +135,20 @@ export const FLAGS = Object.freeze({
 			'src/lib/server/tickets/combos.js.',
 		envVar: 'COMBO_CODIGOS_ENABLED'
 	},
+	paypal: {
+		label: 'PayPal en las propinas',
+		description:
+			'En construcción. Por ahora prende la parte de PayPal de Ajustes → Propinas: la cotización ' +
+			'del dólar con la que se estiman en pesos las propinas en dólares, el ajuste en % de esa ' +
+			'cotización, los retiros y el reparto por mes del Fondo. También le pasa a ' +
+			'fondo.kinkyvibe.ar la cotización y lo de PayPal. Todavía no se puede pagar con PayPal. ' +
+			'Apagado, nada de esto se ve.',
+		tech:
+			'docs/propinas.md («PayPal: cotización, ajuste y retiros»), decisión 0054. Necesita la ' +
+			'migración 0071. Apagado, GET /api/fondo/cotizacion da 404 y GET /api/fondo/propinas-total ' +
+			'no trae `paypal`. El cron diario de la cotización corre igual (no se ve).',
+		envVar: 'PAYPAL_ENABLED'
+	},
 	conector_claude: {
 		label: 'Conector de Claude (solo lectura)',
 		description:
@@ -334,6 +348,15 @@ export function listaEsperaEnabled(platform) {
  */
 export function comboCodigosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'combo_codigos');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido PayPal en las propinas? (docs/propinas.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function paypalEnabled(platform) {
+	return isFlagOn(getDB(platform), 'paypal');
 }
 
 /**

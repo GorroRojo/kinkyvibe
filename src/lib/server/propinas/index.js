@@ -35,7 +35,10 @@ import {
  *   id: string, amount: number, status: TipStatus, post_category: TipCategory,
  *   post_slug: string, message: string | null, mp_preference_id: string | null,
  *   mp_payment_id: string | null, created_at: number, updated_at: number,
- *   approved_at: number | null, destination: TipDestination, source: TipSource
+ *   approved_at: number | null, destination: TipDestination, source: TipSource,
+ *   provider?: 'mp' | 'paypal', currency?: string, usd_gross_cents?: number | null,
+ *   usd_net_cents?: number | null, rate_base?: number | null, paypal_order_id?: string | null,
+ *   paypal_capture_id?: string | null
  * }} Tip
  * `source = 'fondo'` (desde fondo.kinkyvibe.ar, migración 0052): no tiene publicación; se guarda con
  * `post_category = 'material'` y `post_slug = ''` porque esas columnas no aceptan `NULL`.
@@ -217,7 +220,10 @@ export async function applyTipPayment(db, payment, { now = Date.now() } = {}) {
 	const paymentId = String(payment.id);
 	const id = tipIdFromReference(payment.external_reference);
 	const tip = id ? await getTip(db, id) : null;
-	if (!tip) return { outcome: 'unknown-tip', tip: null, newlyApproved: false };
+	// Un pago de MP nunca toca una propina de PayPal (migración 0071).
+	if (!tip || (tip.provider ?? 'mp') !== 'mp') {
+		return { outcome: 'unknown-tip', tip: null, newlyApproved: false };
+	}
 	if (payment.currency_id !== 'ARS' || Number(payment.transaction_amount) !== tip.amount) {
 		console.error(
 			`[propinas] pago ${paymentId} no coincide con la propina ${tip.id}: ` +
@@ -272,8 +278,11 @@ const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
  * Las propinas que cuentan como aportes al Fondo Kinky Vibe: aprobadas y "Para el Fondo" (ni
  * pendientes, ni rechazadas, ni reembolsadas, ni las de KinkyVibe). Una sola definición para el
  * panel de propinas y para los aportes al Fondo del Inicio.
+ *
+ * Solo las de Mercado Pago (`provider = 'mp'`, migración 0071): las de PayPal son en dólares y se
+ * cuentan aparte, en pesos estimados (`PAYPAL_FONDO_TIP_WHERE` en $lib/server/paypal/index.js).
  */
-export const FONDO_TIP_WHERE = "status = 'approved' AND destination = 'fondo'";
+export const FONDO_TIP_WHERE = "status = 'approved' AND destination = 'fondo' AND provider = 'mp'";
 
 /**
  * Suma de las propinas al Fondo aprobadas, opcionalmente entre dos fechas de aprobación
@@ -313,31 +322,34 @@ export function readFondoTipTotals(row) {
  * de aprobación) y por publicación (las de fondo.kinkyvibe.ar, sin publicación, van juntas en una
  * fila con `source = 'fondo'`).
  *
+ * Solo las de Mercado Pago (en pesos): las de PayPal tienen su propio resumen en dólares
+ * ($lib/server/paypal/index.js).
+ *
  * @param {D1Database} db
  */
 export async function tipSummary(db) {
 	const [totals, byMonth, byPost, others, byDestination] = await db.batch([
 		db.prepare(
-			"SELECT COUNT(*) AS count, COALESCE(SUM(amount), 0) AS total FROM tips WHERE status = 'approved'"
+			"SELECT COUNT(*) AS count, COALESCE(SUM(amount), 0) AS total FROM tips WHERE status = 'approved' AND provider = 'mp'"
 		),
 		db
 			.prepare(
 				`SELECT strftime('%Y-%m', (approved_at - ?1) / 1000, 'unixepoch') AS month,
 					COUNT(*) AS count, SUM(amount) AS total
-				FROM tips WHERE status = 'approved' GROUP BY month ORDER BY month DESC LIMIT 24`
+				FROM tips WHERE status = 'approved' AND provider = 'mp' GROUP BY month ORDER BY month DESC LIMIT 24`
 			)
 			.bind(AR_OFFSET_MS),
 		db.prepare(
 			`SELECT source, post_category, post_slug, COUNT(*) AS count, SUM(amount) AS total
-			FROM tips WHERE status = 'approved' GROUP BY source, post_category, post_slug
+			FROM tips WHERE status = 'approved' AND provider = 'mp' GROUP BY source, post_category, post_slug
 			ORDER BY total DESC, count DESC LIMIT 50`
 		),
 		db.prepare(
-			"SELECT status, COUNT(*) AS count FROM tips WHERE status != 'approved' GROUP BY status"
+			"SELECT status, COUNT(*) AS count FROM tips WHERE status != 'approved' AND provider = 'mp' GROUP BY status"
 		),
 		db.prepare(
 			`SELECT destination, COUNT(*) AS count, SUM(amount) AS total
-			FROM tips WHERE status = 'approved' GROUP BY destination`
+			FROM tips WHERE status = 'approved' AND provider = 'mp' GROUP BY destination`
 		)
 	]);
 	const t = /** @type {any} */ (totals.results[0] ?? {});

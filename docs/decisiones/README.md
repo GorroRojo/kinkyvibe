@@ -119,6 +119,9 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 
 - [0017](0017-destino-de-la-propina.md): La persona elige el destino de su propina (1/10)
 - [0018](0018-propinas-al-fondo.md): Las propinas al Fondo suman al total del Fondo (1/10)
+- [0054](0054-paypal-en-las-propinas.md): PayPal en las propinas: una app compartida con el Fondo,
+  en dólares netos, con una cotización propia (MEP «compra» + un ajuste de gorrite) y retiros para
+  comparar (2/11)
 
 ### Comunidad y suscripciones
 
