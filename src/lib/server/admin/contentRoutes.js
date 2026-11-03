@@ -35,8 +35,7 @@ import {
 } from '$lib/utils/contentPosts.js';
 import { MAX_IMAGE_BYTES, todayInArgentina } from '$lib/utils/eventDraft.js';
 import { contentAdminHref } from '$lib/admin/nav.js';
-import { commitSavedToDb, pathExistsMessage, saveCopy } from '$lib/admin/saveCopy.js';
-import { panelSavesToDb } from '$lib/server/contenido/saving.js';
+import { saveCopy } from '$lib/admin/saveCopy.js';
 import { inOrder } from '$lib/utils/inOrder.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import materialTemplate from '$lib/admin/plantillas/material.md?raw';
@@ -196,8 +195,6 @@ export function newLoad(category) {
 		requireAdmin(locals, url);
 		const admin = getEventAdmin(locals);
 		if (!admin) throw error(403, NO_PERMISSION);
-		// Lo nuevo de material va a la base (se ve enseguida).
-		const savesToDb = await panelSavesToDb(platform, category);
 		const desde = url.searchParams.get('desde') ?? '';
 		if (desde && !contentPath(category, desde)) throw error(400, 'Esa publicación no existe.');
 		// Lo que no depende de la publicación de origen sale a la par de ella (cada lectura en fila
@@ -218,7 +215,7 @@ export function newLoad(category) {
 			try {
 				post = await readContentPost(await getRepoClient(), admin.token, category, desde);
 			} catch (e) {
-				throw error(502, saveCopy(savesToDb).postReadFailed + describe(e));
+				throw error(502, saveCopy().postReadFailed + describe(e));
 			}
 			if (!post) throw error(404, 'Esa publicación no existe.');
 			let title = desde;
@@ -243,7 +240,8 @@ export function newLoad(category) {
 			image,
 			today: todayInArgentina(),
 			maxImageBytes: MAX_IMAGE_BYTES,
-			savesToDb,
+			// Todo se guarda en la base (decisión 0032); la clave queda mientras el formulario la lea.
+			savesToDb: true,
 			mock: isMockMode(),
 			...editor,
 			personas
@@ -264,8 +262,6 @@ export function editLoad(category) {
 		const slug = params.slug ?? '';
 		if (!contentPath(category, slug) || slug.startsWith('_'))
 			throw error(404, 'Esa publicación no existe.');
-		// El material se guarda en la base (se ve enseguida); amigues, con un PR.
-		const savesToDb = await panelSavesToDb(platform, category, slug);
 		// Lo que no depende del texto sale a la par de él (cada lectura en fila es una ida); se espera
 		// después, así que el 502 y el 404 de la publicación salen primero, como antes.
 		const rest = inOrder([
@@ -280,7 +276,7 @@ export function editLoad(category) {
 		try {
 			post = await readContentPost(await getRepoClient(), admin.token, category, slug);
 		} catch (e) {
-			throw error(502, saveCopy(savesToDb).postReadFailed + describe(e));
+			throw error(502, saveCopy().postReadFailed + describe(e));
 		}
 		if (!post) throw error(404, 'Esa publicación no existe.');
 		let featured = '';
@@ -311,7 +307,8 @@ export function editLoad(category) {
 					: null,
 			today: todayInArgentina(),
 			maxImageBytes: MAX_IMAGE_BYTES,
-			savesToDb,
+			// Todo se guarda en la base (decisión 0032); la clave queda mientras el formulario la lea.
+			savesToDb: true,
 			mock: isMockMode(),
 			...editor,
 			personas
@@ -327,7 +324,7 @@ export function editLoad(category) {
  */
 export function editorActions(category) {
 	return {
-		direccion: async ({ locals, request, url, platform }) => {
+		direccion: async ({ locals, request, url }) => {
 			requireAdmin(locals, url);
 			const admin = getEventAdmin(locals);
 			if (!admin) return fail(403, { error: NO_PERMISSION });
@@ -341,7 +338,7 @@ export function editorActions(category) {
 				return {
 					slugCheck: {
 						slug,
-						error: found.length ? saveCopy(await panelSavesToDb(platform, category)).slugTaken : ''
+						error: found.length ? saveCopy().slugTaken : ''
 					}
 				};
 			} catch (e) {
@@ -460,17 +457,14 @@ export function editorActions(category) {
 						imagePath: null,
 						commit: r.commit.url,
 						publish: r.commit.pr ?? null,
-						// Se guardó en la base (ya se ve).
-						savedToDb: commitSavedToDb(r.commit)
+						// Todo se guarda en la base (ya se ve).
+						savedToDb: true
 					}
 				};
 			} catch (e) {
 				if (isRedirect(e)) throw e;
-				const toDb = await panelSavesToDb(platform, category, isNew ? '' : slug).catch(() => false);
-				if (e instanceof PathExistsError)
-					return fail(409, { error: pathExistsMessage(toDb, e.path) });
-				if (e instanceof FileChangedError)
-					return fail(409, { error: saveCopy(toDb).changedMeanwhile });
+				if (e instanceof PathExistsError) return fail(409, { error: saveCopy().pathExists });
+				if (e instanceof FileChangedError) return fail(409, { error: saveCopy().changedMeanwhile });
 				console.log(e);
 				return fail(502, { error: 'No se pudo guardar: ' + describe(e) + '. Probá de nuevo.' });
 			}
