@@ -16,6 +16,14 @@
  *   dirección. Si dos tipos empatan, gana material, después evento, perfil y etiqueta; en el mismo
  *   tipo, el más viejo (id más chico).
  *
+ * **Lo público gana** (gorrite, 3 nov 2026): si un nombre lleva a un objeto que cualquiera puede
+ * ver (`public`, y si es un perfil, aprobado y no oculto) y también a uno que no (oculto, «solo
+ * con cuenta», un perfil sin aprobar), gana el público, antes que todas las reglas de arriba. Se
+ * prueban las reglas en orden solo con los públicos y, si ninguna encuentra nada, de nuevo con
+ * todos: un nombre que solo lleva a algo oculto sigue apuntando ahí (no es «falta»). Así una
+ * página oculta o un borrador con el mismo título no le roban el enlace a la pública. «No
+ * listado» (`data.unlisted`) cuenta como público: se abre con el enlace.
+ *
  * «Sin mayúsculas» compara solo las letras sin tilde (como `lower()` de SQLite): así la consulta
  * trae exactamente los candidatos que después se comparan acá. «Ética» y «ética» igual se
  * encuentran por la dirección («etica»).
@@ -36,6 +44,7 @@
 import { bodyReferences } from '../../utils/enlaces.js';
 import { slugify } from '../../utils/text.js';
 import { MAX_EDGES_PER_KIND } from './edges.js';
+import { ANON, visibleWhere } from './visibility.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('../../utils/enlaces.js').BodyReference} BodyReference */
@@ -62,7 +71,7 @@ const keyFold = (s) => asciiLower(s.replaceAll(' ', '-'));
 /**
  * @typedef {{
  *   id: number, type: string, slug: string, title: string, key: string | null,
- *   legacy: string | null
+ *   legacy: string | null, public: boolean
  * }} Candidate
  */
 
@@ -89,11 +98,19 @@ export async function candidatesFor(db, refs) {
 		const s = slugify(target);
 		if (s) slugs.add(s);
 	}
+	// Lo que ve cualquiera (sin parámetros: quien mira es anónime). Para los perfiles, además,
+	// aprobado y no oculto, como `shownProfileSql` de src/lib/server/amigues/profiles.js (acá sin
+	// importarla: solo imports relativos).
+	const anon = visibleWhere(ANON, 'o');
+	if (anon.params.length) throw new Error('visibleWhere(ANON) no debería tener parámetros');
 	const { results } = await db
 		.prepare(
 			`SELECT o.id, o.type, o.slug, o.title,
 				CASE WHEN o.type = 'etiqueta' THEN json_extract(o.data, '$.key') END AS key,
-				ps.legacy_slug AS legacy
+				ps.legacy_slug AS legacy,
+				CASE WHEN ${anon.sql} AND (o.type != 'perfil' OR EXISTS (
+					SELECT 1 FROM profile_approvals pa WHERE pa.profile_id = o.id)) THEN 1 ELSE 0 END
+					AS is_public
 			FROM objects o
 			LEFT JOIN profile_sources ps ON o.type = 'perfil' AND ps.profile_id = o.id
 			WHERE o.deleted_at IS NULL AND o.type IN (SELECT value FROM json_each(?1)) AND (
@@ -120,7 +137,8 @@ export async function candidatesFor(db, refs) {
 		slug: String(r.slug),
 		title: String(r.title),
 		key: r.key == null ? null : String(r.key),
-		legacy: r.legacy == null ? null : String(r.legacy)
+		legacy: r.legacy == null ? null : String(r.legacy),
+		public: Number(r.is_public) === 1
 	}));
 }
 
@@ -144,13 +162,26 @@ function best(list) {
 }
 
 /**
- * El objeto que nombra una referencia (o `null`: «falta»). Pura: recibe los candidatos.
+ * El objeto que nombra una referencia (o `null`: «falta»). Pura: recibe los candidatos. Primero
+ * entre los públicos y, si no hay ninguno, entre todos (lo público gana).
  *
  * @param {BodyReference} ref
  * @param {Candidate[]} candidates
  * @returns {Candidate | null}
  */
-export function resolveReference({ form, target }, candidates) {
+export function resolveReference(ref, candidates) {
+	const shown = candidates.filter((c) => c.public);
+	return resolveAmong(ref, shown) ?? resolveAmong(ref, candidates);
+}
+
+/**
+ * Las reglas de resolución (las de arriba, sin mirar quién puede ver qué).
+ *
+ * @param {BodyReference} ref
+ * @param {Candidate[]} candidates
+ * @returns {Candidate | null}
+ */
+function resolveAmong({ form, target }, candidates) {
 	/** @param {(c: Candidate) => boolean} test */
 	const first = (test) => best(candidates.filter(test));
 	if (form === 'mencion') {

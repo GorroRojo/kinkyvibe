@@ -147,6 +147,18 @@ export const FLAGS = Object.freeze({
 			'cada cuerpo: lo guardado antes de eso aparece recién cuando se vuelve a guardar (o con ' +
 			'scripts/enlaces-backfill.js). Sin migración.',
 		envVar: 'LO_QUE_ENLAZA_ENABLED'
+	},
+	conector_claude: {
+		label: 'Conector de Claude (solo lectura)',
+		description:
+			'Les admins pueden sumar el sitio como conector en claude.ai y pedirle a Claude que busque ' +
+			'y lea eventos, material, perfiles y etiquetas, que muestre las ventas de un evento y los ' +
+			'próximos eventos. Solo lee: no cambia nada. Cada admin entra con su cuenta y cada pedido ' +
+			'queda en Actividad a su nombre. Apagado, el conector no contesta.',
+		tech:
+			'docs/conector-claude.md. Servidor MCP en /mcp con OAuth propio (/mcp/autorizar, /mcp/token, ' +
+			'/mcp/registro y los /.well-known/oauth-*). Sin migraciones. Apagado, todo eso da 404.',
+		envVar: 'CONECTOR_CLAUDE_ENABLED'
 	}
 });
 
@@ -320,6 +332,15 @@ export function listaEsperaEnabled(platform) {
  */
 export function comboCodigosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'combo_codigos');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el conector de Claude? (docs/conector-claude.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function conectorClaudeEnabled(platform) {
+	return isFlagOn(getDB(platform), 'conector_claude');
 }
 
 /**
