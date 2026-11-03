@@ -881,10 +881,20 @@ const PLUGINS = [
 	rehypeWikiLinks,
 	customRehype,
 	rehypeRestoreBrackets,
-	toc
+	// El índice con nombre: en un evento conviven varios <nav> (menú, migas, índice).
+	[
+		toc,
+		{
+			/** @param {any} nav */
+			customizeTOC: (nav) => {
+				nav.properties.ariaLabel = 'Índice';
+				return nav;
+			}
+		}
+	]
 ];
 const processor = PLUGINS.reduce(
-	(p, plugin) => p.use(plugin),
+	(p, plugin) => (Array.isArray(plugin) ? p.use(...plugin) : p.use(plugin)),
 	/** @type {any} */ (rehype().data('settings', { fragment: true, allowDangerousHtml: true }))
 ).freeze();
 

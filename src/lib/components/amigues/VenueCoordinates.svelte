@@ -21,11 +21,13 @@
 	export let errorClass = 'field-error';
 	export let noteClass = 'hint';
 	export let geocoder = false;
+	/** Prefijo de los ids (nombre y error de cada campo). */
+	export let idPrefix = 'coordenadas';
 </script>
 
 <div class={gridClass}>
 	<label class={fieldClass}>
-		<span>Latitud</span>
+		<span id="{idPrefix}-lat-label">Latitud</span>
 		<input
 			name="lat"
 			type="text"
@@ -34,12 +36,14 @@
 			maxlength="40"
 			bind:value={lat}
 			placeholder="Ej.: -34.6037"
+			aria-labelledby="{idPrefix}-lat-label"
+			aria-describedby={errors.lat ? `${idPrefix}-lat-error` : undefined}
 			aria-invalid={errors.lat ? 'true' : undefined}
 		/>
-		{#if errors.lat}<small class={errorClass}>{errors.lat}</small>{/if}
+		{#if errors.lat}<small id="{idPrefix}-lat-error" class={errorClass}>{errors.lat}</small>{/if}
 	</label>
 	<label class={fieldClass}>
-		<span>Longitud</span>
+		<span id="{idPrefix}-lng-label">Longitud</span>
 		<input
 			name="lng"
 			type="text"
@@ -48,9 +52,11 @@
 			maxlength="40"
 			bind:value={lng}
 			placeholder="Ej.: -58.3816"
+			aria-labelledby="{idPrefix}-lng-label"
+			aria-describedby={errors.lng ? `${idPrefix}-lng-error` : undefined}
 			aria-invalid={errors.lng ? 'true' : undefined}
 		/>
-		{#if errors.lng}<small class={errorClass}>{errors.lng}</small>{/if}
+		{#if errors.lng}<small id="{idPrefix}-lng-error" class={errorClass}>{errors.lng}</small>{/if}
 	</label>
 </div>
 <p class={noteClass}>

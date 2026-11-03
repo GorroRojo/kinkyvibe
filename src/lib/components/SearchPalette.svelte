@@ -94,6 +94,28 @@
 	$: if (active >= flat.length) active = Math.max(0, flat.length - 1);
 	$: activeId = flat[active]?.id;
 
+	// Lo que se anuncia a los lectores de pantalla en una región fija (role="status"): cargando,
+	// sin resultados o cuántos hay. Un rato después de dejar de tipear, para no leer cada letra.
+	$: statusText = error
+		? error
+		: query.trim().length < 2
+			? ''
+			: !index
+				? 'Cargando el índice…'
+				: flat.length === 0
+					? `No encontramos nada para «${query.trim()}».`
+					: `${total} resultado${total === 1 ? '' : 's'}`;
+	let liveStatus = '';
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let statusTimer;
+	/** @param {string} text */
+	function scheduleStatus(text) {
+		if (typeof window === 'undefined') return;
+		clearTimeout(statusTimer);
+		statusTimer = setTimeout(() => (liveStatus = text), 400);
+	}
+	$: scheduleStatus(statusText);
+
 	/** @param {string} _q */
 	function resetSelection(_q) {
 		active = 0;
@@ -131,6 +153,7 @@
 		});
 		return () => {
 			unsubscribe();
+			clearTimeout(statusTimer);
 			document.body.style.overflow = '';
 		};
 	});
@@ -260,11 +283,12 @@
 				</button>
 			</div>
 
+			<!-- Listbox solo con resultados: los avisos («No encontramos nada…») no son opciones. -->
 			<div
 				class="results"
 				id="search-results"
-				role="listbox"
-				aria-label="Resultados"
+				role={flat.length > 0 ? 'listbox' : undefined}
+				aria-label={flat.length > 0 ? 'Resultados' : undefined}
 				data-ms={lastMs.toFixed(1)}
 			>
 				{#if error}
@@ -343,6 +367,7 @@
 				{/if}
 			</div>
 
+			<p class="visually-hidden" role="status">{liveStatus}</p>
 			<div class="footer" aria-hidden="true">
 				<span><kbd>↑</kbd><kbd>↓</kbd> moverse</span>
 				<span><kbd>Enter</kbd> abrir</span>

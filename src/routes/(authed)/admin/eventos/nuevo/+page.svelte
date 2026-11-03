@@ -496,7 +496,7 @@
 	<title>{source ? 'Duplicar evento' : 'Nuevo evento'} · KV Admin</title>
 </svelte:head>
 
-<main class="nuevo kv-admin">
+<div class="nuevo kv-admin">
 	<p class="back"><a href="/admin/eventos">← Eventos</a></p>
 
 	{#if data.mock}
@@ -968,7 +968,7 @@
 			</form>
 		{/if}
 	</EventForm>
-</main>
+</div>
 
 <style lang="scss">
 	.review-warnings {
