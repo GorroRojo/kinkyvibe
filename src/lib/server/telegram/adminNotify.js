@@ -20,10 +20,20 @@
  * - **Horario de silencio** (23 a 9, hora de Argentina, quiet.js): el resumen sale desde las
  *   {@link ADMIN_DAILY_HOUR}; los avisos en el momento salen igual pero **sin sonido**
  *   (`disable_notification`).
+ *
+ * Aparte, el aviso de seguridad **al vincular un Telegram de admin** ({@link notifyAdminLinked}):
+ * no es de «Mis avisos» ni se apaga; les llega a todes les otres admins con Telegram vinculado.
  */
 import { env } from '$env/dynamic/private';
 import { getEventTickets, listTicketedEvents } from '$lib/server/tickets/events.js';
-import { adminBotEnabled, adminEventChoices, eventStatus, noticeRecipients } from './adminData.js';
+import {
+	adminBotEnabled,
+	adminEventChoices,
+	eventStatus,
+	linkNoticeRecipients,
+	noticeRecipients
+} from './adminData.js';
+import { escapeHtml } from './format.js';
 import { isHttps, tgTime } from './screens.js';
 import { callTelegramApi } from './send.js';
 import { botText, botTextOverrides } from './texts.js';
@@ -520,6 +530,71 @@ export async function queueOrderNotice({
 		} catch (error) {
 			console.error(
 				`[telegram] aviso de admins (${kind}) no salió:`,
+				/** @type {Error} */ (error)?.name
+			);
+		}
+	})();
+	const ctx = platform?.ctx;
+	if (ctx?.waitUntil) ctx.waitUntil(task);
+	else await task;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Vincular un Telegram de admin
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * «🔗 Se vinculó un Telegram a la cuenta de admin de @login.» Fijo, no está en «Textos del bot»:
+ * es un aviso de seguridad y desde el panel no se tiene que poder cambiar ni vaciar. Solo el
+ * login de GitHub (nada de Telegram).
+ *
+ * @param {{ login: string }} admin
+ */
+export const adminLinkedNoticeText = ({ login }) =>
+	`🔗 Se vinculó un Telegram a la cuenta de admin de @${escapeHtml(login)}.`;
+
+/**
+ * El aviso de que une admin vinculó un Telegram, a **todes les otres** admins con Telegram
+ * vinculado que siguen en `ADMINS` ({@link linkNoticeRecipients}), aunque no hayan prendido nada
+ * en «Mis avisos»: es de seguridad (si no lo hizo esa persona, el resto se entera). A le que
+ * vinculó no le llega (el bot ya le confirma en el chat). En el horario de silencio, sin sonido.
+ *
+ * @param {{ db: D1Database, admin: { id: number, login: string }, send: AdminSend,
+ *   now?: number }} input
+ * @returns {Promise<{ sent: number, failed: number, skipped: number } | null>} `null`: no había
+ *   a quién mandarle
+ */
+export async function notifyAdminLinked({ db, admin, send, now = Date.now() }) {
+	const recipients = await linkNoticeRecipients(db, admin.id);
+	if (recipients.length === 0) return null;
+	return deliverOnce({
+		db,
+		send,
+		key: `vinculo:${admin.id}:${now}`,
+		message: { text: adminLinkedNoticeText(admin), panelUrl: null, silent: isQuietHour(now) },
+		now,
+		recipients
+	});
+}
+
+/**
+ * Para el webhook (`onLinked` de `botAdminLink`): manda {@link notifyAdminLinked} **en segundo
+ * plano** (con `waitUntil` si la plataforma lo tiene) y **nunca tira**: un problema con Telegram
+ * no puede trabar el vínculo; queda en el log. Sin los interruptores o sin token, no hace nada.
+ *
+ * @param {{ db: D1Database | null | undefined, platform?: App.Platform,
+ *   admin: { id: number, login: string }, fetch?: typeof fetch }} input
+ */
+export async function queueAdminLinkedNotice({ db, platform, admin, fetch: fetchFn }) {
+	const task = (async () => {
+		try {
+			const token = env.TELEGRAM_BOT_TOKEN;
+			if (!db || !token || !(await adminBotEnabled(db))) return;
+			const r = await notifyAdminLinked({ db, admin, send: adminSender(token, fetchFn ?? fetch) });
+			if (r?.failed) console.error(`[telegram] aviso de vínculo de admin: ${r.failed} sin mandar`);
+		} catch (error) {
+			console.error(
+				'[telegram] aviso de vínculo de admin no salió:',
 				/** @type {Error} */ (error)?.name
 			);
 		}
