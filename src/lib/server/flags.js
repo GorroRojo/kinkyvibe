@@ -145,8 +145,8 @@ export const FLAGS = Object.freeze({
 			'Apagado, nada de esto se ve.',
 		tech:
 			'docs/propinas.md («PayPal: cotización, ajuste y retiros»), decisión 0054. Necesita la ' +
-			'migración 0071. Apagado, GET /api/fondo/cotizacion da 404 y GET /api/fondo/propinas-total ' +
-			'no trae `paypal`. El cron diario de la cotización corre igual (no se ve).',
+			'migración 0071. Apagado, GET /api/fondo/propinas-total no trae `paypal`. ' +
+			'GET /api/fondo/cotizacion y el cron diario de la cotización andan igual (no se ven).',
 		envVar: 'PAYPAL_ENABLED'
 	},
 	conector_claude: {

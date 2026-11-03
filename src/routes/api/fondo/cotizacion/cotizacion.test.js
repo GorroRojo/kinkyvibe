@@ -1,6 +1,6 @@
 /**
  * GET /api/fondo/cotizacion (docs/propinas.md, «PayPal: cotización, ajuste y retiros»): secreto,
- * interruptor, `fecha`, el último día guardado antes, `stale`, 503 sin cotización o con la base
+ * que no depende del interruptor `paypal`, `fecha`, el último día guardado antes, `stale`, 503 sin cotización o con la base
  * caída, y la forma de la respuesta. D1 de miniflare; datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -53,16 +53,15 @@ function event(query, headers = { 'x-fondo-secret': SECRET }, platform = t.platf
 /**
  * El handler con un `now` fijo.
  * @param {string} query
- * @param {{ db?: any, enabled?: boolean, headers?: Record<string, string> }} [o]
+ * @param {{ db?: any, headers?: Record<string, string> }} [o]
  */
-function call(query, { db = t.db, enabled = true, headers = { 'x-fondo-secret': SECRET } } = {}) {
+function call(query, { db = t.db, headers = { 'x-fondo-secret': SECRET } } = {}) {
 	const url = new URL(`https://kinkyvibe.ar/api/fondo/cotizacion${query}`);
 	return handleCotizacion({
 		request: new Request(url, { headers }),
 		url,
 		secret: SECRET,
 		db,
-		enabled,
 		now: NOW
 	});
 }
@@ -99,21 +98,22 @@ describe('GET /api/fondo/cotizacion', () => {
 		}
 		const unset = await endpoint({ PAYPAL_ENABLED: '1' });
 		expect((await unset.GET(event(''))).status).toBe(401);
-		// El secreto va antes que el interruptor y que `fecha`.
+		// El secreto va antes que `fecha`, también con el interruptor apagado.
 		const off = await endpoint({ FONDO_MAIL_SECRET: SECRET, PAYPAL_ENABLED: '0' });
 		expect((await off.GET(event('?fecha=nada', {}))).status).toBe(401);
 	});
 
-	it('404 sin cuerpo con el interruptor `paypal` apagado (también sin fila en la base)', async () => {
+	it('contesta aunque el interruptor `paypal` esté apagado (también sin fila en la base)', async () => {
 		await seedRates();
 		for (const env of /** @type {Record<string, string>[]} */ ([
 			{ FONDO_MAIL_SECRET: SECRET, PAYPAL_ENABLED: '0' },
 			{ FONDO_MAIL_SECRET: SECRET }
 		])) {
 			const { GET } = await endpoint(env);
-			const res = await GET(event(''));
-			expect(res.status).toBe(404);
-			expect(await res.text()).toBe('');
+			const res = await GET(event('?fecha=2026-10-30'));
+			expect(res.status).toBe(200);
+			expect(res.headers.get('cache-control')).toBe('private, max-age=300');
+			expect(await res.json()).toMatchObject({ base: 1557.8, date: '2026-10-30' });
 		}
 	});
 

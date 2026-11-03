@@ -120,7 +120,9 @@ Para que fondo.kinkyvibe.ar convierta sus suscripciones con el mismo número. La
 
 - **Secreto:** el mismo `x-fondo-secret` que `propinas-total` (tiempo constante). Sin el correcto:
   `401` sin cuerpo.
-- Con `paypal` apagado: `404` sin cuerpo.
+- **Contesta aunque `paypal` esté apagado** (gorrite, 3/11/2026): kv-fondo convierte con esto
+  sus suscripciones de PayPal en dólares, y su `/api/porcentaje` no se puede congelar porque el
+  interruptor esté apagado. Igual que `propinas-total`, que no depende de `propinas_fondo`.
 - **`fecha`** opcional (sin ella, hoy en Argentina); si no es un día de verdad: `400` sin cuerpo.
 - **Respuesta:** `{ "base", "adjustmentPct", "rate", "date", "stale", "updatedAt" }`. `base` es el
   MEP «compra» de `date`: el de `fecha` o, si ese día no tiene, el del último día guardado antes.
