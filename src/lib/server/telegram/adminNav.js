@@ -22,7 +22,8 @@ export const NOTICE_CODES = Object.freeze({
 	t: 'transferencia',
 	e: 'dia_evento',
 	r: 'recordatorios',
-	c: 'conector_claude'
+	c: 'conector_claude',
+	s: 'fallas_sitio'
 });
 
 /** @typedef {keyof typeof NOTICE_CODES} NoticeCode */

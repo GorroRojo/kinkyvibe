@@ -926,6 +926,19 @@ a Actividad. Una vez por hora como mucho, nunca traba un cambio y si Telegram fa
 cambio reintenta. Detalle en [conector-claude.md](conector-claude.md#cambios)
 (`src/lib/server/mcp/avisoCambios.js`).
 
+**Fallas del sitio** (`fallas_sitio`, letra `s`; gorrite, 3/11: si algo falla de noche, el aviso va
+por este bot): sale cuando en la última hora el sitio dio 10 o más errores 5xx («⚠️ El sitio dio 12
+errores en la última hora.») o 2 o más en las páginas de compra («🛒 Puede que haya fallado una
+compra: 2 errores en la última hora en las páginas de compra.»), con una línea por ruta y estado
+(el patrón de la ruta, como `/api/mercadopago/webhook`, cuántos y el último código para buscar en
+los registros), una vez por hora como mucho; y cuando una tarea programada no termina bien en su
+plazo («⏰ La tarea programada «Todas las noches: backup de la base» no termina bien desde hace 27
+horas.»), una vez cada 6 horas como mucho. Sin botón: no hay pantalla del panel para esto. Nunca
+datos de quien compra, queries ni mensajes de error. Nunca traba un pedido; si Telegram falla, el
+próximo error (o la próxima vuelta de la vigilancia) reintenta. Detalle en
+[workers-migracion.md](workers-migracion.md#avisos-de-fallas-por-telegram)
+(`src/lib/server/vigilancia/`).
+
 **Aviso al vincular un Telegram de admin** (`notifyAdminLinked` / `queueAdminLinkedNotice`, lo
 engancha la ruta del webhook con `onLinked` de `botAdminLink`): cuando une admin vincula un
 Telegram desde Ajustes → Admins → «Vincular Telegram», les otres admins con Telegram vinculado que
@@ -958,6 +971,9 @@ de GitHub de quien vinculó; nada de su Telegram).
    de mergear** (0028). Solo crea una tabla: anda con el código de `main`. Después, prender
    «Resumen diario», «Cada venta» o «Cada transferencia» en «🔔 Mis avisos» y probar en un preview
    (una compra de prueba, o esperar al cron de las 9).
+5. «Fallas del sitio»: **aplicar la migración `0074_vigilancia.sql` en producción y en preview antes
+   de mergear** (0028; solo crea dos tablas). Después, prenderlo en «🔔 Mis avisos». Ver
+   [workers-migracion.md](workers-migracion.md#avisos-de-fallas-por-telegram).
 
 ## Estadísticas de uso (0045)
 

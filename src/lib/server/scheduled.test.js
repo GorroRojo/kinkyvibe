@@ -8,6 +8,7 @@ import {
 	BACKUP_CRON,
 	RATES_CRON,
 	REMINDERS_CRON,
+	WATCH_CRON,
 	handleScheduled,
 	runObjectsIntegrity,
 	runReminders,
@@ -22,7 +23,7 @@ describe('wrangler.toml', () => {
 	it('tiene exactamente los crons que maneja scheduled.js', () => {
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
 		expect([...(config.triggers.crons ?? [])].sort()).toEqual(
-			[BACKUP_CRON, REMINDERS_CRON, RATES_CRON].sort()
+			[BACKUP_CRON, REMINDERS_CRON, RATES_CRON, WATCH_CRON].sort()
 		);
 	});
 
@@ -95,6 +96,26 @@ describe('recordatorios', () => {
 	it('si el endpoint falla, la corrida falla (queda como error en Cloudflare)', async () => {
 		const appFetch = vi.fn(async () => Response.json({ error: 'unauthorized' }, { status: 401 }));
 		await expect(runReminders({}, ctx, appFetch)).rejects.toThrow(/401/);
+	});
+});
+
+describe('vigilancia', () => {
+	it('le pide al fetch de SvelteKit POST /api/cron/vigilancia con CRON_SECRET', async () => {
+		const appFetch = vi.fn(async () => Response.json({ crons: { stale: [] } }));
+		const env = { CRON_SECRET: 'x'.repeat(32), SITE_URL: 'https://ejemplo.test/' };
+		await handleScheduled({ cron: WATCH_CRON, scheduledTime: 0 }, env, ctx, appFetch);
+		expect(appFetch).toHaveBeenCalledTimes(1);
+		const [request] = /** @type {any[]} */ (appFetch.mock.calls[0]);
+		expect(request.method).toBe('POST');
+		expect(request.url).toBe('https://ejemplo.test/api/cron/vigilancia');
+		expect(request.headers.get('x-cron-secret')).toBe(env.CRON_SECRET);
+	});
+
+	it('si el endpoint falla, la corrida falla', async () => {
+		const appFetch = vi.fn(async () => Response.json({ error: 'error' }, { status: 503 }));
+		await expect(
+			handleScheduled({ cron: WATCH_CRON, scheduledTime: 0 }, {}, ctx, appFetch)
+		).rejects.toThrow(/\[vigilancia\] 503/);
 	});
 });
 

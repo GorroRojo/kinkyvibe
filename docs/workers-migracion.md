@@ -50,6 +50,13 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
     visitas, la limpieza de las sesiones de cuentas que ya no tienen cookie
     ([cuentas.md](cuentas.md)) y la copia de la biblioteca al bucket `kinkyvibe-media-copia`
     (binding `MEDIA_COPIA`; [imagenes.md](imagenes.md#copia-de-la-biblioteca-y-bloqueo-contra-borrados)).
+  - `15 21 * * *` (18:15 en Argentina) → cotización del dólar MEP para PayPal ([propinas.md](propinas.md)).
+  - `41 * * * *` → vigilancia: le pasa `POST /api/cron/vigilancia` al fetch de SvelteKit, que mira
+    que los otros crons anden y borra los conteos de errores viejos
+    ([Avisos de fallas por Telegram](#avisos-de-fallas-por-telegram)).
+  - Cada corrida deja su latido en `cron_heartbeats` (cuándo arrancó y, si terminó bien, cuándo).
+    Las expresiones viven en `src/lib/server/vigilancia/crons.js` (un test las compara con
+    `wrangler.toml`).
   - Los crons **solo corren en producción**; los Previews no los ejecutan.
 - **Modo demo en los Previews**: `__DEPLOY_BRANCH__` se fija al compilar con `WORKERS_CI_BRANCH`
   (la pone Workers Builds; `src/lib/server/deployBranch.js`). `CF_PAGES_BRANCH`, la de Pages,
@@ -67,6 +74,9 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   una automatización de Issues (**Issues → Automations**) hacia un webhook o un chat; mientras no
   esté, los Issues se ven solo entrando al panel. Después de prenderlo, conviene mirar que una
   corrida de cron fallida aparezca ahí.
+- **Avisos por Telegram** («Fallas del sitio» en «🔔 Mis avisos» del bot de admins): muchos
+  errores 5xx en una hora, errores en las compras o un cron que dejó de andar. Ver
+  [Avisos de fallas por Telegram](#avisos-de-fallas-por-telegram).
 - **Convención de logs** (para que se encuentren en Observability → Logs y no tapen lo importante
   en Issues): cada línea empieza con el área entre corchetes y en minúsculas (`[backup]`,
   `[recordatorios]`, `[tickets]`, `[mails]`, `[telegram]`, `[auth]`, `[analiticas]`,
@@ -424,6 +434,74 @@ manda lo pendiente y olvida lo leído; si la tanda falla, cada consulta se corre
 
 Un `curl` sin `-H 'accept: text/html'` nunca usa la caché de 1 minuto (`BYPASS`): mide la página
 recién hecha, que es lo que ve quien llega cuando no hay una guardada.
+
+## Avisos de fallas por Telegram
+
+Si algo falla de noche, el aviso va por el **bot de admins** (el mismo del resumen de ventas), como
+un aviso más de «🔔 Mis avisos»: **«Fallas del sitio»**, apagado por defecto como los otros
+(gorrite, 3/11). Le llega a cada admin vinculade que lo prendió y sigue en `ADMINS`, con el bot y
+«Telegram para admins» prendidos y `TELEGRAM_BOT_TOKEN`. Todo queda adentro del Worker: sin
+servicios de afuera ni secretos nuevos. En el horario de silencio (23 a 9) sale igual, sin sonido.
+Código en `src/lib/server/vigilancia/`; los textos, en Ajustes → Textos del bot
+([telegram.md](telegram.md#los-avisos-que-salen-pr-2-adminnotifyjs)).
+
+**Errores** (`errores.js`, `avisos.js`):
+
+- El `handle` de `src/hooks.server.js` va envuelto (`countServerErrors`): cada respuesta **5xx**
+  (también la de un error tirado, que sigue su camino) suma uno en `error_counts`, por tramo de
+  10 minutos, ruta y estado. Las 4xx no cuentan. En segundo plano (`waitUntil`): nunca cambia ni
+  demora la respuesta, y si la base falla solo queda en el log.
+- Se guarda el **patrón de la ruta** de SvelteKit sin los grupos (`/entradas/[order]/estado`), el
+  estado y el código corto del último error (el de `errorLog.js`, que `handleError` deja en
+  `event.locals.errorId`). Nunca la dirección con datos, la query, el mensaje del error ni nada de
+  quien compra.
+- **Umbrales** (constantes en `errores.js`): **10** errores 5xx en la última hora en todo el sitio
+  (`ERROR_ALERT_THRESHOLD`) o **2** en las rutas de compra (`PURCHASE_ALERT_THRESHOLD`):
+  `/api/mercadopago/…` (el webhook), `/calendario/[event]/entradas` (el formulario de compra),
+  `/entradas/…` (la orden y las entradas), `/puerta/[slug]/compra` y `/propinas/…`. Dos, y no uno,
+  porque Mercado Pago reintenta el webhook y quien compra reintenta el pago: un solo 5xx suelto
+  suele arreglarse solo.
+- Aparte de este conteo, el PR #588 (en la tanda de integración) propone un aviso por cada falla
+  con nombre del camino de compra («Fallas en compras», letra `f`). Usan letras y claves de texto
+  distintas, así que pueden convivir; si quedan los dos, este cuenta lo que no tiene nombre (un
+  5xx cualquiera) y aquel dice qué falló.
+- Con JavaScript, un `fail(502)` de una acción de formulario llega como 200: las acciones de
+  compra (comprar, aplicar un código, la propina) marcan su estado con `markFailure`
+  (`errorLog.js`) para que cuente igual. La venta pausada a propósito (`TICKETS_PAUSED`) marca `0`
+  y no cuenta. Las otras acciones con JavaScript (panel, Mi rincón) no se cuentan.
+- El aviso: «⚠️ El sitio dio 12 errores en la última hora.» o, si llegaron las compras,
+  «🛒 Puede que haya fallado una compra: 2 errores en la última hora en las páginas de compra.»,
+  una línea por ruta y estado (hasta 8) con el último código, y dónde buscar los códigos. **Una
+  vez por hora** como mucho (bucket `aviso-fallas-errores` de `rate_limits`); si no le llegó a
+  nadie, se suelta y el próximo error reintenta.
+- Las filas de `error_counts` duran 7 días (las borra el cron de vigilancia): sirven para mirar
+  con SQL qué pasó.
+
+**Tareas programadas** (`crons.js`):
+
+- `handleScheduled` (`src/lib/server/scheduled.js`) anota en `cron_heartbeats` cuándo arrancó
+  cada corrida y, si terminó bien, cuándo terminó. Anotar nunca hace fallar la corrida.
+- La vigilancia la corren el cron de cada hora (`/api/cron/vigilancia`) y el de cada 15 minutos
+  (`/api/cron/recordatorios`): cada uno vigila al otro, y los dos a los de todos los días. Avisa
+  si alguno no **terminó bien** en su plazo (no corrió, o falla cada vez): el de cada 15 minutos
+  en **1 hora**, la vigilancia en **3 horas**, el backup y la cotización en **26 horas**
+  (`WATCHED_CRONS`). Un cron que nunca anduvo cuenta desde la primera vez que se lo miró.
+- El aviso: «⏰ La tarea programada «Todas las noches: backup de la base» no termina bien desde
+  hace 27 horas.» (una línea por tarea) y qué mirar. **Una vez cada 6 horas** como mucho (bucket
+  `aviso-fallas-crons`): una tarea parada no avisa cada hora toda la noche.
+- **Límite**: si se mueren **todos** los crons a la vez, nada adentro del Worker se entera. El
+  sitio entero caído lo sigue cubriendo `vigilante-produccion` (GitHub, cada 30 minutos). Un latido
+  externo (healthchecks.io o parecido) queda para algún día (`errores-latido-externo` en el plan).
+
+**Puesta en marcha** (la hace gorrite):
+
+1. Aplicar la migración `0074_vigilancia.sql` en producción y en preview **antes de mergear**
+   (decisión 0028): `npx wrangler d1 migrations apply <base> --remote`. Solo crea dos tablas: anda
+   con el código de `main`. Sin ella, el sitio anda igual (contar y anotar fallan en silencio, con
+   una línea en el log).
+2. Después del merge, prender «Fallas del sitio» en «🔔 Mis avisos» del bot.
+3. El cron nuevo de cada hora entra con el deploy (`wrangler.toml`); se ve en Workers → kinkyvibe →
+   Settings → Triggers.
 
 ## Volver atrás (rollback)
 
