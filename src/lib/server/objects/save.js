@@ -169,7 +169,9 @@ async function planSave(
 		throw new ObjectError('invalid', 'Revisá los datos marcados.', { errors });
 	}
 
-	const edgeInput = await withDerivedEdges(db, def, input.edges, validated.data);
+	const edgeInput = await withDerivedEdges(db, def, input.edges, validated.data, {
+		id: current?.id ?? null
+	});
 	const edges = normalizeEdges(def, edgeInput, current?.id ?? null);
 	if (!deferTargets) await checkEdgeTargets(db, def, edges);
 

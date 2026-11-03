@@ -338,6 +338,18 @@ suben. Archivo: `src/lib/server/objects/types/archivo.js`; detalle en [imagenes.
   hay edge hacia lo vivo). Sin migración: el tipo de edge vive en el código y hasta este cambio
   ningún material enlazaba archivos de la biblioteca.
 
+### Edge `enlaza` (los enlaces del cuerpo)
+
+Evento, material, perfil y etiqueta tienen el edge calculado `enlaza` (`derived`, hacia material,
+evento, perfil o etiqueta): lo que su `data.body` nombra con `[[…]]`, `![[…]]`, `@` y `#`, resuelto
+a objetos vivos (`src/lib/server/objects/enlaces.js`). Como `adjunto`, `saveObject()` lo recalcula
+en cada guardado (`deriveEdges` recibe además `{ id }` del objeto que se guarda, para no enlazarse
+a sí mismo), en la misma tanda, y quien guarda no lo manda. Uno por objeto, en el orden del texto,
+sin `data`. Sin migración: `edges.kind` acepta cualquier nombre en minúsculas y el tipo de edge
+vive en el código. Lo que no se resuelve no se guarda. Cómo se resuelve cada nombre, la regla de
+visibilidad para quien lo lea y el script para lo ya guardado (`scripts/enlaces-backfill.js`, solo
+local): [enlaces.md](enlaces.md) («Al guardar»).
+
 ### `etiqueta`
 
 Las etiquetas del sitio (paso 3 de 0026), con su texto de la wiki como cuerpo y relaciones

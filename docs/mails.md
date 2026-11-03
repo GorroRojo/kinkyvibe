@@ -7,7 +7,9 @@ transferencia, el link de la transmisión de un evento online, los recordatorios
 el aviso de reembolso, el aviso de cambio de fecha («Avisar a les compradores») y los avisos que
 les admins escriben desde el panel ("Mail a compradores", en la ficha del evento → Mails → Mandar un
 aviso).
-Salen con **Resend**, desde `entradas@kinkyvibe.ar` (se cambia en el panel). Les admins pueden
+Salen con **Resend**, desde `entradas@kinkyvibe.ar` (se cambia en el panel); los avisos (series,
+«Lo que sigo», lista de espera) salen de `avisos@kinkyvibe.ar` (ver
+[Remitentes](#remitentes)). Les admins pueden
 cambiar el asunto, el título, el texto de arriba y los detalles del diseño (etiqueta, texto del
 botón, línea de ayuda y «por qué te llega») de cada mail sin tocar código, en general o solo para
 un evento, y mandarse una prueba.
@@ -628,8 +630,10 @@ Resend guarda una lista de direcciones a las que no manda más: las que rebotaro
 permanente y las que marcaron un mail como spam. Hay que saber tres cosas:
 
 - **Vale para todos los mails del sitio**, porque todos salen de la misma cuenta y el mismo
-  dominio: una queja por un aviso de «Lo que sigo» o por una serie bloquea también las entradas
-  de esa persona.
+  dominio: una queja por un aviso de «Lo que sigo» o por una serie puede bloquear también las
+  entradas de esa persona. Por eso los avisos salen de otra dirección (`avisos@`, ver
+  [Remitentes](#remitentes)): los proveedores de correo miran la reputación de cada remitente, y
+  una queja a un aviso no le pega a `entradas@`. La lista de Resend igual es una sola.
 - **Sacar una dirección no arregla la causa.** Si la sacás de Resend → Suppressions y la dirección
   sigue rebotando o la persona vuelve a marcar spam, vuelve a quedar suprimida. Sacala solo cuando
   la persona confirmó que la dirección es suya y está bien escrita.
@@ -664,6 +668,7 @@ desconfían de esos picos: una parte puede ir a spam o demorarse (sobre todo en 
 | Qué                                | Dónde                                                                                       |
 | ---------------------------------- | ------------------------------------------------------------------------------------------- |
 | Remitente y dirección de respuesta | Panel → Mensajes → Configuración (si está vacío, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`) |
+| Remitente de los avisos            | Fijo en el código: `AVISOS_FROM_EMAIL` en `tickets/settings.js` (ver Remitentes)            |
 | Pie de los mails (contacto, firma) | Panel → Mensajes → Configuración (vacío = el de siempre)                                    |
 | Recordatorios (cuándo)             | Panel → Mensajes → Configuración                                                            |
 | Clave de Resend                    | `RESEND_API_KEY`, Secret en Cloudflare. Sin ella no sale ningún mail                        |
@@ -673,6 +678,27 @@ desconfían de esos picos: una parte puede ir a spam o demorarse (sobre todo en 
 | Rebotes y quejas (webhook)         | `RESEND_WEBHOOK_SECRET`, Secret del Worker `kinkyvibe` (rebotes y quejas, arriba)           |
 | Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                       |
 | Pausa de emergencia                | `MAILS_PAUSED`, Text del Worker `kinkyvibe` (ver arriba); vacía o ausente = apagada         |
+
+### Remitentes
+
+Dos direcciones, las dos con el nombre «KinkyVibe» (decisión de gorrite, 3/11/2026):
+
+- **`entradas@kinkyvibe.ar`** (el de Mensajes → Configuración): todo lo transaccional. Tus
+  entradas, la transferencia, el link de la transmisión, los recordatorios, el reembolso, el cambio
+  de fecha, «Mail a compradores», el código para ingresar, las invitaciones a perfiles y «Mandarme
+  una prueba».
+- **`avisos@kinkyvibe.ar`** (`AVISOS_FROM_EMAIL` en `tickets/settings.js`, fijo): los avisos a
+  los que la gente se anota. Series («Avisame si se repite»: la confirmación y «Hay nueva edición
+  de…»), «Lo que sigo» (avisos y resumen) y todos los de la lista de espera (confirmar el mail,
+  oferta, último aviso, vencida, terminada, cerrada). Lo ponen `seriesSender`
+  (`series/web.js`, también lo usa `sigo/cron.js`) y `waitlistSender` (`tickets/waitlistMail.js`)
+  con el `from` fijo de `deliver()`, como el del Fondo.
+
+Así, si alguien marca un aviso como spam, la reputación de `entradas@` no se toca. La dirección de
+respuesta es la misma para los dos (la de los ajustes). Las respuestas a `avisos@` llegan por
+Cloudflare Email Routing (lo configuró gorrite); el dominio ya está verificado en Resend, así que
+no hace falta nada ahí. Un aviso nuevo de ese tipo se manda por uno de esos dos `…Sender`. Pruebas:
+`src/lib/server/email/remitentes.test.js`.
 
 **El remitente solo puede ser @kinkyvibe.ar** (`MAIL_FROM_DOMAINS` en `tickets/settings.js`), el
 único dominio verificado en Resend: con otro, Resend rechaza todos los mails (entradas, códigos,

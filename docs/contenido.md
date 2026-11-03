@@ -235,6 +235,13 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   - lista corta: `amigues/sanitize.js`, como los perfiles (imágenes solo de la biblioteca propia,
     `/media/…`; ver [amigues.md](amigues.md)). Es también lo que se usa sin valor guardado: el
     HTML libre tiene que estar escrito (`body_html: 'libre'`; en la wiki, `wiki_body_html`).
+- **La vista previa del editor** (`ContentEditor`, mientras se escribe) arma el HTML en el
+  navegador (`renderPreviewHtml`, `src/lib/utils/markdownPreview.js`) y lo limpia antes de
+  mostrarlo con `sanitizePreview` (`src/lib/utils/sanitizePreview.js`): DOMPurify con su lista de
+  lo permitido (sin SVG, MathML, iframes, formularios ni `style`) y después el filtro propio de
+  antes (esquemas `javascript:`/`data:`, `id`/`name` con prefijo, links que abren aparte). Es solo
+  para quien escribe y se carga solo en el navegador (DOMPurify no entra en el Worker); la página
+  pública sigue el camino de arriba.
 - **Imágenes que un texto importa** (`import foto from './media/<carpeta>/1.webp'`): su copia en
   la biblioteca (`legacyMedia.js`, `contentMediaURL` en `render.js`). Los PDF, el video y el
   documento viejos ya no se importan: los textos los enlazan por su dirección de la biblioteca
