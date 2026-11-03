@@ -224,6 +224,69 @@ export function connectorBurstText({ count, admins, confirmedBy }, overrides = n
 	].join('\n');
 }
 
+/** Hasta cuántas rutas lista el aviso de errores. */
+export const ERROR_ROWS_MAX = 8;
+
+/**
+ * El texto del aviso «Fallas del sitio» por errores: «⚠️ El sitio dio 12 errores en la última
+ * hora.» (o, si llegaron las compras a su umbral, «🛒 Puede que haya fallado una compra: …»), una
+ * línea por ruta y estado («• `/api/mercadopago/webhook` · 500 × 3 · `a1b2c3d4`», el último
+ * código) y dónde buscar los códigos. Solo patrones de ruta, estados, cantidades y códigos: nada
+ * de compradores, queries ni mensajes de error. Lo arma y lo manda ../vigilancia/avisos.js.
+ *
+ * @param {{ kind: 'purchase' | 'site', total: number, purchase: number,
+ *   rows: { route: string, status: number, hits: number, lastErrorId: string | null }[] }} input
+ * @param {BotTexts | null} [overrides]
+ */
+export function errorBurstText({ kind, total, purchase, rows }, overrides = null) {
+	const head =
+		kind === 'purchase'
+			? botText('admin.fallas_compras', { cantidad: purchase }, overrides)
+			: botText('admin.fallas_errores', { cantidad: total }, overrides);
+	const shown = rows.slice(0, ERROR_ROWS_MAX).map((r) => {
+		const code = r.lastErrorId ? ` · <code>${escapeHtml(r.lastErrorId)}</code>` : '';
+		return `• <code>${escapeHtml(r.route)}</code> · ${r.status} × ${r.hits}${code}`;
+	});
+	const rest = rows.length - ERROR_ROWS_MAX;
+	return [
+		head,
+		'',
+		...shown,
+		...(rest > 0 ? [`• y ${rest} más`] : []),
+		'',
+		botText('admin.fallas_codigos', {}, overrides)
+	].join('\n');
+}
+
+/**
+ * «hace 75 minutos» / «hace 27 horas».
+ *
+ * @param {number} ms
+ */
+export function agoText(ms) {
+	const minutes = Math.max(0, Math.floor(ms / 60_000));
+	if (minutes < 120) return `hace ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
+	return `hace ${Math.floor(minutes / 60)} horas`;
+}
+
+/**
+ * El texto del aviso «Fallas del sitio» por tareas programadas que no terminan bien: una línea por
+ * tarea («⏰ La tarea programada «Todas las noches: backup de la base» no termina bien desde hace
+ * 27 horas.») y qué mirar. Lo arma y lo manda ../vigilancia/avisos.js.
+ *
+ * @param {{ label: string, silentMs: number }[]} stale
+ * @param {BotTexts | null} [overrides]
+ */
+export function staleCronsText(stale, overrides = null) {
+	return [
+		...stale.map((s) =>
+			botText('admin.fallas_tarea', { tarea: s.label, desde: agoText(s.silentMs) }, overrides)
+		),
+		'',
+		botText('admin.fallas_tarea_ayuda', {}, overrides)
+	].join('\n');
+}
+
 /**
  * El resumen diario de un evento: lo vendido desde ayer contra el cupo, las transferencias nuevas
  * y lo pendiente (reservas sin pagar y las que vencen en 24 horas, transferencias por confirmar,

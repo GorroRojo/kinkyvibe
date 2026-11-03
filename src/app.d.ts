@@ -33,6 +33,13 @@ declare global {
 				readingSpeed?: number | null;
 				canHaveProfiles?: boolean;
 			};
+			/** Código corto del error de este pedido (src/lib/server/errorLog.js), si hubo uno. */
+			errorId?: string;
+			/**
+			 * Estado de una acción que falló, para el conteo de errores 5xx (`markFailure` de
+			 * src/lib/server/errorLog.js; `0`: una falla esperada que no cuenta).
+			 */
+			failureStatus?: number;
 		}
 		/** Lo que llega a la página de error (src/lib/server/errorLog.js). */
 		interface Error {
