@@ -88,10 +88,10 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 				tagManager.set(childID, {
 					parents: [id]
 				});
-			} else if (child.parents && !child.parents.includes(id)) {
-				child.parents = [...child.parents, id];
-			} else {
+			} else if (!child.parents) {
 				child.parents = [id];
+			} else if (!child.parents.includes(id)) {
+				child.parents = [...child.parents, id];
 			}
 		}
 		// generate alias tags from "aka"
