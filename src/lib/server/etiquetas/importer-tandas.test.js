@@ -89,11 +89,27 @@ async function run(rawTags, opts = {}) {
 	return { ...out, queries: counted.log.length, ms: performance.now() - t0 };
 }
 
+/**
+ * La importación de referencia, de a una (`chunk: 1`, el camino lento: ~6 consultas por etiqueta),
+ * en una base vacía, y la base que deja. Las dos primeras pruebas comparan contra ella: se hace una
+ * sola vez (siempre igual: misma semilla y mismo `NOW`) en vez de una vez en cada prueba.
+ * @type {Promise<{ one: Awaited<ReturnType<typeof run>>, oneByOne: Awaited<ReturnType<typeof dump>> }> | undefined}
+ */
+let reference;
+/** Deja la base sin la importación de referencia: el que la usa sigue con la base vacía. */
+async function oneByOneReference() {
+	reference ??= (async () => {
+		const one = await run(fresh(), { chunk: 1 });
+		return { one, oneByOne: await dump() };
+	})();
+	const r = await reference;
+	await resetDB(t.db);
+	return r;
+}
+
 describe('importar etiquetas de a tandas', () => {
 	it('la base queda igual que de a una, con muchas menos consultas', async () => {
-		const one = await run(fresh(), { chunk: 1 });
-		const oneByOne = await dump();
-		await resetDB(t.db);
+		const { one, oneByOne } = await oneByOneReference();
 		const batched = await run(fresh());
 		const inBatches = await dump();
 
@@ -113,9 +129,7 @@ describe('importar etiquetas de a tandas', () => {
 	});
 
 	it('con `budget` (el panel, por tandas) llega a lo mismo', async () => {
-		await run(fresh(), { chunk: 1 });
-		const oneByOne = await dump();
-		await resetDB(t.db);
+		const { oneByOne } = await oneByOneReference();
 		let guard = 0;
 		for (;;) {
 			const r = await run(fresh(), { budget: 60 });

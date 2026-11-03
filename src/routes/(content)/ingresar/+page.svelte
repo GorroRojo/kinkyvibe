@@ -29,7 +29,13 @@
 <section class="ingresar surface-card" aria-labelledby="ingresar-title">
 	<h1 id="ingresar-title">Entrar</h1>
 
-	{#if form?.error}
+	{#if form?.suspended && form?.contact}
+		<p class="error" role="alert">
+			Tu cuenta está suspendida. Si creés que es un error, escribinos a <a
+				href="mailto:{form.contact}">{form.contact}</a
+			>.
+		</p>
+	{:else if form?.error}
 		<p class="error" role="alert">{form.error}</p>
 	{:else if data.deleted && !form}
 		<p class="ok" role="status">Borramos tu cuenta. Tus compras siguen valiendo.</p>
@@ -45,6 +51,10 @@
 			Vence en {durationText(data.codeTtlMs)}{#if form?.expiresAt}{' '}(<ExpiryTime
 					at={form.expiresAt}
 				/>){/if}.
+		</p>
+		<p class="hint">
+			Puede tardar un par de minutos. Si no lo ves, revisá spam o promociones y buscá «Tu código
+			para entrar a Kinky Vibe». Si pedís otro, vale solo el último que te llegó.
 		</p>
 		<form method="POST" action="?/verificar" use:enhance={submit}>
 			<input type="hidden" name="email" value={email} />

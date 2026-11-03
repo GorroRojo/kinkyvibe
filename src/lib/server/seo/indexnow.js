@@ -8,13 +8,17 @@
  *   únicamente los que además están en la lista pública del sitemap: publicaciones listadas y
  *   públicas (`sitePosts`, que ya aplica la visibilidad, las partes de taller ocultas y los perfiles
  *   no listados), sin las que redirigen a otro sitio ni los perfiles de persona que pidieron no
- *   aparecer en buscadores (`inSitemap`), y las páginas de la Kinkipedia. Algo que se
+ *   aparecer en buscadores (`inSitemap`), las páginas de la Kinkipedia y las de las series con
+ *   ediciones públicas (`sitemapWikiPosts`, el grupo «wiki» del sitemap). Algo que se
  *   ocultó, se borró o es solo para miembres no está en esa lista, así que nunca se avisa.
+ * - **Series**: si cambia una edición pública, también se avisa la página de su serie
+ *   (`/wiki/<serie>`, {@link eventSeriesPaths}), solo si está en esa misma lista.
  * - La clave es pública por diseño de IndexNow (se sirve en {@link INDEXNOW_KEY_PATH}); va como
  *   secret para que no esté en el repo.
  */
 import { SITE_URL } from '$lib/utils/site.js';
 import { tagSlug } from '$lib/utils/tagSlug.js';
+import { tagPagePath } from '$lib/utils/series.js';
 import { inSitemap } from '$lib/utils/seo.js';
 
 /** Adonde se avisa (lo reparte a todos los motores que usan IndexNow). */
@@ -67,22 +71,49 @@ export function candidatePaths(row) {
 	const slugs = [row.slug, row.legacy_slug].filter((s) => typeof s === 'string' && s !== '');
 	return prefixes.flatMap((prefix) =>
 		/** @type {string[]} */ (slugs).flatMap((s) =>
-			prefix === '/wiki/' ? [prefix + s, prefix + tagSlug(s)] : [prefix + s]
+			prefix === '/wiki/'
+				? [...new Set([prefix + s, prefix + tagSlug(s), tagPagePath(s)])]
+				: [prefix + s]
 		)
 	);
 }
 
 /**
- * Las URLs absolutas a avisar: candidatas que además están en la lista pública, sin repetir.
+ * Las páginas de serie de cada evento público: dirección del evento → `/wiki/<serie>` de cada
+ * serie que lleva. Sale de la lista pública (`posts`), así que un evento oculto no tiene ninguna.
+ * @param {readonly { path?: string, meta?: Record<string, any> }[]} posts los de `sitePosts`
+ * @param {readonly string[]} seriesIds ids de las etiquetas de serie (`seriesTagIds`)
+ * @returns {Map<string, string[]>}
+ */
+export function eventSeriesPaths(posts, seriesIds) {
+	const ids = new Set(seriesIds);
+	/** @type {Map<string, string[]>} */
+	const out = new Map();
+	if (!ids.size) return out;
+	for (const p of posts) {
+		if (p.meta?.category !== 'calendario' || !p.path) continue;
+		const tags = Array.isArray(p.meta.tags) ? p.meta.tags : [];
+		const paths = tags.filter((tag) => ids.has(tag)).map(tagPagePath);
+		if (paths.length) out.set(p.path, paths);
+	}
+	return out;
+}
+
+/**
+ * Las URLs absolutas a avisar: candidatas (y las páginas de serie de los eventos, `series`) que
+ * además están en la lista pública, sin repetir.
  * @param {Array<{ type: unknown, slug: unknown, legacy_slug?: unknown }>} rows
  * @param {Set<string>} visible {@link publicPaths}
+ * @param {Map<string, string[]>} [series] {@link eventSeriesPaths}
  * @returns {string[]}
  */
-export function indexNowUrls(rows, visible) {
+export function indexNowUrls(rows, visible, series = new Map()) {
 	const urls = new Set();
 	for (const row of rows) {
 		for (const path of candidatePaths(row)) {
-			if (visible.has(path)) urls.add(SITE_URL + path);
+			for (const p of [path, ...(series.get(path) ?? [])]) {
+				if (visible.has(p)) urls.add(SITE_URL + p);
+			}
 		}
 	}
 	return [...urls].slice(0, INDEXNOW_MAX_URLS);
@@ -119,9 +150,10 @@ export async function recentlyChanged(db, since) {
  *   key: string | undefined,
  *   origin: string,
  *   fetch: typeof fetch,
- *   lists: () => Promise<{ posts: ProcessedPost[], wikiPosts: ProcessedPost[] }>,
+ *   lists: () => Promise<{ posts: ProcessedPost[], wikiPosts: ProcessedPost[], seriesIds?: string[] }>,
  *   now?: number
- * }} opts `lists`: las listas públicas, pedidas solo si algo cambió
+ * }} opts `lists`: las listas públicas, pedidas solo si algo cambió (`wikiPosts`: el grupo «wiki»
+ *   del sitemap, con las páginas de las series; `seriesIds`: las etiquetas de serie)
  * @returns {Promise<{ skipped: string } | { sent: number, status?: number, error?: string }>}
  */
 export async function runIndexNow({ db, key, origin, fetch, lists, now = Date.now() }) {
@@ -130,8 +162,12 @@ export async function runIndexNow({ db, key, origin, fetch, lists, now = Date.no
 	try {
 		const rows = await recentlyChanged(db, now - INDEXNOW_WINDOW_MS);
 		if (!rows.length) return { sent: 0 };
-		const { posts, wikiPosts } = await lists();
-		const urlList = indexNowUrls(rows, publicPaths(posts, wikiPosts));
+		const { posts, wikiPosts, seriesIds = [] } = await lists();
+		const urlList = indexNowUrls(
+			rows,
+			publicPaths(posts, wikiPosts),
+			eventSeriesPaths(posts, seriesIds)
+		);
 		if (!urlList.length) return { sent: 0 };
 		const res = await fetch(INDEXNOW_ENDPOINT, {
 			method: 'POST',

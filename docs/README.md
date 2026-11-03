@@ -12,6 +12,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [pruebas-y-ci.md](pruebas-y-ci.md)             | Los jobs de la CI (`unit`, `e2e`, `plan`, `ci-ok`…), cómo correr cada prueba y qué hacer si da rojo                 |
 | [interruptores.md](interruptores.md)           | Cada interruptor de funciones nuevas: qué prende, de qué depende y cómo prender los que pasan datos a la base       |
 | [panel.md](panel.md)                           | El panel de admin (`/admin`): áreas y URLs, Agenda, permisos, registro de actividad                                 |
+| [conector-claude.md](conector-claude.md)       | El conector de Claude (MCP) de solo lectura para admins: cómo sumarlo en claude.ai, qué puede leer, cómo se corta   |
 | [buscar.md](buscar.md)                         | Cómo se escribe una búsqueda en el sitio, el bot y el panel: sintaxis, cómo se lee, qué código lo hace              |
 | [enlaces.md](enlaces.md)                       | Cómo se escribe el cuerpo de un objeto: enlaces, incrustados, etiquetas, componentes y lo que enlaza acá            |
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |
@@ -23,7 +24,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [datos.md](datos.md)                           | La base D1: tablas, migraciones, cómo agregar una, base de preview y base de producción                             |
 | [objetos.md](objetos.md)                       | "Todo es un objeto": objetos y relaciones en D1, las reglas que no se rompen y cómo agregar un tipo núcleo          |
 | [etiquetas.md](etiquetas.md)                   | Etiquetas como objetos en D1 (tipo `etiqueta`, wiki, series): el modelo y cómo va el paso a la base                 |
-| [cuentas.md](cuentas.md)                       | Cuentas del público ("Ingresar" / "Mi rincón"): código por mail, contraseña, sesiones                               |
+| [cuentas.md](cuentas.md)                       | Cuentas del público ("Entrar" / "Mi rincón"): código por mail, contraseña, sesiones                                 |
 | [lo-que-sigo.md](lo-que-sigo.md)               | «Lo que sigo»: seguir etiquetas, series, perfiles y lugares (calendario y mails), interruptor `lo_que_sigo`         |
 | [amigues.md](amigues.md)                       | Amigues como perfiles (persona, proyecto, lugar), "Es mi perfil", lugares y la privacidad de sus direcciones        |
 | [talleres-partes.md](talleres-partes.md)       | Talleres en varias partes: partes como edges, una entrada para todas, ingreso y avisos por parte                    |

@@ -22,6 +22,12 @@ import { CODE_TTL_MS } from './codes.js';
 const expires = ({ now = Date.now(), expiresAt = now + CODE_TTL_MS }) =>
 	expiresInText(expiresAt, now);
 
+/**
+ * Pedir otro código anula el anterior (docs/cuentas.md): si el primer mail llega tarde, el que se ve
+ * primero puede no servir.
+ */
+const LAST_CODE = 'Si pediste más de un código, usá el último: los anteriores ya no sirven.';
+
 /** Por qué llegan los mails de códigos (pie de la plantilla común). */
 const WHY_CODE = 'Te llega porque alguien pidió un código con este mail en kinkyvibe.ar.';
 
@@ -48,6 +54,7 @@ export function buildLoginCodeEmail({ code, now, expiresAt, origin }) {
 		code,
 		'',
 		`Escribilo en la página donde lo pediste. ${vence}. Sirve una sola vez.`,
+		LAST_CODE,
 		'',
 		'Si no lo pediste vos, ignorá este mail: sin el código nadie puede entrar a tu rincón.'
 	].join('\n');
@@ -58,7 +65,7 @@ export function buildLoginCodeEmail({ code, now, expiresAt, origin }) {
 		titleHtml: 'Tu código para entrar',
 		contentHtml: `<p>Tu código para entrar a Kinky Vibe es:</p>
 		${codeBlock(code)}
-		<p>Escribilo en la página donde lo pediste. ${escapeHtml(vence)}. Sirve una sola vez.</p>`,
+		<p>Escribilo en la página donde lo pediste. ${escapeHtml(vence)}. Sirve una sola vez.<br>${LAST_CODE}</p>`,
 		helpHtml:
 			'Si no lo pediste vos, ignorá este mail: sin el código nadie puede entrar a tu rincón.',
 		whyHtml: WHY_CODE
@@ -90,6 +97,7 @@ export function buildConfirmCodeEmail({ code, purpose, now, expiresAt, origin })
 		code,
 		'',
 		`${vence}. Sirve una sola vez.`,
+		LAST_CODE,
 		'',
 		'Si no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio.'
 	].join('\n');
@@ -100,7 +108,7 @@ export function buildConfirmCodeEmail({ code, purpose, now, expiresAt, origin })
 		titleHtml: 'Tu código para confirmar',
 		contentHtml: `<p>Para confirmar ${escapeHtml(what)}, escribí este código en Mi rincón:</p>
 		${codeBlock(code)}
-		<p>${escapeHtml(vence)}. Sirve una sola vez.</p>`,
+		<p>${escapeHtml(vence)}. Sirve una sola vez.<br>${LAST_CODE}</p>`,
 		helpHtml:
 			'Si no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio.',
 		whyHtml: WHY_CODE

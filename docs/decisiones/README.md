@@ -75,6 +75,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0019](0019-proyecto.md): "Proyecto" reemplaza a "grupo" (1/10)
 - [0048](0048-entradas-gratis-sin-sesion-se-preguntan.md): Las entradas gratis pedidas sin la
   sesión de la cuenta se preguntan en Mi rincón («¿Son tuyas?») (25/10)
+- [0050](0050-entrar-no-ingresar.md): «Entrar», no «Ingresar», en los textos de la cuenta; la
+  dirección `/ingresar` no cambia (26/10)
 
 ### Contenido, objetos y etiquetas
 
@@ -109,11 +111,17 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0044](0044-reglas-de-la-venta-de-entradas.md): Reglas de la venta para el lanzamiento:
   cancelación, reprogramación, Fondo, cierre, reembolsos y plazo de MP; y otras respuestas del día
   (12/10)
+- [0051](0051-reembolsar-todas-evento-cancelado.md): «Reembolsar todas» para un evento cancelado:
+  solo admins, con confirmación escrita, de a tandas y por el mismo paso que «Reembolsar…»; la
+  puerta y la carga a mano se devuelven a mano (26/10)
 
 ### Propinas
 
 - [0017](0017-destino-de-la-propina.md): La persona elige el destino de su propina (1/10)
 - [0018](0018-propinas-al-fondo.md): Las propinas al Fondo suman al total del Fondo (1/10)
+- [0054](0054-paypal-en-las-propinas.md): PayPal en las propinas: una app compartida con el Fondo,
+  en dólares netos, con una cotización propia (MEP «compra» + un ajuste de gorrite) y retiros para
+  comparar (2/11)
 
 ### Comunidad y suscripciones
 

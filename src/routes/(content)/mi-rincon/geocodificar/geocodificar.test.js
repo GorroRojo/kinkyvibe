@@ -64,7 +64,7 @@ describe('/mi-rincon/geocodificar', () => {
 		const fetch = vi.fn();
 		const res = await call({ address: 'Calle Inventada 123' }, { member: null, fetch });
 		expect(res.status).toBe(401);
-		expect((await res.json()).error).toMatch(/Volvé a ingresar/);
+		expect((await res.json()).error).toMatch(/Volvé a entrar/);
 		expect(fetch).not.toHaveBeenCalled();
 	});
 

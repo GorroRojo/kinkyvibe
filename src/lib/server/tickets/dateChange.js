@@ -335,7 +335,7 @@ export async function pendingDateChangeRequests(db) {
  *   limit?: number,
  *   now?: number
  * }} input
- * @returns {Promise<{ sent: number, failed: number, remaining: number, gaveUp: number }>}
+ * @returns {Promise<import('./sendState.js').BatchResult & { gaveUp: number }>}
  */
 export async function sendDateChangeBatch(
 	db,
@@ -364,5 +364,13 @@ export async function sendDateChangeBatch(
 	}
 	const gaveUp =
 		(await dateChangeRecipients(db, change, { now, includeFailed: true })).length - remaining;
-	return { sent: r.sent, failed: r.failed, remaining, gaveUp };
+	return {
+		sent: r.sent,
+		failed: r.failed,
+		remaining,
+		gaveUp,
+		// Resend dijo «ahora no» (sendState.js, `sendBatch`): la corrida no sigue con otros envíos.
+		...(r.deferred ? { deferred: r.deferred } : {}),
+		...(r.stopped ? { stopped: r.stopped } : {})
+	};
 }

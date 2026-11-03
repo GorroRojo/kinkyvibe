@@ -166,7 +166,10 @@ prendido. Van al mail de la cuenta, uno por cuenta, evento y tipo
   con ese mail, si lo seguía desde antes de que el cron viera el evento (`follow_events_seen`). La
   primera corrida de todas anota lo que ya estaba con fecha 0: prender el interruptor no manda una
   tanda de mails por todo lo ya anunciado.
-- **Recordatorio el día antes**: cuando faltan 24 horas o menos para el evento. No sale (ni por
+- **Recordatorio el día antes**: cuando faltan 24 horas o menos para el evento. Como puede salir
+  el mismo día (alguien empezó a seguir algo, o se anunció con menos de un día), el asunto y el
+  título dicen «Hoy», «Mañana» o «Se viene» según el día del evento y el del envío, en hora de
+  Argentina (`followReminderDay` en `src/lib/server/sigo/email.js`). No sale (ni por
   mail ni por Telegram) si la cuenta ya tiene entrada (orden aprobada con su `account_id` o su
   mail): le llegan los recordatorios de las entradas.
 
@@ -185,7 +188,10 @@ Con `lo_que_sigo` prendido:
   `created_at` = cuándo se confirmaron y su id en `series_subscription_id`. La fila vieja se
   borra en la misma tanda, así no llegan dos avisos. El link de baja de los mails que ya salieron
   (`/avisos/baja/<id>.<firma>`) sigue andando: apaga el mail de lo nuevo de esa etiqueta;
-- **sin cuenta**, nada cambia: el mail con doble confirmación y los avisos de siempre.
+- **sin cuenta**, nada cambia: el mail con doble confirmación y los avisos de siempre. Un mail
+  ya suscripto recibe la misma respuesta que uno nuevo, con los mismos límites, y en producción
+  la respuesta tarda lo mismo (`SUBSCRIBE_MIN_MS` en `src/lib/server/series/subscriptions.js`:
+  al menos 1,2 s, más que lo que suele tardar mandar el mail).
 
 En las páginas, con cuenta, «Avisame» dice que es seguir la serie y lleva a Lo que sigo
 (`seriesAccountState` devuelve `sigo`). En `/wiki/<serie>` no se muestra: el botón «Seguir» de la

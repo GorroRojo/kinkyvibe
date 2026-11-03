@@ -37,7 +37,7 @@ export const load = async ({ locals, platform }) => {
 		user: locals.user && { ...locals.user, admin: isAdmin(locals.user) },
 		// Preview deploys: demo mode (docs/demo.md): "Entrar como admin de prueba" and the banner.
 		demoMode: isPreviewDeploy(),
-		// Cuentas del público (docs/cuentas.md): el link "Ingresar"/"Mi rincón" del encabezado.
+		// Cuentas del público (docs/cuentas.md): el link "Entrar"/"Mi rincón" del encabezado.
 		// `member` es solo sí/no: el mail no viaja en cada página.
 		member: Boolean(locals.member),
 		// La velocidad de lectura de la cuenta (palabras por minuto, o null): gana sobre la del

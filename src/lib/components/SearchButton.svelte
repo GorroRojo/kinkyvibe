@@ -5,13 +5,38 @@
 	import { onMount } from 'svelte';
 	import { Search } from '@lucide/svelte';
 	import { searchOpen } from '$lib/utils/stores';
+	import { scrollHide } from '$lib/utils/scrollHide.js';
 
 	/** @type {'icon' | 'fab'} */
 	export let variant = 'icon';
 
 	let shortcut = ['Ctrl', 'K'];
+
+	// El FAB se va al bajar y vuelve al subir o cerca de arriba, así no tapa los botones de las
+	// listas mientras se lee (scrollHide). Nunca con el foco adentro: con el teclado, Tab lo trae
+	// de vuelta (sigue en el orden de tabulación, solo se vuelve transparente). Está fijo
+	// (`position: fixed`): esconderlo no mueve nada de la página.
+	let scrolledAway = false;
+	let focused = false;
+	let scroll = { hidden: false, lastY: 0 };
+
 	onMount(() => {
 		if (/Mac|iPhone|iPad/.test(navigator.platform)) shortcut = ['⌘', 'K'];
+		if (variant !== 'fab') return;
+		let frame = 0;
+		const onScroll = () => {
+			if (frame) return;
+			frame = requestAnimationFrame(() => {
+				frame = 0;
+				scroll = scrollHide({ y: window.scrollY, ...scroll });
+				scrolledAway = scroll.hidden;
+			});
+		};
+		window.addEventListener('scroll', onScroll, { passive: true });
+		return () => {
+			window.removeEventListener('scroll', onScroll);
+			if (frame) cancelAnimationFrame(frame);
+		};
 	});
 </script>
 
@@ -19,11 +44,14 @@
 	type="button"
 	class="search-btn {variant}"
 	class:hidden={variant === 'fab' && $searchOpen}
+	class:away={variant === 'fab' && scrolledAway && !focused}
 	data-search-trigger={variant}
 	aria-label="Buscar (Ctrl+K)"
 	aria-haspopup="dialog"
 	aria-keyshortcuts="Control+K Meta+K"
 	on:click={() => searchOpen.set(true)}
+	on:focus={() => (focused = true)}
+	on:blur={() => (focused = false)}
 >
 	<Search size={variant === 'fab' ? 26 : '0.95em'} strokeWidth={2.75} aria-hidden="true" />
 	{#if variant === 'icon'}
@@ -157,6 +185,15 @@
 			scale: 0.6;
 			pointer-events: none;
 		}
+		/* al bajar: baja y se desvanece (sin tocar el layout: es fijo) */
+		.fab.away {
+			opacity: 0;
+			translate: 0 calc(100% + 16px);
+			pointer-events: none;
+			transition:
+				opacity 200ms,
+				translate 200ms ease-in;
+		}
 	}
 	@keyframes fab-in {
 		from {
@@ -171,6 +208,12 @@
 		}
 		.fab {
 			animation: none;
+		}
+		/* Sin movimiento: se esconde y vuelve igual (si no, vuelve a tapar los botones), pero de
+		   golpe, sin deslizarse ni desvanecerse. */
+		.fab.away {
+			translate: none;
+			transition: none;
 		}
 	}
 </style>

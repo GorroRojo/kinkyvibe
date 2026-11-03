@@ -132,10 +132,10 @@ describe('las partes opcionales en los mails', () => {
 			);
 			expect(m.text, name).toContain('Traé agua y a Persona <de> "Ejemplo" & Cía');
 			expect(m.text, name).not.toContain('**');
-			// Las entradas, los links y el número de orden siguen.
+			// Las entradas, los links y el número de compra siguen.
 			for (const line of g.text
 				.split('\n')
-				.filter((/** @type {string} */ l) => /^Entrada \d|^Número de orden|^Link/.test(l)))
+				.filter((/** @type {string} */ l) => /^Entrada \d|^Número de compra|^Link/.test(l)))
 				expect(m.text, name).toContain(line);
 		}
 	);
@@ -155,13 +155,15 @@ describe('las partes opcionales en los mails', () => {
 			const g = golden[name];
 			expect(g.html.match(LABEL_RE)?.[1], name).toBe(email.escapeHtml(def.extras.label.default));
 			expect(g.html.match(WHY_RE)?.[1], name).toBe(email.escapeHtml(def.extras.why.default));
-			// El botón de siempre (en presencial y sin confirmar) es el de la definición.
+			// El botón de siempre (en presencial, sin confirmar y con varias entradas) es el de la
+			// definición; con una sola entrada dice «Ver mi entrada» (templates.test.js).
 			const b = g.html.match(BUTTON_RE)?.[1];
 			if (
 				def.extras.button &&
 				!input.event.online &&
 				!input.confirmUrl &&
-				fn !== 'buildStreamLinkEmail'
+				fn !== 'buildStreamLinkEmail' &&
+				input.tickets?.length !== 1
 			)
 				expect(b, name).toBe(email.escapeHtml(def.extras.button.default));
 		}

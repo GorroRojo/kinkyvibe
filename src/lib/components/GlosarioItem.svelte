@@ -171,11 +171,18 @@
 		{/if}
 	</div>
 {:else if title}
-	<!-- Sin nada que mostrar (una serie sin descripción, por ejemplo), el bloque no se ve, pero la
-	     página igual tiene su título para buscadores y lectores de pantalla, sin cambiar cómo se ve. -->
-	<h1 class="sr-only">
-		<MiniMarkup value={name[0].toLocaleUpperCase() + name.slice(1)} />
-	</h1>
+	<!-- Sin nada más que mostrar (una serie sin descripción, por ejemplo), la página igual tiene su
+	     título visible, igual que el de arriba pero sin descripción, alias ni «Ver también». -->
+	<div class="all" class:single class:title style:--color={'var(--1)'}>
+		<dt id={name} class="onlyTitle">
+			<div class="itemtitle">
+				<h1>
+					{tag?.icon ?? ''}
+					<MiniMarkup value={name[0].toLocaleUpperCase() + name.slice(1)} />
+				</h1>
+			</div>
+		</dt>
+	</div>
 {/if}
 
 <mark hidden></mark>
@@ -183,14 +190,6 @@
 <style>
 	mark {
 		color: red !important;
-	}
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
-		white-space: nowrap;
 	}
 	dt {
 		/* text-transform: capitalize; */

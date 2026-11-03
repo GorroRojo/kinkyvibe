@@ -62,6 +62,38 @@ export function isValidFrom(v) {
 	return m ? EMAIL_RE.test(m[2].trim()) : EMAIL_RE.test(v);
 }
 
+/**
+ * Los únicos dominios desde los que se puede mandar: los verificados en Resend (con su DKIM). Con
+ * otro, Resend rechaza todos los mails (y un From de Gmail mandado por Resend fallaría DMARC).
+ */
+export const MAIL_FROM_DOMAINS = Object.freeze(['kinkyvibe.ar']);
+
+/** El error del formulario cuando el remitente es de otro dominio. */
+export const FROM_DOMAIN_ERROR =
+	'El remitente tiene que ser una dirección @kinkyvibe.ar (el dominio verificado para mandar mails).';
+
+/**
+ * El dominio de un remitente («Nombre <dir@dominio>» o «dir@dominio»), en minúsculas, o `''`.
+ *
+ * @param {string} v
+ */
+export function fromDomain(v) {
+	const m = v.trim().match(/<([^<>]+)>\s*$/);
+	const address = (m ? m[1] : v).trim().toLowerCase();
+	const at = address.lastIndexOf('@');
+	return at === -1 ? '' : address.slice(at + 1);
+}
+
+/**
+ * Si un remitente tiene la forma correcta y es de un dominio de {@link MAIL_FROM_DOMAINS}
+ * (exacto: ni subdominios ni dominios que lo contengan).
+ *
+ * @param {string} v
+ */
+export function isAllowedFrom(v) {
+	return isValidFrom(v.trim()) && MAIL_FROM_DOMAINS.includes(fromDomain(v));
+}
+
 /** @typedef {(typeof SETTING_KEYS)[number]} SettingKey */
 /** @typedef {Record<SettingKey, string>} SalesSettings */
 
@@ -161,6 +193,8 @@ export function validateSalesSettings(form) {
 	const from = clean(form.from_email);
 	if (from && (from.length > 120 || !isValidFrom(from))) {
 		errors.from_email = 'Poné una dirección (entradas@kinkyvibe.ar) o "Nombre <dirección>".';
+	} else if (from && !isAllowedFrom(from)) {
+		errors.from_email = FROM_DOMAIN_ERROR;
 	}
 	value.from_email = from;
 	const replyTo = clean(form.reply_to_email).toLowerCase();

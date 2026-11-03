@@ -18,3 +18,6 @@ Un pago puede llegar después de que la reserva venció o de que cambió el tram
 ## Consecuencias
 
 - En `main` con #134.
+- Si con ese pago el tramo de preventa pasa su cantidad o el código de descuento sus usos máximos,
+  la orden se aprueba igual y en silencio, sin marca para revisar (solo se marca, `late_payment`,
+  si pasa el cupo del tipo); gorrite lo confirmó el 26/10 (auditoría de plata, M5).

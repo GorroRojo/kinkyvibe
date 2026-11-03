@@ -226,7 +226,7 @@ async function clearStreamLinkRequest(db, eventSlug, hash) {
  *   limit?: number,
  *   now?: number
  * }} input
- * @returns {Promise<{ sent: number, failed: number, remaining: number, gaveUp: number }>}
+ * @returns {Promise<import('./sendState.js').BatchResult & { gaveUp: number }>}
  *   `remaining`: quienes siguen en la cola (incluye los que fallaron y se reintentan);
  *   `gaveUp`: quienes fallaron todos los intentos.
  */
@@ -250,7 +250,15 @@ export async function sendStreamLinkBatch(
 	const gaveUp =
 		(await streamLinkRecipients(db, eventSlug, link, { now, includeFailed: true })).length -
 		remaining;
-	return { sent: r.sent, failed: r.failed, remaining, gaveUp };
+	return {
+		sent: r.sent,
+		failed: r.failed,
+		remaining,
+		gaveUp,
+		// Resend dijo «ahora no» (sendState.js, `sendBatch`): la corrida no sigue con otros envíos.
+		...(r.deferred ? { deferred: r.deferred } : {}),
+		...(r.stopped ? { stopped: r.stopped } : {})
+	};
 }
 
 /**

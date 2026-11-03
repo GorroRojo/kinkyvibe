@@ -81,6 +81,21 @@ export function validateHolder(raw) {
 }
 
 /**
+ * El mail de quien compra, recortado y en minúsculas, o `null` si no parece un mail. La misma
+ * regla en la compra y en «Corregir el mail y reenviar» de Órdenes.
+ *
+ * @param {unknown} raw
+ * @returns {string | null}
+ */
+export function normalizeBuyerEmail(raw) {
+	const email = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+	if (email.length > 254 || !/^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/.test(email)) {
+		return null;
+	}
+	return email;
+}
+
+/**
  * Valida los datos de quien compra (uno por compra): nombre, pronombres (obligatorios, como en
  * cada entrada), email y DNI (7 a 9 dígitos, se aceptan puntos; se guarda solo con dígitos).
  *
@@ -94,10 +109,8 @@ export function validateBuyer(raw) {
 	if (name.error) errors.name = name.error;
 	const pronouns = checkPronouns(raw.pronouns, 'Poné tus pronombres.');
 	if (pronouns.error) errors.pronouns = pronouns.error;
-	const email = typeof raw.email === 'string' ? raw.email.trim().toLowerCase() : '';
-	if (email.length > 254 || !/^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/.test(email)) {
-		errors.email = 'Revisá el email: ahí te mandamos las entradas.';
-	}
+	const email = normalizeBuyerEmail(raw.email) ?? '';
+	if (!email) errors.email = 'Revisá el email: ahí te mandamos las entradas.';
 	const dni = normalizeDni(raw.dni);
 	if (!dni) errors.dni = 'Revisá el DNI: tiene que tener entre 7 y 9 números.';
 	if (Object.keys(errors).length || !dni) return { ok: false, errors };

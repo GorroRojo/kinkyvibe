@@ -171,7 +171,7 @@ sección (Etiquetas), que usan la URL del área.
 el mail en la URL). Es una sola ficha con todo lo que sabemos de alguien, encontrada por el mail
 normalizado (sin espacios ni mayúsculas) y por su cuenta: Notas internas (arriba, después del
 resumen), Cuenta (fechas, contraseña sí/no, sesiones,
-«Mis datos», permiso para tener perfiles), Compras (todas las órdenes por cuenta o por mail, con
+«Mis datos», permiso para tener perfiles, suspensión), Compras (todas las órdenes por cuenta o por mail, con
 entradas, respuestas, recordatorios y mails a compradores), Perfiles (los que gestiona, pedidos «Es
 mi perfil», invitaciones y los eventos donde participan), Lo que sigue (seguimientos, avisos,
 series, calendario y Telegram: nunca tokens ni el id del chat) y Actividad. La
@@ -192,8 +192,12 @@ se puede compartir:
   buscador siguen yendo acá): entradas, cobrado y entrada promedio (con el cambio contra el período
   anterior), ventas en el tiempo, por serie, cómo pagan, opciones del fondo y Fondo y finanzas.
   Períodos 30 días / 90 días / **12 meses** (por defecto) / Todo, y filtro de serie (`?serie=`,
-  el slug sin la fecha, como «Por serie»). Lee las órdenes filtradas por fecha de compra en SQL
-  (desde el comienzo del período anterior, para comparar).
+  el slug sin la fecha, como «Por serie»). Los números, «Por serie», «Cómo pagan», las opciones del
+  fondo y «Fondo y finanzas» cuentan por el **mes del evento** (ver «Ventas por mes» abajo): las
+  ventas de los eventos que empiezan desde el comienzo del período hasta el fin del mes en curso.
+  Solo el gráfico «Ventas en el tiempo» va por **fecha de compra** (muestra cuándo se vendió). Lee
+  en SQL las órdenes compradas, o de eventos que empiezan, desde el comienzo del período anterior
+  (para comparar).
 - **Asistencia** (`/asistencia`): vinieron (check-in), personas que entraron, primera vez y
   vuelven (con el período anterior), vendidas y entraron, primera vez y vuelven, vuelven a la misma
   serie, vuelven por serie y asistencia por evento. Mismos períodos, por defecto 12 meses; cuentan
@@ -209,6 +213,27 @@ se puede compartir:
   con lo buscado y las cosas solo desde 5 veces y solo si esa semana lo usaron 5 personas o más
   (los umbrales, en la consulta). Lee solo las dos tablas del bot (y el vínculo con cuentas y
   admins); nunca las órdenes.
+
+**Ventas por mes** (decisión de gorrite, Mesa `plata-numeros-panel`): todo número de ventas por
+mes del panel cuenta cada orden en el **mes del evento**, no en el de la compra ni en el de la
+aprobación. Vale para «Entradas este mes» del Inicio y para Estadísticas › Ventas (números de
+arriba y «Fondo y finanzas» por mes), así cierran entre sí:
+
+- Cuenta el **comienzo** del evento (`start`; en la base, la columna `start_at` de `objects`). Un
+  evento de varios días (un taller en partes, un fin de semana) cuenta entero en el mes en que
+  empieza.
+- El mes es el calendario de **Argentina** (UTC−3): un evento que empieza el 31/10 a las 22:00 es
+  de octubre aunque en UTC ya sea 1/11, y uno del 1/11 a las 00:30 es de noviembre.
+- Si el evento ya no está en la base, la orden cuenta por su fecha de compra (para que esa plata no
+  desaparezca).
+- Las propinas «Para el Fondo» que suma el «Neto del fondo» del Inicio no tienen evento: van por su
+  fecha de aprobación.
+- No cambian: «Ventas en el tiempo» y «Ventas por día» de la ficha (fecha de compra, muestran cuándo
+  se vendió), ni los totales por evento.
+
+Código: `src/lib/server/admin/saleMonth.js` (`SALE_AT_SQL` y `saleAt`, una sola definición),
+`monthMoneyQuery` (`inicio.js`), `loadPeopleOrders` (`event_start`), `salesPage` (`statsPages.js`),
+`computeStats` y `lastMonths` (`stats.js`, meses en hora de Argentina) y `fondoByMonth` (`charts.js`).
 
 Ventas y Asistencia nunca llaman a Analytics Engine. `/admin/estadisticas` redirige a Ventas (una de
 las dos redirecciones del panel, ver «Mover una URL»). Código: `src/lib/admin/statsPeriod.js`
@@ -288,13 +313,16 @@ revisar" del Inicio.
   depende de los eventos que vienen) y `reviewTagUsage` (el uso de las etiquetas). Nada de esto le
   pide algo a GitHub. Los tests `para-revisar.test.js` e `inicio-tanda.test.js` siembran casos y
   comprueban que el botón dice lo mismo que la tarjeta.
-- **Las filas**: «Transferencia» tildada sin datos para
+- **Las filas**: primero, una roja por cada pausa de emergencia prendida (`TICKETS_PAUSED`,
+  `MAILS_PAUSED`; `pauseItems`, lleva a Ajustes › Interruptores, [interruptores.md](interruptores.md#pausas-de-emergencia)),
+  después «Transferencia» tildada sin datos para
   transferir, eventos cancelados con algo por devolver (una por evento: órdenes aprobadas sin
   reembolsar y transferencias vigentes, aunque el evento ya haya pasado; decisión 0044),
   transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
   pago duplicado o una venta en la puerta sin conexión que pasó un límite o quedó registrada con otro total que el
   que se cobró, decisión 0035), mails que no
-  salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
+  salieron (hasta 20), el cupo de Resend terminado (un día después del último 429 por cupo; ver
+  [mails.md](mails.md)), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
   Lista de espera del evento más reciente), cupos sobrevendidos, links de transmisión que
   faltan, recordatorios que no salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
   son 2 o más), eventos con lugar y etiqueta «Online», perfiles nuevos y pedidos «Es mi perfil»
@@ -510,6 +538,13 @@ Cómo se descubren (`src/lib/admin/shortcutHints.js`):
 3. **Lista**: se prende el interruptor; cuando el interruptor desaparece, se borra `flag`.
 4. **Descartada**: se borra el ítem.
 
+**Conector de Claude** (interruptor `conector_claude`, apagado; [conector-claude.md](conector-claude.md)):
+cada admin puede sumar el sitio como conector en claude.ai y pedirle a Claude que busque y lea
+objetos, las ventas de un evento y los próximos eventos, solo lectura y con las mismas reglas de
+privacidad del panel (sin DNI). Ajustes → Admins tiene la tarjeta «Conector de Claude» con la
+dirección para copiar, «Cerrar mis conexiones de Claude» y «Cerrar las de todes». Cada pedido queda
+en Actividad a nombre de le admin (familia «Conector de Claude», `conector.*`).
+
 ## Agenda impresa
 
 **Agenda impresa** (`/admin/eventos/agenda-impresa`, botón en la Agenda y «Ir a…»): arma la hoja
@@ -716,6 +751,12 @@ como revisados (o se ocultan o borran) desde su ficha.
 **Dejar que una cuenta tenga perfiles.** Comunidad › Cuentas → buscar el mail → la ficha → "Darle el
 permiso". Queda en Actividad. Sacarlo no borra sus perfiles: solo deja de verlos
 ([cuentas.md](cuentas.md), «Permiso para tener perfiles»).
+
+**Suspender una cuenta.** Comunidad › Cuentas → la ficha → «Suspensión» → «Suspender la cuenta»
+(motivo opcional, solo para admins) y confirmar. Cierra todas sus sesiones, no la deja entrar ni
+usar el bot y queda en Actividad (sin el motivo). Sus perfiles públicos se moderan aparte (ocultar o
+borrar desde Perfiles). «Levantar la suspensión» la deja entrar de nuevo
+([cuentas.md](cuentas.md), «Suspender una cuenta»).
 
 ## Lo que viene
 

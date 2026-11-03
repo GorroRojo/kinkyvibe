@@ -21,7 +21,8 @@ import {
 	retryFailedReminders,
 	sendDueReminders
 } from './reminders.js';
-import { MAX_ATTEMPTS, STALE_CLAIM_MS } from './sendState.js';
+import { MAX_ATTEMPTS, MAX_DEFERRALS_PER_DAY, STALE_CLAIM_MS } from './sendState.js';
+import { ResendError } from './email.js';
 import { getSalesSettings, saveSalesSettings, validateSalesSettings } from './settings.js';
 import {
 	failedStreamLinkCounts,
@@ -442,5 +443,138 @@ describe('corrida del cron (runMailQueueWith)', () => {
 			reminders: { sent: 3, failed: 0, remaining: 0 },
 			streamLinks: { sent: 0, failed: 0, remaining: 0, waitingEvents: 1 }
 		});
+	});
+});
+
+describe('Resend dice «ahora no» (429 por cupo o tasa, 5xx)', () => {
+	/** @param {number} status @param {string} [code] */
+	const resendError = (status, code = '') =>
+		new ResendError({ status, code, retryAfter: null, body: `{"name":"${code}"}` });
+
+	/**
+	 * Un `send` que tira `error` para las direcciones de `failFor` (todas si está vacío).
+	 * @param {Error} error
+	 * @param {Set<string>} [failFor]
+	 */
+	const throwing = (error, failFor = new Set()) => {
+		/** @type {string[]} */
+		const tried = [];
+		const send = async (/** @type {any} */ o) => {
+			tried.push(o.buyer_email);
+			if (!failFor.size || failFor.has(o.buyer_email)) throw error;
+			return true;
+		};
+		return { tried, send };
+	};
+
+	it('cupo terminado: la tanda se corta en el primero y no gasta el intento', async () => {
+		await orders(3);
+		const { tried, send } = throwing(resendError(429, 'daily_quota_exceeded'));
+		const run = () =>
+			sendDueReminders(t.db, { events: [EVENT], reminders: H48, now: NOW, limit: 10, send });
+		expect(await run()).toEqual({
+			sent: 0,
+			failed: 0,
+			remaining: 2,
+			deferred: 1,
+			stopped: 'quota'
+		});
+		expect(tried).toEqual(['persona0@example.com']);
+		expect(await statuses('reminder_sends')).toEqual([{ status: 'retry', attempts: 0 }]);
+		// Más corridas con el cupo terminado: nunca pasa a fallido.
+		for (let i = 0; i < MAX_ATTEMPTS + 1; i++) await run();
+		expect(await statuses('reminder_sends')).toEqual([{ status: 'retry', attempts: 0 }]);
+		expect(await failedReminderCounts(t.db, [SLUG])).toEqual(new Map());
+		// Se renueva el cupo: salen todos.
+		const ok = recorder();
+		expect(
+			await sendDueReminders(t.db, {
+				events: [EVENT],
+				reminders: H48,
+				now: NOW,
+				limit: 10,
+				send: ok.send
+			})
+		).toEqual({ sent: 3, failed: 0, remaining: 0 });
+	});
+
+	it('429 por tasa también corta la tanda; un error común sigue gastando el intento', async () => {
+		await orders(2);
+		const rate = throwing(resendError(429, 'rate_limit_exceeded'));
+		expect(
+			await sendDueReminders(t.db, {
+				events: [EVENT],
+				reminders: H48,
+				now: NOW,
+				limit: 10,
+				send: rate.send
+			})
+		).toMatchObject({ sent: 0, failed: 0, deferred: 1, stopped: 'rate' });
+		const bad = throwing(resendError(422, 'validation_error'));
+		expect(
+			await sendDueReminders(t.db, {
+				events: [EVENT],
+				reminders: H48,
+				now: NOW,
+				limit: 10,
+				send: bad.send
+			})
+		).toEqual({ sent: 0, failed: 2, remaining: 0 });
+		expect(await statuses('reminder_sends')).toEqual([
+			{ status: 'retry', attempts: 1 },
+			{ status: 'retry', attempts: 1 }
+		]);
+	});
+
+	it('un 5xx vuelve a la cola sin gastar el intento; con dos en la tanda, se corta', async () => {
+		await orders(4);
+		const { tried, send } = throwing(
+			resendError(500, 'internal_server_error'),
+			new Set(['persona0@example.com', 'persona2@example.com'])
+		);
+		expect(
+			await sendDueReminders(t.db, { events: [EVENT], reminders: H48, now: NOW, limit: 10, send })
+		).toEqual({ sent: 1, failed: 0, remaining: 1, deferred: 2, stopped: 'server' });
+		expect(tried).toEqual(['persona0@example.com', 'persona1@example.com', 'persona2@example.com']);
+	});
+
+	it('pasado el tope de diferimientos del día, el 429 cuenta como un intento más', async () => {
+		const [o] = await orders(1);
+		const day = 24 * 60 * 60;
+		const nowSeconds = Math.floor(NOW / 1000);
+		await t.db
+			.prepare('INSERT INTO rate_limits (bucket, window_start, hits) VALUES (?1, ?2, ?3)')
+			.bind(
+				`mail:diferido:reminder_sends:${o.id}:h48`,
+				nowSeconds - (nowSeconds % day),
+				MAX_DEFERRALS_PER_DAY
+			)
+			.run();
+		const { send } = throwing(resendError(429, 'daily_quota_exceeded'));
+		expect(
+			await sendDueReminders(t.db, { events: [EVENT], reminders: H48, now: NOW, limit: 10, send })
+		).toEqual({ sent: 0, failed: 1, remaining: 0, stopped: 'quota' });
+		expect(await statuses('reminder_sends')).toEqual([{ status: 'retry', attempts: 1 }]);
+	});
+
+	it('la corrida del cron no sigue con los otros envíos si una parte se cortó', async () => {
+		await orders(2);
+		await setStreamLink(t.db, { eventSlug: SLUG, link: LINK, by: 'admin-prueba' });
+		await requestStreamLinkSend(t.db, { eventSlug: SLUG, link: LINK });
+		const { tried, send } = throwing(resendError(429, 'daily_quota_exceeded'));
+		const r = await runMailQueueWith(t.db, {
+			limit: 10,
+			sendReminders: (limit) =>
+				sendDueReminders(t.db, { events: [EVENT], reminders: H48, now: NOW, limit, send }),
+			sendStreamLink: ({ eventSlug, link, limit }) =>
+				sendStreamLinkBatch(t.db, { eventSlug, link, limit, send: (o) => send(o) })
+		});
+		expect(r).toEqual({
+			limit: 10,
+			reminders: { sent: 0, failed: 0, remaining: 1 },
+			streamLinks: { sent: 0, failed: 0, remaining: 0, waitingEvents: 1 },
+			stopped: 'quota'
+		});
+		expect(tried).toEqual(['persona0@example.com']);
 	});
 });

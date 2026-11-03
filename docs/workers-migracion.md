@@ -32,7 +32,7 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
 
 - **`wrangler.toml`**: el Worker `kinkyvibe`. `main = "worker/index.js"`, archivos estáticos en
   `.svelte-kit/cloudflare` (binding `ASSETS`), `nodejs_compat`, crons, D1 `DB` (producción),
-  R2 `BACKUPS`, y un bloque `[previews]` con la base `kinkyvibe-preview` para los Previews.
+  R2 `BACKUPS`, `MEDIA` y `MEDIA_COPIA`, y un bloque `[previews]` con la base `kinkyvibe-preview` para los Previews.
   `keep_vars = true` para que un deploy no borre las variables cargadas en el panel.
 - **`worker/index.js`**: el adapter de SvelteKit genera un Worker que solo tiene `fetch`. Este
   archivo lo envuelve y le suma `scheduled()` (los crons). Las páginas se atienden igual.
@@ -46,8 +46,9 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
     corre la misma función que corría con el Worker aparte.
   - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos. Después,
     sin hacer fallar la corrida: el chequeo de integridad de los objetos, el resumen mensual de las
-    visitas y la limpieza de las sesiones de cuentas que ya no tienen cookie
-    ([cuentas.md](cuentas.md)).
+    visitas, la limpieza de las sesiones de cuentas que ya no tienen cookie
+    ([cuentas.md](cuentas.md)) y la copia de la biblioteca al bucket `kinkyvibe-media-copia`
+    (binding `MEDIA_COPIA`; [imagenes.md](imagenes.md#copia-de-la-biblioteca-y-bloqueo-contra-borrados)).
   - Los crons **solo corren en producción**; los Previews no los ejecutan.
 - **Modo demo en los Previews**: `__DEPLOY_BRANCH__` se fija al compilar con `WORKERS_CI_BRANCH`
   (la pone Workers Builds; `src/lib/server/deployBranch.js`). `CF_PAGES_BRANCH`, la de Pages,
@@ -296,7 +297,43 @@ si lo encuentra en `static/`, el build falla.
   día en verse. Lo que tiene hash ya está en `/_app/immutable/`.
 - **Archivo nuevo en `static/`**: sumarle su regla (o a `DEFAULT_ON_PURPOSE` si debe quedar con el
   header por defecto, como `robots.txt`). Lo chequea `src/lib/server/staticHeaders.test.js`.
-- **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control`.
+- **Headers de seguridad (`/*`)**: una sola regla para todo con `X-Content-Type-Options: nosniff`
+  y `Referrer-Policy: strict-origin-when-cross-origin`, los mismos que `securityHeaders.js` pone
+  en las páginas; sin ella, los estáticos (`/robots.txt` incluido) salían sin esos dos. Nunca
+  caché en esa regla.
+- **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control` (y
+  `curl -sI https://kinkyvibe.ar/robots.txt | grep -i nosniff`).
+
+## Headers de seguridad y CSP
+
+- `src/lib/server/securityHeaders.js` (desde `hooks.server.js`) pone en todas las respuestas del
+  Worker `nosniff`, `Referrer-Policy` y `Permissions-Policy` (cámara solo para el propio sitio,
+  que la usa el escáner de la puerta del panel; sin micrófono ni ubicación), y no deja embeber el
+  panel, las entradas ni las cuentas en un iframe. Los estáticos llevan los dos primeros por `_headers`.
+- **CSP en modo solo reporte** (`kit.csp.reportOnly` en `svelte.config.js`): el header es
+  `Content-Security-Policy-Report-Only`, así que **no bloquea nada**; el navegador avisa a
+  `POST /api/csp` lo que bloquearía, y esa ruta lo loguea (directiva y origen, nada de la URL
+  completa) en los logs del Worker: `[csp] script-src bloquearía https://… (en /evento)`.
+  SvelteKit pone un nonce a sus scripts; el beacon de Web Analytics lleva
+  `nonce="%sveltekit.nonce%"` en `app.html`; los dos scripts del `<head>` del panel (tema y
+  lateral) tienen contenido fijo y van por hash (si se cambia su texto, el hash se recalcula solo
+  al compilar).
+- **Para aplicarla** (decisión de gorrite, después de unas semanas mirando los logs): pasar las
+  mismas directivas de `reportOnly` a `directives`, ajustando lo que haya aparecido (por ejemplo,
+  achicar `frame-src` a los embeds que de verdad se usan). Ojo con la caché de 1 minuto para quien
+  no tiene sesión: guarda el HTML con su nonce y lo repite durante ese minuto; para una política
+  que bloquea conviene no cachear o usar hashes.
+
+## Tamaño de los pedidos
+
+Workers corta los cuerpos en 100 MB. Las rutas que reciben algo de afuera leen el cuerpo con
+`src/lib/server/http/body.js` (`readJsonCapped`, `readTextCapped`, `readBytesCapped`): con un
+`content-length` mayor que el tope ni empiezan a leer, y sin ese header (chunked) leen de a
+pedazos y cortan apenas se pasa, sin guardar el cuerpo entero. Topes: 8 KB las de la mini app y la
+puerta de Telegram, 64 KB el webhook del bot y el de Mercado Pago, 300 bytes `/api/visto`, 4 KB la
+velocidad de lectura y la búsqueda de direcciones, el de Resend el suyo y `POST /imagenes` 25 MB
+más el formulario. Una ruta nueva que lea un cuerpo de afuera usa estas funciones, no
+`request.json()`.
 
 ## Cuánto tardó: `Server-Timing`
 

@@ -12,6 +12,7 @@
 	import { enhance } from '$app/forms';
 	import { BellRing } from '@lucide/svelte';
 	import { waitlistPick } from './waitlistPick.js';
+	import EmailTypoHint from './EmailTypoHint.svelte';
 
 	/** @type {{ scope: 'event' | 'type', types: { id: string, name: string }[], email: string } | null} */
 	export let waitlist = null;
@@ -23,7 +24,12 @@
 			? 'Listo: ya estás en la lista de espera. Si se libera un lugar, te avisamos por mail.'
 			: 'Te mandamos un mail para confirmar. Abrilo y tocá el botón: sin confirmar no quedás en la lista.'
 		: '';
-	$: email = result?.email ?? waitlist?.email ?? '';
+	// El mail del campo: arranca con el que volvió del servidor o el de la cuenta, y lo cambia
+	// quien escribe (o «Sí, corregilo» de EmailTypoHint).
+	$: initialEmail = result?.email ?? waitlist?.email ?? '';
+	let email = '';
+	let emailChecked = '';
+	$: email = emailChecked = initialEmail;
 	$: tipo =
 		($waitlistPick && waitlist?.types.some((t) => t.id === $waitlistPick) ? $waitlistPick : '') ||
 		result?.tipo ||
@@ -65,11 +71,13 @@
 						required
 						autocomplete="email"
 						placeholder="tu@mail.com"
-						value={email}
+						bind:value={email}
+						on:change={() => (emailChecked = email)}
 					/>
 				</label>
 				<button class="pill-btn" type="submit">Anotarme</button>
 			</form>
+			<EmailTypoHint bind:email bind:checked={emailChecked} />
 		{/if}
 	{/if}
 </section>

@@ -19,12 +19,12 @@ import { MP_FEE_SQL, goalProgress } from '$lib/utils/salesGoal.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	DUE_REMINDER_WHERE,
-	describeReminder,
+	describeScheduledReminder,
 	dueReminderParams,
 	dueReminderPlan,
 	failedReminderCountsStatement,
 	readFailedReminderCounts,
-	reminderDueAt,
+	reminderSchedule,
 	reminderId
 } from '$lib/server/tickets/reminders.js';
 import {
@@ -55,6 +55,8 @@ import {
 } from '$lib/server/contenido/etiquetasEdges.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
 import { fondoTipTotalsStatement, readFondoTipTotals } from '$lib/server/propinas/index.js';
+import { tipCategoryLabel } from '$lib/utils/propinas.js';
+import { SALE_AT_SQL } from './saleMonth.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
@@ -556,9 +558,11 @@ export function integrityRunQuery() {
 
 /**
  * Plata de entradas del mes calendario en curso (hora de Argentina): lo cobrado en órdenes
- * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo (aportes − lo que
- * cubrió). Los aportes son los de las entradas solidarias (`fondo_contribution`) más las propinas
- * "Para el Fondo" aprobadas este mes (`fondoTips`, ya sumadas en `fondoNet`; docs/propinas.md).
+ * aprobadas de los eventos que empiezan este mes (el mes del evento, no el de la compra:
+ * ./saleMonth.js), cuántas órdenes y entradas, y el neto del Fondo (aportes − lo que cubrió).
+ * Los aportes son los de las entradas solidarias (`fondo_contribution`) más las propinas
+ * "Para el Fondo" aprobadas este mes (`fondoTips`, ya sumadas en `fondoNet`; una propina no tiene
+ * evento: va por su fecha de aprobación; docs/propinas.md).
  *
  * @param {D1Database | null | undefined} db
  * @param {number} now
@@ -592,7 +596,7 @@ export function monthMoneyQuery(now) {
 							`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
 					COALESCE(SUM(total), 0) AS total,
 					COALESCE(SUM(fondo_contribution - fondo_amount), 0) AS fondo_net
-				FROM orders WHERE status = 'approved' AND created_at >= ? AND created_at < ?`
+				FROM orders o WHERE status = 'approved' AND ${SALE_AT_SQL} >= ?1 AND ${SALE_AT_SQL} < ?2`
 						)
 						.bind(start, end)
 				],
@@ -744,11 +748,13 @@ export function recentActivityRowsQuery({ limit = 12, since = 0 } = {}) {
 					GROUP BY event_slug, CAST(checked_in_at / ?3 AS INTEGER) ORDER BY last DESC LIMIT ?2`,
 				[since, limit, CHECKIN_BUCKET_MS]
 			),
-			// Sin la migración 0019 (propinas) la consulta falla y da [].
+			// Sin la migración 0019 (propinas) la consulta falla y da []. Solo las de Mercado Pago
+			// (en pesos): las de PayPal (0071) son en dólares.
 			part(
 				'actividad: propinas',
 				`SELECT id, amount, post_category, post_slug, approved_at FROM tips
-					WHERE status = 'approved' AND approved_at > ? ORDER BY approved_at DESC LIMIT ?`,
+					WHERE status = 'approved' AND provider = 'mp' AND approved_at > ?
+					ORDER BY approved_at DESC LIMIT ?`,
 				[since, limit]
 			)
 		],
@@ -828,7 +834,7 @@ export function activityItems({ orders, audit, checkins, tips }, { limit, titles
 			// Sin publicación (`post_slug` vacío) = desde fondo.kinkyvibe.ar (migración 0052). Se mira
 			// el slug y no `source` para que la consulta ande igual sin esa migración.
 			who: String(t.post_slug ?? '') || 'Fondo Kinky Vibe',
-			detail: t.post_slug ? String(t.post_category) : 'fondo.kinkyvibe.ar',
+			detail: t.post_slug ? tipCategoryLabel(String(t.post_category)) : 'fondo.kinkyvibe.ar',
 			slug: null,
 			orderId: null,
 			href: '/admin/ajustes/propinas'
@@ -1800,16 +1806,14 @@ export function agendaItems({
 			});
 		}
 		if (config.reminders && Number.isFinite(start) && start > now) {
-			for (const r of reminders) {
-				if (!r.enabled) continue;
-				const at = reminderDueAt(r, start);
+			for (const { reminder: r, due: at, eve } of reminderSchedule(reminders, start)) {
 				if (!inWindow(at)) continue;
 				items.push({
 					id: `reminder-${e.slug}-${reminderId(r)}`,
 					at,
 					kind: 'reminder',
 					title: `Recordatorio por mail: ${e.title}`,
-					text: describeReminder(r),
+					text: describeScheduledReminder(r, eve),
 					href: links.reminders,
 					past: at < now
 				});

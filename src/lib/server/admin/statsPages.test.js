@@ -12,7 +12,7 @@ import {
 	salesPage,
 	serieOptions
 } from './statsPages.js';
-import { computeStats } from './stats.js';
+import { computeStats, lastMonths } from './stats.js';
 
 const NOW = Date.parse('2026-10-11T15:00:00Z');
 /** Mediodía de Argentina de una fecha. @param {string} iso */
@@ -162,6 +162,42 @@ describe('salesPage', () => {
 		expect(taller.previous).toMatchObject({ tickets: 0 });
 	});
 
+	it('cuenta por el mes del evento: números y meses del Fondo; el gráfico, por fecha de compra', () => {
+		// NOW = 11/10/2026. Eventos: uno del 31/10 a las 22:00 de Argentina (en UTC ya es 1/11), uno
+		// del 1/11 a las 00:30 de Argentina (el mes siguiente) y uno de agosto con compras de octubre.
+		const oct31 = Date.parse('2026-10-31T22:00:00-03:00');
+		const nov1 = Date.parse('2026-11-01T00:30:00-03:00');
+		const aug = Date.parse('2026-08-20T22:00:00-03:00');
+		const byEvent = [
+			// Comprada en agosto (antes de los 30 días) para el evento del 31/10: cuenta en octubre.
+			order({
+				created_at: at('2026-08-15'),
+				event_start: oct31,
+				total: 2000,
+				fondo_contribution: 300
+			}),
+			// Comprada en octubre para el evento del 1/11: todavía no cuenta (es de noviembre).
+			order({ created_at: at('2026-10-05'), event_start: nov1, total: 4000 }),
+			// Comprada en octubre para un evento de agosto: cuenta en agosto, no en el período de 30 días.
+			order({ created_at: at('2026-10-02'), event_start: aug, total: 700, fondo_contribution: 50 })
+		];
+		const s = salesPage(byEvent, events, { period: period('30d'), now: NOW });
+		expect(s.kpis).toMatchObject({ tickets: 1, revenue: 2000 });
+		// El período anterior (12/8 al 11/9, por mes del evento): la del evento de agosto.
+		expect(s.previous).toMatchObject({ tickets: 1, revenue: 700 });
+		expect(s.fondo.rows.map((r) => [r.month, r.contributed])).toEqual([
+			['2026-09', 0],
+			['2026-10', 300]
+		]);
+		// El gráfico muestra cuándo se vendió: las dos compras de octubre, no la de agosto.
+		expect(s.sales.days.reduce((n, d) => n + d.revenue, 0)).toBe(4000 + 700);
+
+		const year = salesPage(byEvent, events, { period: period('12m'), now: NOW });
+		expect(year.fondo.rows.find((r) => r.month === '2026-08')?.contributed).toBe(50);
+		expect(year.fondo.rows.find((r) => r.month === '2026-10')?.contributed).toBe(300);
+		expect(year.fondo.rows.some((r) => r.month === '2026-11')).toBe(false);
+	});
+
 	it('las opciones de serie, por nombre; la elegida aparece aunque no tenga ventas', () => {
 		expect(serieOptions(orders, events)).toEqual([
 			{ value: 'fiesta', label: 'Fiesta Rara' },
@@ -264,5 +300,14 @@ describe('attendancePage', () => {
 			seriesPeople: 0,
 			seriesReturning: 0
 		});
+	});
+});
+
+describe('lastMonths', () => {
+	it('arma los meses en hora de Argentina (el 31/10 a las 22:00 todavía es octubre)', () => {
+		const keys = lastMonths(Date.parse('2026-10-31T22:00:00-03:00'), 12);
+		expect(keys[0]).toBe('2025-11');
+		expect(keys.at(-1)).toBe('2026-10');
+		expect(lastMonths(Date.parse('2026-11-01T00:30:00-03:00'), 2)).toEqual(['2026-10', '2026-11']);
 	});
 });

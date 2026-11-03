@@ -6,6 +6,7 @@ import { seriesOf } from '$lib/utils/sheetImport.js';
 import { fondoOptionLabel } from '$lib/utils/tickets.js';
 import { MONTHS_SHORT_ES, TIMEZONE } from '$lib/utils/dates.js';
 import { normalizeEmail, seriesLabel } from './people.js';
+import { saleAt } from './saleMonth.js';
 
 /** @typedef {import('./people.js').PersonOrder} PersonOrder */
 /** @typedef {import('./people.js').EventInfo} EventInfo */
@@ -28,9 +29,11 @@ export function monthLabel(key) {
  */
 export function lastMonths(now, months) {
 	const keys = [];
-	const d = new Date(now);
+	// El mes de `now` en hora de Argentina (no el UTC: de 21 a 24 h del último día del mes en UTC
+	// ya es el mes siguiente).
+	const [y, m] = monthKey(now).split('-').map(Number);
 	for (let i = months - 1; i >= 0; i--) {
-		keys.push(monthKey(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 15)));
+		keys.push(monthKey(Date.UTC(y, m - 1 - i, 15)));
 	}
 	return keys;
 }
@@ -54,11 +57,12 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 		return s ? Date.parse(s) : NaN;
 	};
 
-	// Ventas por mes (fecha de compra), los últimos `months` meses, con los vacíos en 0.
+	// Ventas por mes (el mes del evento, ./saleMonth.js), los últimos `months` meses, con los
+	// vacíos en 0.
 	const keys = lastMonths(now, months);
 	const byMonth = new Map(keys.map((k) => [k, { month: k, tickets: 0, revenue: 0, orders: 0 }]));
 	for (const o of orders) {
-		const m = byMonth.get(monthKey(o.created_at));
+		const m = byMonth.get(monthKey(saleAt(o)));
 		if (!m) continue;
 		m.tickets += o.quantity;
 		m.revenue += o.total;

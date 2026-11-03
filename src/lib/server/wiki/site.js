@@ -7,7 +7,7 @@
  * src/lib/server/etiquetas/source.js), así el glosario del layout no suma consultas.
  */
 import { canonicalTags } from '$lib/utils';
-import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
+import { tagIdFromSlug, tagSlug } from '$lib/utils/tagSlug.js';
 import { tagPagePath } from '$lib/utils/series.js';
 import { siteTagDetails, siteTagSource, tagManagerOf } from '$lib/server/etiquetas/source.js';
 
@@ -95,25 +95,34 @@ export async function siteWikiBodies(platform) {
  *   vacío: ahí nada es `known`, y la página no tiene que dar 404 por eso.
  * - `canonicalPath`: la dirección canónica (`/wiki/<slug>` de la etiqueta), igual para todas las
  *   formas que llevan a la misma etiqueta (mayúsculas, espacios, alias).
+ * - `canonicalTerm`: el segmento de esa dirección (sin codificar), solo si lleva de vuelta a la
+ *   misma página; si no (dos etiquetas con el mismo slug, por ejemplo), `null`, y la página no
+ *   redirige (así nunca hay un ida y vuelta).
  *
  * @param {App.Platform | undefined} platform
  * @param {string} term
- * @returns {Promise<{ entry: WikiEntry | null, key: string, tags: TagManager, known: boolean, fromDb: boolean, canonicalPath: string }>}
+ * @returns {Promise<{ entry: WikiEntry | null, key: string, tags: TagManager, known: boolean, fromDb: boolean, canonicalPath: string, canonicalTerm: string | null }>}
  */
 export async function siteWikiEntry(platform, term) {
 	const source = await siteTagSource(platform);
 	const tags = tagManagerOf(source);
-	const id = tagIdFromSlug(tags, term);
-	const key = id ?? term;
-	const entry = (source.wiki ?? []).find((e) => e.key === key || e.slug === term) ?? null;
-	const finalKey = entry?.key ?? key;
+	/** @param {string} segment */
+	const resolve = (segment) => {
+		const id = tagIdFromSlug(tags, segment);
+		const key = id ?? segment;
+		const entry = (source.wiki ?? []).find((e) => e.key === key || e.slug === segment) ?? null;
+		return { id, entry, key: entry?.key ?? key };
+	};
+	const { id, entry, key } = resolve(term);
+	const slug = tagSlug(key);
 	return {
 		entry,
-		key: finalKey,
+		key,
 		tags,
 		known: Boolean(entry) || id !== null,
 		fromDb: source.fromDb,
-		canonicalPath: tagPagePath(finalKey)
+		canonicalPath: tagPagePath(key),
+		canonicalTerm: slug === term || resolve(slug).key === key ? slug : null
 	};
 }
 
