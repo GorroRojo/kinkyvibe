@@ -10,7 +10,16 @@
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { Check, IdCard, ReceiptText, Rss, StickyNote, Trash2, UserRound } from '@lucide/svelte';
+	import {
+		Ban,
+		Check,
+		IdCard,
+		ReceiptText,
+		Rss,
+		StickyNote,
+		Trash2,
+		UserRound
+	} from '@lucide/svelte';
 	import { fmtDate, fmtDateTime } from '$lib/admin/format.js';
 	import { orderHref, profileHref } from '$lib/admin/links.js';
 	import { eventPanelLink } from '$lib/admin/nav.js';
@@ -115,6 +124,7 @@
 		{#if a && !a.deletedAt}<Badge tone="info">tiene cuenta</Badge>{/if}
 		{#if !a}<Badge>sin cuenta</Badge>{/if}
 		{#if a?.deletedAt}<Badge tone="bad">cuenta borrada</Badge>{/if}
+		{#if a?.suspendedAt && !a.deletedAt}<Badge tone="bad">Suspendida</Badge>{/if}
 		{#if a?.canHaveProfiles}<Badge tone="ok">puede tener perfiles</Badge>{/if}
 		{#if s && s.attended >= 2}<Badge tone="ok">vuelve</Badge>{/if}
 		{#if s && s.attended === 1}<Badge tone="info">primera vez</Badge>{/if}
@@ -238,6 +248,10 @@
 					<dt>Borrada</dt>
 					<dd>{fmtDateTime(a.deletedAt)}</dd>
 				{/if}
+				{#if a.suspendedAt}
+					<dt>Suspendida</dt>
+					<dd>{fmtDateTime(a.suspendedAt)}{a.suspendedBy ? ` por ${a.suspendedBy}` : ''}</dd>
+				{/if}
 				<dt>Contraseña</dt>
 				<dd>
 					{a.hasPassword
@@ -316,6 +330,81 @@
 					<button class="kv-btn" class:ghost={a.canHaveProfiles} type="submit" disabled={saving}
 						>{a.canHaveProfiles ? 'Sacarle el permiso' : 'Darle el permiso'}</button
 					>
+				</form>
+			{/if}
+		</Card>
+
+		<Card title="Suspensión" icon={Ban}>
+			<p class="kv-note">
+				Suspender cierra en el momento todas las sesiones de la cuenta, no la deja volver a entrar
+				(ni con código ni con contraseña) y desconecta su Telegram. Si intenta entrar, ve «Tu cuenta
+				está suspendida» con el mail de contacto, nunca el motivo. <b
+					>Sus perfiles públicos no se ocultan solos</b
+				>: si hace falta, ocultalos o borralos desde Perfiles. Comprar entradas con su mail, sin
+				entrar, sigue andando. Queda en Actividad, sin el motivo.
+			</p>
+			{#if form?.suspension}
+				<p class="kv-flash" class:bad={!form.suspension.ok} role="status">
+					{form.suspension.message}
+				</p>
+			{/if}
+			{#if a.deletedAt}
+				<p class="muted">La cuenta está borrada: no se puede suspender.</p>
+			{:else if a.suspendedAt}
+				<p class="state">
+					<b>Suspendida</b> el {fmtDateTime(a.suspendedAt)}{a.suspendedBy
+						? ` por ${a.suspendedBy}`
+						: ''}.
+				</p>
+				{#if a.suspendedReason}
+					<p class="reason"><span class="muted">Motivo (privado):</span> {a.suspendedReason}</p>
+				{/if}
+				<form
+					method="POST"
+					action="?/levantarSuspension"
+					use:enhance={async ({ cancel }) => {
+						const ok = await askConfirm({
+							title: '¿Levantar la suspensión?',
+							text: 'Va a poder volver a entrar. Sus sesiones y su Telegram no vuelven: tiene que entrar de nuevo y, si quiere, volver a conectar el bot.',
+							confirmLabel: 'Levantar la suspensión'
+						});
+						if (!ok) return cancel();
+						saving = true;
+						return async ({ update }) => {
+							await update();
+							saving = false;
+						};
+					}}
+				>
+					<button class="kv-btn" type="submit" disabled={saving}>Levantar la suspensión</button>
+				</form>
+			{:else}
+				<form
+					method="POST"
+					action="?/suspender"
+					use:enhance={async ({ cancel }) => {
+						const ok = await askConfirm({
+							title: '¿Suspender esta cuenta?',
+							text: 'Se cierran todas sus sesiones ahora y no va a poder entrar hasta que levantes la suspensión. Sus perfiles públicos siguen como están.',
+							confirmLabel: 'Suspender',
+							tone: 'danger'
+						});
+						if (!ok) return cancel();
+						saving = true;
+						return async ({ update }) => {
+							await update();
+							saving = false;
+						};
+					}}
+				>
+					<label class="kv-field">
+						<span>Motivo (opcional, privado)</span>
+						<textarea name="motivo" rows="2" maxlength="500"></textarea>
+						<small class="muted"
+							>Lo ven solo les admins en esta ficha. No le llega a la persona ni va a Actividad.</small
+						>
+					</label>
+					<button class="kv-btn danger" type="submit" disabled={saving}>Suspender la cuenta</button>
 				</form>
 			{/if}
 		</Card>
@@ -727,6 +816,11 @@
 	}
 	.state {
 		margin: 0 0 0.6rem;
+	}
+	.reason {
+		margin: 0 0 0.6rem;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 	.inline {
 		display: inline;

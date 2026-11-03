@@ -137,6 +137,7 @@ CI) va en la fase 0.
 - `estadisticas-pestanas` · fase 0 · hecho · panel · Estadísticas en pestañas (Ventas, Asistencia, Visitas) · #258
 - `buscador-panel` · fase 0 · hecho · panel · Buscador del panel: tildes, acciones y operadores · #259, #269
 - `moderar-ocultar` · fase 0 · hecho · panel · «Ocultar» un perfil desde el panel también le saca la aprobación para /amigues: si quien lo gestiona lo vuelve a hacer público desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo · #385, [amigues.md](amigues.md)
+- `cuentas-suspender` · fase 0 · hecho · panel · «Suspender cuenta» desde la ficha de la cuenta: cierra todas sus sesiones, no la deja entrar (código, contraseña ni bot de Telegram) y queda en Actividad; motivo opcional solo para admins; los perfiles públicos se moderan aparte (migración 0065, va a producción antes del merge) · #520, [cuentas.md](cuentas.md#suspender-una-cuenta)
 - `lugares-ocultos-fuera-de-aprobar` · fase 0 · hecho · panel · Un lugar oculto ya no aparece en Eventos › Lugares › «Para aprobar» ni en «Rechazados»: ocultar le saca la aprobación, pero aprobarlo desde ahí no lo volvía a mostrar · #390, [amigues.md](amigues.md)
 
 ### Sitio público
@@ -359,7 +360,7 @@ CI) va en la fase 0.
 - `perfiles-reclamar` · fase 2 · hecho · cuentas · «¿Es tu perfil?» para cualquier cuenta, también sin el permiso de perfiles (gorrite, 26/10: reclamar un perfil que ya existe en vez de pedir el permiso); pedir no da nada, lo sigue aprobando une admin (con el permiso dado antes); Mi rincón lo explica sin el permiso y Perfiles ya no dice que los perfiles no tienen página pública · #514, [amigues.md](amigues.md)
 - `rincon-pedidos` · fase 2 · sigue · cuentas · Mi rincón lista los pedidos «¿Es tu perfil?» de la cuenta con su estado (pendiente, aprobado, no aprobado) y la página del perfil dice «no aprobado» en vez de volver a ofrecer el botón; aviso por mail al resolverse (depende de: perfiles-reclamar)
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
-- `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
+- `sesiones-dispositivos` · fase 2 · hecho · cuentas · Ver dónde hay una sesión abierta y cerrarla: «Dónde tenés la sesión abierta» en Mi rincón (navegador, cuándo, «Cerrar esta», «Cerrar todas las demás»), migración 0066 · #523, [cuentas.md](cuentas.md#sesiones-srclibservercuentassessionjs)
 - `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
 - `enlaces-guardar` · fase 2 · sigue · contenido · Al guardar, los `[[…]]`, `@` y `#` del cuerpo se vuelven relaciones del grafo, por objeto (no por título) (depende de: enlaces-sintaxis)
 - `enlaces-lo-que-enlaza` · fase 2 · sigue · sitio · «Lo que enlaza acá» en cada página, respetando quién puede ver qué (depende de: enlaces-guardar)

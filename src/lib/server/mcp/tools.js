@@ -5,15 +5,15 @@
  * - Nunca reciben SQL ni ids numéricos: un evento u objeto se pide por su dirección (slug) o por su
  *   nombre, y acá se resuelve. Si el nombre no alcanza (varios parecidos), se devuelven las
  *   opciones con su slug para volver a pedir.
- * - Lo mismo que ve un admin en el panel, con sus reglas: el DNI nunca sale (ni los últimos 3), ni
- *   el id del pago de Mercado Pago, las notas internas o las respuestas de inscripción; ningún
- *   secreto de los datos de un objeto (las claves de `sanitizeDetail`, como el registro).
+ * - Muestra lo mismo que el panel le muestra a le admin que usa el conector (gorrite, 3/11), ni
+ *   más ni menos: una orden como en Ventas › Órdenes (del DNI, los últimos 3 dígitos, como la
+ *   lista; el completo se pide aparte en el panel), un objeto con todos sus datos, como el editor.
+ * - Actividad anota solo qué herramienta se usó y sobre qué, nunca datos de quien compra.
  * - Los eventos de prueba de la venta (`prueba-entradas-*`) no aparecen fuera de `vite dev`, como en
  *   el buscador del panel.
  */
 import { dev } from '$app/environment';
 import { eventHref } from '$lib/admin/nav.js';
-import { sanitizeDetail } from '$lib/server/admin/audit.js';
 import { eventOrderRows } from '$lib/server/admin/eventOrders.js';
 import { getAllCounts, summarizeEvent } from '$lib/server/admin/sales.js';
 import { listEvents } from '$lib/server/eventos/index.js';
@@ -27,6 +27,7 @@ import {
 } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { getCounts, foldText } from '$lib/server/tickets/orders.js';
+import { fondoOptionLabel } from '$lib/utils/tickets.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -104,6 +105,69 @@ function intIn(v, min, max, fallback) {
 /** @param {unknown} t */
 const objectType = (t) =>
 	typeof t === 'string' && OBJECT_TYPES.includes(t) ? t : t == null || t === '' ? null : false;
+
+/**
+ * Una orden como la muestra el panel en Ventas › Órdenes (y Transferencias, el vencimiento): los
+ * mismos datos, con los nombres en castellano. Lo vacío no va.
+ * @param {Awaited<ReturnType<typeof eventOrderRows>>['rows'][number]} o
+ */
+export function orderForClaude(o) {
+	const iso = (/** @type {number | null | undefined} */ t) =>
+		t ? new Date(t).toISOString() : undefined;
+	const transfer =
+		o.method === 'transferencia' && (o.status === 'awaiting_transfer' || o.status === 'expired');
+	return {
+		referencia: o.reference,
+		nombre: o.name,
+		pronombres: o.pronouns || undefined,
+		dni_ultimos_3: o.dniTail || undefined,
+		email: o.email,
+		tipo: o.type,
+		cantidad: o.quantity,
+		total: o.total,
+		a_la_gorra_por_entrada: o.gorra ?? undefined,
+		fondo_usado: o.fondo || undefined,
+		aporte_al_fondo: o.contribution
+			? { opcion: fondoOptionLabel(o.fondoOption), monto: o.contribution }
+			: undefined,
+		codigo_de_descuento: o.discountCode || undefined,
+		descuento: o.discountAmount || undefined,
+		recargo_mp: o.surcharge || undefined,
+		medio: o.method,
+		estado: STATUS_LABEL[o.status] ?? o.status,
+		fecha: new Date(o.createdAt).toISOString(),
+		vence: transfer ? iso(o.expiresAt) : undefined,
+		ingresaron: o.checkedIn,
+		pago_mp: o.paymentId || undefined,
+		[o.status === 'cancelled' ? 'cancelada_por' : 'confirmada_por']: o.confirmedBy || undefined,
+		mail:
+			o.status === 'approved'
+				? o.emailProblem || (o.emailSent ? 'enviado' : 'no enviado')
+				: undefined,
+		reembolsada:
+			o.status === 'refunded'
+				? { cuando: iso(o.refundedAt), por: o.refundedBy || 'desde Mercado Pago' }
+				: undefined,
+		cambio_de_precio: o.priceChange || undefined,
+		nota: o.note || undefined,
+		entradas: o.holders.length
+			? o.holders.map((h) => ({
+					a_nombre_de: h.name,
+					pronombres: h.pronouns || undefined,
+					ingreso: h.checkedIn
+				}))
+			: undefined,
+		respuestas: o.answers.length
+			? o.answers.map((a) => ({
+					...(a.ticket ? { entrada: a.ticket } : {}),
+					pregunta: a.label,
+					respuesta: a.value
+				}))
+			: undefined,
+		para_revisar: o.needsReview || undefined,
+		detalle_de_revision: o.needsReview ? o.reviewDetail || undefined : undefined
+	};
+}
 
 /** Un error que se le devuelve a Claude como resultado de la herramienta (`isError`). */
 export class ToolInputError extends Error {}
@@ -302,7 +366,7 @@ export const TOOLS = {
 							? { como: revisionAuthorLabel(last) }
 							: {})
 					},
-					datos: sanitizeDetail(o.data),
+					datos: o.data,
 					relaciones: edges.map((e) => ({
 						tipo_de_relacion: e.kind,
 						tipo: e.object.type,
@@ -327,8 +391,9 @@ export const TOOLS = {
 			description:
 				'Resumen de la venta de entradas de un evento (vendidas, reservadas, cupo, recaudado, ' +
 				'neto, Fondo, por tipo de entrada) y la lista de sus órdenes (referencia, nombre, mail, ' +
-				'tipo, cantidad, total, medio de pago, estado, fecha, cuántes ingresaron). Sin DNI ni ' +
-				'datos del pago. El evento va por slug o nombre.',
+				'tipo, cantidad, total, medio de pago, estado, fecha, cuántes ingresaron y lo demás que ' +
+				'muestra la pestaña Órdenes del panel: últimos 3 del DNI, pago de Mercado Pago, entradas, ' +
+				'respuestas, nota). El evento va por slug o nombre.',
 			inputSchema: {
 				type: 'object',
 				properties: {
@@ -430,21 +495,7 @@ export const TOOLS = {
 						})),
 						ordenes_por_estado: byStatus
 					},
-					ordenes: filtered.slice(0, limite).map((o) => ({
-						referencia: o.reference,
-						nombre: o.name,
-						pronombres: o.pronouns || undefined,
-						email: o.email,
-						tipo: o.type,
-						cantidad: o.quantity,
-						total: o.total,
-						codigo_de_descuento: o.discountCode || undefined,
-						medio: o.method,
-						estado: STATUS_LABEL[o.status] ?? o.status,
-						fecha: new Date(o.createdAt).toISOString(),
-						ingresaron: o.checkedIn,
-						para_revisar: o.needsReview ? true : undefined
-					})),
+					ordenes: filtered.slice(0, limite).map(orderForClaude),
 					ordenes_listadas: Math.min(limite, filtered.length),
 					ordenes_en_total: filtered.length,
 					panel: eventHref(slug, 'ordenes')
