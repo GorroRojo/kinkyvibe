@@ -21,8 +21,10 @@
 			material, perfiles y etiquetas (también lo oculto), ver las ventas y las órdenes de cada
 			evento y los próximos eventos.
 			{#if data.edit}
-				Además, va a poder <b>cambiar</b> algunos datos de los eventos y crear códigos de descuento,
-				siempre mostrando antes qué va a cambiar y guardando como el panel, con historial.
+				Además, va a poder <b>cambiar</b> lo que edita el panel (eventos, material, perfiles,
+				lugares, etiquetas y la Kinkipedia), crear borradores y códigos de descuento, y deshacer
+				cambios, siempre mostrando antes qué va a cambiar y guardando como el panel, con historial.
+				Nada de plata ni mails.
 				{#if !data.editOn}
 					Los cambios todavía están apagados en el sitio: va a poder cuando se prendan.
 				{/if}

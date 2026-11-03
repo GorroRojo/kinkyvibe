@@ -12,6 +12,7 @@ import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logDBError } from '$lib/server/db';
 import { TOOLS, ToolInputError, toolList } from './tools.js';
 import { EDIT_TOOLS } from './edicion.js';
+import { HISTORY_TOOL } from './historial.js';
 import { editingOn } from './cambios.js';
 import { queueBurstAlert } from './avisoCambios.js';
 
@@ -30,7 +31,8 @@ export const RPC = Object.freeze({
 const INSTRUCTIONS =
 	'Conector de solo lectura del sitio de KinkyVibe (comunidad kinky de Buenos Aires), para les ' +
 	'admins. Pedí las cosas por nombre o slug: `buscar` para encontrar, `leer` para ver un objeto, ' +
-	'`ventas` para la venta de un evento y `eventos_proximos` para la agenda. Los datos de ' +
+	'`ventas` para la venta de un evento, `eventos_proximos` para la agenda e `historial` para las ' +
+	'versiones de un objeto. Los datos de ' +
 	'compradores son privados: usalos solo para lo que pidió le admin y no los repitas de más.';
 
 /** Lo que se suma a las instrucciones con los cambios prendidos. */
@@ -38,7 +40,19 @@ const EDIT_INSTRUCTIONS =
 	' Con los cambios prendidos, todo cambio va en dos pasos: `vista_previa` (no guarda nada) y, ' +
 	'solo después de que la persona vea el resumen y diga que sí, `aplicar` con las mismas ' +
 	'entradas más el `hash` y la `version` que dio la vista previa. Nunca apliques algo distinto de ' +
-	'lo que se mostró.';
+	'lo que se mostró. `editar_objeto` cambia lo que edita el panel (eventos, material, perfiles, ' +
+	'lugares, etiquetas y la Kinkipedia), `crear_borrador` crea uno sin publicar (o una etiqueta nueva) y `deshacer` vuelve ' +
+	'un objeto a una versión anterior (también un deshacer se deshace). Nada de plata ni mails: ' +
+	'cancelar un evento, ventas, reembolsos y envíos se hacen desde el panel.';
+
+/** Las de lectura: las de ./tools.js y `historial` (./historial.js). */
+const READ_TOOLS = { ...TOOLS, historial: HISTORY_TOOL };
+
+/** La lista de las de lectura para `tools/list`, todas marcadas como de solo lectura. */
+function readToolList() {
+	const [first] = toolList();
+	return [...toolList(), { ...HISTORY_TOOL.definition, annotations: first.annotations }];
+}
 
 /**
  * Las herramientas que se pueden usar ahora: las de lectura y, con los cambios prendidos y una
@@ -47,7 +61,7 @@ const EDIT_INSTRUCTIONS =
  */
 async function availableTools(ctx) {
 	const edit = ctx.canEdit === true && (await editingOn(ctx.db).catch(() => false));
-	return { edit, tools: edit ? { ...TOOLS, ...EDIT_TOOLS } : TOOLS };
+	return { edit, tools: edit ? { ...READ_TOOLS, ...EDIT_TOOLS } : READ_TOOLS };
 }
 
 /**
@@ -97,7 +111,7 @@ export async function handleMessage(msg, ctx) {
 				serverInfo: {
 					name: 'kinkyvibe',
 					title: edit ? 'KinkyVibe' : 'KinkyVibe (solo lectura)',
-					version: '1.1.0'
+					version: '1.2.0'
 				},
 				instructions: edit ? INSTRUCTIONS + EDIT_INSTRUCTIONS : INSTRUCTIONS
 			});
@@ -106,7 +120,9 @@ export async function handleMessage(msg, ctx) {
 			return rpcResult(id, {});
 		case 'tools/list': {
 			const { edit } = await availableTools(ctx);
-			return rpcResult(id, { tools: edit ? [...toolList(), ...editToolList()] : toolList() });
+			return rpcResult(id, {
+				tools: edit ? [...readToolList(), ...editToolList()] : readToolList()
+			});
 		}
 		case 'tools/call':
 			return rpcResult(id, await callTool(params, ctx));
@@ -125,7 +141,7 @@ export async function handleMessage(msg, ctx) {
 async function callTool(params, ctx) {
 	const name = typeof params.name === 'string' ? params.name : '';
 	const { tools } = await availableTools(ctx);
-	const tool = Object.hasOwn(tools, name) ? tools[name] : null;
+	const tool = Object.hasOwn(tools, name) ? /** @type {Record<string, any>} */ (tools)[name] : null;
 	const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
 	const locals = { user: ctx.user };
 	if (!tool && Object.hasOwn(EDIT_TOOLS, name) && ctx.canEdit !== true) {
