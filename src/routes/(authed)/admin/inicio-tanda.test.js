@@ -930,9 +930,10 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		// de espera que no salieron, la del aviso de cupo de Resend y la de la salud del webhook del bot, de «Para revisar»; la de la última revisión del importador se
 		// fue con él, decisión 0032) y 19 en la segunda (totales, ingresos, links, 3 de envíos
 		// fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita, 2 por
-		// evento de hoy para el gráfico y 1 de lo que queda por devolver de los eventos cancelados,
-		// porque el escenario tiene uno).
-		expect(page.stats.prepared).toBe(22 + 20);
+		// evento de hoy para el gráfico, 1 de lo que queda por devolver de los eventos cancelados,
+		// porque el escenario tiene uno, y 1 de los lugares vinculados de los próximos, que mandan
+		// sobre el «Dónde» en texto libre).
+		expect(page.stats.prepared).toBe(22 + 21);
 
 		// El de antes, con las mismas funciones: una ida por consulta (acá sin las de la lista de
 		// eventos, que son de mentira).

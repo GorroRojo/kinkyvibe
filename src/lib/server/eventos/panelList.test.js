@@ -297,11 +297,22 @@ describe('«Online con lugar»', () => {
 		vi.mocked(listEventVenues).mockResolvedValue([
 			/** @type {any} */ ({ eventSlug: 'con-lugar-vinculado', venueDeleted: false }),
 			/** @type {any} */ ({ eventSlug: 'lugar-borrado', venueDeleted: true }),
-			/** @type {any} */ ({ eventSlug: 'presencial', venueDeleted: false })
+			/** @type {any} */ ({
+				eventSlug: 'presencial',
+				venueDeleted: false,
+				venueTitle: 'Sala Inventada'
+			})
 		]);
 		const db = /** @type {any} */ ({});
-		const flagged = (await panelEventRows(db)).filter((r) => r.onlineMismatch).map((r) => r.slug);
+		const all = await panelEventRows(db);
+		const flagged = all.filter((r) => r.onlineMismatch).map((r) => r.slug);
 		expect(flagged).toEqual(['con-nombre', 'con-lugar-vinculado']);
+		// El nombre del lugar vinculado (manda sobre el texto libre al mostrar el «Dónde»; un lugar
+		// borrado no cuenta), también en la búsqueda.
+		const presencial = /** @type {any} */ (all.find((r) => r.slug === 'presencial'));
+		expect(presencial.venueName).toBe('Sala Inventada');
+		expect(all.find((r) => r.slug === 'lugar-borrado')?.venueName).toBe('');
+		expect(matchesSearch(presencial, searchWords('sala inventada'))).toBe(true);
 
 		// Sin base, o si leer los lugares falla, mira solo el texto libre (y no rompe la lista).
 		expect((await panelEventRows(null)).filter((r) => r.onlineMismatch).map((r) => r.slug)).toEqual(

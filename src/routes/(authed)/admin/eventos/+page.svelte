@@ -257,7 +257,8 @@
 							<span class="sr-only">{shortDate(e.start)}</span>
 							{#if d && !upcoming(e)}{d.year} ·
 							{/if}{timeRange(e.start, e.end) || 'sin hora'}
-							{#if e.locationName || e.place}· {e.locationName || e.place}{/if}
+							{#if e.venueName || e.locationName || e.place}·
+								{e.venueName || e.locationName || e.place}{/if}
 						</span>
 						<span class="badges">
 							{#each eventBadges(e) as b}<Badge tone={b.tone}>{b.label}</Badge>{/each}
