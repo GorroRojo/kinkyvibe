@@ -62,7 +62,9 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
        o 4, 2 hasta 7, 3 desde 8), cada palabra sola si eran varias («cuerdas zzz» → «cuerdas»), una
        etiqueta usada con nombre o alias parecido y, si lo buscado es una etiqueta del árbol
        (`resolveTag`, con alias y sin tildes), primero sus hijas, relacionadas y madres. Solo se
-       ofrece lo que trae algo.
+       ofrece lo que trae algo. Una palabra cambiada sale como se escribe en los títulos o los
+       nombres de etiquetas donde está («Guía», no «guia» como la guarda el índice; la forma más
+       usada, `writtenAs`).
     2. **La sección más cercana**: donde está la mayoría de lo de esa etiqueta (y sus parientes) o
        de la primera sugerencia, con el botón de la sección del inicio (ya filtrada por la
        etiqueta si está en esa sección, `c:<s>:0:<etiqueta>`). Si son eventos, «📅 Calendario»: la
