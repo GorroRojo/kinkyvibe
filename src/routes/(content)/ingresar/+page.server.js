@@ -10,6 +10,8 @@ import { logDBError } from '$lib/server/db';
 import { passwordLogin, requestCode, verifyCode } from '$lib/server/cuentas/index.js';
 import { CODE_TTL_MS } from '$lib/server/cuentas/codes.js';
 import { clientOf, mailSender, requireCuentas, startSession } from '$lib/server/cuentas/web.js';
+import { suspendedMessage } from '$lib/server/cuentas/suspension.js';
+import { contactEmail } from '$lib/server/tickets/index.js';
 
 const HOME = '/mi-rincon';
 
@@ -38,6 +40,26 @@ const field = (form, key) => {
 function codeExpiry(form, now = Date.now()) {
 	const n = Number(form.get('vence'));
 	return Number.isInteger(n) && n > now && n <= now + CODE_TTL_MS ? n : null;
+}
+
+/**
+ * La cuenta está suspendida (docs/cuentas.md, «Suspender una cuenta»): no se abre la sesión y se
+ * avisa, con el contacto. Nunca el motivo (es solo para admins). Solo llega acá después de un
+ * código o una contraseña correctos.
+ * @param {'email' | 'password'} step
+ * @param {string} email
+ * @param {string} next
+ */
+function suspendedFail(step, email, next) {
+	const contact = contactEmail();
+	return fail(403, {
+		step,
+		email,
+		next,
+		suspended: true,
+		contact,
+		error: suspendedMessage(contact)
+	});
 }
 
 /** @type {import('./$types').PageServerLoad} */
@@ -95,6 +117,7 @@ export const actions = {
 				code: field(form, 'code'),
 				client: await clientOf(event)
 			});
+			if (!result.ok && 'suspended' in result) return suspendedFail('email', email, next);
 			if (!result.ok)
 				return fail(result.status, { step: 'code', email, next, expiresAt, error: result.message });
 			await startSession(event, db, result.account.id, 'code');
@@ -128,6 +151,7 @@ export const actions = {
 				client: await clientOf(event)
 			});
 			// Nunca se devuelve la contraseña al formulario.
+			if (!result.ok && 'suspended' in result) return suspendedFail('password', email, next);
 			if (!result.ok)
 				return fail(result.status, { step: 'password', email, next, error: result.message });
 			await startSession(event, db, result.account.id, 'password');

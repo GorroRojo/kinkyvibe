@@ -64,7 +64,8 @@ export async function createSession(db, accountId, method, { now = Date.now() } 
 
 /**
  * La cuenta de la sesión de este token, o `null`. `touched` dice si se actualizó
- * `last_seen_at` (entonces hay que volver a mandar la cookie).
+ * `last_seen_at` (entonces hay que volver a mandar la cookie). Una cuenta borrada o suspendida
+ * (./suspension.js) no tiene sesión aunque quede una fila.
  *
  * En la misma consulta vienen dos datos de la cuenta que se usan en muchas páginas, para no
  * volver a leer la fila (la base está lejos: cada consulta es una ida y vuelta): la velocidad de
@@ -88,7 +89,7 @@ export async function getSessionAccount(db, token, { now = Date.now() } = {}) {
 				a.can_have_profiles
 			FROM account_sessions s
 			JOIN accounts a ON a.id = s.account_id
-			WHERE s.token_hash = ?1 AND a.deleted_at IS NULL`
+			WHERE s.token_hash = ?1 AND a.deleted_at IS NULL AND a.suspended_at IS NULL`
 		)
 		.bind(hash)
 		.first();
