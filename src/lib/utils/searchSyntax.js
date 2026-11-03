@@ -859,7 +859,8 @@ export const SEARCH_BASICS = Object.freeze([
 	{
 		id: 'fechas',
 		label: 'hoy · mañana · semana · finde',
-		example: 'finde',
+		// Un ejemplo que no sea una de las formas (si no, la guía repite «finde»).
+		example: 'fiesta finde',
 		help: 'Eventos de esos días.'
 	}
 ]);

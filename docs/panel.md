@@ -696,8 +696,9 @@ el sitio y el bot (`parseSearch`, `searchSyntax.js`); la sintaxis entera está e
   como acción y en la hoja de atajos `?`) explica todos con ejemplos que se pueden tocar
   (`SEARCH_TIPS` en `paletteActions.js`, armado desde el registro de la búsqueda con
   `searchHelp('panel')`, más `>` y la palabra de pestaña, que no son operadores del registro; un
-  test verifica que cada ejemplo y cada forma usen un operador). En el panel no se lista
-  `material:` (no busca material) y `@` va con `persona:`.
+  test verifica que cada ejemplo y cada forma usen un operador). Cada línea muestra cómo se escribe
+  (las formas juntas en una etiqueta, `@nombre · persona:`), el ejemplo para tocar (nunca una de sus
+  formas) y qué hace. En el panel no se lista `material:` (no busca material) y `@` va con `persona:`.
 - El buscador público del sitio (`SearchPalette.svelte`) es otro motor (el índice público), con la
   misma sintaxis base ([buscar.md](buscar.md)).
 

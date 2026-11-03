@@ -67,7 +67,7 @@ export const SEARCH_HELP_COMMAND = Object.freeze({
 /**
  * Lo del panel que no es un operador del registro de la búsqueda (no tiene clave): `>` al
  * principio y la palabra de pestaña. Datos inventados.
- * @type {readonly { q: string, forms?: string[], text: string }[]}
+ * @type {readonly { q: string, label?: string, text: string }[]}
  */
 const PANEL_ONLY_TIPS = Object.freeze([
 	{
@@ -81,13 +81,14 @@ const PANEL_ONLY_TIPS = Object.freeze([
  * Los ejemplos de la ayuda «Cómo buscar», en orden, armados desde el registro de la búsqueda
  * (`searchHelp('panel')` en searchSyntax.js: las frases, las exclusiones y cada operador que anda
  * en el panel, también los de solo el panel) más lo de {@link PANEL_ONLY_TIPS}. `q`: el ejemplo (al
- * tocarlo, la paleta lo busca); `forms`: cómo se escribe el operador (forma larga, corta o signo).
- * @type {readonly { q: string, forms?: string[], text: string }[]}
+ * tocarlo, la paleta lo busca); `label`: cómo se escribe el operador (sus formas juntas, como en la
+ * ayuda del sitio y del bot: `@nombre · persona:`), que la guía muestra en una sola etiqueta.
+ * @type {readonly { q: string, label?: string, text: string }[]}
  */
 export const SEARCH_TIPS = Object.freeze([
 	...searchHelp('panel').map((row) => ({
 		q: row.example,
-		forms: row.label.split(' · '),
+		label: row.label,
 		text: row.help
 	})),
 	...PANEL_ONLY_TIPS

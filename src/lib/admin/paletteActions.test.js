@@ -129,9 +129,14 @@ describe('«Cómo buscar»', () => {
 			// Cada forma del operador, con el valor de su ejemplo (`e:cuerdas`, `#shibari`, `@ana`),
 			// también. Las comillas y el `-` no tienen clave: ya los prueba su ejemplo.
 			const value = tip.q.replace(/^[^:#@]*[:#@]\s*/, '').split(' ')[0];
-			for (const form of tip.forms ?? []) {
+			for (const form of tip.label?.split(' · ') ?? []) {
 				if (form === '"…"' || form === '-') continue;
-				const filled = form.endsWith(':') ? form + value : form.replace(/\p{L}+$/u, value);
+				// Una palabra que vale sola (`hoy`, `finde`) se prueba tal cual.
+				const filled = form.endsWith(':')
+					? form + value
+					: /^[#@]/.test(form)
+						? form.replace(/\p{L}+$/u, value)
+						: form;
 				expect(parseSearchQuery(filled).operators, filled).toBe(true);
 			}
 		}
@@ -140,7 +145,7 @@ describe('«Cómo buscar»', () => {
 	it('los ejemplos salen del registro de la búsqueda (más `>` y la pestaña, que no son operadores)', () => {
 		const rows = searchHelp('panel');
 		expect(SEARCH_TIPS.slice(0, rows.length)).toEqual(
-			rows.map((r) => ({ q: r.example, forms: r.label.split(' · '), text: r.help }))
+			rows.map((r) => ({ q: r.example, label: r.label, text: r.help }))
 		);
 		expect(SEARCH_TIPS.slice(rows.length).map((t) => t.q)).toEqual(['e:fiesta puerta', '>tema']);
 		const ids = rows.map((r) => r.id);
@@ -150,6 +155,19 @@ describe('«Cómo buscar»', () => {
 		expect(ids).not.toContain('material');
 		expect(ids).not.toContain('persona');
 		expect(rows.find((r) => r.id === 'persona-panel')?.label).toBe('@nombre · persona:');
+	});
+
+	it('cada línea de la guía: sus formas juntas en una etiqueta y un ejemplo que no las repite', () => {
+		// `@` va en la misma etiqueta que `persona:` («@nombre · persona:»), no en otra aparte.
+		const persona = SEARCH_TIPS.find((t) => t.text === 'Solo personas y perfiles.');
+		expect(persona?.label).toBe('@nombre · persona:');
+		expect(SEARCH_TIPS.filter((t) => t.label?.includes('persona:'))).toHaveLength(1);
+		for (const tip of SEARCH_TIPS) {
+			// El ejemplo no es una de las formas (la guía mostraba «finde» dos veces).
+			expect(tip.label?.split(' · ') ?? [], tip.q).not.toContain(tip.q);
+		}
+		const dates = SEARCH_TIPS.find((t) => t.label === 'hoy · mañana · semana · finde');
+		expect(dates?.q).not.toBe('finde');
 	});
 });
 
