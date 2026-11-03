@@ -12,6 +12,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [pruebas-y-ci.md](pruebas-y-ci.md)             | Los jobs de la CI (`unit`, `e2e`, `plan`, `ci-ok`…), cómo correr cada prueba y qué hacer si da rojo                 |
 | [interruptores.md](interruptores.md)           | Cada interruptor de funciones nuevas: qué prende, de qué depende y cómo prender los que pasan datos a la base       |
 | [panel.md](panel.md)                           | El panel de admin (`/admin`): áreas y URLs, Agenda, permisos, registro de actividad                                 |
+| [conector-claude.md](conector-claude.md)       | El conector de Claude (MCP) de solo lectura para admins: cómo sumarlo en claude.ai, qué puede leer, cómo se corta   |
 | [buscar.md](buscar.md)                         | Cómo se escribe una búsqueda en el sitio, el bot y el panel: sintaxis, cómo se lee, qué código lo hace              |
 | [enlaces.md](enlaces.md)                       | Cómo se escribe el cuerpo de un objeto: enlaces, incrustados, etiquetas, componentes y lo que enlaza acá            |
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |

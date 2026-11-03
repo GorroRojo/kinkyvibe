@@ -219,6 +219,10 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 - **Cuentas que gestionan un perfil** (Mi rincón): subir y buscar **solo entre las que subieron**;
   en su perfil solo pueden poner una imagen que subieron o la que el perfil ya tenía. **Borran una
   imagen que subieron, solo si nada la usa** (decisión de gorrite; ver «Borrar»).
+  **Tope por cuenta**: 30 subidas y 200 MB en las últimas 24 horas
+  (`src/lib/server/media/uploadCap.js`, tabla `rate_limits`); pasado eso, `POST /imagenes`
+  responde 429 con «Subiste muchas imágenes en las últimas horas. Probá de nuevo más tarde.». Les
+  admins no tienen tope.
 - Nadie más: `/imagenes` responde 404 (como si no existiera).
 
 ## Borrar

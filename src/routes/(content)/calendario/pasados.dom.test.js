@@ -70,11 +70,13 @@ Element.prototype.animate ??= /** @type {any} */ (
 	}
 );
 
+// La primera importación de la página la transforma vite entera (cientos de módulos): con la
+// máquina cargada pasaba los 10 s del límite de los hooks. Es preparación, no lo que se prueba.
 beforeAll(async () => {
 	vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
 	({ userConfig } = await import('$lib/utils/stores.js'));
 	({ default: Calendario } = await import('./+page.svelte'));
-});
+}, 60_000);
 afterAll(() => {
 	vi.useRealTimers();
 });

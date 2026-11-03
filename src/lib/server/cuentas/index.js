@@ -30,12 +30,13 @@ export const RATE_LIMITS = Object.freeze({
 	 * Códigos pedidos para un mismo mail: pocos seguidos y un tope por día (no llenar casillas).
 	 * Solo cuentan los pedidos que pasaron los límites anteriores (ver `sendCode`).
 	 */
-	codeRequestEmail: { limit: 3, windowSeconds: 15 * 60 },
+	codeRequestEmail: { limit: 5, windowSeconds: 15 * 60 },
 	codeRequestEmailDay: { limit: 10, windowSeconds: 24 * 60 * 60 },
 	/**
-	 * Códigos pedidos para un mismo mail desde una misma conexión, por día: menos que el tope
-	 * diario del mail, así una sola conexión nunca gasta todo el cupo de otra persona.
+	 * Códigos pedidos para un mismo mail desde una misma conexión, seguidos y por día: menos que
+	 * los topes del mail, así una sola conexión nunca gasta todo el cupo de otra persona.
 	 */
+	codeRequestEmailClient: { limit: 3, windowSeconds: 15 * 60 },
 	codeRequestEmailClientDay: { limit: 4, windowSeconds: 24 * 60 * 60 },
 	/** Códigos pedidos desde una misma conexión (para cualquier mail). */
 	codeRequestClient: { limit: 10, windowSeconds: 15 * 60 },
@@ -111,6 +112,8 @@ async function sendCode({ db, email: rawEmail, client, send, now, purpose }) {
 	if (
 		!(await allowed(db, `cuentas:code:ec:${pairKey}`, RATE_LIMITS.codeRequestEmailClientDay, now))
 	)
+		return tooManyCodes();
+	if (!(await allowed(db, `cuentas:code:ecs:${pairKey}`, RATE_LIMITS.codeRequestEmailClient, now)))
 		return tooManyCodes();
 	if (!(await allowed(db, `cuentas:code:e:${hash}`, RATE_LIMITS.codeRequestEmail, now)))
 		return tooManyCodes();
