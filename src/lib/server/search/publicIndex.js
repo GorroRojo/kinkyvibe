@@ -19,7 +19,8 @@ import {
 	listPublicProfiles,
 	profilesStamp
 } from '$lib/server/amigues/profiles.js';
-import { eventVenuesStamp, linkedVenues } from '$lib/server/amigues/venues.js';
+import { eventVenuesStamp, feedVenues, linkedVenues } from '$lib/server/amigues/venues.js';
+import { isOnlinePlace, ONLINE_PLACE_TEXT } from '$lib/utils/eventPlace.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { buildSearchIndex } from '$lib/server/search/siteIndex.js';
 import { siteTagSource } from '$lib/server/etiquetas/source.js';
@@ -117,6 +118,28 @@ async function buildIndex(tagManager, platform, { profiles }) {
 		)
 		.map(({ meta }) => String(meta.postID));
 	const venues = profiles && db ? await linkedVenues(db, reachableEvents) : [];
+	// El lugar de cada evento como lo muestra su página a cualquiera (`feedVenues`, como las listas):
+	// el lugar vinculado según su nivel o, sin lugar, el nombre del «Dónde». Nunca la calle. Si la
+	// base falla, sin lugares (mejor que uno que debía estar oculto, como `withVenuePlaces`).
+	/** @type {Map<string, import('$lib/utils/venues.js').VenueView>} */
+	let places = new Map();
+	let mdPlaces = true;
+	if (db) {
+		try {
+			places = await feedVenues(db, reachableEvents);
+		} catch (e) {
+			console.error('[buscar] no se pudieron leer los lugares de los eventos', e);
+			mdPlaces = false;
+		}
+	}
+	/** @param {Record<string, any>} meta */
+	const eventPlace = (meta) => {
+		const view = places.get(String(meta.postID));
+		if (view) return [view.name, view.area, view.city].filter(Boolean).join(', ');
+		if (!mdPlaces) return '';
+		if (isOnlinePlace(meta)) return ONLINE_PLACE_TEXT;
+		return typeof meta.location_name === 'string' ? meta.location_name : '';
+	};
 	const raw = await buildSearchIndex({
 		posts,
 		wikiPosts,
@@ -124,7 +147,9 @@ async function buildIndex(tagManager, platform, { profiles }) {
 		// El cuerpo de lo que sale de la base (`siteBodies`, leído una vez por cambio; la wiki, con
 		// las etiquetas). Los .md de amigues y la wiki ya no se leen.
 		body: ({ path }) => bodies.get(path) ?? wikiBodies.get(path),
-		profiles: profileList && imported ? { list: profileList, imported, linkedVenues: venues } : null
+		profiles:
+			profileList && imported ? { list: profileList, imported, linkedVenues: venues } : null,
+		eventPlace
 	});
 	return {
 		raw,
