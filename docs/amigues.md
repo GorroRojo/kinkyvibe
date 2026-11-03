@@ -19,7 +19,8 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   lo avisa y une admin se lo da antes). Mi rincón, sin el permiso, tiene la tarjeta «¿Ya estás en
   Amigues?» que lo explica, y a cualquier cuenta que pidió alguno le lista sus pedidos con su estado
   (pendiente, aprobado, no aprobado; [cuentas.md](cuentas.md)). Si el último no se aprobó, la
-  página del perfil dice «no aprobado» en vez de volver a ofrecer el botón.
+  página del perfil dice «no aprobado» en vez de volver a ofrecer el botón, y el servidor no acepta
+  otro pedido de esa cuenta para ese perfil.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
 - **Ocultar desde el panel** (la ficha del perfil, `hideProfile` en

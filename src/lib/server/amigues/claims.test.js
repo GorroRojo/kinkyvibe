@@ -180,6 +180,42 @@ describe('resolver un pedido (admins)', () => {
 		expect(await claimState(t.db, a.id, p.id)).toBe('rejected');
 	});
 
+	it('después de un «no aprobado», el servidor no acepta otro pedido de esa cuenta para ese perfil', async () => {
+		const p = await makeProfile(t.db, { title: 'Ficha Inventada' });
+		const otro = await makeProfile(t.db, { title: 'Otra Ficha Inventada' });
+		const a = await makeAccount(t.db, 'insiste');
+		const b = await makeAccount(t.db, 'otra-cuenta');
+		await claim(a.id, p.id);
+		const [pending] = await listClaims(t.db);
+		await decideClaim(t.db, pending.id, false, { by: 'admin-de-prueba' });
+		// Otra vez, aunque cambie la conexión: 409 y no se guarda nada.
+		expect(await claim(a.id, p.id, 'conexion-b')).toEqual({
+			ok: false,
+			status: 409,
+			message: CLAIM_MESSAGES.rejected
+		});
+		expect(await countPendingClaims(t.db)).toBe(0);
+		expect(await claimState(t.db, a.id, p.id)).toBe('rejected');
+		// Solo ese perfil y esa cuenta: otro perfil se pide, y otra cuenta pide el mismo.
+		expect(await claim(a.id, otro.id)).toEqual({ ok: true, message: CLAIM_MESSAGES.sent });
+		expect(await claim(b.id, p.id)).toEqual({ ok: true, message: CLAIM_MESSAGES.sent });
+	});
+
+	it('si el último pedido se aprobó y ya no lo gestiona, puede volver a pedirlo', async () => {
+		const p = await makeProfile(t.db, { title: 'Ficha Inventada', kind: 'proyecto' });
+		const a = await makeAccount(t.db, 'vuelve');
+		await claim(a.id, p.id);
+		const [pending] = await listClaims(t.db);
+		expect(await decideClaim(t.db, pending.id, true, { by: 'admin-de-prueba' })).toMatchObject({
+			ok: true
+		});
+		await t.db
+			.prepare('DELETE FROM profile_managers WHERE profile_id = ?1 AND account_id = ?2')
+			.bind(p.id, a.id)
+			.run();
+		expect(await claim(a.id, p.id)).toEqual({ ok: true, message: CLAIM_MESSAGES.sent });
+	});
+
 	it('una persona tiene una sola dueñe; un proyecto puede sumar otra', async () => {
 		const persona = await makeProfile(t.db, { title: 'Persona Inventada' });
 		const grupo = await makeProfile(t.db, { title: 'Proyecto Inventado', kind: 'proyecto' });

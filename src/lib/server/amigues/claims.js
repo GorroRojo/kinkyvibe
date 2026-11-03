@@ -14,6 +14,8 @@
  *   (nada dice si alguien más lo reclamó ni quién lo gestiona);
  * - límites por cuenta y por conexión, contados antes de mirar el perfil;
  * - solo se reclama un perfil que la cuenta puede ver en /amigues (aprobado, no oculto);
+ * - después de un «no aprobado», la misma cuenta no puede volver a pedir ese perfil (lo frena el
+ *   servidor, no solo la página);
  * - aprobar es una sola tanda condicional: dos admins a la vez no pueden aprobar dos veces, y una
  *   persona nunca termina con dos dueñes.
  */
@@ -43,6 +45,7 @@ export const CLAIM_MESSAGES = Object.freeze({
 	already:
 		'Ya pediste este perfil: lo revisa el equipo. Si lo aprobamos, aparece en Mi rincón → Perfiles.',
 	manager: 'Ya gestionás este perfil: lo encontrás en Mi rincón → Perfiles.',
+	rejected: 'Pediste este perfil: no aprobado. Tus pedidos y su estado están en Mi rincón.',
 	tooMany: 'Mandaste muchos pedidos seguidos. Probá de nuevo mañana.',
 	notFound: 'No encontramos ese perfil.'
 });
@@ -174,6 +177,11 @@ export async function createClaim(
 	}
 	if (await managerRole(db, accountId, profileId))
 		return { ok: true, message: CLAIM_MESSAGES.manager };
+	// Después de un «no aprobado» no se vuelve a pedir (la página ya no ofrece el botón; esto frena
+	// también un POST a mano). Solo mira los pedidos de ESTA cuenta.
+	if ((await claimStatusOf(db, accountId, profileId)) === 'rejected') {
+		return { ok: false, status: 409, message: CLAIM_MESSAGES.rejected };
+	}
 	const text = String(message ?? '')
 		.replace(/\r\n?/g, '\n')
 		.trim()
