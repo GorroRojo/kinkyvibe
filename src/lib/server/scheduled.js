@@ -15,11 +15,17 @@ import {
 	hasObjectsSchema,
 	recordIntegrityRun
 } from './objects/integrity.js';
+import { runMepRates } from './paypal/rates.js';
 
 /** Recordatorios de entradas: cada 15 minutos (UTC). */
 export const REMINDERS_CRON = '*/15 * * * *';
 /** Backup de la base a R2: todas las noches a las 06:00 UTC (03:00 en Argentina). */
 export const BACKUP_CRON = '0 6 * * *';
+/**
+ * Cotización del dólar MEP para PayPal: todos los días a las 21:15 UTC (18:15 en Argentina),
+ * después del cierre del mercado (src/lib/server/paypal/rates.js).
+ */
+export const RATES_CRON = '15 21 * * *';
 
 /** Origen por defecto para el pedido interno de los recordatorios (src/lib/utils/site.js). */
 export const DEFAULT_ORIGIN = SITE_URL;
@@ -68,9 +74,9 @@ export async function runReminders(env, ctx, appFetch) {
 	const body = (await response.text()).slice(0, 300);
 	if (!response.ok) {
 		// Tirar el error hace que la corrida figure como fallida en Cloudflare (Cron Events).
-		throw new Error(`recordatorios: ${response.status} ${body}`);
+		throw new Error(`[recordatorios] ${response.status} ${body}`);
 	}
-	console.log(`recordatorios: ${body}`);
+	console.log(`[recordatorios] ${body}`);
 	return body;
 }
 
@@ -82,16 +88,18 @@ export async function runReminders(env, ctx, appFetch) {
  * @param {Date} now
  */
 export async function runBackup(env, now) {
-	if (!env.DB) throw new Error('backup: falta el binding DB');
-	if (!env.BACKUPS) throw new Error('backup: falta el binding BACKUPS (bucket de R2)');
+	if (!env.DB) throw new Error('[backup] falta el binding DB');
+	if (!env.BACKUPS) throw new Error('[backup] falta el binding BACKUPS (bucket de R2)');
 	const result = await nightlyBackup({ db: env.DB, bucket: env.BACKUPS, now });
 	const deleted = result.pruneError
 		? `la poda falló (${result.pruneError}); se reintenta mañana`
-		: result.deleted.length
-			? result.deleted.join(', ')
-			: 'ninguno';
+		: result.pruneSkipped
+			? `ninguno (poda salteada: ${result.pruneSkipped})`
+			: result.deleted.length
+				? result.deleted.join(', ')
+				: 'ninguno';
 	console.log(
-		`backup: ${result.key} (${result.bytes} bytes, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
+		`[backup] ${result.key} (${result.bytes} bytes comprimido, ${result.sqlBytes} bytes de SQL, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
 	);
 	return result;
 }
@@ -121,7 +129,10 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 			);
 			return null;
 		}
-		const problems = await checkObjectsIntegrity(env.DB);
+		// El bucket de medios (binding MEDIA de wrangler.toml), para ver que no falten archivos.
+		const media = /** @type {{ MEDIA?: import('@cloudflare/workers-types').R2Bucket }} */ (env)
+			.MEDIA;
+		const problems = await checkObjectsIntegrity(env.DB, { bucket: media ?? null });
 		await recordIntegrityRun(env.DB, problems, now.getTime());
 		if (!problems.length) console.log('integridad de objetos: sin problemas');
 		for (const p of problems.slice(0, MAX_LOGGED_PROBLEMS)) {
@@ -186,16 +197,39 @@ export async function runMediaCopy(env, limits) {
 export async function runSessionCleanup(env, now = new Date()) {
 	try {
 		if (!env.DB) {
-			console.error('sesiones viejas: falta el binding DB; no se limpió');
+			console.error('[sesiones] sesiones viejas: falta el binding DB; no se limpió');
 			return null;
 		}
 		const deleted = await deleteStaleSessions(env.DB, now.getTime());
-		console.log(`sesiones viejas: ${deleted} borrada(s)`);
+		console.log(`[sesiones] sesiones viejas: ${deleted} borrada(s)`);
 		return deleted;
 	} catch (error) {
-		console.error('sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
+		console.error('[sesiones] sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
 		return null;
 	}
+}
+
+/**
+ * La cotización del dólar MEP del día y los días que falten de los últimos 10
+ * (src/lib/server/paypal/rates.js, docs/propinas.md). Corre aunque el interruptor `paypal` esté
+ * apagado: no se ve, y así la historia ya está cuando llegue el primer pago. Si no pudo traer la
+ * de hoy, la corrida falla (se ve en Cron Events) y queda la última guardada; los días que falten
+ * los rellena la corrida siguiente. Nunca pisa un día guardado.
+ *
+ * @param {ScheduledEnv} env
+ * @param {Date} now
+ * @param {typeof fetch} [fetchFn]
+ */
+export async function runRates(env, now, fetchFn = fetch) {
+	if (!env.DB) throw new Error('cotización: falta el binding DB');
+	const result = await runMepRates({ db: env.DB, fetch: fetchFn, now: now.getTime() });
+	const line =
+		`cotización: hoy (${result.today}) ${result.todayResult}; ` +
+		`rellenados: ${result.backfilled.length ? result.backfilled.join(', ') : 'ninguno'}; ` +
+		`faltan: ${result.missing.length ? result.missing.join(', ') : 'ninguno'}`;
+	if (result.todayResult === 'failed') throw new Error(line);
+	console.log(line);
+	return result;
 }
 
 /**
@@ -222,6 +256,8 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 			await runMediaCopy(env);
 			return backup;
 		}
+		case RATES_CRON:
+			return runRates(env, new Date(controller.scheduledTime));
 		default:
 			throw new Error(`cron desconocido: ${controller.cron}`);
 	}

@@ -3,7 +3,7 @@
  * uso que vencen, solo el hash en la base, `/start adm_<código>`, desvincular y el registro.
  * Base de prueba; ids de Telegram inventados.
  */
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { sha256Hex } from '$lib/server/hash.js';
@@ -103,7 +103,7 @@ describe('consumeAdminLinkCode (/start adm_<código>)', () => {
 	it('vincula id de GitHub ↔ usuario de Telegram, gasta el código y deja registro', async () => {
 		const c = await newCode();
 		const r = await consumeAdminLinkCode(t.db, adminStartParam(c.code), TG, { now: NOW + 1000 });
-		expect(r).toEqual({ ok: true, login: ADMIN.login, replaced: false });
+		expect(r).toEqual({ ok: true, id: ADMIN.id, login: ADMIN.login, replaced: false });
 		expect(await linkedAdmin(t.db, TG)).toEqual(ADMIN);
 		expect(await getAdminTelegramLink(t.db, ADMIN.id)).toEqual({ linkedAt: NOW + 1000 });
 		expect([...(await linkedAdminIds(t.db))]).toEqual([ADMIN.id]);
@@ -218,7 +218,7 @@ describe('consumeAdminLinkCode (/start adm_<código>)', () => {
 		const b = await newCode(ADMIN, NOW + 10);
 		expect(
 			await consumeAdminLinkCode(t.db, adminStartParam(b.code), 7002, { now: NOW + 20 })
-		).toEqual({ ok: true, login: ADMIN.login, replaced: true });
+		).toEqual({ ok: true, id: ADMIN.id, login: ADMIN.login, replaced: true });
 		expect(await linkedAdmin(t.db, TG)).toBeNull();
 		expect(await linkedAdmin(t.db, 7002)).toEqual(ADMIN);
 		// Otre admin desde ese mismo Telegram.
@@ -239,6 +239,45 @@ describe('consumeAdminLinkCode (/start adm_<código>)', () => {
 		const link = botAdminLink(t.db);
 		expect(await link(adminStartParam(c.code), TG)).toEqual({ linked: ADMIN.login });
 		expect(await link(adminStartParam(c.code), TG)).toBe('invalid');
+	});
+
+	it('botAdminLink: `onLinked` recibe a le admin recién vinculade, solo si vinculó', async () => {
+		/** @type {{ id: number, login: string }[]} */
+		const linked = [];
+		const link = botAdminLink(t.db, { onLinked: (who) => linked.push(who) });
+		expect(await link('adm_ZZZZZZZZ', TG)).toBe('invalid');
+		expect(linked).toEqual([]);
+		const c = await newCode();
+		expect(await link(adminStartParam(c.code), TG)).toEqual({ linked: ADMIN.login });
+		expect(linked).toEqual([ADMIN]);
+		// Un código de alguien que ya no es admin: no vincula ni avisa.
+		await t.db
+			.prepare(
+				`INSERT INTO telegram_admin_link_codes
+					(code_hash, github_id, github_login, created_at, expires_at)
+				VALUES (?1, 999999999, 'nadie', ?2, ?3)`
+			)
+			.bind(await sha256Hex('ABCDEFGH'), Date.now(), Date.now() + ADMIN_LINK_CODE_TTL_MS)
+			.run();
+		expect(await link(adminStartParam('ABCDEFGH'), 7002)).toBe('invalid');
+		expect(linked).toEqual([ADMIN]);
+	});
+
+	it('botAdminLink: si `onLinked` falla, el vínculo queda igual y se anota en el log', async () => {
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const c = await newCode();
+			const link = botAdminLink(t.db, {
+				onLinked: async () => {
+					throw new Error('telegram roto inventado');
+				}
+			});
+			expect(await link(adminStartParam(c.code), TG)).toEqual({ linked: ADMIN.login });
+			expect(await linkedAdmin(t.db, TG)).toEqual(ADMIN);
+			expect(log).toHaveBeenCalled();
+		} finally {
+			log.mockRestore();
+		}
 	});
 });
 

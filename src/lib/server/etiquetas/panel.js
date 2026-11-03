@@ -8,6 +8,7 @@ import { getDB } from '$lib/server/db';
 import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
 import { dbPostsOnlyClient } from '$lib/server/contenido/repo.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { panelRevisionStatement } from '$lib/server/contenido/author.js';
 import { tagDeletionStatement } from '$lib/server/admin/deletions.js';
 import { SERIES_PARENT } from '$lib/utils/series.js';
 import { commitTagEdit, previewOf } from '$lib/server/admin/tagEditor.js';
@@ -99,6 +100,9 @@ export async function saveTagOpsToDb(
 	const series = seriesIdsOf(records);
 	const { written, errors } = await applyDbTagPlan(db, plan, {
 		actor: login,
+		// El historial de cada etiqueta que cambia («Claude, confirmado por …» si lo pidió el
+		// conector de Claude).
+		revision: (self) => panelRevisionStatement(db, self, 'panel'),
 		// Lo que se borra queda para «Recuperar» en Actividad (en la misma tanda que el borrado).
 		onDelete: async (tag, now) => [
 			await tagDeletionStatement(db, tag, { login, now, series: series.has(tag.id) })

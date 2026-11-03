@@ -49,17 +49,25 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	const now = Date.now();
 
 	const agendaUntil = arDayStart(now) + AGENDA_DAYS * 24 * 60 * 60 * 1000;
+	// Las consultas que fallaron y cayeron a su respaldo (sus `what`): la página lo dice en vez de
+	// mostrar «Todo al día» con datos que no pudo leer.
+	/** @type {string[]} */
+	const failed = [];
 	// Dos idas a la base (dos tandas, ver $lib/server/db/batch.js) en vez de una por consulta.
 	// Primera: todo lo que no depende de la lista de eventos, a la par de leerla. Lo de «Para
 	// revisar» sale de review.js: las mismas consultas que cuenta el botón del menú.
-	const first = runQueries(db, {
-		...reviewQueries(now, { login: user.login }),
-		money: monthMoneyQuery(now),
-		seen: touchLastSeenQuery(user.id, now),
-		expiring: expiringTransfersQuery(now, agendaUntil),
-		// Las filas: los títulos de los eventos se ponen después, con la lista de eventos.
-		activity: recentActivityRowsQuery({ limit: 10 })
-	});
+	const first = runQueries(
+		db,
+		{
+			...reviewQueries(now, { login: user.login }),
+			money: monthMoneyQuery(now),
+			seen: touchLastSeenQuery(user.id, now),
+			expiring: expiringTransfersQuery(now, agendaUntil),
+			// Las filas: los títulos de los eventos se ponen después, con la lista de eventos.
+			activity: recentActivityRowsQuery({ limit: 10 })
+		},
+		{ failed }
+	);
 	const others = Promise.all([
 		resolveFondoMonth({ db, fetch, now }),
 		// El uso de las etiquetas (para lo que Etiquetas tiene para revisar).
@@ -69,7 +77,12 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	first.catch(() => {});
 	others.catch(() => {});
 
-	const [events, ticketedList] = await Promise.all([listEvents(), listTicketedEvents()]);
+	/** @type {import('$lib/server/tickets/events.js').BrokenTicketConfig[]} */
+	const brokenTickets = [];
+	const [events, ticketedList] = await Promise.all([
+		listEvents(),
+		listTicketedEvents({ broken: brokenTickets, now })
+	]);
 	// Los eventos de prueba del repo solo existen en `vite dev`.
 	const skip = skipReviewEvent;
 	const { ticketed, titles, today, soonTicketed, reminderEvents, cancelledSlugs } =
@@ -88,24 +101,28 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	const reminderList = s1.settings ? parseReminders(s1.settings.reminders) : [];
 	// Segunda: lo que depende de la lista de eventos o de la primera tanda (la última visita, los
 	// ajustes de los recordatorios).
-	const s2 = await runQueries(db, {
-		...reviewEventQueries({
-			soonTicketed,
-			reminderEvents,
-			settings: s1.settings,
-			cancelledSlugs,
-			now
-		}),
-		checkins: checkinTotalsQuery(
-			soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
-		),
-		since: s1.seen
-			? sinceLastVisitQuery({ since: s1.seen.since, login: user.login, titles })
-			: noQuery(null),
-		...Object.fromEntries(
-			focusSlugs.map((slug) => [`trend:${slug}`, eventSalesTrendQuery(slug, now)])
-		)
-	});
+	const s2 = await runQueries(
+		db,
+		{
+			...reviewEventQueries({
+				soonTicketed,
+				reminderEvents,
+				settings: s1.settings,
+				cancelledSlugs,
+				now
+			}),
+			checkins: checkinTotalsQuery(
+				soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
+			),
+			since: s1.seen
+				? sinceLastVisitQuery({ since: s1.seen.since, login: user.login, titles })
+				: noQuery(null),
+			...Object.fromEntries(
+				focusSlugs.map((slug) => [`trend:${slug}`, eventSalesTrendQuery(slug, now)])
+			)
+		},
+		{ failed }
+	);
 	const { totals, checkins, streamLinks, stuck, reminders, since, cancelled } = s2;
 	const { transfers, review, money, seen, expiring } = s1;
 	const [fondo, outside] = await others;
@@ -124,7 +141,16 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		skip
 	});
 	// «Para revisar»: las mismas filas que cuenta el botón del menú (panelCounts.js).
-	const todo = reviewRows({ ...s1, ...outside, upcoming, ticketed, titles, cancelled, now });
+	const todo = reviewRows({
+		...s1,
+		...outside,
+		upcoming,
+		ticketed,
+		titles,
+		cancelled,
+		brokenTickets,
+		now
+	});
 
 	// Los recordatorios se configuran en Mensajes → Configuración.
 	const remindersItem = navItem('ajustes-mails');
@@ -157,6 +183,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		sales,
 		now,
 		dbAvailable: Boolean(db),
+		// Solo los nombres de lo que no se pudo leer (sin SQL ni mensajes de error), sin repetir.
+		unreadable: [...new Set(failed.map((what) => what.replace(/^inicio: /, '')))],
 		upcoming,
 		// Lo de hoy que se destaca arriba: nunca un borrador (todavía no está confirmado).
 		todayEvents: upcoming.filter((e) => e.today && !e.draft),

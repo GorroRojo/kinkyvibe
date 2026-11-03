@@ -27,6 +27,8 @@ import {
 	_editLoad
 } from '../../../../edit/[category=category]/[postID]/+page.server.js';
 import { readDbPostFile } from '$lib/server/contenido/repo.js';
+import { resolveEventSlug } from '$lib/server/contenido/posts.js';
+import { listRevisions, revisionAuthorLabel } from '$lib/server/contenido/revisions.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { recordDateChange, scheduleFromFile } from '$lib/server/tickets/dateChange.js';
 import { siteOrigin } from '$lib/server/tickets/index.js';
@@ -42,17 +44,37 @@ function asEventEdit(event) {
 	});
 }
 
+/**
+ * La última edición del evento (cuándo y quién, del historial), o `null` si no se puede leer. Un
+ * cambio del conector de Claude dice «Claude, confirmado por …» (docs/conector-claude.md).
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {string} slug
+ */
+async function lastEdit(db, slug) {
+	if (!db) return null;
+	try {
+		const ref = await resolveEventSlug(db, slug);
+		const [rev] = ref ? await listRevisions(db, ref.id, { limit: 1 }) : [];
+		return rev ? { at: rev.savedAt, by: revisionAuthorLabel(rev, { withAdmin: true }) } : null;
+	} catch (e) {
+		console.error('[editar] no se pudo leer la última edición:', e);
+		return null;
+	}
+}
+
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
 	requireAdmin(event.locals, event.url);
-	const [base, partes] = await Promise.all([
+	const db = getDB(event.platform);
+	const [base, partes, edited] = await Promise.all([
 		_editLoad(asEventEdit(event)),
-		panelParts(getDB(event.platform), event.params.slug).catch((e) => {
+		panelParts(db, event.params.slug).catch((e) => {
 			console.error('[partes] no se pudieron leer las partes:', e);
 			return null;
-		})
+		}),
+		lastEdit(db, event.params.slug)
 	]);
-	return { ...base, partes };
+	return { ...base, partes, lastEdit: edited };
 }
 
 /**

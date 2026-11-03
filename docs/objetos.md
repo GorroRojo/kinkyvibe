@@ -126,6 +126,12 @@ pura (recibe filas, devuelve problemas) y se prueba sin base. Encuentra:
 | `too_many_edges`       | más relaciones de las permitidas (por ejemplo, dos lugares)                      |
 | `orphan`               | un objeto vivo sin una relación obligatoria                                      |
 | `fts_out_of_sync`      | el índice de búsqueda no coincide con los objetos                                |
+| `media_missing`        | una imagen o un archivo vivo cuyo archivo no está en R2 (bucket `MEDIA`)         |
+
+`media_missing` lista las claves de `img/` y `file/` del bucket (un pedido por cada mil archivos,
+más barato que un `head` por objeto) y las compara con las imágenes y archivos sin borrar. Sin el
+binding `MEDIA` (o si listar falla, que queda en el log) ese chequeo se saltea. No borra nada: un
+archivo que falta se vuelve a subir desde la biblioteca.
 
 **El chequeo nunca hace fallar el cron** (el backup queda como bueno igual). Guarda cada corrida
 en `integrity_runs` (las últimas 30; de cada una, el total y los primeros 50 problemas: código,

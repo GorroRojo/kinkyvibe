@@ -11,6 +11,10 @@
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logDBError } from '$lib/server/db';
 import { TOOLS, ToolInputError, toolList } from './tools.js';
+import { EDIT_TOOLS } from './edicion.js';
+import { HISTORY_TOOL } from './historial.js';
+import { editingOn } from './cambios.js';
+import { queueBurstAlert } from './avisoCambios.js';
 
 /** Versiones del protocolo que entiende el servidor, la más nueva primero. */
 export const PROTOCOL_VERSIONS = Object.freeze(['2025-11-25', '2025-06-18', '2025-03-26']);
@@ -27,8 +31,38 @@ export const RPC = Object.freeze({
 const INSTRUCTIONS =
 	'Conector de solo lectura del sitio de KinkyVibe (comunidad kinky de Buenos Aires), para les ' +
 	'admins. Pedí las cosas por nombre o slug: `buscar` para encontrar, `leer` para ver un objeto, ' +
-	'`ventas` para la venta de un evento y `eventos_proximos` para la agenda. Los datos de ' +
+	'`ventas` para la venta de un evento, `eventos_proximos` para la agenda e `historial` para las ' +
+	'versiones de un objeto. Los datos de ' +
 	'compradores son privados: usalos solo para lo que pidió le admin y no los repitas de más.';
+
+/** Lo que se suma a las instrucciones con los cambios prendidos. */
+const EDIT_INSTRUCTIONS =
+	' Con los cambios prendidos, todo cambio va en dos pasos: `vista_previa` (no guarda nada) y, ' +
+	'solo después de que la persona vea el resumen y diga que sí, `aplicar` con las mismas ' +
+	'entradas más el `hash` y la `version` que dio la vista previa. Nunca apliques algo distinto de ' +
+	'lo que se mostró. `editar_objeto` cambia lo que edita el panel (eventos, material, perfiles, ' +
+	'lugares, etiquetas y la Kinkipedia), `crear_borrador` crea uno sin publicar (o una etiqueta nueva) y `deshacer` vuelve ' +
+	'un objeto a una versión anterior (también un deshacer se deshace). Nada de plata ni mails: ' +
+	'cancelar un evento, ventas, reembolsos y envíos se hacen desde el panel.';
+
+/** Las de lectura: las de ./tools.js y `historial` (./historial.js). */
+const READ_TOOLS = { ...TOOLS, historial: HISTORY_TOOL };
+
+/** La lista de las de lectura para `tools/list`, todas marcadas como de solo lectura. */
+function readToolList() {
+	const [first] = toolList();
+	return [...toolList(), { ...HISTORY_TOOL.definition, annotations: first.annotations }];
+}
+
+/**
+ * Las herramientas que se pueden usar ahora: las de lectura y, con los cambios prendidos y una
+ * conexión con permiso de cambiar (`edicion` o una llave), las de cambios.
+ * @param {import('./tools.js').ToolContext} ctx
+ */
+async function availableTools(ctx) {
+	const edit = ctx.canEdit === true && (await editingOn(ctx.db).catch(() => false));
+	return { edit, tools: edit ? { ...READ_TOOLS, ...EDIT_TOOLS } : READ_TOOLS };
+}
 
 /**
  * @param {unknown} id
@@ -70,17 +104,26 @@ export async function handleMessage(msg, ctx) {
 	switch (m.method) {
 		case 'initialize': {
 			const asked = typeof params.protocolVersion === 'string' ? params.protocolVersion : '';
+			const { edit } = await availableTools(ctx);
 			return rpcResult(id, {
 				protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
 				capabilities: { tools: { listChanged: false } },
-				serverInfo: { name: 'kinkyvibe', title: 'KinkyVibe (solo lectura)', version: '1.0.0' },
-				instructions: INSTRUCTIONS
+				serverInfo: {
+					name: 'kinkyvibe',
+					title: edit ? 'KinkyVibe' : 'KinkyVibe (solo lectura)',
+					version: '1.2.0'
+				},
+				instructions: edit ? INSTRUCTIONS + EDIT_INSTRUCTIONS : INSTRUCTIONS
 			});
 		}
 		case 'ping':
 			return rpcResult(id, {});
-		case 'tools/list':
-			return rpcResult(id, { tools: toolList() });
+		case 'tools/list': {
+			const { edit } = await availableTools(ctx);
+			return rpcResult(id, {
+				tools: edit ? [...readToolList(), ...editToolList()] : readToolList()
+			});
+		}
 		case 'tools/call':
 			return rpcResult(id, await callTool(params, ctx));
 		default:
@@ -97,27 +140,55 @@ export async function handleMessage(msg, ctx) {
  */
 async function callTool(params, ctx) {
 	const name = typeof params.name === 'string' ? params.name : '';
-	const tool = Object.hasOwn(TOOLS, name) ? TOOLS[name] : null;
+	const { tools } = await availableTools(ctx);
+	const tool = Object.hasOwn(tools, name) ? /** @type {Record<string, any>} */ (tools)[name] : null;
 	const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
 	const locals = { user: ctx.user };
+	if (!tool && Object.hasOwn(EDIT_TOOLS, name) && ctx.canEdit !== true) {
+		return errorResult(
+			'Esta conexión solo tiene permiso de lectura. Para cambiar, volvé a conectar el conector en Claude y permití también los cambios.'
+		);
+	}
 	if (!tool) return errorResult(`No existe la herramienta «${name.slice(0, 60)}».`);
 	try {
-		const { result, log } = await tool.run(ctx, args);
+		const { result, log, isError = false } = await tool.run(ctx, args);
 		await logAdminAction(ctx.db, locals, { action: `conector.${name}`, ...log });
+		// Sin tope de cambios: si hay muchos en una hora, aviso por Telegram (nunca traba nada).
+		if (name === 'aplicar' && !isError) await queueBurstAlert(ctx);
 		return {
 			content: [{ type: 'text', text: JSON.stringify(result) }],
 			structuredContent: result,
-			isError: false
+			isError
 		};
 	} catch (error) {
-		if (error instanceof ToolInputError) return errorResult(error.message);
+		if (error instanceof ToolInputError) {
+			// Los cambios quedan en Actividad aunque no pasen la validación (sin las entradas).
+			if (Object.hasOwn(EDIT_TOOLS, name)) {
+				const op = typeof args.operacion === 'string' ? args.operacion.slice(0, 30) : '';
+				await logAdminAction(ctx.db, locals, {
+					action: `conector.${name}`,
+					summary: `Claude: ${name === 'aplicar' ? 'no se aplicó' : 'vista previa rechazada'}${op ? ` (${op})` : ''}: no pasó la validación`,
+					detail: { operacion: op }
+				});
+			}
+			return errorResult(error.message);
+		}
 		logDBError(`conector de Claude: ${name}`, error);
 		await logAdminAction(ctx.db, locals, {
 			action: `conector.${name}`,
 			summary: `Claude: ${name} falló`
 		});
-		return errorResult('No se pudo leer eso ahora. Probá de nuevo en un rato.');
+		return errorResult(
+			Object.hasOwn(EDIT_TOOLS, name)
+				? 'No se pudo terminar. Antes de reintentar, fijate con `leer` si el cambio quedó guardado.'
+				: 'No se pudo leer eso ahora. Probá de nuevo en un rato.'
+		);
 	}
+}
+
+/** La lista de las de cambios para `tools/list`, cada una con sus anotaciones. */
+export function editToolList() {
+	return Object.values(EDIT_TOOLS).map((t) => ({ ...t.definition, annotations: t.annotations }));
 }
 
 /** @param {string} text */

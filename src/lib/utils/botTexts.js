@@ -936,7 +936,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Cambios de Claude**: si el conector de Claude aplica muchos cambios en una hora.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta, cada transferencia y los cambios de Claude; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -964,6 +964,14 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'button',
 			'Mis avisos: recordatorios',
 			'Recordatorios',
+			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_conector',
+			'admin',
+			'button',
+			'Mis avisos: cambios de Claude',
+			'Cambios de Claude',
 			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
 		),
 		f('admin.prendido', 'admin', 'toast', 'Mis avisos: al prender uno', 'Prendido: {aviso}', {
@@ -1054,6 +1062,41 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				],
 				required: ['orden', 'evento'],
 				help: 'Les llega a quienes prendieron «Cada venta». Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.conector_cambios',
+			'admin',
+			'line',
+			'Aviso «Cambios de Claude»: muchos cambios en una hora',
+			'⚠️ Claude aplicó {cantidad} cambios en la última hora desde el conector.',
+			{
+				vars: [V.cantidad],
+				required: ['cantidad'],
+				help: 'Sale una vez por hora como mucho, a quienes prendieron «Cambios de Claude».'
+			}
+		),
+		f(
+			'admin.conector_autorizo',
+			'admin',
+			'line',
+			'Aviso «Cambios de Claude»: quién autorizó',
+			'Autorizó: {admins}',
+			{
+				vars: [{ name: 'admins', label: 'les admins dueñes de la conexión', sample: '@gorrite' }],
+				required: ['admins']
+			}
+		),
+		f(
+			'admin.conector_confirmo',
+			'admin',
+			'line',
+			'Aviso «Cambios de Claude»: quién confirmó en el chat',
+			'Confirmado por: {nombres}',
+			{
+				vars: [{ name: 'nombres', label: 'los nombres de «confirmado por»', sample: 'Mel, Juan' }],
+				required: ['nombres'],
+				help: 'Solo si alguno de los cambios vino con «confirmado por».'
 			}
 		),
 		f(

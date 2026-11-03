@@ -6,7 +6,7 @@
  */
 import { readJsonCapped } from '$lib/server/http/body.js';
 import { connectorDB, limitByClient, noStoreJson } from '$lib/server/mcp/http.js';
-import { CLIENT_ID, SCOPE, isAllowedRedirect } from '$lib/server/mcp/oauth.js';
+import { CLIENT_ID, ALL_SCOPES, isAllowedRedirect } from '$lib/server/mcp/oauth.js';
 
 /** Registros por conexión por hora (Claude registra uno por conexión nueva). */
 const REGISTER_RATE_LIMIT = { limit: 30, windowSeconds: 60 * 60 };
@@ -51,7 +51,7 @@ export async function POST(event) {
 			grant_types: ['authorization_code', 'refresh_token'],
 			response_types: ['code'],
 			token_endpoint_auth_method: 'none',
-			scope: SCOPE
+			scope: ALL_SCOPES
 		},
 		201
 	);

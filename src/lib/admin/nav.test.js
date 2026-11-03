@@ -205,7 +205,7 @@ describe('NAV', () => {
 			'entradas-codigos',
 			'tienda'
 		]);
-		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas']);
+		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas', 'avisos-puerta']);
 		expect(ids('mensajes')).toEqual([
 			'ajustes-plantillas',
 			'ajustes-mails',
@@ -363,7 +363,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas', 'estadisticas-bot']]
 		]);
 		expect(blocks('comunidad')).toEqual([
-			['', ['personas', 'amigues', 'cuentas']],
+			['', ['personas', 'amigues', 'cuentas', 'avisos-puerta']],
 			['Mensajes', ['ajustes-plantillas', 'ajustes-mails', 'lo-que-sigo', 'bandeja']]
 		]);
 		expect(blocks('contenido')).toEqual([
@@ -380,7 +380,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		expect(
 			navGroupSections('comunidad', { hideSoon: true }).map((s) => [s.label, s.items.length])
 		).toEqual([
-			['', 3],
+			['', 4],
 			['Mensajes', 3]
 		]);
 	});
@@ -456,6 +456,7 @@ describe('sectionTabs (pestañas de sección)', () => {
 			'Personas',
 			'Perfiles',
 			'Cuentas',
+			'Avisos de puerta',
 			'Plantillas',
 			'Configuración',
 			'Lo que sigo'

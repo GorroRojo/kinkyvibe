@@ -671,6 +671,23 @@ errores se muestran sin él.
 
 Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumularía reintentos).
 
+### Salud del webhook
+
+Si se rota `TELEGRAM_WEBHOOK_SECRET` (o el token) sin volver a correr `npm run telegram:webhook`,
+Telegram sigue mandando el secreto viejo, cada pedido da 401 y el bot deja de contestar sin que
+nadie se entere. Por eso, una vez por hora (la corrida del cron de los minutos 0 a 14), con token y
+el bot prendido, el cron le pide a Telegram `getWebhookInfo` (`checkWebhookHealth` en
+`src/lib/server/telegram/webhookHealth.js`). Hay problema si la URL registrada no es
+`https://kinkyvibe.ar/api/telegram`, si Telegram anotó un error de entrega en las últimas 2 horas
+y todavía hay mensajes esperando (un error suelto que después se entregó, como un 502 mientras se
+publica el sitio, no cuenta) o si hay más de 20 mensajes esperando. El resultado queda en `ticket_settings`
+(`telegram_webhook_health`: cuándo, qué pasó y el mensaje de error de Telegram, sin el token) y,
+mientras el último chequeo con problema tenga menos de 3 horas, el Inicio muestra en «Para
+revisar» «El bot de Telegram no está recibiendo mensajes». Se arregla volviendo a registrar el
+webhook (paso 3). No llama a `setWebhook` solo: no arreglaría un secreto rotado y pisaría un
+cambio de URL hecho a propósito. El log dice `[telegram] webhook: …` y la respuesta del cron suma
+`telegramWebhook`.
+
 ### Fase 2 (la hace gorrite)
 
 1. **Aplicar la migración `0033_telegram_avisos.sql` en producción y en preview antes de mergear**
@@ -733,6 +750,10 @@ que ahora no se puede.
     sin los online, hasta 20): solo dirección, título y comienzo (`doorEvents` en `puerta.js`).
   - `?evento=` sigue andando y gana sobre la lista. Para un evento que no está en la lista, «Otro
     evento: escribir la dirección»; si la lista no carga, queda escribirla, como antes.
+- **Avisos de puerta** (decisión [0053](decisiones/0053-avisos-de-puerta.md)): en un evento de
+  Kinky Vibe, si la entrada coincide con un aviso, la respuesta trae `notice: true` y la Mini App
+  muestra solo «Avisá a la organización antes de dejar pasar», debajo del resultado. El ingreso ya
+  se marcó igual. Ver [tickets.md](tickets.md#avisos-de-puerta).
 - **Cómo se abre**: con el botón «🚪 Abrir la puerta» que manda el bot cuando confirma el vínculo,
   o con «🚪 Puerta» en el inicio (`/start`, `/inicio`, «🏠 Inicio»). Los dos son el mismo botón
   `web_app` a `/telegram/puerta`, solo en chat privado (`web_app` no anda en grupos).
@@ -766,11 +787,23 @@ que ahora no se puede.
   3. **Desvincular** en el mismo lugar borra el vínculo y los códigos.
   4. Vincular y desvincular quedan en Actividad (`telegram.admin_link`, `telegram.admin_unlink`).
      «Seguir» desde el bot sigue sin registro.
+  5. Al vincular, les **otres admins** con Telegram vinculado reciben un aviso (abajo, «Aviso al
+     vincular un Telegram de admin»).
 - Para el vínculo, de Telegram solo se guarda el id del usuario (ni nombre ni usuario). La lista
   muestra quién tiene Telegram vinculado.
 - Marca con lo mismo que el modo puerta del panel (`extractToken` + `checkIn`), con el login de le
   admin; contesta solo el resultado y el nombre de la entrada. Tope de 600 escaneos por hora.
 - Solo Telegram Web puede embeberla (`frame-ancestors https://web.telegram.org`).
+- **Salvedades para la noche del evento** (auditoría de confiabilidad, OX3):
+  - **Necesita señal en cada escaneo**: no guarda la lista ni tiene modo sin conexión. Sin red,
+    cada escaneo falla.
+  - **Cada hora hay que cerrarla y volver a abrirla desde el bot**: el `initData` vale una hora
+    (`auth_date`, decisión 0037) y después cada escaneo contesta «Pasó más de una hora desde que
+    abriste la puerta: cerrala y volvé a abrirla desde el bot».
+  - Para una puerta larga o con mala señal, usá el **modo puerta del panel**
+    (`/admin/eventos/<slug>/ingreso`), que guarda la lista y sigue sin conexión
+    ([tickets.md](tickets.md), punto 9). La de Telegram sirve de respaldo (por ejemplo, si no se
+    puede entrar con GitHub), con señal.
 
 ### Puesta en marcha de la puerta (la hace gorrite)
 
@@ -822,11 +855,12 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
 - **Solo cantidades**: las consultas son `SUM`/`COUNT` sobre `orders` (y la lista de espera); nunca
   leen nombres, mails, DNI, titulares, códigos ni tokens (`admin-privacy.test.js` llena la base con
   todo eso y revisa que no aparezca en ninguna pantalla). Lo de cada compra, en el panel.
-- **🔔 Mis avisos**: cinco tipos (resumen diario, cada venta, cada transferencia, día del evento,
-  recordatorios), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
-  por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila = apagado): volver a
-  vincular no borra lo elegido. Ya salen el resumen diario, cada venta y cada transferencia (abajo);
-  el día del evento y los recordatorios, con el PR 3 (la pantalla lo dice).
+- **🔔 Mis avisos**: seis tipos (resumen diario, cada venta, cada transferencia, día del evento,
+  recordatorios y cambios de Claude), **todos apagados al empezar**; tocar uno lo prende o lo apaga
+  (✅/⬜). Se guarda por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila =
+  apagado): volver a vincular no borra lo elegido. Ya salen el resumen diario, cada venta, cada
+  transferencia y los cambios de Claude (abajo); el día del evento y los recordatorios, con el PR 3
+  (la pantalla lo dice).
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con sus pantallas en
   la vista previa.
 
@@ -883,6 +917,32 @@ una confirmación):
 - En el horario de silencio salen igual, pero **sin sonido** (`disable_notification`): una venta
   avisada a las 9 de la mañana ya no sirve.
 - Si Telegram falla en ese momento, ese aviso no se reintenta (el resumen diario la cuenta igual).
+
+**Cambios de Claude** (`conector_claude`, letra `c`): el conector de Claude no tiene tope de
+cambios; cuando en la última hora (ventana móvil) se aplicaron 20 o más, sale «⚠️ Claude aplicó 20
+cambios en la última hora desde el conector.», con «Autorizó: @login» (les admins dueñes de la
+conexión) y, si vino, «Confirmado por: Mel» (los nombres de «confirmado por»), y «Ver en el panel ↗»
+a Actividad. Una vez por hora como mucho, nunca traba un cambio y si Telegram falla el próximo
+cambio reintenta. Detalle en [conector-claude.md](conector-claude.md#cambios)
+(`src/lib/server/mcp/avisoCambios.js`).
+
+**Aviso al vincular un Telegram de admin** (`notifyAdminLinked` / `queueAdminLinkedNotice`, lo
+engancha la ruta del webhook con `onLinked` de `botAdminLink`): cuando une admin vincula un
+Telegram desde Ajustes → Admins → «Vincular Telegram», les otres admins con Telegram vinculado que
+siguen en `ADMINS` reciben «🔗 Se vinculó un Telegram a la cuenta de admin de @login.» (`login`: el
+de GitHub de quien vinculó; nada de su Telegram).
+
+- **No es de «🔔 Mis avisos»** ni se apaga: es de seguridad (si no lo hizo esa persona, el resto se
+  entera). Le llega a todes les otres, aunque no hayan prendido nada (`linkNoticeRecipients`); a
+  quien vinculó no (el bot ya le confirma en el chat). Vincular una cuenta de Mi rincón no avisa.
+- Mismos interruptores que los otros avisos (`telegram_bot` y `telegram_admin`, y
+  `TELEGRAM_BOT_TOKEN`): con solo la puerta prendida, se vincula sin aviso. Clave
+  `vinculo:<id de GitHub>:<momento>` en `telegram_admin_sent`. En el horario de silencio, sin
+  sonido. Sin botón.
+- El texto es **fijo**, no está en «Textos del bot»: un aviso de seguridad no se tiene que poder
+  cambiar ni vaciar desde el panel.
+- Va en segundo plano (`waitUntil`) y **nunca traba el vínculo**: si Telegram o la base fallan,
+  el vínculo queda y el error va al log.
 
 ### Puesta en marcha del estado y los avisos (la hace gorrite)
 

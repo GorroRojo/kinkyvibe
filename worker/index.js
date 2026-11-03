@@ -2,8 +2,8 @@
  * Punto de entrada del Worker `kinkyvibe` (el `main` de wrangler.toml).
  *
  * `@sveltejs/adapter-cloudflare` genera un Worker que solo exporta `fetch`. Este archivo lo
- * envuelve para sumar `scheduled()` (los crons de wrangler.toml: recordatorios y backup
- * nocturno), sin tocar cómo se atienden las páginas. El adapter escribe su Worker en
+ * envuelve para sumar `scheduled()` (los crons de wrangler.toml: recordatorios, backup
+ * nocturno y cotización del dólar), sin tocar cómo se atienden las páginas. El adapter escribe su Worker en
  * `.svelte-kit/cloudflare/_worker.js` (ver svelte.config.js y wrangler.adapter.toml); wrangler
  * empaqueta este archivo junto con ese.
  *

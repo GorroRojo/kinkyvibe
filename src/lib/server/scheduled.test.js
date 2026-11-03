@@ -6,6 +6,7 @@ import { lastIntegrityRun } from './objects/integrity.js';
 import { saveObject } from './objects/save.js';
 import {
 	BACKUP_CRON,
+	RATES_CRON,
 	REMINDERS_CRON,
 	handleScheduled,
 	runObjectsIntegrity,
@@ -20,7 +21,9 @@ const ctx = /** @type {any} */ ({ waitUntil() {}, passThroughOnException() {} })
 describe('wrangler.toml', () => {
 	it('tiene exactamente los crons que maneja scheduled.js', () => {
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
-		expect([...(config.triggers.crons ?? [])].sort()).toEqual([BACKUP_CRON, REMINDERS_CRON].sort());
+		expect([...(config.triggers.crons ?? [])].sort()).toEqual(
+			[BACKUP_CRON, REMINDERS_CRON, RATES_CRON].sort()
+		);
 	});
 
 	it('el Worker usa worker/index.js, el bucket de backups y el de imágenes; los Previews, la base y el bucket de imágenes de prueba', () => {
@@ -266,7 +269,7 @@ describe('sesiones sin cookie (después del backup)', () => {
 				.all();
 			expect(results.map((r) => r.h)).toEqual(['a', 'b', 'c']);
 			// En el log, solo cuántas.
-			expect(log).toHaveBeenCalledWith('sesiones viejas: 2 borrada(s)');
+			expect(log).toHaveBeenCalledWith('[sesiones] sesiones viejas: 2 borrada(s)');
 			// Otra vez: nada más que borrar.
 			expect(await runSessionCleanup({ DB: t.db }, new Date(now))).toBe(0);
 		} finally {
