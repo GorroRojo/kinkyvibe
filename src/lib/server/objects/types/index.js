@@ -35,9 +35,10 @@ import perfil from './perfil.js';
  *   un valor de opción que cambió de nombre); devuelve los datos tal cual si no hay nada que hacer
  * @prop {(data: Record<string, any>) => import('../fields.js').FieldError[]} [check] reglas entre campos
  * @prop {(data: Record<string, any>) => string} [searchText] texto extra para la búsqueda
- * @prop {(db: import('@cloudflare/workers-types').D1Database, data: Record<string, any>) =>
- *   Promise<Record<string, import('../edges.js').EdgeInput[]>>} [deriveEdges] los edges `derived`
- *   que corresponden a estos datos (ya validados); saveObject() los reemplaza en cada guardado
+ * @prop {(db: import('@cloudflare/workers-types').D1Database, data: Record<string, any>,
+ *   self: { id: number | null }) => Promise<Record<string, import('../edges.js').EdgeInput[]>>}
+ *   [deriveEdges] los edges `derived` que corresponden a estos datos (ya validados; `self.id`: el
+ *   objeto que se guarda, null si es nuevo); saveObject() los reemplaza en cada guardado
  */
 
 /**
