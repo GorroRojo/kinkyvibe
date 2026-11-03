@@ -258,3 +258,5 @@ a la guía sin tocar nada más.
 - **Sitio**: el botón «?» de la barra del buscador, y «¿Cómo buscar?» con el buscador vacío o sin
   resultados (`SearchPalette.svelte`). Cada ejemplo se puede tocar y queda escrito en el buscador;
   escribir cierra la guía. Falta `/ayuda/buscar` (`buscar-guia-visible`).
+- **Bot**: «🔎 Cómo buscar» en ❓ Ayuda (`searchHelpScreen` en `telegram/screens.js`), con cada
+  ejemplo en `<code>` para copiarlo. Falta la línea en el mensaje de Buscar.

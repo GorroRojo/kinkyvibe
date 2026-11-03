@@ -1197,6 +1197,12 @@
 		"keyboard": [
 			[
 				{
+					"text": "🔎 Cómo buscar",
+					"callback_data": "sa"
+				}
+			],
+			[
+				{
 					"text": "🏠 Inicio",
 					"callback_data": "h"
 				}
@@ -1207,6 +1213,33 @@
 		"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/entradas: tus entradas, con el QR para la puerta\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
 		"keyboard": [
 			[
+				{
+					"text": "🔎 Cómo buscar",
+					"callback_data": "sa"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"cómo buscar": {
+		"text": "<b>🔎 ¿Cómo buscar?</b>\n\nEn /buscar y en el modo inline podés escribir palabras sueltas o sumar alguno de estos:\n\n• <b>&quot;…&quot;</b>: Esas palabras juntas y en ese orden.\n<code>&quot;reducción de daños&quot;</code>\n• <b>-</b>: Sin esa palabra (también -#etiqueta o -evento:).\n<code>taller -online</code>\n• <b>evento: · e:</b>: Solo eventos.\n<code>evento: cuerdas</code>\n• <b>material: · m:</b>: Solo material.\n<code>material: consentimiento</code>\n• <b>wiki: · w:</b>: Solo la Kinkipedia (entradas y series).\n<code>wiki: aftercare</code>\n• <b>serie: · s:</b>: Solo series.\n<code>serie: picantearla</code>\n• <b>amigues: · a:</b>: Solo amigues.\n<code>amigues: cuerdas</code>\n• <b>#etiqueta · etiqueta:</b>: Con esa etiqueta (o una hija), por su nombre o sus otros nombres.\n<code>#shibari</code>\n• <b>@nombre</b>: Lo que esa persona firma u organiza.\n<code>@gorrite</code>\n• <b>lugar:</b>: Eventos en ese lugar (su nombre, barrio o ciudad).\n<code>lugar: palermo</code>\n• <b>cuando:</b>: Eventos ese día, esa fecha (15/10), ese mes o en un rango (1/11..30/11).\n<code>cuando: sabado</code>\n• <b>desde:</b>: Eventos desde ese día.\n<code>desde: 1/11</code>\n• <b>hasta:</b>: Eventos hasta ese día.\n<code>hasta: hoy</code>",
+		"keyboard": [
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "a"
+				},
 				{
 					"text": "🏠 Inicio",
 					"callback_data": "h"
@@ -2705,6 +2738,12 @@
 					"inline_keyboard": [
 						[
 							{
+								"text": "🔎 Cómo buscar",
+								"callback_data": "sa"
+							}
+						],
+						[
+							{
 								"text": "🏠 Inicio",
 								"callback_data": "h"
 							}
@@ -2726,6 +2765,12 @@
 				},
 				"reply_markup": {
 					"inline_keyboard": [
+						[
+							{
+								"text": "🔎 Cómo buscar",
+								"callback_data": "sa"
+							}
+						],
 						[
 							{
 								"text": "🏠 Inicio",
@@ -4252,6 +4297,12 @@
 					"inline_keyboard": [
 						[
 							{
+								"text": "🔎 Cómo buscar",
+								"callback_data": "sa"
+							}
+						],
+						[
+							{
 								"text": "🏠 Inicio",
 								"callback_data": "h"
 							}
@@ -4271,6 +4322,74 @@
 				"text": "Abrí el bot por privado para ver esto.",
 				"url": "https://t.me/BotDePrueba?start=inicio"
 			}
+		}
+	},
+	"router: botón cómo buscar": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>🔎 ¿Cómo buscar?</b>\n\nEn /buscar y en el modo inline podés escribir palabras sueltas o sumar alguno de estos:\n\n• <b>&quot;…&quot;</b>: Esas palabras juntas y en ese orden.\n<code>&quot;reducción de daños&quot;</code>\n• <b>-</b>: Sin esa palabra (también -#etiqueta o -evento:).\n<code>taller -online</code>\n• <b>evento: · e:</b>: Solo eventos.\n<code>evento: cuerdas</code>\n• <b>material: · m:</b>: Solo material.\n<code>material: consentimiento</code>\n• <b>wiki: · w:</b>: Solo la Kinkipedia (entradas y series).\n<code>wiki: aftercare</code>\n• <b>serie: · s:</b>: Solo series.\n<code>serie: picantearla</code>\n• <b>amigues: · a:</b>: Solo amigues.\n<code>amigues: cuerdas</code>\n• <b>#etiqueta · etiqueta:</b>: Con esa etiqueta (o una hija), por su nombre o sus otros nombres.\n<code>#shibari</code>\n• <b>@nombre</b>: Lo que esa persona firma u organiza.\n<code>@gorrite</code>\n• <b>lugar:</b>: Eventos en ese lugar (su nombre, barrio o ciudad).\n<code>lugar: palermo</code>\n• <b>cuando:</b>: Eventos ese día, esa fecha (15/10), ese mes o en un rango (1/11..30/11).\n<code>cuando: sabado</code>\n• <b>desde:</b>: Eventos desde ese día.\n<code>desde: 1/11</code>\n• <b>hasta:</b>: Eventos hasta ese día.\n<code>hasta: hoy</code>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "a"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>🔎 ¿Cómo buscar?</b>\n\nEn /buscar y en el modo inline podés escribir palabras sueltas o sumar alguno de estos:\n\n• <b>&quot;…&quot;</b>: Esas palabras juntas y en ese orden.\n<code>&quot;reducción de daños&quot;</code>\n• <b>-</b>: Sin esa palabra (también -#etiqueta o -evento:).\n<code>taller -online</code>\n• <b>evento: · e:</b>: Solo eventos.\n<code>evento: cuerdas</code>\n• <b>material: · m:</b>: Solo material.\n<code>material: consentimiento</code>\n• <b>wiki: · w:</b>: Solo la Kinkipedia (entradas y series).\n<code>wiki: aftercare</code>\n• <b>serie: · s:</b>: Solo series.\n<code>serie: picantearla</code>\n• <b>amigues: · a:</b>: Solo amigues.\n<code>amigues: cuerdas</code>\n• <b>#etiqueta · etiqueta:</b>: Con esa etiqueta (o una hija), por su nombre o sus otros nombres.\n<code>#shibari</code>\n• <b>@nombre</b>: Lo que esa persona firma u organiza.\n<code>@gorrite</code>\n• <b>lugar:</b>: Eventos en ese lugar (su nombre, barrio o ciudad).\n<code>lugar: palermo</code>\n• <b>cuando:</b>: Eventos ese día, esa fecha (15/10), ese mes o en un rango (1/11..30/11).\n<code>cuando: sabado</code>\n• <b>desde:</b>: Eventos desde ese día.\n<code>desde: 1/11</code>\n• <b>hasta:</b>: Eventos hasta ese día.\n<code>hasta: hoy</code>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "a"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
 		}
 	},
 	"router: botón seguir": {
