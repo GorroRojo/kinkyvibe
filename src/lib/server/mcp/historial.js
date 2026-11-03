@@ -225,7 +225,7 @@ export const HISTORY_TOOL = {
 					: 'No hay versiones en el historial.'
 			},
 			log: {
-				summary: `Claude: miró el historial de ${TYPE_TEXT[tipo]} «${object.title}»`,
+				summary: `Claude: miró el historial ${`de ${TYPE_TEXT[tipo]}`.replace(/^de el /, 'del ')} «${object.title}»`,
 				targetType: LOG_TYPE[tipo],
 				targetId: slug
 			}
