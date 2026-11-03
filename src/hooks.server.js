@@ -12,6 +12,7 @@ import { setContentDB } from '$lib/server/contenido/repo.js';
 import { resolveAsPanelAuthor } from '$lib/server/contenido/author.js';
 import { startRequest } from '$lib/server/adelantarPedido.js';
 import { withPreload } from '$lib/server/preload.js';
+import { withoutBeacon } from '$lib/server/analyticsBeacon.js';
 import { wwwRedirectResponse } from '$lib/server/canonicalHost.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
@@ -25,7 +26,9 @@ export async function handle({ event, resolve: resolvePage }) {
 	const toApex = wwwRedirectResponse(event.request, event.url);
 	if (toApex) return toApex;
 	// Precarga, además del JS y el CSS, las dos Lato latin ($lib/server/preload.js).
-	const resolve = withPreload(resolvePage);
+	// En la puerta con link, sin el beacon de analytics (el token va en el fragmento;
+	// $lib/server/analyticsBeacon.js).
+	const resolve = withoutBeacon(withPreload(resolvePage));
 	// La base donde el cliente del repo lee y guarda los eventos y el material (es la misma para
 	// todo el isolate, como la del modo demo).
 	setContentDB(getDB(event.platform));

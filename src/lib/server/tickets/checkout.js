@@ -697,8 +697,9 @@ async function codeAttemptAllowed(db, slug, client) {
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string} email
  * @param {boolean} confirmed
+ * @param {string} [orderId] para el log (el id de la orden no es un dato personal)
  */
-async function mailAllowed(db, email, confirmed) {
+async function mailAllowed(db, email, confirmed, orderId) {
 	try {
 		const limit = await hitRateLimit(
 			db,
@@ -706,7 +707,9 @@ async function mailAllowed(db, email, confirmed) {
 			CHECKOUT_RATE_LIMITS.mail
 		);
 		if (!limit.allowed) {
-			console.warn('[tickets] límite de mails a una dirección: no se manda');
+			console.warn(
+				`[tickets] límite de mails a una dirección: no se manda${orderId ? ` (orden ${orderId})` : ''}`
+			);
 			return false;
 		}
 	} catch (error) {
@@ -1150,7 +1153,7 @@ export async function buyAction(event) {
 	}
 
 	if (method === 'transferencia') {
-		if (await mailAllowed(db, order.buyer_email, confirmedEmail))
+		if (await mailAllowed(db, order.buyer_email, confirmedEmail, order.id))
 			await inBackground(sendTransferEmail({ db, order, origin, fetch }), platform);
 		// «Cada transferencia» por Telegram a les admins que lo prendieron (decisión 0041).
 		await queueOrderNotice({ db, platform, kind: 'transferencia', order, origin, fetch });

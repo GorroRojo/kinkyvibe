@@ -5,14 +5,19 @@
  * la lista de espera de las entradas (interruptor `lista_espera`: primero avanza la lista de cada
  * evento con `runWaitlistCron` y sus mails van primero en la tanda; ver
  * $lib/server/tickets/waitlistEngine.js),
+ * la conciliación con Mercado Pago de las órdenes cuyo webhook no llegó (ver
+ * $lib/server/tickets/reconcile.js),
  * el reintento del mail con las entradas de las órdenes aprobadas cuyo envío falló (ver
  * $lib/server/tickets/unsentOrders.js),
- * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), el resumen diario de
+ * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), una vez por hora la salud
+ * del webhook del bot (ver $lib/server/telegram/webhookHealth.js), el resumen diario de
  * ventas para admins por Telegram (ver $lib/server/telegram/adminNotify.js) y el registro automático
  * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js) y borra las filas
  * por persona de las estadísticas de uso del bot de más de 180 días (ver
  * $lib/server/telegram/uso.js) y avisa por IndexNow las páginas públicas que cambiaron (ver
- * $lib/server/seo/indexnow.js). Lo llama cada 15 minutos el cron
+ * $lib/server/seo/indexnow.js) y borra los avisos de puerta vencidos y avisa por mail a la casilla
+ * de la organización los que vencen pronto (ver $lib/server/tickets/doorNotices.js). Lo llama cada
+ * 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
  * Pausas de emergencia ($lib/server/emergencia.js, docs/interruptores.md): con `MAILS_PAUSED`
@@ -28,16 +33,24 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
-import { runMailQueue, siteOrigin } from '$lib/server/tickets/index.js';
+import {
+	deliverEmail,
+	replyToAddress,
+	runMailQueue,
+	siteOrigin
+} from '$lib/server/tickets/index.js';
+import { runDoorNoticesCron } from '$lib/server/tickets/doorNotices.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
-import { listaEsperaEnabled } from '$lib/server/flags.js';
+import { isFlagOn, listaEsperaEnabled } from '$lib/server/flags.js';
 import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
+import { checkWebhookHealth } from '$lib/server/telegram/webhookHealth.js';
 import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
 import { pruneUso } from '$lib/server/telegram/uso.js';
 import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
+import { reconcilePendingPayments } from '$lib/server/tickets/reconcile.js';
 import { runIndexNow } from '$lib/server/seo/indexnow.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { logMailsPaused, mailsPaused, ticketsPausedMessage } from '$lib/server/emergencia.js';
@@ -79,6 +92,15 @@ export async function POST({ request, platform, url, fetch }) {
 				? { sendWaitlist: waitlistMailBatch({ db, origin: siteOrigin(url), fetch }) }
 				: {})
 		});
+		// Conciliación con MP: órdenes cuyo webhook no llegó. Antes del reintento de mails y aparte:
+		// si falla, lo demás sale igual. Sigue con las pausas (es plata que ya entró).
+		let reconciled = null;
+		try {
+			const c = await reconcilePendingPayments({ db, origin: siteOrigin(url), fetch, platform });
+			if (!('skipped' in c)) reconciled = c;
+		} catch (error) {
+			logDBError('cron conciliación con MP', error);
+		}
 		// El mail con las entradas que no salió al aprobarse la orden: aparte de la tanda (tiene su
 		// propio tope) y si falla, lo demás sale igual.
 		let unsentOrders = null;
@@ -150,10 +172,27 @@ export async function POST({ request, platform, url, fetch }) {
 				return { posts, wikiPosts, seriesIds: seriesTagIds(tags) };
 			}
 		});
+		// Avisos de puerta (decisión 0053): borra los vencidos y avisa 14 días antes, una vez, a la
+		// casilla de la organización (la de los comprobantes). Sin datos de la persona. Nunca tira.
+		const doorNotices = await runDoorNoticesCron({
+			db,
+			origin: siteOrigin(url),
+			to: () => replyToAddress(db),
+			send: ({ to, message, idempotencyKey }) =>
+				deliverEmail({ db, fetch, to, message, idempotencyKey })
+		});
 		// El menú «/» del bot: solo si cambió la lista y hay token. Nunca tira.
 		const telegramCommands = await syncBotCommands({
 			db,
 			token: env.TELEGRAM_BOT_TOKEN,
+			fetch
+		});
+		// La salud del webhook del bot, una vez por hora (en la corrida de los minutos 0 a 14). Nunca
+		// tira.
+		const telegramWebhook = await checkWebhookHealth({
+			db,
+			token: env.TELEGRAM_BOT_TOKEN,
+			enabled: () => isFlagOn(db, 'telegram_bot'),
 			fetch
 		});
 		return json(
@@ -161,13 +200,16 @@ export async function POST({ request, platform, url, fetch }) {
 				...r,
 				...(mailsOff || ticketsOff ? { paused: { tickets: ticketsOff, mails: mailsOff } } : {}),
 				...(waitlist ? { waitlistAdvance: waitlist } : {}),
+				...(reconciled ? { reconciled } : {}),
 				...(unsentOrders ? { unsentOrders } : {}),
 				...(series ? { series } : {}),
 				...(sigo ? { sigo } : {}),
 				...(telegramAdmin ? { telegramAdmin } : {}),
 				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),
 				...('skipped' in indexNow ? {} : { indexNow }),
-				telegramCommands
+				...(doorNotices && (doorNotices.expired || doorNotices.reminded) ? { doorNotices } : {}),
+				telegramCommands,
+				...(telegramWebhook === 'skipped' ? {} : { telegramWebhook })
 			},
 			{ headers: { 'cache-control': 'no-store' } }
 		);

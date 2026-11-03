@@ -809,8 +809,12 @@ export async function sendDateChangeEmails({
 	});
 }
 
+/** Cuánto se espera antes de reintentar el mail con los datos para transferir. */
+export const TRANSFER_RETRY_DELAY_MS = 2000;
+
 /**
- * Manda (o, sin RESEND_API_KEY, loguea) el email con los datos para transferir.
+ * Manda (o, sin RESEND_API_KEY, loguea) el email con los datos para transferir. Si falla, lo
+ * reintenta una vez a los {@link TRANSFER_RETRY_DELAY_MS} con la misma clave de idempotencia.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
@@ -846,14 +850,36 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			// Todavía no está pagada: el pie lleva «¿No reservaste vos?» (email/suppressions.js).
 			optOutUrl: await optOutUrl(db, origin, order.buyer_email)
 		});
-		const result = await deliver({
-			db,
-			fetch: fetchFn,
-			to: order.buyer_email,
-			message,
-			idempotencyKey: `transfer-${order.id}`,
-			optOut: true
-		});
+		/** @returns {Promise<'sent' | 'simulated' | 'failed'>} */
+		const send = async () => {
+			try {
+				return await deliver({
+					db,
+					fetch: fetchFn,
+					to: order.buyer_email,
+					message,
+					idempotencyKey: `transfer-${order.id}`,
+					optOut: true
+				});
+			} catch (error) {
+				// Cupo terminado: reintentar enseguida no sirve (queda el aviso en «Para revisar»).
+				if (resendBackoff(error) === 'quota') throw error;
+				console.error(`[tickets] el mail de transferencia ${order.id} falló:`, error);
+				return 'failed';
+			}
+		};
+		let result = await send();
+		if (result === 'failed') {
+			// Un reintento, como el mail de las entradas (auditoría de confiabilidad, O29): sin los
+			// datos, la reserva vence sin que la persona sepa adónde transferir. La misma clave de
+			// idempotencia: si el primero sí salió, Resend no lo duplica.
+			console.warn(`[tickets] el mail de transferencia ${order.id} falló: se reintenta una vez`);
+			await new Promise((resolve) => setTimeout(resolve, TRANSFER_RETRY_DELAY_MS));
+			result = await send();
+			if (result === 'failed') {
+				console.error(`[tickets] el mail de transferencia ${order.id} no salió`);
+			}
+		}
 		return result === 'sent';
 	} catch (error) {
 		console.error(`[tickets] no se pudo mandar el email de transferencia ${order.id}:`, error);
