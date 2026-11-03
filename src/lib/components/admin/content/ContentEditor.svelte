@@ -72,7 +72,7 @@
 		suggestContentSlug,
 		validateContentSlug
 	} from '$lib/utils/contentPosts.js';
-	import { renderPreviewHtml, sanitizePreview } from '$lib/utils/markdownPreview.js';
+	import { renderPreviewHtml } from '$lib/utils/markdownPreview.js';
 
 	/**
 	 * @type {{
@@ -285,8 +285,12 @@
 	/** @param {string} body */
 	function schedulePreview(body) {
 		clearTimeout(previewTimer);
-		previewTimer = setTimeout(() => {
+		previewTimer = setTimeout(async () => {
 			try {
+				// Solo en el navegador (DOMPurify necesita un DOM): con `browser` el build del servidor
+				// ni siquiera lo empaqueta.
+				if (!browser) return;
+				const { sanitizePreview } = await import('$lib/utils/sanitizePreview.js');
 				previewHtml = sanitizePreview(renderPreviewHtml(body));
 			} catch (e) {
 				previewHtml = '';

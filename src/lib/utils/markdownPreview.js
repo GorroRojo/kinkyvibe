@@ -6,8 +6,8 @@
  * - `<script>` / `<style>` blocks (mdsvex imports) are dropped; Svelte expressions `{x}` stay as
  *   written.
  * - Inline HTML (<small>, <div>, <img>…) is rendered: posts use it a lot. The result must go
- *   through `sanitizePreview` in the browser before `{@html}` (drops scripts, iframes, event
- *   handlers and javascript: URLs), since the text is whatever the person typed.
+ *   through `sanitizePreview` (./sanitizePreview.js, DOMPurify) in the browser before `{@html}`,
+ *   since the text is whatever the person typed.
  */
 import { micromark } from 'micromark';
 import { gfm, gfmHtml } from 'micromark-extension-gfm';
@@ -79,55 +79,4 @@ export function renderPreviewHtml(body) {
 		extensions: [gfm()],
 		htmlExtensions: [gfmHtml()]
 	});
-}
-
-// svg y math salen enteros, como en la lista corta del servidor (amigues/sanitize.js).
-const DROP =
-	'script,style,iframe,object,embed,link,meta,base,form,input,button,textarea,select,svg,math,noscript,template';
-
-/** Attributes whose values get a prefix, as hast-util-sanitize's `clobber` / `clobberPrefix`. */
-const CLOBBER = ['id', 'name', 'aria-describedby', 'aria-labelledby'];
-const CLOBBER_PREFIX = 'user-content-';
-
-/**
- * The value as the browser reads its scheme: without whitespace or control characters.
- * @param {string} value
- */
-const schemeOf = (value) =>
-	[...value.replace(/\s+/g, '')].filter((c) => c.charCodeAt(0) >= 0x20).join('');
-
-/**
- * Cleans rendered preview HTML in place with the browser's parser: removes active elements,
- * `on*` attributes and non-http(s)/relative URLs, and prefixes `id`/`name`. Browser only.
- * @param {string} html
- * @returns {string}
- */
-export function sanitizePreview(html) {
-	if (typeof DOMParser === 'undefined') return '';
-	const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
-	const root = doc.body.firstElementChild;
-	if (!root) return '';
-	root.querySelectorAll(DROP).forEach((el) => el.remove());
-	root.querySelectorAll('*').forEach((el) => {
-		for (const attr of [...el.attributes]) {
-			const name = attr.name.toLowerCase();
-			const value = attr.value.trim().toLowerCase();
-			if (name.startsWith('on') || name === 'style' || name === 'srcdoc')
-				el.removeAttribute(attr.name);
-			// Como el esquema del servidor (`clobber`): un `id`/`name` del texto no puede pisar nombres
-			// de la página (`document.createElement`, `window.algo`).
-			else if (CLOBBER.includes(name) && !attr.value.startsWith(CLOBBER_PREFIX))
-				el.setAttribute(attr.name, CLOBBER_PREFIX + attr.value);
-			else if (
-				['href', 'src', 'xlink:href', 'action', 'formaction'].includes(name) &&
-				/^(javascript|data|vbscript):/.test(schemeOf(value))
-			)
-				el.removeAttribute(attr.name);
-		}
-		if (el.tagName === 'A') {
-			el.setAttribute('target', '_blank');
-			el.setAttribute('rel', 'noreferrer');
-		}
-	});
-	return root.innerHTML;
 }
