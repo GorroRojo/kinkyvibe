@@ -199,7 +199,10 @@ Código: `src/lib/server/contenido/enlacesFalta.js`.
 - `[[x]]`, `![[x]]` y `#x` cuentan como un mismo nombre (sin mayúsculas); `@x` va aparte.
 - **Un botón por nombre para crear la página** (gorrite, 3/11/2026), por el formulario de siempre
   con el nombre ya puesto; nada se guarda hasta confirmarlo ahí (`createFor`):
-  - `@nombre` → «Crear perfil»: Perfil nuevo (`/admin/comunidad/perfiles/nuevo?nombre=…`);
+  - `@nombre` → «Crear perfil»: Perfil nuevo (`/admin/comunidad/perfiles/nuevo?nombre=…&oculto=1`),
+    que **arranca oculto** (gorrite, 3/11/2026: «Que arranque oculto»): `?oculto=1` deja «Quién lo
+    puede ver» en Oculto, y se puede cambiar antes de crearlo. Perfil nuevo abierto desde otro lado
+    sigue arrancando público;
   - `[[nombre]]`, `![[nombre]]` y `#nombre` → «Crear etiqueta»: «Nueva etiqueta» del árbol
     (`/admin/etiquetas?nueva=…`), porque hoy un `[[…]]` lleva a la Kinkipedia. Después se escribe
     su entrada en la Kinkipedia como siempre.

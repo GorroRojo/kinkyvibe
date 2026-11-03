@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { createFor } from './enlacesFalta.js';
 
 describe('createFor', () => {
-	it('una mención abre Perfil nuevo con el nombre', () => {
+	it('una mención abre Perfil nuevo con el nombre, para que arranque oculto', () => {
 		expect(createFor('mencion', 'alguien.inventade')).toEqual({
-			href: '/admin/comunidad/perfiles/nuevo?nombre=alguien.inventade',
+			href: '/admin/comunidad/perfiles/nuevo?nombre=alguien.inventade&oculto=1',
 			label: 'Crear perfil'
 		});
 	});

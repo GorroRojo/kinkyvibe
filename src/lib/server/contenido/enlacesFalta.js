@@ -42,7 +42,8 @@ const CREATE_NAME_MAX = 200;
 /**
  * Cómo crear lo que falta, por el formulario de siempre del panel con el nombre ya cargado (nada
  * se guarda hasta que le admin lo confirma ahí):
- * - `@nombre` → Perfil nuevo (`/admin/comunidad/perfiles/nuevo?nombre=…`);
+ * - `@nombre` → Perfil nuevo (`/admin/comunidad/perfiles/nuevo?nombre=…&oculto=1`), que arranca
+ *   oculto (gorrite, 3 nov: «Que arranque oculto»);
  * - `[[nombre]]`, `![[nombre]]` y `#nombre` → «Nueva etiqueta» del árbol
  *   (`/admin/etiquetas?nueva=…`): hoy un `[[…]]` lleva a la Kinkipedia, que es el texto de una
  *   etiqueta.
@@ -53,7 +54,10 @@ const CREATE_NAME_MAX = 200;
 export function createFor(form, target) {
 	const name = encodeURIComponent(target.trim().slice(0, CREATE_NAME_MAX));
 	if (form === 'mencion')
-		return { href: `/admin/comunidad/perfiles/nuevo?nombre=${name}`, label: 'Crear perfil' };
+		return {
+			href: `/admin/comunidad/perfiles/nuevo?nombre=${name}&oculto=1`,
+			label: 'Crear perfil'
+		};
 	return { href: `/admin/etiquetas?nueva=${name}`, label: 'Crear etiqueta' };
 }
 
