@@ -2479,7 +2479,7 @@
 		]
 	},
 	"admin: estado de un evento": {
-		"text": "<b>📊 Fiesta inventada</b>\n📅 <tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n\n🎟 <b>General</b>: 12 de 40 vendidas\n↳ Preventa 1: 10 de 10\n↳ Final: 2 ← a la venta\n🎟 <b>A la gorra</b>: 3 vendidas (sin cupo)\n<b>Total</b>: 15 vendidas\n\n⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1\n💸 Transferencias por confirmar: 2\n⚠️ Órdenes para revisar: 1\n📝 En la lista de espera: 4\n\nSolo cantidades: lo de cada compra está en el panel.",
+		"text": "<b>📊 Fiesta inventada</b>\n📅 <tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n\n🎟 <b>General</b>: 12 de 40 vendidas\n↳ Preventa 1: 10 de 10\n↳ Final: 2 ← a la venta\n🎟 <b>A la gorra</b>: 3 vendidas (sin cupo)\n<b>Total</b>: 15 vendidas\n\n⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1\n💸 Transferencias por confirmar: 2\n⚠️ Órdenes para revisar: 1\n📝 En la lista de espera: 4",
 		"keyboard": [
 			[
 				{
@@ -2504,7 +2504,7 @@
 		]
 	},
 	"admin: estado sin pendientes": {
-		"text": "<b>📊 Taller &lt;de&gt; cuerdas</b>\n📅 <tg-time unix=\"1925935200\" format=\"wdt\">sáb 11 ene · 19:00</tg-time>\n❌ Cancelado\n\n🎟 <b>General</b>: 0 de 30 vendidas\n\n✅ Sin reservas sin pagar ni nada para revisar.\n\nSolo cantidades: lo de cada compra está en el panel.",
+		"text": "<b>📊 Taller &lt;de&gt; cuerdas</b>\n📅 <tg-time unix=\"1925935200\" format=\"wdt\">sáb 11 ene · 19:00</tg-time>\n❌ Cancelado\n\n🎟 <b>General</b>: 0 de 30 vendidas\n\n✅ Sin reservas sin pagar ni nada para revisar.",
 		"keyboard": [
 			[
 				{
@@ -2529,7 +2529,7 @@
 		]
 	},
 	"admin: mis avisos": {
-		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta, cada transferencia y los cambios de Claude; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
+		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y los cambios de Claude, en el momento.",
 		"keyboard": [
 			[
 				{
@@ -7600,7 +7600,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta, cada transferencia y los cambios de Claude; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y los cambios de Claude, en el momento.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7816,7 +7816,7 @@
 				"method": "editMessageText",
 				"chat_id": 77,
 				"message_id": 9,
-				"text": "<b>📊 Fiesta inventada</b>\n📅 <tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n\n🎟 <b>General</b>: 12 de 40 vendidas\n↳ Preventa 1: 10 de 10\n↳ Final: 2 ← a la venta\n🎟 <b>A la gorra</b>: 3 vendidas (sin cupo)\n<b>Total</b>: 15 vendidas\n\n⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1\n💸 Transferencias por confirmar: 2\n⚠️ Órdenes para revisar: 1\n📝 En la lista de espera: 4\n\nSolo cantidades: lo de cada compra está en el panel.",
+				"text": "<b>📊 Fiesta inventada</b>\n📅 <tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n\n🎟 <b>General</b>: 12 de 40 vendidas\n↳ Preventa 1: 10 de 10\n↳ Final: 2 ← a la venta\n🎟 <b>A la gorra</b>: 3 vendidas (sin cupo)\n<b>Total</b>: 15 vendidas\n\n⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1\n💸 Transferencias por confirmar: 2\n⚠️ Órdenes para revisar: 1\n📝 En la lista de espera: 4",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7851,7 +7851,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>📊 Fiesta inventada</b>\n📅 <tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n\n🎟 <b>General</b>: 12 de 40 vendidas\n↳ Preventa 1: 10 de 10\n↳ Final: 2 ← a la venta\n🎟 <b>A la gorra</b>: 3 vendidas (sin cupo)\n<b>Total</b>: 15 vendidas\n\n⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1\n💸 Transferencias por confirmar: 2\n⚠️ Órdenes para revisar: 1\n📝 En la lista de espera: 4\n\nSolo cantidades: lo de cada compra está en el panel.",
+				"text": "<b>📊 Fiesta inventada</b>\n📅 <tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n\n🎟 <b>General</b>: 12 de 40 vendidas\n↳ Preventa 1: 10 de 10\n↳ Final: 2 ← a la venta\n🎟 <b>A la gorra</b>: 3 vendidas (sin cupo)\n<b>Total</b>: 15 vendidas\n\n⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1\n💸 Transferencias por confirmar: 2\n⚠️ Órdenes para revisar: 1\n📝 En la lista de espera: 4",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7899,7 +7899,7 @@
 				"method": "editMessageText",
 				"chat_id": 77,
 				"message_id": 9,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta, cada transferencia y los cambios de Claude; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y los cambios de Claude, en el momento.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7960,7 +7960,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta, cada transferencia y los cambios de Claude; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia y los cambios de Claude, en el momento.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
