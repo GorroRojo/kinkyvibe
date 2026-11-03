@@ -1,7 +1,8 @@
 /**
  * Importación de etiquetas sobre el archivo REAL y los textos reales de la wiki, en una base de
- * prueba (D1 de miniflare): lo importado, leído de vuelta, da el mismo árbol; es idempotente; no
- * pisa ni revive lo tocado en el panel; y por tandas (`budget`) llega al mismo resultado.
+ * prueba (D1 de miniflare): lo importado, leído de vuelta, da el mismo árbol; no pisa ni revive lo
+ * tocado en el panel; y por tandas (`budget`) llega al mismo resultado. Que la segunda vez no cambie
+ * nada lo prueba importer-tandas.test.js (con la base entera y la cuenta de consultas).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedRawsByPath } from '$lib/server/semilla/testing.js';
@@ -95,17 +96,6 @@ describe('importTags', () => {
 		expect((await tagByKey('edad'))?.data.wiki_title).toBe('Juegos con la edad');
 	});
 
-	it('es idempotente: la segunda vez no cambia nada', async () => {
-		await importSource();
-		const again = await importTags(t.db, source(), { actor: ACTOR });
-		const s = summarizeTagImport(again.results);
-		expect(s.unchanged).toBe(again.results.length);
-		const { n } = /** @type {any} */ (
-			await t.db.prepare('SELECT count(*) AS n FROM objects WHERE version > 2').first()
-		);
-		expect(n).toBe(0);
-	});
-
 	it('actualiza lo que cambió en el archivo, salvo lo editado o borrado en el panel', async () => {
 		await importSource();
 		const bondage = /** @type {any} */ (await tagByKey('bondage'));
@@ -169,8 +159,8 @@ describe('importTags', () => {
 		expect(rounds).toBeGreaterThan(2);
 		const expected = tagsToRecords(fresh(), wikiFiles).records;
 		const fromDb = await loadTagRecords(t.db);
-		expect(fromDb.map((r) => [r.key, r.parents, r.related, r.aliasOf])).toEqual(
-			expected.map((r) => [r.key, r.parents, r.related, r.aliasOf])
+		expect(fromDb.map((r) => [r.key, r.title, r.data, r.parents, r.related, r.aliasOf])).toEqual(
+			expected.map((r) => [r.key, r.title, r.data, r.parents, r.related, r.aliasOf])
 		);
 	});
 
