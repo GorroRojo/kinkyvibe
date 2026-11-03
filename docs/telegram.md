@@ -258,8 +258,11 @@ las pantallas).
   así no depende de que Telegram pueda bajar nada del sitio. Necesita el token del bot; **sin
   token** (o si Telegram rechaza la foto) la tarjeta sale como texto y «Ver la entrada» abre la
   página con el QR.
-- **Online**: sin QR (como su página y el mail); el link de la transmisión está en la página de la
-  entrada.
+- **Online**: sin QR (como su página y el mail). Si el link de la transmisión ya está cargado, la
+  tarjeta lo manda en el texto («El link de la transmisión: …») y con el botón «📺 Ver la
+  transmisión», con la misma regla que la página de la entrada: evento online y compra aprobada
+  (`streamLinkFor`, leído una vez por evento en `accountTickets`, tickets.js). Si todavía no está,
+  dice que llega por mail antes del evento y que también va a aparecer ahí.
 - **Sin vincular**: cómo conectar la cuenta, con «Abrir Mi rincón → Lo que sigo». **En un grupo**:
   «Esto se hace por chat privado…» y el link `?start=mis-entradas`, sin mirar ninguna cuenta.
 - **Privacidad**: el token de una entrada va solo en la foto y en el link de su tarjeta, por el

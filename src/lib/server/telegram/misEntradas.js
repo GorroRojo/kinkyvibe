@@ -11,8 +11,9 @@
  *   evento, la fecha, el nombre, el tipo, el código corto y si ya se usó; «🔗 Ver la entrada» (su
  *   página), «‹ 2/3 ›» entre las entradas de esa lista, «‹ Volver» e «🏠 Inicio». Sin foto (sin
  *   token), la página de la entrada tiene el QR.
- * - Un evento online no lleva QR (como en su página y en el mail): el link de la transmisión está
- *   en la página de la entrada.
+ * - Un evento online no lleva QR (como en su página y en el mail): si el link de la transmisión ya
+ *   está cargado, la tarjeta lo manda en el texto y con el botón «📺 Ver la transmisión» (la misma
+ *   regla que la página de la entrada, ver tickets.js); si no, dice que llega antes del evento.
  *
  * Una entrada queda en «próximas» hasta 12 horas después de que termina su evento (o de que
  * empieza, si no tiene fin): así se puede mostrar en la puerta aunque el evento ya haya empezado.
@@ -237,6 +238,14 @@ export function ticketsScreen(view, tickets, page, ctx) {
 	return { text: `${head}\n\n${blocks.join('\n\n')}`, keyboard: rows };
 }
 
+/**
+ * ¿Un link de la transmisión que se puede poner en un botón? Se guardan solo `https://`
+ * (`normalizeStreamLink`); esto es por las dudas.
+ * @param {unknown} link
+ * @returns {link is string}
+ */
+const isHttpsLink = (link) => typeof link === 'string' && /^https:\/\/[^\s"<>]+$/i.test(link);
+
 /** «ABC234» → «ABC 234», como en la página de la entrada. @param {string} code */
 const spacedCode = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
 
@@ -267,7 +276,9 @@ export function ticketScreen(ticket, view, list, ctx, { qr = false } = {}) {
 			: botText('entradas.tipo', { tipo })
 	);
 	lines.push('');
-	if (ticket.online) lines.push(botText('entradas.online'));
+	const streamLink = ticket.online && isHttpsLink(ticket.streamLink) ? ticket.streamLink : null;
+	if (streamLink) lines.push(botText('entradas.online_link', { link: streamLink }));
+	else if (ticket.online) lines.push(botText('entradas.online'));
 	else if (ticket.checkedInAt) {
 		const fecha = tgTime(new Date(ticket.checkedInAt).toISOString(), ctx.now);
 		lines.push(botText('entradas.usada', { fecha }));
@@ -279,6 +290,7 @@ export function ticketScreen(ticket, view, list, ctx, { qr = false } = {}) {
 
 	/** @type {Button[][]} */
 	const rows = [];
+	if (streamLink) rows.push([{ text: botText('entradas.boton_transmision'), url: streamLink }]);
 	if (https) {
 		rows.push([
 			{ text: botText('entradas.boton_ver'), url: ticketQrText(ctx.origin, ticket.token) }
