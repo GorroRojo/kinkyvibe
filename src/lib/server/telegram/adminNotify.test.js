@@ -17,18 +17,24 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { clearFlagCache, setFlag } from '$lib/server/flags.js';
 import { setAdminNotice } from './adminData.js';
+import { adminStartParam, botAdminLink, createAdminLinkCode, linkedAdmin } from './adminLink.js';
+import { consumeLinkCode, createLinkCode } from './link.js';
+import { makeAccount } from '$lib/server/amigues/testing.js';
 
 const {
 	ADMIN_DAILY_HOUR,
 	SENT_KEEP_MS,
+	adminLinkedNoticeText,
 	argentinaDate,
 	chargebackNoticeText,
 	claimNotice,
 	dailySummaryText,
 	dailyWindow,
 	isDailyTime,
+	notifyAdminLinked,
 	notifyOrder,
 	orderSummary,
+	queueAdminLinkedNotice,
 	queueOrderNotice,
 	runAdminNoticesCron,
 	saleNoticeText,
@@ -561,6 +567,166 @@ describe('queueOrderNotice (lo que llaman los flujos de compra)', () => {
 				fetch: tg.fetchFn
 			})
 		).resolves.toBeUndefined();
+	});
+});
+
+describe('el aviso al vincular un Telegram de admin', () => {
+	/** Telegram por fetch: guarda los cuerpos de sendMessage. */
+	function telegramFetch(status = 200) {
+		/** @type {any[]} */
+		const bodies = [];
+		/** @type {typeof fetch} */
+		const fetchFn = async (input, init) => {
+			expect(String(input)).toMatch(/^https:\/\/api\.telegram\.org\/bot.+\/sendMessage$/);
+			bodies.push(JSON.parse(String(init?.body)));
+			return new Response(JSON.stringify({ ok: status === 200 }), { status });
+		};
+		return { bodies, fetchFn };
+	}
+
+	/** Lo mismo que engancha la ruta del webhook (`onLinked` → `queueAdminLinkedNotice`). */
+	function wiredLink(/** @type {typeof fetch} */ fetchFn) {
+		return botAdminLink(t.db, {
+			onLinked: (who) => queueAdminLinkedNotice({ db: t.db, admin: who, fetch: fetchFn })
+		});
+	}
+
+	/** @param {{ id: number, login: string }} who */
+	async function newAdminCode(who) {
+		const r = await createAdminLinkCode(t.db, who);
+		if (!r.ok) throw new Error(r.reason);
+		return adminStartParam(r.code);
+	}
+
+	it('el texto: solo el login de GitHub', () => {
+		expect(adminLinkedNoticeText({ login: 'Admin-Inventade' })).toBe(
+			'🔗 Se vinculó un Telegram a la cuenta de admin de @Admin-Inventade.'
+		);
+		expect(adminLinkedNoticeText({ login: '<b>x' })).toBe(
+			'🔗 Se vinculó un Telegram a la cuenta de admin de @&lt;b&gt;x.'
+		);
+	});
+
+	it('les llega a les otres admins vinculades (sin «Mis avisos»), no a quien vincula ni a ex admins', async () => {
+		const tg = telegram();
+		const r = await notifyAdminLinked({ db: t.db, admin: ADMIN, send: tg.send, now: AFTERNOON });
+		expect(r).toEqual({ sent: 1, failed: 0, skipped: 0 });
+		expect(tg.sent).toEqual([
+			{
+				chatId: String(OTHER_TG),
+				text: `🔗 Se vinculó un Telegram a la cuenta de admin de @${ADMIN.login}.`,
+				panelUrl: null,
+				silent: false
+			}
+		]);
+		// De noche, sin sonido.
+		const night = telegram();
+		await notifyAdminLinked({
+			db: t.db,
+			admin: OTHER_ADMIN,
+			send: night.send,
+			now: Date.parse('2031-01-08T02:00:00-03:00')
+		});
+		expect(night.sent.map((m) => [m.chatId, m.silent])).toEqual([[String(ADMIN_TG), true]]);
+	});
+
+	it('sin otres admins vinculades, nada', async () => {
+		await t.db
+			.prepare('DELETE FROM telegram_admin_links WHERE github_id <> ?1')
+			.bind(ADMIN.id)
+			.run();
+		const tg = telegram();
+		expect(await notifyAdminLinked({ db: t.db, admin: ADMIN, send: tg.send })).toBeNull();
+		expect(tg.sent).toEqual([]);
+	});
+
+	it('vincular desde el bot avisa a les otres; con los interruptores apagados o sin token, no', async () => {
+		const tg = telegramFetch();
+		env.TELEGRAM_BOT_TOKEN = 'token-inventado';
+		// Apagado: vincula igual, sin aviso.
+		expect(await wiredLink(tg.fetchFn)(await newAdminCode(ADMIN), 9001)).toEqual({
+			linked: ADMIN.login
+		});
+		expect(tg.bodies).toEqual([]);
+		await flagsOn();
+		expect(await wiredLink(tg.fetchFn)(await newAdminCode(ADMIN), 9002)).toEqual({
+			linked: ADMIN.login
+		});
+		expect(tg.bodies).toHaveLength(1);
+		expect(tg.bodies[0]).toMatchObject({
+			chat_id: String(OTHER_TG),
+			parse_mode: 'HTML',
+			text: `🔗 Se vinculó un Telegram a la cuenta de admin de @${ADMIN.login}.`
+		});
+		expect(tg.bodies[0].reply_markup).toBeUndefined();
+		// Nada de Telegram de quien vinculó en el aviso.
+		expect(JSON.stringify(tg.bodies)).not.toContain('9002');
+	});
+
+	it('vincular una cuenta de Mi rincón (no de admin) no avisa a nadie', async () => {
+		await flagsOn();
+		env.TELEGRAM_BOT_TOKEN = 'token-inventado';
+		const tg = telegramFetch();
+		const account = await makeAccount(t.db, 'persona-inventada');
+		const c = await createLinkCode(t.db, account.id);
+		if (!c.ok) throw new Error('sin código');
+		expect(await consumeLinkCode(t.db, c.code, 9100)).toMatchObject({ ok: true });
+		// Y un `/start adm_…` que no sirve tampoco.
+		expect(await wiredLink(tg.fetchFn)('adm_ZZZZZZZZ', 9101)).toBe('invalid');
+		expect(tg.bodies).toEqual([]);
+	});
+
+	it('si Telegram falla o la base se rompe, el vínculo queda y se anota en el log', async () => {
+		await flagsOn();
+		env.TELEGRAM_BOT_TOKEN = 'token-inventado';
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const down = telegramFetch(500);
+			expect(await wiredLink(down.fetchFn)(await newAdminCode(ADMIN), 9200)).toEqual({
+				linked: ADMIN.login
+			});
+			expect(await linkedAdmin(t.db, 9200)).toEqual(ADMIN);
+			expect(down.bodies).toHaveLength(1);
+			expect(log).toHaveBeenCalled();
+			log.mockClear();
+			/** @type {typeof fetch} */
+			const broken = async () => {
+				throw new Error('red rota inventada');
+			};
+			expect(await wiredLink(broken)(await newAdminCode(OTHER_ADMIN), 9201)).toEqual({
+				linked: OTHER_ADMIN.login
+			});
+			expect(await linkedAdmin(t.db, 9201)).toEqual(OTHER_ADMIN);
+			expect(log).toHaveBeenCalled();
+			// Una base rota tampoco tira.
+			await expect(
+				queueAdminLinkedNotice({
+					db: /** @type {any} */ ({
+						prepare: () => {
+							throw new Error('base rota inventada');
+						}
+					}),
+					admin: ADMIN
+				})
+			).resolves.toBeUndefined();
+		} finally {
+			log.mockRestore();
+		}
+	});
+
+	it('en segundo plano con `waitUntil`', async () => {
+		await flagsOn();
+		env.TELEGRAM_BOT_TOKEN = 'token-inventado';
+		const tg = telegramFetch();
+		/** @type {Promise<unknown>[]} */
+		const background = [];
+		const platform = /** @type {any} */ ({
+			ctx: { waitUntil: (/** @type {Promise<unknown>} */ p) => background.push(p) }
+		});
+		await queueAdminLinkedNotice({ db: t.db, platform, admin: OTHER_ADMIN, fetch: tg.fetchFn });
+		expect(background).toHaveLength(1);
+		await Promise.all(background);
+		expect(tg.bodies.map((b) => b.chat_id)).toEqual([String(ADMIN_TG)]);
 	});
 });
 

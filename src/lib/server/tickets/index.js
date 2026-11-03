@@ -356,8 +356,8 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 /**
  * Manda un mail con Resend. Sin RESEND_API_KEY: en dev lo resume en la consola (`simulated`),
  * en producción loguea un error (`failed`). En un preview, solo a EMAIL_ALLOWLIST (emailGuard.js).
- * `from`: remitente fijo de un mail que no es del sitio de entradas (el del Fondo); sin él, el de
- * los ajustes, como siempre.
+ * `from`: remitente fijo de un mail que no es de entradas (el del Fondo, `AVISOS_FROM_EMAIL` de los
+ * avisos); sin él, el de los ajustes, como siempre.
  * `optOut`: un mail que no es de una compra pagada (entradas gratis, reservas por transferencia,
  * lista de espera, avisos de series…): si la dirección dijo «No fui yo» (email/suppressions.js), no
  * sale y vuelve `simulated` (como enviado: no se reintenta). Si no se puede leer la base, no sale

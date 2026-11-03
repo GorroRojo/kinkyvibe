@@ -15,11 +15,17 @@ import {
 	hasObjectsSchema,
 	recordIntegrityRun
 } from './objects/integrity.js';
+import { runMepRates } from './paypal/rates.js';
 
 /** Recordatorios de entradas: cada 15 minutos (UTC). */
 export const REMINDERS_CRON = '*/15 * * * *';
 /** Backup de la base a R2: todas las noches a las 06:00 UTC (03:00 en Argentina). */
 export const BACKUP_CRON = '0 6 * * *';
+/**
+ * Cotización del dólar MEP para PayPal: todos los días a las 21:15 UTC (18:15 en Argentina),
+ * después del cierre del mercado (src/lib/server/paypal/rates.js).
+ */
+export const RATES_CRON = '15 21 * * *';
 
 /** Origen por defecto para el pedido interno de los recordatorios (src/lib/utils/site.js). */
 export const DEFAULT_ORIGIN = SITE_URL;
@@ -204,6 +210,29 @@ export async function runSessionCleanup(env, now = new Date()) {
 }
 
 /**
+ * La cotización del dólar MEP del día y los días que falten de los últimos 10
+ * (src/lib/server/paypal/rates.js, docs/propinas.md). Corre aunque el interruptor `paypal` esté
+ * apagado: no se ve, y así la historia ya está cuando llegue el primer pago. Si no pudo traer la
+ * de hoy, la corrida falla (se ve en Cron Events) y queda la última guardada; los días que falten
+ * los rellena la corrida siguiente. Nunca pisa un día guardado.
+ *
+ * @param {ScheduledEnv} env
+ * @param {Date} now
+ * @param {typeof fetch} [fetchFn]
+ */
+export async function runRates(env, now, fetchFn = fetch) {
+	if (!env.DB) throw new Error('cotización: falta el binding DB');
+	const result = await runMepRates({ db: env.DB, fetch: fetchFn, now: now.getTime() });
+	const line =
+		`cotización: hoy (${result.today}) ${result.todayResult}; ` +
+		`rellenados: ${result.backfilled.length ? result.backfilled.join(', ') : 'ninguno'}; ` +
+		`faltan: ${result.missing.length ? result.missing.join(', ') : 'ninguno'}`;
+	if (result.todayResult === 'failed') throw new Error(line);
+	console.log(line);
+	return result;
+}
+
+/**
  * El handler `scheduled()`: elige la tarea según el cron que disparó.
  *
  * @param {{ cron: string, scheduledTime: number }} controller
@@ -227,6 +256,8 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 			await runMediaCopy(env);
 			return backup;
 		}
+		case RATES_CRON:
+			return runRates(env, new Date(controller.scheduledTime));
 		default:
 			throw new Error(`cron desconocido: ${controller.cron}`);
 	}

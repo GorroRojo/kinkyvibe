@@ -173,7 +173,7 @@ sección (Etiquetas), que usan la URL del área.
 el mail en la URL). Es una sola ficha con todo lo que sabemos de alguien, encontrada por el mail
 normalizado (sin espacios ni mayúsculas) y por su cuenta: Notas internas (arriba, después del
 resumen), Cuenta (fechas, contraseña sí/no, sesiones,
-«Mis datos», permiso para tener perfiles), Compras (todas las órdenes por cuenta o por mail, con
+«Mis datos», permiso para tener perfiles, suspensión), Compras (todas las órdenes por cuenta o por mail, con
 entradas, respuestas, recordatorios y mails a compradores), Perfiles (los que gestiona, pedidos «Es
 mi perfil», invitaciones y los eventos donde participan), Lo que sigue (seguimientos, avisos,
 series, calendario y Telegram: nunca tokens ni el id del chat) y Actividad. La
@@ -230,6 +230,10 @@ arriba y «Fondo y finanzas» por mes), así cierran entre sí:
   desaparezca).
 - Las propinas «Para el Fondo» que suma el «Neto del fondo» del Inicio no tienen evento: van por su
   fecha de aprobación.
+- «Recaudado» y lo neto restan los reembolsos parciales hechos en Mercado Pago, y lo neto usa la
+  comisión que cobró MP cuando el pago la informó; si no, la estimada con la tasa de Ajustes, y lo
+  dice («Neto estimado»; en un mes mezclado, cuánto de la comisión es estimado). Detalle en
+  [tickets.md](tickets.md#meta-de-venta).
 - No cambian: «Ventas en el tiempo» y «Ventas por día» de la ficha (fecha de compra, muestran cuándo
   se vendió), ni los totales por evento.
 
@@ -553,6 +557,13 @@ Cómo se descubren (`src/lib/admin/shortcutHints.js`):
 3. **Lista**: se prende el interruptor; cuando el interruptor desaparece, se borra `flag`.
 4. **Descartada**: se borra el ítem.
 
+**Conector de Claude** (interruptor `conector_claude`, apagado; [conector-claude.md](conector-claude.md)):
+cada admin puede sumar el sitio como conector en claude.ai y pedirle a Claude que busque y lea
+objetos, las ventas de un evento y los próximos eventos, solo lectura y con las mismas reglas de
+privacidad del panel (sin DNI). Ajustes → Admins tiene la tarjeta «Conector de Claude» con la
+dirección para copiar, «Cerrar mis conexiones de Claude» y «Cerrar las de todes». Cada pedido queda
+en Actividad a nombre de le admin (familia «Conector de Claude», `conector.*`).
+
 ## Agenda impresa
 
 **Agenda impresa** (`/admin/eventos/agenda-impresa`, botón en la Agenda y «Ir a…»): arma la hoja
@@ -770,6 +781,12 @@ puerta → el mail, cuándo vence y, si querés, el motivo (privado). La puerta 
 organización antes de dejar pasar» y no frena el ingreso. Vence solo; 14 días antes llega un mail a
 la casilla de la organización. Ver [tickets.md](tickets.md#avisos-de-puerta) y la decisión
 [0053](decisiones/0053-avisos-de-puerta.md).
+
+**Suspender una cuenta.** Comunidad › Cuentas → la ficha → «Suspensión» → «Suspender la cuenta»
+(motivo opcional, solo para admins) y confirmar. Cierra todas sus sesiones, no la deja entrar ni
+usar el bot y queda en Actividad (sin el motivo). Sus perfiles públicos se moderan aparte (ocultar o
+borrar desde Perfiles). «Levantar la suspensión» la deja entrar de nuevo
+([cuentas.md](cuentas.md), «Suspender una cuenta»).
 
 ## Lo que viene
 

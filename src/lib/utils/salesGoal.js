@@ -134,30 +134,98 @@ export function describeSalesGoal(goal) {
 }
 
 /**
- * La comisión de Mercado Pago de una orden, en SQL (sobre una fila de `orders`): su recargo
- * (`surcharge_amount`) si se pagó con Mercado Pago, 0 si no. El recargo se calcula al comprar con
- * la tasa vigente (`mp_fee_percent` del evento, Ajustes → Cobros, TICKETS_MP_FEE_PERCENT o 2 %:
- * `mpFeeBasisPoints`) justo para que, después de la comisión de MP, quede la base
- * (`mpSurcharge` en ./tickets.js): lo que se queda MP es ese recargo. Transferencia, puerta,
- * manual y sin cargo no tienen comisión. Sumar solo sobre órdenes aprobadas.
+ * Lo recaudado de una orden, en SQL (sobre una fila de `orders`): su `total` menos lo reembolsado
+ * desde el panel de Mercado Pago en un pago que sigue aprobado (`refunded_amount`, reembolso
+ * parcial; migración 0069), nunca menos de 0. Es el «Recaudado» del panel. Sumar solo sobre
+ * órdenes aprobadas (una reembolsada entera no suma nada, como siempre).
  */
-export const MP_FEE_SQL = `CASE WHEN payment_method = 'mercadopago' THEN surcharge_amount ELSE 0 END`;
+export const REVENUE_SQL = `MAX(0, total - COALESCE(refunded_amount, 0))`;
 
 /**
- * Lo mismo que {@link MP_FEE_SQL}, sobre una orden ya leída.
- * @param {{ payment_method?: string | null, surcharge_amount?: number | null }} order
+ * Lo mismo que {@link REVENUE_SQL}, sobre una orden ya leída.
+ * @param {{ total: number, refunded_amount?: number | null }} order
  */
-export function orderMpFee(order) {
-	return order.payment_method === 'mercadopago' ? Number(order.surcharge_amount) || 0 : 0;
+export function orderRevenue(order) {
+	return Math.max(0, (Number(order.total) || 0) - (Number(order.refunded_amount) || 0));
 }
 
 /**
- * Lo neto: lo cobrado (suma del `total` de las órdenes aprobadas, el «Recaudado» del panel) menos
- * la comisión de Mercado Pago de esas órdenes ({@link MP_FEE_SQL} / {@link orderMpFee}).
+ * La comisión de Mercado Pago de una orden, en SQL (sobre una fila de `orders`), 0 si no se pagó
+ * con Mercado Pago (transferencia, puerta, manual y sin cargo no tienen comisión):
+ * - la que **cobró MP** (`mp_fee_amount`, migración 0069), si el pago la informó
+ *   (`fee_details` del pago; la guarda el aviso de MP);
+ * - si no, la **estimada**: el recargo (`surcharge_amount`), que se calcula al comprar con la tasa
+ *   vigente (`mp_fee_percent` del evento, Ajustes → Cobros, TICKETS_MP_FEE_PERCENT o 2 %:
+ *   `mpFeeBasisPoints`) justo para que, después de la comisión de MP, quede la base
+ *   (`mpSurcharge` en ./tickets.js). {@link MP_FEE_ESTIMATED_SQL} dice cuánto es estimado.
+ * Sumar solo sobre órdenes aprobadas.
+ */
+export const MP_FEE_SQL = `CASE WHEN payment_method = 'mercadopago'
+	THEN COALESCE(mp_fee_amount, surcharge_amount) ELSE 0 END`;
+
+/** La parte de {@link MP_FEE_SQL} que es estimada (MP no informó la comisión de esa orden). */
+export const MP_FEE_ESTIMATED_SQL = `CASE WHEN payment_method = 'mercadopago' AND mp_fee_amount IS NULL
+	THEN surcharge_amount ELSE 0 END`;
+
+/**
+ * Lo mismo que {@link MP_FEE_SQL}, sobre una orden ya leída.
+ * @param {{ payment_method?: string | null, surcharge_amount?: number | null,
+ *   mp_fee_amount?: number | null }} order
+ */
+export function orderMpFee(order) {
+	if (order.payment_method !== 'mercadopago') return 0;
+	return order.mp_fee_amount === null || order.mp_fee_amount === undefined
+		? Number(order.surcharge_amount) || 0
+		: Number(order.mp_fee_amount) || 0;
+}
+
+/**
+ * Lo mismo que {@link MP_FEE_ESTIMATED_SQL}, sobre una orden ya leída.
+ * @param {{ payment_method?: string | null, surcharge_amount?: number | null,
+ *   mp_fee_amount?: number | null }} order
+ */
+export function orderMpFeeEstimated(order) {
+	if (order.payment_method !== 'mercadopago') return 0;
+	return order.mp_fee_amount === null || order.mp_fee_amount === undefined
+		? Number(order.surcharge_amount) || 0
+		: 0;
+}
+
+/**
+ * Lo neto: lo cobrado (suma de {@link REVENUE_SQL} de las órdenes aprobadas, el «Recaudado» del
+ * panel) menos la comisión de Mercado Pago de esas órdenes ({@link MP_FEE_SQL} /
+ * {@link orderMpFee}).
  * @param {{ revenue: number, mpFee: number }} totals
  */
 export function netRevenue({ revenue, mpFee }) {
 	return Math.max(0, (Number(revenue) || 0) - (Number(mpFee) || 0));
+}
+
+/**
+ * Si lo neto es estimado: `null` si no hay nada estimado (toda la comisión es la que cobró MP, o
+ * no hay comisión), `'all'` si toda la comisión es estimada y `'part'` si solo una parte.
+ * @param {{ mpFee?: number, mpFeeEstimated?: number }} totals
+ * @returns {null | 'all' | 'part'}
+ */
+export function netEstimate({ mpFee = 0, mpFeeEstimated = 0 }) {
+	const est = Number(mpFeeEstimated) || 0;
+	if (est <= 0) return null;
+	return est >= (Number(mpFee) || 0) ? 'all' : 'part';
+}
+
+/**
+ * Cómo se explica un neto estimado (para un `title` o una línea chica), o `''` si no lo es.
+ * @param {{ mpFee?: number, mpFeeEstimated?: number }} totals
+ */
+export function netEstimateText({ mpFee = 0, mpFeeEstimated = 0 }) {
+	const kind = netEstimate({ mpFee, mpFeeEstimated });
+	if (kind === 'all') {
+		return 'Neto estimado: la comisión de Mercado Pago se calcula con la tasa de Ajustes › Cobros (MP todavía no la informó).';
+	}
+	if (kind === 'part') {
+		return `Neto en parte estimado: ${formatARS(mpFeeEstimated)} de los ${formatARS(mpFee)} de comisión de Mercado Pago se calculan con la tasa de Ajustes › Cobros; el resto es lo que cobró MP.`;
+	}
+	return '';
 }
 
 /**
@@ -167,7 +235,10 @@ export function netRevenue({ revenue, mpFee }) {
  * @prop {number} target la meta
  * @prop {number} pct porcentaje redondeado (puede pasar de 100)
  * @prop {boolean} reached se llegó a la meta
- * @prop {string} text «$ 180.000 netos de $ 250.000 (72 %)» o «23 de 30 entradas»
+ * @prop {string} text «$ 180.000 netos de $ 250.000 (72 %)» o «23 de 30 entradas»; «netos
+ *   estimados» si parte de la comisión de MP es estimada
+ * @prop {null | 'all' | 'part'} [estimate] {@link netEstimate} (solo plata)
+ * @prop {string} [estimateText] {@link netEstimateText}
  */
 
 /**
@@ -176,10 +247,12 @@ export function netRevenue({ revenue, mpFee }) {
  * las órdenes aprobadas). Entradas: `sold` (vendidas, órdenes aprobadas).
  *
  * @param {unknown} goal una meta (`SalesGoal`) o lo guardado (`'plata:250000'`)
- * @param {{ sold: number, revenue: number, mpFee: number }} totals
+ * @param {{ sold: number, revenue: number, mpFee: number, mpFeeEstimated?: number }} totals
+ *   `mpFeeEstimated`: la parte de `mpFee` que es estimada ({@link MP_FEE_ESTIMATED_SQL}): con algo
+ *   estimado, el texto dice «netos estimados» y `estimateText` explica cuánto.
  * @returns {GoalProgress | null}
  */
-export function goalProgress(goal, { sold, revenue, mpFee }) {
+export function goalProgress(goal, { sold, revenue, mpFee, mpFeeEstimated = 0 }) {
 	const g =
 		goal && typeof goal === 'object' && 'kind' in goal && 'value' in goal
 			? parseSalesGoal(storedSalesGoal(/** @type {SalesGoal} */ (goal)))
@@ -188,9 +261,19 @@ export function goalProgress(goal, { sold, revenue, mpFee }) {
 	const current =
 		g.kind === 'plata' ? netRevenue({ revenue, mpFee }) : Math.max(0, Number(sold) || 0);
 	const pct = Math.round((current / g.value) * 100);
+	const estimate = g.kind === 'plata' ? netEstimate({ mpFee, mpFeeEstimated }) : null;
 	const text =
 		g.kind === 'plata'
-			? `${formatARS(current)} netos de ${formatARS(g.value)} (${pct} %)`
+			? `${formatARS(current)} netos${estimate ? ' estimados' : ''} de ${formatARS(g.value)} (${pct} %)`
 			: `${current} de ${entradas(g.value)}`;
-	return { kind: g.kind, current, target: g.value, pct, reached: current >= g.value, text };
+	return {
+		kind: g.kind,
+		current,
+		target: g.value,
+		pct,
+		reached: current >= g.value,
+		text,
+		estimate,
+		estimateText: estimate ? netEstimateText({ mpFee, mpFeeEstimated }) : ''
+	};
 }

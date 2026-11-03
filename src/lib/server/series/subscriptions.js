@@ -93,14 +93,39 @@ export function confirmUrl(origin, token) {
  */
 
 /**
+ * Cuánto tarda como mínimo la respuesta a «Avisame» con mail en producción (lo pasa la ruta):
+ * más que lo que suele tardar mandar el mail, así un mail ya suscripto (que no manda nada)
+ * responde en el mismo tiempo que uno nuevo.
+ */
+export const SUBSCRIBE_MIN_MS = 1200;
+
+/** @param {number} ms */
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
  * Suscribe un mail (sin cuenta): manda el mail de confirmar. La respuesta es la misma si el mail
- * ya estaba suscripto (y entonces no se manda nada).
+ * ya estaba suscripto (y entonces no se manda nada): los mismos límites, y con `minDurationMs`,
+ * el mismo tiempo.
  *
+ * @param {{ db: D1Database, seriesTag: string, seriesName: string, email: unknown,
+ *   client: string, send: SeriesSend, origin: string, now?: number,
+ *   minDurationMs?: number }} input
+ * @returns {Promise<SubscribeResult>}
+ */
+export async function subscribeEmail({ minDurationMs = 0, ...input }) {
+	const started = Date.now();
+	const result = await subscribeEmailNow(input);
+	const left = minDurationMs - (Date.now() - started);
+	if (left > 0) await sleep(left);
+	return result;
+}
+
+/**
  * @param {{ db: D1Database, seriesTag: string, seriesName: string, email: unknown,
  *   client: string, send: SeriesSend, origin: string, now?: number }} input
  * @returns {Promise<SubscribeResult>}
  */
-export async function subscribeEmail({
+async function subscribeEmailNow({
 	db,
 	seriesTag,
 	seriesName,
@@ -129,12 +154,14 @@ export async function subscribeEmail({
 		)
 		.bind(seriesTag, subscriberKey)
 		.first();
-	// Ya confirmada: no se manda nada y se responde igual (no se revela quién está suscripte).
-	if (existing && existing.confirmed_at != null) return { ok: true, status: 'pending' };
+	// Los mismos límites para un mail ya suscripto que para uno nuevo: si no, el cuarto pedido del
+	// día diría quién está suscripte.
 	if (!(await allowed(db, `series:sub:e:${hash}`, SUBSCRIBE_LIMITS.email, now))) return tooMany;
 	if (!(await unconfirmedMailAllowed(db, email, now))) return tooMany;
 	if (!(await accountMailAllowed(db, now)))
 		return { ok: false, status: 429, message: SERIES_MESSAGES.mailBusy };
+	// Ya confirmada: no se manda nada y se responde igual (no se revela quién está suscripte).
+	if (existing && existing.confirmed_at != null) return { ok: true, status: 'pending' };
 
 	const token = randomToken();
 	const confirmHash = await sha256Hex(token);

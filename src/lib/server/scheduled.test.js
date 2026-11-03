@@ -6,6 +6,7 @@ import { lastIntegrityRun } from './objects/integrity.js';
 import { saveObject } from './objects/save.js';
 import {
 	BACKUP_CRON,
+	RATES_CRON,
 	REMINDERS_CRON,
 	handleScheduled,
 	runObjectsIntegrity,
@@ -20,7 +21,9 @@ const ctx = /** @type {any} */ ({ waitUntil() {}, passThroughOnException() {} })
 describe('wrangler.toml', () => {
 	it('tiene exactamente los crons que maneja scheduled.js', () => {
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
-		expect([...(config.triggers.crons ?? [])].sort()).toEqual([BACKUP_CRON, REMINDERS_CRON].sort());
+		expect([...(config.triggers.crons ?? [])].sort()).toEqual(
+			[BACKUP_CRON, REMINDERS_CRON, RATES_CRON].sort()
+		);
 	});
 
 	it('el Worker usa worker/index.js, el bucket de backups y el de imágenes; los Previews, la base y el bucket de imágenes de prueba', () => {

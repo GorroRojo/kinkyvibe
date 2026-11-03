@@ -50,9 +50,10 @@ enabled = true
 # Crons (UTC). Tienen que coincidir con src/lib/server/scheduled.js (lo verifica un test).
 # - cada 15 minutos: recordatorios de entradas;
 # - 06:00 UTC (03:00 en Argentina): backup de la base a R2 y copia de la biblioteca.
+# - 21:15 UTC (18:15 en Argentina): cotización del dólar MEP para PayPal (docs/propinas.md).
 # Solo corren en producción (los Previews no ejecutan crons).
 [triggers]
-crons = ["*/15 * * * *", "0 6 * * *"]
+crons = ["*/15 * * * *", "0 6 * * *", "15 21 * * *"]
 
 # Base de datos D1 de producción. En local (`npm run dev`, tests) es una copia simulada por
 # miniflare en `.wrangler/state`: nunca se conecta a Cloudflare.

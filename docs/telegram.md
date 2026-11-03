@@ -787,6 +787,8 @@ que ahora no se puede.
   3. **Desvincular** en el mismo lugar borra el vínculo y los códigos.
   4. Vincular y desvincular quedan en Actividad (`telegram.admin_link`, `telegram.admin_unlink`).
      «Seguir» desde el bot sigue sin registro.
+  5. Al vincular, les **otres admins** con Telegram vinculado reciben un aviso (abajo, «Aviso al
+     vincular un Telegram de admin»).
 - Para el vínculo, de Telegram solo se guarda el id del usuario (ni nombre ni usuario). La lista
   muestra quién tiene Telegram vinculado.
 - Marca con lo mismo que el modo puerta del panel (`extractToken` + `checkIn`), con el login de le
@@ -914,6 +916,24 @@ una confirmación):
 - En el horario de silencio salen igual, pero **sin sonido** (`disable_notification`): una venta
   avisada a las 9 de la mañana ya no sirve.
 - Si Telegram falla en ese momento, ese aviso no se reintenta (el resumen diario la cuenta igual).
+
+**Aviso al vincular un Telegram de admin** (`notifyAdminLinked` / `queueAdminLinkedNotice`, lo
+engancha la ruta del webhook con `onLinked` de `botAdminLink`): cuando une admin vincula un
+Telegram desde Ajustes → Admins → «Vincular Telegram», les otres admins con Telegram vinculado que
+siguen en `ADMINS` reciben «🔗 Se vinculó un Telegram a la cuenta de admin de @login.» (`login`: el
+de GitHub de quien vinculó; nada de su Telegram).
+
+- **No es de «🔔 Mis avisos»** ni se apaga: es de seguridad (si no lo hizo esa persona, el resto se
+  entera). Le llega a todes les otres, aunque no hayan prendido nada (`linkNoticeRecipients`); a
+  quien vinculó no (el bot ya le confirma en el chat). Vincular una cuenta de Mi rincón no avisa.
+- Mismos interruptores que los otros avisos (`telegram_bot` y `telegram_admin`, y
+  `TELEGRAM_BOT_TOKEN`): con solo la puerta prendida, se vincula sin aviso. Clave
+  `vinculo:<id de GitHub>:<momento>` en `telegram_admin_sent`. En el horario de silencio, sin
+  sonido. Sin botón.
+- El texto es **fijo**, no está en «Textos del bot»: un aviso de seguridad no se tiene que poder
+  cambiar ni vaciar desde el panel.
+- Va en segundo plano (`waitUntil`) y **nunca traba el vínculo**: si Telegram o la base fallan,
+  el vínculo queda y el error va al log.
 
 ### Puesta en marcha del estado y los avisos (la hace gorrite)
 

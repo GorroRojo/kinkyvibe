@@ -2,7 +2,9 @@
 	/**
 	 * Avance contra la meta de venta de un evento ($lib/utils/salesGoal.js, `goalProgress`): una
 	 * barra (violeta; verde al llegar) y el texto «$ 180.000 netos de $ 250.000 (72 %)» o «23 de 30
-	 * entradas». Pasarse de la meta es bueno: la barra queda llena, sin la marca roja del cupo.
+	 * entradas». Pasarse de la meta es bueno: la barra queda llena, sin la marca roja del cupo. Si
+	 * parte de la comisión de MP es estimada, el texto dice «netos estimados» y la etiqueta lo
+	 * explica (`estimateText`).
 	 *
 	 * Props: `progress` (GoalProgress), `compact` (texto chico, para listas), `showText` (false =
 	 * solo la barra, con el texto como etiqueta accesible).
@@ -13,7 +15,9 @@
 	export let showText = true;
 
 	$: width = Math.min(100, Math.max(0, progress.pct));
-	$: label = `Meta: ${progress.text}${progress.reached ? ', cumplida' : ''}`;
+	$: label = `Meta: ${progress.text}${progress.reached ? ', cumplida' : ''}${
+		progress.estimateText ? `. ${progress.estimateText}` : ''
+	}`;
 </script>
 
 <div class="goal-progress" class:compact>
@@ -30,7 +34,7 @@
 		<i style="width:{width}%"></i>
 	</div>
 	{#if showText}
-		<span class="text num"
+		<span class="text num" title={progress.estimateText || undefined}
 			>{progress.text}{#if progress.reached}<span class="done"> · meta cumplida</span>{/if}</span
 		>
 	{/if}

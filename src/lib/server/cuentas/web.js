@@ -5,6 +5,7 @@ import { error } from '@sveltejs/kit';
 import { getDB, logDBError } from '$lib/server/db';
 import { deliverEmail } from '$lib/server/tickets/index.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
+import { deviceLabel } from '$lib/utils/userAgent.js';
 import {
 	SESSION_COOKIE,
 	createSession,
@@ -70,7 +71,9 @@ export async function requireCuentas(platform) {
 export async function startSession(event, db, accountId, method) {
 	// Si había otra sesión en este navegador, se cierra (no quedan tokens huérfanos).
 	await destroySession(db, event.cookies.get(SESSION_COOKIE));
-	const token = await createSession(db, accountId, method);
+	// Solo un nombre corto del navegador («Firefox en Android»), nunca el user agent entero.
+	const device = deviceLabel(event.request?.headers.get('user-agent'));
+	const token = await createSession(db, accountId, method, { device });
 	event.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(event.url));
 }
 

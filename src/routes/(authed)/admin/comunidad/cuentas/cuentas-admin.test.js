@@ -2,17 +2,25 @@
  * Panel → Cuentas (/admin/comunidad/cuentas, su ficha, Comunidad › Perfiles en /admin/comunidad/perfiles y la ficha de
  * cada perfil): solo admins (sin sesión,
  * redirect al login; sin permiso, 403), la búsqueda por mail, el permiso "puede tener perfiles"
- * (cambia y queda en Actividad), ocultar y borrar perfiles por saveObject() (con la versión) y
+ * (cambia y queda en Actividad), suspender una cuenta y levantar la suspensión, ocultar y borrar perfiles por saveObject() (con la versión) y
  * "Para revisar" / la actividad del Inicio. D1 de miniflare; datos inventados (example.com).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { ADMINS } from '$lib/server/auth';
+import { ADMINS, requireAdmin } from '$lib/server/auth';
 import {
 	canHaveProfiles,
 	deleteAccount,
+	emailHash,
+	setPassword,
 	upsertVerifiedAccount
 } from '$lib/server/cuentas/accounts.js';
+import { createLoginCode } from '$lib/server/cuentas/codes.js';
+import { passwordLogin, verifyCode } from '$lib/server/cuentas/index.js';
+import { createSession, getSessionAccount } from '$lib/server/cuentas/session.js';
+import { consumeLinkCode, createLinkCode } from '$lib/server/telegram/link.js';
+import { chatAccount } from '$lib/server/telegram/seguir.js';
+import { sha256Hex } from '$lib/server/hash.js';
 import { createProfile } from '$lib/server/cuentas/perfiles.js';
 import { saveObject } from '$lib/server/objects/index.js';
 import { countProfilesToReview, profilesToReview } from '$lib/server/admin/cuentas.js';
@@ -167,7 +175,13 @@ describe('Cuentas', () => {
 		const gone = await account('se-fue-inventade');
 		await deleteAccount(t.db, gone.id);
 		const data = /** @type {any} */ (await list.load(fakeEvent()));
-		expect(data.totals).toEqual({ total: 3, active: 2, withProfiles: 1, deleted: 1 });
+		expect(data.totals).toEqual({
+			total: 3,
+			active: 2,
+			withProfiles: 1,
+			suspended: 0,
+			deleted: 1
+		});
 		const byId = Object.fromEntries(data.accounts.map((/** @type {any} */ a) => [a.id, a]));
 		expect(byId[owner.id]).toMatchObject({
 			email: owner.email,
@@ -245,6 +259,214 @@ describe('Cuentas', () => {
 		await deleteAccount(t.db, a.id);
 		expect(/** @type {any} */ (await toggle('1')).status).toBe(404);
 		expect(await auditRows('account.profiles_permission')).toHaveLength(2);
+	});
+});
+
+describe('Suspender una cuenta', () => {
+	const SECRET = 'MOTIVO-PRIVADO-INVENTADO';
+	/** @param {string} id @param {Record<string, string>} [form] @param {any} [extra] */
+	const suspend = (id, form = { motivo: SECRET }, extra = {}) =>
+		/** @type {Promise<any>} */ (
+			detail.actions.suspender({ ...fakeEvent({ params: { id }, form }), ...extra })
+		);
+	/** @param {string} id */
+	const unsuspend = (id) =>
+		/** @type {Promise<any>} */ (
+			detail.actions.levantarSuspension(fakeEvent({ params: { id }, form: {} }))
+		);
+	/** @param {string} table @param {string} id */
+	const rowsOf = async (table, id) =>
+		Number(
+			(
+				await t.db
+					.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE account_id = ?1`)
+					.bind(id)
+					.first()
+			)?.n
+		);
+	/** @param {string} id */
+	const suspendedAt = async (id) =>
+		(await t.db.prepare('SELECT suspended_at FROM accounts WHERE id = ?1').bind(id).first())
+			?.suspended_at;
+	/** @param {string} accountId @param {string} chatId */
+	const linkChat = (accountId, chatId) =>
+		t.db
+			.prepare(
+				'INSERT INTO telegram_chats (account_id, chat_id, linked_at, muted, updated_at) VALUES (?1, ?2, 1, 0, 1)'
+			)
+			.bind(accountId, chatId)
+			.run();
+
+	it('cierra todas sus sesiones y su Telegram en el momento, sin tocar las de otras cuentas', async () => {
+		const a = await account('suspendide-inventade');
+		const other = await account('otra-inventade');
+		const tokens = [
+			await createSession(t.db, a.id, 'code'),
+			await createSession(t.db, a.id, 'password')
+		];
+		const otherToken = await createSession(t.db, other.id, 'code');
+		await linkChat(a.id, '111');
+		const link = await createLinkCode(t.db, a.id);
+		expect(link.ok).toBe(true);
+
+		expect(await suspend(a.id)).toMatchObject({ suspension: { ok: true } });
+		for (const token of tokens) expect(await getSessionAccount(t.db, token)).toBeNull();
+		expect(await getSessionAccount(t.db, otherToken)).not.toBeNull();
+		expect(await rowsOf('account_sessions', a.id)).toBe(0);
+		expect(await rowsOf('telegram_chats', a.id)).toBe(0);
+		expect(await rowsOf('telegram_link_codes', a.id)).toBe(0);
+
+		// Una sesión que se cruzó (creada después) tampoco vale.
+		expect(await getSessionAccount(t.db, await createSession(t.db, a.id, 'code'))).toBeNull();
+
+		// Repetir no anota de nuevo.
+		expect(await suspend(a.id)).toMatchObject({
+			suspension: { ok: true, message: 'Esta cuenta ya estaba suspendida.' }
+		});
+		const rows = await auditRows('account.suspend');
+		expect(rows).toEqual([
+			{
+				actor_login: admin.login,
+				target_type: 'account',
+				target_id: a.id,
+				summary: 'Suspendió una cuenta',
+				detail: JSON.stringify({ sessionsClosed: 2, telegramUnlinked: true })
+			}
+		]);
+		// El motivo y el mail nunca van a Actividad.
+		expect(JSON.stringify(rows)).not.toContain(SECRET);
+		expect(JSON.stringify(rows)).not.toContain('@example.com');
+	});
+
+	it('no puede entrar por ningún camino (código, contraseña, Telegram) y al levantarla vuelve a entrar', async () => {
+		const a = await account('bloqueade-inventade');
+		const PW = 'una frase bastante larga';
+		expect(await setPassword(t.db, a.id, PW, { iterations: 1000 })).toBeNull();
+		await suspend(a.id);
+
+		const code = async () => (await createLoginCode(t.db, await emailHash(a.email))).code;
+		const client = 'cliente-de-prueba';
+		expect(
+			await verifyCode({ db: t.db, email: a.email, code: await code(), client })
+		).toMatchObject({ ok: false, status: 403, suspended: true });
+		expect(await passwordLogin({ db: t.db, email: a.email, password: PW, client })).toMatchObject({
+			ok: false,
+			status: 403,
+			suspended: true
+		});
+		// Un código de vincular el bot que quedara vivo no sirve, y un chat vinculado no la reconoce.
+		await t.db
+			.prepare(
+				'INSERT INTO telegram_link_codes (code_hash, account_id, created_at, expires_at) VALUES (?1, ?2, ?3, ?4)'
+			)
+			.bind(await sha256Hex('ABCD2345'), a.id, Date.now(), Date.now() + 60_000)
+			.run();
+		expect(await consumeLinkCode(t.db, 'ABCD-2345', '222')).toEqual({
+			ok: false,
+			reason: 'invalid'
+		});
+		await linkChat(a.id, '333');
+		expect(await chatAccount(t.db, '333')).toBeNull();
+
+		expect(await unsuspend(a.id)).toMatchObject({ suspension: { ok: true } });
+		expect(
+			await verifyCode({ db: t.db, email: a.email, code: await code(), client })
+		).toMatchObject({ ok: true, account: { id: a.id, suspended: false } });
+		expect(await passwordLogin({ db: t.db, email: a.email, password: PW, client })).toMatchObject({
+			ok: true
+		});
+		expect(await chatAccount(t.db, '333')).toBe(a.id);
+		// Levantarla dos veces no anota de nuevo; el motivo se borra.
+		expect(await unsuspend(a.id)).toMatchObject({
+			suspension: { ok: true, message: 'Esta cuenta no estaba suspendida.' }
+		});
+		expect(await auditRows('account.unsuspend')).toEqual([
+			{
+				actor_login: admin.login,
+				target_type: 'account',
+				target_id: a.id,
+				summary: 'Levantó la suspensión de una cuenta',
+				detail: null
+			}
+		]);
+		const row = await t.db
+			.prepare('SELECT suspended_at, suspended_by, suspended_reason FROM accounts WHERE id = ?1')
+			.bind(a.id)
+			.first();
+		expect(row).toEqual({ suspended_at: null, suspended_by: null, suspended_reason: null });
+	});
+
+	it('la ficha muestra el motivo (solo a admins) y la lista la marca «Suspendida», sin el motivo', async () => {
+		const a = await account('marcade-inventade');
+		await suspend(a.id);
+		const data = /** @type {any} */ (await detail.load(fakeEvent({ params: { id: a.id } })));
+		expect(data.account).toMatchObject({ suspendedBy: admin.login, suspendedReason: SECRET });
+		expect(data.account.suspendedAt).toBeTypeOf('number');
+		const listed = /** @type {any} */ (await list.load(fakeEvent()));
+		expect(listed.totals.suspended).toBe(1);
+		const row = listed.accounts.find((/** @type {any} */ x) => x.id === a.id);
+		expect(row.suspendedAt).toBeTypeOf('number');
+		expect(JSON.stringify(listed)).not.toContain(SECRET);
+	});
+
+	it('sin motivo también anda; el motivo se recorta', async () => {
+		const a = await account('sin-motivo-inventade');
+		expect(await suspend(a.id, {})).toMatchObject({ suspension: { ok: true } });
+		const b = await account('motivo-largo-inventade');
+		await suspend(b.id, { motivo: `  ${'x'.repeat(800)}  ` });
+		const reasons = Object.fromEntries(
+			(
+				await t.db
+					.prepare('SELECT id, suspended_reason FROM accounts WHERE id IN (?1, ?2)')
+					.bind(a.id, b.id)
+					.all()
+			).results.map((r) => [r.id, r.suspended_reason])
+		);
+		expect(reasons[a.id]).toBeNull();
+		expect(String(reasons[b.id])).toHaveLength(500);
+	});
+
+	it('une no admin no puede suspender ni levantar la suspensión', async () => {
+		const a = await account('protegide-inventade');
+		const nope = { id: 1, login: 'no-admin' };
+		for (const action of [detail.actions.suspender, detail.actions.levantarSuspension]) {
+			const e = await thrown(() =>
+				action(fakeEvent({ params: { id: a.id }, form: { motivo: SECRET }, user: nope }))
+			);
+			expect(e?.status).toBe(403);
+			const anon = await thrown(() =>
+				action(fakeEvent({ params: { id: a.id }, form: {}, user: null, token: null }))
+			);
+			expect(anon?.status).toBe(303);
+		}
+		expect(await suspendedAt(a.id)).toBeNull();
+		expect(await auditRows('account.suspend')).toEqual([]);
+	});
+
+	it('no te podés suspender a vos misme, y suspender cuentas nunca saca a une admin del panel', async () => {
+		const a = await account('yo-misme-inventade');
+		const locals = { ...fakeEvent().locals, member: { id: a.id, email: a.email } };
+		const self = await suspend(a.id, { motivo: '' }, { locals });
+		expect(self.status).toBe(400);
+		expect(self.data.suspension.ok).toBe(false);
+		expect(await suspendedAt(a.id)).toBeNull();
+		// Les admins entran con GitHub (ADMINS), aparte de las cuentas del sitio: con cuentas
+		// suspendidas, cada admin (también la última) sigue entrando al panel.
+		await suspend(a.id);
+		for (const adm of ADMINS) {
+			const who = requireAdmin(
+				/** @type {any} */ ({ user: { id: adm.id, login: adm.login }, user_token: 'x' }),
+				new URL('https://kinkyvibe.ar/admin')
+			);
+			expect(who).toMatchObject({ id: adm.id });
+		}
+	});
+
+	it('una cuenta borrada no se suspende', async () => {
+		const a = await account('borrade-inventade');
+		await deleteAccount(t.db, a.id);
+		expect((await suspend(a.id)).status).toBe(404);
+		expect((await unsuspend(a.id)).status).toBe(404);
 	});
 });
 

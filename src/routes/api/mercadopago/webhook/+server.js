@@ -11,6 +11,7 @@
  */
 import { json, text } from '@sveltejs/kit';
 import { getDB, logDBError } from '$lib/server/db';
+import { readJsonCapped } from '$lib/server/http/body.js';
 import {
 	getGateway,
 	processPayment,
@@ -22,13 +23,12 @@ import { applyTipPayment, isTipReference } from '$lib/server/propinas/index.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, url, platform, fetch }) {
+	// El aviso es chico: tope de 64 KB, también sin content-length (se corta al leer).
+	const read = await readJsonCapped(request, 64 * 1024);
+	if (!read.ok && read.reason === 'too-large') return text('too large', { status: 413 });
+	// Algunas notificaciones viejas (IPN) vienen sin body.
 	/** @type {any} */
-	let body = null;
-	try {
-		body = await request.json();
-	} catch {
-		// Algunas notificaciones viejas (IPN) vienen sin body.
-	}
+	const body = read.ok ? read.value : null;
 	const type = url.searchParams.get('type') ?? body?.type ?? null;
 	const topic = url.searchParams.get('topic');
 	const dataId = url.searchParams.get('data.id');
