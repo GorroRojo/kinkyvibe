@@ -1267,6 +1267,11 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				help: 'El bot reconoce la respuesta por este mensaje: cambiarlo no rompe los que ya se mandaron.'
 			}
 		),
+		// El encabezado de la guía «Cómo buscar» del bot. Las líneas ({lista}) salen del registro
+		// ($lib/utils/searchSyntax.js, `searchHelp('bot')`); las frases de arriba de las guías del
+		// sitio y del panel están en `SEARCH_GUIDE_TEXT` de ese archivo: si cambiás esta, mirá esas
+		// (docs/buscar.md, «Dónde vive cada texto de la guía»). La muestra de {lista} es la línea de
+		// `evento:` de esa guía, copiada (lo chequea searchGuide.test.js).
 		f(
 			'sitio.como_buscar',
 			'sitio',

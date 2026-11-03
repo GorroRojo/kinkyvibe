@@ -694,9 +694,12 @@ el sitio y el bot (`parseSearch`, `searchSyntax.js`); la sintaxis entera está e
   excluidas se comparan en JS (`matchTerms`).
 - **Ayuda**: con la paleta vacía hay una línea con ejemplos; «Cómo buscar» (al pie de la paleta,
   como acción y en la hoja de atajos `?`) explica todos con ejemplos que se pueden tocar
-  (`SEARCH_TIPS` en `paletteActions.js`, armado desde el registro de la búsqueda con
-  `searchHelp('panel')`, más `>` y la palabra de pestaña, que no son operadores del registro; un
-  test verifica que cada ejemplo y cada forma usen un operador). Cada línea muestra cómo se escribe
+  (`SEARCH_TIPS` en `paletteActions.js`, que es `searchHelp('panel')`: el registro de la búsqueda,
+  también `>` y la palabra de pestaña, líneas de solo el panel en `HELP_ROWS`; un test verifica que
+  cada ejemplo y cada forma usen un operador). Las frases de arriba, la línea de la paleta vacía y
+  la pista de la acción también salen de `searchSyntax.js` (`SEARCH_GUIDE_TEXT.panel`): no se
+  escriben en `SearchBox.svelte` (ver «Dónde vive cada texto de la guía» en
+  [buscar.md](buscar.md)). Cada línea muestra cómo se escribe
   (las formas juntas en una etiqueta, `@nombre · persona:`), el ejemplo para tocar (nunca una de sus
   formas) y qué hace. En el panel no se lista `material:` (no busca material) y `@` va con `persona:`.
 - El buscador público del sitio (`SearchPalette.svelte`) es otro motor (el índice público), con la

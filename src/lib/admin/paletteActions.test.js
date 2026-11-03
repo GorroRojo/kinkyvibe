@@ -142,12 +142,23 @@ describe('«Cómo buscar»', () => {
 		}
 	});
 
-	it('los ejemplos salen del registro de la búsqueda (más `>` y la pestaña, que no son operadores)', () => {
+	it('los ejemplos salen del registro de la búsqueda (también `>` y la pestaña, líneas de solo el panel)', () => {
 		const rows = searchHelp('panel');
-		expect(SEARCH_TIPS.slice(0, rows.length)).toEqual(
-			rows.map((r) => ({ q: r.example, label: r.label, text: r.help }))
+		expect(SEARCH_TIPS).toEqual(
+			rows.map((r) => ({
+				q: r.example,
+				...(r.label === undefined ? {} : { label: r.label }),
+				text: r.help
+			}))
 		);
-		expect(SEARCH_TIPS.slice(rows.length).map((t) => t.q)).toEqual(['e:fiesta puerta', '>tema']);
+		// La pestaña y `>` van al final, sin etiqueta (no son operadores: la línea es el ejemplo).
+		expect(SEARCH_TIPS.slice(-2)).toEqual([
+			{
+				q: 'e:fiesta puerta',
+				text: 'Con puerta, órdenes, mail, ventas o duplicar al final, directo a esa pestaña del evento.'
+			},
+			{ q: '>tema', text: 'Solo acciones (tiene que ir al principio).' }
+		]);
 		const ids = rows.map((r) => r.id);
 		// Lo del panel sí; `material:` (el panel no busca material) y el `@` del sitio, no: en el
 		// panel `@` es `persona:`.

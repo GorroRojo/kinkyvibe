@@ -9,7 +9,7 @@
 import { REVIEW_LINK } from './nav.js';
 import { buildCommands, fold } from './commands.js';
 import { createItems } from './createMenu.js';
-import { searchHelp } from '$lib/utils/searchSyntax.js';
+import { SEARCH_GUIDE_TEXT, searchHelp } from '$lib/utils/searchSyntax.js';
 
 /**
  * Una fila de Fijados o Recientes en la paleta vacía: `place` dice que el ícono es el de su
@@ -58,41 +58,30 @@ export function placeSections(pinned, recent) {
 export const SEARCH_HELP_COMMAND = Object.freeze({
 	id: 'search-help',
 	label: 'Cómo buscar',
-	hint: 'Operadores: #etiqueta, @persona, hoy, "frase", -palabra…',
+	// La pista sale de searchSyntax.js, con los demás textos de las guías «Cómo buscar».
+	hint: SEARCH_GUIDE_TEXT.panel.commandHint,
 	keywords: 'ayuda buscar buscador operadores filtros etiqueta persona tipo lugar fecha',
 	icon: 'search',
 	run: /** @type {const} */ ('search-help')
 });
 
 /**
- * Lo del panel que no es un operador del registro de la búsqueda (no tiene clave): `>` al
- * principio y la palabra de pestaña. Datos inventados.
+ * Las líneas de la ayuda «Cómo buscar» del panel, en orden: `searchHelp('panel')` de
+ * $lib/utils/searchSyntax.js, la fuente única de las guías del sitio, el bot y el panel (las
+ * frases, las exclusiones, cada operador que anda en el panel, también los de solo el panel, y la
+ * palabra de pestaña y `>`, que son líneas de solo el panel en `HELP_ROWS`). Acá no se escribe
+ * ninguna línea a mano: se cambian allá. `q`: el ejemplo (al tocarlo, la paleta lo busca);
+ * `label`: cómo se escribe el operador (sus formas juntas, como en la ayuda del sitio y del bot:
+ * `@nombre · persona:`), que la guía muestra en una sola etiqueta.
  * @type {readonly { q: string, label?: string, text: string }[]}
  */
-const PANEL_ONLY_TIPS = Object.freeze([
-	{
-		q: 'e:fiesta puerta',
-		text: 'Con puerta, órdenes, mail, ventas o duplicar al final, directo a esa pestaña del evento.'
-	},
-	{ q: '>tema', text: 'Solo acciones (tiene que ir al principio).' }
-]);
-
-/**
- * Los ejemplos de la ayuda «Cómo buscar», en orden, armados desde el registro de la búsqueda
- * (`searchHelp('panel')` en searchSyntax.js: las frases, las exclusiones y cada operador que anda
- * en el panel, también los de solo el panel) más lo de {@link PANEL_ONLY_TIPS}. `q`: el ejemplo (al
- * tocarlo, la paleta lo busca); `label`: cómo se escribe el operador (sus formas juntas, como en la
- * ayuda del sitio y del bot: `@nombre · persona:`), que la guía muestra en una sola etiqueta.
- * @type {readonly { q: string, label?: string, text: string }[]}
- */
-export const SEARCH_TIPS = Object.freeze([
-	...searchHelp('panel').map((row) => ({
+export const SEARCH_TIPS = Object.freeze(
+	searchHelp('panel').map((row) => ({
 		q: row.example,
-		label: row.label,
+		...(row.label === undefined ? {} : { label: row.label }),
 		text: row.help
-	})),
-	...PANEL_ONLY_TIPS
-]);
+	}))
+);
 
 /**
  * Atajos a páginas que no están en el menú (o que son un botón dentro de una sección). Van

@@ -7,6 +7,18 @@
  * (`orden:`, `tipo:`… del panel) también está en el registro, con sus buscadores: el parser lo
  * reconoce solo en esos y lo devuelve aparte (`extra`) para que ese buscador lo use. En los demás,
  * `orden:algo` es texto.
+ *
+ * FUENTE ÚNICA DE LA GUÍA «Cómo buscar» de los tres (sitio, bot y panel; docs/buscar.md, «Dónde
+ * vive cada texto de la guía»). Cada línea de las tres guías (cómo se escribe, el ejemplo y qué
+ * hace) sale de acá, de `OPERATORS` y `HELP_ROWS`, por `searchHelp(buscador)`; ninguna guía escribe
+ * una línea a mano (lo chequea searchGuide.test.js). Las frases de arriba de cada guía también
+ * están acá (`SEARCH_GUIDE_TEXT`), salvo la del bot, que es un «Texto del bot» editable desde el
+ * panel (`sitio.como_buscar` en $lib/utils/botTexts.js). Quién muestra cada guía:
+ * - sitio: $lib/components/SearchPalette.svelte (`searchHelp('sitio')`, `SEARCH_GUIDE_TEXT.sitio`);
+ * - bot: `searchHelpScreen` en $lib/server/telegram/screens.js (`searchHelp('bot')`), con el
+ *   encabezado `sitio.como_buscar` de $lib/utils/botTexts.js;
+ * - panel: $lib/components/admin/panel/SearchBox.svelte (`SEARCH_TIPS` de
+ *   $lib/admin/paletteActions.js, que es `searchHelp('panel')`, y `SEARCH_GUIDE_TEXT.panel`).
  */
 
 /** @typedef {'sitio' | 'bot' | 'panel'} Engine */
@@ -833,37 +845,112 @@ export function splitTypes(raw, engine) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Una línea de la ayuda «¿Cómo buscar?»: cómo se escribe, un ejemplo y qué hace.
- * @typedef {{ id: string, label: string, example: string, help: string }} SearchHelpRow
+ * Una línea de la ayuda «¿Cómo buscar?»: cómo se escribe (`label`; sin él, la línea es solo el
+ * ejemplo), un ejemplo y qué hace.
+ * @typedef {{ id: string, label?: string, example: string, help: string }} SearchHelpRow
  */
 
 /**
- * Lo de la base que no es un operador del registro (no tiene nombre) pero anda igual en los tres
- * buscadores: las frases, las exclusiones y las palabras de fecha sueltas. Va arriba de los
- * operadores en la ayuda.
- * @type {readonly SearchHelpRow[]}
+ * Una línea de la ayuda que no es un operador (no tiene clave): en qué guías va (`engines`, como
+ * los operadores: los tres buscadores o solo el panel) y si va antes o después de los operadores
+ * (`place`).
+ * @typedef {SearchHelpRow & { engines: readonly Engine[], place: 'before' | 'after' }} HelpRowDef
  */
-export const SEARCH_BASICS = Object.freeze([
+
+/**
+ * Las líneas de la ayuda que no son operadores del registro. Antes de los operadores, lo de la
+ * base que anda igual en los tres buscadores: las frases, las exclusiones y las palabras de fecha
+ * sueltas. Después, lo que es solo del panel: la palabra de pestaña y `>` (datos inventados).
+ * @type {readonly HelpRowDef[]}
+ */
+export const HELP_ROWS = Object.freeze([
 	{
 		id: 'frase',
 		label: '"…"',
 		example: '"reducción de daños"',
-		help: 'Esas palabras juntas y en ese orden.'
+		help: 'Esas palabras juntas y en ese orden.',
+		engines: ALL,
+		place: 'before'
 	},
 	{
 		id: 'sin',
 		label: '-',
 		example: 'taller -online',
-		help: 'Sin esa palabra (también -#etiqueta o -evento:).'
+		help: 'Sin esa palabra (también -#etiqueta o -evento:).',
+		engines: ALL,
+		place: 'before'
 	},
 	{
 		id: 'fechas',
 		label: 'hoy · mañana · semana · finde',
 		// Un ejemplo que no sea una de las formas (si no, la guía repite «finde»).
 		example: 'fiesta finde',
-		help: 'Eventos de esos días.'
+		help: 'Eventos de esos días.',
+		engines: ALL,
+		place: 'before'
+	},
+	// Solo en el panel, después de los operadores: no son operadores del registro (no tienen
+	// clave), así que la línea es solo el ejemplo.
+	{
+		id: 'pestana',
+		example: 'e:fiesta puerta',
+		help: 'Con puerta, órdenes, mail, ventas o duplicar al final, directo a esa pestaña del evento.',
+		engines: PANEL,
+		place: 'after'
+	},
+	{
+		id: 'acciones',
+		example: '>tema',
+		help: 'Solo acciones (tiene que ir al principio).',
+		engines: PANEL,
+		place: 'after'
 	}
 ]);
+
+/**
+ * Una línea de {@link HELP_ROWS} sin lo que dice dónde va.
+ * @param {HelpRowDef} def
+ * @returns {SearchHelpRow}
+ */
+function toHelpRow({ id, label, example, help }) {
+	return label === undefined ? { id, example, help } : { id, label, example, help };
+}
+
+/**
+ * Lo de la base que no es un operador del registro pero anda igual en los tres buscadores: las
+ * líneas de {@link HELP_ROWS} que van antes de los operadores en todas las guías.
+ * @type {readonly SearchHelpRow[]}
+ */
+export const SEARCH_BASICS = Object.freeze(
+	HELP_ROWS.filter((r) => r.place === 'before' && ALL.every((e) => r.engines.includes(e))).map(
+		toHelpRow
+	)
+);
+
+const TRY_EXAMPLE = 'Tocá un ejemplo para probarlo.';
+
+/**
+ * Las frases de las guías que no son líneas: lo que va arriba de la lista y las pistas cortas que
+ * llevan a la guía. La del bot no está acá: es el «Texto del bot» `sitio.como_buscar`
+ * ($lib/utils/botTexts.js, se edita desde el panel); si cambiás una de estas, mirá esa también.
+ */
+export const SEARCH_GUIDE_TEXT = Object.freeze({
+	/** El buscador del sitio (SearchPalette.svelte): el párrafo de arriba de la lista. */
+	sitio: Object.freeze({
+		intro: `Escribí palabras sueltas o sumá alguno de estos. ${TRY_EXAMPLE}`
+	}),
+	/** La paleta del panel (SearchBox.svelte) y su acción «Cómo buscar» (paletteActions.js). */
+	panel: Object.freeze({
+		/** El párrafo de arriba de la lista: `intro`, el ejemplo `combined` (se toca), «.» y `outro`. */
+		intro: 'Sin tildes ni mayúsculas, y las palabras en cualquier orden. Se pueden combinar:',
+		combined: '#shibari finde',
+		outro: TRY_EXAMPLE,
+		/** La línea de la paleta vacía: «Probá #etiqueta, @persona, hoy o "frase".» */
+		teaser: Object.freeze(['#etiqueta', '@persona', 'hoy', '"frase"']),
+		/** La pista de la acción «Cómo buscar» en la lista de acciones. */
+		commandHint: 'Operadores: #etiqueta, @persona, hoy, "frase", -palabra…'
+	})
+});
 
 /**
  * Cómo se escribe un operador en la ayuda: la forma larga y las cortas (`evento: · e:`), o el
@@ -879,10 +966,11 @@ export function operatorLabel(op) {
 }
 
 /**
- * La ayuda «¿Cómo buscar?» de un buscador, armada desde el registro (`OPERATORS`): las frases y
- * las exclusiones ({@link SEARCH_BASICS}) y después cada operador que anda en ese buscador (en el
- * sitio y el bot, solo los públicos), con su ejemplo y su explicación. Sumar un operador al
- * registro lo suma a la ayuda de la paleta del sitio, del bot y del panel.
+ * La ayuda «¿Cómo buscar?» de un buscador, armada desde el registro: las líneas de
+ * {@link HELP_ROWS} de ese buscador que van antes (las frases, las exclusiones y las fechas), cada
+ * operador de `OPERATORS` que anda en ese buscador (en el sitio y el bot, solo los públicos) con su
+ * ejemplo y su explicación, y las de {@link HELP_ROWS} que van después (en el panel, la pestaña y
+ * `>`). Sumar un operador o una línea al registro lo suma a la guía del sitio, del bot y del panel.
  *
  * @param {Engine} engine
  * @returns {SearchHelpRow[]}
@@ -894,13 +982,16 @@ export function searchHelp(engine) {
 			(op.public || engine === 'panel') &&
 			op.helpFor?.[engine] !== null
 	);
+	const extras = (/** @type {'before' | 'after'} */ place) =>
+		HELP_ROWS.filter((r) => r.place === place && r.engines.includes(engine)).map(toHelpRow);
 	return [
-		...SEARCH_BASICS,
+		...extras('before'),
 		...ops.map((op) => ({
 			id: op.id,
 			label: operatorLabel(op),
 			example: op.example,
 			help: op.helpFor?.[engine] ?? op.help
-		}))
+		})),
+		...extras('after')
 	];
 }

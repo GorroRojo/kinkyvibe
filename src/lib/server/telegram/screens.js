@@ -630,19 +630,26 @@ export function helpScreen(ctx, { accounts = false } = {}) {
 }
 
 /**
- * «🔎 Cómo buscar» (desde ❓ Ayuda): la sintaxis de búsqueda del bot, armada desde el registro de
- * operadores (`searchHelp('bot')` en searchSyntax.js): cómo se escribe cada uno, qué hace y un
- * ejemplo para copiar. Sumar un operador al registro lo suma acá.
+ * Una línea de «🔎 Cómo buscar»: cómo se escribe, qué hace y el ejemplo para copiar (la muestra de
+ * `{lista}` en `sitio.como_buscar`, botTexts.js, tiene esta forma).
+ * @param {import('$lib/utils/searchSyntax.js').SearchHelpRow} row
+ */
+export function searchHelpLine(row) {
+	const label = row.label ? `<b>${escapeHtml(row.label)}</b>: ` : '';
+	return `• ${label}${escapeHtml(row.help)}\n<code>${escapeHtml(row.example)}</code>`;
+}
+
+/**
+ * «🔎 Cómo buscar» (desde ❓ Ayuda): la sintaxis de búsqueda del bot. Cada línea sale de
+ * `searchHelp('bot')` en $lib/utils/searchSyntax.js, la fuente única de las guías del sitio, el
+ * bot y el panel (docs/buscar.md, «Dónde vive cada texto de la guía»): acá no se escribe ninguna.
+ * El encabezado es el «Texto del bot» `sitio.como_buscar` (botTexts.js, editable desde el panel);
+ * los de las otras dos guías están en `SEARCH_GUIDE_TEXT` de searchSyntax.js.
  *
  * @returns {Screen}
  */
 export function searchHelpScreen() {
-	const lista = searchHelp('bot')
-		.map(
-			(row) =>
-				`• <b>${escapeHtml(row.label)}</b>: ${escapeHtml(row.help)}\n<code>${escapeHtml(row.example)}</code>`
-		)
-		.join('\n');
+	const lista = searchHelp('bot').map(searchHelpLine).join('\n');
 	return {
 		text: botText('sitio.como_buscar', { lista }),
 		keyboard: [

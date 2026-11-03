@@ -48,7 +48,9 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
     desde el registro de operadores (`searchHelp('bot')` en `searchSyntax.js`): cada operador con
     su forma larga y corta, qué hace y un ejemplo para copiar, con «🔎 Buscar», «‹ Volver» (a la
     ayuda) e «🏠 Inicio». El encabezado es «Textos del bot» `sitio.como_buscar`; la lista no se
-    escribe a mano: sumar un operador al registro lo suma acá.
+    escribe a mano: sumar un operador al registro lo suma acá. Las líneas son las mismas que las
+    de la guía del sitio y del panel (una sola fuente, `searchSyntax.js`; ver «Dónde vive cada
+    texto de la guía» en [buscar.md](buscar.md)).
   - «🔎 Buscar» manda un mensaje nuevo que abre «responder» (`force_reply`, Bot API 10.3) con
     «Cancelar»; la respuesta trae los resultados. `/buscar <texto>` los trae directo (también en
     grupos; en un grupo, `/buscar` solo explica `/buscar cuerdas`).

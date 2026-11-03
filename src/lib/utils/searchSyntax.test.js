@@ -50,7 +50,7 @@ describe('«¿Cómo buscar?» (searchHelp, desde el registro)', () => {
 	it('el ejemplo de cada línea no es una de sus formas (no se ve dos veces)', () => {
 		for (const engine of /** @type {const} */ (['sitio', 'bot', 'panel'])) {
 			for (const row of searchHelp(engine)) {
-				expect(row.label.split(' · '), `${engine}: ${row.id}`).not.toContain(row.example);
+				expect((row.label ?? '').split(' · '), `${engine}: ${row.id}`).not.toContain(row.example);
 			}
 		}
 		expect(SEARCH_BASICS.find((r) => r.id === 'fechas')?.example).not.toBe('finde');
@@ -58,7 +58,7 @@ describe('«¿Cómo buscar?» (searchHelp, desde el registro)', () => {
 
 	it('en el panel, `@` va en una sola línea con `persona:`', () => {
 		const rows = searchHelp('panel');
-		expect(rows.filter((r) => r.label.includes('@'))).toEqual([
+		expect(rows.filter((r) => r.label?.includes('@'))).toEqual([
 			expect.objectContaining({
 				id: 'persona-panel',
 				label: '@nombre · persona:',

@@ -31,10 +31,15 @@
 	/** @type {Element | null} */
 	let previouslyFocused = null;
 	let shortcut = 'Ctrl K';
-	/** «¿Cómo buscar?»: la ayuda armada desde el registro de operadores (`searchHelp`). */
+	/**
+	 * «¿Cómo buscar?»: las líneas (`searchHelp('sitio')`) y el párrafo de arriba
+	 * (`SEARCH_GUIDE_TEXT.sitio`) salen de searchSyntax.js, la fuente única de las guías del sitio,
+	 * el bot y el panel: acá no se escriben.
+	 */
 	let showHelp = false;
 	/** @type {import('$lib/utils/searchSyntax.js').SearchHelpRow[] | undefined} */
 	let helpRows;
+	let helpIntro = '';
 
 	/**
 	 * @typedef {{kind: 'hit', id: string, href: string, hit: import('$lib/utils/search').SearchHit}
@@ -241,7 +246,9 @@
 		showHelp = !showHelp;
 		if (showHelp && !helpRows) {
 			try {
-				helpRows = (await import('$lib/utils/searchSyntax.js')).searchHelp('sitio');
+				const syntax = await import('$lib/utils/searchSyntax.js');
+				helpIntro = syntax.SEARCH_GUIDE_TEXT.sitio.intro;
+				helpRows = syntax.searchHelp('sitio');
 			} catch (e) {
 				console.error(e);
 				showHelp = false;
@@ -332,7 +339,7 @@
 				{#if showHelp && helpRows}
 					<div class="help" role="presentation">
 						<h3>¿Cómo buscar?</h3>
-						<p>Escribí palabras sueltas o sumá alguno de estos. Tocá un ejemplo para probarlo.</p>
+						<p>{helpIntro}</p>
 						<dl>
 							{#each helpRows as row (row.id)}
 								<div class="help-row">

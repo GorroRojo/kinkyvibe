@@ -253,10 +253,11 @@ acá, se cambia ahí en el mismo PR.
 - **Panel**: la línea de ayuda de la paleta abre todo, incluido «Solo en el panel».
 - Muestra la forma larga y la corta al lado (`evento:` (o `e:`)).
 
-**Hoy**: la guía sale del registro (`searchHelp(buscador)` en `searchSyntax.js`: las frases, las
-exclusiones y las palabras de fecha sueltas, `SEARCH_BASICS`, y cada operador de ese buscador con su forma larga y corta, su ejemplo
-y su explicación; en el sitio y el bot, solo los públicos). Sumar un operador al registro lo suma
-a la guía sin tocar nada más.
+**Hoy**: la guía sale del registro (`searchHelp(buscador)` en `searchSyntax.js`: las líneas de
+`HELP_ROWS` de ese buscador, que son las frases, las exclusiones y las palabras de fecha sueltas en
+los tres y la pestaña y `>` en el panel, y cada operador de ese buscador con su forma larga y corta,
+su ejemplo y su explicación; en el sitio y el bot, solo los públicos). Sumar un operador o una
+línea al registro lo suma a la guía sin tocar nada más (ver «Dónde vive cada texto de la guía»).
 
 - **Sitio**: el botón «?» de la barra del buscador, y «¿Cómo buscar?» con el buscador vacío o sin
   resultados (`SearchPalette.svelte`). Cada ejemplo se puede tocar y queda escrito en el buscador;
@@ -264,6 +265,38 @@ a la guía sin tocar nada más.
 - **Bot**: «🔎 Cómo buscar» en ❓ Ayuda (`searchHelpScreen` en `telegram/screens.js`), con cada
   ejemplo en `<code>` para copiarlo. Falta la línea en el mensaje de Buscar.
 - **Panel**: «Cómo buscar» de la paleta (`SEARCH_TIPS` en `paletteActions.js`, desde
-  `searchHelp('panel')`, con «Solo en el panel»; ver [panel.md](panel.md)). `helpFor` en el
+  `searchHelp('panel')`, también la pestaña y `>`; ver [panel.md](panel.md)). `helpFor` en el
   registro cambia o saca un operador de la guía de un buscador: el panel no lista `material:` y su
   `@` es `persona:`.
+
+### Dónde vive cada texto de la guía
+
+Las tres guías tienen una sola fuente: `src/lib/utils/searchSyntax.js` (su comentario de arriba
+dice lo mismo). Para cambiar un texto de la guía, cambialo ahí y cambia en las tres; no se escribe
+ninguna línea en los archivos que las muestran (lo chequean `src/lib/utils/searchGuide.test.js` y
+`src/lib/components/SearchPalette.dom.test.js`).
+
+| Texto                                                             | Dónde vive                                                                                                                                                                         | Sale en  |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Cada operador: cómo se escribe, ejemplo y qué hace                | `OPERATORS` (`example`, `help`; `helpFor` para otra explicación o sacarlo de una guía)                                                                                             | las tres |
+| Frases, exclusiones y palabras de fecha (`"…"`, `-`, `hoy · …`)   | `HELP_ROWS` con `engines` de los tres y `place: 'before'` (`SEARCH_BASICS`)                                                                                                        | las tres |
+| La pestaña (`e:fiesta puerta`) y `>tema`                          | `HELP_ROWS` con `engines: ['panel']` y `place: 'after'`                                                                                                                            | panel    |
+| «Escribí palabras sueltas o sumá alguno de estos…»                | `SEARCH_GUIDE_TEXT.sitio.intro`                                                                                                                                                    | sitio    |
+| «Sin tildes ni mayúsculas…», `#shibari finde`, «Tocá un ejemplo…» | `SEARCH_GUIDE_TEXT.panel` (`intro`, `combined`, `outro`)                                                                                                                           | panel    |
+| «Probá #etiqueta, @persona, hoy o "frase".» (paleta vacía)        | `SEARCH_GUIDE_TEXT.panel.teaser`                                                                                                                                                   | panel    |
+| La pista de la acción «Cómo buscar»                               | `SEARCH_GUIDE_TEXT.panel.commandHint`                                                                                                                                              | panel    |
+| «🔎 ¿Cómo buscar? En /buscar y en el modo inline…»                | «Texto del bot» `sitio.como_buscar` en `src/lib/utils/botTexts.js` (editable desde el panel; su muestra de `{lista}` es una copia de la línea de `evento:`, chequeada por el test) | bot      |
+
+Quién muestra cada guía (solo arma, no escribe textos):
+
+- **Sitio**: `src/lib/components/SearchPalette.svelte` (`searchHelp('sitio')` y
+  `SEARCH_GUIDE_TEXT.sitio`, que baja con el registro la primera vez que se abre la guía).
+- **Bot**: `searchHelpScreen` y `searchHelpLine` en `src/lib/server/telegram/screens.js`
+  (`searchHelp('bot')`, con el encabezado `sitio.como_buscar`).
+- **Panel**: `src/lib/components/admin/panel/SearchBox.svelte` (`SEARCH_TIPS` de
+  `src/lib/admin/paletteActions.js`, que es `searchHelp('panel')`, y `SEARCH_GUIDE_TEXT.panel`).
+
+Lo que queda escrito en cada archivo son los títulos y botones («¿Cómo buscar?» del sitio, «Cómo
+buscar» del panel, «🔎 Cómo buscar» del bot en `inicio.boton_como_buscar`): son de su pantalla,
+no explican la sintaxis. El encabezado del bot sigue en `botTexts.js` porque se edita desde el
+panel; si cambiás una de las frases de `SEARCH_GUIDE_TEXT`, mirá esa también (y al revés).
