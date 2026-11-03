@@ -748,11 +748,13 @@ export function recentActivityRowsQuery({ limit = 12, since = 0 } = {}) {
 					GROUP BY event_slug, CAST(checked_in_at / ?3 AS INTEGER) ORDER BY last DESC LIMIT ?2`,
 				[since, limit, CHECKIN_BUCKET_MS]
 			),
-			// Sin la migración 0019 (propinas) la consulta falla y da [].
+			// Sin la migración 0019 (propinas) la consulta falla y da []. Solo las de Mercado Pago
+			// (en pesos): las de PayPal (0071) son en dólares.
 			part(
 				'actividad: propinas',
 				`SELECT id, amount, post_category, post_slug, approved_at FROM tips
-					WHERE status = 'approved' AND approved_at > ? ORDER BY approved_at DESC LIMIT ?`,
+					WHERE status = 'approved' AND provider = 'mp' AND approved_at > ?
+					ORDER BY approved_at DESC LIMIT ?`,
 				[since, limit]
 			)
 		],
