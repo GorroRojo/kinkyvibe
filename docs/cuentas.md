@@ -7,7 +7,8 @@ Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"
 En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de antes de tener cuenta),
 sus datos guardados para comprar (ver "Datos guardados para la compra"), su velocidad de lectura
 (ver "Velocidad de lectura"), pone, cambia o saca la
-contraseña, cierra sesión (en ese navegador o en todos lados) o borra la
+contraseña, ve dónde tiene la sesión abierta y cierra cada una (ver "Sesiones"), cierra sesión
+(en ese navegador o en todos lados) o borra la
 cuenta. Tocar la contraseña y borrar la
 cuenta piden además un código fresco por mail (ver "Acciones delicadas").
 
@@ -111,13 +112,14 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 | Tabla               | Qué guarda                                                                                                                                    |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `accounts`          | id (UUID al azar), mail normalizado y único, cuándo se verificó, hash de la contraseña (opcional), preferencias (JSON), fechas y `deleted_at` |
-| `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista                                    |
+| `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista; después, el navegador (0066)      |
 | `login_codes`       | hash del mail, para qué es (`purpose`), hash del código, intentos, vencimiento y uso                                                          |
 | `feature_flags`     | los interruptores del panel (`cuentas` fue el primero; quedó fijo)                                                                            |
 | `orders.account_id` | columna nueva, para la compra con cuenta que viene; `ON DELETE SET NULL`                                                                      |
 
 Después: `free_order_choices` (migración 0061), lo que eligió cada cuenta sobre una orden gratis
-que le llegó por el mail («¿Son tuyas?», arriba).
+que le llegó por el mail («¿Son tuyas?», arriba), y `account_sessions.device` (migración 0066), el
+nombre corto del navegador de cada sesión (ver "Sesiones").
 
 Sin "nombre para mostrar" (P7.3): los nombres van a ir en los perfiles. Las **passkeys** van a
 ir en una tabla propia (`account_passkeys`, apuntando a `accounts.id`); no hace falta cambiar
@@ -215,6 +217,22 @@ el código por mail sigue andando.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
   cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
   saca acceso.
+- **«Dónde tenés la sesión abierta»** (Mi rincón, `#sesiones`): la lista de las sesiones de la
+  cuenta (`listSessions`, hasta 50), la de ese navegador primero con la marca «esta». De cada una:
+  el navegador («Firefox en Android»), cuándo y cómo se entró (código o contraseña) y la última vez,
+  aproximada al día («hoy», «ayer», «el 12 de octubre»), porque `last_seen_at` se anota como mucho
+  una vez por día. Cada una tiene «Cerrar esta» (`?/cerrarSesion`); en la de ese navegador es
+  salir (vuelve al inicio con «Saliste de tu cuenta»). «Cerrar todas las demás» (`?/cerrarOtras`)
+  deja solo la de ese navegador. Tampoco piden código: solo sacan acceso.
+  - **Qué se guarda:** solo un nombre corto del navegador y el sistema, sacado del user agent al
+    entrar (`deviceLabel()` en `src/lib/utils/userAgent.js`, columna `device`, migración 0066, de
+    hasta 60 caracteres). Nunca el user agent entero, ni la IP, ni un lugar. Las sesiones de antes
+    de la migración dicen «Navegador sin identificar».
+  - **Solo la dueña ve y cierra las suyas:** la página no recibe el token ni su hash; cada sesión
+    va con un id que sale del hash (`SHA-256("sesion:<hash>")`, 32 caracteres). `endSessionById`
+    busca ese id solo entre las sesiones de la cuenta de la sesión actual: con el id de una sesión
+    de otra cuenta no pasa nada (404). Cerrar borra la fila, así que esa cookie deja de abrir nada
+    en el pedido siguiente (`getSessionAccount` busca la fila siempre).
 - `hooks.server.js` carga `locals.member` (`{ id, email, readingSpeed, canHaveProfiles }`) solo
   si hay cookie (y base). La velocidad de lectura y el permiso de perfiles vienen en la misma
   consulta que la sesión (`getSessionAccount`), así el layout y Mi rincón no vuelven a leer la
@@ -314,6 +332,44 @@ Con qué velocidad se calcula el «X min de lectura» de los materiales y la Kin
 Por ahora solo el hook: `eventRequiresAccount(meta)` en `src/lib/server/cuentas/index.js` lee
 `requiere_cuenta: true` del frontmatter del evento. La compra todavía no lo usa.
 
+### Suspender una cuenta
+
+Para frenar a una cuenta concreta (por ejemplo, una que acosa con perfiles, invitaciones o «Es mi
+perfil»), une admin la suspende desde su ficha (Comunidad › Cuentas › la cuenta → «Suspensión»,
+o la misma ficha desde Personas). Solo admins (`requireAdmin` en cada action). Código:
+`src/lib/server/cuentas/suspension.js`; las actions `?/suspender` y `?/levantarSuspension` en
+`src/lib/server/admin/fichaRoutes.js`; migración `0065_cuentas_suspendidas.sql`
+(`accounts.suspended_at`, `suspended_by`, `suspended_reason`).
+
+- **Suspender** pide confirmación en la misma página (el diálogo del panel) y acepta un motivo
+  opcional. En una tanda: marca la cuenta, **borra todas sus sesiones** y desvincula su Telegram
+  (`telegram_chats` y los códigos de vincular). Además `getSessionAccount` no acepta ninguna
+  sesión de una cuenta suspendida, así una que se cruzara con la suspensión tampoco vale.
+- **No puede entrar por ningún camino**: con código por mail (`verifyCode`) ni con contraseña
+  (`passwordLogin`) se abre una sesión, y el bot no la reconoce (`chatAccount`) ni la deja
+  vincular de nuevo (`consumeLinkCode`). En `/ingresar` ve «Tu cuenta está suspendida. Si creés
+  que es un error, escribinos a <contacto>» (`contactEmail()` de las entradas, que cae en
+  `DEFAULT_CONTACT_EMAIL`), **recién después** de un código o una contraseña correctos: antes, la
+  respuesta es la de siempre, así nadie se entera de que un mail tiene una cuenta suspendida.
+- **El motivo es privado**: queda en `accounts.suspended_reason` y se ve solo en la ficha (para
+  admins). Nunca va a la persona, a Actividad ni a una página pública
+  (`src/lib/server/cuentas/suspension.test.js` falla si otro archivo lo lee). Al borrar la cuenta
+  se borra.
+- **Actividad**: `account.suspend` («Suspendió una cuenta», con cuántas sesiones se cerraron y si
+  tenía Telegram) y `account.unsuspend`, con quién y cuándo; sin el mail ni el motivo.
+- **Levantar la suspensión** (con confirmación) la deja entrar de nuevo y borra el motivo. Las
+  sesiones y el Telegram no vuelven: la persona entra otra vez y, si quiere, vuelve a conectar el
+  bot.
+- **Lo que no toca**: sus **perfiles públicos no se ocultan solos** (moderarlos es aparte: ocultar
+  o borrar desde Perfiles; la ficha lo dice), ni el permiso de perfiles, ni las compras: comprar
+  con un mail sin entrar sigue andando como para cualquiera (no es una acción de la cuenta). El
+  link del calendario personal y los avisos por mail de «Lo que sigo» siguen como estaban.
+- **Admins**: entran con GitHub (`ADMINS` en `src/lib/server/auth.js`), aparte de las cuentas del
+  sitio, así que suspender una cuenta nunca saca a nadie del panel (tampoco a la última admin).
+  Igual, no se puede suspender la cuenta con la que une admin está en ese mismo navegador.
+- En **Cuentas** la cuenta lleva la marca «Suspendida» y arriba se cuentan las suspendidas; en la
+  ficha, la marca, cuándo y quién.
+
 ## Perfiles
 
 Parte 2 del bloque (decisiones A2, E1 y B3 de gorrite). Una cuenta puede tener **varios
@@ -378,8 +434,9 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
 
 - **Cuentas** (`/admin/comunidad/cuentas`): todas las cuentas, con mail (les admins lo ven), cuándo se
   crearon, si verificaron el mail, si tienen contraseña, cuántos perfiles vivos gestionan, si
-  pueden tener perfiles y si están borradas; búsqueda por mail. La ficha (`/admin/comunidad/cuentas/[id]`)
-  muestra sus perfiles y el botón del permiso.
+  pueden tener perfiles, si están suspendidas y si están borradas; búsqueda por mail. La ficha
+  (`/admin/comunidad/cuentas/[id]`) muestra sus perfiles, el botón del permiso y «Suspensión» (ver
+  "Suspender una cuenta").
 - **Perfiles** (`/admin/comunidad/perfiles`, Comunidad › Perfiles; decisión de gorrite del 1/10: es la
   única lista de perfiles del panel, antes estaban "Amigues" y "Cuentas → Perfiles"): todos los
   perfiles, también ocultos y borrados (nombre, dirección, tipo, origen, visibilidad, creado,

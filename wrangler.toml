@@ -33,6 +33,12 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
+# Workers Issues (docs/workers-migracion.md, «Enterarse de los errores»): agrupa las excepciones,
+# las respuestas 5xx y los `console.error`. Tiene que estar acá: sin la clave en el archivo, la
+# próxima publicación lo apaga. A quién le llega el aviso se arma en el panel (Issues → Automations).
+[observability.issues]
+enabled = true
+
 # Ubicación del Worker (docs/workers-migracion.md, «Ubicación del Worker»): sin `[placement]`, a
 # propósito. El Worker corre en el centro de datos de quien visita: la caché de 1 minuto responde
 # desde ahí y las páginas livianas tardan menos. Se midió desde Buenos Aires el 25/10 contra la
@@ -41,12 +47,15 @@ enabled = true
 # Las consultas van en tanda (src/lib/server/db/autoBatch.js) para que cada página cruce a la base
 # las menos veces posible. Para volver a la región fija: `[placement]` + `region = "aws:us-east-1"`.
 
-# Crons (UTC). Tienen que coincidir con src/lib/server/scheduled.js (lo verifica un test).
+# Crons (UTC). Tienen que coincidir con src/lib/server/vigilancia/crons.js (lo verifica un test).
 # - cada 15 minutos: recordatorios de entradas;
 # - 06:00 UTC (03:00 en Argentina): backup de la base a R2 y copia de la biblioteca.
+# - 21:15 UTC (18:15 en Argentina): cotización del dólar MEP para PayPal (docs/propinas.md).
+# - cada hora, a los 41 minutos: vigilancia de los otros crons (avisa por Telegram si alguno dejó
+#   de andar; docs/workers-migracion.md, «Avisos de fallas por Telegram»).
 # Solo corren en producción (los Previews no ejecutan crons).
 [triggers]
-crons = ["*/15 * * * *", "0 6 * * *"]
+crons = ["*/15 * * * *", "0 6 * * *", "15 21 * * *", "41 * * * *"]
 
 # Base de datos D1 de producción. En local (`npm run dev`, tests) es una copia simulada por
 # miniflare en `.wrangler/state`: nunca se conecta a Cloudflare.

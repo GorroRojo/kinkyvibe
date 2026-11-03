@@ -51,6 +51,23 @@ function parseNightly(key) {
 }
 
 /**
+ * El backup nocturno anterior a `key` (el más reciente de los que hay), o `null`.
+ *
+ * @param {string[]} keys todas las claves del prefijo `d1/`
+ * @param {string} key la del nocturno de esta noche
+ */
+export function previousNightlyKey(keys, key) {
+	const current = parseNightly(key);
+	if (!current) return null;
+	let best = null;
+	for (const k of keys) {
+		const p = parseNightly(k);
+		if (p && p.day < current.day && (!best || p.day > best.day)) best = p;
+	}
+	return best?.key ?? null;
+}
+
+/**
  * Claves que ya no hace falta guardar.
  *
  * @param {string[]} keys todas las claves del prefijo `d1/`

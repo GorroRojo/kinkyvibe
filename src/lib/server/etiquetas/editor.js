@@ -294,11 +294,16 @@ function describeError(error) {
  * @param {{
  *   actor: string,
  *   now?: number,
- *   onDelete?: (tag: StoredTag, now: number) => Promise<import('@cloudflare/workers-types').D1PreparedStatement[]>
+ *   onDelete?: (tag: StoredTag, now: number) => Promise<import('@cloudflare/workers-types').D1PreparedStatement[]>,
+ *   revision?: (self: import('../objects/save.js').SavedRef) => import('@cloudflare/workers-types').D1PreparedStatement
  * }} ctx
+ *   `revision`: la versión del historial de cada etiqueta que se crea, se renombra o cambia (en la
+ *   misma tanda; el panel la pasa, ver ./panel.js). Sin pasar, sin historial (como antes).
  * @returns {Promise<{ written: number, errors: string[] }>}
  */
-export async function applyDbTagPlan(db, plan, { actor, now = Date.now(), onDelete }) {
+export async function applyDbTagPlan(db, plan, { actor, now = Date.now(), onDelete, revision }) {
+	/** @type {import('../objects/save.js').SaveContext['also']} */
+	const history = revision ? (self) => [revision(self)] : undefined;
 	/** @type {string[]} */
 	const errors = [];
 	let written = 0;
@@ -366,7 +371,7 @@ export async function applyDbTagPlan(db, plan, { actor, now = Date.now(), onDele
 					title: tag.title === tag.key ? key : tag.title,
 					data: { ...tag.data, key }
 				},
-				{ actor, now }
+				{ actor, now, also: history }
 			)
 		);
 		if (ok) {
@@ -379,7 +384,11 @@ export async function applyDbTagPlan(db, plan, { actor, now = Date.now(), onDele
 	for (const key of plan.creates) {
 		const slug = freeTagSlug(key, slugs);
 		const saved = await attempt(key, () =>
-			saveObject(db, { type: TAG_TYPE, title: key, slug, data: { key } }, { actor, now })
+			saveObject(
+				db,
+				{ type: TAG_TYPE, title: key, slug, data: { key } },
+				{ actor, now, also: history }
+			)
 		);
 		if (saved) {
 			slugs.add(saved.slug);
@@ -426,7 +435,7 @@ export async function applyDbTagPlan(db, plan, { actor, now = Date.now(), onDele
 					data: w.data,
 					edges
 				},
-				{ actor, now }
+				{ actor, now, also: history }
 			)
 		);
 	}

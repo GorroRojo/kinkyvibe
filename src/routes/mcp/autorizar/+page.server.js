@@ -9,12 +9,14 @@ import { error, redirect } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { connectorDB } from '$lib/server/mcp/http.js';
+import { editingOn } from '$lib/server/mcp/cambios.js';
 import {
 	adminById,
 	authorizeRedirect,
 	isLoopbackRedirect,
 	issueCode,
-	parseAuthorizeRequest
+	parseAuthorizeRequest,
+	scopeCanEdit
 } from '$lib/server/mcp/oauth.js';
 
 /**
@@ -32,7 +34,7 @@ function realAdmin(locals, url) {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
-	await connectorDB(platform);
+	const db = await connectorDB(platform);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const parsed = parseAuthorizeRequest(url.searchParams, url.origin);
 	if (!parsed.ok && !parsed.redirect) error(400, parsed.message);
@@ -41,6 +43,10 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const { req } = parsed;
 	return {
 		login: admin.login,
+		// Si Claude pidió el permiso `edicion`, la pantalla dice que también va a poder cambiar (y
+		// si los cambios todavía están apagados en el sitio).
+		edit: scopeCanEdit(req.scope),
+		editOn: await editingOn(db),
 		destination: new URL(req.redirectUri).host,
 		loopback: isLoopbackRedirect(req.redirectUri),
 		// Lo que vuelve en el formulario, tal cual llegó (se controla otra vez al permitir).
@@ -77,7 +83,7 @@ export const actions = {
 			{ user: admin },
 			{
 				action: 'conector.autorizar',
-				summary: `Conector de Claude: autorizó una conexión (vuelve a ${destination})`
+				summary: `Conector de Claude: autorizó una conexión ${scopeCanEdit(parsed.req.scope) ? 'para leer y cambiar' : 'para leer'} (vuelve a ${destination})`
 			}
 		);
 		redirect(

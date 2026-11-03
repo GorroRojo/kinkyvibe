@@ -126,21 +126,25 @@ export async function venuePickerData(db, eventSlug) {
 
 /**
  * La fila «Lugar» de la ficha del evento en el panel: el lugar vinculado y qué se muestra de su
- * dirección, o `null` si no tiene (o la base no responde: la ficha muestra lo del .md).
+ * dirección, o `null` si no tiene (o la base no responde: la ficha muestra lo del .md). También
+ * el barrio y la ciudad, para el «Dónde» del encabezado de la ficha (`panelPlaceText`).
  *
  * @param {D1Database | null | undefined} db
  * @param {string} eventSlug
- * @returns {Promise<{ title: string, slug: string, privacy: string } | null>}
+ * @returns {Promise<{ title: string, slug: string, privacy: string, area: string | null, city: string | null } | null>}
  */
 export async function panelVenueRow(db, eventSlug) {
 	if (!db) return null;
 	try {
 		const link = await eventVenue(db, eventSlug);
 		if (!link) return null;
+		const d = link.venue.data;
 		return {
 			title: link.venue.title,
 			slug: link.venue.slug,
-			privacy: eventPrivacyText(link.override, link.venue.data.venue_privacy)
+			privacy: eventPrivacyText(link.override, d.venue_privacy),
+			area: typeof d.area === 'string' && d.area.trim() ? d.area.trim() : null,
+			city: typeof d.city === 'string' && d.city.trim() ? d.city.trim() : null
 		};
 	} catch (e) {
 		console.error('[lugares] no se pudo leer el lugar del evento para la ficha', e);

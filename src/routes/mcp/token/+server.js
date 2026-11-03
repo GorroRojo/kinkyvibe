@@ -60,7 +60,11 @@ export async function POST(event) {
 		if (!(await stillValid(db, code, now)))
 			return oauthError('invalid_grant', 'Esta autorización ya no vale.');
 		return noStoreJson(
-			await issueTokens(db, { sub: code.sub, aud: code.aud, auth: code.auth, cid: CLIENT_ID }, now)
+			await issueTokens(
+				db,
+				{ sub: code.sub, aud: code.aud, auth: code.auth, cid: CLIENT_ID, scope: code.scope },
+				now
+			)
 		);
 	}
 
@@ -90,7 +94,13 @@ export async function POST(event) {
 		return noStoreJson(
 			await issueTokens(
 				db,
-				{ sub: refresh.sub, aud: refresh.aud, auth: refresh.auth, cid: CLIENT_ID },
+				{
+					sub: refresh.sub,
+					aud: refresh.aud,
+					auth: refresh.auth,
+					cid: CLIENT_ID,
+					scope: refresh.scope
+				},
 				now
 			)
 		);

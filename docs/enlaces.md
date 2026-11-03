@@ -166,6 +166,13 @@ no se ve. Detrás del interruptor **`lo_que_enlaza`** (`LO_QUE_ENLAZA_ENABLED`, 
 [interruptores.md](interruptores.md)). Código: `src/lib/server/contenido/loQueEnlaza.js` y
 `src/lib/components/LoQueEnlaza.svelte`.
 
+- **Cómo se ve** (opción A, elegida por gorrite en #586, plegable): una tarjeta blanca, **cerrada
+  de entrada**, con el ícono de enlace, «Lo que enlaza acá» y cuántas son; se abre con un toque o
+  con Enter/Espacio (es un `<details>`: anda sin JS) y la flecha gira (sin animación con
+  «reducir movimiento»). Abierta, cada página es una pastilla del color y el ícono de su tipo
+  (rosa eventos, violeta material, verde amigues, amarillo Kinkipedia) con su fecha si tiene; en
+  el celular, un título largo se corta con «…». Los lectores de pantalla oyen el tipo («Evento:»)
+  y la cantidad («8 páginas»).
 - **Quién ve qué**: un edge sale solo si quien mira (anónime, con cuenta, admin) ve **las dos**
   puntas: `visibleWhere` en las dos, `partVisibleWhere` (la parte de un taller que oculta sus
   partes) y, en los perfiles, aprobados y no ocultos (`shownProfileSql`, como /amigues). Lo **no

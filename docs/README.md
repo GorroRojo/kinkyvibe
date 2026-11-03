@@ -12,7 +12,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [pruebas-y-ci.md](pruebas-y-ci.md)             | Los jobs de la CI (`unit`, `e2e`, `plan`, `ci-ok`…), cómo correr cada prueba y qué hacer si da rojo                 |
 | [interruptores.md](interruptores.md)           | Cada interruptor de funciones nuevas: qué prende, de qué depende y cómo prender los que pasan datos a la base       |
 | [panel.md](panel.md)                           | El panel de admin (`/admin`): áreas y URLs, Agenda, permisos, registro de actividad                                 |
-| [conector-claude.md](conector-claude.md)       | El conector de Claude (MCP) de solo lectura para admins: cómo sumarlo en claude.ai, qué puede leer, cómo se corta   |
+| [conector-claude.md](conector-claude.md)       | El conector de Claude (MCP) para admins: cómo sumarlo, qué lee, qué cambia (con vista previa) y cómo se corta       |
 | [buscar.md](buscar.md)                         | Cómo se escribe una búsqueda en el sitio, el bot y el panel: sintaxis, cómo se lee, qué código lo hace              |
 | [enlaces.md](enlaces.md)                       | Cómo se escribe el cuerpo de un objeto: enlaces, incrustados, etiquetas, componentes y lo que enlaza acá            |
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |
@@ -37,6 +37,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [ui-impacto.md](ui-impacto.md)                 | Informe de impacto visual: capturas de las páginas principales antes y después de un cambio, comparadas             |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
+| [operacion.md](operacion.md)                   | Manual de operación: qué corre dónde, accesos, avisos, qué hacer si algo se rompe y antes de una venta grande       |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |
 | [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0041, cada una con su línea en su índice): leelo antes de cambiar un área |
 

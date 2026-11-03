@@ -13,16 +13,18 @@ import { goalProgress } from '$lib/utils/salesGoal.js';
 /**
  * @typedef {{
  *   slug: string, title: string, start: string, end: string, status: string,
- *   locationName: string, location: string, place: string, unlisted: boolean,
+ *   locationName: string, location: string, venueName?: string, place: string, unlisted: boolean,
  *   unpublished: boolean, online: boolean, onlineMismatch: boolean, thumb: string,
  *   sellsTickets: boolean,
  *   capacity: number | null, goal: string, sold: number, revenue: number, mpFee: number,
- *   transfers: number, i: number
+ *   mpFeeEstimated?: number, transfers: number, i: number
  * }} EventRow
  *   Una fila de la lista. `i`: su lugar en la lista completa (del más nuevo al más viejo), para
  *   mezclar lo que llega después sin desordenar. `goal`: la meta de venta como se guarda
  *   (`'plata:250000'`, '' = sin meta; ver $lib/utils/salesGoal.js); `revenue`: lo recaudado;
- *   `mpFee`: la comisión de Mercado Pago de eso (la meta en plata cuenta lo neto).
+ *   `mpFee`: la comisión de Mercado Pago de eso (la meta en plata cuenta lo neto);
+ *   `mpFeeEstimated`: la parte estimada de esa comisión (MP no la informó). `venueName`: el
+ *   nombre del lugar vinculado ('' o ausente sin lugar), que manda sobre `locationName`.
  */
 
 /** Cuántos días de eventos pasados manda la página de entrada (unos tres meses). */
@@ -147,11 +149,13 @@ export function searchWords(query) {
 
 /**
  * ¿El evento tiene todas las palabras (en el título, la dirección o el lugar)?
- * @param {Pick<EventRow, 'title' | 'slug' | 'locationName' | 'location' | 'place'>} e
+ * @param {Pick<EventRow, 'title' | 'slug' | 'locationName' | 'location' | 'place' | 'venueName'>} e
  * @param {string[]} words ver {@link searchWords}
  */
 export function matchesSearch(e, words) {
-	const hay = foldSearch(`${e.title} ${e.slug} ${e.locationName} ${e.location} ${e.place}`);
+	const hay = foldSearch(
+		`${e.title} ${e.slug} ${e.venueName ?? ''} ${e.locationName} ${e.location} ${e.place}`
+	);
 	return words.every((w) => hay.includes(w));
 }
 
@@ -163,7 +167,8 @@ export const CSV_COLUMNS = [
 	{ label: 'termina', key: 'end' },
 	{ label: 'estado', key: 'status' },
 	{ label: 'no listado', value: (e) => (e.unlisted ? 'sí' : '') },
-	{ label: 'lugar', key: 'locationName' },
+	// El lugar vinculado manda sobre el texto libre (como en la página del evento).
+	{ label: 'lugar', value: (e) => e.venueName || e.locationName },
 	{ label: 'dirección', key: 'location' },
 	{ label: 'región', key: 'place' },
 	{ label: 'imagen', value: (e) => (e.thumb ? 'sí' : 'no') },

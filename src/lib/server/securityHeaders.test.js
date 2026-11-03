@@ -12,7 +12,9 @@ describe('withSecurityHeaders', () => {
 			'/admin/eventos/x/ordenes',
 			'/edit/material/x',
 			'/login',
-			'/entradas/t/abc'
+			'/entradas/t/abc',
+			'/puerta',
+			'/puerta/una-fiesta'
 		]) {
 			const h = run(p).headers;
 			expect(h.get('X-Frame-Options')).toBe('DENY');

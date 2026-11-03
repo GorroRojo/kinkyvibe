@@ -3,6 +3,7 @@
 	import { Trash2 } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { argDateList, argDateLong } from '$lib/utils/dates.js';
+	import { lastSeenText, loginMethodText } from '$lib/utils/sessionInfo.js';
 	import {
 		READING_SPEEDS,
 		READING_SPEED_MAX,
@@ -417,6 +418,51 @@
 		</p>
 	</section>
 
+	<section class="surface-card" id="sesiones" aria-labelledby="sesiones-title">
+		<h2 id="sesiones-title">Dónde tenés la sesión abierta</h2>
+		{#if form?.action === 'dispositivos'}
+			{#if form.error}
+				<p class="error" role="alert">{form.error}</p>
+			{:else if form.message}
+				<p class="ok" role="status">{form.message}</p>
+			{/if}
+		{/if}
+		{#if !data.sessions}
+			<p class="error">No pudimos leer tus sesiones. Probá de nuevo en un rato.</p>
+		{:else}
+			<ul class="sessions">
+				{#each data.sessions as s (s.id)}
+					<li>
+						<div>
+							<strong>{s.device ?? 'Navegador sin identificar'}</strong>
+							{#if s.current}<span class="this">esta</span>{/if}
+							<span class="hint">
+								Entraste el {argDateLong(s.createdAt)} con {loginMethodText(s.method)} · última vez: {s.current
+									? 'ahora'
+									: lastSeenText(s.lastSeenAt, data.now)}
+							</span>
+						</div>
+						<form method="POST" action="?/cerrarSesion" use:enhance={keep}>
+							<input type="hidden" name="sesion" value={s.id} />
+							<button class="pill-btn ghost" type="submit"
+								>{s.current ? 'Cerrar esta (salís acá)' : 'Cerrar esta'}</button
+							>
+						</form>
+					</li>
+				{/each}
+			</ul>
+			{#if data.sessions.some((s) => !s.current)}
+				<form method="POST" action="?/cerrarOtras" use:enhance={keep}>
+					<button class="pill-btn ghost" type="submit">Cerrar todas las demás</button>
+				</form>
+			{/if}
+		{/if}
+		<p class="hint">
+			Si ves una que no reconocés, cerrala; si tenés contraseña, cambiala. La última vez es
+			aproximada: la anotamos como mucho una vez por día. No guardamos tu IP ni dónde estás.
+		</p>
+	</section>
+
 	<section class="surface-card danger-zone" aria-labelledby="borrar-title">
 		<h2 id="borrar-title">Borrar tu cuenta</h2>
 		{#if form?.action === 'borrar' && form.error}
@@ -539,6 +585,35 @@
 		gap: 0.15em;
 		padding-bottom: 0.8em;
 		border-bottom: 1px solid var(--line);
+	}
+	.sessions {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: grid;
+		gap: 0.8em;
+	}
+	.sessions li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5em 1em;
+		padding-bottom: 0.8em;
+		border-bottom: 1px solid var(--line);
+	}
+	.sessions li > div {
+		display: grid;
+		gap: 0.15em;
+		min-width: 0;
+	}
+	.sessions .this {
+		justify-self: start;
+		font-size: 0.8em;
+		font-weight: 600;
+		padding: 0.05em 0.6em;
+		border-radius: 999px;
+		border: 1px solid currentColor;
 	}
 	.unconfirmed {
 		display: grid;

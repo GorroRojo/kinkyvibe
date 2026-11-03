@@ -2,9 +2,11 @@
 	/**
 	 * Guía corta para quien está en la puerta (hoja «Cómo hacer la puerta» del modo puerta). Es la
 	 * misma guía que `docs/tickets.md`, «Puerta: cómo hacerla»: si cambia una, cambiá la otra.
-	 * Texto fijo, sin datos de nadie. Props: `canSell` (el evento vende en la puerta).
+	 * Texto fijo, sin datos de nadie. Props: `canSell` (el evento vende en la puerta) y `linkMode`
+	 * (se abrió con un link de puerta, sin cuenta).
 	 */
 	export let canSell = true;
+	export let linkMode = false;
 </script>
 
 <div class="guide">
@@ -73,8 +75,13 @@
 				Si cobraste otro precio, cambialo antes de registrar, y anotá el motivo en «Agregar nota».
 			</li>
 			<li>
-				Si te pide confirmar (cupo lleno, más de 10 entradas o un evento solo anticipadas), frená y
-				consultalo con une organizadore antes de seguir.
+				{#if linkMode}
+					Si avisa que pasa un límite (cupo lleno, más de 10 entradas o un evento solo anticipadas),
+					no se puede vender desde acá: llamá a une organizadore.
+				{:else}
+					Si te pide confirmar (cupo lleno, más de 10 entradas o un evento solo anticipadas), frená
+					y consultalo con une organizadore antes de seguir.
+				{/if}
 			</li>
 		</ul>
 	{/if}
@@ -111,10 +118,17 @@
 			Si alguien está mal, se siente insegure o hay una situación de violencia, avisale enseguida a
 			la persona de cuidado del evento.
 		</li>
-		<li>
-			No prestes tu sesión ni el celu con el panel abierto a otra persona: si hace falta alguien más
-			en la puerta, que lo resuelva une organizadore.
-		</li>
+		{#if linkMode}
+			<li>
+				Este link es solo para la puerta de este evento: no lo reenvíes. Si perdés el celu o alguien
+				más lo tiene, avisale a une organizadore para que lo corte.
+			</li>
+		{:else}
+			<li>
+				No prestes tu sesión ni el celu con el panel abierto a otra persona: si hace falta alguien
+				más en la puerta, mejor un link de puerta (se crea en la ficha del evento).
+			</li>
+		{/if}
 	</ul>
 </div>
 
