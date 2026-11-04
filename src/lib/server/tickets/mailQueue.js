@@ -97,3 +97,23 @@ export async function runMailQueueWith(
 	}
 	return { ...head, reminders, streamLinks, dateChanges, ...(stopped ? { stopped } : {}) };
 }
+
+/**
+ * Lo que queda de la tanda después de {@link runMailQueueWith} (y de lo que se sume con `extra`),
+ * para que los avisos que salen después en la misma corrida (series, «Lo que sigo») no la pasen.
+ * Si alguna parte se cortó porque Resend dijo «ahora no», no queda nada. PURA.
+ *
+ * @param {Awaited<ReturnType<typeof runMailQueueWith>> | { paused: true }} run
+ * @param {readonly ({ sent: number, failed: number, stopped?: unknown } | null | undefined)[]} [extra]
+ */
+export function mailBudgetLeft(run, extra = []) {
+	if ('paused' in run || run.stopped) return 0;
+	/** @type {{ sent: number, failed: number, stopped?: unknown }[]} */
+	const parts = [];
+	for (const p of [run.waitlist, run.reminders, run.streamLinks, run.dateChanges, ...extra]) {
+		if (p != null) parts.push(p);
+	}
+	if (parts.some((p) => 'stopped' in p && p.stopped)) return 0;
+	const used = parts.reduce((n, p) => n + p.sent + p.failed, 0);
+	return Math.max(0, run.limit - used);
+}

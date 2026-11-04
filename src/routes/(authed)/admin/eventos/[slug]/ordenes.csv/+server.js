@@ -63,6 +63,12 @@ export async function GET({ locals, url, params, platform }) {
 		'descuento',
 		'recargo_mp',
 		'total',
+		// Antes de `pago_mp` y `confirmo`: `confirmo` sigue siendo la última columna fija (las
+		// preguntas de inscripción van después).
+		'canal',
+		'nota',
+		'reembolsada_el',
+		'reembolsada_por',
 		'pago_mp',
 		'confirmo',
 		...extra.map((c) => c.label)
@@ -72,7 +78,15 @@ export async function GET({ locals, url, params, platform }) {
 	// de Argentina (`2026-10-02 22:30`).
 	/** @type {unknown[][]} */
 	const rows = [];
+	const now = Date.now();
 	for (const o of orders) {
+		// El estado que muestra el panel (eventOrders.js): una reserva vencida que todavía no se
+		// marcó como tal sale como vencida.
+		const status =
+			(o.status === 'pending' || o.status === 'awaiting_transfer' || o.status === 'rejected') &&
+			o.expires_at <= now
+				? 'expired'
+				: o.status;
 		const issued = byOrder.get(o.id) ?? [];
 		const people = issued.length
 			? issued.map((t) => ({
@@ -88,7 +102,7 @@ export async function GET({ locals, url, params, platform }) {
 				o.id,
 				orderReference(o.id),
 				new Date(o.created_at),
-				o.status,
+				status,
 				o.payment_method,
 				names[o.ticket_type] ?? o.ticket_type,
 				o.buyer_name,
@@ -111,6 +125,10 @@ export async function GET({ locals, url, params, platform }) {
 				first ? o.discount_amount : '',
 				first ? o.surcharge_amount : '',
 				first ? o.total : '',
+				o.channel ?? 'online',
+				o.admin_note ?? '',
+				o.refunded_at ? new Date(o.refunded_at) : '',
+				o.refunded_at ? (o.refunded_by ?? 'Mercado Pago') : '',
 				o.mp_payment_id,
 				o.confirmed_by,
 				...extra.map((c) => answerFor(answers.get(o.id), c.id))

@@ -148,6 +148,25 @@ export const fetchAllPostsClient = () =>
 		}));
 
 /**
+ * «Mostrar eventos pasados»: una función que pide todo (fetchAllPostsClient) la primera vez que se
+ * llama y después no hace nada, aunque el pedido haya fallado. Se puede llamar desde un `$:` sin
+ * miedo: un `/api/posts` caído no se vuelve a pedir sin pausa (antes, cada fallo volvía a disparar
+ * el `$:` y el pedido). Una por componente: al volver a entrar a la página se intenta de nuevo.
+ * @param {(posts: ProcessedPost[]) => void} onPosts
+ * @return {() => void}
+ */
+export function pastPostsLoader(onPosts) {
+	let started = false;
+	return () => {
+		if (started) return;
+		started = true;
+		fetchAllPostsClient()
+			.then(onPosts)
+			.catch(() => {});
+	};
+}
+
+/**
  * Posts shown under "Más cosas de…" on calendario/material/amigues pages.
  * @param {AnyPostData} meta - metadata of the post being viewed
  * @param {ProcessedPost[]} posts

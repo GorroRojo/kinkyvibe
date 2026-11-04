@@ -33,6 +33,8 @@ import {
 	listSessions,
 	sessionIdOfToken
 } from '$lib/server/cuentas/session.js';
+import { unlinkAccount } from '$lib/server/telegram/link.js';
+import { revokeFeeds } from '$lib/server/series/feeds.js';
 import {
 	checkConfirmCode,
 	closeAccount,
@@ -41,15 +43,19 @@ import {
 } from '$lib/server/cuentas/index.js';
 import { clientOf, endSession, mailSender, requireCuentas } from '$lib/server/cuentas/web.js';
 import { getEventInfo } from '$lib/server/tickets/events.js';
+import { readWorkshop } from '$lib/server/eventos/partes.js';
+import { partsCoveredBy, ticketDate, ticketParts } from '$lib/utils/partes.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
 import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
+import { myClaims } from '$lib/server/amigues/claims.js';
 import {
 	editSavedBuyer,
 	isSavedBuyerField,
 	maskDni,
 	withoutSavedField
 } from '$lib/utils/savedBuyer.js';
+import { accountAvatarKeys, mediaPurgeEnabled, schedulePurge } from '$lib/server/media/purge.js';
 
 /** Lo que hay que escribir para confirmar el borrado. */
 const DELETE_CONFIRMATION = 'borrar';
@@ -74,7 +80,7 @@ export async function load(event) {
 	const { db, member } = await requireMember(event);
 	// La base está lejos: lo que no depende de otra cosa se lee a la par. La velocidad de lectura
 	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
-	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, sessions] =
+	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, sessions, claims] =
 		await Promise.all([
 			getAccount(db, member.id),
 			// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
@@ -119,6 +125,12 @@ export async function load(event) {
 			listSessions(db, member.id, event.cookies.get(SESSION_COOKIE)).catch((e) => {
 				logDBError('cuentas: sesiones', e);
 				return null;
+			}),
+			// Los pedidos «¿Es tu perfil?» de la cuenta, con su estado (pendiente, aprobado, no
+			// aprobado). Si falla, la tarjeta no sale.
+			myClaims(db, member.id).catch((e) => {
+				logDBError('cuentas: pedidos de perfiles', e);
+				return [];
 			})
 		]);
 	if (!account) {
@@ -127,11 +139,35 @@ export async function load(event) {
 	}
 	const { orders, unconfirmed, error: ordersError } = ordersRead;
 	const { saved, error: savedError } = savedRead;
-	// El título y la fecha de cada evento de las compras, todos a la par.
+	// El título y la fecha de cada evento de las compras, todos a la par. En un taller de varias
+	// partes con una sola entrada, la fecha de la parte que toca (la primera que no pasó; si
+	// pasaron todas, la última), como «Mis entradas» del bot (docs/talleres-partes.md).
 	const slugs = [...new Set([...orders, ...unconfirmed].map((o) => o.event_slug))];
-	const infos = await Promise.all(slugs.map((slug) => getEventInfo(slug)));
+	const [infos, workshops] = await Promise.all([
+		Promise.all(slugs.map((slug) => getEventInfo(slug))),
+		Promise.all(
+			slugs.map((slug) =>
+				readWorkshop(db, slug).catch(() => {
+					// Sin las partes, la fecha del taller (la de la parte 1), como antes.
+					console.error('[cuentas] compras: no se pudieron leer las partes de un taller');
+					return null;
+				})
+			)
+		)
+	]);
+	const now = Date.now();
 	/** @type {Map<string, { title: string, start: string | null } | null>} */
-	const events = new Map(slugs.map((slug, i) => [slug, infos[i]]));
+	const events = new Map(
+		slugs.map((slug, i) => {
+			const info = infos[i];
+			const parts = ticketParts(partsCoveredBy(workshops[i], slug));
+			if (!info || !parts) return [slug, info];
+			return [
+				slug,
+				{ ...info, start: ticketDate({ start: info.start, end: null, parts }, now).start }
+			];
+		})
+	);
 	/** @param {(typeof orders)[number]} o */
 	const listed = (o) => ({
 		id: o.id,
@@ -164,7 +200,8 @@ export async function load(event) {
 		unconfirmed: unconfirmed.map(listed),
 		// Sin el token ni su hash: cada una con su id público (session.js).
 		sessions,
-		now: Date.now()
+		now: Date.now(),
+		claims
 	};
 }
 
@@ -413,6 +450,10 @@ export const actions = {
 		const { db, member } = await requireMember(event);
 		try {
 			await destroyOtherSessions(db, member.id, undefined);
+			// «En todos lados» también corta lo que no es una sesión: el Telegram vinculado y el link
+			// del calendario personal (quien tenía el celu o la cuenta los podía seguir usando).
+			await unlinkAccount(db, member.id);
+			await revokeFeeds(db, member.id);
 			await endSession(event, db);
 		} catch (e) {
 			logDBError('cuentas: cerrar todas las sesiones', e);
@@ -472,7 +513,13 @@ export const actions = {
 		try {
 			const bad = await confirmed(event, db, member, 'delete', form, 'borrar');
 			if (bad) return bad;
+			// Las fotos de sus perfiles, antes de soltarlos (después ya no se sabe cuáles eran).
+			const avatars = mediaPurgeEnabled(event.platform?.env)
+				? await accountAvatarKeys(db, member.id).catch(() => [])
+				: [];
 			await closeAccount(db, member.id);
+			// Dejan de servirse: que tampoco queden en la caché del borde.
+			schedulePurge(event.platform, avatars);
 			await endSession(event, db);
 		} catch (e) {
 			logDBError('cuentas: borrar', e);

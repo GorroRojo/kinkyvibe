@@ -181,6 +181,17 @@ y páginas sin imagen propia), Calendario, Material, Amigues y Kinkipedia.
   límite es 64 MB). `worker/index.js` lo importa recién al dibujar la primera tarjeta (import
   dinámico, en el mismo archivo): antes se inicializaba al arrancar cada isolate, unos 15 ms de CPU
   medidos en local con `wrangler check startup` (el límite es 1 s).
+- **satori queda fijo en 0.32.0** (`package.json`, sin `^`, y en el `ignore` de
+  `.github/dependabot.yml`). Desde la 0.33, satori trae harfbuzzjs (otro WebAssembly) y cambia
+  `satori/yoga.wasm` por `satori/layout.wasm`. Probado en local con la 0.63.2 (el salto del PR de
+  Dependabot #421) y `npx wrangler dev` con la semilla, en octubre de 2026: tal cual, wrangler no
+  arma el Worker (`ENOENT … worker/satori/yoga.wasm`); cambiando el import a `layout.wasm`, arma,
+  pero la tarjeta no se dibuja y redirige a la de respaldo con
+  `x-og-fallback: render-error: TypeError: Cannot read properties of undefined (reading 'href')`:
+  harfbuzzjs busca su `hb.wasm` por URL al cargarse, y en Workers el WebAssembly tiene que llegar
+  como módulo. Para subir satori hay que pasarle harfbuzz como módulo (si alguna versión lo
+  permite) y repetir esta prueba: `npm run build`, `npx wrangler dev`, pedir la dirección de
+  `og:image` de la portada y mirar que responda 200 con un JPEG (no 302 con `x-og-fallback`).
 - **Cupo del binding de imágenes**: cada miniatura distinta cuenta una vez por mes dentro de las
   5000 transformaciones gratis (las mismas que las portadas achicadas, abajo). Son 16 por cambio
   de portadas, como mucho.

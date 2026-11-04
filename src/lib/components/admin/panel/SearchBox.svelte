@@ -88,6 +88,9 @@
 		recordsFirst
 	} from '$lib/admin/paletteActions.js';
 	import { allowsKind, hasRecordCriteria, parseSearchQuery } from '$lib/utils/searchQuery.js';
+	// Los textos de «Cómo buscar» (las líneas, en SEARCH_TIPS, y las frases) salen de
+	// searchSyntax.js, la fuente única de las guías del sitio, el bot y el panel: acá no se escriben.
+	import { SEARCH_GUIDE_TEXT } from '$lib/utils/searchSyntax.js';
 	import { goPending, isMac } from '$lib/admin/shortcutHints.js';
 	import { canPin } from '$lib/admin/pinnedPlaces.js';
 	import { placeIcon } from '$lib/admin/recentPlaces.js';
@@ -159,6 +162,8 @@
 	let listEl;
 	/** @type {HTMLElement | undefined} */
 	let searchHelpEl;
+	/** Las frases de «Cómo buscar» y de la paleta vacía (searchSyntax.js). */
+	const guide = SEARCH_GUIDE_TEXT.panel;
 
 	let q = '';
 	let active = 0;
@@ -504,8 +509,9 @@
 
 			{#if !q.trim()}
 				<p class="tips">
-					Probá <code>#etiqueta</code>, <code>@persona</code>, <code>hoy</code> o
-					<code>"frase"</code>.
+					Probá {#each guide.teaser as t, i (t)}{#if i}{i === guide.teaser.length - 1
+								? ' o '
+								: ', '}{/if}<code>{t}</code>{/each}.
 					<button
 						type="button"
 						class="linkish inline"
@@ -662,22 +668,22 @@
 				tabindex="-1"
 				aria-labelledby="kv-search-help-{uid}"
 			>
-				<h3 id="kv-search-help-{uid}">Cómo buscar</h3>
+				<h3 id="kv-search-help-{uid}">{SEARCH_GUIDE_TEXT.title}</h3>
 				<p class="lead">
-					Sin tildes ni mayúsculas, y las palabras en cualquier orden. Se pueden combinar: <button
-						type="button"
-						class="ex"
-						on:click={() => tryExample('#shibari finde')}><code>#shibari finde</code></button
-					>. Tocá un ejemplo para probarlo.
+					{guide.intro}
+					<button type="button" class="ex" on:click={() => tryExample(guide.combined)}
+						><code>{guide.combined}</code></button
+					>. {guide.outro}
 				</p>
 				<ul>
 					{#each SEARCH_TIPS as tip (tip.q)}
 						<li>
 							<span class="exs"
-								><button type="button" class="ex" on:click={() => tryExample(tip.q)}
-									><code>{tip.q}</code></button
-								>{#each tip.also ?? [] as other (other)}<code class="also">{other}</code
-									>{/each}</span
+								>{#if tip.label}<code class="also">{tip.label}</code>{/if}<button
+									type="button"
+									class="ex"
+									on:click={() => tryExample(tip.q)}><code>{tip.q}</code></button
+								></span
 							>
 							<span>{tip.text}</span>
 						</li>

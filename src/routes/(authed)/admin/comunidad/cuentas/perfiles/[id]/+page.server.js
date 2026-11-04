@@ -4,7 +4,9 @@
  * van por `saveObject()` con la versión que se abrió (docs/objetos.md). Borrar es el mismo borrado
  * que el resto del panel (`deleteDbProfile`: una fila en `panel_deletions` con
  * `objeto:perfil:<id>`), así tiene «Deshacer» enseguida y «Recuperar» en Actividad. Solo admins: el `load` y
- * cada action llaman a `requireAdmin`. Todo queda en el registro de actividad.
+ * cada action llaman a `requireAdmin`. Todo queda en el registro de actividad. Ocultar y borrar
+ * purgan además la foto del perfil de la caché del borde (`purgeProfileAvatars`, si está
+ * configurada; docs/moderacion.md).
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -19,8 +21,10 @@ import {
 	undoDbProfileDeletionById
 } from '$lib/server/admin/deletions.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/index.js';
+import { purgeProfileAvatars } from '$lib/server/media/purge.js';
 import { listClaims } from '$lib/server/amigues/claims.js';
 import { approvalAction, claimDecisionAction } from '$lib/server/admin/amiguesRoutes.js';
+import { profileFollowerCount } from '$lib/server/sigo/stats.js';
 
 /** @param {string | undefined} raw */
 function profileId(raw) {
@@ -37,11 +41,14 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	const id = profileId(params.id);
 	const detail = id ? await getProfileDetail(db, id, adminViewer(user)) : null;
 	if (!detail) error(404, 'No encontramos ese perfil.');
-	return {
-		...detail,
+	const [claims, followers] = await Promise.all([
 		// Pedidos "Es mi perfil" de este perfil (también los resueltos).
-		claims: await listClaims(db, { profileId: detail.profile.id, status: 'all' }).catch(() => [])
-	};
+		listClaims(db, { profileId: detail.profile.id, status: 'all' }).catch(() => []),
+		// «N cuentas lo siguen» (Lo que sigo, decisión 0043: solo admins; quiénes, en Mensajes ›
+		// Lo que sigo). `null` si no se pudo contar.
+		profileFollowerCount(db, detail.profile.id)
+	]);
+	return { ...detail, claims, followers };
 }
 
 /**
@@ -124,6 +131,7 @@ export const actions = {
 			summary: `Ocultó el perfil «${t.detail.profile.title}»`,
 			detail: { from: t.detail.profile.visibility }
 		});
+		await purgeProfileAvatars(event.platform, t.db, [t.id]);
 		return { perfil: { ok: true, message: 'Listo: el perfil quedó oculto.' } };
 	},
 
@@ -150,6 +158,7 @@ export const actions = {
 		} catch (e) {
 			return saveFailure(e);
 		}
+		await purgeProfileAvatars(event.platform, t.db, [t.id]);
 		return {
 			perfil: { ok: true, message: 'Listo: el perfil quedó borrado.' },
 			deleted: { id: deletion, title }

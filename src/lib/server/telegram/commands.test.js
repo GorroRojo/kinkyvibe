@@ -28,7 +28,7 @@ const PUBLIC = [
 	{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
 	{
 		command: 'buscar',
-		description: 'Buscá en todo el sitio: eventos, material, Kinkipedia y amigues'
+		description: 'Buscá en todo el sitio: materiales, perfiles, eventos y la Kinkipedia'
 	},
 	{ command: 'fondo', description: 'Cuánto juntó el Fondo Kinky Vibe este mes' },
 	{ command: 'ayuda', description: 'Qué podés pedirme' }

@@ -4,9 +4,10 @@ import { withLineEnding } from '$lib/utils/lineEndings.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
 import { featuredURL, getRepoClient, isMockMode } from '$lib/server/eventos';
-import { findImage, imageOf } from '$lib/server/media/library.js';
+import { findImage } from '$lib/server/media/library.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
-import { resolveEventSlug } from '$lib/server/contenido/posts.js';
+import { libraryCoverOf } from '$lib/server/contenido/posts.js';
+import { EVENT_CATEGORY } from '$lib/server/contenido/eventos.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors, waitlistLiveFor } from '$lib/server/tickets/editor.js';
@@ -25,9 +26,6 @@ import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import { isDbPath, readDbPostFile } from '$lib/server/contenido/repo.js';
-import { panelSavesToDb } from '$lib/server/contenido/saving.js';
-import { commitSavedToDb } from '$lib/admin/saveCopy.js';
-import { featuredOf } from '$lib/utils/sharedImage.js';
 import { wikiEditHref } from '$lib/admin/nav.js';
 import { inOrder } from '$lib/utils/inOrder.js';
 
@@ -102,9 +100,7 @@ export async function _editLoad({ locals, params, url, platform }) {
 		// Personas con rol: roles y perfiles públicos (sin base, null).
 		params.category === 'amigues' ? null : editorPersonas(platform),
 		// La imagen de la biblioteca (la vieja del repo sale del texto, más abajo).
-		isEvent ? eventLibraryImage(db, locals, params.postID) : null,
-		// Los eventos y el material se guardan en la base (se ve enseguida).
-		panelSavesToDb(platform, params.category, params.postID)
+		isEvent ? eventLibraryImage(db, locals, params.postID) : null
 	]);
 	rest.catch(() => {}); // si la publicación no está, lo demás no cuenta
 	const post = await postP;
@@ -116,8 +112,7 @@ export async function _editLoad({ locals, params, url, platform }) {
 		transfer,
 		editor,
 		personas,
-		libraryImage,
-		savesToDb
+		libraryImage
 	] = await rest;
 	return {
 		sales,
@@ -130,7 +125,8 @@ export async function _editLoad({ locals, params, url, platform }) {
 		...editor,
 		personas,
 		image: isEvent ? eventImageInfo(params.postID, post.raw, libraryImage ?? null) : null,
-		savesToDb,
+		// Todo se guarda en la base (decisión 0032); la clave queda mientras los formularios la lean.
+		savesToDb: true,
 		mock: isMockMode()
 	};
 }
@@ -143,14 +139,19 @@ export async function _editLoad({ locals, params, url, platform }) {
  * @param {string} slug
  * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
  */
-async function eventLibraryImage(db, locals, slug) {
-	if (!db) return null;
+function eventLibraryImage(db, locals, slug) {
+	return libraryCoverOf(db, EVENT_CATEGORY, slug, adminViewer(locals));
+}
+
+/**
+ * El `featured` del texto de un evento, o '' si no tiene o no se puede leer.
+ * @param {string} raw
+ */
+function featuredOf(raw) {
 	try {
-		const ref = await resolveEventSlug(db, slug);
-		return ref ? await imageOf(db, ref.id, 'portada', adminViewer(locals)) : null;
+		return readEventFields(splitMarkdown(raw).frontmatter).featured.trim();
 	} catch (e) {
-		// Sin la imagen de la biblioteca, se muestra la del repo.
-		return null;
+		return '';
 	}
 }
 
@@ -287,7 +288,7 @@ export const _editActions = {
 			save: 'Guardado',
 			publish: commit.pr ?? null,
 			commitUrl: commit.url,
-			savedToDb: commitSavedToDb(commit)
+			savedToDb: true
 		});
 	},
 	/** «+ Crear lugar» desde el «Lugar» del formulario (solo eventos). */

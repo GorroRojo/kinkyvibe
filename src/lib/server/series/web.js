@@ -6,8 +6,9 @@ import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { deliverEmail } from '$lib/server/tickets/index.js';
 import { AVISOS_FROM_EMAIL } from '$lib/server/tickets/settings.js';
+import { resendBackoff } from '$lib/server/tickets/email.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
-import { runSeriesNotifications } from './notify.js';
+import { NOTIFY_BATCH, runSeriesNotifications } from './notify.js';
 import { accountSubscriptions } from './subscriptions.js';
 import { avisameViaSigo } from '$lib/server/sigo/avisame.js';
 import { eventsForTag, seriesPage } from './index.js';
@@ -28,15 +29,40 @@ export async function requireSeriesDB(platform) {
 }
 
 /**
+ * Un {@link import('./subscriptions.js').SeriesSend} que además dice si Resend contestó «ahora
+ * no» (`resendBackoff` en tickets/email.js): `quota`, `rate` o `server` en vez de `failed`.
+ *
+ * @typedef {(...args: Parameters<import('./subscriptions.js').SeriesSend>) => Promise<'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server'>} SeriesBatchSend
+ */
+
+/**
  * Manda los mails de series y de «Lo que sigo» por el camino de siempre (`deliverEmail`: Resend
  * y el filtro `routeEmail` de los previews), desde el remitente de los avisos
- * (`AVISOS_FROM_EMAIL`, avisos@) y con la respuesta de los ajustes.
+ * (`AVISOS_FROM_EMAIL`, avisos@) y con la respuesta de los ajustes. Con `backoff`, el «ahora no» de
+ * Resend vuelve como `quota` / `rate` / `server` (para la tanda del cron, que así no gasta el
+ * intento); sin él, todo error es `failed`.
  *
+ * @overload
  * @param {D1Database} db
  * @param {typeof fetch} fetchFn
+ * @param {{ backoff: true, kind?: string }} options
+ * @returns {SeriesBatchSend}
+ */
+/**
+ * @overload
+ * @param {D1Database} db
+ * @param {typeof fetch} fetchFn
+ * @param {{ backoff?: false, kind?: string }} [options]
  * @returns {import('./subscriptions.js').SeriesSend}
  */
-export function seriesSender(db, fetchFn) {
+/**
+ * @param {D1Database} db
+ * @param {typeof fetch} fetchFn
+ * @param {{ backoff?: boolean, kind?: string }} [options] `kind`: el tipo de mail para Resend
+ *   (`sendWithResend`); «Lo que sigo» pasa `sigo`
+ * @returns {SeriesBatchSend}
+ */
+export function seriesSender(db, fetchFn, { backoff = false, kind = 'serie' } = {}) {
 	return async (to, message, idempotencyKey) => {
 		try {
 			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
@@ -47,9 +73,15 @@ export function seriesSender(db, fetchFn) {
 				message,
 				idempotencyKey,
 				from: AVISOS_FROM_EMAIL,
-				optOut: true
+				optOut: true,
+				kind
 			});
 		} catch (e) {
+			const later = backoff ? resendBackoff(e) : null;
+			if (later) {
+				console.error(`[series] Resend dijo «ahora no» (${later}): queda para la próxima`);
+				return later;
+			}
 			console.error('[series] no se pudo mandar el mail:', e);
 			return 'failed';
 		}
@@ -59,9 +91,11 @@ export function seriesSender(db, fetchFn) {
 /**
  * La parte de series del cron de mails.
  *
- * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number }} input
+ * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number, limit?: number }} input
+ *   `limit`: mails como mucho en esta corrida (lo que sobró de la tanda); nunca más de
+ *   {@link NOTIFY_BATCH}
  */
-export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now() }) {
+export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now(), limit }) {
 	const platform = /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: { DB: db } }));
 	return runSeriesNotifications({
 		db,
@@ -71,8 +105,10 @@ export async function runSeriesCron({ db, origin, fetch: fetchFn, now = Date.now
 		// depende de que hooks.server.js haya corrido en este isolate.
 		tags: await siteTagManager(platform),
 		origin,
-		send: seriesSender(db, fetchFn),
-		now
+		// Con el «ahora no» de Resend: no gasta el intento del día (notify.js).
+		send: seriesSender(db, fetchFn, { backoff: true }),
+		now,
+		limit: Math.max(0, Math.min(limit ?? NOTIFY_BATCH, NOTIFY_BATCH))
 	});
 }
 

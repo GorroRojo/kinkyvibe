@@ -13,7 +13,13 @@
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { filterPosts, readSearchParams, writeSearchParams } from '$lib/utils/postSearch';
+	import {
+		canonicalTag,
+		filterPosts,
+		readSearchParams,
+		tagCoverage,
+		writeSearchParams
+	} from '$lib/utils/postSearch';
 	import { listMotion } from '$lib/utils/listMotion';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
@@ -57,7 +63,7 @@
 	/**@type ProcessedPost[]*/
 	$: outerFilteredPosts = posts.filter(
 		(/**@type {ProcessedPost}*/ p) =>
-			// @ts-ignore
+			// @ts-expect-error índice con el nombre de la propiedad del filtro
 			(!filter || (filter && p[filter.prop] == filter.value)) &&
 			($userConfig.show_past_events ||
 				parseSiteDate(p.meta.start).getTime() > Date.now() ||
@@ -70,6 +76,9 @@
 	 * @returns {string[]}
 	 */
 	function getVisibleTags(posts, filteredTags) {
+		// Con cuántas quedaría cada etiqueta si se suma al filtro (ella o una hija, como filtra
+		// `filterPosts`): con todas, no cambiaría nada.
+		const coverage = tagCoverage(posts, $tagManager);
 		let presentTags = new Map();
 		for (const post of posts) {
 			for (const tag of post.meta.tags) {
@@ -83,7 +92,8 @@
 		}
 		return [...presentTags.entries()]
 			.filter(([tag, instances]) => {
-				if (instances < posts.length || filteredTags.includes(tag)) {
+				const kept = coverage.get(canonicalTag($tagManager, tag)) ?? instances;
+				if (kept < posts.length || filteredTags.includes(tag)) {
 					$redundantTags.delete(tag);
 					return true;
 				} else {
@@ -265,7 +275,7 @@
 	const motion = listMotion(() => listEl);
 
 	$: allTags.set([
-		// @ts-ignore
+		// @ts-expect-error reduce arranca con [] (never[])
 		...posts.reduce((a, b) => [...a, ...b.meta.tags], []),
 		...$tagManager.tagIDs()
 	]);

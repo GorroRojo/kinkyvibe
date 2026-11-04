@@ -20,12 +20,16 @@
 	 *   la lista se pagina en el servidor, no pongas `sort` (el orden sería falso).
 	 * - `sort` (bind:sort, opcional): { key, dir: 'asc' | 'desc' }, el orden actual. Sin él, las
 	 *   filas quedan como vienen hasta que se toca un encabezado.
+	 * - `presorted` (opcional): las filas ya vienen ordenadas según `sort` (una lista que se
+	 *   ordena en el servidor, como Cuentas): la tabla no las reordena; tocar un encabezado cambia
+	 *   `sort` y avisa con el evento `sort` ({ key, dir }) para que la página pida el orden nuevo.
 	 * - `limit` (opcional): muestra solo las primeras N filas, después de ordenar todas.
 	 * - `caption` (opcional, para lectores de pantalla y arriba de la tabla); `empty`: texto si no
 	 *   hay filas (default «No hay nada para mostrar.»); `rowKey`: clave única de cada fila;
 	 *   `rowClass(row)` (opcional): clases de la fila.
 	 * Slot `cell` (opcional, `let:row let:column let:value`): para dibujar una celda a mano.
 	 */
+	import { createEventDispatcher } from 'svelte';
 	import { ChevronDown, ChevronUp, ChevronsUpDown } from '@lucide/svelte';
 	import { ariaSort, nextSort, sortRows, sortType } from './tableSort.js';
 
@@ -45,9 +49,19 @@
 	export let limit = undefined;
 	/** @type {((row: any) => string) | undefined} */
 	export let rowClass = undefined;
+	export let presorted = false;
+
+	/** @type {import('svelte').EventDispatcher<{ sort: { key: string, dir: 'asc' | 'desc' } }>} */
+	const dispatch = createEventDispatcher();
 
 	$: sortColumn = sort ? columns.find((c) => c.key === sort?.key && sortType(c)) : undefined;
-	$: sorted = sort && sortColumn ? sortRows(rows, sortColumn, sort.dir) : rows;
+	$: sorted = sort && sortColumn && !presorted ? sortRows(rows, sortColumn, sort.dir) : rows;
+
+	/** @param {Column} c */
+	function toggle(c) {
+		sort = nextSort(sort, c);
+		dispatch('sort', sort);
+	}
 	$: shown = limit ? sorted.slice(0, limit) : sorted;
 	$: hasWidths = columns.some((c) => c.width);
 
@@ -74,7 +88,7 @@
 						aria-sort={state}
 					>
 						{#if sortType(c)}
-							<button type="button" class="sort" on:click={() => (sort = nextSort(sort, c))}
+							<button type="button" class="sort" on:click={() => toggle(c)}
 								><span class:sr-only={c.hideLabel}>{c.label}</span><svelte:component
 									this={state === 'ascending'
 										? ChevronUp

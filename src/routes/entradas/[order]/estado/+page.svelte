@@ -11,6 +11,34 @@
 	let order = $derived(data.order);
 	let waiting = $derived(order.status === 'pending');
 
+	// Cuando la orden cambia de estado mientras se mira (pendiente → aprobada), se lee el título
+	// nuevo en una región viva aparte: si toda la tarjeta fuera la región, el lector recibiría la
+	// tarjeta entera.
+	/** @type {HTMLElement | undefined} */
+	let card = $state();
+	let liveText = $state('');
+	let lastStatus = data.order.status;
+	$effect(() => {
+		const status = order.status;
+		if (status === lastStatus) return;
+		lastStatus = status;
+		liveText = card?.querySelector('h1')?.textContent?.trim() ?? '';
+	});
+
+	// Compra aprobada: se borra el borrador del formulario de compra (TicketPurchase, en
+	// sessionStorage de esta pestaña). Con Mercado Pago queda hasta acá para que un pago rechazado
+	// vuelva al formulario con los datos cargados.
+	$effect(() => {
+		if (order.status !== 'approved') return;
+		try {
+			for (const key of Object.keys(sessionStorage)) {
+				if (key.startsWith('kv-entradas:')) sessionStorage.removeItem(key);
+			}
+		} catch {
+			// sin sessionStorage: no hay nada que borrar
+		}
+	});
+
 	// Mientras esperamos la confirmación, volvemos a consultar cada vez más espaciado (5, 10, 20 y
 	// después 30 segundos; 8 veces, unos 3 minutos: `nextOrderPollDelay`). Solo se recarga la orden
 	// (`kv:orden`), no el layout del sitio.
@@ -42,7 +70,7 @@
 	<title>Tu compra · Kinky Vibe</title>
 </svelte:head>
 
-<section class="estado estado-{order.status}" aria-live="polite">
+<section class="estado estado-{order.status}" bind:this={card}>
 	{#if order.status === 'approved'}
 		<h1>¡Listo, ya tenés tus entradas! 🎉</h1>
 		<p>
@@ -86,7 +114,9 @@
 			</p>
 		{/if}
 		{#if data.transfer?.info}
-			<div class="transfer-info" aria-label="Datos para transferir">{data.transfer.info}</div>
+			<div class="transfer-info" role="group" aria-label="Datos para transferir">
+				{data.transfer.info}
+			</div>
 		{:else}
 			<p>Los datos para transferir te llegaron por email.</p>
 		{/if}
@@ -168,7 +198,7 @@
 			<dd>−{formatARS(order.discountAmount)} (código {order.discountCode})</dd>
 		{/if}
 		{#if order.surcharge}
-			<dt>Recargo MP</dt>
+			<dt>Recargo Mercado Pago</dt>
 			<dd>+{formatARS(order.surcharge)}</dd>
 		{/if}
 		<dt>Total</dt>
@@ -188,6 +218,7 @@
 	{#if order.status !== 'approved' && order.status !== 'pending' && order.status !== 'awaiting_transfer'}
 		<a class="button" href="/calendario/{data.event.slug}/entradas">Volver a comprar</a>
 	{/if}
+	<div class="visually-hidden" role="status">{liveText}</div>
 </section>
 
 <style>

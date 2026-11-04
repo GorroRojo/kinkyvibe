@@ -848,8 +848,7 @@ describe('el resumen diario (cron)', () => {
 			[
 				'☀️ <b>Resumen diario · Fiesta X</b>',
 				'🎟 Desde ayer a las 9:00: 2 vendidas · en total: 23/50',
-				'✅ Sin reservas sin pagar ni nada para revisar.',
-				'Solo cantidades: lo de cada compra está en el panel.'
+				'✅ Sin reservas sin pagar ni nada para revisar.'
 			].join('\n\n')
 		);
 	});

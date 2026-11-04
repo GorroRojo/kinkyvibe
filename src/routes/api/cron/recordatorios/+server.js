@@ -41,6 +41,7 @@ import {
 	siteOrigin
 } from '$lib/server/tickets/index.js';
 import { runDoorNoticesCron } from '$lib/server/tickets/doorNotices.js';
+import { mailBudgetLeft } from '$lib/server/tickets/mailQueue.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
@@ -49,7 +50,11 @@ import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlist
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
 import { checkWebhookHealth } from '$lib/server/telegram/webhookHealth.js';
 import { runCronWatch } from '$lib/server/vigilancia/avisos.js';
-import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
+import {
+	notifyMailQuota,
+	runAdminEventDayCron,
+	runAdminNoticesCron
+} from '$lib/server/telegram/adminNotify.js';
 import { pruneUso } from '$lib/server/telegram/uso.js';
 import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
 import { reconcilePendingPayments } from '$lib/server/tickets/reconcile.js';
@@ -106,8 +111,11 @@ export async function POST({ request, platform, url, fetch }) {
 		// El mail con las entradas que no salió al aprobarse la orden: aparte de la tanda (tiene su
 		// propio tope) y si falla, lo demás sale igual.
 		let unsentOrders = null;
+		/** @type {{ sent: number, failed: number, stopped?: unknown } | null} */
+		let unsentRun = null;
 		try {
 			const u = await resendUnsentOrderEmails({ db, origin: siteOrigin(url), fetch });
+			unsentRun = u;
 			unsentOrders = {
 				sent: u.sent,
 				failed: u.failed,
@@ -116,6 +124,20 @@ export async function POST({ request, platform, url, fetch }) {
 		} catch (error) {
 			logDBError('cron mails de entradas sin enviar', error);
 		}
+		// Si el reintento chocó con el cupo de Resend, aviso a les admins por Telegram (como mucho
+		// uno por hora). Aparte: si falla, lo demás sale igual.
+		if (unsentRun?.stopped === 'quota') {
+			try {
+				await notifyMailQuota({
+					db,
+					origin: siteOrigin(url),
+					token: env.TELEGRAM_BOT_TOKEN,
+					fetch
+				});
+			} catch (error) {
+				logDBError('cron aviso de cupo de mails', error);
+			}
+		}
 		// Las series van aparte: si fallan, los recordatorios ya salieron y la corrida no se cae.
 		// Con MAILS_PAUSED, ni las series ni «Lo que sigo» (sus avisos quedan para después).
 		let series = null;
@@ -123,14 +145,20 @@ export async function POST({ request, platform, url, fetch }) {
 		if (mailsOff) {
 			logMailsPaused('los avisos de series ni los de «Lo que sigo»');
 		} else {
+			// Series y «Lo que sigo» salen con lo que sobró de la tanda («de a cuántos»): la corrida
+			// entera no la pasa y las entradas y los recordatorios van primero. Con la tanda gastada
+			// (o Resend diciendo «ahora no») igual corren con límite 0: anotan las ediciones nuevas y
+			// los avisos por Telegram, y los mails quedan para la próxima corrida.
+			let left = mailBudgetLeft(r, [unsentRun]);
 			try {
-				series = await runSeriesCron({ db, origin: siteOrigin(url), fetch });
+				series = await runSeriesCron({ db, origin: siteOrigin(url), fetch, limit: left });
+				if (series) left = Math.max(0, left - series.sent - series.failed);
 			} catch (error) {
 				logDBError('cron series', error);
 			}
 			// «Lo que sigo» también aparte (interruptor `lo_que_sigo`).
 			try {
-				sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch });
+				sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch, limit: left });
 			} catch (error) {
 				logDBError('cron lo que sigo', error);
 			}
@@ -147,6 +175,19 @@ export async function POST({ request, platform, url, fetch }) {
 			});
 		} catch (error) {
 			logDBError('cron avisos de admins', error);
+		}
+		// El día del evento y los recordatorios (el evento de mañana, falta el lugar o el link), a
+		// la misma hora y solo a quien los prendió. Aparte del resumen diario.
+		let telegramAdminDia = null;
+		try {
+			telegramAdminDia = await runAdminEventDayCron({
+				db,
+				origin: siteOrigin(url),
+				token: env.TELEGRAM_BOT_TOKEN,
+				fetch
+			});
+		} catch (error) {
+			logDBError('cron día del evento de admins', error);
 		}
 		// Estadísticas de uso del bot: las filas por persona duran 180 días (también con el
 		// interruptor apagado: lo ya guardado se borra igual). Aparte: si falla, lo demás ya salió.
@@ -211,6 +252,7 @@ export async function POST({ request, platform, url, fetch }) {
 				...(series ? { series } : {}),
 				...(sigo ? { sigo } : {}),
 				...(telegramAdmin ? { telegramAdmin } : {}),
+				...(telegramAdminDia ? { telegramAdminDia } : {}),
 				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),
 				...('skipped' in indexNow ? {} : { indexNow }),
 				...(doorNotices && (doorNotices.expired || doorNotices.reminded) ? { doorNotices } : {}),

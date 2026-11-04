@@ -22,7 +22,7 @@ import { mailSender, requireCuentas } from './web.js';
  */
 export function inviteNotice(event, db) {
 	return {
-		send: mailSender(event, db),
+		send: mailSender(event, db, 'perfil-invitacion'),
 		origin: event.url.origin,
 		defer(task) {
 			const ctx = event.platform?.ctx;
