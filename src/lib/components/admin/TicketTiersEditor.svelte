@@ -14,7 +14,12 @@
 	import { tick } from 'svelte';
 	import { Check, Copy, Plus } from '@lucide/svelte';
 	import { MAX_TIERS, emptyTier, tierPreview } from '$lib/utils/ticketsEditor.js';
-	import { fondoPriceLine, fondoTodayLine, pricesCopyText } from '$lib/utils/fondoPrices.js';
+	import {
+		fondoPriceLine,
+		fondoPriceSpoken,
+		fondoTodayLine,
+		pricesCopyText
+	} from '$lib/utils/fondoPrices.js';
 
 	/** @type {import('$lib/utils/ticketsEditor.js').TierForm[]} */
 	export let tiers = [];
@@ -98,7 +103,9 @@
 			</label>
 			{#if fondoPriceLine(tr.price, fondoPercent)}
 				<small class="t-fondo" id="{idPrefix}-price-fondo-{j}"
-					>{fondoPriceLine(tr.price, fondoPercent)}</small
+					><span aria-hidden="true">{fondoPriceLine(tr.price, fondoPercent)}</span><span
+						class="visually-hidden">{fondoPriceSpoken(tr.price, fondoPercent)}</span
+					></small
 				>
 			{/if}
 			<label class="field t-qty">
@@ -133,8 +140,9 @@
 {/if}
 <div class="tier-summary">
 	<small class="tier-preview" id="{idPrefix}-preview" aria-live="polite"
-		>{tierPreview(tiers, fondoPercent)}{#if fondoTodayLine(fondoPercent)}{' '}<strong
-				>{fondoTodayLine(fondoPercent)}</strong
+		><span aria-hidden="true">{tierPreview(tiers, fondoPercent)}</span><span class="visually-hidden"
+			>{tierPreview(tiers, fondoPercent, { spoken: true })}</span
+		>{#if fondoTodayLine(fondoPercent)}{' '}<strong>{fondoTodayLine(fondoPercent)}</strong
 			>{/if}</small
 	>
 	<button

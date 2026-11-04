@@ -31,7 +31,7 @@ import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.
 import { isOnlineEvent, modalidadOf } from './eventPlace.js';
 import { currentSiteTags } from './siteTags.js';
 import { formatARS } from './money.js';
-import { priceWithFondo, untilShort } from './fondoPrices.js';
+import { fondoTag, fondoTagSpoken, untilShort } from './fondoPrices.js';
 import { chainCycle, doorPrice, unreachableAfter } from './ticketTiers.js';
 import {
 	ORDER_MAX_TOTAL,
@@ -233,25 +233,25 @@ export function tiersForMode(t) {
  * tramo vigente.
  *
  * Con el porcentaje del Fondo (eventos KinkyVibe), cada precio lleva también el precio con el
- * Fondo: "Preventa 1 ($ 8.000; con el Fondo $ 6.400, las primeras 5) → …".
+ * Fondo: "Preventa 1 ($ 8.000 · 💜 -20% = $ 6.400, las primeras 5) → …" (con `spoken`, para un
+ * lector de pantalla: "$ 8.000; con el descuento del Fondo (20 %): $ 6.400").
  *
  * @param {TierForm[]} tiers
  * @param {number | null} [fondoPercent] `null` o 0: sin el precio con el Fondo
+ * @param {{ spoken?: boolean }} [opts]
  */
-export function tierPreview(tiers, fondoPercent = null) {
+export function tierPreview(tiers, fondoPercent = null, { spoken = false } = {}) {
 	if (!tiers.length) return '';
 	const steps = tiers.map((tr, j) => {
 		const p = parseAmount(tr.price);
 		const q = tr.quantity.trim() && /^\d+$/.test(tr.quantity.trim()) ? Number(tr.quantity) : null;
 		const until = untilShort(tr.until);
 		const first = j === 0 ? 'primeras' : 'siguientes';
-		const withFondo = priceWithFondo(p, fondoPercent);
+		const tag = spoken
+			? fondoTagSpoken(p, fondoPercent).replace(/^C/, 'c')
+			: fondoTag(p, fondoPercent);
 		const parts = [
-			p === null
-				? '$ ?'
-				: withFondo === null
-					? formatARS(p)
-					: `${formatARS(p)}; con el Fondo ${formatARS(withFondo)}`,
+			p === null ? '$ ?' : tag ? `${formatARS(p)}${spoken ? '; ' : ' · '}${tag}` : formatARS(p),
 			q !== null ? (q === 1 ? (j === 0 ? 'la primera' : 'la siguiente') : `las ${first} ${q}`) : '',
 			until,
 			q === null && !until ? 'el resto' : ''

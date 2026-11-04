@@ -7,6 +7,7 @@ import { formatARS } from './money.js';
 import { computePrice } from './tickets.js';
 import {
 	fondoPriceLine,
+	fondoPriceSpoken,
 	fondoTodayLine,
 	priceWithFondo,
 	pricesCopyText,
@@ -63,8 +64,12 @@ describe('precio con el Fondo', () => {
 	});
 
 	it('la línea debajo de un precio que se está escribiendo', () => {
-		expect(fondoPriceLine('14000', 20)).toBe(`Con el Fondo (20 %): ${formatARS(11200)}`);
-		expect(fondoPriceLine('$ 14.000', 20)).toBe(`Con el Fondo (20 %): ${formatARS(11200)}`);
+		expect(fondoPriceLine('14000', 20)).toBe(`💜 -20% = ${formatARS(11200)}`);
+		expect(fondoPriceSpoken('14000', 20)).toBe(
+			`Con el descuento del Fondo (20 %): ${formatARS(11200)}`
+		);
+		expect(fondoPriceSpoken('', 20)).toBe('');
+		expect(fondoPriceLine('$ 14.000', 20)).toBe(`💜 -20% = ${formatARS(11200)}`);
 		expect(fondoPriceLine('', 20)).toBe('');
 		expect(fondoPriceLine('catorce', 20)).toBe('');
 		expect(fondoPriceLine('14000', 0)).toBe('');
@@ -87,8 +92,15 @@ describe('precio con el Fondo', () => {
 describe('resumen de los tramos con el Fondo', () => {
 	it('cada precio lleva también el precio con el Fondo', () => {
 		expect(tierPreview(tiered().tiers, 20)).toBe(
-			`Quien compra ve solo el tramo vigente: Preventa 1 (${formatARS(14000)}; con el Fondo ${formatARS(11200)}, hasta el 7/11) → Preventa 2 (${formatARS(16000)}; con el Fondo ${formatARS(12800)}, hasta el 20/11) → General (${formatARS(18000)}; con el Fondo ${formatARS(14400)}, el resto).`
+			`Quien compra ve solo el tramo vigente: Preventa 1 (${formatARS(14000)} · 💜 -20% = ${formatARS(11200)}, hasta el 7/11) → Preventa 2 (${formatARS(16000)} · 💜 -20% = ${formatARS(12800)}, hasta el 20/11) → General (${formatARS(18000)} · 💜 -20% = ${formatARS(14400)}, el resto).`
 		);
+	});
+
+	it('para un lector de pantalla, el descuento con palabras', () => {
+		expect(tierPreview(tiered().tiers, 20, { spoken: true })).toContain(
+			`Preventa 1 (${formatARS(14000)}; con el descuento del Fondo (20 %): ${formatARS(11200)}, hasta el 7/11)`
+		);
+		expect(tierPreview(tiered().tiers, 0, { spoken: true })).toBe(tierPreview(tiered().tiers));
 	});
 
 	it('sin Fondo o con 0 %, como siempre', () => {
@@ -109,9 +121,9 @@ describe('Copiar precios', () => {
 	it('una línea por tramo, con el precio con el Fondo y la fecha', () => {
 		expect(pricesCopyText(tiered(), 20)).toBe(
 			[
-				`Preventa 1: ${formatARS(14000)} (${formatARS(11200)} con el Fondo) hasta el 7/11`,
-				`Preventa 2: ${formatARS(16000)} (${formatARS(12800)} con el Fondo) hasta el 20/11`,
-				`General: ${formatARS(18000)} (${formatARS(14400)} con el Fondo)`
+				`Preventa 1: ${formatARS(14000)} · 💜 -20% = ${formatARS(11200)} · hasta el 7/11`,
+				`Preventa 2: ${formatARS(16000)} · 💜 -20% = ${formatARS(12800)} · hasta el 20/11`,
+				`General: ${formatARS(18000)} · 💜 -20% = ${formatARS(14400)}`
 			].join('\n')
 		);
 	});
@@ -121,7 +133,7 @@ describe('Copiar precios', () => {
 			pricesCopyText({ ...tiered(), doorPrice: '20000' }, 20)
 				.split('\n')
 				.at(-1)
-		).toBe(`En la puerta: ${formatARS(20000)} (${formatARS(16000)} con el Fondo)`);
+		).toBe(`En la puerta: ${formatARS(20000)} · 💜 -20% = ${formatARS(16000)}`);
 		expect(
 			pricesCopyText({ ...tiered(), doorPrice: '20000' }, null)
 				.split('\n')
@@ -132,8 +144,8 @@ describe('Copiar precios', () => {
 	it('sin Fondo: solo los precios', () => {
 		expect(pricesCopyText(tiered(), 0)).toBe(
 			[
-				`Preventa 1: ${formatARS(14000)} hasta el 7/11`,
-				`Preventa 2: ${formatARS(16000)} hasta el 20/11`,
+				`Preventa 1: ${formatARS(14000)} · hasta el 7/11`,
+				`Preventa 2: ${formatARS(16000)} · hasta el 20/11`,
 				`General: ${formatARS(18000)}`
 			].join('\n')
 		);
@@ -142,7 +154,7 @@ describe('Copiar precios', () => {
 	it('precio fijo: una línea con el nombre del tipo; a la gorra, nada', () => {
 		const fixed = { ...emptyTicketType({ first: true }), price: '10000' };
 		expect(pricesCopyText(fixed, 20)).toBe(
-			`General: ${formatARS(10000)} (${formatARS(8000)} con el Fondo)`
+			`General: ${formatARS(10000)} · 💜 -20% = ${formatARS(8000)}`
 		);
 		expect(pricesCopyText({ ...fixed, mode: 'gorra' }, 20)).toBe('');
 	});

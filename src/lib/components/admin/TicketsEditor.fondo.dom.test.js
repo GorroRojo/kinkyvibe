@@ -36,6 +36,10 @@ const norm = (/** @type {string | null | undefined} */ s) => (s ?? '').replace(/
 const ars = (/** @type {number} */ n) => norm(formatARS(n));
 /** @param {string} id */
 const byId = (id) => document.getElementById(id);
+/** Lo que se ve (el emoji y el porcentaje). @param {string} id */
+const shown = (id) => norm(byId(id)?.querySelector('[aria-hidden="true"]')?.textContent);
+/** Lo que lee un lector de pantalla. @param {string} id */
+const spoken = (id) => norm(byId(id)?.querySelector('.visually-hidden')?.textContent);
 
 /** @param {Record<string, unknown>} [props] */
 const setup = (props = {}) =>
@@ -52,22 +56,23 @@ const setup = (props = {}) =>
 describe('TicketsEditor: precios con el Fondo', () => {
 	it('debajo de cada precio, cuánto sale con el Fondo; el resumen lo dice y avisa que puede cambiar', () => {
 		setup();
-		expect(norm(byId('edit-tier-0-price-fondo-0')?.textContent)).toBe(
-			`Con el Fondo (20 %): ${ars(11200)}`
+		expect(shown('edit-tier-0-price-fondo-0')).toBe(`💜 -20% = ${ars(11200)}`);
+		expect(shown('edit-tier-0-price-fondo-1')).toBe(`💜 -20% = ${ars(14400)}`);
+		expect(shown('edit-ticket-door-fondo-0')).toBe(`💜 -20% = ${ars(16000)}`);
+		expect(shown('edit-ticket-price-fondo-1')).toBe(`💜 -20% = ${ars(8000)}`);
+		expect(spoken('edit-tier-0-price-fondo-0')).toBe(
+			`Con el descuento del Fondo (20 %): ${ars(11200)}`
 		);
-		expect(norm(byId('edit-tier-0-price-fondo-1')?.textContent)).toBe(
-			`Con el Fondo (20 %): ${ars(14400)}`
+		expect(spoken('edit-ticket-door-fondo-0')).toBe(
+			`Con el descuento del Fondo (20 %): ${ars(16000)}`
 		);
-		expect(norm(byId('edit-ticket-door-fondo-0')?.textContent)).toBe(
-			`Con el Fondo (20 %): ${ars(16000)}`
+		expect(shown('edit-tier-0-preview')).toContain(
+			`Preventa 1 (${ars(14000)} · 💜 -20% = ${ars(11200)}, hasta el 7/11)`
 		);
-		expect(norm(byId('edit-ticket-price-fondo-1')?.textContent)).toBe(
-			`Con el Fondo (20 %): ${ars(8000)}`
+		expect(spoken('edit-tier-0-preview')).toContain(
+			`Preventa 1 (${ars(14000)}; con el descuento del Fondo (20 %): ${ars(11200)}, hasta el 7/11)`
 		);
 		const preview = norm(byId('edit-tier-0-preview')?.textContent);
-		expect(preview).toContain(
-			`Preventa 1 (${ars(14000)}; con el Fondo ${ars(11200)}, hasta el 7/11)`
-		);
 		expect(preview).toContain('El descuento del Fondo hoy es 20 %: puede cambiar.');
 	});
 
@@ -75,11 +80,9 @@ describe('TicketsEditor: precios con el Fondo', () => {
 		setup();
 		const input = /** @type {HTMLInputElement} */ (byId('edit-tier-0-price-0'));
 		await fireEvent.input(input, { target: { value: '15000' } });
-		expect(norm(byId('edit-tier-0-price-fondo-0')?.textContent)).toBe(
-			`Con el Fondo (20 %): ${ars(12000)}`
-		);
-		expect(norm(byId('edit-tier-0-preview')?.textContent)).toContain(
-			`Preventa 1 (${ars(15000)}; con el Fondo ${ars(12000)}`
+		expect(shown('edit-tier-0-price-fondo-0')).toBe(`💜 -20% = ${ars(12000)}`);
+		expect(shown('edit-tier-0-preview')).toContain(
+			`Preventa 1 (${ars(15000)} · 💜 -20% = ${ars(12000)}`
 		);
 		await fireEvent.input(input, { target: { value: '' } });
 		expect(byId('edit-tier-0-price-fondo-0')).toBeNull();
@@ -106,9 +109,9 @@ describe('TicketsEditor: precios con el Fondo', () => {
 		await vi.waitFor(() => expect(norm(button.textContent)).toBe('Copiado'));
 		expect(writeText).toHaveBeenCalledWith(
 			[
-				`Preventa 1: ${formatARS(14000)} (${formatARS(11200)} con el Fondo) hasta el 7/11`,
-				`General: ${formatARS(18000)} (${formatARS(14400)} con el Fondo)`,
-				`En la puerta: ${formatARS(20000)} (${formatARS(16000)} con el Fondo)`
+				`Preventa 1: ${formatARS(14000)} · 💜 -20% = ${formatARS(11200)} · hasta el 7/11`,
+				`General: ${formatARS(18000)} · 💜 -20% = ${formatARS(14400)}`,
+				`En la puerta: ${formatARS(20000)} · 💜 -20% = ${formatARS(16000)}`
 			].join('\n')
 		);
 		expect(byId('edit-tier-0-copy-text')).toBeNull();
@@ -129,7 +132,7 @@ describe('TicketsEditor: precios con el Fondo', () => {
 			})
 		);
 		expect(box.value.split('\n')[0]).toBe(
-			`Preventa 1: ${formatARS(14000)} (${formatARS(11200)} con el Fondo) hasta el 7/11`
+			`Preventa 1: ${formatARS(14000)} · 💜 -20% = ${formatARS(11200)} · hasta el 7/11`
 		);
 		expect(document.activeElement).toBe(box);
 		const label = /** @type {HTMLElement} */ (box.closest('label'));

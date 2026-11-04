@@ -36,15 +36,50 @@ export function priceWithFondo(price, percent) {
 }
 
 /**
- * La línea chiquita debajo de un precio que se está escribiendo: «Con el Fondo (20 %): $ 11.200».
- * '' si el precio no se entiende o no hay porcentaje para mostrar.
+ * El precio con el Fondo como lo escribe la organización (el corazón violeta de siempre):
+ * «💜 -20% = $ 11.200». '' sin precio o sin porcentaje para mostrar.
+ *
+ * @param {number | null} price
+ * @param {unknown} percent
+ */
+export function fondoTag(price, percent) {
+	const withFondo = priceWithFondo(price, percent);
+	return withFondo === null ? '' : `💜 -${percent}% = ${formatARS(withFondo)}`;
+}
+
+/**
+ * Lo mismo para un lector de pantalla (sin el emoji como único sentido): «Con el descuento del
+ * Fondo (20 %): $ 11.200».
+ *
+ * @param {number | null} price
+ * @param {unknown} percent
+ */
+export function fondoTagSpoken(price, percent) {
+	const withFondo = priceWithFondo(price, percent);
+	return withFondo === null
+		? ''
+		: `Con el descuento del Fondo (${percent} %): ${formatARS(withFondo)}`;
+}
+
+/**
+ * La línea chiquita debajo de un precio que se está escribiendo: «💜 -20% = $ 11.200». '' si el
+ * precio no se entiende o no hay porcentaje para mostrar.
  *
  * @param {string} raw lo que hay en el campo
  * @param {unknown} percent
  */
 export function fondoPriceLine(raw, percent) {
-	const withFondo = priceWithFondo(parseAmount(raw ?? ''), percent);
-	return withFondo === null ? '' : `Con el Fondo (${percent} %): ${formatARS(withFondo)}`;
+	return fondoTag(parseAmount(raw ?? ''), percent);
+}
+
+/**
+ * La línea de `fondoPriceLine` para un lector de pantalla.
+ *
+ * @param {string} raw
+ * @param {unknown} percent
+ */
+export function fondoPriceSpoken(raw, percent) {
+	return fondoTagSpoken(parseAmount(raw ?? ''), percent);
 }
 
 /**
@@ -73,9 +108,9 @@ export function untilShort(until) {
  * Texto para pegar en la agenda o en un flyer: una línea por tramo (o el precio fijo) y, si tiene
  * precio en puerta propio, la de la puerta.
  *
- *     Preventa 1: $ 14.000 ($ 11.200 con el Fondo) hasta el 7/11
- *     General: $ 18.000 ($ 14.400 con el Fondo)
- *     En la puerta: $ 20.000 ($ 16.000 con el Fondo)
+ *     Preventa 1: $ 14.000 · 💜 -20% = $ 11.200 · hasta el 7/11
+ *     General: $ 18.000 · 💜 -20% = $ 14.400
+ *     En la puerta: $ 20.000 · 💜 -20% = $ 16.000
  *
  * Sin porcentaje para mostrar, sin la parte del Fondo. '' a la gorra.
  *
@@ -89,17 +124,14 @@ export function pricesCopyText(t, percent) {
 	const amount = (raw) => {
 		const p = parseAmount(raw ?? '');
 		if (p === null) return '$ ?';
-		const withFondo = priceWithFondo(p, percent);
-		return withFondo === null
-			? formatARS(p)
-			: `${formatARS(p)} (${formatARS(withFondo)} con el Fondo)`;
+		return [formatARS(p), fondoTag(p, percent)].filter(Boolean).join(' · ');
 	};
 	const lines =
 		t.mode === 'tiers'
 			? t.tiers.map((tr, j) =>
 					[`${tr.name.trim() || `Tramo ${j + 1}`}: ${amount(tr.price)}`, untilShort(tr.until)]
 						.filter(Boolean)
-						.join(' ')
+						.join(' · ')
 				)
 			: [`${t.name.trim() || 'Entrada'}: ${amount(t.price)}`];
 	if ((t.doorPrice ?? '').trim()) lines.push(`En la puerta: ${amount(t.doorPrice)}`);

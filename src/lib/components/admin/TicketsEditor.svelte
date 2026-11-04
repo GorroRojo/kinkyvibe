@@ -15,7 +15,7 @@
 	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { X } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
-	import { fondoPriceLine, shownFondoPercent } from '$lib/utils/fondoPrices.js';
+	import { fondoPriceLine, fondoPriceSpoken, shownFondoPercent } from '$lib/utils/fondoPrices.js';
 	import { LOW_STOCK, formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
 	import {
 		DOOR_PRICE_MAX,
@@ -337,7 +337,9 @@
 									>
 									{#if fondoPriceLine(t.price, shownPercent)}
 										<small class="fondo-price" id="{idPrefix}-ticket-price-fondo-{i}"
-											>{fondoPriceLine(t.price, shownPercent)}</small
+											><span aria-hidden="true">{fondoPriceLine(t.price, shownPercent)}</span><span
+												class="visually-hidden">{fondoPriceSpoken(t.price, shownPercent)}</span
+											></small
 										>
 									{/if}
 								</label>
@@ -360,7 +362,10 @@
 									>
 									{#if fondoPriceLine(t.doorPrice, shownPercent)}
 										<small class="fondo-price" id="{idPrefix}-ticket-door-fondo-{i}"
-											>{fondoPriceLine(t.doorPrice, shownPercent)}</small
+											><span aria-hidden="true">{fondoPriceLine(t.doorPrice, shownPercent)}</span
+											><span class="visually-hidden"
+												>{fondoPriceSpoken(t.doorPrice, shownPercent)}</span
+											></small
 										>
 									{/if}
 								</label>
