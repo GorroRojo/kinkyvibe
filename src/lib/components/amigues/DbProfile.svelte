@@ -44,6 +44,7 @@
 	{url}
 	canonical={data.canonical}
 	noindex={Boolean(data.unlisted || data.noindex)}
+	card={data.noindex ? null : data.ogCard}
 />
 
 <article class="h-entry h-resume" data-kind={p.kind}>

@@ -17,6 +17,7 @@ import { mentionPronouns } from '$lib/server/pronouns';
 import { followButtonState } from '$lib/server/sigo/button.js';
 import { askVenuePlacesEarly } from '$lib/server/amigues/venues.js';
 import { linksHere } from '$lib/server/contenido/loQueEnlaza.js';
+import { profileCard } from '$lib/server/ogObjeto.js';
 
 /**
  * La página de un perfil, solo desde la base («solo base»), con la misma dirección que tenía la
@@ -78,7 +79,17 @@ export async function load({ params, platform, locals, setHeaders }) {
 	if (page.unlisted || page.noindex) setHeaders({ 'x-robots-tag': 'noindex' });
 	// Las etiquetas cuyo chip lleva a la Kinkipedia (el árbol ya está leído: no suma consultas).
 	const wikiTags = await wikiLinkedTags(platform, page.profile?.tags).catch(() => []);
-	return { ...page, pronouns, participa, follow, wikiTags, linksHere: linksHereList };
+	// Sin imagen, la vista previa propia del perfil (docs/compartir.md); fuera de los buscadores, no
+	// (sigue la tarjeta del sitio). Si falla, la por defecto.
+	const ogCard = await profileCard(platform, params.profile, {
+		profile: page.profile,
+		noindex: page.noindex,
+		wikiTags
+	}).catch((e) => {
+		console.error('[og] tarjeta del perfil:', e);
+		return null;
+	});
+	return { ...page, pronouns, participa, follow, wikiTags, ogCard, linksHere: linksHereList };
 }
 
 /** @type {import("./$types").Actions} */

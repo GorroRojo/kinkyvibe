@@ -26,6 +26,7 @@ import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 import { authorLinksFrom } from '$lib/utils/jsonLd.js';
 import { wikiLinkedTags } from '$lib/server/wiki/site.js';
 import { linksHere } from '$lib/server/contenido/loQueEnlaza.js';
+import { eventCard } from '$lib/server/ogObjeto.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -92,7 +93,15 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		early.linksHere
 	]);
 	const tickets = workshopTickets === undefined ? ownTickets : workshopTickets;
+	// Sin portada, la vista previa propia del evento (docs/compartir.md): la dirección lleva el hash
+	// de lo que se dibuja; la imagen la arma /og/objeto/… como la ve alguien sin cuenta.
+	const ogCard = await eventCard(platform, params.event, {
+		meta: post.meta,
+		venue,
+		wikiTags
+	}).catch(logCardError);
 	return {
+		ogCard,
 		...related,
 		tickets: tickets ? { ...tickets, slug: partes?.ticketSlug ?? params.event } : null,
 		partes,
@@ -288,4 +297,13 @@ async function canJoinWaitlist(db, slug) {
 		console.error('[lista de espera] no se pudo ver si hay dónde anotarse:', e);
 		return false;
 	}
+}
+
+/**
+ * Sin la vista previa propia, la tarjeta por defecto: la página sale igual.
+ * @param {unknown} e
+ */
+function logCardError(e) {
+	console.error('[og] tarjeta del evento:', e);
+	return null;
 }
