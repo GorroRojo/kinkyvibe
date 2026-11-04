@@ -69,21 +69,22 @@
 		{ key: 'action', label: 'Acción', hideLabel: true }
 	];
 
+	// Las fechas como `Date`: el CSV las escribe en hora de Argentina (`2026-10-02 22:30`, csv.js).
 	/** @type {import('$lib/admin/csv.js').CsvColumn<(typeof data.codes)[number]>[]} */
 	const columns = [
 		{ label: 'codigo', key: 'code' },
 		{ label: 'tipo', value: (c) => (c.kind === 'percent' ? 'porcentaje' : 'monto fijo') },
 		{ label: 'valor', key: 'value' },
 		{ label: 'evento', value: (c) => c.event_slug ?? '' },
-		{ label: 'desde', value: (c) => (c.starts_at ? new Date(c.starts_at).toISOString() : '') },
-		{ label: 'hasta', value: (c) => (c.ends_at ? new Date(c.ends_at).toISOString() : '') },
+		{ label: 'desde', value: (c) => (c.starts_at ? new Date(c.starts_at) : '') },
+		{ label: 'hasta', value: (c) => (c.ends_at ? new Date(c.ends_at) : '') },
 		{ label: 'usos_max', value: (c) => c.max_uses ?? '' },
 		{ label: 'entradas_por_compra', value: (c) => c.max_tickets ?? '' },
 		{ label: 'aprobados', key: 'approved' },
 		{ label: 'en_reserva', key: 'held' },
 		{ label: 'descontado', key: 'discounted' },
 		{ label: 'estado', value: (c) => codeState(c) },
-		{ label: 'creado', value: (c) => new Date(c.created_at).toISOString() },
+		{ label: 'creado', value: (c) => new Date(c.created_at) },
 		{ label: 'creado_por', key: 'created_by' }
 	];
 </script>

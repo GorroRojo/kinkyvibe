@@ -7,10 +7,10 @@
  * feriados no se tienen en cuenta.
  *
  * Funciones puras (el reloj y el evento son parámetros), para el servidor y el navegador.
- * Argentina no tiene horario de verano: la cuenta usa el desfasaje fijo UTC−3, igual que
- * src/lib/utils/dates.js, y no depende de la zona horaria del entorno.
+ * Argentina no tiene horario de verano: la cuenta usa el desfasaje fijo UTC−3 de
+ * src/lib/utils/dates.js (`AR_UTC_OFFSET_MS`), y no depende de la zona horaria del entorno.
  */
-import { WEEKDAYS_ES, argDeadline } from './dates.js';
+import { AR_UTC_OFFSET_MS, WEEKDAYS_ES, arClock, argDeadline } from './dates.js';
 
 /**
  * Los días hábiles para las transferencias, como `Date#getDay` (0 = domingo): de martes a
@@ -29,8 +29,6 @@ export const TRANSFER_WORKING_DAYS_TO_PAY = 2;
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
-/** Argentina: UTC−3 todo el año (sin horario de verano desde 2009). */
-const ARGENTINA_OFFSET_MS = -3 * HOUR_MS;
 
 /**
  * Un instante en ms, o `null` si no se puede leer (o no hay).
@@ -50,7 +48,7 @@ function toMs(value) {
  * @returns {number} ms
  */
 export function workingDaysDeadline(createdAt) {
-	const local = new Date(createdAt + ARGENTINA_OFFSET_MS);
+	const local = arClock(createdAt);
 	// Medianoche (Argentina) del día de la compra, contada como si fuera UTC.
 	let day = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
 	let counted = 0;
@@ -58,7 +56,7 @@ export function workingDaysDeadline(createdAt) {
 		day += DAY_MS;
 		if (TRANSFER_WORKING_DAYS.includes(new Date(day).getUTCDay())) counted++;
 	}
-	return day + TRANSFER_CLOSING_HOUR * HOUR_MS - ARGENTINA_OFFSET_MS;
+	return day + TRANSFER_CLOSING_HOUR * HOUR_MS - AR_UTC_OFFSET_MS;
 }
 
 /**

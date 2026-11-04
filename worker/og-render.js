@@ -20,8 +20,38 @@ export const JPEG_QUALITY = 82;
 
 /**
  * @typedef {{ name: string, data: ArrayBuffer | Uint8Array, weight?: number, style?: 'normal' | 'italic' }} OgFont
- * @typedef {(tree: unknown, opts: { width: number, height: number, fonts: OgFont[] }) => Promise<Uint8Array>} OgRenderer
+ * @typedef {(text: string, style: Record<string, any>) => Promise<number>} OgMeasure cuántas líneas
+ *   ocupa un texto con ese estilo (que lleva `width`), con las mismas fuentes del dibujo
+ * @typedef {unknown | ((measure: OgMeasure) => Promise<unknown>)} OgTree el árbol, o una función que
+ *   lo arma midiendo textos (las tarjetas de objetos: src/lib/utils/ogObjeto.js)
+ * @typedef {(tree: OgTree, opts: { width: number, height: number, fonts: OgFont[] }) => Promise<Uint8Array>} OgRenderer
  */
+
+/**
+ * Cuántas líneas ocupa un texto, medido con satori mismo: con `embedFont: false`, cada pedazo de
+ * línea sale como un `<text>` con su `y`, así que las `y` distintas son las líneas. El corte es
+ * exactamente el del dibujo (mismas fuentes, mismo `textWrap`). Unos pocos milisegundos.
+ * @param {string} text
+ * @param {Record<string, any>} style
+ * @param {OgFont[]} fonts
+ */
+export async function measureLines(text, style, fonts) {
+	const width = Math.max(1, Math.round(Number(style.width) || 1));
+	const svg = await satori(
+		/** @type {any} */ ({
+			type: 'div',
+			props: {
+				style: { display: 'flex', width },
+				children: { type: 'div', props: { style: { display: 'block', ...style }, children: text } }
+			}
+		}),
+		{ width, height: 4000, fonts: /** @type {any} */ (fonts), embedFont: false }
+	);
+	const ys = new Set(
+		[...svg.matchAll(/<text\b[^>]*?\sy="([-\d.]+)"/g)].map((m) => Math.round(Number(m[1])))
+	);
+	return ys.size;
+}
 
 /**
  * Un dibujante que carga el WebAssembly la primera vez que se usa (no al arrancar el Worker).
@@ -41,7 +71,13 @@ export function createOgRenderer(yogaWasm, resvgWasm) {
 			throw error;
 		});
 		await ready;
-		const svg = await satori(/** @type {any} */ (tree), {
+		const built =
+			typeof tree === 'function'
+				? await tree((/** @type {string} */ text, /** @type {Record<string, any>} */ style) =>
+						measureLines(text, style, fonts)
+					)
+				: tree;
+		const svg = await satori(/** @type {any} */ (built), {
 			width,
 			height,
 			fonts: /** @type {any} */ (fonts)

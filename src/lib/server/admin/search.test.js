@@ -98,6 +98,20 @@ describe('searchEvents', () => {
 		expect(searchEvents(events, 'taller-de')).toHaveLength(1);
 		expect(searchEvents(events, 'p')).toEqual([]);
 	});
+	it('solo exclusiones: todos los demás; -evento:latex saca solo los que dicen «latex»', () => {
+		expect(searchEvents(events, '-picantearla').map((x) => x.id)).toEqual([
+			'event:taller-de-cuerdas',
+			'event:munch-cordoba'
+		]);
+		expect(searchEvents(events, 'picantearla -evento:2026-10').map((x) => x.id)).toEqual([
+			'event:picantearla-2026-09'
+		]);
+		expect(searchEvents(events, '-evento:cuerdas').map((x) => x.id)).toEqual([
+			'event:picantearla-2026-10',
+			'event:picantearla-2026-09',
+			'event:munch-cordoba'
+		]);
+	});
 	it('marca `exact` cuando el título o el slug son lo buscado', () => {
 		expect(searchEvents(events, 'MUNCH EN CORDOBA')[0].exact).toBe(true);
 		expect(searchEvents(events, 'munch-cordoba')[0].exact).toBe(true);
@@ -301,6 +315,10 @@ describe('searchTags', () => {
 		expect(byAka[0].exact).toBe(true);
 		// Por nombre, sin tildes.
 		expect(searchTags(withAka, 'latex')[0]).toMatchObject({ id: 'tag:latex', exact: true });
+	});
+	it('solo exclusiones: todas las demás', () => {
+		expect(searchTags(tags, '-amba').map((x) => x.id)).toEqual(['tag:shibari']);
+		expect(searchTags(tags, '-#shibari').map((x) => x.id)).toEqual(['tag:AMBA']);
 	});
 });
 
@@ -600,6 +618,17 @@ describe('searchDatabase: operadores', () => {
 		const r = await searchDatabase(t.db, 'ana -tipo:orden');
 		expect(r.orders).toEqual([]);
 		expect(r.people).toHaveLength(1);
+	});
+
+	it('solo exclusiones: todo lo demás (también en la base)', async () => {
+		const r = await searchDatabase(t.db, '-beto');
+		expect(r.orders.map((o) => o.title.split(' · ')[1])).toEqual(['Ana Ficticia', 'Ana Inventada']);
+		expect(r.people.map((p) => p.title)).toEqual(['Ana Inventada']);
+	});
+
+	it('-evento:algo no saca órdenes ni personas (solo eventos)', async () => {
+		const r = await searchDatabase(t.db, 'ana -evento:ficticia');
+		expect(r.orders).toHaveLength(2);
 	});
 
 	it('filtros de eventos (#, lugar:, hoy) no preguntan a la base', async () => {

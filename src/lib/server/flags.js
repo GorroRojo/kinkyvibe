@@ -190,6 +190,20 @@ export const FLAGS = Object.freeze({
 			'también conector_claude y la migración 0072 (llaves para rutinas y confirmado por). Sin ' +
 			'tope: aviso «Cambios de Claude» por Telegram desde 20 cambios en una hora (mcp/avisoCambios.js).',
 		envVar: 'CONECTOR_CLAUDE_EDICION_ENABLED'
+	},
+	fediverso: {
+		label: 'Agenda en el fediverso (prototipo)',
+		description:
+			'Prototipo para mirar: la cuenta agenda@kinkyvibe.ar se puede buscar desde Mastodon y ' +
+			'otros servidores del fediverso, y muestra los próximos eventos públicos (lo mismo que el ' +
+			'calendario .ics). Solo lectura: nadie la puede seguir todavía y no manda nada. Apagado, ' +
+			'esas direcciones dan 404 y la búsqueda del dominio sigue yendo a Bridgy Fed como siempre.',
+		tech:
+			'docs/investigaciones/indieweb-activitypub.md. /.well-known/webfinger (solo para ' +
+			'acct:agenda@kinkyvibe.ar; el resto, a fed.brid.gy), /ap/agenda, /ap/agenda/outbox, ' +
+			'/ap/eventos/<evento>; el inbox responde 202 sin procesar nada. Sin claves ni migración. ' +
+			'src/lib/utils/activitypub.js.',
+		envVar: 'FEDIVERSO_ENABLED'
 	}
 });
 
@@ -381,6 +395,16 @@ export function paypalEnabled(platform) {
  */
 export function conectorClaudeEnabled(platform) {
 	return isFlagOn(getDB(platform), 'conector_claude');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el prototipo de la agenda en el fediverso?
+ * (docs/investigaciones/indieweb-activitypub.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function fediversoEnabled(platform) {
+	return isFlagOn(getDB(platform), 'fediverso');
 }
 
 /**

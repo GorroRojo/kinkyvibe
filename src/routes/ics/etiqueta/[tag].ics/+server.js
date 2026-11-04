@@ -6,7 +6,7 @@
  */
 import { error } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { buildIcsFeed, icsResponse, publicIcsSince } from '$lib/utils/icsFeed.js';
+import { buildIcsFeed, icsResponse, isFeedEvent, publicIcsSince } from '$lib/utils/icsFeed.js';
 import { eventsForTag } from '$lib/server/series/index.js';
 import { resolveTagSlug } from '$lib/utils/series.js';
 import { getDB } from '$lib/server/db';
@@ -23,18 +23,20 @@ export async function GET({ params, platform }) {
 	const events = await eventsForTag(id, { posts, tags });
 	if (!events.length) error(404, 'Not found');
 	const name = tag?.visible_name ?? id;
-	// La privacidad de los lugares (#137) manda sobre `location` del .md, como en la página.
+	// De los pasados, solo los de los últimos 90 días (como /calendario.ics).
+	const since = publicIcsSince();
+	// La privacidad de los lugares (#137) manda sobre `location` del .md, como en la página. Solo
+	// de los eventos que van a salir.
 	const venues = await feedVenues(
 		getDB(platform),
-		events.map((e) => String(e.meta.postID))
+		events.filter((e) => isFeedEvent(e, { since })).map((e) => String(e.meta.postID))
 	);
 	return icsResponse(
 		buildIcsFeed(events, {
 			calName: `${name} · Kinky Vibe`,
 			profiles: posts,
 			venues,
-			// De los pasados, solo los de los últimos 90 días (como /calendario.ics).
-			since: publicIcsSince()
+			since
 		})
 	);
 }

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { writeGolden } from '$lib/testing/golden.js';
 import {
 	MAIL_LAYOUT_MARK,
 	MAIL_LOGO_PATH,
@@ -12,8 +13,21 @@ import { buildTicketEmail, buildTransferEmail } from '$lib/server/tickets/email.
 import { fixtureOrder, fixtureTickets } from '$lib/server/tickets/email.fixtures.js';
 import { WHY_BOUGHT, WHY_FREE } from '$lib/utils/emailTemplates.js';
 
-// Asunto y texto plano de cada mail ANTES de la plantilla común (ver mails.fixtures.js).
-const textGolden = JSON.parse(readFileSync(new URL('./mails.text.json', import.meta.url), 'utf8'));
+// Asunto y texto plano de cada mail ANTES de la plantilla común (ver mails.fixtures.js). Este
+// archivo es el único que escribe mails.text.json: con UPDATE_EMAIL_GOLDEN=1 la regenera entera
+// con los builders de hoy (docs/mails.md, «Cambiar un mail desde el código»); sin la variable,
+// compara.
+const TEXT_GOLDEN = new URL('./mails.text.json', import.meta.url);
+if (process.env.UPDATE_EMAIL_GOLDEN === '1') {
+	/** @type {Record<string, { subject: string, text: string }>} */
+	const fresh = {};
+	for (const [name, fn, input] of allMailCases()) {
+		const { subject, text } = fn(input);
+		fresh[name] = { subject, text };
+	}
+	writeGolden(TEXT_GOLDEN, fresh);
+}
+const textGolden = JSON.parse(readFileSync(TEXT_GOLDEN, 'utf8'));
 
 /** Etiqueta gris de arriba de la tarjeta. */
 const LABEL_RE = /<p style="[^"]*text-transform:uppercase[^"]*">([^<]+)<\/p>/;

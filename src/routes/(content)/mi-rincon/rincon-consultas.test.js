@@ -147,7 +147,9 @@ describe('Mi rincón con sesión, en pocas tandas', () => {
 		// el evento de la compra).
 		// 8 con «¿Son tuyas?» («No fui yo», parte 2): el mail verificado una vez, y las dos consultas de compras a la par.
 		// 9 con «Dónde tenés la sesión abierta»: una consulta más, a la par de las otras (sin tanda nueva).
-		expect(r.queries).toBeLessThanOrEqual(9);
+		// 10 con los pedidos «¿Es tu perfil?» de la cuenta (rincon-pedidos), también a la par de lo
+		// demás: no suma tandas.
+		expect(r.queries).toBeLessThanOrEqual(10);
 		expect(r.waves).toBeLessThanOrEqual(4);
 		expect(r.accountReads).toBeLessThanOrEqual(3);
 	});
@@ -204,7 +206,8 @@ describe('Mi rincón con sesión, en pocas tandas', () => {
 					current: true
 				}
 			],
-			now: expect.any(Number)
+			now: expect.any(Number),
+			claims: []
 		});
 		expect(r.layout).toMatchObject({ member: true, readingSpeed: 300, user: undefined });
 	});

@@ -19,7 +19,9 @@ import {
 	webhookSecret
 } from '$lib/server/tickets/index.js';
 import { verifyWebhookSignature } from '$lib/server/tickets/mercadopago.js';
+import { getOrder } from '$lib/server/tickets/orders.js';
 import { applyTipPayment, isTipReference } from '$lib/server/propinas/index.js';
+import { reportPurchaseFailure } from '$lib/server/telegram/purchaseAlerts.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, url, platform, fetch }) {
@@ -65,6 +67,8 @@ export async function POST({ request, url, platform, fetch }) {
 		payment = await gateway.getPayment(dataId);
 	} catch (error) {
 		console.error(`[tickets] no se pudo obtener el pago ${dataId}:`, error);
+		// «Fallas en compras» por Telegram (nunca tira). Todavía no se sabe de qué orden es.
+		await reportPurchaseFailure({ db, platform, code: 'mp_pago', origin: siteOrigin(url), fetch });
 		return text('upstream error', { status: 502 });
 	}
 
@@ -87,6 +91,29 @@ export async function POST({ request, url, platform, fetch }) {
 		return json({ ok: true, outcome: result.outcome });
 	} catch (error) {
 		logDBError('webhook apply payment', error);
+		await reportPurchaseFailure({
+			db,
+			platform,
+			code: 'pago',
+			order: await paymentOrder(db, payment),
+			origin: siteOrigin(url),
+			fetch
+		});
 		return text('error', { status: 500 });
+	}
+}
+
+/**
+ * La orden del pago (su `external_reference`) para el link del aviso, solo si se puede leer; si
+ * la base es la que falló, `null`.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {{ external_reference?: string | null }} payment
+ */
+async function paymentOrder(db, payment) {
+	try {
+		return await getOrder(db, String(payment.external_reference ?? ''));
+	} catch {
+		return null;
 	}
 }

@@ -28,7 +28,23 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 
 - **Clave por contenido**: `img/<sha-256>.<ext>`. El mismo archivo subido dos veces es la misma
   imagen (el `slug` del objeto es el hash). Como un archivo nunca cambia, `/media/…` responde con
-  `Cache-Control: public, max-age=31536000, immutable`, `ETag` y el tipo correcto.
+  `Cache-Control: public, max-age=31536000, immutable`, `ETag` y el tipo correcto. La excepción son
+  las imágenes de perfiles (abajo, «Fotos de perfiles»).
+- **Fotos de perfiles** (edge `avatar`): se guardan **un día** (`public, max-age=86400`, sin
+  `immutable`; también sus copias chicas) y se sirven solo mientras algún objeto vivo que se
+  muestra las use (un perfil visible y aprobado, un evento, un texto que la nombra). Si el perfil
+  se oculta, se borra o todavía no se aprobó, `/media` da 404 a cualquiera y la sirve solo a quien
+  ve ese perfil (admins, quien lo gestiona, quien subió la imagen; una cuenta si el perfil es
+  «solo con cuenta») con `private, max-age=3600`, que la caché del borde no guarda
+  (`servableImage`/`servableCopy` en `src/lib/server/media/library.js`). Lo que ya estaba en la
+  caché del borde o de un navegador se sigue viendo hasta un día. Las portadas de eventos, material
+  y series siguen inmutables (nada cambia para el rendimiento de las tarjetas).
+- **Sin metadatos**: antes de calcular el hash, `storeImage` le saca a un JPEG los segmentos Exif,
+  XMP, IPTC y los comentarios (de Exif deja solo la orientación) y a un PNG los bloques eXIf,
+  tEXt, zTXt, iTXt y tIME (`src/lib/server/media/metadata.js`). Ahí pueden ir el GPS de donde se
+  sacó la foto, la fecha o el modelo del celu. WEBP, GIF y AVIF van tal cual (lo que sube el
+  navegador ya pasó por el canvas, que no copia metadatos). Una imagen subida antes de este cambio
+  y subida de nuevo da otro hash: es otra imagen.
 - **Objeto `imagen`**: `title` (nombre para buscarla), `key`, `mime`, `size`, `width`, `height`,
   `alt` (texto alternativo), `original_name` y, si vino del repo, `source_path`. Quién la subió y
   cuándo: `created_by`/`created_at` (solo les admins lo ven).
@@ -69,7 +85,8 @@ cupo de transformaciones de Cloudflare (decidido por gorrite: nada de `/cdn-cgi/
   achicar), `/media/img/<hash>-360.webp` responde **302 al original** con
   `Cache-Control: public, max-age=3600`: se ve igual que antes y, apenas existe la copia, se usa
   (como mucho una hora después). Una copia que existe se sirve como el original: caché para
-  siempre, `ETag`, `nosniff` y el `sandbox`. Una imagen borrada: 404 también para sus copias.
+  siempre, `ETag`, `nosniff` y el `sandbox`. Una imagen borrada: 404 también para sus copias
+  (salvo lo que ya estaba en caché: ver «Borrar»).
 - **Cuánto ahorra**: ver «Velocidad» en [seo.md](seo.md).
 
 ### La pasada por las imágenes que ya estaban (una vez, la corre gorrite)
@@ -139,7 +156,8 @@ están ahí, y los textos que los enlazan, reescritos («Los PDF y el video del 
   `filename`, el nombre con tildes en `filename*`). Todas las respuestas de `/media` dicen
   `Accept-Ranges: bytes` y atienden **un rango** (`Range: bytes=…`): 206 con `Content-Range`,
   416 si el rango está fuera del archivo; varios rangos o uno raro se ignoran (200 con todo). Un
-  archivo borrado da 404, como una imagen.
+  archivo borrado da 404, como una imagen (y como una imagen, lo que ya estaba en caché se sigue
+  sirviendo hasta que se purgue: ver «Borrar»).
 - **Buscar con filtro por tipo**: `GET /imagenes?q=…&tipo=todo|imagen|documento|video` (solo
   admins; cada cosa con `kind`, `typeLabel` y dónde se usa). Sin `tipo`, `/imagenes` sigue
   trayendo solo imágenes (es lo que usa el selector de imágenes).
@@ -208,8 +226,10 @@ recorrer toda la biblioteca está Contenido → Biblioteca (abajo). Pestañas:
 
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
-  largo 2000 px) y la pasa a WEBP, y hace sus dos copias chicas para las tarjetas (arriba); si no
-  puede (o un GIF, que puede ser animado), sube el original.
+  largo 2000 px) y la pasa a WEBP, y hace sus dos copias chicas para las tarjetas (arriba). Si el
+  navegador no sabe hacer WEBP (Safari), una foto JPEG la pasa a JPEG, y un PNG, WEBP o AVIF lo
+  sube como está (puede tener transparencias, que en JPEG saldrían negras); si no puede dibujarla
+  (o un GIF, que puede ser animado), sube el original, y el servidor le saca los metadatos (arriba).
 - **Buscar**: por nombre o texto alternativo (búsqueda de la base, sin tildes).
 - **De este evento** (o «De este material/serie/perfil»): las imágenes que ya usa ese objeto; en un
   evento, también las de su serie (la etiqueta y las otras ediciones).
@@ -218,6 +238,9 @@ Lo elegido viaja en un campo oculto `imageId` (`''` = no se tocó, `none` = se s
 servidor crea el edge **en el mismo guardado** del objeto (eventos y material: `commitFiles` con
 `edges`; perfiles: `updateProfile` con `avatar`; series: después de guardar la etiqueta, con
 `linkImage`). Al elegir o sacar una imagen se saca también el campo viejo (`featured` / `image`).
+La portada que el selector muestra de entrada en esos editores (y la del original en «Cargar
+evento» desde otro) sale de un solo helper, `libraryCoverOf` (`src/lib/server/contenido/posts.js`):
+la dirección, su edge `portada` como la ve el panel, o null si no hay o no se pudo leer.
 
 ## Contenido → Biblioteca (la página del panel)
 
@@ -258,7 +281,8 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 
 - **Admins**: subir (imágenes, documentos y video), buscar en toda la biblioteca, elegir
   cualquiera y sacar imágenes y archivos.
-- **Cuentas que gestionan un perfil** (Mi rincón): subir y buscar **solo entre las que subieron**;
+- **Cuentas que gestionan un perfil** (Mi rincón, con el permiso «puede tener perfiles»; sin él,
+  `/imagenes` da 404 como a cualquiera): subir y buscar **solo entre las que subieron**;
   en su perfil solo pueden poner una imagen que subieron o la que el perfil ya tenía. **Borran una
   imagen que subieron, solo si nada la usa** (decisión de gorrite; ver «Borrar»).
   **Tope por cuenta**: 30 subidas y 200 MB en las últimas 24 horas
@@ -270,11 +294,23 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 ## Borrar
 
 «Sacar de la biblioteca» (admins, en Buscar) es el **borrado suave** del objeto `imagen`:
-deja de aparecer en el selector, las páginas dejan de mostrarla y `/media/…` da 404. **El archivo
-queda en R2** (es barato y permite deshacer: subir el mismo archivo la vuelve a la vida, con sus
-edges). Ojo: los navegadores que ya la tenían en caché la pueden seguir mostrando un tiempo.
-Para borrar los bytes de verdad (el pedido de una persona), ver «Si una persona pide que saquemos su
-foto», abajo: hay que borrarlos también de la copia nocturna.
+deja de aparecer en el selector y las páginas dejan de mostrarla. **El archivo queda en R2** (es
+barato y permite deshacer: subir el mismo archivo la vuelve a la vida, con sus edges).
+
+**`/media/…` no da 404 al toque en todos lados.** El worker del adapter de SvelteKit busca cada
+pedido en la caché del borde de Cloudflare (`caches.default`, por URL) **antes** de llegar a la
+app, y guarda ahí toda respuesta que no diga `private`/`no-cache`/`no-store`
+(`node_modules/@sveltejs/adapter-cloudflare/files/worker.js`). Así que en cada centro de datos
+donde alguien ya pidió la imagen, la respuesta guardada se sigue sirviendo sin preguntarle a la
+base: **hasta un año** una portada o un archivo (`immutable`), **hasta un día** la foto de un
+perfil. Probado con `wrangler dev` (que emula esa caché): después de borrar, la misma URL sigue
+dando 200 y con `Cache-Control: no-cache` en el pedido (que saltea la caché) da 404. Los
+navegadores que ya la tenían también la guardan ese tiempo, y eso no se puede borrar. Por eso,
+después de sacarla, hay que **purgarla de la caché del borde**: sola si la purga automática está
+configurada, o a mano (abajo).
+
+Para borrar los bytes de verdad (el pedido de una persona), ver «Si una persona pide que saquemos
+su foto», abajo: hay que borrarlos también de la copia nocturna.
 
 **Las cuentas** (Mi rincón, «Borrar imágenes sin usar…» en Buscar) borran igual (el mismo borrado
 suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` en
@@ -288,6 +324,67 @@ suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` e
 - La imagen de otra persona, una ya borrada, sin sesión o sin perfiles: 404 (como si no
   existiera). Desde otro sitio (Origin): 403.
 - Les admins siguen pudiendo sacar cualquiera, aunque se use.
+
+### Purga automática (cuando está configurada)
+
+Cada respuesta de `/media` lleva `Cache-Tag: img-<hash>` (el original y sus copias chicas
+`-360`/`-720`, la misma etiqueta) o `file-<hash>` (un documento o video). Cloudflare la guarda con
+la entrada de la caché (también las que guarda el worker con `cache.put`) y la saca antes de que
+llegue al navegador. Cuando algo deja de servirse, `purgeMediaCache` (`src/lib/server/media/purge.js`)
+le pide a la API de Cloudflare (`POST /zones/<zona>/purge_cache`) que purgue esas etiquetas en
+todos los centros de datos, y en un segundo pedido la URL del original (lo que, según la
+documentación de Cloudflare Images, saca también sus variantes `/cdn-cgi/image/…`). Corre en
+`waitUntil`: quien borra no la espera, y si falla, lo de la persona ya está hecho y el error queda
+en los registros del Worker (una línea JSON con `"area":"media-purge"`). Se purga:
+
+- al **sacar** una imagen o un archivo de la biblioteca (admins, y una cuenta con una imagen suya
+  sin usar);
+- la **foto de un perfil** cuando el perfil se oculta (panel o Mi rincón), deja de ser público
+  («solo con cuenta»), sale de Amigues, se borra (panel o Mi rincón), o le cambian o sacan la foto
+  (la de antes);
+- las fotos de los perfiles de una cuenta que **se borra** («Borrar la cuenta» en Mi rincón).
+
+Purgar algo que se sigue usando en otro lado no rompe nada: el próximo pedido lo vuelve a buscar.
+
+**Para prenderla** (una vez, gorrite, en el panel de Cloudflare; nada de esto va al repo):
+
+1. **El id de la zona**: zona `kinkyvibe.ar` → **Overview** → columna de la derecha, «API» →
+   **Zone ID** (copiar con el botón). Va en el Worker `kinkyvibe` → **Settings** → **Variables and
+   Secrets** como texto: `CLOUDFLARE_ZONE_ID`.
+2. **El token**: **My Profile** → **API Tokens** → **Create Token** → **Custom token**, con un solo
+   permiso, **Zone** › **Cache Purge** › **Purge**, y en «Zone Resources» solo **Include** ›
+   **Specific zone** › `kinkyvibe.ar`. Va en el mismo lugar como **Secret**:
+   `CLOUDFLARE_PURGE_TOKEN`.
+3. Para probar: sacar una imagen de prueba y mirar que `curl -sI` de su dirección dé `404` (en los
+   registros del Worker no tiene que aparecer `media-purge`).
+
+Sin alguno de los dos, la purga no hace nada (los registros lo dicen una vez por instancia,
+`[media-purge] Sin CLOUDFLARE_PURGE_TOKEN…`) y hay que purgar a mano. Los previews no los
+necesitan: en `workers.dev` la caché del worker no guarda nada.
+
+### Purgar a mano (si la automática no está o falló)
+
+Panel de Cloudflare → zona `kinkyvibe.ar` → **Caching** → **Configuration** → **Custom Purge** →
+**URL**, y pegar estas direcciones (`<hash>.<ext>` es lo que muestra «Abrir»):
+
+```text
+https://kinkyvibe.ar/media/img/<hash>.<ext>
+https://kinkyvibe.ar/media/img/<hash>-360.webp
+https://kinkyvibe.ar/media/img/<hash>-720.webp
+```
+
+- Las dos copias chicas existen para todo menos un GIF (`copyKey` en `src/lib/utils/mediaCopies.js`);
+  purgarlas aunque no estén no hace daño. Un documento o video es una sola:
+  `https://kinkyvibe.ar/media/file/<hash>.<ext>`.
+- Las variantes `/cdn-cgi/image/…` (vistas previas de links, miniaturas del panel y de Telegram)
+  **no se purgan por su dirección**: Cloudflare las guarda bajo la URL del original y las purga
+  junto con ella (docs de Cloudflare Images, «Caching»). Alcanza con la primera línea.
+- `www.kinkyvibe.ar` redirige al dominio sin `www`, así que no hace falta purgarlo.
+- Cada URL con algo después de `?` (`…webp?x=1`) es otra entrada de la caché, y la purga por URL
+  no la toca. El sitio nunca pide imágenes así, pero si alguien lo hizo, **Custom Purge → Prefix**
+  con `kinkyvibe.ar/media/img/<hash>` saca de una vez el original, las copias y cualquier `?…`.
+- Para comprobar: `curl -sI https://kinkyvibe.ar/media/img/<hash>.<ext>` tiene que dar `404`
+  (mira solo el centro de datos más cercano; la purga es para todos).
 
 ## Las imágenes viejas del repo
 
@@ -385,9 +482,13 @@ Con un bloqueo puesto, un bucket no se puede vaciar ni borrar hasta sacar las re
 ### Si una persona pide que saquemos su foto
 
 1. **En el momento: sacarla del sitio.** Contenido → Biblioteca → buscarla → **Sacar** (el borrado
-   suave): deja de aparecer en las páginas y `/media/…` da 404, también para sus copias chicas.
-   Sacarla también de donde se use (portada, perfil) si hace falta otra imagen. Los navegadores que
-   ya la tenían la pueden mostrar un rato más (caché).
+   suave): deja de aparecer en las páginas. Sacarla también de donde se use (portada, perfil) si
+   hace falta otra imagen. **`/media/…` no da 404 al toque**: donde ya estaba en la caché del
+   borde se sigue sirviendo hasta un año (un día si es la foto de un perfil). Con la purga
+   automática configurada («Borrar», arriba), sacarla ya la purga sola; si no (o si `curl -sI`
+   todavía da 200 a los pocos minutos), **purgar a mano en Cloudflare** sus tres direcciones
+   (original, `-360.webp`, `-720.webp`). Comprobar con `curl -sI` que da 404. Lo que quedó en el
+   navegador de alguien no se puede borrar.
 2. **Anotar la clave** (antes de sacarla, «Abrir» muestra `/media/img/<hash>.<ext>`): la clave en
    R2 es `img/<hash>.<ext>`, y sus copias chicas, `img/<hash>-360.webp` e `img/<hash>-720.webp`
    (un GIF no tiene). Un documento: `file/<hash>.<ext>`.
@@ -446,8 +547,9 @@ aclara en cada punto.
   que confirmó gorrite): solo edges y menciones desde objetos **vivos** (un
   objeto borrado que la tenía no la frena; si se restaura, queda sin esa imagen hasta que se
   suba de nuevo). Sin sesión o sin perfiles, 404 como el resto de `/imagenes` (no 401/403).
-- **/media sirve solo imágenes vivas** (una consulta a D1 por pedido, con caché inmutable en el
-  navegador). Una imagen borrada da 404 aunque el archivo siga en R2.
+- **/media sirve solo imágenes vivas** (dos consultas a D1 por pedido que no está en caché, con caché
+  inmutable en el navegador salvo las fotos de perfiles, arriba). Una imagen borrada da 404 aunque
+  el archivo siga en R2.
 - **Al elegir o sacar una imagen se borra el campo viejo** (`featured` del evento/material,
   `image` de la serie): el edge pasa a ser lo único.
 - **Duplicar un evento**: si el original tiene imagen de la biblioteca, la copia usa la misma

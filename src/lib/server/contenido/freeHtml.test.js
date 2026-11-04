@@ -12,7 +12,10 @@ async function html(md) {
 	const out = (await renderFreeBody(md)).html;
 	return out
 		.replace(/<svg[\s\S]*?<\/svg>/g, '')
-		.replace('<nav class="toc"><ol class="toc-level toc-level-1"></ol></nav>', '')
+		.replace(
+			'<nav class="toc" aria-label="Índice"><ol class="toc-level toc-level-1"></ol></nav>',
+			''
+		)
 		.replace(/\n/g, '');
 }
 

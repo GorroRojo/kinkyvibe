@@ -46,6 +46,11 @@ guía: `compartir.md` (llega con el PR #257).
 | Serie              | `EventSeries` con `subEvent` (sin lugar); cada edición la nombra en `superEvent`         |
 | Perfil             | `ProfilePage` con `Person` (persona), `Organization` (proyecto) o `Place` (lugar)        |
 
+En una entrada de la wiki, el `DefinedTerm` lleva su página en `mainEntityOfPage` (un `WebPage`
+con `dateModified`: el último guardado de la etiqueta, `objects.updated_at`), porque `DefinedTerm`
+no es un CreativeWork y no admite fechas propias. La página no muestra la fecha (un «Actualizado
+el» visible es decisión de gorrite).
+
 El perfil de KinkyVibe (`/amigues/KinkyVibe`, por su dirección) lleva el `@id` de la organización
 de la portada (`ORGANIZATION_ID`): es la misma entidad. Todas las páginas dicen `inLanguage`
 `es-AR`, como `<html lang>`.
@@ -118,6 +123,8 @@ los pasados solo los que terminaron en los últimos 90 días (`publicIcsSince` e
 suscripto baja cada hora). **Cambia lo que ve quien está suscripte**: los calendarios suscriptos
 copian el archivo, así que los eventos de hace más de 90 días dejan de verse ahí (siguen en el
 sitio). Para cambiar el plazo: `PUBLIC_ICS_PAST_DAYS`. El personal (`/ics/mio/…`) sigue con todo.
+Los lugares vinculados se buscan solo para los eventos que van a salir (`isFeedEvent`), y los dos
+salen con `public, max-age=900` (`icsResponse`).
 Todos dicen cada cuánto volver a bajarlos: `X-PUBLISHED-TTL` (Outlook) y `REFRESH-INTERVAL` (RFC
 7986), una hora. El `ORGANIZER` lleva el mail del perfil de quien organiza si lo tiene y si no (los
 de Kinky Vibe siempre) el contacto público `kinkyvibe.talleres@gmail.com` (`DEFAULT_CONTACT_EMAIL`
@@ -247,6 +254,12 @@ primer paso de `handle` (`src/hooks.server.js`) hace lo mismo con `wwwRedirectRe
 (`src/lib/server/canonicalHost.js`): solo con el host `www.` exacto, así que el apex, los Previews
 y localhost no cambian y no hay bucles. Las canónicas siguen saliendo del origen del pedido (los
 Previews y `seo.test.js` lo esperan).
+
+En los builds de producción (rama `main`), cualquier otro host (una dirección `*.workers.dev` de
+una versión de producción) también va a `https://kinkyvibe.ar` con 308 (`offSiteRedirectResponse`,
+mismo archivo): producción tiene una sola puerta, la de la zona, con sus reglas. Los Previews de
+rama y local no cambian (su rama no es `main`), y `/api/cron/…` no se redirige. Por eso la Version
+URL de un deploy de producción ya no sirve para probarlo: redirige al sitio.
 
 ### IndexNow
 
@@ -485,7 +498,10 @@ cada tarjeta esconde 1 o 2 chips.
   febrero de 2026 · Kinky Vibe»; `eventPageTitle` en `eventPage.js`), sea o no de una serie y
   aunque haya varias ediciones en el mes, salvo que el título ya diga ese día. Sale solo del
   evento, sin mirar la serie. El `h1` y la vista previa al compartir quedan con el título solo.
-  Los perfiles no dicen «· Kinky Vibe» («Mem | él»).
+  Si el `<title>` pasa de 65 caracteres (Google muestra unos 60), pierde « · Kinky Vibe»; y si
+  el título del evento solo ya es más largo, se recorta en una palabra con «…», conservando el
+  día (`eventTabTitle`). Solo la pestaña y los buscadores: el `h1` y `og:title` van enteros.
+  Los perfiles también terminan en «· Kinky Vibe» («Mem | él · Kinky Vibe», `ProfileHead.svelte`).
 - **Títulos de las listas**: el `<title>` del inicio es `home.title` y el de cada lista es su
   título del panel más « · Kinky Vibe» (`<lista>.heading`, `wiki.title`; Ajustes › Vistas
   previas, [compartir.md](compartir.md)), el mismo que `og:title`: así gorrite prueba títulos sin

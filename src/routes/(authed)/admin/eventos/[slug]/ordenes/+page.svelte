@@ -8,6 +8,7 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import OrderAnswers from '$lib/components/admin/OrderAnswers.svelte';
 	import DniReveal from '$lib/components/admin/DniReveal.svelte';
+	import { announce, announceResult } from '$lib/admin/announce.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { foldSearch } from '$lib/admin/eventFormat.js';
 	import {
@@ -22,6 +23,13 @@
 	} from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
+	import { replaceState } from '$app/navigation';
+	import {
+		DEFAULT_ORDER_SORT,
+		ORDER_SORTS,
+		orderSortOf,
+		sortOrders
+	} from '$lib/admin/orderSort.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -93,6 +101,17 @@
 				return words.every((w) => matches(w, hay, o.id));
 			})
 		: byStatus;
+	// «Ordenar» (tarjetas, no una tabla): llegan todas las órdenes del evento, así que se ordenan
+	// acá. Queda en la URL (`?orden=total`) sin volver a cargar la página; se lee al montar.
+	let orderBy = DEFAULT_ORDER_SORT;
+	onMount(() => (orderBy = orderSortOf(new URL(location.href).searchParams.get('orden'))));
+	$: shown = sortOrders(visible, orderBy);
+	function writeSortUrl() {
+		const url = new URL(location.href);
+		if (orderBy === DEFAULT_ORDER_SORT) url.searchParams.delete('orden');
+		else url.searchParams.set('orden', orderBy);
+		replaceState(url, {});
+	}
 	// Link a una orden (`#orden-<id>`, por ejemplo «¿Te equivocaste? Ver la orden» de la Puerta):
 	// si el filtro la esconde, pasa a «Todas»; baja hasta ella y la marca (`:target` no siempre se
 	// aplica después de una navegación del lado del cliente).
@@ -116,14 +135,54 @@
 	$: rr = /** @type {any} */ (form)?.refundAll;
 	$: rrDone = rr?.results ? rr.results.filter((/** @type {any} */ r) => r.ok) : [];
 	$: rrFailed = rr?.results ? rr.results.filter((/** @type {any} */ r) => !r.ok) : [];
+	/**
+	 * `use:enhance` que, al volver, lee en voz alta el mensaje de la acción (`form[key].message`):
+	 * el `role="status"` de cada aviso nace junto con su texto y no siempre se lee.
+	 *
+	 * @param {string} key
+	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const announced =
+		(key) =>
+		() =>
+		async ({ result, update }) => {
+			await update();
+			announceResult(result, key);
+		};
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const submitAll = () => {
 		sendingAll = true;
-		return async ({ update }) => {
+		return async ({ result, update }) => {
 			await update();
+			announceResult(result, 'refundAll');
+			// La tanda que salió bien no trae mensaje: se lee el resumen.
+			const done = /** @type {any} */ (result).data?.refundAll?.results;
+			if (result.type === 'success' && Array.isArray(done)) {
+				const failed = done.filter((/** @type {any} */ r) => !r.ok).length;
+				announce(
+					`Reembolsadas: ${done.length - failed}${failed ? `. Sin reembolsar: ${failed}` : ''}.`,
+					{ force: true }
+				);
+			}
 			sendingAll = false;
 			confirmingAll = false;
 			typedAll = '';
+		};
+	};
+	// «Reembolsar…» de una orden: mientras se pide, el botón queda apagado y dice «Reembolsando…»
+	// (como «Reembolsar todas»), para que un segundo toque no mande otro pedido.
+	let refunding = '';
+	/**
+	 * @param {string} id
+	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const submitRefund = (id) => () => {
+		refunding = id;
+		return async ({ result, update }) => {
+			await update();
+			// Y lee en voz alta el resultado, como `announced('refund')`.
+			announceResult(result, 'refund');
+			refunding = '';
 		};
 	};
 	$: counts = {
@@ -151,14 +210,15 @@
 						Pago aprobado con la reserva ya vencida y sin cupo libre: puede haber más entradas
 						vendidas que el cupo. Decidí si se acepta o se reembolsa.
 					{:else if o.needsReview === 'duplicate_payment'}
-						Llegó otro pago aprobado (Mercado Pago n.° {o.reviewDetail}) para esta orden, que ya
-						estaba pagada: posible cobro doble. Revisalo en Mercado Pago y reembolsá el que sobre.
+						Llegó otro pago aprobado de {formatARS(o.total)} (Mercado Pago n.° {o.reviewDetail})
+						para esta orden, que ya estaba pagada: posible cobro doble. Revisalo en Mercado Pago y
+						reembolsá el que sobre.
 					{:else if o.needsReview === 'door_offline'}
 						Venta en la puerta hecha sin conexión: al sincronizarse pasó un límite o quedó
 						registrada con otro total que el que se cobró ({o.reviewDetail}). Se guardó igual;
 						decidí si queda así o se reembolsa.
 					{/if}
-					<form method="POST" action="?/reviewed" use:enhance>
+					<form method="POST" action="?/reviewed" use:enhance={announced('review')}>
 						<input type="hidden" name="order" value={o.id} />
 						<button type="submit" class="kv-btn ghost small">Marcar como revisada</button>
 					</form>
@@ -308,6 +368,12 @@
 				<option value="all">Todas ({counts.all})</option>
 			</select>
 		</label>
+		<label class="filter">
+			<span>Ordenar</span>
+			<select bind:value={orderBy} on:change={writeSortUrl}>
+				{#each ORDER_SORTS as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
+			</select>
+		</label>
 		<label class="search">
 			<Search size={16} aria-hidden="true" />
 			<span class="sr-only">Buscar una orden</span>
@@ -326,7 +392,7 @@
 		<EmptyState icon={ReceiptText} title="No hay órdenes para mostrar" />
 	{/if}
 	<ul class="orders">
-		{#each visible as o (o.id)}
+		{#each shown as o (o.id)}
 			<li class="order status-{o.status}" class:linked={o.id === linked} id="orden-{o.id}">
 				<div class="who">
 					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}
@@ -398,7 +464,7 @@
 						· {#if o.emailProblem}<strong class="mail-problem"
 								>{EMAIL_PROBLEM[o.emailProblem] ?? 'mail enviado'}</strong
 							>{:else}{o.emailSent ? 'mail enviado' : 'mail NO enviado'}{/if}
-						<form method="POST" action="?/resend" use:enhance>
+						<form method="POST" action="?/resend" use:enhance={announced('resend')}>
 							<input type="hidden" name="order" value={o.id} />
 							<button type="submit" class="kv-btn ghost small">Reenviar mail</button>
 						</form>
@@ -413,7 +479,12 @@
 					<!-- Quien compró escribió mal su mail: se corrige y las entradas salen a la nueva. -->
 					<details class="email-fix" open={form?.emailFix?.order === o.id && !form.emailFix.ok}>
 						<summary>Corregir el mail…</summary>
-						<form method="POST" action="?/email" use:enhance class="email-fix-form">
+						<form
+							method="POST"
+							action="?/email"
+							use:enhance={announced('emailFix')}
+							class="email-fix-form"
+						>
 							<input type="hidden" name="order" value={o.id} />
 							<label>
 								<span>Mail nuevo</span>
@@ -458,14 +529,21 @@
 								Las entradas quedan anuladas (el control de ingreso las rechaza), se libera el cupo y
 								el uso del código, sale de los totales y le avisamos por mail.
 							</p>
-							<form method="POST" action="?/refund" use:enhance>
+							<form method="POST" action="?/refund" use:enhance={submitRefund(o.id)}>
 								<input type="hidden" name="order" value={o.id} />
-								<button type="submit" class="refund-confirm">
-									{o.method === 'mercadopago'
-										? `Confirmar reembolso de ${formatARS(Math.max(0, o.total - o.refundedAmount))}`
-										: o.method === 'transferencia'
-											? 'Marcar como reembolsada (transferencia devuelta a mano)'
-											: 'Anular las entradas'}
+								<button
+									type="submit"
+									class="refund-confirm"
+									disabled={refunding === o.id}
+									aria-busy={refunding === o.id}
+								>
+									{refunding === o.id
+										? 'Reembolsando…'
+										: o.method === 'mercadopago'
+											? `Confirmar reembolso de ${formatARS(Math.max(0, o.total - o.refundedAmount))}`
+											: o.method === 'transferencia'
+												? 'Marcar como reembolsada (transferencia devuelta a mano)'
+												: 'Anular las entradas'}
 								</button>
 							</form>
 						</div>
@@ -608,7 +686,8 @@
 		outline-offset: 2px;
 	}
 	.order {
-		scroll-margin-top: 5rem;
+		/* 5rem en total: en el celu, parte la pone el scroll-padding del panel. */
+		scroll-margin-top: calc(5rem - var(--panel-scroll-top, 0px));
 	}
 	.order:target,
 	.order.linked {

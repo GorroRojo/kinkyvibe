@@ -57,7 +57,8 @@
 </script>
 
 <div class="header">
-	<span class="month">
+	<!-- Al cambiar de mes con las flechas, el lector lee el mes nuevo. -->
+	<span class="month" aria-live="polite">
 		{view_month_string}
 		{#if view_is_different_year}
 			{view_year_string}
@@ -70,14 +71,14 @@
 				href={calendarMonthHref($page.url, prev_month, default_month)}
 				data-sveltekit-noscroll
 				data-sveltekit-keepfocus
-				aria-label="Previous Month"
+				aria-label="Mes anterior"
 			>
 				<ArrowLeft />
 			</a>
 		{:else}
-			<button on:click={set_prev_month} aria-label="Previous Month"> <ArrowLeft /> </button>
+			<button on:click={set_prev_month} aria-label="Mes anterior"> <ArrowLeft /> </button>
 		{/if}
-		<button on:click={set_today} aria-label="today" disabled={view_is_same_month}>
+		<button on:click={set_today} aria-label="Ir al mes actual" disabled={view_is_same_month}>
 			<Home />
 		</button>
 		{#if next_linked}
@@ -85,12 +86,12 @@
 				href={calendarMonthHref($page.url, next_month, default_month)}
 				data-sveltekit-noscroll
 				data-sveltekit-keepfocus
-				aria-label="Next Month"
+				aria-label="Mes siguiente"
 			>
 				<ArrowRight />
 			</a>
 		{:else}
-			<button on:click={set_next_month} aria-label="Next Month"> <ArrowRight /> </button>
+			<button on:click={set_next_month} aria-label="Mes siguiente"> <ArrowRight /> </button>
 		{/if}
 	</div>
 </div>

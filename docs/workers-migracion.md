@@ -85,6 +85,22 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   `console.warn` para una degradación que se arregla sola o con un reintento; `console.log` para
   resultados (cuántos mails salieron, qué backup se guardó). Quedan líneas viejas sin corchetes
   (por ejemplo, las de la integridad de los objetos en `scheduled.js`): se pasan al tocarlas.
+- **Fallas en compras**: si falla algo del camino de una compra (reservar, Mercado Pago, el
+  webhook, un pago que no coincide, el mail de las entradas), el mismo código deja una línea
+  `"area":"compra"` con un código corto y avisa por Telegram a les admins que lo prendieron, como
+  mucho una vez por falla cada media hora ([telegram.md](telegram.md#fallas-en-compras-purchasealertsjs)).
+  Se eligió eso en vez de un Worker que mire los registros (octubre de 2026): los
+  [Tail Workers](https://developers.cloudflare.com/workers/observability/logs/tail-workers/) y el
+  [Logpush de Workers](https://developers.cloudflare.com/workers/observability/logs/logpush/) son
+  del plan pago (US$ 5 por mes como mínimo) y piden configurarlos;
+  [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)
+  guarda 3 días (7 en el pago) y no manda alertas;
+  [Workers Issues](https://developers.cloudflare.com/workers/observability/issues/) (beta gratis)
+  agrupa los errores y puede mandarlos a un webhook, pero se prende con
+  `[observability.issues]` y se automatiza desde el panel, y mira todos los errores, no solo los
+  de una compra; [Analytics Engine](https://developers.cloudflare.com/analytics/analytics-engine/pricing/)
+  sirve para contar, no para avisar. Para ver todos los errores ya está Workers Issues (arriba);
+  falta que avise solo (la automatización del panel).
 - **Salud**: `GET /api/health` (`src/routes/api/health/+server.js`) responde un JSON con `ok`, `db`,
   `migrations` y `sha`, sin caché, para un monitor externo o para mirar después de un deploy. `db`:
   la base responde (`SELECT 1`); sin base, 503. `migrations`: `ok` si la base tiene aplicada la
@@ -322,6 +338,37 @@ local nunca la usan.
 - **Sacarla del todo:** en `worker/index.js`, llamar a `app.fetch` directo en vez de
   `withEdgeCache`.
 
+## Clave de caché de las rutas públicas
+
+Las respuestas con `cache-control` público (`/media/…`, `/og/…`, `/api/posts`,
+`/api/search-index.json`, `/calendario.ics`, `/ics/etiqueta/…`) las guarda la caché del adapter
+(`caches.default`, por centro de datos), que busca por la URL completa y se saltea si el pedido trae
+`cache-control: no-cache`. Esas rutas no leen el query ni la sesión, así que `worker/index.js` les
+pasa el pedido normalizado (`src/lib/server/cacheKey.js`): sin query y sin `cache-control` ni
+`pragma`. Variaciones del mismo pedido caen en la misma entrada y no vuelven a hacer el trabajo. Las
+visitas (`trackPageView`) se anotan con el pedido original. Una ruta nueva entra en la lista solo si
+no lee ni el query ni la sesión.
+
+Los `.ics` públicos (`/calendario.ics` y los de etiqueta) salen con `icsResponse`
+(`public, max-age=900`): un calendario suscripto los baja cada hora. `/ics/mio` es privado y queda
+fuera de la lista.
+
+- **Verificar:** `Server-Timing` dice `0 consultas` en la segunda de dos llamadas seguidas, aunque
+  cambie el query: `curl -s -o /dev/null -D - 'https://kinkyvibe.ar/api/posts?x=1' | grep -i
+server-timing` (y después con `?x=2`).
+- **Riesgo que queda:** pedidos a recursos que no existen (404, que el adapter no guarda); lo frena
+  una regla de la zona, no el código.
+
+### No prender Workers Cache
+
+Workers Cache (el bloque `[cache]` de `wrangler.toml`, o el interruptor del panel) parece arreglar
+de una vez la caché de las páginas, pero no conviene: **cobra los archivos estáticos** (hoy son
+gratis), arranca en frío en cada deploy (varios por día) y **no mira las cookies** del pedido, así
+que le daría la página anónima a quien tiene sesión. Para cachear, usar `caches.default` desde
+`worker/index.js` como la caché de 1 minuto (excluye todo pedido con cookie de sesión y nunca guarda
+`(authed)`) y la clave normalizada de arriba. Hoy `wrangler.toml` no tiene `[cache]`, y así tiene
+que quedar.
+
 ## Caché de los archivos estáticos (`_headers`)
 
 Los archivos de `static/` (favicon, íconos, `site.webmanifest`, `og-*.jpg`, `fonts/`) los sirve
@@ -435,6 +482,42 @@ manda lo pendiente y olvida lo leído; si la tanda falla, cada consulta se corre
 Un `curl` sin `-H 'accept: text/html'` nunca usa la caché de 1 minuto (`BYPASS`): mide la página
 recién hecha, que es lo que ve quien llega cuando no hay una guardada.
 
+## Tope de CPU (`[limits] cpu_ms`)
+
+`wrangler.toml` pone `cpu_ms = 15000`: cada invocación (un pedido o una corrida de cron) puede usar
+hasta 15 s de CPU en vez de los 30 s por defecto. Es un freno de costo (un pedido colgado en un
+bucle gasta la mitad), no mejora la velocidad. Rige también para los crons.
+
+Medido en local el 27/10/2026, build de producción con la semilla pública (`npm run db:semilla`,
+7.179 filas, 5 MB de SQL) en `wrangler dev`:
+
+- **Cron nocturno** (`/__scheduled?cron=0+6+*+*+*`: backup, integridad y lo demás): ~1,1 s de pared
+  en total. El volcado + gzip solo, medido en Node con `process.cpuUsage`: 1,0–1,3 s de CPU (incluye
+  el costo del proxy local de D1).
+- **`/og/…`** (dibujar una tarjeta): 1,2–3,0 s de pared (la primera incluye iniciar el WebAssembly).
+
+La CPU es como mucho el tiempo de pared. Producción tiene unas 5 veces las filas de la semilla, así
+que el backup andaría por ~5 s: 15 s deja unas 3 veces de margen. Si un día el backup se acerca
+(Observability → cpuTime del cron de las 6:00 UTC), subir el número o sacar el bloque; nunca
+bajarlo sin medir. En el panel: Settings → CPU Limits muestra el valor vigente.
+
+## Bots: Bot Fight Mode apagado
+
+**A CONFIRMAR** por gorrite (lo propone la auditoría de costos; no se tocó nada en el panel). Bot
+Fight Mode (Security → Settings → Bot traffic), la opción gratis contra bots, queda **apagado**:
+
+- **No admite excepciones**, ni con reglas propias ni con «Skip». Puede desafiar pedidos de
+  servidor a servidor que no son navegadores: el webhook de Mercado Pago
+  (`/api/mercadopago/webhook`), el del bot de Telegram (`/api/telegram`) y el pedido del Worker
+  del Fondo (`/api/fondo/mi-link`). Si se cortan, quedan órdenes pagadas sin aprobar y sin mail.
+- **Contra bots, en cambio:** AI Crawl Control para los rastreadores de IA y la regla de rate
+  limiting de la zona (una en el plan Free), las dos excluyendo siempre esas tres rutas, y las
+  alertas de presupuesto para enterarse.
+- **Si alguna vez hace falta más:** Super Bot Fight Mode es del plan Pro de la zona y sí admite
+  una regla «Skip»; crearla **antes** de prenderlo.
+- **Verificar (panel):** Security → Settings → Bot traffic sigue apagado y en Security → Analytics
+  no hay eventos de Bot Fight Mode.
+
 ## Avisos de fallas por Telegram
 
 Si algo falla de noche, el aviso va por el **bot de admins** (el mismo del resumen de ventas), como
@@ -461,10 +544,9 @@ Código en `src/lib/server/vigilancia/`; los textos, en Ajustes → Textos del b
   `/entradas/…` (la orden y las entradas), `/puerta/[slug]/compra` y `/propinas/…`. Dos, y no uno,
   porque Mercado Pago reintenta el webhook y quien compra reintenta el pago: un solo 5xx suelto
   suele arreglarse solo.
-- Aparte de este conteo, el PR #588 (en la tanda de integración) propone un aviso por cada falla
-  con nombre del camino de compra («Fallas en compras», letra `f`). Usan letras y claves de texto
-  distintas, así que pueden convivir; si quedan los dos, este cuenta lo que no tiene nombre (un
-  5xx cualquiera) y aquel dice qué falló.
+- Aparte de este conteo, «Fallas en compras» (#588, letra `f`, `purchaseAlerts.js`) avisa por
+  cada falla con nombre del camino de compra. Usan letras y claves de texto distintas y conviven:
+  este cuenta lo que no tiene nombre (un 5xx cualquiera) y aquel dice qué falló.
 - Con JavaScript, un `fail(502)` de una acción de formulario llega como 200: las acciones de
   compra (comprar, aplicar un código, la propina) marcan su estado con `markFailure`
   (`errorLog.js`) para que cuente igual. La venta pausada a propósito (`TICKETS_PAUSED`) marca `0`

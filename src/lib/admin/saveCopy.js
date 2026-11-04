@@ -1,9 +1,6 @@
 /**
- * Los textos de los formularios que dependen de adónde se guarda: los eventos y el material se
- * guardan en la base y se ven enseguida; las fichas de amigues, con un PR en GitHub que se publica
- * solo cuando pasan las pruebas (tarda unos minutos).
- *
- * Con el interruptor apagado los textos son exactamente los de siempre.
+ * Los textos de los formularios sobre guardar: todo lo que el panel guarda va a la base y se ve
+ * enseguida (decisión 0032; ya no hay textos de GitHub, PRs ni deploys).
  *
  * Lo usan /admin/eventos/nuevo (crear y duplicar), PostEditor (editar), ContentEditor (material y
  * amigues), FilePreview y las acciones del servidor de esas páginas (los mensajes de error).
@@ -25,29 +22,9 @@
  * @prop {string} slugCheckFailed error al comprobar la dirección
  * @prop {string} saveFailed error al guardar el evento nuevo
  * @prop {string} slugTaken la dirección de la publicación nueva ya existe
+ * @prop {string} pathExists al guardar, la dirección elegida ya existe
  * @prop {string} changedMeanwhile alguien guardó la misma publicación mientras se editaba
  */
-
-/** @type {Readonly<SaveCopy>} */
-const GITHUB = Object.freeze({
-	editHelp:
-		'Al guardar, el cambio pasa por las pruebas automáticas y se publica solo: tarda unos minutos (normalmente menos de 15) en verse.',
-	askGorrite: true,
-	contentHelp: 'Los cambios tardan unos minutos (normalmente entre 2 y 5) en verse en el sitio.',
-	contentSaved: 'Guardado. El sitio se actualiza en unos minutos.',
-	contentCreated: 'Se ve en el sitio (y en la lista) cuando termina el deploy, en unos minutos.',
-	checkingSlug: 'Comprobando en GitHub…',
-	confirmPublish: 'Se va a ver en el sitio en unos minutos.',
-	saving: 'Guardando en GitHub…',
-	filePreview: 'Ver el archivo que se va a guardar',
-	eventReadFailed: 'No pudimos leer el evento desde GitHub: ',
-	postReadFailed: 'No pudimos leer la publicación desde GitHub: ',
-	slugCheckFailed: 'No pudimos consultar GitHub: ',
-	saveFailed: 'No se pudo guardar en GitHub: ',
-	slugTaken: 'Ya existe una publicación (o su carpeta de imágenes) con esa dirección en GitHub.',
-	changedMeanwhile:
-		'Alguien cambió esta publicación en GitHub mientras la editabas. Copiá tus cambios, recargá la página y volvé a intentar.'
-});
 
 /** @type {Readonly<SaveCopy>} */
 const DB = Object.freeze({
@@ -65,58 +42,29 @@ const DB = Object.freeze({
 	slugCheckFailed: 'No pudimos comprobar la dirección: ',
 	saveFailed: 'No se pudo guardar: ',
 	slugTaken: 'Ya existe una publicación (o su carpeta de imágenes) con esa dirección.',
+	pathExists: 'Ya existe una publicación con esa dirección. Elegí otra.',
 	changedMeanwhile:
 		'Alguien cambió esta publicación mientras la editabas. Copiá tus cambios, recargá la página y volvé a intentar.'
 });
 
 /**
- * Los textos según adónde se guarda.
+ * Los textos de guardar. El argumento no cuenta: lo siguen pasando algunos formularios
+ * (`data.savesToDb`, siempre `true`) hasta que se limpien.
  *
- * @param {boolean | null | undefined} savesToDb
+ * @param {unknown} [_savesToDb]
  * @returns {Readonly<SaveCopy>}
  */
-export function saveCopy(savesToDb) {
-	return savesToDb ? DB : GITHUB;
-}
-
-/**
- * «Ya existe <ruta>»: con GitHub, la ruta del archivo; con la base, sin rutas.
- *
- * @param {boolean | null | undefined} savesToDb
- * @param {string} path
- */
-export function pathExistsMessage(savesToDb, path) {
-	return savesToDb
-		? 'Ya existe una publicación con esa dirección. Elegí otra.'
-		: `Ya existe ${path} en GitHub. Elegí otra dirección.`;
+export function saveCopy(_savesToDb) {
+	return DB;
 }
 
 /**
  * La confirmación corta de la barra de guardar (y la que se anuncia a los lectores de pantalla)
- * después de guardar bien.
+ * después de guardar bien. Todo va a la base, así que es siempre la misma; el argumento (lo que
+ * devolvió el guardado) queda hasta que los formularios dejen de pasarlo.
  *
- * @param {{ savedToDb?: boolean | null, pr?: null | undefined | { state?: string } }} result
- *   `savedToDb`: el post se guardó en la base; `pr`: el PR de GitHub (con la base, solo si además
- *   había una imagen nueva, que sigue yendo al repo)
+ * @param {{ savedToDb?: boolean | null, pr?: unknown }} [_result]
  */
-export function savedSummary({ savedToDb, pr }) {
-	if (savedToDb && pr)
-		return 'Guardado. Se ve enseguida en el sitio; la imagen nueva tarda unos minutos.';
-	if (savedToDb) return 'Guardado. Se ve enseguida en el sitio.';
-	if (pr?.state === 'open') return 'Guardado, pero no se publica solo: mirá el aviso de arriba.';
-	if (pr?.state === 'merged')
-		return 'Guardado y publicado. El sitio se actualiza en un par de minutos.';
-	if (pr) return 'Guardado. Se publica en unos minutos, cuando pasen las pruebas.';
-	return 'Guardado.';
-}
-
-/**
- * ¿El guardado fue a la base? Lo que devuelve `commitFiles` con el interruptor prendido trae
- * `db` con los posts que guardó ($lib/server/contenido/repo.js).
- *
- * @param {unknown} commit
- */
-export function commitSavedToDb(commit) {
-	const db = /** @type {{ db?: unknown } | null | undefined} */ (commit)?.db;
-	return Array.isArray(db) && db.length > 0;
+export function savedSummary(_result) {
+	return 'Guardado. Se ve enseguida en el sitio.';
 }

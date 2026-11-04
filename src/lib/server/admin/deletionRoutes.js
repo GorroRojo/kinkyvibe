@@ -37,6 +37,7 @@ import {
 	tagIdOf,
 	undoDeletion
 } from './deletions.js';
+import { purgeProfileAvatars } from '$lib/server/media/purge.js';
 
 const NO_PERMISSION = 'No tenés permiso para borrar. Probá salir y volver a entrar.';
 
@@ -171,6 +172,8 @@ export async function deleteAction(event) {
 			return fail(400, { error: `Para confirmar, escribí exactamente «${slug}».` });
 		try {
 			const r = await deleteDbProfile(db, actor, inDb.profile);
+			// Su foto deja de servirse: que tampoco quede en la caché del borde.
+			await purgeProfileAvatars(event.platform, db, [inDb.profile.id]);
 			return {
 				deleted: {
 					id: r.id,

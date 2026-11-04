@@ -24,6 +24,7 @@ import {
 	templateDef
 } from '$lib/utils/emailTemplates.js';
 import { MAIL_COLORS, MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
+import { escapeHtml } from '$lib/utils/escape.js';
 import {
 	eventReservationScript,
 	googleCalendarUrl,
@@ -261,15 +262,8 @@ export function priceLines(order, typeName) {
 	return lines;
 }
 
-/** @param {string} s */
-export function escapeHtml(s) {
-	return s
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#39;');
-}
+// El escape de siempre ($lib/utils/escape.js); se reexporta para los mails que lo importan de acá.
+export { escapeHtml };
 
 /**
  * Fecha y hora del evento en horario de Argentina.
@@ -894,14 +888,16 @@ export function buildDateChangeEmail({
 export function buildRefundEmail({ order, event, typeName, contactEmail, origin, template }) {
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
 	const subject = custom.subject ?? `Reembolso de tu compra · ${event.title}`;
-	const how =
-		order.payment_method === 'mercadopago'
+	// «Sin cargo» solo si no se cobró nada: una carga a mano con medio «otro» y monto sí se cobró.
+	const how = !order.total
+		? 'Era una compra sin cargo: no hay dinero para devolver.'
+		: order.payment_method === 'mercadopago'
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
 			: order.payment_method === 'transferencia'
 				? 'Te devolvimos el dinero por transferencia.'
 				: order.payment_method === 'efectivo'
 					? 'Te devolvimos el dinero en efectivo.'
-					: 'Era una compra sin cargo: no hay dinero para devolver.';
+					: 'Te devolvimos el dinero.';
 	const amount = order.total ? ` de ${formatARS(order.total)}` : '';
 	const html = mailLayout({
 		origin,
@@ -1099,6 +1095,9 @@ export function resendBackoff(error) {
 	return error.status >= 500 ? 'server' : null;
 }
 
+/** Lo que Resend acepta como valor de un tag. */
+const RESEND_TAG_VALUE = /^[A-Za-z0-9_-]{1,256}$/;
+
 /** @param {number} ms */
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -1133,10 +1132,13 @@ async function resendError(res) {
  *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[],
  *     headers?: Record<string, string> },
  *   idempotencyKey?: string,
+ *   kind?: string,
  *   timeoutMs?: number,
  *   wait?: (ms: number) => Promise<unknown>
  * }} input `message.headers`: cabeceras de este mail, sobre {@link MAIL_HEADERS}. `wait`: la
- *   espera del reintento corto (para los tests).
+ *   espera del reintento corto (para los tests). `kind`: el tipo de mail (`entradas`, `codigo`,
+ *   `serie`…), que va como tag `tipo` de Resend para filtrar por tipo en Resend → Emails y en los
+ *   eventos del webhook. Solo letras ASCII, números, `_` y `-` (lo que acepta Resend).
  * @throws {ResendError} si Resend responde con un error (ver {@link resendBackoff}).
  *   Un 429 por tasa se reintenta una sola vez antes, esperando lo que diga `retry-after` (como
  *   mucho {@link RESEND_RETRY_MAX_WAIT_MS}): Resend no lo aceptó, así que no se duplica.
@@ -1149,6 +1151,7 @@ export async function sendWithResend({
 	replyTo,
 	message,
 	idempotencyKey,
+	kind,
 	timeoutMs = RESEND_TIMEOUT_MS,
 	wait = sleep
 }) {
@@ -1163,7 +1166,8 @@ export async function sendWithResend({
 		text: message.text,
 		...(message.attachments?.length ? { attachments: message.attachments } : {}),
 		...(replyTo ? { reply_to: replyTo } : {}),
-		headers: { ...MAIL_HEADERS, ...message.headers }
+		headers: { ...MAIL_HEADERS, ...message.headers },
+		...(kind && RESEND_TAG_VALUE.test(kind) ? { tags: [{ name: 'tipo', value: kind }] } : {})
 	});
 	const post = () =>
 		fetch('https://api.resend.com/emails', {

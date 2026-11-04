@@ -57,6 +57,33 @@ export function eventPageTitle(meta) {
 	return `${title} · ${day} de ${parts.year}`;
 }
 
+/** El largo máximo del `<title>` de un evento: Google muestra unos 60 caracteres. */
+export const EVENT_TAB_TITLE_MAX = 65;
+
+/**
+ * El `<title>` de un evento: {@link eventPageTitle} con «· Kinky Vibe» si entra en
+ * {@link EVENT_TAB_TITLE_MAX} caracteres; si no, sin la marca; y si el título solo ya es más
+ * largo, recortado en una palabra con «…», conservando el día. Solo la pestaña y los buscadores:
+ * el `h1` y `og:title` llevan el título entero.
+ *
+ * @param {{ title?: string, start?: string | number | Date | null }} meta
+ */
+export function eventTabTitle(meta) {
+	const base = eventPageTitle(meta);
+	const branded = `${base} · Kinky Vibe`;
+	if (branded.length <= EVENT_TAB_TITLE_MAX) return branded;
+	if (base.length <= EVENT_TAB_TITLE_MAX) return base;
+	const title = String(meta?.title ?? '');
+	// Lo que agrega eventPageTitle después del título (« · 24 de febrero de 2026», o nada).
+	const suffix = base.startsWith(title) ? base.slice(title.length) : '';
+	const room = EVENT_TAB_TITLE_MAX - suffix.length - 1;
+	if (room < 10) return `${base.slice(0, EVENT_TAB_TITLE_MAX - 1).trimEnd()}…`;
+	const cut = title.slice(0, room);
+	const space = cut.lastIndexOf(' ');
+	const short = (space > room / 2 ? cut.slice(0, space) : cut).replace(/[\s,;:·–—-]+$/, '');
+	return `${short}…${suffix}`;
+}
+
 /**
  * La próxima edición anunciada de alguna de las series del evento (para «Este evento ya pasó»),
  * o `null`.

@@ -85,7 +85,9 @@ export async function load({ params, platform, fetch, locals, setHeaders, url })
 		eventPageVenue(db, params.event, locals),
 		locals.member ? purchaseAccount(db, locals.member) : null
 	]);
-	if (!tickets) error(404, 'Este evento no vende entradas por acá.');
+	// Un evento que no vende por acá (se inscribe en otro sitio, o todavía no abrió la venta): a la
+	// página del evento, que tiene el link real. 302: puede empezar a vender más adelante.
+	if (!tickets) redirect(302, found.path);
 	const event = { meta: venue ? stripMdPlace(found.meta) : found.meta, path: found.path };
 	// Con cuenta: nombre, pronombres, DNI guardados y el mail de la cuenta, para completar «Tus
 	// datos», solo con la venta abierta. Es de esta persona: la página no se guarda en ningún caché.

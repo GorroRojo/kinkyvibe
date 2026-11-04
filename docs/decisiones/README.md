@@ -16,6 +16,11 @@ No hay decisiones legales acá: eso queda para abogades.
   cambia lo decidido.
 - Las decisiones las toma gorrite (o les superadmins). Si una no está clara, preguntá antes de
   inventar.
+- **Lo que decide una sesión sin la confirmación de gorrite** (porque había que elegir algo para
+  avanzar) no es una decisión de acá: va en el doc del área marcado **A CONFIRMAR**, en mayúsculas
+  (así lo encuentra `grep -r "A CONFIRMAR" docs`), y su lugar se suma a la línea de
+  `docs-a-confirmar` en [plan.md](../plan.md). Cuando gorrite lo confirma, se saca la marca (y, si
+  hace falta, se escribe la decisión).
 - Nada privado: sin datos de personas de la comunidad, secretos ni detalles de vulnerabilidades.
   El repo es público.
 

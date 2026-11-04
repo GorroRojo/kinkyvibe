@@ -306,7 +306,12 @@ describe('perfiles de la base', () => {
 		index = await api.get();
 		expect(api.builds.count).toBe(builds + 1);
 		expect(JSON.stringify(index)).not.toContain('por-evento');
-		expect(JSON.stringify(index)).not.toContain('nivel-barrio');
+		// El lugar no entra (ni su nombre, ni su link, ni su calle); el evento lleva solo lo que su
+		// página muestra en ese nivel: el barrio (docs/buscar.md, `lugar:`).
+		expect(JSON.stringify(index)).not.toContain('Lugar nivel-barrio');
+		expect(JSON.stringify(index)).not.toContain('/amigues/nivel-barrio');
+		expect(JSON.stringify(index)).not.toContain('Calle Secreta');
+		expect(index.docs.find((d) => d.c === 'calendario')?.l).toBe('Barrio nivel-barrio');
 
 		// Ningún otro camino: solo desde un evento no listado, oculto para el público, sin aprobar,
 		// o con el evento en «Nada» o «Sólo dirección».

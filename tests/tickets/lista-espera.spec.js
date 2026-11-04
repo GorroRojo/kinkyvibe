@@ -286,7 +286,8 @@ test('agotado → anotarse y confirmar → reembolso → oferta → terminar y p
 		.locator('.refund-panel')
 		.getByRole('button', { name: /Confirmar reembolso de/ })
 		.click();
-	await expect(page.getByText(/reembolsada: se liberó el cupo/)).toBeVisible();
+	// En main: el mismo texto también va a la región oculta de los lectores de pantalla (announce.js).
+	await expect(page.getByRole('main').getByText(/reembolsada: se liberó el cupo/)).toBeVisible();
 
 	// El cron avanza la lista (el empujón del reembolso puede haberlo hecho ya: es idempotente).
 	await runCron(page.request);
