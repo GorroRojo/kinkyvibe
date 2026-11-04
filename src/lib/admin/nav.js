@@ -119,6 +119,7 @@ import {
 	ToggleRight,
 	Users,
 	Video,
+	Unlink,
 	UserCheck,
 	Workflow
 } from '@lucide/svelte';
@@ -509,6 +510,17 @@ export const NAV = Object.freeze([
 		icon: Tags,
 		emoji: '🔖',
 		label: 'Árbol de etiquetas',
+		area: 'etiquetas',
+		soon: false
+	},
+	{
+		// Lo que los textos enlazan con `[[…]]`, `@` o `#` y no existe (docs/enlaces.md); cada nombre
+		// tiene su botón para crear la página. Al menú por pedido de gorrite (3/11/2026).
+		id: 'etiquetas-falta',
+		href: '/admin/etiquetas/falta',
+		icon: Unlink,
+		emoji: '🔗',
+		label: 'Enlaces que faltan',
 		area: 'etiquetas',
 		soon: false
 	},

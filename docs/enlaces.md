@@ -136,8 +136,8 @@ perfil y etiqueta (el texto de la wiki).
   como mucho 200 por objeto. Se suman los nuevos y se sacan los que el texto ya no nombra; los demás
   edges (`persona`, `etiqueta`, `lugar`…) no se tocan. Nadie los manda a mano (es un error).
 - **Lo que falta no se guarda**: un edge necesita un objeto en la otra punta y no hay tabla para
-  los nombres sueltos. La lista de lo que falta (`enlaces-falta`) lo vuelve a calcular leyendo los
-  cuerpos con `resolveBodyLinks`, que lo devuelve en `missing`.
+  los nombres sueltos. La lista de lo que falta (abajo, «Enlaces que faltan») lo vuelve a calcular
+  leyendo los cuerpos, con la misma resolución.
 - **Lo que se guarda junto con otros**: en una importación grande (`saveObjects`), un enlace a un
   objeto que se crea en la misma tanda todavía no se encuentra; el próximo guardado (o
   `scripts/enlaces-backfill.js`) lo suma.
@@ -189,6 +189,50 @@ no se ve. Detrás del interruptor **`lo_que_enlaza`** (`LO_QUE_ENLAZA_ENABLED`, 
   `scripts/enlaces-backfill.js`, `enlaces-pasar-guardados`).
 - Un `[[Título]]` que nombra a la vez algo público y algo oculto lleva a lo público («Lo público
   gana», arriba). Si igual lleva a algo que quien mira no ve, ese edge no sale.
+
+### Enlaces que faltan (panel)
+
+Etiquetas › **Enlaces que faltan** (`/admin/etiquetas/falta`, en el menú del panel debajo de
+Árbol de etiquetas y con un botón arriba de Etiquetas; solo admins): los `[[…]]`, `@` y `#` de los cuerpos que no llevan a ningún objeto, de lo que más se
+escribe a lo que menos, con cuántas veces y en qué objetos (con link a su editor y a su página, y
+si son «solo con cuenta» u ocultos), en lista y detalle (abajo). Es la lista de qué escribir para hacer crecer la Kinkipedia.
+Código: `src/lib/server/contenido/enlacesFalta.js`.
+
+- **Se calcula al abrir la página** (no hay tabla): dos consultas en fila, los cuerpos (como mucho
+  3000, los editados más recientemente primero; si hay más, la página lo dice) y, con todo lo que
+  nombran junto, los candidatos (`candidatesFor`, la misma del guardado). Con la semilla local
+  (541 cuerpos, 426 enlaces, 40 que faltan en 16 nombres), ~270 ms en local.
+- **Se resuelve igual que al guardar**, sin mirar visibilidad: lo que lleva a algo oculto no falta.
+- `[[x]]`, `![[x]]` y `#x` cuentan como un mismo nombre (sin mayúsculas); `@x` va aparte.
+- **Un botón por nombre para crear la página** (gorrite, 3/11/2026), por el formulario de siempre
+  con el nombre ya puesto; nada se guarda hasta confirmarlo ahí (`createFor`):
+  - `@nombre` → «Crear perfil»: Perfil nuevo (`/admin/comunidad/perfiles/nuevo?nombre=…&oculto=1`),
+    que **arranca oculto** (gorrite, 3/11/2026: «Que arranque oculto»): `?oculto=1` deja «Quién lo
+    puede ver» en Oculto, y se puede cambiar antes de crearlo. Perfil nuevo abierto desde otro lado
+    sigue arrancando público. Con Oculto elegido (desde acá o al cambiarlo, en cualquier Perfil
+    nuevo) el botón dice «Crear oculto» y el subtítulo «Queda oculto: no aparece en Amigues hasta
+    que lo cambies.»; con las otras, «Crear y publicar» y «Se publica en Amigues al guardar.»
+    (gorrite, 3/11/2026);
+  - `[[nombre]]`, `![[nombre]]` y `#nombre` → «Crear etiqueta»: «Nueva etiqueta» del árbol
+    (`/admin/etiquetas?nueva=…`), porque hoy un `[[…]]` lleva a la Kinkipedia. Después se escribe
+    su entrada en la Kinkipedia como siempre.
+- **En el menú** (gorrite, 3/11/2026): `etiquetas-falta` en `src/lib/admin/nav.js`, área
+  Etiquetas.
+- **Lista y detalle** (gorrite, 3/11/2026, opción C de tres diseños): a la izquierda los nombres,
+  de lo más escrito a lo menos, con una barrita de cuántas veces; al elegir uno, a la derecha
+  (abajo en el celular) qué falta («Mención a un perfil que no existe» o «Página de la Kinkipedia
+  que no existe»), «Escrito N veces en N textos.», el botón grande para crearlo y «Dónde se
+  escribe»: cada texto con su tipo, si es «solo con cuenta» u oculto, y botones para editarlo y
+  ver su página.
+  - **El nombre elegido va en la URL** (`?nombre=@x`, como se escribe): los nombres son links, así
+    que se puede compartir y anda sin JavaScript. Elegir uno no vuelve a calcular la lista (el
+    `load` no lee `?nombre=`; lo lee la página).
+  - Sin `?nombre=`: en la compu se ve el primero; en el celular, solo la lista (el detalle de ese
+    primero se esconde con CSS, así que no depende de JavaScript). Con uno elegido en el celular,
+    la lista se achica y el foco pasa al detalle; en la compu el foco se queda en la lista.
+  - Un `?nombre=` que ya no falta (lo crearon, o se escribió distinto) avisa «… ya no falta (o no
+    se escribe así).» y muestra el primero.
+  - Prueba: `src/routes/(authed)/admin/etiquetas/falta/falta-render.test.js`.
 
 ## Los dos editores
 

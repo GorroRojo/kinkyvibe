@@ -11,11 +11,16 @@
 	export let form;
 
 	$: values = structuredClone(form?.perfil?.values ?? data.values);
+	// Con «Oculto» elegido (de entrada, como desde «Enlaces que faltan», o al cambiarlo) no se
+	// publica: el botón y el subtítulo lo dicen (gorrite, 3/11/2026).
+	$: hidden = values.visibility === 'hidden';
 </script>
 
 <PageHeader
 	title="Perfil nuevo"
-	subtitle="Persona, proyecto o lugar. Se publica en Amigues al guardar."
+	subtitle={hidden
+		? 'Persona, proyecto o lugar. Queda oculto: no aparece en Amigues hasta que lo cambies.'
+		: 'Persona, proyecto o lugar. Se publica en Amigues al guardar.'}
 	back={{ href: '/admin/comunidad/perfiles', label: 'Perfiles' }}
 />
 <Card>
@@ -23,10 +28,10 @@
 		<p class="kv-flash bad" role="alert">{form.perfil.message}</p>
 	{/if}
 	<ProfileEditorForm
-		{values}
+		bind:values
 		errors={form?.perfil?.errors ?? {}}
 		action="?/crearPerfil"
-		submitLabel="Crear y publicar"
+		submitLabel={hidden ? 'Crear oculto' : 'Crear y publicar'}
 		kinds={data.kinds}
 		draftKey={draftKey('perfil', 'nuevo')}
 	/>
