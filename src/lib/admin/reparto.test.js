@@ -158,7 +158,7 @@ describe('splitProfit', () => {
 				{ id: 'mel', name: 'Mel', team: true },
 				{ id: 'memi', name: 'Memi', team: false }
 			],
-			{ productionPct: 30, mode: 'iguales' }
+			{ productionPct: 30, mode: 'iguales', lossBy: 'produccion' }
 		);
 		expect(r.shares.map((s) => s.amount)).toEqual([35000, 35000]);
 		expect(r.caja).toBe(65000);
@@ -173,7 +173,7 @@ describe('splitProfit', () => {
 				{ id: 'b', name: 'B', team: false },
 				{ id: 'c', name: 'C', team: false }
 			],
-			{ productionPct: 30, mode: 'iguales' }
+			{ productionPct: 30, mode: 'iguales', lossBy: 'produccion' }
 		);
 		// 70 % de 100.001 = 70.000,7 → 70.000 para repartir; 23.333 cada une; el resto, a la Caja.
 		expect(r.shares.map((s) => s.amount)).toEqual([23333, 23333, 23333]);
@@ -188,27 +188,60 @@ describe('splitProfit', () => {
 				{ id: 'a', name: 'A', team: false, pct: 60 },
 				{ id: 'b', name: 'B', team: false, pct: 30 }
 			],
-			{ productionPct: 30, mode: 'porcentajes' }
+			{ productionPct: 30, mode: 'porcentajes', lossBy: 'produccion' }
 		);
 		expect(r.problem).toBe('Los porcentajes suman 90 %: falta repartir 10 %.');
 		expect(r.caja).toBe(1000);
 	});
 
-	// Pérdida (gorrite, Mesa 4/11): la pone la producción con la misma repartija que la ganancia.
-	it('con pérdida, Mel (equipo) + Memi: Memi pone 35 %, la Caja KV 65 %', () => {
-		const r = splitProfit(
-			-100000,
-			[
-				{ id: 'mel', name: 'Mel', team: true },
-				{ id: 'memi', name: 'Memi', team: false }
-			],
-			DEFAULT()
-		);
+	const MEL_MEMI = [
+		{ id: 'mel', name: 'Mel', team: true },
+		{ id: 'memi', name: 'Memi', team: false }
+	];
+
+	// Pérdida (gorrite, Mesa 4/11): por defecto la ponen quienes producen, según su parte.
+	it('con pérdida, por defecto: Mel + Memi no ponen nada y la pone la Caja KV (única productora)', () => {
+		const r = splitProfit(-100000, MEL_MEMI, DEFAULT());
+		expect(r.shares.map((s) => s.amount)).toEqual([0, 0]);
+		expect(r.caja).toBe(-100000);
+	});
+
+	it('con pérdida y una co-productora al 50 %, la ponen mitad y mitad', () => {
+		const r = splitProfit(-100001, MEL_MEMI, DEFAULT(), [
+			{ id: 'org', name: 'Colectivo de prueba', share: 50 }
+		]);
+		expect(r.shares.map((s) => s.amount)).toEqual([0, 0]);
+		expect(r.coproducers[0].amount).toBe(-50000);
+		// La Caja KV pone su mitad y el peso del redondeo.
+		expect(r.caja).toBe(-50001);
+	});
+
+	it('con ganancia, la producción se reparte entre la Caja KV y quien co-produce', () => {
+		const r = splitProfit(100000, MEL_MEMI, DEFAULT(), [
+			{ id: 'org', name: 'Colectivo de prueba', share: 50 }
+		]);
+		// Producción 30.000: 15.000 al colectivo; la Caja KV, 15.000 + la parte de Mel (35.000).
+		expect(r.coproducers[0].amount).toBe(15000);
+		expect(r.shares.map((s) => s.amount)).toEqual([35000, 35000]);
+		expect(r.caja).toBe(50000);
+	});
+
+	it('co-productoras que suman más de 100 % avisan', () => {
+		const r = splitProfit(1000, MEL_MEMI, DEFAULT(), [
+			{ id: 'a', name: 'A', share: 60 },
+			{ id: 'b', name: 'B', share: 50 }
+		]);
+		expect(r.problem).toMatch(/suman 110 %/);
+	});
+
+	// Con «todes», la pérdida se reparte como la ganancia.
+	it('con pérdida y «todes»: Mel (equipo) + Memi → Memi pone 35 %, la Caja KV 65 %', () => {
+		const r = splitProfit(-100000, MEL_MEMI, TODES());
 		expect(r.shares.map((s) => s.amount)).toEqual([-35000, -35000]);
 		expect(r.caja).toBe(-65000);
 	});
 
-	it('con pérdida, cada facilitadore pone su parte para abajo y la Caja KV pone el resto', () => {
+	it('con pérdida y «todes», cada facilitadore pone su parte para abajo y la Caja KV el resto', () => {
 		const r = splitProfit(
 			-100001,
 			[
@@ -216,21 +249,21 @@ describe('splitProfit', () => {
 				{ id: 'b', name: 'B', team: false },
 				{ id: 'c', name: 'C', team: false }
 			],
-			DEFAULT()
+			TODES()
 		);
 		expect(r.shares.map((s) => s.amount)).toEqual([-23333, -23333, -23333]);
 		expect(r.caja).toBe(-100001 + 3 * 23333);
 		expect(r.caja + r.shares.reduce((s, x) => s + x.amount, 0)).toBe(-100001);
 	});
 
-	it('con pérdida y porcentajes, la misma repartija', () => {
+	it('con pérdida, «todes» y porcentajes, la misma repartija', () => {
 		const r = splitProfit(
 			-10000,
 			[
 				{ id: 'a', name: 'A', team: false, pct: 60 },
 				{ id: 'b', name: 'B', team: false, pct: 40 }
 			],
-			{ productionPct: 30, mode: 'porcentajes' }
+			{ productionPct: 30, mode: 'porcentajes', lossBy: 'todes' }
 		);
 		expect(r.shares.map((s) => s.amount)).toEqual([-4200, -2800]);
 		expect(r.caja).toBe(-3000);
@@ -244,21 +277,49 @@ describe('splitProfit', () => {
 });
 
 describe('computeAccount con pérdida', () => {
-	it('Mel + Memi: Memi pone su parte y le pasa a quien tiene que cobrar', () => {
-		// Ingresos 100.000 (lo tiene la Caja KV); lugar fijo 150.000 sin pagar: pérdida 50.000.
-		const income = eventIncome([order({ quantity: 10, total: 100000 })]);
+	// Ingresos 100.000 (lo tiene la Caja KV); lugar fijo 150.000 sin pagar: pérdida 50.000.
+	const income = eventIncome([order({ quantity: 10, total: 100000 })]);
+	/** @param {Record<string, unknown>} extra */
+	const account = (extra) =>
+		cleanAccount({
+			...emptyAccount(),
+			venue: { kind: 'fijo', amount: 150000 },
+			people: [
+				{ id: 'mel', name: 'Mel', team: true },
+				{ id: 'memi', name: 'Memi', team: false }
+			],
+			...extra
+		});
+
+	it('por defecto la pone la Caja KV y Memi no pone nada', () => {
+		const r = computeAccount(income, account({}));
+		expect(r.profit).toBe(-50000);
+		expect(r.caja).toBe(-50000);
+		expect(r.parties.find((p) => p.id === 'memi')?.balance).toBe(0);
+		expect(r.parties.reduce((s, p) => s + p.balance, 0)).toBe(0);
+		expect(r.transfers).toEqual([
+			expect.objectContaining({ fromName: 'Caja KV', toName: 'Lugar', amount: 150000 })
+		]);
+	});
+
+	it('con una co-productora al 50 %, ella pone su mitad', () => {
 		const r = computeAccount(
 			income,
-			cleanAccount({
-				...emptyAccount(),
-				venue: { kind: 'fijo', amount: 150000 },
-				people: [
-					{ id: 'mel', name: 'Mel', team: true },
-					{ id: 'memi', name: 'Memi', team: false }
-				]
-			})
+			account({ coproducers: [{ id: 'org', name: 'Colectivo de prueba', share: 50 }] })
 		);
-		expect(r.profit).toBe(-50000);
+		expect(r.parties.find((p) => p.id === 'org')?.balance).toBe(-25000);
+		expect(r.caja).toBe(-25000);
+		expect(r.parties.reduce((s, p) => s + p.balance, 0)).toBe(0);
+		expect(r.transfers).toContainEqual(
+			expect.objectContaining({ fromName: 'Colectivo de prueba', toName: 'Lugar', amount: 25000 })
+		);
+	});
+
+	it('con «todes», Memi pone su parte y le pasa a quien tiene que cobrar', () => {
+		const r = computeAccount(
+			income,
+			account({ split: { productionPct: 30, mode: 'iguales', lossBy: 'todes' } })
+		);
 		expect(r.split.shares.find((s) => s.id === 'memi')?.amount).toBe(-17500);
 		expect(r.caja).toBe(-32500);
 		expect(r.parties.find((p) => p.id === 'memi')?.balance).toBe(-17500);
@@ -269,8 +330,12 @@ describe('computeAccount con pérdida', () => {
 	});
 });
 
+function TODES() {
+	return /** @type {const} */ ({ productionPct: 30, mode: 'iguales', lossBy: 'todes' });
+}
+
 function DEFAULT() {
-	return /** @type {const} */ ({ productionPct: 30, mode: 'iguales' });
+	return /** @type {const} */ ({ productionPct: 30, mode: 'iguales', lossBy: 'produccion' });
 }
 
 describe('computeAccount: un taller de ejemplo', () => {
@@ -384,7 +449,7 @@ describe('cleanAccount', () => {
 			paidAt: ''
 		});
 		expect(a.people[0].team).toBe(false);
-		expect(a.split).toEqual({ productionPct: 0, mode: 'iguales' });
+		expect(a.split).toEqual({ productionPct: 0, mode: 'iguales', lossBy: 'produccion' });
 	});
 });
 

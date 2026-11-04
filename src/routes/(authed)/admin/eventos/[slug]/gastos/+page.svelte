@@ -30,6 +30,10 @@
 	/** @typedef {import('$lib/admin/reparto.js').AccountData} AccountData */
 
 	const PRESETS = ['Materiales', 'Transporte', 'Difusión', 'Comida y bebida', 'Limpieza'];
+	const LOSS_OPTIONS = [
+		{ value: 'produccion', label: 'Quienes producen' },
+		{ value: 'todes', label: 'Todes, como la ganancia' }
+	];
 	const MODES = [
 		{ value: 'iguales', label: 'Partes iguales' },
 		{ value: 'porcentajes', label: 'Porcentajes' }
@@ -71,8 +75,16 @@
 		...account.people.map((p, i) => ({
 			value: p.id,
 			label: p.name.trim() || `Facilitadore ${i + 1}`
+		})),
+		...account.coproducers.map((c, i) => ({
+			value: c.id,
+			label: c.name.trim() || `Co-productore ${i + 1}`
 		}))
 	];
+	$: cajaProductionShare = Math.max(
+		0,
+		100 - account.coproducers.reduce((t, c) => t + (Number(c.share) || 0), 0)
+	);
 
 	/** Al cambiar algo, el «Guardado» de antes ya no vale. */
 	function touch() {
@@ -88,6 +100,15 @@
 	/** @param {string} id */
 	function removePerson(id) {
 		account.people = account.people.filter((p) => p.id !== id);
+		touch();
+	}
+	function addCoproducer() {
+		account.coproducers = [...account.coproducers, { id: newId(), name: '', share: 50 }];
+		touch();
+	}
+	/** @param {string} id */
+	function removeCoproducer(id) {
+		account.coproducers = account.coproducers.filter((c) => c.id !== id);
 		touch();
 	}
 	/** @param {string} concept */
@@ -169,6 +190,9 @@
 				[
 					...result.split.shares
 						.filter((x) => !x.team && x.amount < 0)
+						.map((x) => `${x.name} pone ${formatARS(-x.amount)}`),
+					...result.split.coproducers
+						.filter((x) => x.amount < 0)
 						.map((x) => `${x.name} pone ${formatARS(-x.amount)}`),
 					...(result.split.caja < 0
 						? [`la ${CAJA_LABEL} pone ${formatARS(-result.split.caja)}`]
@@ -679,12 +703,12 @@
 		<Card title="Reparto">
 			<p class="muted small">
 				Ganancia = ingresos − lugar − contrataciones − otros gastos. De la ganancia, un porcentaje
-				va a la {CAJA_LABEL} por producir; el resto se reparte entre les facilitadores. La parte de quien
-				es del equipo de KV va a la {CAJA_LABEL}, y la {CAJA_LABEL} se queda con los pesos que sobran
-				al redondear.
+				va a la producción (la {CAJA_LABEL} y quien co-produzca); el resto se reparte entre les facilitadores.
+				La parte de quien es del equipo de KV va a la {CAJA_LABEL}, y la {CAJA_LABEL}
+				se queda con los pesos que sobran al redondear.
 			</p>
 			<label class="kv-field prod">
-				<span>Para la {CAJA_LABEL} por producir</span>
+				<span>Para la producción</span>
 				<span class="affix"
 					><input
 						class="kv-input"
@@ -697,6 +721,68 @@
 					/><span aria-hidden="true">%</span></span
 				>
 			</label>
+			<h3 class="sub">Producción</h3>
+			<p class="muted small">
+				Produce la {CAJA_LABEL}. Si alguien más co-produce (otra organización o persona), sumalo con
+				su parte de la producción; la {CAJA_LABEL} tiene el resto ({cajaProductionShare} %).
+			</p>
+			{#if account.coproducers.length}
+				<ul class="lines">
+					{#each account.coproducers as c, i (c.id)}
+						{@const cop = result.split.coproducers[i]}
+						<li class="person">
+							<label class="kv-field name">
+								<span class="visually-hidden">Quién co-produce {i + 1}</span>
+								<input
+									class="kv-input"
+									bind:value={c.name}
+									on:input={touch}
+									placeholder="Co-productore {i + 1}"
+								/>
+							</label>
+							<label class="kv-field value">
+								<span class="visually-hidden"
+									>Parte de la producción de {c.name || `co-productore ${i + 1}`}</span
+								>
+								<span class="affix"
+									><input
+										class="kv-input"
+										type="number"
+										min="0"
+										max="100"
+										step="1"
+										bind:value={c.share}
+										on:input={touch}
+									/><span aria-hidden="true">%</span></span
+								>
+							</label>
+							<span class="share num">{money(cop?.amount ?? 0)}</span>
+							<Button
+								variant="danger"
+								size="small"
+								iconOnly
+								icon={Trash2}
+								label="Sacar a {c.name || `co-productore ${i + 1}`}"
+								on:click={() => removeCoproducer(c.id)}
+							/>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			<div class="row">
+				<Button variant="secondary" size="small" icon={Plus} on:click={addCoproducer}
+					>Sumar quien co-produce</Button
+				>
+			</div>
+			<div class="loss-by">
+				<strong>Si hay pérdida, la ponen</strong>
+				<Segmented
+					options={LOSS_OPTIONS}
+					bind:value={account.split.lossBy}
+					label="Si hay pérdida, la ponen"
+				/>
+			</div>
+			<h3 class="sub">Facilitadores</h3>
 			<Segmented
 				options={MODES}
 				bind:value={account.split.mode}
@@ -755,8 +841,9 @@
 			{#if result.split.problem}<Notice tone="warn" compact>{result.split.problem}</Notice>{/if}
 			{#if result.profit < 0}
 				<Notice tone="warn" compact
-					>Hubo pérdida: la pone la producción con el mismo reparto que la ganancia. Cada
-					facilitadore pone su parte (la de quien es del equipo, la pone la {CAJA_LABEL}).</Notice
+					>{#if account.split.lossBy === 'todes'}Hubo pérdida: la ponen todes, con el mismo reparto
+						que la ganancia (la parte de quien es del equipo la pone la {CAJA_LABEL}).{:else}Hubo
+						pérdida: la ponen quienes producen.{/if}</Notice
 				>
 			{/if}
 			<p class="total-line">
@@ -1040,6 +1127,16 @@
 	}
 	.inline-form {
 		display: inline;
+	}
+	.sub {
+		margin: var(--space-xs) 0 var(--space-3xs);
+		font-size: var(--text-s, 1rem);
+	}
+	.loss-by {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
+		margin: var(--space-xs) 0;
 	}
 	.loss {
 		margin: 0 0 var(--space-xs);

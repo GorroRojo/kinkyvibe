@@ -326,13 +326,21 @@ export function venueCost(rule, base) {
 
 /**
  * @typedef {object} SplitRule
- * @prop {number} productionPct el % de la ganancia que va a la Caja KV por producir (30)
+ * @prop {number} productionPct el % de la ganancia que va a la producción (30)
  * @prop {'iguales' | 'porcentajes'} mode cómo se reparte el resto entre les facilitadores
+ * @prop {'produccion' | 'todes'} lossBy quién pone la pérdida: quienes producen (por defecto,
+ *   gorrite, Mesa 4/11) o todes, con el mismo reparto que la ganancia
  */
 
 export const DEFAULT_SPLIT = Object.freeze(
-	/** @type {SplitRule} */ ({ productionPct: 30, mode: 'iguales' })
+	/** @type {SplitRule} */ ({ productionPct: 30, mode: 'iguales', lossBy: 'produccion' })
 );
+
+/**
+ * Quien produce junto con la Caja KV (otra organización o persona): su parte de la producción,
+ * en %. La Caja KV tiene el resto (100 − la suma).
+ * @typedef {{ id: string, name: string, share: number }} Coproducer
+ */
 
 /**
  * Todo lo que se carga a mano de la cuenta de un evento (lo que se guarda en `event_accounts`).
@@ -343,6 +351,7 @@ export const DEFAULT_SPLIT = Object.freeze(
  * @prop {Expense[]} expenses
  * @prop {OtherIncome[]} otherIncome
  * @prop {Person[]} people
+ * @prop {Coproducer[]} coproducers
  * @prop {SplitRule} split
  * @prop {Record<string, string>} holders de cada fuente de plata (`IncomeRow.key`), quién la tiene
  */
@@ -360,6 +369,7 @@ export function emptyAccount(venueDefault = null) {
 		expenses: [],
 		otherIncome: [],
 		people: [],
+		coproducers: [],
 		split: { ...DEFAULT_SPLIT },
 		holders: {}
 	};
@@ -424,9 +434,17 @@ export function cleanAccount(raw) {
 			team: p?.team === true,
 			pct: p?.pct === null || p?.pct === undefined || p?.pct === '' ? null : nonNeg(p.pct)
 		})),
+		coproducers: list(r.coproducers)
+			.slice(0, 10)
+			.map((c) => ({
+				id: id(c?.id),
+				name: str(c?.name),
+				share: Math.min(100, Math.round(nonNeg(c?.share) * 100) / 100)
+			})),
 		split: {
 			productionPct: Math.min(100, nonNeg(r.split?.productionPct ?? base.split.productionPct)),
-			mode: r.split?.mode === 'porcentajes' ? 'porcentajes' : 'iguales'
+			mode: r.split?.mode === 'porcentajes' ? 'porcentajes' : 'iguales',
+			lossBy: r.split?.lossBy === 'todes' ? 'todes' : 'produccion'
 		},
 		holders
 	};
@@ -442,66 +460,90 @@ export function cleanAccount(raw) {
  */
 
 /**
- * El reparto de la ganancia: `productionPct` % para la Caja KV y el resto entre les
- * facilitadores (partes iguales o sus porcentajes, que tienen que sumar 100). La parte de quien
- * es del equipo de KV va a la Caja KV, y la Caja se queda con lo que sobra al redondear. Con
- * pérdida, la pone la producción con la misma repartija (gorrite, Mesa 4/11): cada facilitadore
- * pone su parte (negativa) y la Caja KV el resto; los pesos del redondeo los pone la Caja KV.
+ * El reparto de la ganancia: `productionPct` % para la producción y el resto entre les
+ * facilitadores (partes iguales o sus porcentajes, que tienen que sumar 100). La producción es de
+ * la Caja KV y de quienes co-producen, según su parte. La parte de quien es del equipo de KV va a
+ * la Caja KV, y la Caja se queda con lo que sobra al redondear.
+ *
+ * Con pérdida (gorrite, Mesa 4/11), por defecto la ponen solo quienes producen, según su parte de
+ * la producción (sin co-productores, toda la Caja KV); les facilitadores no ponen nada. Con
+ * `lossBy: 'todes'`, la pérdida se reparte como la ganancia: cada facilitadore pone su parte.
+ * Cada parte se redondea para abajo (en valor absoluto) y la Caja KV pone lo que falta.
  *
  * @param {number} profit
  * @param {Person[]} people
  * @param {SplitRule} split
- * @returns {{ shares: Share[], production: number, caja: number, problem: string }}
+ * @param {Coproducer[]} [coproducers]
+ * @returns {{ shares: Share[], coproducers: { id: string, name: string, share: number, amount: number }[], production: number, caja: number, problem: string }}
  */
-export function splitProfit(profit, people, split) {
+export function splitProfit(profit, people, split, coproducers = []) {
 	const named = people.map((p, i) => ({
 		id: p.id,
 		name: p.name.trim() || `Facilitadore ${i + 1}`,
 		team: Boolean(p.team)
 	}));
-	if (profit === 0 || !people.length) {
+	const cops = coproducers.map((c, i) => ({
+		id: c.id,
+		name: c.name.trim() || `Co-productore ${i + 1}`,
+		share: Math.max(0, Number(c.share) || 0)
+	}));
+	const sign = profit < 0 ? -1 : 1;
+	/**
+	 * La producción entre quienes co-producen (para abajo) y la Caja KV (el resto).
+	 * @param {number} production
+	 */
+	const produce = (production) => {
+		const abs = Math.abs(production);
+		const s = production < 0 ? -1 : 1;
+		return cops.map((c) => ({ ...c, amount: s * Math.floor((abs * c.share) / 100) || 0 }));
+	};
+	/**
+	 * @param {number[]} amounts lo de cada facilitadore
+	 * @param {string} problem
+	 */
+	const result = (amounts, problem) => {
+		const shares = named.map((p, i) => ({ ...p, amount: amounts[i] ?? 0 }));
+		const handed = shares.reduce((t, x) => t + x.amount, 0);
+		const production = profit - handed;
+		const copShares = produce(production);
+		const team = shares.filter((x) => x.team).reduce((t, x) => t + x.amount, 0);
+		const caja = production - copShares.reduce((t, x) => t + x.amount, 0) + team;
+		return { shares, coproducers: copShares, production, caja, problem };
+	};
+	const copSum = Math.round(cops.reduce((t, c) => t + c.share, 0) * 100) / 100;
+	if (copSum > 100) {
 		return {
-			shares: named.map((p) => ({ ...p, amount: 0 })),
-			production: profit,
+			...result([], ''),
+			coproducers: cops.map((c) => ({ ...c, amount: 0 })),
 			caja: profit,
-			problem: ''
+			problem: `Las partes de quienes co-producen suman ${fmtPct(copSum)} %: no pueden pasar de 100 %.`
 		};
 	}
+	// Sin facilitadores, sin ganancia, o con pérdida que pone la producción: todo a la producción.
+	if (profit === 0 || !people.length || (profit < 0 && split.lossBy !== 'todes')) {
+		return result([], '');
+	}
 	const prodPct = Math.min(100, Math.max(0, Number(split.productionPct) || 0));
-	// Con pérdida, lo mismo sobre el valor absoluto y con signo menos: cada facilitadore pone su
-	// parte redondeada para abajo y la Caja KV pone lo que falta.
-	const sign = profit < 0 ? -1 : 1;
-	const abs = Math.abs(profit);
-	const pool = Math.floor((abs * (100 - prodPct)) / 100);
+	const pool = Math.floor((Math.abs(profit) * (100 - prodPct)) / 100);
 	/** @type {number[]} */
 	let weights = people.map(() => 1);
-	let problem = '';
 	if (split.mode === 'porcentajes') {
 		weights = people.map((p) => Math.max(0, Number(p.pct) || 0));
-		const sum = Math.round(weights.reduce((s, x) => s + x, 0) * 100) / 100;
+		const sum = Math.round(weights.reduce((t, x) => t + x, 0) * 100) / 100;
 		if (sum !== 100) {
 			const diff = Math.round((100 - sum) * 100) / 100;
-			problem =
+			const problem =
 				diff > 0
 					? `Los porcentajes suman ${fmtPct(sum)} %: falta repartir ${fmtPct(diff)} %.`
 					: `Los porcentajes suman ${fmtPct(sum)} %: sobran ${fmtPct(-diff)} %.`;
+			return { ...result([], problem), coproducers: produce(0), caja: profit };
 		}
 	}
-	if (problem) {
-		return {
-			shares: named.map((p) => ({ ...p, amount: 0 })),
-			production: profit,
-			caja: profit,
-			problem
-		};
-	}
-	// Cada parte para abajo: lo que sobra (y la producción) es de la Caja KV.
-	const sum = weights.reduce((s, w) => s + w, 0);
-	const amounts = weights.map((w) => (sum > 0 ? sign * Math.floor((pool * w) / sum) || 0 : 0));
-	const shares = named.map((p, i) => ({ ...p, amount: amounts[i] }));
-	const outside = shares.filter((s) => !s.team).reduce((s, x) => s + x.amount, 0);
-	const handed = amounts.reduce((s, x) => s + x, 0);
-	return { shares, production: profit - handed, caja: profit - outside, problem: '' };
+	const sum = weights.reduce((t, w) => t + w, 0);
+	return result(
+		weights.map((w) => (sum > 0 ? sign * Math.floor((pool * w) / sum) || 0 : 0)),
+		''
+	);
 }
 
 /** @param {number} x */
@@ -512,7 +554,7 @@ const fmtPct = (x) => String(x).replace('.', ',');
  *   lugar o alguien a quien se le debe un gasto o una contratación.
  * @prop {string} id
  * @prop {string} name
- * @prop {'caja' | 'persona' | 'fondo' | 'pendiente'} kind
+ * @prop {'caja' | 'persona' | 'coproduce' | 'fondo' | 'pendiente'} kind
  * @prop {number} share lo que le toca (su parte, o lo que se le debe)
  * @prop {number} paid lo que ya puso (gastos que pagó)
  * @prop {number} held la plata del evento que tiene (su cuenta de MP, su alias, la caja de la puerta)
@@ -539,7 +581,7 @@ export function computeAccount(income, data) {
 	const expensesTotal = expenses.reduce((s, x) => s + x.amount, 0);
 	const allExpenses = venue.amount + feesTotal + expensesTotal;
 	const profit = totalIncome - allExpenses;
-	const split = splitProfit(profit, data.people, data.split);
+	const split = splitProfit(profit, data.people, data.split, data.coproducers);
 	// Lo que las contrataciones del equipo dejan en la caja: va a la Caja KV.
 	const feesToCaja = fees
 		.filter((f) => f.team && f.keep === 'caja')
@@ -556,6 +598,17 @@ export function computeAccount(income, data) {
 			name: s.name,
 			kind: 'persona',
 			share: s.team ? 0 : s.amount,
+			paid: 0,
+			held: 0,
+			balance: 0
+		});
+	}
+	for (const c of split.coproducers) {
+		parties.push({
+			id: c.id,
+			name: c.name,
+			kind: 'coproduce',
+			share: c.amount,
 			paid: 0,
 			held: 0,
 			balance: 0

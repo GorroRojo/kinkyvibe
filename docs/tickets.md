@@ -476,10 +476,14 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   entre les facilitadores (partes iguales o porcentajes que suman 100). La parte de quien tiene
   «Es del equipo de KV» va a la Caja KV. Ejemplo: Mel (equipo) + Memi → Memi 35 %, Caja KV 65 %.
   La Caja KV es la plata de Kinky Vibe (no es el Fondo) y se queda con lo que sobra, también los
-  pesos del redondeo (cada parte se redondea para abajo). **Con pérdida**, la pone la producción
-  con la misma repartija (gorrite, Mesa 4/11): cada facilitadore pone su parte («pone $ …» en el
-  reparto y en «Quién le pasa a quién»), la del equipo la pone la Caja KV, y la Caja KV pone
-  también los pesos del redondeo.
+  pesos del redondeo (cada parte se redondea para abajo). **Producción:** la Caja KV produce; si
+  alguien más co-produce (otra organización o persona), se suma con su parte de la producción
+  («Sumar quien co-produce») y la Caja KV tiene el resto. La parte de la ganancia para la
+  producción se reparte entre quienes producen según esas partes. **Con pérdida** (gorrite, Mesa
+  4/11), por defecto la ponen solo quienes producen, según su parte (sin co-productores, toda la
+  Caja KV); les facilitadores no ponen nada. Por evento se puede elegir «Todes, como la ganancia»:
+  cada facilitadore pone su parte y la del equipo la pone la Caja KV. Se ve como «pone $ …» en el
+  reparto y en «Quién le pasa a quién»; la Caja KV pone los pesos del redondeo.
 - **Quién le pasa a quién:** cada fuente de plata y cada otro ingreso lo tiene alguien (sin
   elegir, la Caja KV). Saldo = lo que le toca + lo que puso − la plata del evento que tiene; el
   Fondo, el lugar sin pagar y cada gasto o contratación sin pagar entran como una parte más. El
