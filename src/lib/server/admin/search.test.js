@@ -7,6 +7,7 @@ import {
 	groupResults,
 	likeContains,
 	looseLike,
+	withoutSigns,
 	orderIdPrefix,
 	searchDatabase,
 	searchEvents,
@@ -169,6 +170,28 @@ describe('searchDatabase', () => {
 		expect((await searchDatabase(t.db, 'otra@exa')).orders[0].title).toContain('Otra Persona');
 		// Los comodines de LIKE se buscan literalmente.
 		expect((await searchDatabase(t.db, '%%')).orders).toHaveLength(0);
+	});
+
+	// La receta amplia (Mesa chica-567-quitar-tildes): un signo suelto guardado en el nombre no
+	// frena el filtro de la base.
+	it('«Mel·la» sale buscando «mella» y «Mel·la» (órdenes, entradas y personas)', async () => {
+		const o = await insertOrder(t.db, {
+			slug: 'ev',
+			name: 'Mel·la Inventade',
+			email: 'mel@example.com'
+		});
+		await insertTicket(t.db, { orderId: o, slug: 'ev', code: 'MEL234', name: 'Mel·la Titular' });
+		await insertOrder(t.db, { name: 'Otra Persona', email: 'otra@example.com' });
+		for (const q of ['mella', 'Mel·la', 'MELLA']) {
+			const r = await searchDatabase(t.db, q);
+			expect(r.orders.map((x) => x.title)).toEqual([expect.stringContaining('Mel·la Inventade')]);
+			expect(r.tickets.map((x) => x.title)).toEqual(['Mel·la Titular · MEL234']);
+			expect(r.people.map((x) => x.title)).toEqual(['Mel·la Inventade']);
+		}
+	});
+
+	it('withoutSigns: la columna sin los signos sueltos, para el LIKE', () => {
+		expect(withoutSigns('buyer_name')).toMatch(/^replace\(.*buyer_name, '·', ''\).*\)$/);
 	});
 
 	it('por DNI muestra solo los últimos 3 dígitos, nunca el DNI completo', async () => {

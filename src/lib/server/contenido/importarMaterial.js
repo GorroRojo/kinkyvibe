@@ -34,6 +34,7 @@ import { sniffImage } from '../media/sniff.js';
 import { validateContentSlug } from '../../utils/contentPosts.js';
 import { formatPostDate, isValidDate, todayInArgentina } from '../../utils/eventDraft.js';
 import { AUTHOR_ROLE } from '../../utils/personasList.js';
+import { foldText } from '../../utils/text.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').R2Bucket} R2Bucket */
@@ -123,12 +124,7 @@ export function dateFromNotes(text) {
 }
 
 /** Para comparar nombres: sin tildes, sin mayúsculas, solo letras y números. @param {unknown} s */
-const loose = (s) =>
-	String(s ?? '')
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '');
+const loose = (s) => foldText(s).replace(/[^a-z0-9]+/g, '');
 
 /** @param {unknown} v @returns {string[]} */
 const textList = (v) =>

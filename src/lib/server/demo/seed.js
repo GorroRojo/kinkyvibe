@@ -1634,15 +1634,6 @@ export const SECTIONS = [
 		}
 	},
 	{
-		table: 'event_venues',
-		optional: true,
-		// "Sucede en" (#137) ya no usa esta tabla: es el edge `lugar` del evento (migración 0035), y
-		// lo escribe `linkDemoVenues` después del batch. Acá solo se borran las filas que dejaron
-		// seeds anteriores.
-		reset: [`DELETE FROM event_venues WHERE created_by = ${sql(SEED_BY)};`],
-		rows: () => []
-	},
-	{
 		table: 'profile_claims',
 		optional: true,
 		// Un pedido «Es mi perfil» pendiente (#137), de una cuenta inventada.

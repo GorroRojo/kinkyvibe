@@ -12,6 +12,7 @@ import { orderReference } from '$lib/utils/tickets.js';
 import { answersByOrder, fieldsForEvent } from '$lib/server/tickets/signupFields.js';
 import { answerColumns, answerFor } from '$lib/utils/signupFields.js';
 import { csvFilename, csvResponse, toCsv } from '$lib/admin/csv.js';
+import { SALE_CHANNEL_SINGULAR, saleChannel } from '$lib/utils/saleChannel.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ locals, url, params, platform }) {
@@ -125,7 +126,8 @@ export async function GET({ locals, url, params, platform }) {
 				first ? o.discount_amount : '',
 				first ? o.surcharge_amount : '',
 				first ? o.total : '',
-				o.channel ?? 'online',
+				// La regla única de los canales (saleChannel.js): online, puerta, cortesía o cargada a mano.
+				SALE_CHANNEL_SINGULAR[saleChannel(o)],
 				o.admin_note ?? '',
 				o.refunded_at ? new Date(o.refunded_at) : '',
 				o.refunded_at ? (o.refunded_by ?? 'Mercado Pago') : '',

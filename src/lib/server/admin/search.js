@@ -83,6 +83,23 @@ export const MAX_CANDIDATES = 1000;
 const LOOSE_LETTERS = /[aeiouncy]/;
 
 /**
+ * Signos diacríticos sueltos que `foldText` saca y que pueden estar guardados en un nombre
+ * («Mel·la»). El patrón flojo no puede saltear un carácter, así que la columna se compara sin
+ * ellos ({@link withoutSigns}).
+ */
+const SPACING_SIGNS = ['·', '´', '`', '^', '¨', '˜', '¸', '¯', 'ˆ', 'ˇ', '˘', '˙', '˚', '˝'];
+
+/**
+ * La columna `col` sin {@link SPACING_SIGNS}, para el `LIKE` flojo: así «mella» (y «Mel·la», que
+ * `foldText` deja en «mella») trae a «Mel·la» (Mesa `chica-567-quitar-tildes`). Un `LIKE '%…%'`
+ * no usa índices de todos modos.
+ * @param {string} col una columna (texto fijo del código, nunca algo escrito por alguien)
+ */
+export function withoutSigns(col) {
+	return SPACING_SIGNS.reduce((sql, c) => `replace(${sql}, '${c}', '')`, col);
+}
+
+/**
  * Patrón LIKE flojo para un texto ya pasado por `foldText`: cada letra que puede venir acentuada
  * (y cada carácter que no es ASCII) pasa a ser `_` (un carácter cualquiera; en SQLite cuenta
  * caracteres, no bytes), así «jose» → `%j_s_%` también trae «José» y «JOSÉ». Trae de más a
@@ -421,7 +438,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 					FROM orders
 					WHERE (?5 = '' OR status = ?5) AND (
 						(?1 != '' AND id LIKE ?1 || '%')
-						OR buyer_name LIKE ?2 ESCAPE '\\' OR buyer_email LIKE ?2 ESCAPE '\\'
+						OR ${withoutSigns('buyer_name')} LIKE ?2 ESCAPE '\\' OR buyer_email LIKE ?2 ESCAPE '\\'
 						OR (?3 != '' AND buyer_dni LIKE ?3 ESCAPE '\\'))
 					ORDER BY key_hit DESC, created_at DESC LIMIT ?4`
 				)
@@ -457,7 +474,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 					`SELECT t.code, t.event_slug, t.holder_name, t.order_id, t.checked_in_at, o.status,
 						(?1 != '' AND t.code = ?1) AS key_hit
 					FROM tickets t JOIN orders o ON o.id = t.order_id
-					WHERE (?1 != '' AND t.code = ?1) OR t.holder_name LIKE ?2 ESCAPE '\\'
+					WHERE (?1 != '' AND t.code = ?1) OR ${withoutSigns('t.holder_name')} LIKE ?2 ESCAPE '\\'
 					ORDER BY key_hit DESC, o.created_at DESC LIMIT ?3`
 				)
 				.bind(code ?? '', like, MAX_CANDIDATES)
@@ -518,7 +535,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				.prepare(
 					`SELECT buyer_email, buyer_name, buyer_pronouns, event_slug, created_at FROM orders
 					WHERE status IN ('approved', 'refunded')
-						AND (buyer_name LIKE ?1 ESCAPE '\\' OR buyer_email LIKE ?1 ESCAPE '\\')
+						AND (${withoutSigns('buyer_name')} LIKE ?1 ESCAPE '\\' OR buyer_email LIKE ?1 ESCAPE '\\')
 					ORDER BY created_at DESC LIMIT ?2`
 				)
 				.bind(like, MAX_CANDIDATES)
@@ -553,7 +570,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				.prepare(
 					`SELECT o.slug, o.title, s.legacy_slug FROM objects o
 					LEFT JOIN profile_sources s ON s.profile_id = o.id
-					WHERE o.type = 'perfil' AND o.deleted_at IS NULL AND o.title LIKE ?1 ESCAPE '\\'
+					WHERE o.type = 'perfil' AND o.deleted_at IS NULL AND ${withoutSigns('o.title')} LIKE ?1 ESCAPE '\\'
 					ORDER BY o.title LIMIT ?2`
 				)
 				.bind(like, MAX_CANDIDATES)

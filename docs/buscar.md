@@ -25,7 +25,10 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 ## Cómo se lee lo que se escribe
 
 1. **Se normaliza**: sin mayúsculas ni tildes (`fold()`), así `Mañana` = `manana` y `Sábado` =
-   `sabado`. La `ñ` también se pliega (`ñ` → `n`).
+   `sabado`. La `ñ` también se pliega (`ñ` → `n`). Los signos sueltos como `´ ^ ¨ ·` no cortan la
+   palabra y se buscan sin ellos: `Mel·la` se encuentra con `mella` y con `Mel·la`. Es la misma
+   receta de todo el sitio (`stripMarks`/`foldText` en `src/lib/utils/text.js`; gorrite, Mesa
+   `chica-567-quitar-tildes`); las direcciones de las páginas no cambian (`slugify` tiene la suya).
 2. **Se parte en piezas** separadas por espacios. Lo que está entre comillas dobles (`"…"`) es una
    sola pieza, también como valor (`lugar:"club x"`, `-"sin esto"`); una comilla sin cerrar llega
    hasta el final.

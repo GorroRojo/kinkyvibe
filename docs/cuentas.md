@@ -473,6 +473,11 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
   actividad y en "Desde tu última visita". Se anotan donde pasan (`upsertVerifiedAccount` cuando
   la cuenta es nueva, `createProfile`) en `admin_audit`, con el autor `cuentas (sitio)`
   (`src/lib/server/admin/accountEvents.js`), sin mails ni ids de cuenta en el texto.
+- **Editar un perfil ya aprobado** desde Mi rincón: el cambio sale al toque (no vuelve a «Para
+  aprobar», decisión [0022](decisiones/0022-lugares-desde-cuentas.md)) y deja ««…» editó su perfil
+  (persona/proyecto/lugar)» en la actividad (`profile.account_edit`, `logProfileEdited`), con link
+  al perfil; qué cambió se ve en su historial. Un perfil sin aprobar no deja aviso: ya está en
+  «Para aprobar» (gorrite, Mesa `chica-532-revision-perfiles`).
 - **Para revisar:** cada perfil creado por una cuenta queda en "Para revisar" del Inicio (y en el
   contador del menú, en Perfiles) hasta que une admin lo marca como revisado, lo oculta o lo
   borra. No hay columna nueva: la marca es la entrada de Actividad de esa acción

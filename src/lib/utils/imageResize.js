@@ -5,7 +5,7 @@
  * de nuevo, ya no lleva sus datos ocultos (GPS, fecha); un PNG, WEBP o AVIF va como está (puede
  * tener transparencias, que en JPEG saldrían negras). Si no puede dibujarla, o si el resultado pesa
  * más que el original sin haber hecho falta achicarlo, se sube el original (el servidor le saca
- * igual los metadatos a un JPEG o un PNG: media/metadata.js).
+ * igual los metadatos a un JPEG, PNG, WEBP o AVIF: media/metadata.js).
  *
  * Del mismo dibujo salen también las dos copias chicas para las tarjetas (WEBP, lado más corto de
  * 360 y 720 px; $lib/utils/mediaCopies.js), que viajan con la subida. Si no salen, se sube igual
@@ -142,7 +142,7 @@ export async function prepareImage(file, env = {}) {
 		let blob = await toWebp(canvas, WEBP_QUALITY);
 		// Safari no hace WEBP desde un canvas (devuelve PNG): una foto JPEG sale JPEG, en lugar del
 		// original tal cual. Un PNG, WEBP o AVIF no: puede tener partes transparentes, que en JPEG
-		// saldrían negras; va el original (al PNG el servidor le saca igual los metadatos).
+		// saldrían negras; va el original (el servidor le saca igual los metadatos).
 		if (blob && blob.type !== 'image/webp') {
 			blob = file.type === 'image/jpeg' ? await toBlob(canvas, 'image/jpeg', JPEG_QUALITY) : null;
 		}

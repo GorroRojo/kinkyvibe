@@ -271,7 +271,7 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
 - **`lugar`**: «sucede en». `setEventVenue`/`removeEventVenue` guardan el evento con
   `saveObject()` (versión nueva, revisión `source = 'lugar'`) sin tocar `data`; si el evento se
   importó de un `.md` y no estaba editado, sigue sin estarlo (`content_sources.imported_version`).
-  El evento tiene que estar en la base. La tabla vieja `event_venues` queda sin uso.
+  El evento tiene que estar en la base. La tabla vieja `event_venues` la borra la migración 0075.
 - **`persona`**: los perfiles de la lista de personas. `at[i]` es el lugar de `roles[i]` en la
   lista única (`src/lib/utils/personasList.js`), así leer arma la misma lista en el mismo orden.
   En `data.personas` quedan los nombres sin perfil y las direcciones que no son de ningún perfil

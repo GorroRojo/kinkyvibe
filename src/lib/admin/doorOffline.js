@@ -20,6 +20,7 @@
  * panel); el resto de la lista y lo que falta sincronizar quedan como estaban.
  */
 import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
+import { foldText as fold } from '$lib/utils/text.js';
 
 /**
  * Una entrada de la lista sin conexión (misma forma que devuelve el servidor).
@@ -252,16 +253,6 @@ export function localCounts(list) {
 		}
 	}
 	return { total, inside, byType };
-}
-
-/** @param {unknown} v */
-function fold(v) {
-	return String(v ?? '')
-		.normalize('NFD')
-		.replace(/\p{Diacritic}/gu, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
 }
 
 /**
