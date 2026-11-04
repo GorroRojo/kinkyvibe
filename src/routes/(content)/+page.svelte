@@ -10,17 +10,18 @@
 	import { page } from '$app/stores';
 	export let data;
 	import { userConfig } from '$lib/utils/stores';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { pastPostsLoader } from '$lib/utils/allPosts';
 	import { organizationSchema, websiteSchema } from '$lib/utils/jsonLd.js';
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (allPosts = posts))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (allPosts = posts));
+	$: if ($userConfig.show_past_events) loadPast();
+
+	// Los eventos que todavía no empezaron: el carrusel (`?carrousel`) y la fila del calendario.
+	$: upcomingEvents = allPosts.filter(
+		(/** @type {{ meta: AnyPostData; }} */ p) =>
+			p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
+	);
 
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
 	$: previewTexts = linkPreviewOf($page.data).texts;
@@ -64,17 +65,14 @@
 		comunitarios
 	</p>
 </div>
-<main>
+<!-- No es un <main>: el layout ya pone uno (un solo main por página). -->
+<div class="inicio">
 	<!-- El logo del encabezado es la presentación (decisión de gorrite, 5/10): el h1 queda solo
 	     para lectores de pantalla y buscadores. -->
 	<h1 class="visually-hidden">Kinky Vibe</h1>
-	{#if $page.url.searchParams.has('carrousel')}
-		<Carrousel
-			posts={allPosts.filter(
-				(/** @type {{ meta: AnyPostData; }} */ p) =>
-					p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
-			)}
-		/>
+	<!-- Sin eventos próximos no hay carrusel: el componente necesita al menos una diapositiva. -->
+	{#if $page.url.searchParams.has('carrousel') && upcomingEvents.length > 0}
+		<Carrousel posts={upcomingEvents} />
 	{/if}
 	<div class="cardrow">
 		<CardRow
@@ -82,13 +80,7 @@
 			id="calendario"
 			title="Talleres y eventos"
 			eager={4}
-			items={allPosts
-				.filter(
-					(/** @type {{ meta: AnyPostData; }} */ p) =>
-						p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
-				)
-				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))
-				.slice(0, 9)}
+			items={[...upcomingEvents].sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1)).slice(0, 9)}
 			--color-1="var(--2-dark)"
 			--color-2="var(--1)"
 			href="/calendario"
@@ -125,7 +117,7 @@
 	<div id="lista"></div>
 	<!-- el feed largo de a 20: así el pie de página queda a mano -->
 	<PostList heading="Lo último publicado" posts={allPosts} limit={20} />
-</main>
+</div>
 <!-- Los feeds del calendario, también desde el inicio (docs/seo.md); /rss lo anuncia app.html. -->
 <FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
 
@@ -136,7 +128,8 @@
 	#lista {
 		display: none;
 	}
-	main {
+	/* div:where(): la misma especificidad que tenía cuando era `main`. */
+	div:where(.inicio) {
 		/* width: 100%; */
 		/* max-width: 50rem; */
 		margin: auto;
@@ -149,7 +142,7 @@
 		max-width: 50rem;
 		margin-inline: auto;
 	}
-	main > * {
+	div:where(.inicio) > * {
 		min-width: 0;
 		min-height: 0;
 	}

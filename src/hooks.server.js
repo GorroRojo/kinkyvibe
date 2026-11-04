@@ -13,7 +13,7 @@ import { resolveAsPanelAuthor } from '$lib/server/contenido/author.js';
 import { startRequest } from '$lib/server/adelantarPedido.js';
 import { withPreload } from '$lib/server/preload.js';
 import { withoutBeacon } from '$lib/server/analyticsBeacon.js';
-import { wwwRedirectResponse } from '$lib/server/canonicalHost.js';
+import { offSiteRedirectResponse, wwwRedirectResponse } from '$lib/server/canonicalHost.js';
 import { countServerErrors } from '$lib/server/vigilancia/avisos.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
@@ -33,6 +33,9 @@ async function siteHandle({ event, resolve: resolvePage }) {
 	// lee la base ni la sesión.
 	const toApex = wwwRedirectResponse(event.request, event.url);
 	if (toApex) return toApex;
+	// En producción, otro host (una dirección *.workers.dev de una versión) → 308 a kinkyvibe.ar.
+	const offSite = offSiteRedirectResponse(event.url, __DEPLOY_BRANCH__);
+	if (offSite) return offSite;
 	// Precarga, además del JS y el CSS, las dos Lato latin ($lib/server/preload.js).
 	// En la puerta con link, sin el beacon de analytics (el token va en el fragmento;
 	// $lib/server/analyticsBeacon.js).

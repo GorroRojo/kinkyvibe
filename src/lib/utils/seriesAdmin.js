@@ -42,8 +42,8 @@ export function seriesCreateOps(input, { exists = () => false, seriesIds = [] } 
 	if (icon.length > SERIES_ICON_MAX)
 		return { ok: false, error: 'El ícono tiene que ser un emoji (o dos).' };
 	const description = String(input.description ?? '').trim();
-	if (description.length > 2000)
-		return { ok: false, error: 'La descripción es demasiado larga (máximo 2000 caracteres).' };
+	if (description.length > SERIES_DESCRIPTION_MAX)
+		return { ok: false, error: DESCRIPTION_TOO_LONG };
 	/** @type {import('./tagConfig.js').TagOp[]} */
 	const ops = [
 		{
@@ -62,6 +62,9 @@ export function seriesCreateOps(input, { exists = () => false, seriesIds = [] } 
 export const SERIES_ICON_MAX = 16;
 /** Largo máximo del nombre visible. */
 export const SERIES_TITLE_MAX = 100;
+/** Largo máximo de la descripción (la validación y el `maxlength` del formulario). */
+export const SERIES_DESCRIPTION_MAX = 2000;
+const DESCRIPTION_TOO_LONG = `La descripción es demasiado larga (máximo ${SERIES_DESCRIPTION_MAX} caracteres).`;
 
 /**
  * Las operaciones del editor de etiquetas para editar una serie (Eventos → Series → Editar): el
@@ -104,8 +107,8 @@ export function seriesEditOps(input, current, { keepAlias = false, exists = () =
 	if (next.icon.length > SERIES_ICON_MAX)
 		return { ok: false, error: 'El ícono tiene que ser un emoji (o dos).' };
 	if (next.image && !isTagImage(next.image)) return { ok: false, error: IMAGE_ERROR };
-	if (next.description.length > 2000)
-		return { ok: false, error: 'La descripción es demasiado larga (máximo 2000 caracteres).' };
+	if (next.description.length > SERIES_DESCRIPTION_MAX)
+		return { ok: false, error: DESCRIPTION_TOO_LONG };
 	const beforeVisible =
 		current.visible_name && current.visible_name !== from ? current.visible_name : '';
 	const before = {

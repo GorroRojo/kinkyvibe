@@ -18,6 +18,7 @@
  * Funciones puras, sin base. No guarda ni loguea quién buscó ni qué.
  */
 import { resolveTag } from '$lib/server/sigo/targets.js';
+import { fold } from '$lib/utils/search';
 import { truncate } from './keyboards.js';
 import { encodeNav, shortHash } from './nav.js';
 import { upcomingEvents } from './inline.js';
@@ -112,8 +113,12 @@ export function noResultsHelp(source, query, now, manager = null) {
 	const tagged = family.length
 		? source.docs.filter((d) => d.g?.some((g) => family.includes(g)))
 		: [];
-	const used = usedTags(source);
-	const suggestedTags = suggestions.map((s) => s.query).filter((q) => used.has(q));
+	// Una sugerencia que es el nombre de una etiqueta usada, comparando sin tildes ni mayúsculas:
+	// las palabras salen como se escriben en los títulos («Cuerdas»), no como el id («cuerdas»).
+	const usedByFold = new Map([...usedTags(source)].map((t) => [fold(t), t]));
+	const suggestedTags = suggestions
+		.map((s) => usedByFold.get(fold(s.query).trim()))
+		.filter(/** @returns {t is string} */ (t) => t !== undefined);
 	const section = nearestSection(source, tagged.length ? tagged : firstHits, [
 		...family,
 		...suggestedTags

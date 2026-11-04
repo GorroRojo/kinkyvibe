@@ -133,6 +133,21 @@ const withRefreshInterval = (text) =>
 	text.replace(/^X-PUBLISHED-TTL:PT1H\r\n/m, (line) => `${line}${REFRESH_INTERVAL}\r\n`);
 
 /**
+ * ¿Este post va como evento en el calendario? Lo que mira {@link buildIcsFeed}, para que las rutas
+ * busquen los lugares solo de los eventos que van a salir (no de toda la historia).
+ *
+ * @param {Pick<ProcessedPost, 'meta'>} post
+ * @param {Pick<FeedOptions, 'includeCancelled' | 'since'>} [opts]
+ */
+export function isFeedEvent(post, { includeCancelled = false, since } = {}) {
+	if (post.meta.category != 'calendario') return false;
+	if (post.meta.status == 'cancelado' && !includeCancelled) return false;
+	// one event with a missing/invalid start would make createEvents() fail for the whole feed
+	if (isNaN(parseSiteDate(post.meta.start).getTime())) return false;
+	return since === undefined || eventEnd(post.meta.start, post.meta.end).getTime() >= since;
+}
+
+/**
  * Los eventos de `posts` (los que no son de calendario se ignoran) como texto .ics.
  *
  * @param {readonly Pick<ProcessedPost, 'meta' | 'path'>[]} posts
@@ -145,12 +160,7 @@ export function buildIcsFeed(posts, opts = {}) {
 	/** @type {ics.EventAttributes[]} */
 	const events = [];
 	for (const post of posts) {
-		if (post.meta.category != 'calendario') continue;
-		if (post.meta.status == 'cancelado' && !includeCancelled) continue;
-		// one event with a missing/invalid start would make createEvents() fail for the whole feed
-		if (isNaN(parseSiteDate(post.meta.start).getTime())) continue;
-		if (opts.since !== undefined && eventEnd(post.meta.start, post.meta.end).getTime() < opts.since)
-			continue;
+		if (!isFeedEvent(post, { includeCancelled, since: opts.since })) continue;
 		const organizer = post.meta.tags?.includes('KinkyVibe')
 			? 'Kinky Vibe'
 			: (post.meta.authors?.[0] ?? 'Kinky Vibe');

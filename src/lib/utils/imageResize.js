@@ -1,8 +1,11 @@
 /**
  * Achicar una imagen en el navegador antes de subirla a la biblioteca (docs/imagenes.md): el lado
  * más largo queda en {@link MAX_SIDE} px como mucho y se pasa a WEBP. Así se sube poco y el sitio
- * carga rápido. Si el navegador no puede (un tipo que no sabe dibujar, o no sabe hacer WEBP), o si
- * el resultado pesa más que el original sin haber hecho falta achicarlo, se sube el original.
+ * carga rápido. Si el navegador no sabe hacer WEBP (Safari), una foto JPEG se pasa a JPEG: dibujada
+ * de nuevo, ya no lleva sus datos ocultos (GPS, fecha); un PNG, WEBP o AVIF va como está (puede
+ * tener transparencias, que en JPEG saldrían negras). Si no puede dibujarla, o si el resultado pesa
+ * más que el original sin haber hecho falta achicarlo, se sube el original (el servidor le saca
+ * igual los metadatos a un JPEG o un PNG: media/metadata.js).
  *
  * Del mismo dibujo salen también las dos copias chicas para las tarjetas (WEBP, lado más corto de
  * 360 y 720 px; $lib/utils/mediaCopies.js), que viajan con la subida. Si no salen, se sube igual
@@ -18,6 +21,12 @@ export const MAX_SIDE = 2000;
 
 /** Calidad del WEBP (0 a 1). */
 export const WEBP_QUALITY = 0.85;
+
+/** Calidad del JPEG, cuando el navegador no sabe hacer WEBP (0 a 1). */
+export const JPEG_QUALITY = 0.85;
+
+/** Lo que puede salir del canvas y se sube en lugar del original. */
+const CONVERTED_TYPES = ['image/webp', 'image/jpeg'];
 
 /** Peso máximo del archivo que se elige (antes de achicar). El servidor tiene el mismo tope. */
 export const MAX_PICK_BYTES = 10 * 1024 * 1024;
@@ -65,19 +74,29 @@ export function pickProblem(file) {
 
 /** `foto de la fiesta.JPG` → `foto de la fiesta.webp` @param {string} name */
 export function webpName(name) {
-	const base = String(name || 'imagen').replace(/\.[^./]+$/, '');
-	return `${base || 'imagen'}.webp`;
+	return convertedName(name, 'image/webp');
 }
 
 /**
- * Entre el original y el WEBP, cuál se sube: el WEBP si el navegador lo hizo de verdad y (si no
- * hubo que achicar) pesa menos que el original.
+ * El nombre con la extensión de lo que salió del canvas: `.webp` o `.jpg`.
+ * @param {string} name
+ * @param {string} type
+ */
+export function convertedName(name, type) {
+	const base = String(name || 'imagen').replace(/\.[^./]+$/, '');
+	return `${base || 'imagen'}.${type === 'image/jpeg' ? 'jpg' : 'webp'}`;
+}
+
+/**
+ * Entre el original y lo convertido, cuál se sube: lo convertido (WEBP, o JPEG si el navegador no
+ * sabe hacer WEBP) si el navegador lo hizo de verdad y (si no hubo que achicar) pesa menos que el
+ * original.
  * @param {{ size: number }} original
  * @param {{ type: string, size: number } | null} converted
  * @param {boolean} scaled
  */
 export function keepConverted(original, converted, scaled) {
-	if (!converted || converted.type !== 'image/webp' || converted.size === 0) return false;
+	if (!converted || !CONVERTED_TYPES.includes(converted.type) || converted.size === 0) return false;
 	return scaled || converted.size < original.size;
 }
 
@@ -120,7 +139,13 @@ export async function prepareImage(file, env = {}) {
 		if (!ctx) return { ...original, width: bitmap.width, height: bitmap.height };
 		ctx.imageSmoothingQuality = 'high';
 		ctx.drawImage(bitmap, 0, 0, size.width, size.height);
-		const blob = await toWebp(canvas, WEBP_QUALITY);
+		let blob = await toWebp(canvas, WEBP_QUALITY);
+		// Safari no hace WEBP desde un canvas (devuelve PNG): una foto JPEG sale JPEG, en lugar del
+		// original tal cual. Un PNG, WEBP o AVIF no: puede tener partes transparentes, que en JPEG
+		// saldrían negras; va el original (al PNG el servidor le saca igual los metadatos).
+		if (blob && blob.type !== 'image/webp') {
+			blob = file.type === 'image/jpeg' ? await toBlob(canvas, 'image/jpeg', JPEG_QUALITY) : null;
+		}
 		const converted = keepConverted(file, blob, size.scaled);
 		// Las copias se miden contra lo que se sube (el WEBP achicado o el original).
 		const up = converted ? size : { width: bitmap.width, height: bitmap.height };
@@ -130,7 +155,7 @@ export async function prepareImage(file, env = {}) {
 		}
 		return {
 			blob: /** @type {Blob} */ (blob),
-			name: webpName(file.name),
+			name: convertedName(file.name, /** @type {Blob} */ (blob).type),
 			width: size.width,
 			height: size.height,
 			converted: true,
@@ -187,10 +212,20 @@ function defaultCanvas(w, h) {
  * @returns {Promise<Blob | null>}
  */
 function toWebp(canvas, quality) {
+	return toBlob(canvas, 'image/webp', quality);
+}
+
+/**
+ * @param {HTMLCanvasElement | OffscreenCanvas} canvas
+ * @param {string} type
+ * @param {number} quality
+ * @returns {Promise<Blob | null>}
+ */
+function toBlob(canvas, type, quality) {
 	if ('convertToBlob' in canvas) {
-		return canvas.convertToBlob({ type: 'image/webp', quality });
+		return canvas.convertToBlob({ type, quality });
 	}
 	return new Promise((resolve) =>
-		/** @type {HTMLCanvasElement} */ (canvas).toBlob(resolve, 'image/webp', quality)
+		/** @type {HTMLCanvasElement} */ (canvas).toBlob(resolve, type, quality)
 	);
 }

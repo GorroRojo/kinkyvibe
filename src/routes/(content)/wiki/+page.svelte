@@ -12,6 +12,8 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { goto } from '$app/navigation';
 	import { freshSiteTags } from '$lib/utils/siteTags.js';
+	// Qué más cubre el buscador del sitio: una sola fuente (searchScope.js).
+	import { SEARCH_SCOPE_BEYOND_WIKI } from '$lib/utils/searchScope.js';
 	import SeriesGrid from '$lib/components/series/SeriesGrid.svelte';
 	import ChipCombobox from '$lib/components/admin/ChipCombobox.svelte';
 	import {
@@ -128,7 +130,7 @@
 		<EmptyState
 			icon={SearchX}
 			title="No encontramos «{$query.trim()}» en la Kinkipedia"
-			text="Probá con otra palabra, o buscalo en todo el sitio: eventos, material y amigues."
+			text="Probá con otra palabra, o buscalo en todo el sitio: {SEARCH_SCOPE_BEYOND_WIKI}."
 		>
 			<button
 				type="button"

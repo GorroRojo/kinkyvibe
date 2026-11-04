@@ -23,6 +23,7 @@ export const NOTICE_CODES = Object.freeze({
 	e: 'dia_evento',
 	r: 'recordatorios',
 	c: 'conector_claude',
+	f: 'fallas_compra',
 	s: 'fallas_sitio'
 });
 

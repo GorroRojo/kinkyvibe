@@ -149,7 +149,7 @@ export async function missingLinks(db, { max = FALTA_MAX_OBJECTS } = {}) {
 		}
 	}
 	const list = [...items.values()]
-		.map(({ seen: _seen, ...item }) => item) // eslint-disable-line no-unused-vars
+		.map(({ seen: _seen, ...item }) => item)
 		.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'es'));
 	return { items: list, scanned: rows.length, truncated, references };
 }

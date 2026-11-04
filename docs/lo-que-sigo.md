@@ -118,6 +118,14 @@ sitio, en `/api/sigo` ni en el bot. Cada consulta va en su try/catch: una
 tabla que falta deja ese dato en «—». Se calcula en cada visita (una tanda de consultas); si con
 muchas cuentas se pone lento, se puede guardar unos minutos.
 
+**En las fichas** (solo admins, como todo esto): la de una etiqueta (Etiquetas, `?etiqueta=`) dice
+«N cuentas la siguen» y la de un perfil o lugar (Comunidad › Perfiles → la ficha) «N cuentas lo
+siguen» (o «Ninguna cuenta…»), sin las cuentas borradas, con link a «Lo más seguido» de Mensajes ›
+Lo que sigo (su grupo), donde está «Quiénes». Solo el número: los mails quedan en esa página. Sale
+de `tagFollowerCounts` (una consulta para todas las etiquetas; un alias o un nombre viejo cuenta
+para su etiqueta, como en «Lo más seguido») y `profileFollowerCount`, en `stats.js`. Si la consulta
+falla, la línea no sale.
+
 Lo de cada persona (qué sigue, con qué avisos, qué le llegó) está en su ficha (Comunidad ›
 Personas o Cuentas › una cuenta → «Lo que sigue»).
 
@@ -175,7 +183,9 @@ prendido. Van al mail de la cuenta, uno por cuenta, evento y tipo
 
 Cada mail lleva el link a Mi rincón → Lo que sigo y otro para no recibir más mails de lo que sigue
 (`/avisos/sigo/<cuenta>.<firma>`, sin entrar y aunque el interruptor esté apagado; apaga los
-dos mails de todo, lo seguido y el calendario quedan). Hasta 50 mails por corrida.
+dos mails de todo, lo seguido y el calendario quedan). Hasta 50 mails por corrida, y nunca más de
+lo que sobró del «de a cuántos» después de la tanda, el reintento de entradas y las series
+(`mailBudgetLeft`); los avisos por Telegram van aparte.
 
 ### «Avisame si se repite» (`src/lib/server/sigo/avisame.js`)
 
@@ -202,8 +212,8 @@ que se vuelva a prender.
 
 ### Código
 
-- `src/lib/utils/sigo.js`: lo puro (qué se puede seguir, las opciones, el orden y el CSV), con
-  tests.
+- `src/lib/utils/sigo.js`: lo puro (qué se puede seguir, las opciones, el orden y el CSV, con la
+  columna «desde» en el día de Argentina), con tests.
 - `src/lib/server/sigo/follows.js`: lecturas y escrituras de `follows` y de las preferencias.
 - `src/lib/server/sigo/targets.js`: qué es cada cosa seguida y si la cuenta la puede seguir.
 - `src/lib/server/sigo/web.js`: el interruptor y la cuenta de la sesión.
@@ -231,7 +241,7 @@ que se vuelva a prender.
 - El recordatorio sale cuando faltan 24 horas o menos (no a una hora fija del día anterior).
 - «Avisame» con cuenta deja también «en mi calendario» prendido.
 
-### Decidido por Claude, a confirmar con gorrite
+### Decidido por Claude, A CONFIRMAR con gorrite
 
 - Los mails de «Lo que sigo» usan su propia clave de firma (`sigo_mail_stop_key`).
 - El calendario personal existe siempre (el interruptor `series` quedó fijo); «Lo que sigo» le

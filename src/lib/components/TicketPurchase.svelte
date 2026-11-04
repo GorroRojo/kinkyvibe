@@ -20,7 +20,8 @@
 	 *
 	 * Lo que se va completando se guarda en `sessionStorage` (solo esta pestaña; se
 	 * borra al cerrarla) para no perderlo si la página se recarga, y se borra cuando la compra sale
-	 * bien. Incluye el DNI a propósito: sessionStorage no se comparte con otras pestañas ni
+	 * bien (con Mercado Pago, recién cuando la página de estado ve la compra aprobada: si el pago
+	 * se rechaza, el formulario vuelve con los datos). Incluye el DNI a propósito: sessionStorage no se comparte con otras pestañas ni
 	 * sobrevive a cerrar la pestaña, y es lo que la persona ya escribió en esta misma página. Nunca
 	 * se usa localStorage para estos datos. No se guarda la casilla de +18 (hay que volver a
 	 * marcarla).
@@ -601,14 +602,16 @@
 						pending = true;
 					}
 					return async ({ result: res, update }) => {
-						// La compra salió bien (vamos a pagar, a los datos para transferir o a las
-						// entradas): ya no hace falta el borrador.
-						if (res.type === 'redirect') clearDraft();
 						if (res.type === 'redirect' && /^https?:/.test(res.location)) {
-							// El checkout de Mercado Pago es otro sitio: navegación completa.
+							// El checkout de Mercado Pago es otro sitio: navegación completa. El borrador
+							// queda: si el pago se rechaza, «Volver a comprar» abre el formulario con los
+							// datos cargados (la página de estado lo borra cuando la compra se aprueba).
 							window.location.href = res.location;
 							return;
 						}
+						// La compra salió bien (datos para transferir o entradas gratis): ya no hace
+						// falta el borrador.
+						if (res.type === 'redirect') clearDraft();
 						await update({ reset: false });
 						pending = false;
 					};

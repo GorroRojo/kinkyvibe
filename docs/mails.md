@@ -66,6 +66,11 @@ sus plantillas propias) está en la ficha del evento.
 | Código para entrar        | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
 | Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
 
+**Reembolso: la línea de cómo se devuelve** (fija, no está en la plantilla) sale del total y el
+medio de la compra: total 0 → «Era una compra sin cargo: no hay dinero para devolver.»; si no,
+Mercado Pago, transferencia o efectivo con su frase, y cualquier otro medio con monto (una carga a
+mano con «otro») → «Te devolvimos el dinero.».
+
 **Lista de espera** (en construcción, interruptor `lista_espera`; ver abajo y
 [tickets.md](tickets.md#lista-de-espera-en-construcción)):
 
@@ -89,7 +94,9 @@ cambiar). Al mandar, cada parte sale de lo del evento → la plantilla general (
 → el texto del código (`resolveTemplate` en `templates.js`, `mergeTemplates` en
 `emailTemplates.js`). Las partes opcionales vacías = el texto de siempre; el texto plano solo
 cambia con asunto, título, texto o línea de ayuda propios. La vista previa de la ficha usa el
-título, la fecha y el lugar del evento con una compra de ejemplo. Van en su propia tabla (no en el
+título, la fecha y el lugar del evento con una compra de ejemplo; en un taller con una sola
+entrada, también la lista de partes y, en el recordatorio, la parte elegida (ver
+[talleres-partes.md](talleres-partes.md)). Van en su propia tabla (no en el
 objeto `evento`) porque los eventos todavía salen de sus `.md` y no siempre están en la base.
 
 **Plantilla común (diseño):** todos los mails (los de esta tabla y los de series, «Lo que sigo» e
@@ -99,6 +106,8 @@ título, detalles, un botón rosa y una línea de ayuda; abajo, por qué te lleg
 baja (si el mail la tiene) y «Kinky Vibe · Buenos Aires». Lo editable de las plantillas va dentro
 de la tarjeta.
 
+- **`<title>`**: «etiqueta · Kinky Vibe», para los lectores de pantalla (los clientes de mail no
+  lo muestran).
 - **Colores en hex**, nunca `hsl()` (`MAIL_COLORS`; `layout.test.js` falla si algún mail lo
   tiene): el Outlook clásico de Windows no lo entiende. La celda del botón lleva además el atributo
   `bgcolor`, así el botón no queda blanco sobre blanco en Outlook de escritorio (ahí sale sin las
@@ -217,6 +226,12 @@ las 9:00) lo recibe **el día anterior a las 20:00** (`EVE_TIME`), con el mismo 
 asunto «… es mañana». No sale si otro recordatorio activado ya cae en las 24 horas antes del
 comienzo, y si hay dos «el mismo día», solo el primero pasa a la noche anterior.
 
+**La corrida entera respeta el «de a cuántos».** Después de la tanda y del reintento del mail de
+las entradas, los avisos de series («Avisame si se repite») y de «Lo que sigo» salen con lo que
+sobró (`mailBudgetLeft` en `tickets/mailQueue.js`; cada uno, además, con su tope de 50). Si Resend
+cortó la tanda (cupo, tasa o 5xx), esa corrida no manda avisos: igual anotan las ediciones nuevas y
+los mails quedan para la próxima.
+
 ### Reintento del mail de las entradas
 
 El mail con las entradas sale una vez, al aprobarse la orden (en segundo plano). Si ese envío
@@ -228,7 +243,8 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
   (`EMAIL_GRACE_MS`, el mismo margen del aviso «mails sin enviar» del Inicio) y hace menos de 48 h;
   las más viejas primero, 5 por corrida. Va aparte de la tanda de mails (no usa su tope) y en su
   propio try/catch: si falla, lo demás sale igual. La respuesta del cron suma
-  `unsentOrders: { sent, failed }`.
+  `unsentOrders: { sent, failed }`. Una orden sin mail (una venta en la puerta sin mail) no se
+  reintenta ni sale en el aviso «mails sin enviar» del Inicio: no hay a quién mandárselo.
 - **Sin duplicar:** usa `sendOrderEmail` con la clave de siempre (`tickets-<orden>`). Si el primer
   intento sí había llegado a Resend (un timeout), Resend no lo manda de nuevo. Ojo: Resend guarda
   las claves 24 h.
@@ -237,8 +253,10 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
   los envíos en tandas marcan 'sent' lo simulado, y no se vuelve a tomar. Las órdenes gratis pasan
   además por el tope de mails a una dirección sin confirmar (5 por día): el reintento no lo saltea.
 - **Una dirección que falla siempre** (Resend la rechaza) se intenta como mucho 3 veces por día
-  (`rate_limits`, la clave lleva el id de la orden) y no frena a las demás. Después de 48 h queda
-  en «mails sin enviar» del Inicio para «Reenviar» a mano.
+  (`rate_limits`, la clave lleva el id de la orden, ventana del día UTC). Cada corrida lee como
+  mucho 20 candidatas (4 por mail) y la consulta ya deja afuera las que gastaron sus 3 intentos del
+  día, así que esas no ocupan lugar ni frenan a las más nuevas; vuelven a probar al día UTC
+  siguiente. Después de 48 h queda en «mails sin enviar» del Inicio para «Reenviar» a mano.
 - **Si Resend dice «ahora no»** (cupo terminado, demasiados por segundo o un 5xx), ese intento no
   cuenta para los 3 del día y la corrida se corta (ver abajo).
 
@@ -248,6 +266,17 @@ base que no contesta), `sendTransferEmail` espera 2 segundos y lo vuelve a manda
 misma clave de idempotencia (`transfer-<orden>`: si el primero sí salió, Resend no lo duplica).
 Con el cupo terminado no reintenta. Si no sale, queda `[tickets] el mail de transferencia … no
 salió` en el log; el tope de mails a una dirección también anota el id de la orden.
+
+### Reintento de los avisos de series
+
+El aviso de edición nueva («Avisame si se repite», `src/lib/server/series/notify.js`) sale del
+mismo cron, hasta 50 por corrida. Si el mail falla, la fila de `series_notifications` se suelta y
+se reintenta en la corrida siguiente, como mucho 3 veces por día por suscripción y edición
+(`rate_limits`, la clave lleva el id de la suscripción y el slug). Los que ya gastaron los 3 del
+día no entran en la tanda, así que una dirección que falla siempre no frena a las de atrás; al otro
+día se vuelven a intentar, hasta que la edición deja de ser próxima.
+Si Resend dice «ahora no» (ver abajo), la fila se suelta y el intento no cuenta: una caída corta de
+Resend no gasta los 3 del día ni manda los avisos a la ventana siguiente.
 
 ### Cupo de Resend y errores pasajeros
 
@@ -266,6 +295,9 @@ cuando está caído. Ninguno de esos dice nada del mail en sí, así que no gast
   veces por día (`rate_limits`, unas 12 horas de corridas): después cuenta como un intento más.
 - **El mail de las entradas** (reintento del cron, `unsentOrders.js`): lo mismo, el intento no
   cuenta y la corrida se corta. La ventana de 48 h pone el techo.
+- **Los avisos de series** (`series/notify.js`, con `seriesSender(…, { backoff: true })`): lo mismo,
+  el intento no cuenta, la fila se suelta y la tanda de series se corta (`deferred` y `stopped` en
+  la respuesta). El techo es que la edición deje de ser próxima.
 - **«Mail a compradores»:** la tanda se corta con el cupo o la tasa y el panel dice «Resend frenó el
   envío…»; «Reintentar» sigue más tarde sin repetir a nadie.
 - **Aviso:** con el cupo terminado, `deliver()` lo anota (`resendQuota.js`, una fila
@@ -435,6 +467,21 @@ Resend avisa por un webhook firmado: `POST /api/resend/webhook`
 - **El id de Resend:** el mail de las entradas guarda en la orden el id que devuelve Resend
   (`orders.email_id`, el del último envío; «Reenviar» lo cambia). Con ese id se busca el mail en
   Resend → Emails (Resend lo guarda 30 días) y el webhook encuentra la orden.
+- **El tipo de mail:** cada envío lleva el tag de Resend `tipo` (`entradas`, `transmision`,
+  `cambio-fecha`, `transferencia`, `reembolso`, `recordatorio`, `mail-compradores`, `prueba`,
+  `codigo`, `perfil-invitacion`, `serie`, `sigo`, `lista-espera`, `fondo`; el `kind` de
+  `deliver()` en `src/lib/server/tickets/index.js`). En Resend → Emails se filtra por tag, así un
+  rebote de «Tus entradas» no se confunde con uno de «Lo que sigo», y el tag viene en los avisos
+  del webhook. No cambia nada del mail que recibe la persona.
+- **Dominios que no reciben correo:** antes de mandar el mail de las entradas, se consulta el MX
+  del dominio por DNS sobre HTTPS (la API JSON de 1.1.1.1, `src/lib/server/email/mx.js`, con el
+  resultado un día en la caché de Cloudflare, con una clave que no deja ver el dominio). Si es seguro que no recibe (el dominio no existe,
+  como `gmail.con`, o publica el MX nulo `0 .`), el mail no se le pide a Resend (rebotaría seguro y
+  el rebote pesa sobre la cuenta) y la orden queda marcada como «el mail rebotó», igual que con el
+  webhook, con su fila en «Para revisar». Ante cualquier duda (error de red, tiempo agotado,
+  dominio sin MX pero con dirección) el mail sale. Quien compra no ve nada distinto: el arreglo es
+  «Corregir el mail…» (si la dirección nueva tampoco recibe, el panel lo dice). El reintento del
+  cron no la vuelve a tomar. Sin `RESEND_API_KEY` (dev, E2E) no se consulta.
 - **Qué hace con cada aviso:** un rebote permanente (`email.bounced` con `bounce.type`
   `Permanent`) o una queja (`email.complained`, alguien lo marcó como spam) anotan la dirección en
   `email_suppressions`, la misma tabla de [«No fui yo»](#no-fui-yo) (por hash, nunca el mail): no le
@@ -488,7 +535,7 @@ solo la dirección y los links; el asunto, los textos y el remitente están fijo
   - cualquier otra clave, arriba o en un link, es un 400.
 - **El mail:** remitente `Fondo KinkyVibe <fondo@kinkyvibe.ar>` (no el de entradas de Ajustes;
   `deliver()` acepta un `from` fijo solo para esto; la dirección de respuesta y el pie siguen siendo
-  los de Ajustes), asunto «Tu link para elegir cómo aparecés en el Fondo KinkyVibe», un botón
+  los de Ajustes), asunto «Tu link para elegir cómo aparecés en el Fondo Kinky Vibe», un botón
   «Mecenas <nivel>: elegir cómo aparezco» por link y el aviso «No compartas este mail…». Es el único
   mail con más de un botón (uno por suscripción). Sale por `deliver()`, así que en un preview solo
   llega a `EMAIL_ALLOWLIST`.
@@ -581,6 +628,14 @@ migración `0048_avisar_cambio_fecha.sql`):
 - **En tandas.** El botón manda la primera («Mails por tanda») y deja el envío pedido
   (`send_requested_at`); el cron sigue con el resto después de los recordatorios y los links
   (`mailQueue.js`). Queda en Actividad (`event.date_change.send`, solo cuántos: nunca mails).
+- **Los recordatorios, de nuevo** (auditoría de plata, D13): guardar con otro **inicio** (no solo
+  otro fin) vuelve a dejar pendientes los recordatorios que ya salieron para la fecha de antes y que
+  en la fecha nueva todavía no tocan (`reopenRemindersForNewStart` en `reminders.js`: borra esas
+  filas `sent` de `reminder_sends`; en una parte de un taller, las de esa parte), así salen otra
+  vez para la fecha nueva. Uno cuya hora nueva ya pasó no se toca, así no sale de nuevo enseguida
+  (correr el evento una hora después del «faltan 2 días» no lo repite). No depende del botón
+  «Avisar»: es automático al guardar. Un caso queda: si el evento se posterga y se vuelve a la
+  fecha de antes antes de que salga el nuevo, el recordatorio sale otra vez (con la fecha buena).
 - **El mail.** Asunto «Cambió la fecha: <evento>», la fecha nueva en un recuadro (hora argentina,
   con el fin: «sábado 21 de noviembre de 2026, 21:00 a 02:00») con el lugar, «Antes era: …», el
   `.ics` y el link «Agregar a Google Calendar» con el mismo UID y la **versión del cambio**: el
@@ -760,9 +815,22 @@ todavía llevan el evento; una opción de mails discretos (una casilla en la com
 evento del asunto, del preencabezado y del adjunto) sería una etapa aparte, que necesita una
 decisión de gorrite.
 
-**Cambiar un mail desde el código.** Editá la función `build…Email` en `email.js` y actualizá
-`email.golden.json` en el mismo PR, explicando el cambio. Si agregás una variable, sumala en
-`emailTemplates.js`.
+**Cambiar un mail desde el código.** Editá la función `build…Email` en `email.js` y regenerá los
+goldens en el mismo PR, explicando el cambio. Si agregás una variable, sumala en
+`emailTemplates.js`. Los goldens no se editan a mano:
+
+```sh
+UPDATE_EMAIL_GOLDEN=1 npx vitest run src/lib/server/tickets/templates.test.js src/lib/server/email/layout.test.js
+npx vitest run src/lib/server/tickets src/lib/server/email   # después, sin la variable
+git diff -- '*.json'                                          # solo los mails que cambiaste
+```
+
+`templates.test.js` escribe `email.golden.json` (HTML, asunto y texto de los mails de entradas y
+de la lista de espera) y `layout.test.js` escribe `mails.text.json` (asunto y texto de todos los
+mails), cada uno entero, con los builders y los fixtures de hoy (`src/lib/testing/golden.js`
+mantiene el orden de las claves: regenerar sin cambios da un diff vacío). **Ante un conflicto en
+un golden** (al actualizar desde main), tomá cualquiera de los dos lados y regenerá: el resultado
+sale del código ya mezclado, no de los lados.
 
 **Agregar un mail nuevo.** Armalo en `email.js`, mandalo con `deliver()` (nunca directo a
 Resend) y, si es masivo, con una tabla de envíos que reserve a cada destinatarie antes de mandar

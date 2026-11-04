@@ -6,7 +6,7 @@
 	export let links;
 </script>
 
-<nav>
+<nav aria-label="Secciones del sitio">
 	<ul>
 		{#each links as { icon, name, sub, href, target = undefined }}
 			<li class:current={isSectionActive($page.url.pathname, href)}>

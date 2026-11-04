@@ -17,6 +17,7 @@
  */
 import { DATASET, FUNNEL_STEPS } from './track.js';
 import { AnalyticsQueryError, analyticsConfig, runSql, sqlDateTime } from './sql.js';
+import { AR_UTC_OFFSET_MS, arClock, arDayKey, arMidnight } from '$lib/utils/dates.js';
 
 /** Dimensiones del resumen mensual, con la columna del dataset y cuántas se guardan. */
 export const DIMENSIONS = Object.freeze({
@@ -32,16 +33,15 @@ export const TOP_DAYS = 30;
 /** Período más largo que se le pide a Analytics Engine: guarda el detalle unos 3 meses. */
 export const MAX_DAYS = 90;
 
-/** Horas que Argentina está detrás de UTC (sin horario de verano). */
-export const AR_OFFSET_HOURS = 3;
-const AR_OFFSET_MS = AR_OFFSET_HOURS * 3_600_000;
+/** Horas que Argentina está detrás de UTC (sin horario de verano), para el SQL de Analytics. */
+export const AR_OFFSET_HOURS = -AR_UTC_OFFSET_MS / 3_600_000;
 
 /** La fecha `date` corrida a la hora de Argentina (para leerla con getUTC…/toISOString). */
-const inArgentina = (/** @type {Date} */ date) => new Date(date.getTime() - AR_OFFSET_MS);
+const inArgentina = (/** @type {Date} */ date) => arClock(date.getTime());
 
 /** El día de Argentina (`YYYY-MM-DD`) de un instante. */
 export function argentineDay(/** @type {Date} */ date) {
-	return inArgentina(date).toISOString().slice(0, 10);
+	return arDayKey(date.getTime());
 }
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -52,7 +52,7 @@ const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', '
  */
 export function monthStart(/** @type {Date} */ date, offset = 0) {
 	const ar = inArgentina(date);
-	return new Date(Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth() + offset, 1) + AR_OFFSET_MS);
+	return new Date(arMidnight(ar.getUTCFullYear(), ar.getUTCMonth() + offset, 1));
 }
 
 /**
@@ -61,9 +61,7 @@ export function monthStart(/** @type {Date} */ date, offset = 0) {
  */
 export function dayStart(/** @type {Date} */ date, offset = 0) {
 	const ar = inArgentina(date);
-	return new Date(
-		Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth(), ar.getUTCDate() + offset) + AR_OFFSET_MS
-	);
+	return new Date(arMidnight(ar.getUTCFullYear(), ar.getUTCMonth(), ar.getUTCDate() + offset));
 }
 
 /** `YYYY-MM` del mes de Argentina de un instante. */
