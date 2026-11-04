@@ -549,6 +549,7 @@
 					sales={data.sales}
 					salesUnavailable={data.salesUnavailable}
 					transferReady={data.transferReady ?? null}
+					fondoPercent={data.fondoPercent ?? null}
 					waitlistEnabled={data.waitlistEnabled ?? null}
 					waitlistLive={data.waitlistLive ?? null}
 					errors={ticketsCheck.errors}

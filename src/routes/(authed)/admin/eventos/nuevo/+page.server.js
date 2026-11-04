@@ -21,6 +21,7 @@ import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { linkFileErrors, placeFileErrors } from '$lib/server/eventos/fileErrors.js';
 import { transferReady } from '$lib/server/tickets/index.js';
+import { editorFondoPercent } from '$lib/server/tickets/fondo.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { saveCopy } from '$lib/admin/saveCopy.js';
 import { siteTags, tagExists } from '$lib/server/series/index.js';
@@ -76,7 +77,7 @@ function usableTemplate(raw) {
 }
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ locals, url, platform }) {
+export async function load({ locals, url, platform, fetch }) {
 	requireAdmin(locals, url);
 	const admin = getEventAdmin(locals);
 	if (!admin) throw error(403, NO_PERMISSION);
@@ -102,7 +103,10 @@ export async function load({ locals, url, platform }) {
 		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (su edge `lugar`).
 		venuePickerData(db, desde || null),
 		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
-		transferReady(db)
+		transferReady(db),
+		// El porcentaje del Fondo de hoy, para los precios con el Fondo en Entradas (sin esperar a
+		// fondo.kinkyvibe.ar; `null` si no se sabe).
+		editorFondoPercent({ db, fetch, ctx: platform?.ctx })
 	]);
 	rest.catch(() => {});
 	if (desde) {
@@ -138,7 +142,7 @@ export async function load({ locals, url, platform }) {
 		// Si el original no está en una serie, «¿Es parte de una serie?».
 		seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
 	}
-	const [editor, personas, duplicables, venuePicker, transfer] = await rest;
+	const [editor, personas, duplicables, venuePicker, transfer, fondoPercent] = await rest;
 	return {
 		source,
 		seriesPrompt,
@@ -151,6 +155,7 @@ export async function load({ locals, url, platform }) {
 		duplicables,
 		venuePicker,
 		transferReady: transfer,
+		fondoPercent,
 		takenSlugs: takenSlugsInBundle(),
 		// Todo se guarda en la base (decisión 0032); la clave queda mientras el formulario la lea.
 		savesToDb: true,
