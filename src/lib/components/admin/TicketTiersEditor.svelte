@@ -3,11 +3,18 @@
 	cantidad y fecha límite de cada tramo, en orden. La lógica (ids, validación, cómo se guarda)
 	está en $lib/utils/ticketsEditor.js; acá solo se edita la lista.
 
-	Uso: <TicketTiersEditor bind:tiers={t.tiers} taken={ventas por tramo} idPrefix="ev-0" />
+	Con el porcentaje del Fondo (`fondoPercent`, solo eventos KinkyVibe), cada precio muestra cuánto
+	sale con el Fondo, y el resumen también. «Copiar precios» copia una línea por tramo (y la de la
+	puerta) para la agenda y los flyers (ver $lib/utils/fondoPrices.js).
+
+	Uso: <TicketTiersEditor bind:tiers={t.tiers} taken={ventas por tramo} doorPrice={t.doorPrice}
+	  fondoPercent={20} idPrefix="ev-0" />
 -->
 <script>
-	import { Plus } from '@lucide/svelte';
+	import { tick } from 'svelte';
+	import { Check, Copy, Plus } from '@lucide/svelte';
 	import { MAX_TIERS, emptyTier, tierPreview } from '$lib/utils/ticketsEditor.js';
+	import { fondoPriceLine, fondoTodayLine, pricesCopyText } from '$lib/utils/fondoPrices.js';
 
 	/** @type {import('$lib/utils/ticketsEditor.js').TierForm[]} */
 	export let tiers = [];
@@ -16,6 +23,43 @@
 	export let taken = {};
 	/** Prefijo de los ids de los campos (único por tipo de entrada). */
 	export let idPrefix = 'tier';
+	/** «Precio en puerta» del tipo ('' = el del último tramo), para «Copiar precios». */
+	export let doorPrice = '';
+	/**
+	 * Porcentaje del Fondo para mostrar los precios con el Fondo; `null` o 0: no se muestran (evento
+	 * sin Fondo o porcentaje desconocido).
+	 * @type {number | null}
+	 */
+	export let fondoPercent = null;
+
+	$: copyText = pricesCopyText(
+		{ mode: 'tiers', name: '', price: '', tiers, doorPrice },
+		fondoPercent
+	);
+	let copied = false;
+	/** No se pudo usar el portapapeles: el texto queda a la vista, seleccionado, para copiarlo. */
+	let copyFailed = false;
+	/** @type {HTMLTextAreaElement | undefined} */
+	let copyBox;
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let copiedTimer;
+
+	async function copyPrices() {
+		const text = copyText;
+		try {
+			await navigator.clipboard.writeText(text);
+			copyFailed = false;
+			copied = true;
+			clearTimeout(copiedTimer);
+			copiedTimer = setTimeout(() => (copied = false), 2500);
+		} catch {
+			copied = false;
+			copyFailed = true;
+			await tick();
+			copyBox?.focus();
+			copyBox?.select();
+		}
+	}
 
 	/** @param {string | null} id */
 	const takenOf = (id) => (id ? (taken[id] ?? 0) : 0);
@@ -32,7 +76,7 @@
 <ol class="tiers">
 	{#each tiers as tr, j (tr.key)}
 		{@const sold = takenOf(tr.origId)}
-		<li class="tier">
+		<li class="tier" class:with-fondo={fondoPriceLine(tr.price, fondoPercent)}>
 			<span class="tier-n" aria-hidden="true">{j + 1}</span>
 			<label class="field t-name">
 				<span>Nombre del tramo</span>
@@ -52,6 +96,11 @@
 					placeholder="Ej.: 8000"
 				/>
 			</label>
+			{#if fondoPriceLine(tr.price, fondoPercent)}
+				<small class="t-fondo" id="{idPrefix}-price-fondo-{j}"
+					>{fondoPriceLine(tr.price, fondoPercent)}</small
+				>
+			{/if}
 			<label class="field t-qty">
 				<span>Cantidad</span>
 				<input
@@ -82,7 +131,37 @@
 		><Plus size={16} aria-hidden="true" /> Agregar tramo</button
 	>
 {/if}
-<small class="tier-preview" aria-live="polite">{tierPreview(tiers)}</small>
+<div class="tier-summary">
+	<small class="tier-preview" id="{idPrefix}-preview" aria-live="polite"
+		>{tierPreview(tiers, fondoPercent)}{#if fondoTodayLine(fondoPercent)}{' '}<strong
+				>{fondoTodayLine(fondoPercent)}</strong
+			>{/if}</small
+	>
+	<button
+		type="button"
+		class="kv-link copy-prices"
+		id="{idPrefix}-copy"
+		on:click={copyPrices}
+		aria-describedby="{idPrefix}-preview"
+		>{#if copied}<Check size={16} aria-hidden="true" /> Copiado{:else}<Copy
+				size={16}
+				aria-hidden="true"
+			/> Copiar precios{/if}</button
+	>
+</div>
+<p class="visually-hidden" role="status">{copied ? 'Precios copiados' : ''}</p>
+{#if copyFailed}
+	<label class="field copy-box">
+		<span>No se pudo copiar: seleccioná el texto y copialo.</span>
+		<textarea
+			bind:this={copyBox}
+			id="{idPrefix}-copy-text"
+			readonly
+			rows={copyText.split('\n').length}
+			value={copyText}
+			on:focus={(e) => e.currentTarget.select()}></textarea>
+	</label>
+{/if}
 
 <style>
 	.tiers {
@@ -109,6 +188,15 @@
 		border-radius: var(--radius-m);
 		background: var(--surface, white);
 		outline: 1px solid var(--1-light);
+	}
+	/* Con el precio con el Fondo debajo del precio. */
+	.tier.with-fondo {
+		grid-template-areas:
+			'n name name x'
+			'n price qty .'
+			'n fondo fondo .'
+			'n until until .'
+			'n sold sold .';
 	}
 	.tier-n {
 		grid-area: n;
@@ -142,6 +230,11 @@
 	.t-sold {
 		grid-area: sold;
 	}
+	.t-fondo {
+		grid-area: fondo;
+		margin-top: -0.2em;
+		color: var(--2-dark);
+	}
 	/* Compu (o un editor ancho): todo el tramo en una fila. */
 	@container (min-width: 40em) {
 		.tier {
@@ -150,6 +243,12 @@
 				2.2em;
 			grid-template-areas:
 				'n name price qty until x'
+				'. sold sold sold sold .';
+		}
+		.tier.with-fondo {
+			grid-template-areas:
+				'n name price qty until x'
+				'. . fondo fondo fondo .'
 				'. sold sold sold sold .';
 		}
 		.t-remove {
@@ -178,9 +277,27 @@
 		align-self: flex-start;
 		margin-top: 0.3em;
 	}
-	.tier-preview {
-		display: block;
+	.tier-summary {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.2em 0.8em;
 		margin-top: 0.3em;
+	}
+	.tier-preview {
+		flex: 1 1 18em;
+		min-width: 0;
 		color: var(--2-dark);
+	}
+	.copy-prices {
+		flex: none;
+		min-height: 44px;
+	}
+	.copy-box {
+		margin-top: 0.3em;
+	}
+	.copy-box textarea {
+		font-size: var(--step--1);
+		resize: vertical;
 	}
 </style>

@@ -4,7 +4,8 @@
 	encadenados), la meta de venta (SalesGoalField), medios de pago, cierre, modalidad, entradas en
 	la puerta y recordatorios (ver
 	$lib/utils/ticketsEditor.js, que lee y escribe el frontmatter). Los tramos se editan en
-	TicketTiersEditor. Nada del Fondo: es automático, solo avisa si aplica.
+	TicketTiersEditor. Nada del Fondo: es automático, solo avisa si aplica y, con el porcentaje de
+	hoy (`fondoPercent`), muestra debajo de cada precio cuánto sale con el Fondo (fondoPrices.js).
 
 	Diseño: primero el celu (una columna); en pantallas anchas los campos de cada tipo se acomodan
 	en una grilla según el ancho del editor (container queries), no de la ventana.
@@ -14,6 +15,7 @@
 	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { X } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
+	import { fondoPriceLine, shownFondoPercent } from '$lib/utils/fondoPrices.js';
 	import { LOW_STOCK, formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
 	import {
 		DOOR_PRICE_MAX,
@@ -80,6 +82,12 @@
 	export let waitlistEnabled = null;
 	/** @type {Record<string, number> | null} */
 	export let waitlistLive = null;
+	/**
+	 * Porcentaje del Fondo de hoy (`resolveFondoPercent`), para mostrar los precios con el Fondo en
+	 * los eventos KinkyVibe. `null` (no se sabe) o 0: no se muestran.
+	 * @type {number | null}
+	 */
+	export let fondoPercent = null;
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
@@ -90,6 +98,8 @@
 		{ id: 'gorra', label: 'A la gorra' }
 	]);
 	$: fondo = isKinkyVibeEvent({ tags });
+	/** El porcentaje para mostrar los precios con el Fondo (`null`: sin Fondo, 0 o no se sabe). */
+	$: shownPercent = fondo ? shownFondoPercent(fondoPercent) : null;
 	// La regla de la página (`eventMode` de eventPlace.js): con lugar elegido, presencial; si no,
 	// la modalidad elegida; si no, el «Dónde» y la etiqueta Online.
 	$: place = { tags, location, location_name: locationName };
@@ -305,6 +315,8 @@
 									<TicketTiersEditor
 										bind:tiers={t.tiers}
 										taken={s?.tiers ?? {}}
+										doorPrice={t.doorPrice}
+										fondoPercent={shownPercent}
 										idPrefix="{idPrefix}-tier-{i}"
 									/>
 								</div>
@@ -323,6 +335,11 @@
 											: 'Pesos, sin centavos.'}{#if fondo}{' '}Es el precio completo: el descuento
 											del Fondo se calcula solo.{/if}</small
 									>
+									{#if fondoPriceLine(t.price, shownPercent)}
+										<small class="fondo-price" id="{idPrefix}-ticket-price-fondo-{i}"
+											>{fondoPriceLine(t.price, shownPercent)}</small
+										>
+									{/if}
 								</label>
 							{/if}
 							{#if t.mode !== 'gorra'}
@@ -341,6 +358,11 @@
 										se cargan a mano. Vale para la venta en la puerta y la carga a mano.
 										<span aria-live="polite">{doorPricePreview(t)}</span></small
 									>
+									{#if fondoPriceLine(t.doorPrice, shownPercent)}
+										<small class="fondo-price" id="{idPrefix}-ticket-door-fondo-{i}"
+											>{fondoPriceLine(t.doorPrice, shownPercent)}</small
+										>
+									{/if}
 								</label>
 							{/if}
 							<label class="field f-cap">
@@ -627,6 +649,9 @@
 	button.remove:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
+	}
+	.fondo-price {
+		color: var(--2-dark);
 	}
 	.keep {
 		margin-top: -0.3em;

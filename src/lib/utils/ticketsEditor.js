@@ -31,6 +31,7 @@ import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.
 import { isOnlineEvent, modalidadOf } from './eventPlace.js';
 import { currentSiteTags } from './siteTags.js';
 import { formatARS } from './money.js';
+import { priceWithFondo, untilShort } from './fondoPrices.js';
 import { chainCycle, doorPrice, unreachableAfter } from './ticketTiers.js';
 import {
 	ORDER_MAX_TOTAL,
@@ -231,19 +232,26 @@ export function tiersForMode(t) {
  * Preventa 2 ($ 9.000, hasta el 9/10) → General ($ 10.000, el resto)". Quien compra ve solo el
  * tramo vigente.
  *
+ * Con el porcentaje del Fondo (eventos KinkyVibe), cada precio lleva también el precio con el
+ * Fondo: "Preventa 1 ($ 8.000; con el Fondo $ 6.400, las primeras 5) → …".
+ *
  * @param {TierForm[]} tiers
+ * @param {number | null} [fondoPercent] `null` o 0: sin el precio con el Fondo
  */
-export function tierPreview(tiers) {
+export function tierPreview(tiers, fondoPercent = null) {
 	if (!tiers.length) return '';
 	const steps = tiers.map((tr, j) => {
 		const p = parseAmount(tr.price);
 		const q = tr.quantity.trim() && /^\d+$/.test(tr.quantity.trim()) ? Number(tr.quantity) : null;
-		const until = LOCAL_RE.test(tr.until.trim())
-			? `hasta el ${Number(tr.until.slice(8, 10))}/${Number(tr.until.slice(5, 7))}`
-			: '';
+		const until = untilShort(tr.until);
 		const first = j === 0 ? 'primeras' : 'siguientes';
+		const withFondo = priceWithFondo(p, fondoPercent);
 		const parts = [
-			p === null ? '$ ?' : formatARS(p),
+			p === null
+				? '$ ?'
+				: withFondo === null
+					? formatARS(p)
+					: `${formatARS(p)}; con el Fondo ${formatARS(withFondo)}`,
 			q !== null ? (q === 1 ? (j === 0 ? 'la primera' : 'la siguiente') : `las ${first} ${q}`) : '',
 			until,
 			q === null && !until ? 'el resto' : ''
