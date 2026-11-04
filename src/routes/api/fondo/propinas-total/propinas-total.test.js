@@ -244,3 +244,64 @@ describe('GET /api/fondo/propinas-total', () => {
 		expect((await GET(event('?mes=2026-10', undefined, {}))).status).toBe(503);
 	});
 });
+
+describe('GET /api/fondo/propinas-total: PayPal (interruptor `paypal`)', () => {
+	const ON = { FONDO_MAIL_SECRET: SECRET, PAYPAL_ENABLED: '1' };
+	const OFF = { FONDO_MAIL_SECRET: SECRET, PAYPAL_ENABLED: '0' };
+	let order = 0;
+	/**
+	 * Una propina de PayPal como la va a guardar el cobro (todavía no existe): directo en la tabla.
+	 * @param {{ netCents: number, base: number, approvedAt: number, status?: string }} o
+	 */
+	async function paypalTip({ netCents, base, approvedAt, status = 'approved' }) {
+		await t.db
+			.prepare(
+				`INSERT INTO tips (id, amount, status, post_category, post_slug, created_at, updated_at,
+					approved_at, destination, source, provider, currency, usd_gross_cents, usd_net_cents,
+					rate_base, paypal_order_id)
+				VALUES (?1, 1, ?2, 'material', '', ?3, ?3, ?3, 'fondo', 'fondo', 'paypal', 'USD', ?4, ?4, ?5, ?6)`
+			)
+			.bind(crypto.randomUUID(), status, approvedAt, netCents, base, `ORDEN-PRUEBA-${++order}`)
+			.run();
+	}
+
+	it('apagado: la respuesta de siempre, sin `paypal`, aunque haya propinas de PayPal', async () => {
+		const at = Date.parse('2026-10-20T15:00:00Z');
+		await tip({ amount: 1500, approvedAt: at });
+		await paypalTip({ netCents: 1000, base: 1200, approvedAt: at });
+		const { GET } = await endpoint(OFF);
+		const body = await (await GET(event('?mes=2026-10'))).json();
+		expect(Object.keys(body).sort()).toEqual(['count', 'month', 'total', 'updatedAt']);
+		expect(body).toMatchObject({ total: 1500, count: 1 });
+	});
+
+	it('prendido sin propinas de PayPal: `paypal` en ceros y `total`/`count` iguales', async () => {
+		await tip({ amount: 1500, approvedAt: Date.parse('2026-10-06T00:00:00Z') });
+		const { GET } = await endpoint(ON);
+		const res = await GET(event('?mes=2026-10'));
+		expect(res.status).toBe(200);
+		expect(res.headers.get('cache-control')).toBe('private, max-age=300');
+		const body = await res.json();
+		expect(body).toMatchObject({ total: 1500, count: 1, month: '2026-10' });
+		expect(body.paypal).toEqual({ usd: 0, ars: 0, count: 0 });
+	});
+
+	it('prendido: `paypal` suma lo neto y los pesos estimados con el ajuste; `total` sigue siendo solo Mercado Pago', async () => {
+		const at = Date.parse('2026-10-20T15:00:00Z');
+		await tip({ amount: 1500, approvedAt: at });
+		await paypalTip({ netCents: 1000, base: 1200, approvedAt: at });
+		await paypalTip({ netCents: 941, base: 1567.4, approvedAt: at });
+		await paypalTip({ netCents: 5000, base: 1200, approvedAt: at, status: 'refunded' });
+		await paypalTip({ netCents: 5000, base: 1200, approvedAt: Date.parse('2026-11-05T03:00:00Z') });
+		await t.db
+			.prepare(
+				"INSERT INTO ticket_settings (key, value, updated_at, updated_by) VALUES ('paypal_rate_adjustment_pct', '-4', 1, 'admin-de-prueba')"
+			)
+			.run();
+		const { GET } = await endpoint(ON);
+		const body = await (await GET(event('?mes=2026-10'))).json();
+		expect(body).toMatchObject({ total: 1500, count: 1 });
+		// 10 × 1200 × 0,96 = 11.520; 9,41 × 1567,40 × 0,96 = 14.159,26 → 14.159.
+		expect(body.paypal).toEqual({ usd: 19.41, ars: 11_520 + 14_159, count: 2 });
+	});
+});

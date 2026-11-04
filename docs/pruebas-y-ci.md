@@ -61,6 +61,12 @@ todas las actualizaciones minor y patch de npm, otro con las de seguridad y otro
 de los workflows. Cada salto de major llega en su propio PR. Pasan por la misma CI y, como todo
 PR, se mergean solo con la aprobación de gorrite.
 
+Las actions de los workflows van **fijadas por SHA de commit**, con la versión en un comentario
+(`uses: actions/checkout@<sha> # v7.0.1`): un tag se puede mover, un SHA no. Dependabot entiende
+ese formato y actualiza SHA y comentario juntos. Para sumar una action a mano, sacá el SHA con un
+comando (`git ls-remote --tags https://github.com/actions/<nombre>`, el `^{}` si el tag es
+anotado), nunca tipeado.
+
 Dependabot regenera `package-lock.json` desde cero, y ahí se caen los peers opcionales. Por eso
 `@types/node` (de la versión mayor de `.node-version`) es una devDependency explícita: sin ella,
 svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet falla.
@@ -70,7 +76,8 @@ svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet f
 (y a mano desde la pestaña Actions, «Run workflow»), así que no está en los `needs` de `ci-ok`.
 Sin Claude, mira si hay algún PR con la etiqueta `repaso-semanal` creado en los últimos 8 días
 (la rutina de Claude de los lunes lo abre siempre). Si no hay, abre el issue «El repaso semanal
-del plan no corrió» con esa etiqueta, salvo que ya haya uno abierto; si vuelve a haber un PR de
+del plan no corrió» con esa etiqueta y asignado al dueño del repo (así le llega la
+notificación), salvo que ya haya uno abierto; si vuelve a haber un PR de
 repaso y el issue sigue abierto, lo cierra con un comentario. Permisos: `contents: read`,
 `issues: write`, `pull-requests: read`. La etiqueta `repaso-semanal` la crea el vigilante la
 primera vez que abre el issue si todavía no existe (también se puede crear a mano en Issues →
@@ -129,6 +136,11 @@ Detalles de `e2e`:
 - Se probó compilar en un job aparte y correr Playwright en 2 partes que bajan el build (PR #311):
   tardaba más (la semilla y el build siguen en serie con las partes, y cada parte repite
   `npm ci` y Chromium) y gastaba el doble de minutos. Las pruebas en sí son ~20 s.
+- **Sin internet**: `playwright.config.js` abre Chromium con
+  `--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost`, así todo lo que no es el sitio local
+  falla enseguida. La semilla trae imágenes de `https://kinkyvibe.ar` (producción) y el sitio carga
+  el beacon de Cloudflare: con salida a internet, las pruebas que esperan `networkidle` en `/wiki`
+  o `/material` esperaban a producción y, si tardaba, se pasaban de los 30 s.
 - Chromium se guarda en caché entre corridas, por versión de `@playwright/test`.
 - Si las pruebas fallan, sube `playwright-results` (capturas y trazas) como artifact por 7 días.
 
@@ -144,6 +156,8 @@ Detalles de `tests`:
   (conviene cuando se suman o cambian pruebas lentas), bajá los tres de una corrida reciente de
   `main` y juntalos:
   `gh run download <id> -p 'vitest-durations-*' -D /tmp/tiempos && node scripts/vitest/merge-durations.js /tmp/tiempos/*/vitest-durations.json`.
+  Desde una sesión de Claude en la nube, `gh` no baja artifacts: el tool del MCP de GitHub
+  `actions_get` con `download_workflow_run_artifact` da un link temporal para bajar cada zip.
   Tienen que ser tiempos de la CI: medidos en otra máquina (`npm run test:durations`) las
   proporciones cambian y el reparto sale torcido.
 - **Caché**: cada parte guarda y recupera `node_modules/.vite` (cuánto tardó cada archivo la
@@ -181,6 +195,16 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   (en `setupFiles` de `vite.config.js`) pone las de la semilla como respaldo para todas las
   pruebas. Las que necesitan contenido real lo leen de la semilla (`src/lib/server/semilla/testing.js`).
   (El viejo chequeo de los `.md`, `src/tests/content.test.js`, se fue con ellos: 0032.)
+- **`$app/server` en las pruebas** (`scripts/vite/app-server-tests.js`): es
+  `src/tests/app-server.js`, que reexporta solo `getRequestEvent` (la misma función de SvelteKit).
+  El de verdad carga el manifiesto y la raíz generados de la app (con el runtime de Svelte del
+  navegador) y lo importa `$lib/server/db/perRequest.js`, o sea casi todo el servidor: eran
+  segundos en cada archivo. Si la app empieza a usar otra cosa de `$app/server`, sumala ahí (si
+  falta, la prueba falla al importar). `vi.mock('$app/server', …)` sigue andando igual.
+- **Tareas en segundo plano** (`platform.ctx.waitUntil`): si una prueba no las espera, terminan
+  durante la prueba siguiente (con la máquina cargada, como en la CI) y ensucian lo que esa mide
+  (un mail de más). Esperalas en la prueba o en un `afterEach` (ver
+  `src/lib/server/tickets/pausa-venta.test.js`).
 - **Mails "golden"**: `src/lib/server/tickets/email.golden.json` guarda cómo sale cada mail; si
   cambiás un mail a propósito, actualizá ese archivo en el mismo PR y explicalo.
 - **Componentes con clics** (`*.dom.test.js`): se montan en jsdom con `@testing-library/svelte`
@@ -221,7 +245,11 @@ vez por corrida, en segundo plano, una **plantilla** (una base con todas las mig
 copia, aislada de las demás. Si la plantilla no está lista todavía, no se pudo armar, es de otras
 migraciones (se compara una huella de los archivos de `migrations/`, por ejemplo si cambiás una con
 `vitest` en modo watch) o falla la copia, esa base migra como siempre;
-`createTestDB({ template: false })` fuerza ese camino. `src/lib/server/db/template.test.js`
+`createTestDB({ template: false })` fuerza ese camino. Los procesos de las pruebas **no cargan
+wrangler** (su bundle son ~15 MB: más de un segundo de CPU en cada archivo con base, que era lo más
+caro de importar de toda la suite): el globalSetup lee una vez las opciones de miniflare de
+`wrangler.toml` y las pasa en la variable `KINKYVIBE_TEST_DB_WORKER_OPTIONS`, y wrangler se carga
+solo si hay que aplicar migraciones (para partir los `.sql`) o si falta esa variable. `src/lib/server/db/template.test.js`
 comprueba que una base copiada de la plantilla es igual a una migrada archivo por archivo
 (esquema de `sqlite_master`, filas, `sqlite_sequence`) y que la plantilla se usó: si falla, no
 relajes la comparación. Si cada prueba de un archivo arranca con los mismos datos y
@@ -321,6 +349,14 @@ Pegá el resumen de cada uno en la descripción del PR (y si corriste `test:rela
 entera), junto con la línea `Plan: <id>` o `Plan: ninguno` ([plan.md](plan.md)). Si tocaste
 `docs/plan.md` o el `phase` de `nav.js`, corré también `node scripts/plan-lint.js`. No se dice "los
 tests pasan" sin haberlos corrido. La CI corre siempre la suite entera.
+
+Si el PR toca los crons o el Worker (`src/lib/server/scheduled.js`, `worker/index.js`,
+`src/lib/server/backup/` o `src/routes/api/cron/`), la CI no los ejecuta en el runtime de Workers:
+corré además `npm run build && npm run preview:worker`, dispará los dos crons en local (el de
+cada 15 minutos y el nocturno: `preview:worker` corre con `--test-scheduled`, así que se disparan
+con `curl "http://localhost:8880/__scheduled?cron=*/15+*+*+*+*"` y `cron=0+6+*+*+*`) y pegá lo que
+respondieron en el PR
+(auditoría de confiabilidad, O41).
 
 ## Cuando algo está en rojo
 

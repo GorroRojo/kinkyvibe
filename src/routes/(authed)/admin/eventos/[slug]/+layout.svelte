@@ -19,7 +19,7 @@
 	import Tabs from '$lib/components/ui/Tabs.svelte';
 	import TagChip from '$lib/components/TagChip.svelte';
 	import { EVENT_TABS, eventHref, eventTabOf } from '$lib/admin/nav.js';
-	import { eventBadges, shortDate, timeRange } from '$lib/admin/eventFormat.js';
+	import { eventBadges, panelPlaceText, shortDate, timeRange } from '$lib/admin/eventFormat.js';
 
 	/** @type {import('./$types').LayoutData} */
 	export let data;
@@ -85,9 +85,8 @@
 		(v) => (v.id !== 'lista-espera' || data.waitlistTab) && (v.id !== 'gastos' || data.gastosTab)
 	);
 	$: when = [shortDate(e.start), timeRange(e.start, e.end)].filter(Boolean).join(' · ');
-	$: where = [e.locationName, e.location && e.location !== e.locationName ? e.location : '']
-		.filter(Boolean)
-		.join(', ');
+	// Un lugar vinculado manda sobre el «Dónde» en texto libre (como en la página pública).
+	$: where = panelPlaceText(e, data.venue);
 </script>
 
 {#if bare}

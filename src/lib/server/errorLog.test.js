@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildHandleError } from './errorLog.js';
+import { buildHandleError, markFailure } from './errorLog.js';
 
 /**
  * Un evento de SvelteKit mínimo.
@@ -128,5 +128,31 @@ describe('buildHandleError', () => {
 		const entry = JSON.parse(log.error.mock.calls[0][0]);
 		expect(entry.message).toBe('algo raro');
 		expect(entry.stack).toBeUndefined();
+	});
+});
+
+describe('the code for the 5xx count (src/lib/server/vigilancia/avisos.js)', () => {
+	it('leaves the same id in event.locals.errorId; a 404 leaves nothing', () => {
+		const { handleError } = setup();
+		const event = { ...fakeEvent('/calendario'), locals: {} };
+		const out = handleError({
+			error: new Error('x'),
+			event,
+			status: 500,
+			message: 'Internal Error'
+		});
+		expect(event.locals).toEqual({ errorId: /** @type {any} */ (out).id });
+		const notFound = { ...fakeEvent('/nada'), locals: {} };
+		handleError({ error: new Error('x'), event: notFound, status: 404, message: 'Not Found' });
+		expect(notFound.locals).toEqual({});
+	});
+
+	it('markFailure sets locals.failureStatus and ignores an event without locals', () => {
+		const event = /** @type {any} */ ({ locals: {} });
+		markFailure(event, 502);
+		expect(event.locals.failureStatus).toBe(502);
+		markFailure(event, 0);
+		expect(event.locals.failureStatus).toBe(0);
+		expect(() => markFailure(null, 500)).not.toThrow();
 	});
 });

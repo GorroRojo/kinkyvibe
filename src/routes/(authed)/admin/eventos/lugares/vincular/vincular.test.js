@@ -313,3 +313,24 @@ describe('«Crear lugar nuevo» (Perfiles → nuevo, completado con el «Dónde�
 		expect(persona.values.text.address).toBe('');
 	});
 });
+
+describe('Perfil nuevo desde «Enlaces que faltan» (`?oculto=1`)', () => {
+	/** @param {string} query */
+	const open = async (query) =>
+		/** @type {any} */ (
+			await loadNewProfile(
+				/** @type {any} */ ({
+					locals: admin,
+					platform: t.platform,
+					url: new URL(`http://localhost/admin/comunidad/perfiles/nuevo?${query}`)
+				})
+			)
+		);
+
+	it('arranca oculto solo con `oculto=1`; sin él, público como siempre', async () => {
+		const hidden = await open('nombre=alguien.inventade&oculto=1');
+		expect(hidden.values).toMatchObject({ title: 'alguien.inventade', visibility: 'hidden' });
+		expect((await open('nombre=alguien.inventade')).values.visibility).toBe('public');
+		expect((await open('nombre=alguien.inventade&oculto=0')).values.visibility).toBe('public');
+	});
+});

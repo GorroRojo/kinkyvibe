@@ -135,6 +135,62 @@ export const FLAGS = Object.freeze({
 			'src/lib/server/tickets/combos.js.',
 		envVar: 'COMBO_CODIGOS_ENABLED'
 	},
+	lo_que_enlaza: {
+		label: 'Lo que enlaza acá',
+		description:
+			'Al pie de cada evento, material, perfil y entrada de la Kinkipedia, la lista de las ' +
+			'páginas cuyo texto la enlaza (con [[…]], @ o #). Cada persona ve solo lo que puede ver: ' +
+			'nada oculto, «solo con cuenta» o sin aprobar a quien no le corresponde. Apagado, no se ' +
+			've nada de esto.',
+		tech:
+			'docs/enlaces.md («Lo que enlaza acá»). Lee los edges `enlaza` que se guardan al guardar ' +
+			'cada cuerpo: lo guardado antes de eso aparece recién cuando se vuelve a guardar (o con ' +
+			'scripts/enlaces-backfill.js). Sin migración.',
+		envVar: 'LO_QUE_ENLAZA_ENABLED'
+	},
+	paypal: {
+		label: 'PayPal en las propinas',
+		description:
+			'En construcción. Por ahora prende la parte de PayPal de Ajustes → Propinas: la cotización ' +
+			'del dólar con la que se estiman en pesos las propinas en dólares, el ajuste en % de esa ' +
+			'cotización, los retiros y el reparto por mes del Fondo, y le pasa a fondo.kinkyvibe.ar ' +
+			'lo de PayPal. Todavía no se puede pagar con PayPal. Apagado, nada de esto se ve (la ' +
+			'cotización le llega igual a fondo.kinkyvibe.ar).',
+		tech:
+			'docs/propinas.md («PayPal: cotización, ajuste y retiros»), decisión 0054. Necesita la ' +
+			'migración 0071. Apagado, GET /api/fondo/propinas-total no trae `paypal`. ' +
+			'GET /api/fondo/cotizacion y el cron diario de la cotización andan igual (no se ven).',
+		envVar: 'PAYPAL_ENABLED'
+	},
+	conector_claude: {
+		label: 'Conector de Claude (solo lectura)',
+		description:
+			'Les admins pueden sumar el sitio como conector en claude.ai y pedirle a Claude que busque ' +
+			'y lea eventos, material, perfiles y etiquetas, que muestre las ventas de un evento y los ' +
+			'próximos eventos. Solo lee: no cambia nada. Cada admin entra con su cuenta y cada pedido ' +
+			'queda en Actividad a su nombre. Apagado, el conector no contesta.',
+		tech:
+			'docs/conector-claude.md. Servidor MCP en /mcp con OAuth propio (/mcp/autorizar, /mcp/token, ' +
+			'/mcp/registro y los /.well-known/oauth-*). Sin migraciones. Apagado, todo eso da 404.',
+		envVar: 'CONECTOR_CLAUDE_ENABLED'
+	},
+	conector_claude_edicion: {
+		label: 'Conector de Claude: cambios',
+		description:
+			'Con el conector de Claude prendido, Claude además puede cambiar lo que edita el panel, ' +
+			'siempre en dos pasos: primero muestra exactamente qué va a cambiar y después, con el OK, lo ' +
+			'guarda como el panel (con historial). Edita eventos, material, perfiles, lugares, etiquetas ' +
+			'y la Kinkipedia, crea borradores sin publicar y códigos de descuento, y puede deshacer ' +
+			'cualquier cambio (volver a una versión anterior). Nada de plata ni mails: cancelar un ' +
+			'evento, las ventas y los reembolsos se hacen desde el panel. Cada cambio ' +
+			'queda en Actividad, con quién lo confirmó; si hay muchos en una hora, les admins que lo ' +
+			'prendieron en «Mis avisos» reciben un aviso por Telegram. Apagado, Claude solo lee.',
+		tech:
+			'docs/conector-claude.md («Cambios»). Herramientas vista_previa y aplicar en /mcp; necesita ' +
+			'también conector_claude y la migración 0072 (llaves para rutinas y confirmado por). Sin ' +
+			'tope: aviso «Cambios de Claude» por Telegram desde 20 cambios en una hora (mcp/avisoCambios.js).',
+		envVar: 'CONECTOR_CLAUDE_EDICION_ENABLED'
+	},
 	gastos_reparto: {
 		label: 'Gastos y reparto (prototipo)',
 		description:
@@ -321,6 +377,24 @@ export function listaEsperaEnabled(platform) {
  */
 export function comboCodigosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'combo_codigos');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido PayPal en las propinas? (docs/propinas.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function paypalEnabled(platform) {
+	return isFlagOn(getDB(platform), 'paypal');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el conector de Claude? (docs/conector-claude.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function conectorClaudeEnabled(platform) {
+	return isFlagOn(getDB(platform), 'conector_claude');
 }
 
 /**

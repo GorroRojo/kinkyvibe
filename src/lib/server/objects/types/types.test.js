@@ -55,7 +55,9 @@ describe('registro de tipos núcleo', () => {
 		for (const def of coreTypes.types.values()) {
 			if (def.type === 'material') continue;
 			expect(def.edges?.adjunto).toBeUndefined();
-			for (const edge of Object.values(def.edges ?? {})) expect(edge.derived).toBeFalsy();
+			// El otro edge calculado es `enlaza` (lo que nombra el texto, ../enlaces.js).
+			for (const [kind, edge] of Object.entries(def.edges ?? {}))
+				if (kind !== 'enlaza') expect(edge.derived).toBeFalsy();
 		}
 		const material = /** @type {import('./index.js').CoreType} */ (coreTypes.get('material'));
 		expect(material.edges?.adjunto).toMatchObject({ to: ['archivo'], derived: true });

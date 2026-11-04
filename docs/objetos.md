@@ -126,6 +126,12 @@ pura (recibe filas, devuelve problemas) y se prueba sin base. Encuentra:
 | `too_many_edges`       | más relaciones de las permitidas (por ejemplo, dos lugares)                      |
 | `orphan`               | un objeto vivo sin una relación obligatoria                                      |
 | `fts_out_of_sync`      | el índice de búsqueda no coincide con los objetos                                |
+| `media_missing`        | una imagen o un archivo vivo cuyo archivo no está en R2 (bucket `MEDIA`)         |
+
+`media_missing` lista las claves de `img/` y `file/` del bucket (un pedido por cada mil archivos,
+más barato que un `head` por objeto) y las compara con las imágenes y archivos sin borrar. Sin el
+binding `MEDIA` (o si listar falla, que queda en el log) ese chequeo se saltea. No borra nada: un
+archivo que falta se vuelve a subir desde la biblioteca.
 
 **El chequeo nunca hace fallar el cron** (el backup queda como bueno igual). Guarda cada corrida
 en `integrity_runs` (las últimas 30; de cada una, el total y los primeros 50 problemas: código,
@@ -337,6 +343,18 @@ suben. Archivo: `src/lib/server/objects/types/archivo.js`; detalle en [imagenes.
   un archivo que se borra quedan hasta el próximo guardado del material (como las etiquetas: solo
   hay edge hacia lo vivo). Sin migración: el tipo de edge vive en el código y hasta este cambio
   ningún material enlazaba archivos de la biblioteca.
+
+### Edge `enlaza` (los enlaces del cuerpo)
+
+Evento, material, perfil y etiqueta tienen el edge calculado `enlaza` (`derived`, hacia material,
+evento, perfil o etiqueta): lo que su `data.body` nombra con `[[…]]`, `![[…]]`, `@` y `#`, resuelto
+a objetos vivos (`src/lib/server/objects/enlaces.js`). Como `adjunto`, `saveObject()` lo recalcula
+en cada guardado (`deriveEdges` recibe además `{ id }` del objeto que se guarda, para no enlazarse
+a sí mismo), en la misma tanda, y quien guarda no lo manda. Uno por objeto, en el orden del texto,
+sin `data`. Sin migración: `edges.kind` acepta cualquier nombre en minúsculas y el tipo de edge
+vive en el código. Lo que no se resuelve no se guarda. Cómo se resuelve cada nombre, la regla de
+visibilidad para quien lo lea y el script para lo ya guardado (`scripts/enlaces-backfill.js`, solo
+local): [enlaces.md](enlaces.md) («Al guardar»).
 
 ### `etiqueta`
 

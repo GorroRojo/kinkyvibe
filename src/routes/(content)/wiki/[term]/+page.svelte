@@ -12,6 +12,7 @@
 		wikiTermSchema
 	} from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
+	import LoQueEnlaza from '$lib/components/LoQueEnlaza.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { tagSlug } from '$lib/utils/tagSlug.js';
 	import { tagManager, userConfig } from '$lib/utils/stores.js';
@@ -235,6 +236,8 @@
 		</div>
 	</div>
 </article>
+<!-- «Lo que enlaza acá» (interruptor `lo_que_enlaza`): apagado o sin nada, `null` o vacío y no se ve. -->
+<LoQueEnlaza links={data.linksHere} />
 {#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	<!-- Los feeds de la etiqueta (eventos y material; wiki/[term]/feed.atom y feed.json). -->
 	<FeedLinks

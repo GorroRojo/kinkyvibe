@@ -1,7 +1,8 @@
 /**
  * Tareas programadas del Worker (el `scheduled()` de worker/index.js). Los horarios están en
- * `[triggers] crons` de wrangler.toml, que tienen que coincidir con estas constantes (hay un
- * test que lo verifica). Los crons corren solo en producción: los Previews no los ejecutan.
+ * `[triggers] crons` de wrangler.toml, que tienen que coincidir con las constantes de
+ * ./vigilancia/crons.js (hay un test que lo verifica). Los crons corren solo en producción: los
+ * Previews no los ejecutan. Cada corrida deja su latido para la vigilancia (`handleScheduled`).
  *
  * Solo usa imports relativos: worker/index.js lo importa sin pasar por Vite.
  */
@@ -15,11 +16,19 @@ import {
 	hasObjectsSchema,
 	recordIntegrityRun
 } from './objects/integrity.js';
+import { runMepRates } from './paypal/rates.js';
+import {
+	BACKUP_CRON,
+	RATES_CRON,
+	REMINDERS_CRON,
+	WATCH_CRON,
+	recordCronOk,
+	recordCronStart
+} from './vigilancia/crons.js';
 
-/** Recordatorios de entradas: cada 15 minutos (UTC). */
-export const REMINDERS_CRON = '*/15 * * * *';
-/** Backup de la base a R2: todas las noches a las 06:00 UTC (03:00 en Argentina). */
-export const BACKUP_CRON = '0 6 * * *';
+// Las expresiones de los crons viven en ./vigilancia/crons.js (la vigilancia las lee sin importar
+// este archivo); acá se reexportan.
+export { REMINDERS_CRON, BACKUP_CRON, RATES_CRON, WATCH_CRON };
 
 /** Origen por defecto para el pedido interno de los recordatorios (src/lib/utils/site.js). */
 export const DEFAULT_ORIGIN = SITE_URL;
@@ -46,6 +55,35 @@ export const DEFAULT_ORIGIN = SITE_URL;
  */
 
 /**
+ * Un `POST` a un endpoint de cron (`/api/cron/*`, con su control de CRON_SECRET) sin salir a
+ * internet: se le pasa directo al fetch de SvelteKit. Si no responde bien, tira (la corrida figura
+ * como fallida en Cloudflare, Cron Events).
+ *
+ * @param {string} area para el log (`recordatorios`, `vigilancia`)
+ * @param {string} path
+ * @param {ScheduledEnv} env
+ * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
+ * @param {AppFetch} appFetch
+ */
+async function postCronEndpoint(area, path, env, ctx, appFetch) {
+	const origin = siteOriginFrom(env.SITE_URL);
+	const response = await appFetch(
+		new Request(`${origin}${path}`, {
+			method: 'POST',
+			headers: { 'x-cron-secret': env.CRON_SECRET ?? '', accept: 'application/json' }
+		}),
+		env,
+		ctx
+	);
+	const body = (await response.text()).slice(0, 300);
+	if (!response.ok) {
+		throw new Error(`[${area}] ${response.status} ${body}`);
+	}
+	console.log(`[${area}] ${body}`);
+	return body;
+}
+
+/**
  * Recordatorios: el mismo pedido que antes hacía el Worker aparte `kinkyvibe-cron`, pero sin
  * salir a internet: se le pasa directo al fetch de SvelteKit. Así sigue corriendo exactamente
  * `POST /api/cron/recordatorios` (con su control de CRON_SECRET), sin duplicar su lógica.
@@ -55,23 +93,19 @@ export const DEFAULT_ORIGIN = SITE_URL;
  * @param {AppFetch} appFetch
  */
 export async function runReminders(env, ctx, appFetch) {
-	const origin = siteOriginFrom(env.SITE_URL);
-	const url = `${origin}/api/cron/recordatorios`;
-	const response = await appFetch(
-		new Request(url, {
-			method: 'POST',
-			headers: { 'x-cron-secret': env.CRON_SECRET ?? '', accept: 'application/json' }
-		}),
-		env,
-		ctx
-	);
-	const body = (await response.text()).slice(0, 300);
-	if (!response.ok) {
-		// Tirar el error hace que la corrida figure como fallida en Cloudflare (Cron Events).
-		throw new Error(`recordatorios: ${response.status} ${body}`);
-	}
-	console.log(`recordatorios: ${body}`);
-	return body;
+	return postCronEndpoint('recordatorios', '/api/cron/recordatorios', env, ctx, appFetch);
+}
+
+/**
+ * Vigilancia (cada hora): `POST /api/cron/vigilancia`, que mira que los otros crons anden (y avisa
+ * por Telegram si no) y borra los conteos de errores viejos (src/lib/server/vigilancia/).
+ *
+ * @param {ScheduledEnv} env
+ * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
+ * @param {AppFetch} appFetch
+ */
+export async function runWatch(env, ctx, appFetch) {
+	return postCronEndpoint('vigilancia', '/api/cron/vigilancia', env, ctx, appFetch);
 }
 
 /**
@@ -82,16 +116,18 @@ export async function runReminders(env, ctx, appFetch) {
  * @param {Date} now
  */
 export async function runBackup(env, now) {
-	if (!env.DB) throw new Error('backup: falta el binding DB');
-	if (!env.BACKUPS) throw new Error('backup: falta el binding BACKUPS (bucket de R2)');
+	if (!env.DB) throw new Error('[backup] falta el binding DB');
+	if (!env.BACKUPS) throw new Error('[backup] falta el binding BACKUPS (bucket de R2)');
 	const result = await nightlyBackup({ db: env.DB, bucket: env.BACKUPS, now });
 	const deleted = result.pruneError
 		? `la poda falló (${result.pruneError}); se reintenta mañana`
-		: result.deleted.length
-			? result.deleted.join(', ')
-			: 'ninguno';
+		: result.pruneSkipped
+			? `ninguno (poda salteada: ${result.pruneSkipped})`
+			: result.deleted.length
+				? result.deleted.join(', ')
+				: 'ninguno';
 	console.log(
-		`backup: ${result.key} (${result.bytes} bytes, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
+		`[backup] ${result.key} (${result.bytes} bytes comprimido, ${result.sqlBytes} bytes de SQL, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
 	);
 	return result;
 }
@@ -121,7 +157,10 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 			);
 			return null;
 		}
-		const problems = await checkObjectsIntegrity(env.DB);
+		// El bucket de medios (binding MEDIA de wrangler.toml), para ver que no falten archivos.
+		const media = /** @type {{ MEDIA?: import('@cloudflare/workers-types').R2Bucket }} */ (env)
+			.MEDIA;
+		const problems = await checkObjectsIntegrity(env.DB, { bucket: media ?? null });
 		await recordIntegrityRun(env.DB, problems, now.getTime());
 		if (!problems.length) console.log('integridad de objetos: sin problemas');
 		for (const p of problems.slice(0, MAX_LOGGED_PROBLEMS)) {
@@ -186,27 +225,50 @@ export async function runMediaCopy(env, limits) {
 export async function runSessionCleanup(env, now = new Date()) {
 	try {
 		if (!env.DB) {
-			console.error('sesiones viejas: falta el binding DB; no se limpió');
+			console.error('[sesiones] sesiones viejas: falta el binding DB; no se limpió');
 			return null;
 		}
 		const deleted = await deleteStaleSessions(env.DB, now.getTime());
-		console.log(`sesiones viejas: ${deleted} borrada(s)`);
+		console.log(`[sesiones] sesiones viejas: ${deleted} borrada(s)`);
 		return deleted;
 	} catch (error) {
-		console.error('sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
+		console.error('[sesiones] sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
 		return null;
 	}
 }
 
 /**
- * El handler `scheduled()`: elige la tarea según el cron que disparó.
+ * La cotización del dólar MEP del día y los días que falten de los últimos 10
+ * (src/lib/server/paypal/rates.js, docs/propinas.md). Corre aunque el interruptor `paypal` esté
+ * apagado: no se ve, y así la historia ya está cuando llegue el primer pago. Si no pudo traer la
+ * de hoy, la corrida falla (se ve en Cron Events) y queda la última guardada; los días que falten
+ * los rellena la corrida siguiente. Nunca pisa un día guardado.
+ *
+ * @param {ScheduledEnv} env
+ * @param {Date} now
+ * @param {typeof fetch} [fetchFn]
+ */
+export async function runRates(env, now, fetchFn = fetch) {
+	if (!env.DB) throw new Error('cotización: falta el binding DB');
+	const result = await runMepRates({ db: env.DB, fetch: fetchFn, now: now.getTime() });
+	const line =
+		`cotización: hoy (${result.today}) ${result.todayResult}; ` +
+		`rellenados: ${result.backfilled.length ? result.backfilled.join(', ') : 'ninguno'}; ` +
+		`faltan: ${result.missing.length ? result.missing.join(', ') : 'ninguno'}`;
+	if (result.todayResult === 'failed') throw new Error(line);
+	console.log(line);
+	return result;
+}
+
+/**
+ * Elige la tarea según el cron que disparó.
  *
  * @param {{ cron: string, scheduledTime: number }} controller
  * @param {ScheduledEnv} env
  * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
  * @param {AppFetch} appFetch el fetch del Worker de SvelteKit
  */
-export async function handleScheduled(controller, env, ctx, appFetch) {
+async function runCron(controller, env, ctx, appFetch) {
 	switch (controller.cron) {
 		case REMINDERS_CRON:
 			return runReminders(env, ctx, appFetch);
@@ -222,7 +284,30 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 			await runMediaCopy(env);
 			return backup;
 		}
+		case RATES_CRON:
+			return runRates(env, new Date(controller.scheduledTime));
+		case WATCH_CRON:
+			return runWatch(env, ctx, appFetch);
 		default:
 			throw new Error(`cron desconocido: ${controller.cron}`);
 	}
+}
+
+/**
+ * El handler `scheduled()`: anota el latido de la corrida en `cron_heartbeats` (cuándo arrancó y,
+ * si terminó bien, cuándo; ./vigilancia/crons.js) y corre la tarea del cron que disparó. Anotar
+ * nunca hace fallar la corrida; si la tarea falla, la corrida falla como siempre (y no se anota
+ * el final: la vigilancia avisa si sigue así).
+ *
+ * @param {{ cron: string, scheduledTime: number }} controller
+ * @param {ScheduledEnv} env
+ * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
+ * @param {AppFetch} appFetch el fetch del Worker de SvelteKit
+ * @param {() => number} [now] para los tests
+ */
+export async function handleScheduled(controller, env, ctx, appFetch, now = Date.now) {
+	await recordCronStart(env.DB, controller.cron, now());
+	const result = await runCron(controller, env, ctx, appFetch);
+	await recordCronOk(env.DB, controller.cron, now());
+	return result;
 }

@@ -121,6 +121,112 @@
 			</form>
 		{/if}
 	</Card>
+	<Card title="Conector de Claude">
+		{#if form?.claudeMessage}
+			<p class="kv-flash ok" role="status">{form.claudeMessage}</p>
+		{:else if form?.claudeError}
+			<p class="kv-flash bad" role="alert">{form.claudeError}</p>
+		{/if}
+		{#if data.claude.on}
+			<p class="claude-text">
+				Para que Claude lea el sitio (solo lectura), en claude.ai: Personalizar → Conectores →
+				«Agregar conector personalizado», con esta dirección:
+			</p>
+			<p class="claude-text"><code class="claude-url">{data.claude.url}</code></p>
+			<p class="kv-note">
+				Al conectar, el sitio te pide permiso con tu cuenta. Cada pedido de Claude queda en
+				Actividad a tu nombre. Cómo se usa: <code>docs/conector-claude.md</code>.
+			</p>
+		{:else}
+			<p class="claude-text">
+				Está apagado (Ajustes → Interruptores → «Conector de Claude»): Claude no puede leer nada.
+			</p>
+		{/if}
+		<div class="claude-actions">
+			<form method="POST" action="?/cerrarClaude" use:enhance={submit}>
+				<button class="kv-btn ghost small" type="submit" disabled={busy}
+					>Cerrar mis conexiones de Claude</button
+				>
+			</form>
+			<form method="POST" action="?/cerrarClaudeTodes" use:enhance={submit}>
+				<button class="kv-btn ghost small" type="submit" disabled={busy}>Cerrar las de todes</button
+				>
+			</form>
+		</div>
+	</Card>
+	<Card title="Llaves para rutinas">
+		{#if form?.llaveMessage}
+			<p class="kv-flash ok" role="status">{form.llaveMessage}</p>
+		{:else if form?.llaveError}
+			<p class="kv-flash bad" role="alert">{form.llaveError}</p>
+		{/if}
+		<p class="claude-text">
+			Para las rutinas programadas que usan el conector solas, sin nadie frente a la pantalla (la
+			conexión de claude.ai se vence si no se usa). Cada llave es tuya: vale como vos, con los
+			mismos interruptores, hasta que la revoques o pase un año.
+		</p>
+		{#if form?.llaveNueva}
+			<div class="llave-nueva" role="status">
+				<p class="claude-text">
+					<b>Tu llave «{form.llaveNombre}».</b> Copiala ahora: no se vuelve a mostrar.
+				</p>
+				<p class="claude-text"><code class="claude-url">{form.llaveNueva}</code></p>
+				<p class="kv-note">
+					En Claude Code: <code
+						>claude mcp add --transport http kinkyvibe {data.claude.url} --header "Authorization: Bearer
+						{form.llaveNueva}"</code
+					>
+				</p>
+			</div>
+		{/if}
+		{#if data.claude.llaves.length}
+			<ul class="llaves">
+				{#each data.claude.llaves as l (l.id)}
+					<li>
+						<div class="who">
+							<b>{l.name}</b>
+							<small class="muted">
+								Creada el {fmtDateTime(l.createdAt)} · {l.lastUsedAt
+									? `último uso: ${fmtDateTime(l.lastUsedAt)}`
+									: 'sin usar'} · {l.revokedAt
+									? `revocada el ${fmtDateTime(l.revokedAt)}`
+									: l.live
+										? `vence el ${fmtDateTime(l.expiresAt)}`
+										: 'vencida'}
+							</small>
+						</div>
+						{#if l.live}
+							<form method="POST" action="?/revocarLlave" use:enhance={submit}>
+								<input type="hidden" name="id" value={l.id} />
+								<button class="kv-btn ghost small" type="submit" disabled={busy}>Revocar</button>
+							</form>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		<form method="POST" action="?/crearLlave" use:enhance={submit} class="llave-form">
+			<label class="kv-field">
+				<span>Nombre</span>
+				<input
+					class="kv-input"
+					name="nombre"
+					maxlength="60"
+					required
+					placeholder="Ej.: Rutinas de mi compu"
+				/>
+			</label>
+			<button class="kv-btn small" type="submit" disabled={busy}>Crear llave</button>
+		</form>
+		{#if data.claude.llaves.some((l) => l.live)}
+			<form method="POST" action="?/revocarLlaves" use:enhance={submit}>
+				<button class="kv-btn ghost small" type="submit" disabled={busy}
+					>Revocar todas mis llaves</button
+				>
+			</form>
+		{/if}
+		<p class="kv-note">Hasta {data.claude.llavesMax} llaves vigentes por admin.</p>
+	</Card>
 	<p class="kv-note">
 		Por ahora la lista se cambia en el código (<code>src/lib/server/auth.js</code>, por el número de
 		usuarie de GitHub, que no cambia aunque cambie el nombre). Más adelante se va a poder editar
@@ -171,6 +277,41 @@
 		height: 180px;
 		display: block;
 		background: #fff;
+	}
+	/* La tarjeta es una columna flex con su propio espacio entre hijos: los márgenes de los <p> no
+	   se colapsan y dejaban un hueco grande arriba de la dirección. */
+	.claude-text {
+		margin: 0;
+	}
+	.claude-url {
+		overflow-wrap: anywhere;
+	}
+	.claude-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-xs);
+	}
+	.llaves {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.llaves li {
+		padding: var(--space-2xs) 0;
+	}
+	.llave-nueva {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2xs);
+		padding: var(--space-xs);
+		border-radius: var(--radius-s, 0.4rem);
+		background: var(--surface-2);
+	}
+	.llave-form {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		gap: var(--space-xs);
 	}
 	.who {
 		display: flex;

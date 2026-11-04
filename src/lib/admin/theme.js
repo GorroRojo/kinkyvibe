@@ -24,7 +24,9 @@ export function parseTheme(value) {
  * Script en línea para el <head> del panel: pone `data-theme` antes de pintar (sin parpadeo).
  * Es un string fijo, sin datos de la persona.
  */
-export const THEME_HEAD_SCRIPT = `<script>try{var t=localStorage.getItem('${THEME_KEY}');if(t==='dark'||t==='auto')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>`;
+export const THEME_SCRIPT_BODY = `try{var t=localStorage.getItem('${THEME_KEY}');if(t==='dark'||t==='auto')document.documentElement.setAttribute('data-theme',t)}catch(e){}`;
+/** El script entero. Su contenido es fijo: la CSP lo permite por su hash (svelte.config.js). */
+export const THEME_HEAD_SCRIPT = `<script>${THEME_SCRIPT_BODY}</script>`;
 
 /** @returns {Theme} */
 export function readTheme() {

@@ -31,7 +31,8 @@ export const ACTION_FAMILIES = /** @type {Record<string, string>} */ ({
 	event: 'Eventos',
 	account: 'Cuentas',
 	profile: 'Perfiles',
-	library: 'Biblioteca'
+	library: 'Biblioteca',
+	conector: 'Conector de Claude'
 });
 
 /** Nombre legible de cada tipo de objetivo. */

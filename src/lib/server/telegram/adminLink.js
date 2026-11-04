@@ -14,6 +14,10 @@
  *
  * De Telegram solo se guarda el id del usuario. Los intentos se topean por usuario de Telegram y
  * crear códigos, por admin.
+ *
+ * Al vincular, les otres admins con Telegram vinculado reciben un aviso (adminNotify.js,
+ * `queueAdminLinkedNotice`): lo engancha la ruta del webhook con `onLinked` de
+ * {@link botAdminLink}. Si el aviso falla, el vínculo queda igual.
  */
 import { isAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
@@ -92,7 +96,7 @@ export async function createAdminLinkCode(db, admin, { now = Date.now() } = {}) 
  * @param {string} param lo que vino después de `/start` (`adm_<código>`)
  * @param {number} telegramUserId `message.from.id`
  * @param {{ now?: number }} [opts]
- * @returns {Promise<{ ok: true, login: string, replaced: boolean }
+ * @returns {Promise<{ ok: true, id: number, login: string, replaced: boolean }
  *   | { ok: false, reason: 'invalid' | 'too_many' }>}
  */
 export async function consumeAdminLinkCode(db, param, telegramUserId, { now = Date.now() } = {}) {
@@ -147,7 +151,7 @@ export async function consumeAdminLinkCode(db, param, telegramUserId, { now = Da
 		},
 		{ now }
 	);
-	return { ok: true, login: admin.login, replaced };
+	return { ok: true, id: admin.id, login: admin.login, replaced };
 }
 
 /**
@@ -228,12 +232,27 @@ export async function linkedAdmin(db, telegramUserId) {
 /**
  * Lo que el bot usa para `/start adm_<código>` (router.js no sabe de la base).
  *
+ * `onLinked`: se llama con le admin recién vinculade (el aviso a les otres admins). Nunca traba
+ * el vínculo: si tira, se anota en el log y el bot confirma igual.
+ *
  * @param {D1Database} db
+ * @param {{ onLinked?: ((admin: AdminIdentity) => unknown) | null }} [opts]
  * @returns {import('./router.js').BotAdminLink}
  */
-export function botAdminLink(db) {
+export function botAdminLink(db, { onLinked = null } = {}) {
 	return async (param, telegramUserId) => {
 		const r = await consumeAdminLinkCode(db, param, telegramUserId);
-		return r.ok ? { linked: r.login } : r.reason;
+		if (!r.ok) return r.reason;
+		if (onLinked) {
+			try {
+				await onLinked({ id: r.id, login: r.login });
+			} catch (error) {
+				console.error(
+					'[telegram] aviso de vínculo de admin no salió:',
+					/** @type {Error} */ (error)?.name
+				);
+			}
+		}
+		return { linked: r.login };
 	};
 }

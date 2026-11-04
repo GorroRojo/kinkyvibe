@@ -759,7 +759,9 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'admin.aviso_venta',
 			'admin.aviso_transferencia',
 			'admin.aviso_dia',
-			'admin.aviso_recordatorios'
+			'admin.aviso_recordatorios',
+			'admin.aviso_conector',
+			'admin.aviso_fallas_sitio'
 		],
 		build: (t) => ({
 			html: t('admin.avisos'),
@@ -769,6 +771,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[{ text: `⬜ ${t('admin.aviso_transferencia')}` }],
 				[{ text: `⬜ ${t('admin.aviso_dia')}` }],
 				[{ text: `⬜ ${t('admin.aviso_recordatorios')}` }],
+				[{ text: `⬜ ${t('admin.aviso_conector')}` }],
+				[{ text: `⬜ ${t('admin.aviso_fallas_sitio')}` }],
 				[{ text: t('admin.boton_estado') }, { text: t('inicio.boton_inicio') }]
 			]
 		})
@@ -809,6 +813,53 @@ export const PREVIEW_SCREENS = Object.freeze([
 				})
 			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_aviso_conector',
+		label: 'Avisos (admins): muchos cambios de Claude en una hora',
+		keys: ['admin.conector_cambios', 'admin.conector_autorizo', 'admin.conector_confirmo'],
+		build: (t) => ({
+			html: [
+				t('admin.conector_cambios', { cantidad: 20 }),
+				t('admin.conector_autorizo', { admins: '@admin-de-ejemplo' }),
+				t('admin.conector_confirmo', { nombres: 'Mel, Juan' })
+			].join('\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_aviso_fallas_errores',
+		label: 'Avisos (admins): muchos errores del sitio o en las compras',
+		keys: ['admin.fallas_errores', 'admin.fallas_compras', 'admin.fallas_codigos'],
+		build: (t) => ({
+			html: [
+				t('admin.fallas_compras', { cantidad: 3 }),
+				'',
+				'• <code>/api/mercadopago/webhook</code> · 500 × 3 · <code>a1b2c3d4</code>',
+				'',
+				t('admin.fallas_errores', { cantidad: 12 }),
+				'',
+				'• <code>/calendario/[event]</code> · 500 × 9 · <code>0f1e2d3c</code>',
+				'• <code>/api/mercadopago/webhook</code> · 502 × 3',
+				'',
+				t('admin.fallas_codigos')
+			].join('\n')
+		})
+	},
+	{
+		id: 'admin_aviso_fallas_tareas',
+		label: 'Avisos (admins): una tarea programada que no anda',
+		keys: ['admin.fallas_tarea', 'admin.fallas_tarea_ayuda'],
+		build: (t) => ({
+			html: [
+				t('admin.fallas_tarea', {
+					tarea: 'Todas las noches: backup de la base',
+					desde: 'hace 27 horas'
+				}),
+				'',
+				t('admin.fallas_tarea_ayuda')
+			].join('\n')
 		})
 	},
 	{

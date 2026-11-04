@@ -936,7 +936,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Cambios de Claude**: si el conector de Claude aplica muchos cambios en una hora.\n• **Fallas del sitio**: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta, cada transferencia, los cambios de Claude y las fallas del sitio; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -965,6 +965,25 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'Mis avisos: recordatorios',
 			'Recordatorios',
 			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_conector',
+			'admin',
+			'button',
+			'Mis avisos: cambios de Claude',
+			'Cambios de Claude',
+			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_fallas_sitio',
+			'admin',
+			'button',
+			'Mis avisos: fallas del sitio',
+			'Fallas del sitio',
+			{
+				max: 56,
+				help: 'El bot le suma ✅ o ⬜ adelante.'
+			}
 		),
 		f('admin.prendido', 'admin', 'toast', 'Mis avisos: al prender uno', 'Prendido: {aviso}', {
 			vars: [{ name: 'aviso', label: 'el aviso', sample: 'Resumen diario' }]
@@ -1055,6 +1074,98 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				required: ['orden', 'evento'],
 				help: 'Les llega a quienes prendieron «Cada venta». Nunca dice quién compró.'
 			}
+		),
+		f(
+			'admin.conector_cambios',
+			'admin',
+			'line',
+			'Aviso «Cambios de Claude»: muchos cambios en una hora',
+			'⚠️ Claude aplicó {cantidad} cambios en la última hora desde el conector.',
+			{
+				vars: [V.cantidad],
+				required: ['cantidad'],
+				help: 'Sale una vez por hora como mucho, a quienes prendieron «Cambios de Claude».'
+			}
+		),
+		f(
+			'admin.conector_autorizo',
+			'admin',
+			'line',
+			'Aviso «Cambios de Claude»: quién autorizó',
+			'Autorizó: {admins}',
+			{
+				vars: [{ name: 'admins', label: 'les admins dueñes de la conexión', sample: '@gorrite' }],
+				required: ['admins']
+			}
+		),
+		f(
+			'admin.conector_confirmo',
+			'admin',
+			'line',
+			'Aviso «Cambios de Claude»: quién confirmó en el chat',
+			'Confirmado por: {nombres}',
+			{
+				vars: [{ name: 'nombres', label: 'los nombres de «confirmado por»', sample: 'Mel, Juan' }],
+				required: ['nombres'],
+				help: 'Solo si alguno de los cambios vino con «confirmado por».'
+			}
+		),
+		f(
+			'admin.fallas_errores',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: muchos errores en una hora',
+			'⚠️ El sitio dio {cantidad} errores en la última hora.',
+			{
+				vars: [V.cantidad],
+				required: ['cantidad'],
+				help: 'Sale desde 10 errores en una hora, una vez por hora como mucho, a quienes prendieron «Fallas del sitio». Abajo van las rutas con sus errores y códigos.'
+			}
+		),
+		f(
+			'admin.fallas_compras',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: errores en las compras',
+			'🛒 Puede que haya fallado una compra: {cantidad} errores en la última hora en las páginas de compra.',
+			{
+				vars: [V.cantidad],
+				required: ['cantidad'],
+				help: 'Sale desde 2 errores en una hora en el webhook de Mercado Pago, el formulario de compra, la página de la orden, la puerta o las propinas. Una vez por hora como mucho.'
+			}
+		),
+		f(
+			'admin.fallas_codigos',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: dónde buscar los códigos',
+			'Cada código se busca en los registros del Worker en Cloudflare (Observability → Logs).'
+		),
+		f(
+			'admin.fallas_tarea',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: una tarea programada que no anda',
+			'⏰ La tarea programada «{tarea}» no termina bien desde {desde}.',
+			{
+				vars: [
+					{
+						name: 'tarea',
+						label: 'el nombre de la tarea',
+						sample: 'Todas las noches: backup de la base'
+					},
+					{ name: 'desde', label: 'desde cuándo', sample: 'hace 27 horas' }
+				],
+				required: ['tarea', 'desde'],
+				help: 'Una línea por tarea. Sale una vez cada 6 horas como mucho.'
+			}
+		),
+		f(
+			'admin.fallas_tarea_ayuda',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: qué mirar si una tarea no anda',
+			'Puede que no esté corriendo o que falle cada vez: mirá Cron Events y los registros del Worker en Cloudflare.'
 		),
 		f(
 			'admin.resumen_titulo',

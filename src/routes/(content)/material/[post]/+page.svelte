@@ -9,6 +9,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
+	import LoQueEnlaza from '$lib/components/LoQueEnlaza.svelte';
 	import Note from '$lib/components/Note.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
@@ -179,6 +180,9 @@
 		{/each}
 	{/await}
 {/if}
+
+<!-- «Lo que enlaza acá» (interruptor `lo_que_enlaza`): apagado o sin nada, `null` o vacío y no se ve. -->
+<LoQueEnlaza links={data.linksHere} />
 
 {#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	<div class="content">

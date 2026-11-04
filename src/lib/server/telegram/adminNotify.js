@@ -20,10 +20,20 @@
  * - **Horario de silencio** (23 a 9, hora de Argentina, quiet.js): el resumen sale desde las
  *   {@link ADMIN_DAILY_HOUR}; los avisos en el momento salen igual pero **sin sonido**
  *   (`disable_notification`).
+ *
+ * Aparte, el aviso de seguridad **al vincular un Telegram de admin** ({@link notifyAdminLinked}):
+ * no es de «Mis avisos» ni se apaga; les llega a todes les otres admins con Telegram vinculado.
  */
 import { env } from '$env/dynamic/private';
 import { getEventTickets, listTicketedEvents } from '$lib/server/tickets/events.js';
-import { adminBotEnabled, adminEventChoices, eventStatus, noticeRecipients } from './adminData.js';
+import {
+	adminBotEnabled,
+	adminEventChoices,
+	eventStatus,
+	linkNoticeRecipients,
+	noticeRecipients
+} from './adminData.js';
+import { escapeHtml } from './format.js';
 import { isHttps, tgTime } from './screens.js';
 import { callTelegramApi } from './send.js';
 import { botText, botTextOverrides } from './texts.js';
@@ -179,6 +189,102 @@ export function chargebackNoticeText({ reference, eventTitle, amount }, override
 		{ orden: reference, evento: eventTitle, monto: amount },
 		overrides
 	);
+}
+
+/** «a, b y 3 más». @param {string[]} names */
+function listOf(names) {
+	const shown = names.slice(0, 10);
+	const rest = names.length - shown.length;
+	return rest > 0 ? `${shown.join(', ')} y ${rest} más` : shown.join(', ');
+}
+
+/**
+ * El texto: «⚠️ Claude aplicó 20 cambios en la última hora desde el conector.», quién autorizó y,
+ * si vino, quién confirmó (los logins de les admins y los nombres de «confirmado por»; nada
+ * del pedido ni de compradores). Lo arma y lo manda ../mcp/avisoCambios.js.
+ *
+ * @param {{ count: number, admins: string[], confirmedBy: string[] }} input
+ * @param {BotTexts | null} [overrides]
+ */
+export function connectorBurstText({ count, admins, confirmedBy }, overrides = null) {
+	return [
+		botText('admin.conector_cambios', { cantidad: count }, overrides),
+		...(admins.length
+			? [
+					botText(
+						'admin.conector_autorizo',
+						{ admins: listOf(admins.map((a) => `@${a}`)) },
+						overrides
+					)
+				]
+			: []),
+		...(confirmedBy.length
+			? [botText('admin.conector_confirmo', { nombres: listOf(confirmedBy) }, overrides)]
+			: [])
+	].join('\n');
+}
+
+/** Hasta cuántas rutas lista el aviso de errores. */
+export const ERROR_ROWS_MAX = 8;
+
+/**
+ * El texto del aviso «Fallas del sitio» por errores: «⚠️ El sitio dio 12 errores en la última
+ * hora.» (o, si llegaron las compras a su umbral, «🛒 Puede que haya fallado una compra: …»), una
+ * línea por ruta y estado («• `/api/mercadopago/webhook` · 500 × 3 · `a1b2c3d4`», el último
+ * código) y dónde buscar los códigos. Solo patrones de ruta, estados, cantidades y códigos: nada
+ * de compradores, queries ni mensajes de error. Lo arma y lo manda ../vigilancia/avisos.js.
+ *
+ * @param {{ kind: 'purchase' | 'site', total: number, purchase: number,
+ *   rows: { route: string, status: number, hits: number, lastErrorId: string | null }[] }} input
+ * @param {BotTexts | null} [overrides]
+ */
+export function errorBurstText({ kind, total, purchase, rows }, overrides = null) {
+	const head =
+		kind === 'purchase'
+			? botText('admin.fallas_compras', { cantidad: purchase }, overrides)
+			: botText('admin.fallas_errores', { cantidad: total }, overrides);
+	const shown = rows.slice(0, ERROR_ROWS_MAX).map((r) => {
+		const code = r.lastErrorId ? ` · <code>${escapeHtml(r.lastErrorId)}</code>` : '';
+		return `• <code>${escapeHtml(r.route)}</code> · ${r.status} × ${r.hits}${code}`;
+	});
+	const rest = rows.length - ERROR_ROWS_MAX;
+	return [
+		head,
+		'',
+		...shown,
+		...(rest > 0 ? [`• y ${rest} más`] : []),
+		'',
+		botText('admin.fallas_codigos', {}, overrides)
+	].join('\n');
+}
+
+/**
+ * «hace 75 minutos» / «hace 27 horas».
+ *
+ * @param {number} ms
+ */
+export function agoText(ms) {
+	const minutes = Math.max(0, Math.floor(ms / 60_000));
+	if (minutes < 120) return `hace ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
+	return `hace ${Math.floor(minutes / 60)} horas`;
+}
+
+/**
+ * El texto del aviso «Fallas del sitio» por tareas programadas que no terminan bien: una línea por
+ * tarea («⏰ La tarea programada «Todas las noches: backup de la base» no termina bien desde hace
+ * 27 horas.») y qué mirar. Lo arma y lo manda ../vigilancia/avisos.js.
+ *
+ * @param {{ label: string, silentMs: number }[]} stale
+ * @param {BotTexts | null} [overrides]
+ */
+export function staleCronsText(stale, overrides = null) {
+	return [
+		...stale.map((s) =>
+			botText('admin.fallas_tarea', { tarea: s.label, desde: agoText(s.silentMs) }, overrides)
+		),
+		'',
+		botText('admin.fallas_tarea_ayuda', {}, overrides)
+	].join('\n');
 }
 
 /**
@@ -487,6 +593,71 @@ export async function queueOrderNotice({
 		} catch (error) {
 			console.error(
 				`[telegram] aviso de admins (${kind}) no salió:`,
+				/** @type {Error} */ (error)?.name
+			);
+		}
+	})();
+	const ctx = platform?.ctx;
+	if (ctx?.waitUntil) ctx.waitUntil(task);
+	else await task;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Vincular un Telegram de admin
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * «🔗 Se vinculó un Telegram a la cuenta de admin de @login.» Fijo, no está en «Textos del bot»:
+ * es un aviso de seguridad y desde el panel no se tiene que poder cambiar ni vaciar. Solo el
+ * login de GitHub (nada de Telegram).
+ *
+ * @param {{ login: string }} admin
+ */
+export const adminLinkedNoticeText = ({ login }) =>
+	`🔗 Se vinculó un Telegram a la cuenta de admin de @${escapeHtml(login)}.`;
+
+/**
+ * El aviso de que une admin vinculó un Telegram, a **todes les otres** admins con Telegram
+ * vinculado que siguen en `ADMINS` ({@link linkNoticeRecipients}), aunque no hayan prendido nada
+ * en «Mis avisos»: es de seguridad (si no lo hizo esa persona, el resto se entera). A le que
+ * vinculó no le llega (el bot ya le confirma en el chat). En el horario de silencio, sin sonido.
+ *
+ * @param {{ db: D1Database, admin: { id: number, login: string }, send: AdminSend,
+ *   now?: number }} input
+ * @returns {Promise<{ sent: number, failed: number, skipped: number } | null>} `null`: no había
+ *   a quién mandarle
+ */
+export async function notifyAdminLinked({ db, admin, send, now = Date.now() }) {
+	const recipients = await linkNoticeRecipients(db, admin.id);
+	if (recipients.length === 0) return null;
+	return deliverOnce({
+		db,
+		send,
+		key: `vinculo:${admin.id}:${now}`,
+		message: { text: adminLinkedNoticeText(admin), panelUrl: null, silent: isQuietHour(now) },
+		now,
+		recipients
+	});
+}
+
+/**
+ * Para el webhook (`onLinked` de `botAdminLink`): manda {@link notifyAdminLinked} **en segundo
+ * plano** (con `waitUntil` si la plataforma lo tiene) y **nunca tira**: un problema con Telegram
+ * no puede trabar el vínculo; queda en el log. Sin los interruptores o sin token, no hace nada.
+ *
+ * @param {{ db: D1Database | null | undefined, platform?: App.Platform,
+ *   admin: { id: number, login: string }, fetch?: typeof fetch }} input
+ */
+export async function queueAdminLinkedNotice({ db, platform, admin, fetch: fetchFn }) {
+	const task = (async () => {
+		try {
+			const token = env.TELEGRAM_BOT_TOKEN;
+			if (!db || !token || !(await adminBotEnabled(db))) return;
+			const r = await notifyAdminLinked({ db, admin, send: adminSender(token, fetchFn ?? fetch) });
+			if (r?.failed) console.error(`[telegram] aviso de vínculo de admin: ${r.failed} sin mandar`);
+		} catch (error) {
+			console.error(
+				'[telegram] aviso de vínculo de admin no salió:',
 				/** @type {Error} */ (error)?.name
 			);
 		}

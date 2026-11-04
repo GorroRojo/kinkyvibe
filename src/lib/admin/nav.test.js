@@ -205,14 +205,14 @@ describe('NAV', () => {
 			'entradas-codigos',
 			'tienda'
 		]);
-		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas']);
+		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas', 'avisos-puerta']);
 		expect(ids('mensajes')).toEqual([
 			'ajustes-plantillas',
 			'ajustes-mails',
 			'lo-que-sigo',
 			'bandeja'
 		]);
-		expect(ids('etiquetas')).toEqual(['etiquetas']);
+		expect(ids('etiquetas')).toEqual(['etiquetas', 'etiquetas-falta']);
 		expect(ids('contenido')).toEqual([
 			'material',
 			'biblioteca',
@@ -363,12 +363,12 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas', 'estadisticas-bot']]
 		]);
 		expect(blocks('comunidad')).toEqual([
-			['', ['personas', 'amigues', 'cuentas']],
+			['', ['personas', 'amigues', 'cuentas', 'avisos-puerta']],
 			['Mensajes', ['ajustes-plantillas', 'ajustes-mails', 'lo-que-sigo', 'bandeja']]
 		]);
 		expect(blocks('contenido')).toEqual([
 			['', ['material', 'biblioteca', 'no-listadas', 'contenido-base', 'colecciones', 'videos']],
-			['Etiquetas', ['etiquetas']]
+			['Etiquetas', ['etiquetas', 'etiquetas-falta']]
 		]);
 		expect(navGroupSections('ajustes').map((s) => s.label)).toEqual([
 			'Plata',
@@ -380,7 +380,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		expect(
 			navGroupSections('comunidad', { hideSoon: true }).map((s) => [s.label, s.items.length])
 		).toEqual([
-			['', 3],
+			['', 4],
 			['Mensajes', 3]
 		]);
 	});
@@ -456,6 +456,7 @@ describe('sectionTabs (pestañas de sección)', () => {
 			'Personas',
 			'Perfiles',
 			'Cuentas',
+			'Avisos de puerta',
 			'Plantillas',
 			'Configuración',
 			'Lo que sigo'
@@ -465,7 +466,8 @@ describe('sectionTabs (pestañas de sección)', () => {
 			'Biblioteca',
 			'No listadas',
 			'En la base',
-			'Árbol de etiquetas'
+			'Árbol de etiquetas',
+			'Enlaces que faltan'
 		]);
 	});
 	it('con el interruptor apagado, lo que da 404 no aparece', () => {

@@ -111,10 +111,14 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-automatizaciones':
 		'ajustes automatizaciones crons cron tareas programadas backup recordatorios mails automaticos bot telegram reglas',
 	cuentas: 'cuentas usuaries publico registradas contraseña entrar sesiones',
+	'avisos-puerta':
+		'avisos de puerta no admitides no entra derecho de admision moderacion cuidados ingreso',
 	amigues:
 		'perfiles amigues personas proyectos lugares revisar aprobar pedidos es mi perfil importar fichas',
 	actividad: 'actividad registro auditoria historial quien cambio recuperar deshacer borrado',
 	etiquetas: 'etiquetas tags arbol kinkipedia wiki categorias alias renombrar juntar',
+	'etiquetas-falta':
+		'enlaces que faltan links rotos rojos kinkipedia wiki paginas por escribir crear menciones',
 	material: 'material guias articulos nota notas kinkipedia contenido publicaciones',
 	tienda: 'tienda productos merch vender',
 	'lo-que-sigo':
@@ -148,6 +152,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	material: 'book',
 	amigues: 'person',
 	etiquetas: 'tag',
+	'etiquetas-falta': 'tag',
 	'no-listadas': 'eye-off',
 	biblioteca: 'book',
 	'contenido-base': 'book',
@@ -162,6 +167,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-interruptores': 'settings',
 	'ajustes-automatizaciones': 'history',
 	cuentas: 'person',
+	'avisos-puerta': 'person',
 	actividad: 'history',
 	// Próximamente (no están en la paleta hasta que existan, pero ya tienen ícono).
 	tienda: 'wallet',

@@ -11,6 +11,7 @@ import { coveringTicketSlug, partLabel, partOf } from '$lib/utils/partes.js';
 import { dateChangeOffer } from '$lib/server/tickets/dateChange.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { waitlistLiveByScope } from '$lib/server/tickets/waitlistAdmin.js';
+import { panelVenueRow } from '$lib/server/amigues/eventFormVenue.js';
 
 /**
  * Talleres en varias partes (docs/talleres-partes.md): el chip del encabezado («Parte 2 de 3» con
@@ -138,7 +139,7 @@ export async function load({ locals, url, params, platform }) {
 	const db = getDB(platform);
 	// Ya con el evento y su venta: lo demás no depende entre sí, a la par (con las tandas
 	// automáticas, en una ida). Cada parte con su manejo de errores de siempre.
-	const [tabCounts, dateChange, waitlist, workshop, gastosTab] = await Promise.all([
+	const [tabCounts, dateChange, waitlist, workshop, venue, gastosTab] = await Promise.all([
 		db && config ? orderCounts(db, params.slug) : { orders: 0, transfers: 0, review: 0 },
 		// «Cambiaste la fecha»: el aviso de arriba de todas las pestañas (dateChange.js), con
 		// «Avisar a les compradores». Solo si hay a quién avisar.
@@ -149,6 +150,9 @@ export async function load({ locals, url, params, platform }) {
 			? Promise.all([isFlagOn(db, 'lista_espera'), db ? waitlistCount(db, params.slug) : 0])
 			: null,
 		workshopChip(db, params.slug),
+		// El lugar vinculado («Sucede en»): manda sobre el «Dónde» en texto libre en el encabezado,
+		// como en la página pública. `null` sin lugar o si la base falla (queda el texto libre).
+		panelVenueRow(db, params.slug),
 		// Gastos y reparto (prototipo): la vista de Ventas, solo con el interruptor.
 		config ? isFlagOn(db, 'gastos_reparto') : false
 	]);
@@ -159,6 +163,7 @@ export async function load({ locals, url, params, platform }) {
 	return {
 		event: { ...event, sellsTickets: Boolean(config), online: config?.online ?? event.online },
 		workshop,
+		venue,
 		tabCounts: counts,
 		dateChange,
 		dbAvailable: Boolean(db),
