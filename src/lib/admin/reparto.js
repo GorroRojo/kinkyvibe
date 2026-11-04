@@ -437,14 +437,16 @@ export function cleanAccount(raw) {
  * @prop {string} id
  * @prop {string} name
  * @prop {boolean} team
- * @prop {number} amount su parte de la ganancia (si es del equipo, va a la Caja KV)
+ * @prop {number} amount su parte de la ganancia (si es del equipo, va a la Caja KV); con pérdida,
+ *   negativa: lo que pone
  */
 
 /**
  * El reparto de la ganancia: `productionPct` % para la Caja KV y el resto entre les
  * facilitadores (partes iguales o sus porcentajes, que tienen que sumar 100). La parte de quien
  * es del equipo de KV va a la Caja KV, y la Caja se queda con lo que sobra al redondear. Con
- * pérdida (o sin ganancia), les facilitadores no se llevan nada y la pérdida queda en la Caja KV.
+ * pérdida, la pone la producción con la misma repartija (gorrite, Mesa 4/11): cada facilitadore
+ * pone su parte (negativa) y la Caja KV el resto; los pesos del redondeo los pone la Caja KV.
  *
  * @param {number} profit
  * @param {Person[]} people
@@ -457,7 +459,7 @@ export function splitProfit(profit, people, split) {
 		name: p.name.trim() || `Facilitadore ${i + 1}`,
 		team: Boolean(p.team)
 	}));
-	if (profit <= 0 || !people.length) {
+	if (profit === 0 || !people.length) {
 		return {
 			shares: named.map((p) => ({ ...p, amount: 0 })),
 			production: profit,
@@ -466,7 +468,11 @@ export function splitProfit(profit, people, split) {
 		};
 	}
 	const prodPct = Math.min(100, Math.max(0, Number(split.productionPct) || 0));
-	const pool = Math.floor((profit * (100 - prodPct)) / 100);
+	// Con pérdida, lo mismo sobre el valor absoluto y con signo menos: cada facilitadore pone su
+	// parte redondeada para abajo y la Caja KV pone lo que falta.
+	const sign = profit < 0 ? -1 : 1;
+	const abs = Math.abs(profit);
+	const pool = Math.floor((abs * (100 - prodPct)) / 100);
 	/** @type {number[]} */
 	let weights = people.map(() => 1);
 	let problem = '';
@@ -491,7 +497,7 @@ export function splitProfit(profit, people, split) {
 	}
 	// Cada parte para abajo: lo que sobra (y la producción) es de la Caja KV.
 	const sum = weights.reduce((s, w) => s + w, 0);
-	const amounts = weights.map((w) => (sum > 0 ? Math.floor((pool * w) / sum) : 0));
+	const amounts = weights.map((w) => (sum > 0 ? sign * Math.floor((pool * w) / sum) || 0 : 0));
 	const shares = named.map((p, i) => ({ ...p, amount: amounts[i] }));
 	const outside = shares.filter((s) => !s.team).reduce((s, x) => s + x.amount, 0);
 	const handed = amounts.reduce((s, x) => s + x, 0);

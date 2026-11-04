@@ -194,10 +194,78 @@ describe('splitProfit', () => {
 		expect(r.caja).toBe(1000);
 	});
 
-	it('con pérdida, nadie se lleva nada y la pérdida queda en la Caja KV', () => {
-		const r = splitProfit(-5000, [{ id: 'a', name: 'A', team: false }], DEFAULT());
+	// Pérdida (gorrite, Mesa 4/11): la pone la producción con la misma repartija que la ganancia.
+	it('con pérdida, Mel (equipo) + Memi: Memi pone 35 %, la Caja KV 65 %', () => {
+		const r = splitProfit(
+			-100000,
+			[
+				{ id: 'mel', name: 'Mel', team: true },
+				{ id: 'memi', name: 'Memi', team: false }
+			],
+			DEFAULT()
+		);
+		expect(r.shares.map((s) => s.amount)).toEqual([-35000, -35000]);
+		expect(r.caja).toBe(-65000);
+	});
+
+	it('con pérdida, cada facilitadore pone su parte para abajo y la Caja KV pone el resto', () => {
+		const r = splitProfit(
+			-100001,
+			[
+				{ id: 'a', name: 'A', team: false },
+				{ id: 'b', name: 'B', team: false },
+				{ id: 'c', name: 'C', team: false }
+			],
+			DEFAULT()
+		);
+		expect(r.shares.map((s) => s.amount)).toEqual([-23333, -23333, -23333]);
+		expect(r.caja).toBe(-100001 + 3 * 23333);
+		expect(r.caja + r.shares.reduce((s, x) => s + x.amount, 0)).toBe(-100001);
+	});
+
+	it('con pérdida y porcentajes, la misma repartija', () => {
+		const r = splitProfit(
+			-10000,
+			[
+				{ id: 'a', name: 'A', team: false, pct: 60 },
+				{ id: 'b', name: 'B', team: false, pct: 40 }
+			],
+			{ productionPct: 30, mode: 'porcentajes' }
+		);
+		expect(r.shares.map((s) => s.amount)).toEqual([-4200, -2800]);
+		expect(r.caja).toBe(-3000);
+	});
+
+	it('sin ganancia ni pérdida, nadie pone ni se lleva nada', () => {
+		const r = splitProfit(0, [{ id: 'a', name: 'A', team: false }], DEFAULT());
 		expect(r.shares[0].amount).toBe(0);
-		expect(r.caja).toBe(-5000);
+		expect(r.caja).toBe(0);
+	});
+});
+
+describe('computeAccount con pérdida', () => {
+	it('Mel + Memi: Memi pone su parte y le pasa a quien tiene que cobrar', () => {
+		// Ingresos 100.000 (lo tiene la Caja KV); lugar fijo 150.000 sin pagar: pérdida 50.000.
+		const income = eventIncome([order({ quantity: 10, total: 100000 })]);
+		const r = computeAccount(
+			income,
+			cleanAccount({
+				...emptyAccount(),
+				venue: { kind: 'fijo', amount: 150000 },
+				people: [
+					{ id: 'mel', name: 'Mel', team: true },
+					{ id: 'memi', name: 'Memi', team: false }
+				]
+			})
+		);
+		expect(r.profit).toBe(-50000);
+		expect(r.split.shares.find((s) => s.id === 'memi')?.amount).toBe(-17500);
+		expect(r.caja).toBe(-32500);
+		expect(r.parties.find((p) => p.id === 'memi')?.balance).toBe(-17500);
+		expect(r.parties.reduce((s, p) => s + p.balance, 0)).toBe(0);
+		expect(r.transfers).toContainEqual(
+			expect.objectContaining({ fromName: 'Memi', toName: 'Lugar', amount: 17500 })
+		);
 	});
 });
 

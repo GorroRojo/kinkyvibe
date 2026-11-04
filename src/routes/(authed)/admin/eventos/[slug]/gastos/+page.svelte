@@ -160,6 +160,22 @@
 
 	const when = fmtDateTime;
 
+	/** Un monto del reparto: con pérdida, «pone $ …». @param {number} n */
+	const money = (n) => (n < 0 ? `pone ${formatARS(-n)}` : formatARS(n));
+	// Con pérdida: quién pone cuánto (antes de las transferencias, que ya lo incluyen).
+	$: lossLine =
+		result.profit < 0
+			? 'Por la pérdida: ' +
+				[
+					...result.split.shares
+						.filter((x) => !x.team && x.amount < 0)
+						.map((x) => `${x.name} pone ${formatARS(-x.amount)}`),
+					...(result.split.caja < 0
+						? [`la ${CAJA_LABEL} pone ${formatARS(-result.split.caja)}`]
+						: [])
+				].join(', ') +
+				'.'
+			: '';
 	$: cajaNote = result.feesToCaja
 		? ` (con ${formatARS(result.feesToCaja)} de contrataciones que se dejaron en la caja)`
 		: '';
@@ -176,7 +192,7 @@
 		['Contrataciones', formatARS(result.feesTotal)],
 		['Otros gastos', formatARS(result.expensesTotal)],
 		['Gastos', formatARS(result.allExpenses)],
-		[CAJA_LABEL, formatARS(result.caja)],
+		[CAJA_LABEL, money(result.caja)],
 		['Ganancia', formatARS(result.profit)]
 	];
 </script>
@@ -224,7 +240,7 @@
 		value={formatARS(result.profit)}
 		tone={result.profit > 0 ? 'ok' : result.profit < 0 ? 'bad' : ''}
 	/>
-	<Stat label={CAJA_LABEL} value={formatARS(result.caja)} sub="la plata de Kinky Vibe" />
+	<Stat label={CAJA_LABEL} value={money(result.caja)} sub="la plata de Kinky Vibe" />
 </div>
 
 <fieldset class="sheet" disabled={closed}>
@@ -722,7 +738,7 @@
 							></span
 						>
 						<span class="share num">
-							{formatARS(share?.amount ?? 0)}
+							{money(share?.amount ?? 0)}
 							{#if share?.team}<span class="muted small to-caja">→ {CAJA_LABEL}</span>{/if}
 						</span>
 						<Button
@@ -739,12 +755,13 @@
 			{#if result.split.problem}<Notice tone="warn" compact>{result.split.problem}</Notice>{/if}
 			{#if result.profit < 0}
 				<Notice tone="warn" compact
-					>Hubo pérdida: les facilitadores no se llevan nada y la pérdida queda en la {CAJA_LABEL}.</Notice
+					>Hubo pérdida: la pone la producción con el mismo reparto que la ganancia. Cada
+					facilitadore pone su parte (la de quien es del equipo, la pone la {CAJA_LABEL}).</Notice
 				>
 			{/if}
 			<p class="total-line">
 				<span>{CAJA_LABEL}{cajaNote}</span>
-				<strong class="num">{formatARS(result.caja)}</strong>
+				<strong class="num">{money(result.caja)}</strong>
 			</p>
 			<div class="row">
 				<Button variant="secondary" size="small" icon={Plus} on:click={addPerson}
@@ -754,6 +771,7 @@
 		</Card>
 
 		<Card title="Quién le pasa a quién">
+			{#if lossLine && !result.split.problem}<p class="loss">{lossLine}</p>{/if}
 			{#if result.split.problem}
 				<p class="muted small">Primero arreglá el reparto.</p>
 			{:else if result.transfers.length}
@@ -1022,6 +1040,10 @@
 	}
 	.inline-form {
 		display: inline;
+	}
+	.loss {
+		margin: 0 0 var(--space-xs);
+		font-weight: 600;
 	}
 	.transfers {
 		margin: 0 0 var(--space-xs);
