@@ -192,17 +192,17 @@ export const FLAGS = Object.freeze({
 		envVar: 'CONECTOR_CLAUDE_EDICION_ENABLED'
 	},
 	gastos_reparto: {
-		label: 'Gastos y reparto (prototipo)',
+		label: 'Gastos y reparto',
 		description:
 			'En la ficha de cada evento que vende entradas, Ventas → «Gastos y reparto»: lo que entró ' +
-			'(sin la comisión de Mercado Pago ni lo del Fondo), los gastos con quién pagó cada uno y ' +
-			'el reparto de lo que queda entre les organizadores, con «quién le pasa a quién». Es un ' +
-			'prototipo: lo que se carga no se guarda en la base (queda en ese navegador y se puede ' +
-			'exportar). Apagado, no se ve.',
+			'(con el Fondo calculado orden por orden), el lugar, las contrataciones, los otros gastos y ' +
+			'otros ingresos, y el reparto de la ganancia entre la Caja KV y les facilitadores, con ' +
+			'«quién le pasa a quién». Se guarda en la base y «Cerrar la cuenta» congela los números ' +
+			'para Ventas → Cuentas del año. Solo admins. Apagado, no se ve.',
 		tech:
-			'docs/tickets.md, «Gastos y reparto». Sin migración: lee las órdenes del evento ' +
-			'(src/lib/admin/reparto.js); gastos y personas en localStorage. Apagado, ' +
-			'/admin/eventos/<slug>/gastos da 404.',
+			'docs/tickets.md, «Gastos y reparto». Migración 0075 (event_accounts, ' +
+			'event_account_closings, venue_cost_rules); cuenta en src/lib/admin/reparto.js. Apagado, ' +
+			'/admin/eventos/<slug>/gastos y /admin/ventas/cuentas dan 404.',
 		envVar: 'GASTOS_REPARTO_ENABLED'
 	}
 });
@@ -398,7 +398,7 @@ export function conectorClaudeEnabled(platform) {
 }
 
 /**
- * Atajo para las rutas: ¿está prendido el prototipo de gastos y reparto? (docs/tickets.md).
+ * Atajo para las rutas: ¿está prendido Gastos y reparto? (docs/tickets.md).
  *
  * @param {App.Platform | undefined} platform
  */

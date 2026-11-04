@@ -1,10 +1,16 @@
 /**
- * Gastos y reparto de un evento (prototipo, interruptor `gastos_reparto`; docs/tickets.md, «Gastos
- * y reparto»). Funciones puras: lo que entró (de las órdenes del evento, en el servidor) y la
- * cuenta del reparto con «quién le debe a quién» (en la página, con lo que carga cada quien).
+ * Gastos y reparto de un evento que vende entradas (interruptor `gastos_reparto`; docs/tickets.md,
+ * «Gastos y reparto»). Funciones puras, las mismas en el servidor y en la página:
  *
- * Todo en pesos enteros. Nada de esto se guarda en la base: los gastos y las personas viven en la
- * página (y en el navegador de quien la usa).
+ * - lo que entró, de las órdenes del evento (`eventIncome`), con el Fondo calculado orden por
+ *   orden (lo que cubrió con su descuento y lo que recibió de las solidarias);
+ * - el costo del lugar en sus cuatro formas (`venueCost`);
+ * - la cuenta entera (`computeAccount`): ingresos, lugar, contrataciones, otros gastos, ganancia,
+ *   la parte de la Caja KV y de cada facilitadore, y «quién le pasa a quién»;
+ * - el resumen que se guarda al cerrar la cuenta (`closingSummary`).
+ *
+ * Todo en pesos enteros. La Caja KV es la plata de Kinky Vibe (no es el Fondo): siempre está en
+ * el reparto y se queda con lo que sobra, incluidos los pesos del redondeo.
  */
 
 /** @typedef {import('$lib/server/tickets/orders.js').Order} Order */
@@ -13,19 +19,24 @@
  * @typedef {object} IncomeRow
  * @prop {string} key de dónde vino la plata (`mercadopago`, `transferencia`, `puerta-efectivo`…)
  * @prop {string} label
+ * @prop {'preventa' | 'puerta'} part
  * @prop {number} orders
  * @prop {number} tickets
- * @prop {number} amount lo cobrado (el `total` de las órdenes), antes de la comisión
- * @prop {number} mpFee la comisión de Mercado Pago de esas órdenes (solo en `mercadopago`)
+ * @prop {number} amount lo cobrado (el `total` de las órdenes)
+ * @prop {number} mpFee el recargo de Mercado Pago de esas órdenes (se lo queda MP)
  */
 
 /**
  * @typedef {object} Income
  * @prop {IncomeRow[]} rows solo las que cobraron algo
- * @prop {number} gross
- * @prop {number} mpFee
- * @prop {number} fondoUsed lo que cubrió el Fondo (la gente pagó menos)
- * @prop {number} fondoContributed lo que se pagó de más para el Fondo (solidarias)
+ * @prop {number} gross lo cobrado
+ * @prop {number} mpFee el recargo de MP (lo pagó quien compró y se lo quedó MP)
+ * @prop {number} fondoUsed lo que cubrió el Fondo con su descuento (`fondo_amount`)
+ * @prop {number} fondoContributed lo que se pagó de más para el Fondo (`fondo_contribution`)
+ * @prop {number} tickets entradas de las órdenes aprobadas
+ * @prop {number} presale lo que pagó la gente por las entradas antes del evento (online y a mano),
+ *   sin el recargo de MP ni los aportes al Fondo
+ * @prop {number} door lo mismo, en la puerta
  * @prop {{ orders: number, amount: number }} refunded reembolsadas: no cuentan
  * @prop {{ orders: number, amount: number }} awaiting transferencias sin confirmar: no cuentan
  */
@@ -39,6 +50,10 @@ const SOURCE_LABELS = /** @type {Record<string, string>} */ ({
 	'puerta-otro': 'Puerta: otro medio',
 	manual: 'Cargadas a mano en el panel'
 });
+
+/** Quién puede tener plata o pagar algo, además de las personas: la caja de Kinky Vibe. */
+export const CAJA = 'caja';
+export const CAJA_LABEL = 'Caja KV';
 
 /**
  * De dónde vino la plata de una orden: la puerta por medio de pago, lo cargado a mano junto, y lo
@@ -56,10 +71,17 @@ export function incomeLabel(key) {
 	return SOURCE_LABELS[key] ?? key;
 }
 
+/** @param {unknown} x */
+const int = (x) => {
+	const n = Math.round(Number(x));
+	return Number.isFinite(n) ? n : 0;
+};
+
 /**
  * Lo que entró con un evento, de sus órdenes (`listOrders`). Como el resto del panel: solo las
- * aprobadas; la comisión de MP es el recargo guardado en cada orden pagada con MP
- * (`orderMpFee`, docs/tickets.md, «Meta de venta»).
+ * aprobadas. El recargo de MP es el guardado en cada orden pagada con MP (`orderMpFee`,
+ * docs/tickets.md, «Meta de venta»). El Fondo, orden por orden: `fondo_amount` (lo que cubrió su
+ * descuento) y `fondo_contribution` (el aporte de las solidarias), nunca un promedio.
  *
  * @param {Pick<Order, 'status' | 'quantity' | 'total' | 'payment_method' | 'channel' | 'surcharge_amount' | 'fondo_amount' | 'fondo_contribution'>[]} orders
  * @returns {Income}
@@ -72,11 +94,14 @@ export function eventIncome(orders) {
 		mpFee: 0,
 		fondoUsed: 0,
 		fondoContributed: 0,
+		tickets: 0,
+		presale: 0,
+		door: 0,
 		refunded: { orders: 0, amount: 0 },
 		awaiting: { orders: 0, amount: 0 }
 	};
 	for (const o of orders) {
-		const total = Number(o.total) || 0;
+		const total = int(o.total);
 		if (o.status === 'refunded') {
 			out.refunded.orders += 1;
 			out.refunded.amount += total;
@@ -89,24 +114,32 @@ export function eventIncome(orders) {
 		}
 		if (o.status !== 'approved') continue;
 		const key = incomeSource(o);
+		/** @type {'preventa' | 'puerta'} */
+		const part = o.channel === 'puerta' ? 'puerta' : 'preventa';
 		const row = by.get(key) ?? {
 			key,
 			label: incomeLabel(key),
+			part,
 			orders: 0,
 			tickets: 0,
 			amount: 0,
 			mpFee: 0
 		};
-		const fee = o.payment_method === 'mercadopago' ? Number(o.surcharge_amount) || 0 : 0;
+		const fee = o.payment_method === 'mercadopago' ? int(o.surcharge_amount) : 0;
+		const contribution = int(o.fondo_contribution);
+		const quantity = int(o.quantity);
 		row.orders += 1;
-		row.tickets += Number(o.quantity) || 0;
+		row.tickets += quantity;
 		row.amount += total;
 		row.mpFee += fee;
 		by.set(key, row);
 		out.gross += total;
 		out.mpFee += fee;
-		out.fondoUsed += Number(o.fondo_amount) || 0;
-		out.fondoContributed += Number(o.fondo_contribution) || 0;
+		out.tickets += quantity;
+		out.fondoUsed += int(o.fondo_amount);
+		out.fondoContributed += contribution;
+		// Lo que pagó por las entradas: sin el recargo (de MP) ni el aporte (del Fondo).
+		out[part === 'puerta' ? 'door' : 'presale'] += total - fee - contribution;
 	}
 	const order = Object.keys(SOURCE_LABELS);
 	const rows = [...by.values()]
@@ -117,6 +150,34 @@ export function eventIncome(orders) {
 
 /** @param {string[]} order @param {string} key */
 const rank = (order, key) => (order.includes(key) ? order.indexOf(key) : order.length);
+
+/**
+ * El Fondo con el evento, neto: lo que cubrió en descuentos menos lo que recibió en aportes.
+ * Positivo: el Fondo le pasa esa plata al evento; negativo: el evento se la pasa al Fondo.
+ *
+ * @param {Pick<Income, 'fondoUsed' | 'fondoContributed'>} income
+ */
+export function fondoNet(income) {
+	return income.fondoUsed - income.fondoContributed;
+}
+
+/**
+ * La línea del Fondo, para leer de un vistazo. Por ejemplo: «Fondo: cubrió $ 30.000 en descuentos
+ * − recibió $ 8.000 en aportes = el Fondo le pasa $ 22.000 al evento».
+ *
+ * @param {Pick<Income, 'fondoUsed' | 'fondoContributed'>} income
+ * @param {(n: number) => string} fmt
+ */
+export function fondoLine(income, fmt) {
+	const net = fondoNet(income);
+	const result =
+		net > 0
+			? `el Fondo le pasa ${fmt(net)} al evento`
+			: net < 0
+				? `el evento le pasa ${fmt(-net)} al Fondo`
+				: 'quedan a mano';
+	return `Fondo: cubrió ${fmt(income.fondoUsed)} en descuentos − recibió ${fmt(income.fondoContributed)} en aportes = ${result}`;
+}
 
 /**
  * Reparte `total` pesos enteros según `weights` (≥ 0), sin perder ni sumar pesos: cada parte se
@@ -146,201 +207,426 @@ export function splitWhole(total, weights) {
 	return parts.map((p) => sign * p || 0);
 }
 
+// ---------------------------------------------------------------------------------------------
+// El lugar
+
 /**
+ * Cómo cobra el lugar. `fijo`: un monto. `hora`: horas × precio por hora. `porcentaje`: un % de
+ * los ingresos por entradas. `porcentaje_minimo`: ese %, pero nunca menos que un mínimo, que es
+ * fijo (`minKind: 'fijo'`, `minAmount`) o por hora (`minKind: 'hora'`, horas × `rate`).
+ *
+ * @typedef {'fijo' | 'hora' | 'porcentaje' | 'porcentaje_minimo'} VenueKind
+ */
+export const VENUE_KINDS = /** @type {const} */ ([
+	'fijo',
+	'hora',
+	'porcentaje',
+	'porcentaje_minimo'
+]);
+
+/**
+ * @typedef {object} VenueRule
+ * @prop {VenueKind} kind
+ * @prop {number} [amount] `fijo`
+ * @prop {number} [hours] `hora` y el mínimo por hora (se carga en cada evento)
+ * @prop {number} [rate] precio por hora (`hora` y el mínimo por hora)
+ * @prop {number} [pct] `porcentaje` y `porcentaje_minimo`
+ * @prop {'fijo' | 'hora'} [minKind]
+ * @prop {number} [minAmount] el mínimo fijo
+ */
+
+/** La regla de los talleres: 30 % de los ingresos para el lugar. */
+export const DEFAULT_VENUE_RULE = Object.freeze(
+	/** @type {VenueRule} */ ({ kind: 'porcentaje', pct: 30 })
+);
+
+/** @param {unknown} x */
+const nonNeg = (x) => Math.max(0, Number(x) || 0);
+
+/**
+ * Una regla del lugar limpia (de un formulario o de la base). Lo que no es una regla da `null`.
+ * @param {unknown} raw
+ * @returns {VenueRule | null}
+ */
+export function cleanVenueRule(raw) {
+	if (!raw || typeof raw !== 'object') return null;
+	const r = /** @type {Record<string, unknown>} */ (raw);
+	const kind = /** @type {VenueKind} */ (r.kind);
+	if (!VENUE_KINDS.includes(kind)) return null;
+	/** @type {VenueRule} */
+	const out = { kind };
+	if (kind === 'fijo') out.amount = int(nonNeg(r.amount));
+	if (kind === 'hora' || (kind === 'porcentaje_minimo' && r.minKind === 'hora')) {
+		out.hours = Math.round(nonNeg(r.hours) * 100) / 100;
+		out.rate = int(nonNeg(r.rate));
+	}
+	if (kind === 'porcentaje' || kind === 'porcentaje_minimo') {
+		out.pct = Math.min(100, Math.round(nonNeg(r.pct) * 100) / 100);
+	}
+	if (kind === 'porcentaje_minimo') {
+		out.minKind = r.minKind === 'hora' ? 'hora' : 'fijo';
+		if (out.minKind === 'fijo') out.minAmount = int(nonNeg(r.minAmount));
+	}
+	return out;
+}
+
+/**
+ * Lo que cobra el lugar con una regla, sobre `base` (los ingresos por entradas, con lo que cubrió
+ * el Fondo). Los porcentajes se redondean al peso.
+ *
+ * @param {VenueRule | null | undefined} rule
+ * @param {number} base
+ * @returns {{ amount: number, byPct: number, min: number, usedMin: boolean }}
+ */
+export function venueCost(rule, base) {
+	const r = cleanVenueRule(rule);
+	const zero = { amount: 0, byPct: 0, min: 0, usedMin: false };
+	if (!r) return zero;
+	const perHour = int((r.hours ?? 0) * (r.rate ?? 0));
+	if (r.kind === 'fijo') return { ...zero, amount: r.amount ?? 0 };
+	if (r.kind === 'hora') return { ...zero, amount: perHour };
+	const byPct = Math.max(0, Math.round((Math.max(0, base) * (r.pct ?? 0)) / 100));
+	if (r.kind === 'porcentaje') return { ...zero, amount: byPct, byPct };
+	const min = r.minKind === 'hora' ? perHour : (r.minAmount ?? 0);
+	return { amount: Math.max(byPct, min), byPct, min, usedMin: min > byPct };
+}
+
+// ---------------------------------------------------------------------------------------------
+// La cuenta
+
+/**
+ * Une facilitadore (o quien organiza y se lleva parte de la ganancia).
  * @typedef {object} Person
  * @prop {string} id
  * @prop {string} name
- * @prop {number | null} value su porcentaje (modo `porcentajes`) o su monto fijo (modo `montos`)
+ * @prop {boolean} team es del equipo de KV: su parte va a la Caja KV
+ * @prop {number | null} [pct] su porcentaje de la parte de les facilitadores (modo `porcentajes`)
  */
 
 /**
- * @typedef {object} Expense
- * @prop {string} id
- * @prop {string} concept
- * @prop {number} amount
- * @prop {string} paidBy el id de la persona que lo pagó, o '' si falta pagarlo
+ * Un gasto pagado (o por pagar). `paidBy`: el id de una persona, `caja`, u otro texto (quien
+ * pagó, si no está en la cuenta); vacío, falta pagarlo. Nunca alias ni CBU.
+ * @typedef {object} Payment
+ * @prop {string} paidBy
+ * @prop {string} paidAt fecha `AAAA-MM-DD`, o vacía
  */
 
 /**
- * @typedef {'iguales' | 'porcentajes' | 'montos'} SplitMode
+ * Una contratación (monitore, fotografe, técnica…). Si es del equipo de KV, `keep` dice si cobra
+ * (`cobra`) o lo deja en la caja (`caja`).
+ * @typedef {Payment & { id: string, concept: string, amount: number, team: boolean, keep: 'cobra' | 'caja' }} Fee
+ */
+
+/** @typedef {Payment & { id: string, concept: string, amount: number }} Expense */
+
+/**
+ * Otro ingreso (barra, sponsor, efectivo que no se cargó en la puerta): quién lo tiene.
+ * @typedef {{ id: string, concept: string, amount: number, heldBy: string }} OtherIncome
  */
 
 /**
- * Las partes del reparto. `iguales`: todes lo mismo. `porcentajes`: cada quien su %, que tienen
- * que sumar 100. `montos`: quien tiene un monto se lleva ese monto y el resto se reparte en partes
- * iguales entre les demás (si todes tienen monto, tienen que sumar lo que queda).
- *
- * @param {number} pot lo que queda para repartir (puede ser negativo: una pérdida)
- * @param {Person[]} people
- * @param {SplitMode} mode
- * @returns {{ shares: number[], problem: string }}
- */
-export function splitShares(pot, people, mode) {
-	const n = people.length;
-	if (!n) return { shares: [], problem: '' };
-	if (mode === 'porcentajes') {
-		const pcts = people.map((p) => Math.max(0, Number(p.value) || 0));
-		const sum = Math.round(pcts.reduce((s, x) => s + x, 0) * 100) / 100;
-		if (sum !== 100) {
-			const diff = Math.round((100 - sum) * 100) / 100;
-			return {
-				shares: people.map(() => 0),
-				problem:
-					diff > 0
-						? `Los porcentajes suman ${fmtPct(sum)} %: falta repartir ${fmtPct(diff)} %.`
-						: `Los porcentajes suman ${fmtPct(sum)} %: sobran ${fmtPct(-diff)} %.`
-			};
-		}
-		return { shares: splitWhole(pot, pcts), problem: '' };
-	}
-	if (mode === 'montos') {
-		const fixed = people.map((p) =>
-			p.value === null || p.value === undefined || Number.isNaN(Number(p.value))
-				? null
-				: Math.round(Number(p.value))
-		);
-		const fixedSum = fixed.reduce((/** @type {number} */ s, x) => s + (x ?? 0), 0);
-		const rest = pot - fixedSum;
-		const free = fixed.filter((x) => x === null).length;
-		if (!free) {
-			if (rest === 0) return { shares: /** @type {number[]} */ (fixed), problem: '' };
-			return {
-				shares: people.map(() => 0),
-				problem:
-					rest > 0
-						? `Los montos suman ${pesos(fixedSum)}: quedan ${pesos(rest)} sin repartir. Dejá a alguien sin monto para que se lleve el resto.`
-						: `Los montos suman ${pesos(fixedSum)}: ${pesos(-rest)} más de lo que hay.`
-			};
-		}
-		const restShares = splitWhole(
-			rest,
-			fixed.map((x) => (x === null ? 1 : 0))
-		);
-		return { shares: fixed.map((x, i) => (x === null ? restShares[i] : x)), problem: '' };
-	}
-	return {
-		shares: splitWhole(
-			pot,
-			people.map(() => 1)
-		),
-		problem: ''
-	};
-}
-
-/** @param {number} x */
-const fmtPct = (x) => String(x).replace('.', ',');
-/** @param {number} x */
-const pesos = (x) =>
-	new Intl.NumberFormat('es-AR', {
-		style: 'currency',
-		currency: 'ARS',
-		maximumFractionDigits: 0
-	}).format(x);
-
-/**
- * @typedef {object} Party alguien en la cuenta final: una persona del reparto, el Fondo o un gasto
- *   que falta pagar (a quién se le debe).
- * @prop {string} id
- * @prop {string} name
- * @prop {'persona' | 'fondo' | 'pendiente'} kind
- * @prop {number} share lo que le toca
- * @prop {number} paid lo que ya puso de su bolsillo (gastos)
- * @prop {number} held lo cobrado que tiene en su poder (su cuenta de MP, su alias, la caja)
- * @prop {number} balance share + paid − held: positivo, le tienen que pasar; negativo, tiene que pasar
+ * @typedef {object} SplitRule
+ * @prop {number} productionPct el % de la ganancia que va a la Caja KV por producir (30)
+ * @prop {'iguales' | 'porcentajes'} mode cómo se reparte el resto entre les facilitadores
  */
 
+export const DEFAULT_SPLIT = Object.freeze(
+	/** @type {SplitRule} */ ({ productionPct: 30, mode: 'iguales' })
+);
+
 /**
- * @typedef {object} RepartoInput
- * @prop {Income} income
- * @prop {boolean} separateAportes los aportes al Fondo son del Fondo: se separan
- * @prop {boolean} addFondoUsed el Fondo le pasa al evento lo que cubrió
+ * Todo lo que se carga a mano de la cuenta de un evento (lo que se guarda en `event_accounts`).
+ * @typedef {object} AccountData
+ * @prop {VenueRule} venue
+ * @prop {Payment} venuePayment
+ * @prop {Fee[]} fees
  * @prop {Expense[]} expenses
+ * @prop {OtherIncome[]} otherIncome
  * @prop {Person[]} people
- * @prop {SplitMode} mode
+ * @prop {SplitRule} split
  * @prop {Record<string, string>} holders de cada fuente de plata (`IncomeRow.key`), quién la tiene
  */
 
 /**
- * La cuenta entera: lo neto, los gastos, lo que queda, la parte de cada quien y las
- * transferencias para quedar a mano.
- *
- * @param {RepartoInput} input
+ * Una cuenta vacía, con la regla del lugar (la del perfil del lugar, si tiene) y la de talleres.
+ * @param {VenueRule | null} [venueDefault]
+ * @returns {AccountData}
  */
-export function computeReparto({
-	income,
-	separateAportes,
-	addFondoUsed,
-	expenses,
-	people,
-	mode,
-	holders
-}) {
-	const aportes = separateAportes ? income.fondoContributed : 0;
-	const fondoIn = addFondoUsed ? income.fondoUsed : 0;
-	const net = income.gross - income.mpFee - aportes + fondoIn;
-	const valid = expenses.filter((e) => Number(e.amount) > 0);
-	const totalExpenses = valid.reduce((s, e) => s + Math.round(Number(e.amount)), 0);
-	const pot = net - totalExpenses;
-	const { shares, problem } = splitShares(pot, people, mode);
+export function emptyAccount(venueDefault = null) {
+	return {
+		venue: { ...(venueDefault ?? DEFAULT_VENUE_RULE) },
+		venuePayment: { paidBy: '', paidAt: '' },
+		fees: [],
+		expenses: [],
+		otherIncome: [],
+		people: [],
+		split: { ...DEFAULT_SPLIT },
+		holders: {}
+	};
+}
+
+const MAX_LINES = 100;
+const MAX_TEXT = 120;
+/** @param {unknown} s */
+const str = (s) => String(s ?? '').slice(0, MAX_TEXT);
+/** @param {unknown} s */
+const date = (s) => (/^\d{4}-\d{2}-\d{2}$/.test(String(s)) ? String(s) : '');
+/** @param {unknown} s */
+const id = (s) =>
+	String(s ?? '')
+		.replace(/[^\w-]/g, '')
+		.slice(0, 40);
+/** @param {unknown} a */
+const list = (a) => (Array.isArray(a) ? a.slice(0, MAX_LINES) : []);
+
+/**
+ * Una cuenta limpia (lo que manda la página, o lo leído de la base). Saca lo que no va, recorta
+ * textos y listas, y completa lo que falta.
+ *
+ * @param {unknown} raw
+ * @returns {AccountData}
+ */
+export function cleanAccount(raw) {
+	const r = /** @type {Record<string, any>} */ (raw && typeof raw === 'object' ? raw : {});
+	const base = emptyAccount();
+	/** @param {any} p @returns {Payment} */
+	const payment = (p) => ({ paidBy: str(p?.paidBy), paidAt: date(p?.paidAt) });
+	const holders = /** @type {Record<string, string>} */ ({});
+	if (r.holders && typeof r.holders === 'object') {
+		for (const [k, v] of Object.entries(r.holders).slice(0, 20)) holders[id(k)] = str(v);
+	}
+	return {
+		venue: cleanVenueRule(r.venue) ?? base.venue,
+		venuePayment: payment(r.venuePayment),
+		fees: list(r.fees).map((f) => ({
+			id: id(f?.id),
+			concept: str(f?.concept),
+			amount: int(nonNeg(f?.amount)),
+			team: f?.team === true,
+			keep: f?.keep === 'caja' ? 'caja' : 'cobra',
+			...payment(f)
+		})),
+		expenses: list(r.expenses).map((x) => ({
+			id: id(x?.id),
+			concept: str(x?.concept),
+			amount: int(nonNeg(x?.amount)),
+			...payment(x)
+		})),
+		otherIncome: list(r.otherIncome).map((x) => ({
+			id: id(x?.id),
+			concept: str(x?.concept),
+			amount: int(nonNeg(x?.amount)),
+			heldBy: str(x?.heldBy)
+		})),
+		people: list(r.people).map((p) => ({
+			id: id(p?.id),
+			name: str(p?.name),
+			team: p?.team === true,
+			pct: p?.pct === null || p?.pct === undefined || p?.pct === '' ? null : nonNeg(p.pct)
+		})),
+		split: {
+			productionPct: Math.min(100, nonNeg(r.split?.productionPct ?? base.split.productionPct)),
+			mode: r.split?.mode === 'porcentajes' ? 'porcentajes' : 'iguales'
+		},
+		holders
+	};
+}
+
+/**
+ * @typedef {object} Share
+ * @prop {string} id
+ * @prop {string} name
+ * @prop {boolean} team
+ * @prop {number} amount su parte de la ganancia (si es del equipo, va a la Caja KV)
+ */
+
+/**
+ * El reparto de la ganancia: `productionPct` % para la Caja KV y el resto entre les
+ * facilitadores (partes iguales o sus porcentajes, que tienen que sumar 100). La parte de quien
+ * es del equipo de KV va a la Caja KV, y la Caja se queda con lo que sobra al redondear. Con
+ * pérdida (o sin ganancia), les facilitadores no se llevan nada y la pérdida queda en la Caja KV.
+ *
+ * @param {number} profit
+ * @param {Person[]} people
+ * @param {SplitRule} split
+ * @returns {{ shares: Share[], production: number, caja: number, problem: string }}
+ */
+export function splitProfit(profit, people, split) {
+	const named = people.map((p, i) => ({
+		id: p.id,
+		name: p.name.trim() || `Facilitadore ${i + 1}`,
+		team: Boolean(p.team)
+	}));
+	if (profit <= 0 || !people.length) {
+		return {
+			shares: named.map((p) => ({ ...p, amount: 0 })),
+			production: profit,
+			caja: profit,
+			problem: ''
+		};
+	}
+	const prodPct = Math.min(100, Math.max(0, Number(split.productionPct) || 0));
+	const pool = Math.floor((profit * (100 - prodPct)) / 100);
+	/** @type {number[]} */
+	let weights = people.map(() => 1);
+	let problem = '';
+	if (split.mode === 'porcentajes') {
+		weights = people.map((p) => Math.max(0, Number(p.pct) || 0));
+		const sum = Math.round(weights.reduce((s, x) => s + x, 0) * 100) / 100;
+		if (sum !== 100) {
+			const diff = Math.round((100 - sum) * 100) / 100;
+			problem =
+				diff > 0
+					? `Los porcentajes suman ${fmtPct(sum)} %: falta repartir ${fmtPct(diff)} %.`
+					: `Los porcentajes suman ${fmtPct(sum)} %: sobran ${fmtPct(-diff)} %.`;
+		}
+	}
+	if (problem) {
+		return {
+			shares: named.map((p) => ({ ...p, amount: 0 })),
+			production: profit,
+			caja: profit,
+			problem
+		};
+	}
+	// Cada parte para abajo: lo que sobra (y la producción) es de la Caja KV.
+	const sum = weights.reduce((s, w) => s + w, 0);
+	const amounts = weights.map((w) => (sum > 0 ? Math.floor((pool * w) / sum) : 0));
+	const shares = named.map((p, i) => ({ ...p, amount: amounts[i] }));
+	const outside = shares.filter((s) => !s.team).reduce((s, x) => s + x.amount, 0);
+	const handed = amounts.reduce((s, x) => s + x, 0);
+	return { shares, production: profit - handed, caja: profit - outside, problem: '' };
+}
+
+/** @param {number} x */
+const fmtPct = (x) => String(x).replace('.', ',');
+
+/**
+ * @typedef {object} Party alguien en la cuenta final: la Caja KV, une facilitadore, el Fondo, el
+ *   lugar o alguien a quien se le debe un gasto o una contratación.
+ * @prop {string} id
+ * @prop {string} name
+ * @prop {'caja' | 'persona' | 'fondo' | 'pendiente'} kind
+ * @prop {number} share lo que le toca (su parte, o lo que se le debe)
+ * @prop {number} paid lo que ya puso (gastos que pagó)
+ * @prop {number} held la plata del evento que tiene (su cuenta de MP, su alias, la caja de la puerta)
+ * @prop {number} balance share + paid − held: positivo, le tienen que pasar; negativo, tiene que pasar
+ */
+
+/**
+ * La cuenta entera de un evento.
+ *
+ * @param {Income} income
+ * @param {AccountData} data
+ */
+export function computeAccount(income, data) {
+	const fondo = fondoNet(income);
+	// La base del % del lugar: lo que pagó la gente por las entradas más lo que cubrió el Fondo,
+	// sin los aportes al Fondo ni el recargo de MP («IIBB con fondo» de las planillas).
+	const ticketIncome = income.presale + income.door + income.fondoUsed;
+	const otherIncome = data.otherIncome.reduce((s, x) => s + x.amount, 0);
+	const totalIncome = ticketIncome + otherIncome;
+	const venue = venueCost(data.venue, ticketIncome);
+	const fees = data.fees.filter((f) => f.amount > 0);
+	const expenses = data.expenses.filter((x) => x.amount > 0);
+	const feesTotal = fees.reduce((s, f) => s + f.amount, 0);
+	const expensesTotal = expenses.reduce((s, x) => s + x.amount, 0);
+	const allExpenses = venue.amount + feesTotal + expensesTotal;
+	const profit = totalIncome - allExpenses;
+	const split = splitProfit(profit, data.people, data.split);
+	// Lo que las contrataciones del equipo dejan en la caja: va a la Caja KV.
+	const feesToCaja = fees
+		.filter((f) => f.team && f.keep === 'caja')
+		.reduce((s, f) => s + f.amount, 0);
+	const caja = split.caja + feesToCaja;
 
 	/** @type {Party[]} */
-	const parties = people.map((p, i) => ({
-		id: p.id,
-		name: p.name.trim() || `Persona ${i + 1}`,
-		kind: 'persona',
-		share: shares[i] ?? 0,
-		paid: 0,
-		held: 0,
-		balance: 0
-	}));
-	const byId = new Map(parties.map((p) => [p.id, p]));
-	if (aportes || fondoIn) {
+	const parties = [
+		{ id: CAJA, name: CAJA_LABEL, kind: 'caja', share: caja, paid: 0, held: 0, balance: 0 }
+	];
+	for (const s of split.shares) {
 		parties.push({
-			id: 'fondo',
-			name: 'Fondo Kinky Vibe',
-			kind: 'fondo',
-			share: aportes - fondoIn,
+			id: s.id,
+			name: s.name,
+			kind: 'persona',
+			share: s.team ? 0 : s.amount,
 			paid: 0,
 			held: 0,
 			balance: 0
 		});
 	}
-	// La plata cobrada: cada fuente la tiene alguien (la de MP, sin la comisión: esa se la quedó MP).
-	let unheld = 0;
+	const byId = new Map(parties.map((p) => [p.id, p]));
+	/**
+	 * Quien tiene plata o pagó algo: una persona de la cuenta, la Caja KV, o alguien más (se suma
+	 * como parte, con su nombre).
+	 * @param {string} who
+	 */
+	const party = (who) => {
+		const key = who.trim();
+		const found =
+			byId.get(key) ?? parties.find((p) => p.kind === 'pendiente' && p.id === `otro:${key}`);
+		if (found) return found;
+		/** @type {Party} */
+		const p = {
+			id: `otro:${key}`,
+			name: key,
+			kind: 'pendiente',
+			share: 0,
+			paid: 0,
+			held: 0,
+			balance: 0
+		};
+		parties.push(p);
+		return p;
+	};
+	if (fondo !== 0) {
+		// El Fondo «tiene» lo que cubrió (nadie lo cobró) y le toca lo que recibió en aportes.
+		parties.push({
+			id: 'fondo',
+			name: 'Fondo Kinky Vibe',
+			kind: 'fondo',
+			share: income.fondoContributed,
+			paid: 0,
+			held: income.fondoUsed,
+			balance: 0
+		});
+	}
+	// La plata cobrada: cada fuente la tiene alguien (sin el recargo de MP: se lo quedó MP). Sin
+	// elegir, la Caja KV.
 	for (const row of income.rows) {
-		const amount = row.amount - row.mpFee;
-		const who = byId.get(holders[row.key] ?? '') ?? parties.find((p) => p.kind === 'persona');
-		if (who) who.held += amount;
-		else unheld += amount;
+		party(data.holders[row.key] || CAJA).held += row.amount - row.mpFee;
 	}
-	for (const e of valid) {
-		const amount = Math.round(Number(e.amount));
-		const who = byId.get(e.paidBy);
-		if (who) who.paid += amount;
-		else
-			parties.push({
-				id: `pendiente-${e.id}`,
-				name: e.concept.trim() || 'Gasto sin nombre',
-				kind: 'pendiente',
-				share: 0,
-				paid: amount,
-				held: 0,
-				balance: 0
-			});
+	for (const x of data.otherIncome) if (x.amount > 0) party(x.heldBy || CAJA).held += x.amount;
+	/**
+	 * Un pago: si alguien ya lo pagó, lo puso; si falta, se le debe a quien cobra.
+	 * @param {Payment} p @param {number} amount @param {string} payee
+	 */
+	const pay = (p, amount, payee) => {
+		if (p.paidBy.trim()) party(p.paidBy).paid += amount;
+		else party(payee).share += amount;
+	};
+	if (venue.amount > 0) pay(data.venuePayment, venue.amount, 'Lugar');
+	for (const f of fees) {
+		if (f.team && f.keep === 'caja') continue;
+		pay(f, f.amount, f.concept.trim() || 'Contratación');
 	}
+	for (const x of expenses) pay(x, x.amount, x.concept.trim() || 'Gasto sin nombre');
 	for (const p of parties) p.balance = p.share + p.paid - p.held;
-	const ready = people.length > 0 && !problem;
 	return {
-		net,
-		aportes,
-		fondoIn,
-		totalExpenses,
-		pot,
-		shares,
-		problem,
+		fondo,
+		ticketIncome,
+		otherIncome,
+		totalIncome,
+		venue,
+		feesTotal,
+		feesToCaja,
+		expensesTotal,
+		allExpenses,
+		profit,
+		split,
+		caja,
 		parties,
-		unheld,
-		transfers: ready ? settleUp(parties) : []
+		transfers: split.problem ? [] : settleUp(parties)
 	};
 }
 
@@ -381,4 +667,76 @@ export function settleUp(parties) {
 		if (gets[j].left === 0) j++;
 	}
 	return out;
+}
+
+/**
+ * El renglón del resumen que se guarda al cerrar la cuenta (`event_account_closings`), con las
+ * columnas de las planillas.
+ *
+ * @param {Income} income
+ * @param {ReturnType<typeof computeAccount>} result
+ */
+export function closingSummary(income, result) {
+	return {
+		tickets: income.tickets,
+		presale: income.presale,
+		door: income.door,
+		fondo_net: result.fondo,
+		other_income: result.otherIncome,
+		income_total: result.totalIncome,
+		venue: result.venue.amount,
+		fees: result.feesTotal,
+		other_expenses: result.expensesTotal,
+		expenses_total: result.allExpenses,
+		caja: result.caja,
+		profit: result.profit
+	};
+}
+
+/** @typedef {ReturnType<typeof closingSummary>} ClosingSummary */
+
+/**
+ * Los resúmenes cerrados de un año, por mes (el del evento) y el total.
+ *
+ * @param {(ClosingSummary & { event_date: string })[]} rows
+ */
+export function yearSummary(rows) {
+	const keys = /** @type {(keyof ClosingSummary)[]} */ ([
+		'tickets',
+		'presale',
+		'door',
+		'fondo_net',
+		'other_income',
+		'income_total',
+		'venue',
+		'fees',
+		'other_expenses',
+		'expenses_total',
+		'caja',
+		'profit'
+	]);
+	const zero = () =>
+		/** @type {ClosingSummary & { events: number }} */ (
+			Object.fromEntries([['events', 0], ...keys.map((k) => [k, 0])])
+		);
+	/** @type {Map<string, ClosingSummary & { events: number }>} */
+	const months = new Map();
+	const total = zero();
+	for (const r of rows) {
+		const month = String(r.event_date).slice(0, 7);
+		const m = months.get(month) ?? zero();
+		m.events += 1;
+		total.events += 1;
+		for (const k of keys) {
+			m[k] += Number(r[k]) || 0;
+			total[k] += Number(r[k]) || 0;
+		}
+		months.set(month, m);
+	}
+	return {
+		months: [...months.entries()]
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([month, sums]) => ({ month, ...sums })),
+		total
+	};
 }

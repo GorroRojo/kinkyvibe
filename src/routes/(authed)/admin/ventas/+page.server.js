@@ -1,4 +1,5 @@
 import { requireAdmin } from '$lib/server/auth';
+import { gastosRepartoEnabled } from '$lib/server/flags.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { getAllCounts, salesTotals, summarizeEvent } from '$lib/server/admin/sales.js';
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
@@ -43,6 +44,8 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 		upcoming,
 		past,
 		totals: { upcoming: salesTotals(upcoming), all: salesTotals(rows) },
-		dbAvailable: Boolean(db)
+		dbAvailable: Boolean(db),
+		// Cuentas del año (Gastos y reparto): el botón, solo con el interruptor.
+		accountsLink: await gastosRepartoEnabled(platform)
 	};
 }

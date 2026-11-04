@@ -1,484 +1,861 @@
 <script>
 	/**
-	 * Ventas › Gastos y reparto (prototipo, interruptor `gastos_reparto`; docs/tickets.md, «Gastos y
-	 * reparto»). Lo que entró sale de las órdenes del evento (el servidor); los gastos, las personas
-	 * y el reparto se cargan acá y se guardan solo en este navegador (`localStorage`), con exportar e
-	 * importar un archivo. Nada va a la base.
+	 * Ventas › Gastos y reparto (interruptor `gastos_reparto`; docs/tickets.md, «Gastos y
+	 * reparto»). Lo que entró sale de las órdenes del evento (el servidor); el lugar, las
+	 * contrataciones, los gastos, los otros ingresos y el reparto se cargan acá y se guardan en la
+	 * base con «Guardar». «Cerrar la cuenta» congela los números y guarda el resumen para el
+	 * resumen del año. La cuenta la hace src/lib/admin/reparto.js (la misma que en el servidor).
 	 */
-	import { onMount } from 'svelte';
-	import { Download, Plus, RotateCcw, Trash2, Upload } from '@lucide/svelte';
-	import { Button, Card, Checkbox, Chip, Notice, Segmented, askConfirm } from '$lib/components/ui';
+	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
+	import { Lock, LockOpen, Plus, Save, Trash2 } from '@lucide/svelte';
+	import {
+		Button,
+		Card,
+		Checkbox,
+		Chip,
+		Notice,
+		SaveStatus,
+		Segmented,
+		askConfirm
+	} from '$lib/components/ui';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
-	import { computeReparto } from '$lib/admin/reparto.js';
+	import { CAJA, CAJA_LABEL, computeAccount, fondoLine } from '$lib/admin/reparto.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
 
-	/** @typedef {import('$lib/admin/reparto.js').Person} Person */
-	/** @typedef {import('$lib/admin/reparto.js').Expense} Expense */
-	/** @typedef {import('$lib/admin/reparto.js').SplitMode} SplitMode */
+	/** @typedef {import('$lib/admin/reparto.js').AccountData} AccountData */
 
-	const PRESETS = [
-		'Lugar',
-		'Materiales',
-		'Honorarios',
-		'Transporte',
-		'Difusión',
-		'Comida y bebida'
-	];
+	const PRESETS = ['Materiales', 'Transporte', 'Difusión', 'Comida y bebida', 'Limpieza'];
 	const MODES = [
 		{ value: 'iguales', label: 'Partes iguales' },
-		{ value: 'porcentajes', label: 'Porcentajes' },
-		{ value: 'montos', label: 'Montos fijos' }
+		{ value: 'porcentajes', label: 'Porcentajes' }
+	];
+	const VENUE_OPTIONS = [
+		{ value: 'fijo', label: 'Monto fijo' },
+		{ value: 'hora', label: 'Por hora' },
+		{ value: 'porcentaje', label: 'Porcentaje de los ingresos' },
+		{ value: 'porcentaje_minimo', label: 'Porcentaje con un mínimo' }
 	];
 
 	$: e = data.event;
-	$: income = data.income;
-	$: storageKey = `kv:gastos-reparto:${e.slug}`;
-	$: hasFondo = data.fondoEnabled || income.fondoUsed > 0 || income.fondoContributed > 0;
+	$: closing = data.closing;
+	$: closed = Boolean(closing);
 
-	/** @type {Person[]} */
-	let people = [];
-	/** @type {Expense[]} */
-	let expenses = [];
-	/** @type {SplitMode} */
-	let mode = 'iguales';
-	/** @type {Record<string, string>} */
-	let holders = {};
-	let separateAportes = true;
-	let addFondoUsed = false;
-	let loaded = false;
-	let importError = '';
-	/** @type {HTMLInputElement} */
-	let fileInput;
+	/** @type {AccountData} */
+	let account = structuredClone(data.closing ? data.closing.account : data.account);
+	let version = data.version;
+	let savedPayload = JSON.stringify(account);
+	/** @type {'' | 'saving' | 'saved' | 'error'} */
+	let status = '';
+	let errorText = '';
+	let venueRuleSaved = false;
+	let lastData = data;
+
+	// Al volver del servidor (guardar, cerrar, reabrir), lo de la base manda.
+	$: if (data !== lastData) {
+		lastData = data;
+		account = structuredClone(data.closing ? data.closing.account : data.account);
+		version = data.version;
+		savedPayload = JSON.stringify(account);
+	}
+
+	$: income = closing ? closing.income : data.income;
+	$: result = computeAccount(income, account);
+	$: hasFondo = data.fondoEnabled || income.fondoUsed > 0 || income.fondoContributed > 0;
+	$: who = [
+		{ value: CAJA, label: CAJA_LABEL },
+		...account.people.map((p, i) => ({
+			value: p.id,
+			label: p.name.trim() || `Facilitadore ${i + 1}`
+		}))
+	];
+
+	/** Al cambiar algo, el «Guardado» de antes ya no vale. */
+	function touch() {
+		if (status !== 'saving') status = '';
+	}
 
 	const newId = () => Math.random().toString(36).slice(2, 10);
 
-	/** Lo que se guarda (y se exporta). */
-	$: state = { v: 1, people, expenses, mode, holders, separateAportes, addFondoUsed };
-
-	/** @param {any} s */
-	function applyState(s) {
-		if (!s || s.v !== 1) throw new Error('formato');
-		people = Array.isArray(s.people)
-			? s.people.map((/** @type {any} */ p) => ({
-					id: String(p.id || newId()),
-					name: String(p.name ?? ''),
-					value: p.value === null || p.value === undefined ? null : Number(p.value)
-				}))
-			: [];
-		expenses = Array.isArray(s.expenses)
-			? s.expenses.map((/** @type {any} */ x) => ({
-					id: String(x.id || newId()),
-					concept: String(x.concept ?? ''),
-					amount: Number(x.amount) || 0,
-					paidBy: String(x.paidBy ?? '')
-				}))
-			: [];
-		mode = ['iguales', 'porcentajes', 'montos'].includes(s.mode) ? s.mode : 'iguales';
-		holders = s.holders && typeof s.holders === 'object' ? { ...s.holders } : {};
-		separateAportes = s.separateAportes !== false;
-		addFondoUsed = s.addFondoUsed === true;
-	}
-
-	onMount(() => {
-		try {
-			const raw = localStorage.getItem(storageKey);
-			if (raw) applyState(JSON.parse(raw));
-		} catch {
-			// Sin localStorage (o con algo roto guardado): se empieza de cero.
-		}
-		if (!people.length) people = [{ id: newId(), name: '', value: null }];
-		loaded = true;
-	});
-
-	$: if (loaded) {
-		try {
-			localStorage.setItem(storageKey, JSON.stringify(state));
-		} catch {
-			// Navegador sin almacenamiento: la página anda igual, sin recordar.
-		}
-	}
-
-	$: result = computeReparto({
-		income,
-		separateAportes,
-		addFondoUsed,
-		expenses,
-		people,
-		mode,
-		holders
-	});
-	$: peopleParties = result.parties.filter((p) => p.kind === 'persona');
-	$: otherParties = result.parties.filter((p) => p.kind !== 'persona');
-
 	function addPerson() {
-		people = [...people, { id: newId(), name: '', value: null }];
+		account.people = [...account.people, { id: newId(), name: '', team: false, pct: null }];
+		touch();
 	}
 	/** @param {string} id */
 	function removePerson(id) {
-		people = people.filter((p) => p.id !== id);
-		expenses = expenses.map((x) => (x.paidBy === id ? { ...x, paidBy: '' } : x));
-		holders = Object.fromEntries(Object.entries(holders).filter(([, v]) => v !== id));
+		account.people = account.people.filter((p) => p.id !== id);
+		touch();
 	}
 	/** @param {string} concept */
 	function addExpense(concept = '') {
-		expenses = [...expenses, { id: newId(), concept, amount: 0, paidBy: people[0]?.id ?? '' }];
+		account.expenses = [
+			...account.expenses,
+			{ id: newId(), concept, amount: 0, paidBy: '', paidAt: '' }
+		];
+		touch();
 	}
-	/** @param {string} id */
-	function removeExpense(id) {
-		expenses = expenses.filter((x) => x.id !== id);
+	function addFee() {
+		account.fees = [
+			...account.fees,
+			{ id: newId(), concept: '', amount: 0, team: false, keep: 'cobra', paidBy: '', paidAt: '' }
+		];
+		touch();
 	}
-
-	function exportFile() {
-		const blob = new Blob([JSON.stringify({ ...state, evento: e.slug }, null, 2)], {
-			type: 'application/json'
-		});
-		const a = document.createElement('a');
-		a.href = URL.createObjectURL(blob);
-		a.download = `gastos-${e.slug}.json`;
-		a.click();
-		URL.revokeObjectURL(a.href);
+	function addOtherIncome() {
+		account.otherIncome = [
+			...account.otherIncome,
+			{ id: newId(), concept: '', amount: 0, heldBy: CAJA }
+		];
+		touch();
 	}
-
-	/** @param {Event} ev */
-	async function importFile(ev) {
-		importError = '';
-		const input = /** @type {HTMLInputElement} */ (ev.currentTarget);
-		const file = input.files?.[0];
-		input.value = '';
-		if (!file) return;
-		try {
-			applyState(JSON.parse(await file.text()));
-		} catch {
-			importError = 'Ese archivo no es una exportación de Gastos y reparto.';
-		}
+	/** @param {'expenses' | 'fees' | 'otherIncome'} list @param {string} id */
+	function removeLine(list, id) {
+		// @ts-expect-error las tres listas tienen `id`
+		account[list] = account[list].filter((/** @type {{ id: string }} */ x) => x.id !== id);
+		touch();
 	}
 
-	async function reset() {
+	function useVenueDefault() {
+		if (!data.venue?.rule) return;
+		account.venue = { ...data.venue.rule, hours: account.venue.hours ?? 0 };
+		touch();
+	}
+
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const submit = () => {
+		status = 'saving';
+		errorText = '';
+		return async ({ result: r }) => {
+			if (r.type === 'success') {
+				status = 'saved';
+				if (r.data?.venueRuleSaved) venueRuleSaved = true;
+				await invalidateAll();
+			} else if (r.type === 'failure') {
+				status = 'error';
+				errorText = String(r.data?.error ?? 'No se pudo guardar.');
+			} else {
+				status = 'error';
+				errorText = 'No se pudo guardar. Probá de nuevo en un rato.';
+			}
+		};
+	};
+
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const submitClose = async ({ cancel }) => {
 		const ok = await askConfirm({
-			title: '¿Empezar de cero?',
-			text: 'Se borran los gastos y las personas que cargaste en este navegador.',
-			confirmLabel: 'Borrar y empezar de cero',
-			tone: 'permanent'
+			title: '¿Cerrar la cuenta?',
+			text: 'Se guardan los números como están ahora y quedan en el resumen del año. Para cambiar algo después, hay que reabrirla.',
+			confirmLabel: 'Cerrar la cuenta'
 		});
-		if (!ok) return;
-		people = [{ id: newId(), name: '', value: null }];
-		expenses = [];
-		mode = 'iguales';
-		holders = {};
-		separateAportes = true;
-		addFondoUsed = false;
-	}
+		if (!ok) {
+			cancel();
+			return;
+		}
+		return submit(/** @type {any} */ ({}));
+	};
+
+	/** @param {number} ms */
+	const when = (ms) =>
+		new Intl.DateTimeFormat('es-AR', {
+			dateStyle: 'short',
+			timeStyle: 'short',
+			timeZone: 'America/Argentina/Buenos_Aires'
+		}).format(new Date(ms));
+
+	$: payload = JSON.stringify(account);
+	// Hay algo sin guardar si lo de la página no es lo que vino de la base.
+	$: dirty = payload !== savedPayload;
+	$: summaryRows = [
+		['Entradas', String(income.tickets)],
+		['Preventa', formatARS(income.presale)],
+		['Puerta', formatARS(income.door)],
+		['Fondo neto', formatSignedARS(result.fondo)],
+		['Otros ingresos', formatARS(result.otherIncome)],
+		['Lugar', formatARS(result.venue.amount)],
+		['Contrataciones', formatARS(result.feesTotal)],
+		['Otros gastos', formatARS(result.expensesTotal)],
+		['Gastos', formatARS(result.allExpenses)],
+		[CAJA_LABEL, formatARS(result.caja)],
+		['Ganancia', formatARS(result.profit)]
+	];
 </script>
 
 <svelte:head><title>Gastos y reparto · {e.title} · Panel</title></svelte:head>
 
-<Notice tone="warn" role={null}>
-	<strong>Prototipo: no se guarda en la base.</strong> Lo que cargás queda solo en este navegador.
-	Para seguir en otra compu o pasárselo a alguien, exportalo e importalo allá.
-	<div class="file-actions">
-		<Button variant="secondary" size="small" icon={Download} on:click={exportFile}>Exportar</Button>
-		<Button variant="secondary" size="small" icon={Upload} on:click={() => fileInput.click()}
-			>Importar…</Button
-		>
-		<Button variant="link" size="small" icon={RotateCcw} on:click={reset}>Empezar de cero</Button>
-		<input
-			class="visually-hidden"
-			type="file"
-			accept="application/json,.json"
-			bind:this={fileInput}
-			on:change={importFile}
-			tabindex="-1"
-			aria-hidden="true"
-		/>
-	</div>
-</Notice>
-{#if importError}<Notice tone="error">{importError}</Notice>{/if}
+{#if closing}
+	<Notice tone="ok" role={null}>
+		<strong>Cuenta cerrada</strong> el {when(closing.closedAt)} por {closing.closedBy}. Los números
+		quedaron congelados y están en el resumen del año.
+		{#if closing.changed}
+			<br />Ojo: desde el cierre cambiaron las ventas (hay órdenes nuevas o reembolsadas). Si hace
+			falta, reabrila y volvé a cerrarla.
+		{/if}
+		<form method="POST" action="?/reabrir" use:enhance={submit} class="inline-form">
+			<Button variant="secondary" size="small" icon={LockOpen} type="submit"
+				>Reabrir la cuenta</Button
+			>
+		</form>
+	</Notice>
+	<Card title="Resumen">
+		<div class="kv-table-wrap">
+			<table class="kv-table summary">
+				<tbody>
+					{#each summaryRows as [label, value] (label)}
+						<tr><th scope="row">{label}</th><td class="r num">{value}</td></tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</Card>
+{/if}
+{#if errorText}<Notice tone="error">{errorText}</Notice>{/if}
+<p class="year-link muted small"><a href="/admin/ventas/cuentas">Ver las cuentas del año</a></p>
 
 <div class="stats">
 	<Stat
-		label="Entró (neto)"
-		value={formatARS(result.net)}
-		sub="sin comisión de MP ni lo del Fondo"
+		label="Ingresos"
+		value={formatARS(result.totalIncome)}
+		sub="entradas, Fondo y otros ingresos"
 	/>
-	<Stat label="Gastos" value={formatARS(result.totalExpenses)} />
+	<Stat label="Gastos" value={formatARS(result.allExpenses)} sub="lugar, contrataciones y otros" />
 	<Stat
-		label={result.pot < 0 ? 'Pérdida' : 'Queda para repartir'}
-		value={formatARS(result.pot)}
-		tone={result.pot > 0 ? 'ok' : result.pot < 0 ? 'bad' : ''}
+		label={result.profit < 0 ? 'Pérdida' : 'Ganancia'}
+		value={formatARS(result.profit)}
+		tone={result.profit > 0 ? 'ok' : result.profit < 0 ? 'bad' : ''}
 	/>
+	<Stat label={CAJA_LABEL} value={formatARS(result.caja)} sub="la plata de Kinky Vibe" />
 </div>
 
-<div class="grid">
-	<Card title="Lo que entró">
-		<p class="muted small">
-			Las órdenes aprobadas del evento. Elegí quién tiene cada plata (la cuenta de Mercado Pago, el
-			alias de las transferencias, la caja de la puerta): sirve para saber quién le pasa a quién.
-		</p>
-		<div class="kv-table-wrap">
-			<table class="kv-table">
-				<thead>
-					<tr><th>De dónde</th><th class="r">Cobrado</th><th>¿Quién la tiene?</th></tr>
-				</thead>
-				<tbody>
-					{#each income.rows as row (row.key)}
-						<tr>
-							<td
-								>{row.label}<br /><span class="muted small"
-									>{row.tickets} {row.tickets === 1 ? 'entrada' : 'entradas'}</span
-								></td
-							>
-							<td class="r num">{formatARS(row.amount)}</td>
-							<td>
-								<select
-									class="kv-input"
-									aria-label="Quién tiene la plata de {row.label}"
-									value={holders[row.key] ?? people[0]?.id ?? ''}
-									on:change={(ev) => (holders = { ...holders, [row.key]: ev.currentTarget.value })}
-								>
-									{#each people as p, i (p.id)}
-										<option value={p.id}>{p.name.trim() || `Persona ${i + 1}`}</option>
-									{/each}
-								</select>
-							</td>
-						</tr>
-					{:else}
-						<tr><td colspan="3" class="muted">Todavía no hay compras aprobadas.</td></tr>
-					{/each}
-				</tbody>
-				<tfoot>
-					<tr><td>Cobrado</td><td class="r num">{formatARS(income.gross)}</td><td></td></tr>
-					{#if income.mpFee}
-						<tr
-							><td>Comisión de Mercado Pago</td><td class="r num">−{formatARS(income.mpFee)}</td><td
-							></td></tr
-						>
-					{/if}
-					{#if result.aportes}
-						<tr
-							><td>Aportes al Fondo (son del Fondo)</td><td class="r num"
-								>−{formatARS(result.aportes)}</td
-							><td></td></tr
-						>
-					{/if}
-					{#if result.fondoIn}
-						<tr
-							><td>Lo que cubrió el Fondo</td><td class="r num">+{formatARS(result.fondoIn)}</td><td
-							></td></tr
-						>
-					{/if}
-					<tr class="total"><td>Neto</td><td class="r num">{formatARS(result.net)}</td><td></td></tr
-					>
-				</tfoot>
-			</table>
-		</div>
-		{#if hasFondo}
-			<div class="checks">
-				<Checkbox bind:checked={separateAportes}>
-					Separar los aportes al Fondo ({formatARS(income.fondoContributed)}): lo que se pagó de más
-					en las solidarias va al Fondo
-				</Checkbox>
-				<Checkbox bind:checked={addFondoUsed}>
-					Sumar lo que cubrió el Fondo ({formatARS(income.fondoUsed)}), si el Fondo se lo pasa al
-					evento
-				</Checkbox>
-			</div>
-		{/if}
-		{#if income.refunded.orders || income.awaiting.orders}
+<fieldset class="sheet" disabled={closed}>
+	<div class="grid">
+		<Card title="Lo que entró">
 			<p class="muted small">
-				{#if income.refunded.orders}No cuentan {income.refunded.orders}
-					{income.refunded.orders === 1 ? 'orden reembolsada' : 'órdenes reembolsadas'} ({formatARS(
-						income.refunded.amount
-					)}).{/if}
-				{#if income.awaiting.orders}
-					Tampoco {income.awaiting.orders}
-					{income.awaiting.orders === 1
-						? 'transferencia sin confirmar'
-						: 'transferencias sin confirmar'} ({formatARS(income.awaiting.amount)}).{/if}
+				Las órdenes aprobadas del evento. Elegí quién tiene cada plata (la cuenta de Mercado Pago,
+				el alias de las transferencias, la caja de la puerta): sirve para saber quién le pasa a
+				quién.
 			</p>
-		{/if}
-	</Card>
+			<div class="kv-table-wrap">
+				<table class="kv-table">
+					<thead>
+						<tr><th>De dónde</th><th class="r">Cobrado</th><th>¿Quién la tiene?</th></tr>
+					</thead>
+					<tbody>
+						{#each income.rows as row (row.key)}
+							<tr>
+								<td
+									>{row.label}<br /><span class="muted small"
+										>{row.tickets} {row.tickets === 1 ? 'entrada' : 'entradas'}</span
+									></td
+								>
+								<td class="r num">{formatARS(row.amount)}</td>
+								<td>
+									<select
+										class="kv-input"
+										aria-label="Quién tiene la plata de {row.label}"
+										value={account.holders[row.key] || CAJA}
+										on:change={(ev) => {
+											account.holders = { ...account.holders, [row.key]: ev.currentTarget.value };
+											touch();
+										}}
+									>
+										{#each who as w (w.value)}<option value={w.value}>{w.label}</option>{/each}
+									</select>
+								</td>
+							</tr>
+						{:else}
+							<tr><td colspan="3" class="muted">Todavía no hay compras aprobadas.</td></tr>
+						{/each}
+					</tbody>
+					<tfoot>
+						<tr><td>Preventa</td><td class="r num">{formatARS(income.presale)}</td><td></td></tr>
+						<tr><td>Puerta</td><td class="r num">{formatARS(income.door)}</td><td></td></tr>
+						{#if income.mpFee}
+							<tr>
+								<td colspan="3" class="muted small"
+									>Sin el recargo de Mercado Pago ({formatARS(income.mpFee)}): lo pagó quien compró
+									y se lo quedó MP.</td
+								>
+							</tr>
+						{/if}
+					</tfoot>
+				</table>
+			</div>
+			{#if hasFondo}
+				<p class="fondo" class:pos={result.fondo > 0} class:neg={result.fondo < 0}>
+					{fondoLine(income, formatARS)}
+				</p>
+				<p class="muted small">
+					Orden por orden: lo que cubrió el descuento del Fondo lo pone el Fondo; lo que se pagó de
+					más en las entradas solidarias es del Fondo.
+				</p>
+			{/if}
+			<p class="total-line">
+				<span>Ingresos por entradas</span>
+				<strong class="num">{formatARS(result.ticketIncome)}</strong>
+			</p>
+			{#if income.refunded.orders || income.awaiting.orders}
+				<p class="muted small">
+					{#if income.refunded.orders}No cuentan {income.refunded.orders}
+						{income.refunded.orders === 1 ? 'orden reembolsada' : 'órdenes reembolsadas'} ({formatARS(
+							income.refunded.amount
+						)}).{/if}
+					{#if income.awaiting.orders}
+						Tampoco {income.awaiting.orders}
+						{income.awaiting.orders === 1
+							? 'transferencia sin confirmar'
+							: 'transferencias sin confirmar'} ({formatARS(income.awaiting.amount)}).{/if}
+				</p>
+			{/if}
+		</Card>
 
-	<Card title="Gastos">
-		<div class="presets" role="group" aria-label="Agregar un gasto">
-			{#each PRESETS as p (p)}
-				<Chip pressable icon={Plus} on:click={() => addExpense(p)}>{p}</Chip>
-			{/each}
-		</div>
-		{#if expenses.length}
-			<ul class="lines">
-				{#each expenses as x, i (x.id)}
-					<li class="expense">
-						<label class="kv-field concept">
-							<span class="visually-hidden">Concepto del gasto {i + 1}</span>
-							<input class="kv-input" bind:value={x.concept} placeholder="Concepto" />
-						</label>
-						<label class="kv-field amount">
-							<span class="visually-hidden">Monto de {x.concept || `el gasto ${i + 1}`}</span>
+		<Card title="Otros ingresos">
+			<p class="muted small">La barra, un sponsor, efectivo que no se cargó en la puerta.</p>
+			{#if account.otherIncome.length}
+				<ul class="lines">
+					{#each account.otherIncome as x, i (x.id)}
+						<li class="line">
+							<label class="kv-field concept">
+								<span class="visually-hidden">Concepto del ingreso {i + 1}</span>
+								<input
+									class="kv-input"
+									bind:value={x.concept}
+									on:input={touch}
+									placeholder="Concepto"
+								/>
+							</label>
+							<label class="kv-field amount">
+								<span class="visually-hidden">Monto de {x.concept || `el ingreso ${i + 1}`}</span>
+								<input
+									class="kv-input"
+									type="number"
+									inputmode="numeric"
+									min="0"
+									step="1"
+									bind:value={x.amount}
+									on:input={touch}
+								/>
+							</label>
+							<label class="kv-field who">
+								<span class="visually-hidden">Quién tiene {x.concept || `el ingreso ${i + 1}`}</span
+								>
+								<select class="kv-input" bind:value={x.heldBy} on:change={touch}>
+									{#each who as w (w.value)}<option value={w.value}>Lo tiene {w.label}</option
+										>{/each}
+								</select>
+							</label>
+							<Button
+								variant="danger"
+								size="small"
+								iconOnly
+								icon={Trash2}
+								label="Sacar {x.concept || `el ingreso ${i + 1}`}"
+								on:click={() => removeLine('otherIncome', x.id)}
+							/>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			<div class="row">
+				<Button variant="secondary" size="small" icon={Plus} on:click={addOtherIncome}
+					>Otro ingreso</Button
+				>
+				<strong class="num">Total: {formatARS(result.otherIncome)}</strong>
+			</div>
+		</Card>
+
+		<Card title="Lugar">
+			{#if data.venue}
+				<p class="muted small">
+					{data.venue.title}{#if data.venue.rule}: tiene una regla guardada.{:else}: todavía no
+						tiene una regla guardada.{/if}
+				</p>
+			{/if}
+			<div class="venue-kinds" role="radiogroup" aria-label="Cómo cobra el lugar">
+				{#each VENUE_OPTIONS as o (o.value)}
+					<label class="radio">
+						<input
+							type="radio"
+							name="venue-kind"
+							value={o.value}
+							bind:group={account.venue.kind}
+							on:change={touch}
+						/>
+						{o.label}
+					</label>
+				{/each}
+			</div>
+			<div class="venue-fields">
+				{#if account.venue.kind === 'fijo'}
+					<label class="kv-field">
+						<span>Monto</span>
+						<input
+							class="kv-input"
+							type="number"
+							min="0"
+							step="1"
+							bind:value={account.venue.amount}
+							on:input={touch}
+						/>
+					</label>
+				{/if}
+				{#if account.venue.kind === 'porcentaje' || account.venue.kind === 'porcentaje_minimo'}
+					<label class="kv-field">
+						<span>Porcentaje</span>
+						<span class="affix"
+							><input
+								class="kv-input"
+								type="number"
+								min="0"
+								max="100"
+								step="0.5"
+								bind:value={account.venue.pct}
+								on:input={touch}
+							/><span aria-hidden="true">%</span></span
+						>
+					</label>
+				{/if}
+				{#if account.venue.kind === 'porcentaje_minimo'}
+					<label class="kv-field">
+						<span>El mínimo es</span>
+						<select class="kv-input" bind:value={account.venue.minKind} on:change={touch}>
+							<option value="fijo">un monto fijo</option>
+							<option value="hora">por hora</option>
+						</select>
+					</label>
+					{#if account.venue.minKind !== 'hora'}
+						<label class="kv-field">
+							<span>Mínimo</span>
 							<input
 								class="kv-input"
 								type="number"
-								inputmode="numeric"
 								min="0"
 								step="1"
-								bind:value={x.amount}
+								bind:value={account.venue.minAmount}
+								on:input={touch}
 							/>
 						</label>
-						<label class="kv-field paid">
-							<span class="visually-hidden">Quién pagó {x.concept || `el gasto ${i + 1}`}</span>
-							<select class="kv-input" bind:value={x.paidBy}>
-								{#each people as p, j (p.id)}
-									<option value={p.id}>Pagó {p.name.trim() || `Persona ${j + 1}`}</option>
-								{/each}
-								<option value="">Falta pagarlo</option>
-							</select>
+					{/if}
+				{/if}
+				{#if account.venue.kind === 'hora' || (account.venue.kind === 'porcentaje_minimo' && account.venue.minKind === 'hora')}
+					<label class="kv-field">
+						<span>Horas</span>
+						<input
+							class="kv-input"
+							type="number"
+							min="0"
+							step="0.5"
+							bind:value={account.venue.hours}
+							on:input={touch}
+						/>
+					</label>
+					<label class="kv-field">
+						<span>Precio por hora</span>
+						<input
+							class="kv-input"
+							type="number"
+							min="0"
+							step="1"
+							bind:value={account.venue.rate}
+							on:input={touch}
+						/>
+					</label>
+				{/if}
+			</div>
+			{#if account.venue.kind === 'porcentaje' || account.venue.kind === 'porcentaje_minimo'}
+				<p class="muted small">
+					El porcentaje es sobre los ingresos por entradas con lo que cubrió el Fondo y sin los
+					aportes al Fondo ({formatARS(result.ticketIncome)}). No cuenta otros ingresos.
+					{#if result.venue.usedMin}Esta vez el porcentaje da {formatARS(result.venue.byPct)}: se
+						cobra el mínimo.{/if}
+				</p>
+			{/if}
+			<div class="paid">
+				<label class="kv-field">
+					<span>Pagó</span>
+					<select class="kv-input" bind:value={account.venuePayment.paidBy} on:change={touch}>
+						<option value="">Falta pagarlo</option>
+						{#each who as w (w.value)}<option value={w.value}>{w.label}</option>{/each}
+					</select>
+				</label>
+				<label class="kv-field">
+					<span>Pagado el</span>
+					<input
+						class="kv-input"
+						type="date"
+						bind:value={account.venuePayment.paidAt}
+						on:input={touch}
+					/>
+				</label>
+			</div>
+			<div class="row">
+				{#if data.venue && !closed}
+					<span class="venue-actions">
+						{#if data.venue.rule}
+							<Button variant="link" size="small" on:click={useVenueDefault}
+								>Usar la regla del lugar</Button
+							>
+						{/if}
+						<form method="POST" action="?/reglaLugar" use:enhance={submit} class="inline-form">
+							<input type="hidden" name="rule" value={JSON.stringify(account.venue)} />
+							<Button variant="link" size="small" type="submit"
+								>Guardar como regla de {data.venue.title}</Button
+							>
+						</form>
+					</span>
+				{:else}
+					<span></span>
+				{/if}
+				<strong class="num">Lugar: {formatARS(result.venue.amount)}</strong>
+			</div>
+			{#if venueRuleSaved}<p class="muted small">
+					Listo: los próximos eventos en {data.venue?.title} arrancan con esta regla.
+				</p>{/if}
+		</Card>
+
+		<Card title="Contrataciones">
+			<p class="muted small">
+				Monitores, fotografía, técnica. Si quien trabaja es del equipo de KV, elegí si cobra o lo
+				deja en la caja.
+			</p>
+			{#if account.fees.length}
+				<ul class="lines">
+					{#each account.fees as f, i (f.id)}
+						<li class="line fee">
+							<label class="kv-field concept">
+								<span class="visually-hidden">Quién y qué, contratación {i + 1}</span>
+								<input
+									class="kv-input"
+									bind:value={f.concept}
+									on:input={touch}
+									placeholder="Ej.: Monitore: Lu"
+								/>
+							</label>
+							<label class="kv-field amount">
+								<span class="visually-hidden"
+									>Monto de {f.concept || `la contratación ${i + 1}`}</span
+								>
+								<input
+									class="kv-input"
+									type="number"
+									inputmode="numeric"
+									min="0"
+									step="1"
+									bind:value={f.amount}
+									on:input={touch}
+								/>
+							</label>
+							<span class="team">
+								<Checkbox bind:checked={f.team} on:change={touch}>Es del equipo de KV</Checkbox>
+								{#if f.team}
+									<select
+										class="kv-input"
+										aria-label="Qué hace con lo que cobra"
+										bind:value={f.keep}
+										on:change={touch}
+									>
+										<option value="cobra">Cobra</option>
+										<option value="caja">Lo deja en la caja</option>
+									</select>
+								{/if}
+							</span>
+							{#if !(f.team && f.keep === 'caja')}
+								<label class="kv-field who">
+									<span class="visually-hidden"
+										>Quién pagó {f.concept || `la contratación ${i + 1}`}</span
+									>
+									<select class="kv-input" bind:value={f.paidBy} on:change={touch}>
+										<option value="">Falta pagarle</option>
+										{#each who as w (w.value)}<option value={w.value}>Pagó {w.label}</option>{/each}
+									</select>
+								</label>
+								<label class="kv-field date">
+									<span class="visually-hidden">Pagado el</span>
+									<input class="kv-input" type="date" bind:value={f.paidAt} on:input={touch} />
+								</label>
+							{/if}
+							<Button
+								variant="danger"
+								size="small"
+								iconOnly
+								icon={Trash2}
+								label="Sacar {f.concept || `la contratación ${i + 1}`}"
+								on:click={() => removeLine('fees', f.id)}
+							/>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			<div class="row">
+				<Button variant="secondary" size="small" icon={Plus} on:click={addFee}
+					>Otra contratación</Button
+				>
+				<strong class="num">Total: {formatARS(result.feesTotal)}</strong>
+			</div>
+		</Card>
+
+		<Card title="Otros gastos">
+			{#if !closed}
+				<div class="presets" role="group" aria-label="Agregar un gasto">
+					{#each PRESETS as p (p)}
+						<Chip pressable icon={Plus} on:click={() => addExpense(p)}>{p}</Chip>
+					{/each}
+				</div>
+			{/if}
+			{#if account.expenses.length}
+				<ul class="lines">
+					{#each account.expenses as x, i (x.id)}
+						<li class="line fee">
+							<label class="kv-field concept">
+								<span class="visually-hidden">Concepto del gasto {i + 1}</span>
+								<input
+									class="kv-input"
+									bind:value={x.concept}
+									on:input={touch}
+									placeholder="Concepto"
+								/>
+							</label>
+							<label class="kv-field amount">
+								<span class="visually-hidden">Monto de {x.concept || `el gasto ${i + 1}`}</span>
+								<input
+									class="kv-input"
+									type="number"
+									inputmode="numeric"
+									min="0"
+									step="1"
+									bind:value={x.amount}
+									on:input={touch}
+								/>
+							</label>
+							<label class="kv-field who">
+								<span class="visually-hidden">Quién pagó {x.concept || `el gasto ${i + 1}`}</span>
+								<select class="kv-input" bind:value={x.paidBy} on:change={touch}>
+									<option value="">Falta pagarlo</option>
+									{#each who as w (w.value)}<option value={w.value}>Pagó {w.label}</option>{/each}
+								</select>
+							</label>
+							<label class="kv-field date">
+								<span class="visually-hidden">Pagado el</span>
+								<input class="kv-input" type="date" bind:value={x.paidAt} on:input={touch} />
+							</label>
+							<Button
+								variant="danger"
+								size="small"
+								iconOnly
+								icon={Trash2}
+								label="Sacar {x.concept || `el gasto ${i + 1}`}"
+								on:click={() => removeLine('expenses', x.id)}
+							/>
+						</li>
+					{/each}
+				</ul>
+			{:else if !closed}
+				<p class="muted small">Tocá un tipo de gasto para sumarlo.</p>
+			{/if}
+			<div class="row">
+				<Button variant="secondary" size="small" icon={Plus} on:click={() => addExpense()}
+					>Otro gasto</Button
+				>
+				<strong class="num">Total: {formatARS(result.expensesTotal)}</strong>
+			</div>
+		</Card>
+
+		<Card title="Reparto">
+			<p class="muted small">
+				Ganancia = ingresos − lugar − contrataciones − otros gastos. De la ganancia, un porcentaje
+				va a la {CAJA_LABEL} por producir; el resto se reparte entre les facilitadores. La parte de quien
+				es del equipo de KV va a la {CAJA_LABEL}, y la {CAJA_LABEL} se queda con los pesos que sobran
+				al redondear.
+			</p>
+			<label class="kv-field prod">
+				<span>Para la {CAJA_LABEL} por producir</span>
+				<span class="affix"
+					><input
+						class="kv-input"
+						type="number"
+						min="0"
+						max="100"
+						step="1"
+						bind:value={account.split.productionPct}
+						on:input={touch}
+					/><span aria-hidden="true">%</span></span
+				>
+			</label>
+			<Segmented
+				options={MODES}
+				bind:value={account.split.mode}
+				label="Cómo se reparte entre les facilitadores"
+			/>
+			<ul class="lines">
+				{#each account.people as p, i (p.id)}
+					{@const share = result.split.shares[i]}
+					<li class="person">
+						<label class="kv-field name">
+							<span class="visually-hidden">Nombre de le facilitadore {i + 1}</span>
+							<input
+								class="kv-input"
+								bind:value={p.name}
+								on:input={touch}
+								placeholder="Facilitadore {i + 1}"
+							/>
 						</label>
+						{#if account.split.mode === 'porcentajes'}
+							<label class="kv-field value">
+								<span class="visually-hidden"
+									>Porcentaje de {p.name || `le facilitadore ${i + 1}`}</span
+								>
+								<span class="affix"
+									><input
+										class="kv-input"
+										type="number"
+										min="0"
+										max="100"
+										step="0.5"
+										bind:value={p.pct}
+										on:input={touch}
+									/><span aria-hidden="true">%</span></span
+								>
+							</label>
+						{/if}
+						<span class="team"
+							><Checkbox bind:checked={p.team} on:change={touch}>Es del equipo de KV</Checkbox
+							></span
+						>
+						<span class="share num">
+							{formatARS(share?.amount ?? 0)}
+							{#if share?.team}<span class="muted small to-caja">→ {CAJA_LABEL}</span>{/if}
+						</span>
 						<Button
 							variant="danger"
 							size="small"
 							iconOnly
 							icon={Trash2}
-							label="Sacar {x.concept || `el gasto ${i + 1}`}"
-							on:click={() => removeExpense(x.id)}
+							label="Sacar a {p.name || `le facilitadore ${i + 1}`}"
+							on:click={() => removePerson(p.id)}
 						/>
 					</li>
 				{/each}
 			</ul>
-		{:else}
-			<p class="muted small">Tocá un tipo de gasto para sumarlo.</p>
-		{/if}
-		<div class="row">
-			<Button variant="secondary" size="small" icon={Plus} on:click={() => addExpense()}
-				>Otro gasto</Button
-			>
-			<strong class="num">Total: {formatARS(result.totalExpenses)}</strong>
-		</div>
-	</Card>
-
-	<Card title="Reparto">
-		<Segmented options={MODES} bind:value={mode} label="Cómo se reparte" />
-		<p class="muted small">
-			{#if mode === 'iguales'}Lo que queda, en partes iguales.
-			{:else if mode === 'porcentajes'}Cada quien su porcentaje; tienen que sumar 100 %.
-			{:else}Quien tiene un monto se lleva ese monto; el resto se reparte en partes iguales entre
-				quienes no tienen.{/if}
-			Los pesos que sobran al redondear van a las primeras personas.
-		</p>
-		<ul class="lines">
-			{#each people as p, i (p.id)}
-				<li class="person" class:with-value={mode !== 'iguales'}>
-					<label class="kv-field name">
-						<span class="visually-hidden">Nombre de la persona {i + 1}</span>
-						<input class="kv-input" bind:value={p.name} placeholder="Persona {i + 1}" />
-					</label>
-					{#if mode !== 'iguales'}
-						<label class="kv-field value">
-							<span class="visually-hidden"
-								>{mode === 'porcentajes' ? 'Porcentaje' : 'Monto'} de {p.name ||
-									`la persona ${i + 1}`}</span
-							>
-							<span class="affix">
-								{#if mode === 'montos'}<span aria-hidden="true">$</span>{/if}
-								<input
-									class="kv-input"
-									type="number"
-									inputmode="decimal"
-									min="0"
-									step={mode === 'porcentajes' ? '0.5' : '1'}
-									placeholder={mode === 'montos' ? 'el resto' : '0'}
-									bind:value={p.value}
-								/>
-								{#if mode === 'porcentajes'}<span aria-hidden="true">%</span>{/if}
-							</span>
-						</label>
-					{/if}
-					<span class="share num">{formatARS(result.shares[i] ?? 0)}</span>
-					<Button
-						variant="danger"
-						size="small"
-						iconOnly
-						icon={Trash2}
-						label="Sacar a {p.name || `la persona ${i + 1}`}"
-						disabled={people.length === 1}
-						on:click={() => removePerson(p.id)}
-					/>
-				</li>
-			{/each}
-		</ul>
-		{#if result.problem}<Notice tone="warn" compact>{result.problem}</Notice>{/if}
-		<div class="row">
-			<Button variant="secondary" size="small" icon={Plus} on:click={addPerson}>Otra persona</Button
-			>
-		</div>
-	</Card>
-
-	<Card title="Quién le pasa a quién">
-		{#if result.problem}
-			<p class="muted small">Primero arreglá el reparto.</p>
-		{:else if result.transfers.length}
-			<ol class="transfers">
-				{#each result.transfers as t, i (i)}
-					<li>
-						<strong>{t.fromName}</strong> le pasa <strong class="num">{formatARS(t.amount)}</strong>
-						a <strong>{t.toName}</strong>
-					</li>
-				{/each}
-			</ol>
-		{:else}
-			<p class="muted small">Están a mano: nadie le tiene que pasar nada a nadie.</p>
-		{/if}
-		<details class="detail">
-			<summary>Cómo sale la cuenta</summary>
-			<p class="muted small">
-				Saldo = lo que le toca + lo que puso en gastos − la plata del evento que tiene. Positivo: le
-				tienen que pasar; negativo: tiene que pasar.
+			{#if result.split.problem}<Notice tone="warn" compact>{result.split.problem}</Notice>{/if}
+			{#if result.profit < 0}
+				<Notice tone="warn" compact
+					>Hubo pérdida: les facilitadores no se llevan nada y la pérdida queda en la {CAJA_LABEL}.</Notice
+				>
+			{/if}
+			<p class="total-line">
+				<span
+					>{CAJA_LABEL}{#if result.feesToCaja}
+						(con {formatARS(result.feesToCaja)} de contrataciones que se dejaron en la caja){/if}</span
+				>
+				<strong class="num">{formatARS(result.caja)}</strong>
 			</p>
-			<div class="kv-table-wrap">
-				<table class="kv-table">
-					<thead>
-						<tr
-							><th>Quién</th><th class="r">Le toca</th><th class="r">Puso</th><th class="r"
-								>Tiene</th
-							><th class="r">Saldo</th></tr
-						>
-					</thead>
-					<tbody>
-						{#each [...peopleParties, ...otherParties] as p (p.id)}
-							<tr>
-								<td
-									>{p.name}{#if p.kind === 'pendiente'}<span class="muted small">
-											(falta pagar)</span
-										>{/if}</td
-								>
-								<td class="r num">{formatARS(p.share)}</td>
-								<td class="r num">{formatARS(p.paid)}</td>
-								<td class="r num">{formatARS(p.held)}</td>
-								<td class="r num" class:pos={p.balance > 0} class:neg={p.balance < 0}
-									>{formatSignedARS(p.balance)}</td
-								>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+			<div class="row">
+				<Button variant="secondary" size="small" icon={Plus} on:click={addPerson}
+					>Otre facilitadore</Button
+				>
 			</div>
-		</details>
-	</Card>
-</div>
+		</Card>
+
+		<Card title="Quién le pasa a quién">
+			{#if result.split.problem}
+				<p class="muted small">Primero arreglá el reparto.</p>
+			{:else if result.transfers.length}
+				<ol class="transfers">
+					{#each result.transfers as t, i (i)}
+						<li>
+							<strong>{t.fromName}</strong> le pasa
+							<strong class="num">{formatARS(t.amount)}</strong>
+							a <strong>{t.toName}</strong>
+						</li>
+					{/each}
+				</ol>
+			{:else}
+				<p class="muted small">Están a mano: nadie le tiene que pasar nada a nadie.</p>
+			{/if}
+			<details class="detail">
+				<summary>Cómo sale la cuenta</summary>
+				<p class="muted small">
+					Saldo = lo que le toca + lo que puso en gastos − la plata del evento que tiene. Positivo:
+					le tienen que pasar; negativo: tiene que pasar.
+				</p>
+				<div class="kv-table-wrap">
+					<table class="kv-table">
+						<thead>
+							<tr
+								><th>Quién</th><th class="r">Le toca</th><th class="r">Puso</th><th class="r"
+									>Tiene</th
+								><th class="r">Saldo</th></tr
+							>
+						</thead>
+						<tbody>
+							{#each result.parties as p (p.id)}
+								<tr>
+									<td
+										>{p.name}{#if p.kind === 'pendiente'}<span class="muted small">
+												(a pagarle)</span
+											>{/if}</td
+									>
+									<td class="r num">{formatARS(p.share)}</td>
+									<td class="r num">{formatARS(p.paid)}</td>
+									<td class="r num">{formatARS(p.held)}</td>
+									<td class="r num" class:pos={p.balance > 0} class:neg={p.balance < 0}
+										>{formatSignedARS(p.balance)}</td
+									>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			</details>
+		</Card>
+	</div>
+</fieldset>
+
+{#if !closed}
+	<div class="save-bar">
+		<SaveStatus {status} error={errorText} />
+		{#if dirty && status !== 'saving'}<span class="muted small">Hay cambios sin guardar.</span>{/if}
+		{#if data.updatedAt && !dirty && !status}
+			<span class="muted small">Guardado el {when(data.updatedAt)} por {data.updatedBy}.</span>
+		{/if}
+		<span class="spacer"></span>
+		<form method="POST" action="?/guardar" use:enhance={submit} class="inline-form">
+			<input type="hidden" name="data" value={payload} />
+			<input type="hidden" name="version" value={version} />
+			<Button variant="primary" icon={Save} type="submit" disabled={status === 'saving'}
+				>Guardar</Button
+			>
+		</form>
+		<form method="POST" action="?/cerrar" use:enhance={submitClose} class="inline-form">
+			<input type="hidden" name="data" value={payload} />
+			<input type="hidden" name="version" value={version} />
+			<Button
+				variant="secondary"
+				icon={Lock}
+				type="submit"
+				disabled={status === 'saving' || Boolean(result.split.problem)}>Cerrar la cuenta</Button
+			>
+		</form>
+	</div>
+{/if}
 
 <style>
-	.file-actions {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-2xs);
-		margin-top: var(--space-2xs);
+	.year-link {
+		margin: var(--space-2xs) 0 0;
+		text-align: right;
+	}
+	.sheet {
+		border: 0;
+		margin: 0;
+		padding: 0;
+		min-width: 0;
 	}
 	.stats {
 		display: grid;
 		gap: var(--space-xs);
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
 		margin-block: 1rem;
 	}
 	.grid {
@@ -496,16 +873,30 @@
 	}
 	.kv-table select {
 		width: 100%;
-		min-width: 9rem;
+		min-width: 8rem;
 	}
-	tfoot .total td {
+	.summary th {
+		font-weight: 400;
+		text-align: left;
+	}
+	.summary tr:last-child th,
+	.summary tr:last-child td {
 		font-weight: 700;
 	}
-	.checks {
+	.fondo {
+		margin: var(--space-xs) 0 var(--space-3xs);
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius, 0.5rem);
+		background: var(--surface-2, rgba(127, 127, 127, 0.08));
+		font-weight: 600;
+	}
+	.total-line {
 		display: flex;
-		flex-direction: column;
-		gap: var(--space-3xs);
-		margin-block: var(--space-xs);
+		justify-content: space-between;
+		gap: var(--space-2xs);
+		margin: var(--space-xs) 0 var(--space-2xs);
+		padding-top: var(--space-2xs);
+		border-top: 1px solid var(--line);
 	}
 	.presets {
 		display: flex;
@@ -521,44 +912,60 @@
 		flex-direction: column;
 		gap: var(--space-2xs);
 	}
-	/* Cada gasto en dos renglones: concepto (y sacar) arriba; monto y quién pagó abajo. */
-	.expense {
+	/* Cada renglón: concepto (y sacar) arriba; monto, quién y cuándo abajo. */
+	.line {
 		display: grid;
 		grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
-		grid-template-areas: 'concept concept del' 'amount paid paid';
+		grid-template-areas: 'concept concept del' 'amount who who';
 		align-items: center;
 		gap: var(--space-3xs);
 		padding-bottom: var(--space-2xs);
 		border-bottom: 1px solid var(--line);
 	}
-	.expense .concept {
+	.line.fee {
+		grid-template-areas: 'concept concept del' 'amount who who' 'team team date';
+	}
+	.line .concept {
 		grid-area: concept;
 	}
-	.expense .amount {
+	.line .amount {
 		grid-area: amount;
 	}
-	.expense .paid {
-		grid-area: paid;
+	.line .who {
+		grid-area: who;
 	}
-	.expense > :global(:last-child) {
+	.line .date {
+		grid-area: date;
+	}
+	.line .team {
+		grid-area: team;
+	}
+	.line > :global(:last-child) {
 		grid-area: del;
 	}
-	/* Nombre, parte y sacar; con porcentaje o monto, el campo va abajo del nombre. */
+	.team {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2xs);
+	}
 	.person {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto auto;
-		grid-template-areas: 'name share del';
+		grid-template-areas: 'name name del' 'value team share';
 		align-items: center;
 		gap: var(--space-3xs);
-	}
-	.person.with-value {
-		grid-template-areas: 'name name del' 'value share share';
+		padding-bottom: var(--space-2xs);
+		border-bottom: 1px solid var(--line);
 	}
 	.person .name {
 		grid-area: name;
 	}
 	.person .value {
 		grid-area: value;
+	}
+	.person .team {
+		grid-area: team;
 	}
 	.person .share {
 		grid-area: share;
@@ -580,12 +987,46 @@
 		text-align: right;
 		font-weight: 700;
 	}
+	.to-caja {
+		display: block;
+		font-weight: 400;
+	}
+	.prod {
+		max-width: 18rem;
+		margin-bottom: var(--space-xs);
+	}
+	.venue-kinds {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
+		margin-bottom: var(--space-xs);
+	}
+	.radio {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2xs);
+	}
+	.venue-fields,
+	.paid {
+		display: grid;
+		gap: var(--space-2xs);
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+		margin-bottom: var(--space-xs);
+	}
+	.venue-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2xs);
+	}
 	.row {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: space-between;
 		align-items: center;
 		gap: var(--space-2xs);
+	}
+	.inline-form {
+		display: inline;
 	}
 	.transfers {
 		margin: 0 0 var(--space-xs);
@@ -598,6 +1039,21 @@
 		cursor: pointer;
 		color: var(--muted);
 		font-size: var(--text-xs);
+	}
+	.save-bar {
+		position: sticky;
+		bottom: 0;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2xs);
+		margin-top: var(--space-s, 1rem);
+		padding: var(--space-2xs) var(--space-xs);
+		background: var(--bg);
+		border-top: 1px solid var(--line);
+	}
+	.spacer {
+		flex: 1;
 	}
 	.pos {
 		color: var(--ok);

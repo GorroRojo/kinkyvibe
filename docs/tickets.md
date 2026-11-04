@@ -435,36 +435,62 @@ Código: `src/lib/utils/salesGoal.js` (leer, formulario, lo neto, `goalProgress`
 `ticketTotals` y `upcomingEvents` (`admin/inicio.js`), `goal`/`revenue`/`mpFee` en las filas de
 Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y `SalesGoalField.svelte`.
 
-### Gastos y reparto (prototipo)
+### Gastos y reparto
 
 Pedido de gorrite (27/10: «gastos y reparto de la plata en el sitio para la mayoría de los
-eventos»; ítem `gastos-reparto` del [plan](plan.md)). **Prototipo para decidir**: detrás del
-interruptor **`gastos_reparto`** (apagado; [interruptores.md](interruptores.md)), solo admins y
-**sin migración**: nada de lo que se carga va a la base.
+eventos»; ítem `gastos-reparto` del [plan](plan.md)). El prototipo (#549) se rehízo con lo que
+decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_reparto`** (apagado;
+[interruptores.md](interruptores.md)), solo admins. Migración `0075_gastos_reparto.sql`
+([datos.md](datos.md)).
 
-- **Dónde:** la ficha del evento › Ventas › **Gastos y reparto** (`/admin/eventos/<slug>/gastos`),
-  solo en eventos que venden entradas. Con el interruptor apagado la vista no se ve y la dirección
-  da 404.
-- **Lo que entró** sale de las órdenes del evento (`eventIncome` en `src/lib/admin/reparto.js`),
-  como el resto del panel: solo las aprobadas, por fuente (Mercado Pago online, transferencias
-  online, la puerta por medio de pago, lo cargado a mano). Se resta la comisión de MP (el recargo
-  guardado en cada orden pagada con MP, como en «Meta de venta»). Las reembolsadas y las
-  transferencias sin confirmar no cuentan (se dice cuántas son). En los eventos con Fondo, dos
-  casillas: **separar los aportes** (lo que se pagó de más en las solidarias es del Fondo; marcada)
-  y **sumar lo que cubrió el Fondo** (si el Fondo se lo pasa al evento; sin marcar).
-- **Gastos:** líneas con concepto, monto y quién lo pagó (o «Falta pagarlo»), con atajos (Lugar,
-  Materiales, Honorarios, Transporte, Difusión, Comida y bebida).
-- **Reparto:** lo que queda (neto − gastos; puede ser una pérdida) entre las personas que se
-  cargan, en partes iguales, por porcentajes (tienen que sumar 100) o con montos fijos (el resto,
-  en partes iguales entre quienes no tienen monto). En pesos enteros: los que sobran al redondear
-  van a las primeras personas.
-- **Quién le pasa a quién:** cada fuente de plata la tiene alguien (se elige en «Lo que entró»).
-  Saldo de cada quien = lo que le toca + lo que puso en gastos − la plata del evento que tiene; el
-  Fondo (aportes − lo que cubrió) y cada gasto sin pagar entran como una parte más. El que más debe
-  le paga al que más le deben hasta quedar a mano (a lo sumo una transferencia menos que las
-  partes).
-- **Dónde queda lo cargado:** en el navegador de quien lo cargó (`localStorage`, por evento), con
-  «Exportar» / «Importar…» (un JSON) y «Empezar de cero».
+- **Para qué eventos:** solo los que venden entradas por el sitio. Las cuentas del Club de Hosts
+  (fichines, barra) son otro caso, para más adelante (`club-hosts-cuentas` en el plan). IIBB y
+  facturas, todavía no (esperan a quien lleva la facturación).
+- **Dónde:** la ficha del evento › Ventas › **Gastos y reparto** (`/admin/eventos/<slug>/gastos`)
+  y **Ventas › Cuentas del año** (`/admin/ventas/cuentas`, el botón está en Ventas). Con el
+  interruptor apagado no se ven y las dos direcciones dan 404.
+- **Lo que entró** sale de las órdenes del evento (`eventIncome` en `src/lib/admin/reparto.js`):
+  solo las aprobadas, por fuente (MP online, transferencias online, la puerta por medio de pago, lo
+  cargado a mano), con **preventa** (online y a mano) y **puerta** sin el recargo de MP (lo pagó
+  quien compró y se lo quedó MP) ni los aportes al Fondo. Las reembolsadas y las transferencias sin
+  confirmar no cuentan (se dice cuántas son).
+- **El Fondo**, sin casillas, orden por orden: con el descuento del Fondo, el Fondo pone lo que
+  cubrió (`fondo_amount`); con una solidaria, el aporte es del Fondo (`fondo_contribution`); el
+  resto, nada. Una línea con el neto: «Fondo: cubrió $ X en descuentos − recibió $ Y en aportes =
+  el Fondo le pasa $ Z al evento» (o «el evento le pasa $ Z al Fondo»).
+- **Ingresos por entradas** = preventa + puerta + lo que cubrió el Fondo. Es la base del
+  porcentaje del lugar («IIBB con fondo» de las planillas); la página lo dice. **Otros ingresos**
+  (barra, sponsor, efectivo que no se cargó en la puerta): concepto, monto y quién lo tiene; suman
+  a los ingresos pero no a la base del lugar.
+- **Lugar**, cuatro formas: monto fijo; por hora (horas × precio); porcentaje de los ingresos por
+  entradas; porcentaje con un mínimo (fijo o por hora). Se carga en cada evento; si el lugar
+  vinculado («Sucede en») tiene una regla guardada, la cuenta nueva arranca con esa. «Guardar como
+  regla de <lugar>» la guarda en `venue_cost_rules` (aparte de los datos del perfil, que se ven en
+  su página y los edita quien lo gestiona; las horas no se guardan). Sin regla: 30 % (talleres).
+- **Contrataciones** (monitores, fotografía, técnica): concepto, monto, «Es del equipo de KV» y,
+  si lo es, «Cobra» o «Lo deja en la caja» (entonces va a la Caja KV). **Otros gastos**: concepto
+  y monto, con atajos. Cada gasto, el lugar y cada contratación: quién pagó (Caja KV, une
+  facilitadore o «Falta pagarlo») y «pagado el». Nunca alias ni CBU.
+- **Reparto** (regla de talleres, editable por evento): ganancia = ingresos − lugar −
+  contrataciones − otros gastos; de la ganancia, 30 % a la **Caja KV** por producir y el resto
+  entre les facilitadores (partes iguales o porcentajes que suman 100). La parte de quien tiene
+  «Es del equipo de KV» va a la Caja KV. Ejemplo: Mel (equipo) + Memi → Memi 35 %, Caja KV 65 %.
+  La Caja KV es la plata de Kinky Vibe (no es el Fondo) y se queda con lo que sobra, también los
+  pesos del redondeo (cada parte se redondea para abajo). Con pérdida, les facilitadores no se
+  llevan nada y la pérdida queda en la Caja KV.
+- **Quién le pasa a quién:** cada fuente de plata y cada otro ingreso lo tiene alguien (sin
+  elegir, la Caja KV). Saldo = lo que le toca + lo que puso − la plata del evento que tiene; el
+  Fondo, el lugar sin pagar y cada gasto o contratación sin pagar entran como una parte más. El
+  que más debe le paga al que más le deben (a lo sumo una transferencia menos que las partes).
+- **Guardar** guarda todo en `event_accounts` (un JSON por evento, con versión: si otre admin
+  guardó en el medio, no se pisa y avisa). **Cerrar la cuenta** guarda, congela los números y
+  escribe el resumen en `event_account_closings` (entradas, preventa, puerta, Fondo neto, otros
+  ingresos, lugar, contrataciones, otros gastos, gastos, Caja KV, ganancia, y la foto de la cuenta).
+  Cerrada, la página muestra la foto y avisa si después cambiaron las ventas; **Reabrir la cuenta**
+  borra el cierre. Todo queda en Actividad (`event_account.save`, `.close`, `.reopen`,
+  `venue.cost_rule`).
+- **Cuentas del año:** los cierres de un año por el mes del evento, con el total y la lista de
+  eventos.
 
 ### Lista de espera (en construcción)
 
