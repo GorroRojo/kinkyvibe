@@ -82,12 +82,13 @@ function targetIds(target) {
 const PATH_PREFIX = { evento: '/calendario/', material: '/material/', perfil: '/amigues/' };
 
 /**
- * La dirección de la página de un objeto que enlaza (la vieja del .md o de la ficha si tiene).
+ * La dirección de la página pública de un objeto (la vieja del .md o de la ficha si tiene): `type`,
+ * `slug`, `legacy` y, de una etiqueta, `key`. También la usa ./enlacesFalta.js.
  *
  * @param {Record<string, unknown>} r
  * @returns {string | null}
  */
-function pathOf(r) {
+export function pathOf(r) {
 	if (r.type === 'etiqueta') return typeof r.key === 'string' ? tagPagePath(r.key) : null;
 	const prefix = PATH_PREFIX[String(r.type)];
 	if (!prefix) return null;

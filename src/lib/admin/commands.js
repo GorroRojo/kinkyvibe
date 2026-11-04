@@ -117,6 +117,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 		'perfiles amigues personas proyectos lugares revisar aprobar pedidos es mi perfil importar fichas',
 	actividad: 'actividad registro auditoria historial quien cambio recuperar deshacer borrado',
 	etiquetas: 'etiquetas tags arbol kinkipedia wiki categorias alias renombrar juntar',
+	'etiquetas-falta':
+		'enlaces que faltan links rotos rojos kinkipedia wiki paginas por escribir crear menciones',
 	material: 'material guias articulos nota notas kinkipedia contenido publicaciones',
 	tienda: 'tienda productos merch vender',
 	'lo-que-sigo':
@@ -150,6 +152,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	material: 'book',
 	amigues: 'person',
 	etiquetas: 'tag',
+	'etiquetas-falta': 'tag',
 	'no-listadas': 'eye-off',
 	biblioteca: 'book',
 	'contenido-base': 'book',

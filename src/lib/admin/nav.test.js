@@ -212,7 +212,7 @@ describe('NAV', () => {
 			'lo-que-sigo',
 			'bandeja'
 		]);
-		expect(ids('etiquetas')).toEqual(['etiquetas']);
+		expect(ids('etiquetas')).toEqual(['etiquetas', 'etiquetas-falta']);
 		expect(ids('contenido')).toEqual([
 			'material',
 			'biblioteca',
@@ -368,7 +368,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		]);
 		expect(blocks('contenido')).toEqual([
 			['', ['material', 'biblioteca', 'no-listadas', 'contenido-base', 'colecciones', 'videos']],
-			['Etiquetas', ['etiquetas']]
+			['Etiquetas', ['etiquetas', 'etiquetas-falta']]
 		]);
 		expect(navGroupSections('ajustes').map((s) => s.label)).toEqual([
 			'Plata',
@@ -466,7 +466,8 @@ describe('sectionTabs (pestañas de sección)', () => {
 			'Biblioteca',
 			'No listadas',
 			'En la base',
-			'Árbol de etiquetas'
+			'Árbol de etiquetas',
+			'Enlaces que faltan'
 		]);
 	});
 	it('con el interruptor apagado, lo que da 404 no aparece', () => {
