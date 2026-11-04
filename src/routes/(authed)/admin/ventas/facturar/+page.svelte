@@ -70,8 +70,8 @@
 								<b>{o.name}</b>
 							</div>
 							<div class="muted small">
-								<a href={eventHref(o.slug, 'ordenes')}>{o.event}</a>{#if o.eventStart}
-									({fmtDate(o.eventStart)}){/if}
+								<a href={eventHref(o.slug, 'ordenes')}>{o.event}</a
+								>{#if o.eventStart}{' '}({fmtDate(o.eventStart)}){/if}
 								· comprada {fmtDateTime(o.createdAt)} · {PAYMENT_METHOD[o.method] ?? o.method} · {SALE_CHANNEL_SINGULAR[
 									o.channel
 								]}

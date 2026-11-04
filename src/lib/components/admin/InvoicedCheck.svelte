@@ -20,6 +20,9 @@
 	export let invoicedBy = null;
 	export let action = '?/invoiced';
 
+	$: label = invoicedAt
+		? `Facturada el ${fmtDateTime(invoicedAt)}${invoicedBy ? ` por ${invoicedBy}` : ''}`
+		: 'Facturada';
 	let checked = Boolean(invoicedAt);
 	$: checked = Boolean(invoicedAt);
 	/** @type {'' | 'saving' | 'error'} */
@@ -53,8 +56,7 @@
 		bind:checked
 		disabled={status === 'saving'}
 		on:change={(e) => /** @type {HTMLInputElement} */ (e.currentTarget).form?.requestSubmit()}
-		>{#if invoicedAt}Facturada el {fmtDateTime(invoicedAt)}{#if invoicedBy}
-				por {invoicedBy}{/if}{:else}Facturada{/if}</Checkbox
+		>{label}</Checkbox
 	>
 	<SaveStatus {status} {error} />
 	<noscript><button class="kv-btn ghost small" type="submit">Guardar</button></noscript>
