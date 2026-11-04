@@ -172,6 +172,8 @@ CI) va en la fase 0.
 - `lectura-tiempo` · fase 0 · hecho · sitio · «X min de lectura» con la velocidad de cada persona · #274, #21, #46
 - `filtros-celu` · fase 0 · hecho · sitio · Barra de filtros con chips y árbol en una hoja en el celu · #294, #18
 - `vistas-previas-links` · fase 0 · hecho · sitio · Vistas previas de links (Collage, textos editables) · #257
+- `vistas-previas-sin-imagen` · fase 0 · hecho · sitio · Vista previa propia para lo que no tiene imagen (eventos y material sin portada, perfiles sin foto, entradas de la Kinkipedia): diseño «Ficha» con el día o el símbolo de la sección, dibujada con el mismo dibujante de las tarjetas y con el hash de lo que se ve en la dirección (gorrite, 3/11) (depende de: vistas-previas-links) · [compartir.md](compartir.md#objetos-sin-imagen-su-tarjeta)
+- `hora-con-zona` · fase 0 · algún día · sitio · Mostrar la zona horaria (ART / UTC−3) al lado de las horas, en todo el sitio y no solo en las vistas previas (gorrite, 3/11: «quizás es algo más general»)
 - `calendario-carrusel` · fase 0 · hecho · sitio · Vuelve la fila de próximos eventos del calendario · #227
 
 ### Estándares web y SEO

@@ -138,14 +138,14 @@
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md): la entrada de la Kinkipedia o, sin entrada,
      la etiqueta (o la serie) con su descripción en texto o, sin descripción, una genérica; sin
-     imagen, la tarjeta de la Kinkipedia. -->
+     imagen, la tarjeta dibujada de la entrada (`ogCard`) o, sin entrada, la de la Kinkipedia. -->
 <SeoHead
 	title={pageTitle}
 	description={data?.meta?.summary ||
 		plainTagDescription(data?.tag?.description) ||
 		(series?.total ? seriesDescription(series) : tagDescription(pageTitle))}
-	image={data?.meta?.featured || KINKIPEDIA_CARD.url}
-	imageInfo={data?.meta?.featured ? undefined : KINKIPEDIA_CARD}
+	image={data?.meta?.featured}
+	card={data?.ogCard ?? KINKIPEDIA_CARD}
 	imageAlt={pageTitle}
 	type={data?.meta ? 'article' : 'website'}
 	canonical={data.canonicalPath}

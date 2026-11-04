@@ -47,7 +47,7 @@ const RAW_COVER_MAX = 400 * 1024;
  * @param {string} origin
  * @param {string} path
  */
-async function staticFile(env, fetchFn, origin, path) {
+export async function staticFile(env, fetchFn, origin, path) {
 	const url = new URL(path, origin);
 	const res = env.ASSETS
 		? /** @type {Response} */ (/** @type {unknown} */ (await env.ASSETS.fetch(url.href)))

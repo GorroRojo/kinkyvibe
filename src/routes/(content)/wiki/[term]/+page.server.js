@@ -11,6 +11,7 @@ import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js'
 import { seriesTagInfo } from '$lib/server/series/web.js';
 import { followButtonState } from '$lib/server/sigo/button.js';
 import { linksHere } from '$lib/server/contenido/loQueEnlaza.js';
+import { wikiCard } from '$lib/server/ogObjeto.js';
 
 /**
  * /wiki/<término>: la página de la wiki de esa etiqueta, desde la base (el texto de la wiki es el
@@ -65,7 +66,7 @@ export async function load({ params, platform, locals, url, request }) {
 	const related = await relatedWithVenuePlaces(getDB(platform), current);
 	/**
 	 * La página de la wiki (sin página: nada, y +page.js muestra la etiqueta).
-	 * @type {{ meta?: Record<string, any>, path?: string, html?: string, css?: string, parts?: import('$lib/server/contenido/interactive.js').Part[] | null, readingMinutes?: number, readingWords?: number }}
+	 * @type {{ meta?: Record<string, any>, ogCard?: Awaited<ReturnType<typeof wikiCard>>, path?: string, html?: string, css?: string, parts?: import('$lib/server/contenido/interactive.js').Part[] | null, readingMinutes?: number, readingWords?: number }}
 	 */
 	let page = {};
 	if (entry) {
@@ -81,6 +82,8 @@ export async function load({ params, platform, locals, url, request }) {
 		);
 		page = {
 			...post,
+			// La vista previa propia de la entrada (docs/compartir.md); si falla, la de la Kinkipedia.
+			ogCard: await wikiCard(entry.slug, post.meta).catch(() => null),
 			html: body.html,
 			css: body.css,
 			parts: body.parts ?? null,

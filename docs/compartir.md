@@ -27,23 +27,25 @@ de página y dónde se arma. (La **imagen para compartir** que se descarga desde
 
 ## Dónde está
 
-| Qué                                     | Dónde                                                                                                                                                           |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| El componente (canónica, `og:*`, etc.)  | `src/lib/components/SeoHead.svelte`                                                                                                                             |
-| Listas con filtros                      | `src/lib/components/ListSeoHead.svelte`                                                                                                                         |
-| Qué etiquetas, descripciones, filtros   | `src/lib/utils/seo.js` (`seoTags`, `eventDescription`, `materialDescription`, `upcomingDescription`, `listPreview`, …)                                          |
-| Los textos editables y sus originales   | `src/lib/utils/previewTexts.js` (`PREVIEW_TEXT_FIELDS`, `validatePreviewTexts`, `SITE_TAGLINE`)                                                                 |
-| Dónde se guardan, portadas, hash        | `src/lib/server/linkPreview.js` (fila `link_preview_texts` de `ticket_settings`)                                                                                |
-| Lo que llega a las páginas              | `src/routes/(content)/+layout.server.js` → `linkPreview` en los datos (`linkPreviewOf` de `seo.js`)                                                             |
-| Página del panel                        | `src/routes/(authed)/admin/ajustes/vistas-previas/` (Ajustes › Comunicación › Vistas previas al compartir)                                                      |
-| Las tarjetas (qué dice cada una)        | `src/lib/utils/ogCards.js` (`OG_CARDS`, `ogCardText`, `ogCardAlt`)                                                                                              |
-| El dibujo del collage                   | `src/lib/utils/ogCollage.js` (`collageTree`)                                                                                                                    |
-| La imagen (`/og/<tarjeta>/<hash>.jpg`)  | `src/routes/og/[card]/[file]/+server.js`, `src/lib/server/ogImage.js`                                                                                           |
-| El dibujante (satori + resvg + jpeg-js) | `worker/og-render.js`, `worker/og.js` (el WebAssembly como módulos), `worker/index.js` (lo pasa en `platform.env.OG_RENDER`)                                    |
-| Tarjetas de respaldo (sin portadas)     | `scripts/og-default/render.js` → `static/og-*.jpg`                                                                                                              |
-| Medidas y texto alternativo de portada  | `cover` de `siteContent` (`src/lib/server/contenido/posts.js`)                                                                                                  |
-| Perfiles                                | `src/lib/components/amigues/ProfileHead.svelte` (usa `SeoHead`)                                                                                                 |
-| Pruebas                                 | `seo.test.js`, `previewTexts.test.js`, `link-previews.test.js`, `src/routes/og/og.test.js`, `ogRender.test.js`, `linkPreview.test.js`, `vistas-previas.test.js` |
+| Qué                                     | Dónde                                                                                                                                                                                                                                         |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| El componente (canónica, `og:*`, etc.)  | `src/lib/components/SeoHead.svelte`                                                                                                                                                                                                           |
+| Listas con filtros                      | `src/lib/components/ListSeoHead.svelte`                                                                                                                                                                                                       |
+| Qué etiquetas, descripciones, filtros   | `src/lib/utils/seo.js` (`seoTags`, `eventDescription`, `materialDescription`, `upcomingDescription`, `listPreview`, …)                                                                                                                        |
+| Los textos editables y sus originales   | `src/lib/utils/previewTexts.js` (`PREVIEW_TEXT_FIELDS`, `validatePreviewTexts`, `SITE_TAGLINE`)                                                                                                                                               |
+| Dónde se guardan, portadas, hash        | `src/lib/server/linkPreview.js` (fila `link_preview_texts` de `ticket_settings`)                                                                                                                                                              |
+| Lo que llega a las páginas              | `src/routes/(content)/+layout.server.js` → `linkPreview` en los datos (`linkPreviewOf` de `seo.js`)                                                                                                                                           |
+| Página del panel                        | `src/routes/(authed)/admin/ajustes/vistas-previas/` (Ajustes › Comunicación › Vistas previas al compartir)                                                                                                                                    |
+| Las tarjetas (qué dice cada una)        | `src/lib/utils/ogCards.js` (`OG_CARDS`, `ogCardText`, `ogCardAlt`)                                                                                                                                                                            |
+| El dibujo del collage                   | `src/lib/utils/ogCollage.js` (`collageTree`)                                                                                                                                                                                                  |
+| La imagen (`/og/<tarjeta>/<hash>.jpg`)  | `src/routes/og/[card]/[file]/+server.js`, `src/lib/server/ogImage.js`                                                                                                                                                                         |
+| El dibujante (satori + resvg + jpeg-js) | `worker/og-render.js`, `worker/og.js` (el WebAssembly como módulos), `worker/index.js` (lo pasa en `platform.env.OG_RENDER`)                                                                                                                  |
+| Objetos sin imagen (diseño, hash)       | `src/lib/utils/ogObjeto.js`, íconos en `src/lib/utils/ogIconos.js`                                                                                                                                                                            |
+| Objetos sin imagen (lectura, dibujo)    | `src/lib/server/ogObjeto.js`, `src/routes/og/objeto/[kind]/[slug]/[file]/+server.js`                                                                                                                                                          |
+| Tarjetas de respaldo (sin portadas)     | `scripts/og-default/render.js` → `static/og-*.jpg`                                                                                                                                                                                            |
+| Medidas y texto alternativo de portada  | `cover` de `siteContent` (`src/lib/server/contenido/posts.js`)                                                                                                                                                                                |
+| Perfiles                                | `src/lib/components/amigues/ProfileHead.svelte` (usa `SeoHead`)                                                                                                                                                                               |
+| Pruebas                                 | `seo.test.js`, `previewTexts.test.js`, `link-previews.test.js`, `src/routes/og/og.test.js`, `og/objeto/objeto.test.js`, `ogObjeto.test.js` (los dos), `ogIconos.test.js`, `ogRender.test.js`, `linkPreview.test.js`, `vistas-previas.test.js` |
 
 ## Qué pone cada página
 
@@ -56,20 +58,20 @@ Cada una va una sola vez. Aparte, `app.html` pone en todas las páginas
 `<meta name="robots" content="max-image-preview:large">` (vistas previas grandes en Google y
 Discover); convive con el `noindex` de las páginas que lo llevan (Google junta las dos).
 
-| Página                                            | `og:type` | Título                        | Descripción                                                                                             | Imagen                                            |
-| ------------------------------------------------- | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| Inicio                                            | `website` | `home.title` (Kinky Vibe)     | `home.description` (la frase oficial, `SITE_TAGLINE`)                                                   | tarjeta por defecto                               |
-| Calendario (`/calendario`)                        | `website` | `heading` de `LIST_SECTIONS`  | «Próximos: A (3/10), B (5/10) y C (12/10).» + la de la sección                                          | tarjeta «Calendario»                              |
-| Material (`/material`)                            | `website` | `heading` de `LIST_SECTIONS`  | la de la sección                                                                                        | tarjeta «Material»                                |
-| Amigues (`/amigues`)                              | `website` | `heading` de `LIST_SECTIONS`  | la de la sección                                                                                        | tarjeta «Amigues»                                 |
-| Kinkipedia (`/wiki`)                              | `website` | `wiki.title`                  | `wiki.description`                                                                                      | tarjeta «Kinkipedia»                              |
-| Todo (`/todo`)                                    | `website` | `heading` de `LIST_SECTIONS`  | la de la sección                                                                                        | tarjeta por defecto                               |
-| Evento (`/calendario/<evento>`)                   | `event`   | el título                     | «Viernes 2 de octubre de 2026, 15:00 · Lugar · resumen»                                                 | la portada (*) o la tarjeta por defecto           |
-| Material (`/material/<post>`)                     | `article` | el título                     | «Guía descargable · resumen» (formato y «descargable», por sus etiquetas)                               | la portada (*) o la tarjeta por defecto           |
-| Entrada de la Kinkipedia (`/wiki/<entrada>`)      | `article` | el título                     | el resumen                                                                                              | tarjeta «Kinkipedia»                              |
-| Etiqueta o serie sin entrada (`/wiki/<etiqueta>`) | `website` | el nombre (mayúscula inicial) | su descripción en texto o, sin descripción, «Material, amigues y eventos de «X» en Kinky Vibe.»         | tarjeta «Kinkipedia»                              |
-| Serie con ediciones, sin entrada                  | `website` | el nombre (mayúscula inicial) | su descripción en texto o, sin descripción, «Ediciones de «X» en Kinky Vibe: N fechas, la próxima el …» | tarjeta «Kinkipedia»                              |
-| Perfil (`/amigues/<perfil>`)                      | `profile` | el nombre                     | la bio (sin bio, «X en Amigues de Kinky Vibe.»)                                                         | la imagen del perfil (*) o la tarjeta por defecto |
+| Página                                            | `og:type` | Título                        | Descripción                                                                                             | Imagen                                     |
+| ------------------------------------------------- | --------- | ----------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Inicio                                            | `website` | `home.title` (Kinky Vibe)     | `home.description` (la frase oficial, `SITE_TAGLINE`)                                                   | tarjeta por defecto                        |
+| Calendario (`/calendario`)                        | `website` | `heading` de `LIST_SECTIONS`  | «Próximos: A (3/10), B (5/10) y C (12/10).» + la de la sección                                          | tarjeta «Calendario»                       |
+| Material (`/material`)                            | `website` | `heading` de `LIST_SECTIONS`  | la de la sección                                                                                        | tarjeta «Material»                         |
+| Amigues (`/amigues`)                              | `website` | `heading` de `LIST_SECTIONS`  | la de la sección                                                                                        | tarjeta «Amigues»                          |
+| Kinkipedia (`/wiki`)                              | `website` | `wiki.title`                  | `wiki.description`                                                                                      | tarjeta «Kinkipedia»                       |
+| Todo (`/todo`)                                    | `website` | `heading` de `LIST_SECTIONS`  | la de la sección                                                                                        | tarjeta por defecto                        |
+| Evento (`/calendario/<evento>`)                   | `event`   | el título                     | «Viernes 2 de octubre de 2026, 15:00 · Lugar · resumen»                                                 | la portada (*) o su tarjeta (**)           |
+| Material (`/material/<post>`)                     | `article` | el título                     | «Guía descargable · resumen» (formato y «descargable», por sus etiquetas)                               | la portada (*) o su tarjeta (**)           |
+| Entrada de la Kinkipedia (`/wiki/<entrada>`)      | `article` | el título                     | el resumen                                                                                              | su tarjeta (**)                            |
+| Etiqueta o serie sin entrada (`/wiki/<etiqueta>`) | `website` | el nombre (mayúscula inicial) | su descripción en texto o, sin descripción, «Material, amigues y eventos de «X» en Kinky Vibe.»         | tarjeta «Kinkipedia»                       |
+| Serie con ediciones, sin entrada                  | `website` | el nombre (mayúscula inicial) | su descripción en texto o, sin descripción, «Ediciones de «X» en Kinky Vibe: N fechas, la próxima el …» | tarjeta «Kinkipedia»                       |
+| Perfil (`/amigues/<perfil>`)                      | `profile` | el nombre                     | la bio (sin bio, «X en Amigues de Kinky Vibe.»)                                                         | la imagen del perfil (*) o su tarjeta (**) |
 
 - Las secciones dicen qué son, no solo cómo se llaman: el título (`heading`) y la descripción de
   cada una son textos editables (abajo), con originales sacados del texto de presentación de cada
@@ -86,6 +88,8 @@ Discover); convive con el `noindex` de las páginas que lo llevan (Google junta 
   «Título»» que les puso el importador a muchas imágenes no cuenta (nombraría otra edición si la
   portada se reusa): va el título de la página. Para un texto mejor, se corrige en la biblioteca.
 - (*) En producción, una portada pesada va achicada por Cloudflare (abajo).
+- (**) Sin imagen propia, la tarjeta dibujada del objeto (abajo, «Objetos sin imagen»). Un perfil
+  fuera de los buscadores sigue con la tarjeta por defecto.
 
 ## Listas filtradas
 
@@ -191,6 +195,51 @@ y páginas sin imagen propia), Calendario, Material, Amigues y Kinkipedia.
 - **Previews**: tienen su propio binding `IMAGES` (`[previews.images]` en `wrangler.toml`). Los
   eventos de demo usan portadas del sitio público (`https://kinkyvibe.ar/media/img/…`), que la
   imagen baja de ahí.
+
+## Objetos sin imagen: su tarjeta
+
+Diseño «Ficha» (gorrite, 3/11): un evento o un material sin portada, un perfil sin foto y una
+entrada de la Kinkipedia tienen su propia imagen en vez de la tarjeta por defecto. Fondo violeta
+del sitio; a la izquierda, una ficha con el día del evento (mes, número, día de la semana y hora a
+la argentina) o el símbolo de la sección; a la derecha, el tipo, el título, el lugar (eventos
+presenciales), el resumen, hasta 3 etiquetas, el logo y `kinkyvibe.ar`.
+
+- **Qué dice** (`src/lib/utils/ogObjeto.js`, los textos fijos en el código por ahora):
+  - arriba, el tipo: «Evento», «Evento · Online» o «Evento · Cancelado»; «Material» con lo que es
+    («Material · Guía descargable», como su descripción); «Amigues · Persona/Proyecto/Lugar»;
+    «Kinkipedia»;
+  - el lugar de un evento presencial es el de la descripción (`venuePlaceMeta` + `placeShort`):
+    lo que deja ver su nivel de privacidad, nunca una dirección escondida. Un perfil no lleva
+    dirección;
+  - las etiquetas son las que tienen algo propio en la Kinkipedia (`wikiLinkedTags`, las mismas
+    cuyo chip lleva a la wiki), con su nombre visible.
+- **Los símbolos** son los íconos de Lucide del sitio (`@lucide/svelte`, copiados como datos en
+  `ogIconos.js`; `ogIconos.test.js` los compara con el paquete): el corazón de Amigues, el globo de
+  la Kinkipedia y, en el material, el de las listas (`PostListItem.svelte`): carrito si es pago,
+  descarga si es descargable, puntero si es interactivo, cámara si es video y si no el libro
+  abierto.
+- **El resumen usa el lugar que hay**: el dibujante mide cuántas líneas ocupan el título y el
+  resumen (satori con `embedFont: false`, `measureLines` en `worker/og-render.js`). El título va
+  lo más grande que entre en 3 líneas (4 si es muy largo) dejando lugar al resumen; el resumen
+  sigue mientras entre, y lleva «…» solo si de verdad no entra. Un título muy largo entra entero y
+  deja una línea de resumen. Ojo: con `textWrap: 'balance'`, `lineClamp` de satori reparte el texto
+  en más líneas de las medidas; por eso el título no lleva `lineClamp` salvo que igual no entre.
+- **Dirección**: `/og/objeto/<tipo>/<dirección>/<hash>.jpg` (`evento`, `material`, `perfil`,
+  `wiki`). El hash (16 caracteres del SHA-256) es de todo lo que se dibuja y la versión del dibujo
+  (`OBJECT_CARD_VERSION`): si cambia el título, la fecha, el lugar o el resumen, cambia la
+  dirección. La página arma la dirección con lo que ya leyó (`eventCard`, `materialCard`,
+  `profileCard`, `wikiCard` en `src/lib/server/ogObjeto.js`, en `ogCard` de los datos) sin
+  consultas de más.
+- **La ruta dibuja lo que ve alguien sin cuenta** (`objectCardSpecFor`): vuelve a leer el objeto
+  como anónimo y compara el hash. Si no coincide (cambió algo, o quien compartió era admin y veía
+  otra cosa), 302 a la de ahora; si el objeto ya no se ve sin cuenta o ya tiene imagen, 302 a la
+  tarjeta de `static/` (`og-kinkipedia.jpg` para una entrada, `og-default.jpg` para lo demás).
+- **Se dibuja una vez**, como el collage: caché de Cloudflare con la dirección pedida, después R2
+  (`og/objeto-<hash>.jpg` en `MEDIA`), y si no, se dibuja, se guarda en los dos y se manda con
+  `immutable`. Sin portadas, no usa el binding de imágenes. Medido en local: unos 0,4–0,5 s de CPU
+  (casi todo resvg) y entre 70 y 110 KB.
+- **Sin dibujante** (`vite dev`) o si falla: 302 a la tarjeta de `static/`, por un rato
+  (`x-og-fallback` dice por qué).
 
 ## Imágenes y WhatsApp
 

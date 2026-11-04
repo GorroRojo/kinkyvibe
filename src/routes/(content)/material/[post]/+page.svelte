@@ -67,6 +67,7 @@
 	image={data.meta.featured}
 	imageInfo={data.cover}
 	imageAlt={data.meta.title}
+	card={data.ogCard}
 	type="article"
 	noindex={Boolean(data.meta.force_unlisted || data.meta.force_unpublished)}
 />
