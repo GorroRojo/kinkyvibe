@@ -356,8 +356,35 @@ revisar" del Inicio.
   (juntos si son 2 o más), **Etiquetas** («N cosas para revisar en Etiquetas»: sin declarar, fuera
   del árbol y referencias rotas, lo mismo que las pestañas de su tarjeta «Para revisar»; «Sin usar»
   no cuenta), **el importador de contenido** («N archivos .md para revisar en Contenido → En la
-  base», su lista «Para revisar») y el chequeo nocturno. Las de Etiquetas y del importador llevan
-  a su página, que sigue mostrando su lista.
+  base», su lista «Para revisar»), el chequeo nocturno y, al final, los **arreglos de contenido**
+  (abajo). Las de Etiquetas y del importador llevan a su página, que sigue mostrando su lista.
+- **Arreglos de contenido** (gorrite, Mesa `tu-lista-contenido-panel`: «esto debería ser algo para
+  admins, no para desarrollo»): tres filas que se despliegan y se resuelven ahí mismo, sin ir a
+  otra página. Las arma `src/lib/server/admin/contentReview.js` (una consulta de cuatro sentencias
+  en la primera tanda, `content` en `reviewQueries`; las portadas viejas del repo salen de la lista
+  de publicaciones que el isolate recuerda, `legacyCovers` en `reviewTagUsage`) y cada una cuenta 1
+  en el botón. Cada fila muestra hasta 30 cosas (`CONTENT_REVIEW_SHOWN`) y «y N más».
+  - **Fotos sin descripción**: cada imagen del texto de un perfil de amigues sin `alt` (las dos
+    formas de las fichas: `<img alt="" src=…>` y `![](…)`; lo comentado no cuenta;
+    `$lib/utils/imageAlt.js`), con su miniatura, el perfil y un campo «Qué se ve en la foto».
+    «Guardar» (`?/fotoAlt`) escribe ese `alt` en el texto del perfil y nada más
+    (`saveProfileImageAlt`: saveObject() con su versión en el historial, Actividad
+    `profile.update` «Describió una foto del perfil…»). Si la foto cambió o ya tiene descripción
+    (alguien editó mientras tanto), no guarda y avisa. Nadie escribe descripciones por su cuenta: ni
+    el código ni Claude (gorrite).
+  - **Portadas pesadas**: cada evento o material cuya portada (edge `portada`, o la vieja del repo
+    si no tiene edge) pesa más de 300 KB (`HEAVY_COVER_BYTES`). «Achicar» baja la original de la
+    biblioteca, la pasa por el mismo achique de la subida (en el navegador, `prepareImage` con
+    `targetBytes`: si con 2000 px todavía pesa más, prueba 1600, 1280 y 1080 px), la sube como
+    imagen nueva (`POST /imagenes`, con sus copias chicas y el mismo nombre y texto alternativo;
+    si la original no tiene, lo pide) y cambia la portada (`?/portada`, `swapCover`: solo si la
+    portada sigue siendo esa y la copia pesa menos; saca la vieja del repo, `featured`, como el
+    selector; historial y Actividad `content.cover.shrink`). **La original queda en la
+    biblioteca** ([imagenes.md](imagenes.md#portadas-pesadas)).
+  - **Videos sin transcripción**: el material con un video en el texto (`<video>` o un enlace a un
+    MP4/WebM de la biblioteca) y sin «Transcripción». Cada uno lleva a la sección «Video» de su
+    editor (`#sec-video`), donde alguien que conoce el audio la escribe
+    ([imagenes.md](imagenes.md#video-transcripción-y-subtítulos)).
 - **Sin PRs de contenido** (gorrite, 9/10): el contenido vive solo en la base, así que los PRs
   `contenido/*` de GitHub ya no son filas y ninguna página del panel los pide para esto. El estado
   de un PR suelto (`contentPullStatus` en `src/lib/server/admin/contentPulls.js`) sigue para el

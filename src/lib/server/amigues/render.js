@@ -49,15 +49,15 @@ export function scriptBlocks(body) {
 }
 
 /**
- * Reemplaza `{nombre}` por la URL de la imagen que el bloque de mdsvex importa con ese nombre.
- * Las expresiones que no son una imagen importada quedan como estaban (se ven como texto).
+ * Los nombres que el bloque de mdsvex importa de la carpeta de medios (`foto1`) y la URL de cada
+ * imagen. También para mostrar una imagen suelta del texto (`src={foto1}`), como «Fotos sin
+ * descripción» del panel.
  *
  * @param {string} body
- * @param {(file: string, path: string) => string | undefined} resolveMedia nombre de archivo (y
- *   la ruta completa del import) → URL
- * @returns {string}
+ * @param {(file: string, path: string) => string | undefined} resolveMedia
+ * @returns {Map<string, string>}
  */
-export function resolveMediaImports(body, resolveMedia) {
+export function mediaImportNames(body, resolveMedia) {
 	/** @type {Map<string, string>} */
 	const names = new Map();
 	for (const block of scriptBlocks(body)) {
@@ -68,6 +68,20 @@ export function resolveMediaImports(body, resolveMedia) {
 			if (url) names.set(m[1], url);
 		}
 	}
+	return names;
+}
+
+/**
+ * Reemplaza `{nombre}` por la URL de la imagen que el bloque de mdsvex importa con ese nombre.
+ * Las expresiones que no son una imagen importada quedan como estaban (se ven como texto).
+ *
+ * @param {string} body
+ * @param {(file: string, path: string) => string | undefined} resolveMedia nombre de archivo (y
+ *   la ruta completa del import) → URL
+ * @returns {string}
+ */
+export function resolveMediaImports(body, resolveMedia) {
+	const names = mediaImportNames(body, resolveMedia);
 	if (!names.size) return body;
 	// Como atributo (`src={foto}`) va entre comillas, para que el markdown lo lea como HTML.
 	return body
