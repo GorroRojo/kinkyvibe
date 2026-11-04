@@ -79,6 +79,7 @@ export const NEVER_CACHE_PREFIXES = [
 	'/propinas',
 	'/telegram',
 	'/puerta',
+	'/barra',
 	'/auch',
 	'/errores',
 	'/imagenes',

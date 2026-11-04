@@ -50,6 +50,8 @@ import {
 import { parseDoorPrice } from './config.js';
 import { getCounts, isValidToken, issueTicketsStatements } from './orders.js';
 import { isFirstTime } from './series.js';
+import { extrasStatements, isExtrasStockError } from './extras.js';
+import { extrasAmount } from '$lib/utils/extras.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./orders.js').Order} Order */
@@ -577,11 +579,16 @@ export function linkSaleRefusal(config, sale) {
  *   checkIn?: boolean,
  *   override?: boolean,
  *   offline?: OfflineSaleMark | null,
+ *   extras?: (import('$lib/utils/extras.js').ExtraLine & { capacity: number | null })[],
  *   by: string,
  *   now: number
  * }} input `offline`: venta hecha sin conexión (ver `applyQueuedSales`); `listPrice`: el precio
- *   de siempre cuando en la puerta se cobró otro (`door_list_price`)
- * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] } | { ok: false }>}
+ *   de siempre cuando en la puerta se cobró otro (`door_list_price`); `extras` (interruptor
+ *   `extras`): los extras de la venta, en la misma tanda y con su tope (sin tope con `override`;
+ *   `prices.extras` tiene que ser su suma). Si un extra no alcanza: `reason: 'extras'`, sin crear
+ *   nada.
+ * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] }
+ *   | { ok: false, reason?: 'extras' }>}
  */
 export async function insertApprovedOrder(db, input) {
 	const { eventSlug, type, quantity, holders, buyer, prices, by, now } = input;
@@ -603,13 +610,18 @@ export async function insertApprovedOrder(db, input) {
 	if (input.listPrice !== undefined && input.listPrice !== null) {
 		extra.push(['door_list_price', input.listPrice]);
 	}
+	const extraLines = (input.extras ?? []).filter((l) => l.quantity > 0);
+	if (extraLines.length) extra.push(['extras_amount', prices.extras ?? 0]);
 	const extraCols = extra.map(([col]) => `, ${col}`).join('');
 	const extraVals = extra.map((_, i) => `, ?${24 + i}`).join('');
 	const id = crypto.randomUUID();
-	const [inserted] = await db.batch([
-		db
-			.prepare(
-				`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
+	/** @type {import('@cloudflare/workers-types').D1Result[]} */
+	let batch;
+	try {
+		batch = await db.batch([
+			db
+				.prepare(
+					`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
 					discount_amount, total, payment_method, buyer_name, buyer_email, holders, status,
 					created_at, updated_at, expires_at, fondo_amount, surcharge_amount, buyer_dni,
 					fondo_option, fondo_contribution, buyer_pronouns, fondo_percent, confirmed_by,
@@ -622,51 +634,63 @@ export async function insertApprovedOrder(db, input) {
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?12))
 				) + ?4 <= ?20
 				RETURNING *`
-			)
-			.bind(
-				id,
+				)
+				.bind(
+					id,
+					eventSlug,
+					type.id,
+					quantity,
+					input.unitPrice,
+					prices.subtotal,
+					prices.total,
+					input.method,
+					buyer.name,
+					(buyer.email ?? '').trim().toLowerCase(),
+					JSON.stringify(holders),
+					now,
+					prices.fondo,
+					buyer.dni || null,
+					prices.option,
+					prices.contribution,
+					buyer.pronouns || null,
+					input.fondoPercent ?? null,
+					by,
+					type.capacity,
+					input.channel,
+					input.note || null,
+					input.override ? 1 : 0,
+					...extra.map(([, value]) => value)
+				),
+			...extrasStatements(db, {
+				orderId: id,
 				eventSlug,
-				type.id,
-				quantity,
-				input.unitPrice,
-				prices.subtotal,
-				prices.total,
-				input.method,
-				buyer.name,
-				(buyer.email ?? '').trim().toLowerCase(),
-				JSON.stringify(holders),
+				lines: extraLines,
 				now,
-				prices.fondo,
-				buyer.dni || null,
-				prices.option,
-				prices.contribution,
-				buyer.pronouns || null,
-				input.fondoPercent ?? null,
-				by,
-				type.capacity,
-				input.channel,
-				input.note || null,
-				input.override ? 1 : 0,
-				...extra.map(([, value]) => value)
-			),
-		...issueTicketsStatements(db, {
-			id,
-			holders: JSON.stringify(holders),
-			buyer_name: buyer.name,
-			quantity
-		}),
-		...(input.checkIn
-			? [
-					db
-						.prepare(
-							`UPDATE tickets SET checked_in_at = ?2, checked_in_by = ?3
+				override: Boolean(input.override)
+			}),
+			...issueTicketsStatements(db, {
+				id,
+				holders: JSON.stringify(holders),
+				buyer_name: buyer.name,
+				quantity
+			}),
+			...(input.checkIn
+				? [
+						db
+							.prepare(
+								`UPDATE tickets SET checked_in_at = ?2, checked_in_by = ?3
 							WHERE order_id = ?1 AND checked_in_at IS NULL`
-						)
-						.bind(id, now, by)
-				]
-			: [])
-	]);
-	const order = /** @type {Order | undefined} */ (inserted.results[0]);
+							)
+							.bind(id, now, by)
+					]
+				: [])
+		]);
+	} catch (error) {
+		// Un extra no alcanzó: la tanda entera (con la orden) se deshizo.
+		if (isExtrasStockError(error)) return { ok: false, reason: 'extras' };
+		throw error;
+	}
+	const order = /** @type {Order | undefined} */ (batch[0].results[0]);
 	if (!order) return { ok: false };
 	const { results } = await db
 		.prepare('SELECT * FROM tickets WHERE order_id = ?1 ORDER BY rowid')
@@ -731,10 +755,13 @@ export async function insertApprovedOrder(db, input) {
  *   fondoPercent?: number | null,
  *   override?: boolean,
  *   offline?: OfflineSaleMark | null,
+ *   extras?: (import('$lib/utils/extras.js').ExtraLine & { capacity: number | null })[],
  *   by: string,
  *   now?: number
- * }} input `unitPrice`: el monto a la gorra o, en un tipo con precio, otro precio por entrada
+ * }} input `unitPrice`: el monto a la gorra o, en un tipo con precio, otro precio por entrada;
+ *   `extras` (interruptor `extras`): a precio de lista, se suman a lo cobrado
  * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] }
+ *   | { ok: false, reason: 'extras' }
  *   | { ok: false, reason: 'soldout', available: number | null }
  *   | { ok: false, reason: 'no-door' }
  *   | { ok: false, reason: 'free-door' }>}
@@ -792,10 +819,11 @@ export async function sellAtDoor(db, input) {
 		option,
 		quantity,
 		discount: null,
-		method: input.method
+		method: input.method,
+		extras: extrasAmount(input.extras ?? [])
 	});
-	// Un total 0 (a la gorra con mínimo 0) queda "sin cargo", como en la compra online.
-	const method = prices.total === 0 ? 'gratis' : input.method;
+	// Un total 0 (a la gorra con mínimo 0, sin extras) queda "sin cargo", como en la compra online.
+	const method = prices.paid === 0 ? 'gratis' : input.method;
 	const r = await insertApprovedOrder(db, {
 		eventSlug,
 		type,
@@ -815,9 +843,11 @@ export async function sellAtDoor(db, input) {
 		checkIn: true,
 		override: input.override,
 		offline: input.offline ?? null,
+		extras: input.extras,
 		by,
 		now
 	});
+	if (!r.ok && r.reason === 'extras') return { ok: false, reason: 'extras' };
 	if (!r.ok) {
 		const c = (await getCounts(db, eventSlug, now)).get(type.id);
 		return { ok: false, reason: 'soldout', available: remainingOf(type, c) };

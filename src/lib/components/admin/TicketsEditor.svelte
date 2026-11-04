@@ -27,6 +27,7 @@
 	import TicketTiersEditor from './TicketTiersEditor.svelte';
 	import SalesGoalField from './SalesGoalField.svelte';
 	import WaitlistField from './WaitlistField.svelte';
+	import ExtrasField from './ExtrasField.svelte';
 
 	/** @type {import('$lib/utils/ticketsEditor.js').TicketsForm} */
 	export let state;
@@ -80,6 +81,10 @@
 	export let waitlistEnabled = null;
 	/** @type {Record<string, number> | null} */
 	export let waitlistLive = null;
+	/** «Extras» (interruptor `extras`, decisión 0056): apagado, la sección no se ve. */
+	export let extrasEnabled = false;
+	// Borradores de antes de los extras: sin el campo.
+	$: if (extrasEnabled && !state.extras) state.extras = [];
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
@@ -414,6 +419,10 @@
 				live={waitlistLive}
 				{idPrefix}
 			/>
+
+			{#if extrasEnabled && state.extras}
+				<ExtrasField bind:extras={state.extras} {idPrefix} />
+			{/if}
 
 			<fieldset class="group">
 				<legend>Medios de pago <span class="req">*</span></legend>

@@ -792,6 +792,7 @@
 						locationName={values.location_name}
 						hasVenue={venue.venueId != null}
 						transferReady={data.transferReady}
+						extrasEnabled={data.extrasEnabled ?? false}
 						errors={ticketsCheck.errors}
 						showErrors={showProblems}
 						warnings={ticketsCheck.warnings}

@@ -1,4 +1,5 @@
 <script>
+	import { extraDeliveryText } from '$lib/utils/extras.js';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { deserialize, enhance } from '$app/forms';
 	import { CircleCheck, ReceiptText, Search, TicketPlus, TriangleAlert } from '@lucide/svelte';
@@ -421,6 +422,14 @@
 						· ingresaron {o.checkedIn}/{o.quantity}
 					{/if}
 				</div>
+				{#if o.extras?.length}
+					<!-- Extras de la compra (decisión 0056): aparte del total de las entradas. -->
+					<p class="extras-line">
+						<strong>Extras:</strong>
+						{o.extras.map(extraDeliveryText).join(' · ')} · +{formatARS(o.extrasAmount)}
+						<small>(pagó {formatARS(o.total + o.extrasAmount)} en total)</small>
+					</p>
+				{/if}
 				{#if o.refundedAmount}<p class="admin-note">
 						Reembolso parcial en Mercado Pago: {formatARS(o.refundedAmount)} (quedan {formatARS(
 							Math.max(0, o.total - o.refundedAmount)
@@ -834,5 +843,8 @@
 		overflow: hidden;
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
+	}
+	.extras-line {
+		margin: 0.25em 0 0;
 	}
 </style>

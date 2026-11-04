@@ -21,6 +21,8 @@
  *   `{ alcance, todes_a_la_vez }` (los tiempos de reserva son los de Ajustes). Como la meta, solo se escribe con la venta prendida
  *   y solo si cambió (una que no se entiende queda como está). Con gente anotada no se puede
  *   apagar, cambiar el alcance ni sacar el tipo (o su cupo) de una lista por tipo.
+ * - `extras` (decisión 0056; la sección se ve solo con el interruptor `extras`): lo que se suma a la
+ *   compra, ver ./extrasEditor.js. Como la lista de espera, solo se escribe si cambió.
  * Los horarios se editan como `datetime-local` en hora de Argentina y se guardan con zona
  * (`2026-10-02T20:00-03:00`).
  * Nada del Fondo: es automático (solo en eventos con la etiqueta KinkyVibe).
@@ -49,6 +51,8 @@ import {
 	storedSalesGoal
 } from './salesGoal.js';
 import { WAITLIST_KEY, parseEventWaitlist } from './waitlistHold.js';
+import { EXTRAS_KEY } from './extras.js';
+import { describeExtras, extrasFormErrors, formExtras, readExtrasForm } from './extrasEditor.js';
 
 /** Id de la etiqueta que marca los eventos de KinkyVibe (src/lib/utils/hardcodedTags.js). */
 export const KINKYVIBE_TAG = 'KinkyVibe';
@@ -66,7 +70,8 @@ export const TICKET_KEYS = [
 	'recordatorios',
 	'mp_fee_percent',
 	'puerta',
-	'puerta_precio'
+	'puerta_precio',
+	'extras'
 ];
 
 /** Largo máximo de la nota sobre la puerta (`puerta_precio`, texto libre). Igual que en config.js. */
@@ -157,6 +162,8 @@ export { isOnlineEvent };
  * @prop {string} goalValue pesos o cantidad de entradas
  * @prop {'' | 'evento' | 'tipo'} waitlistScope lista de espera (`lista_espera`): '' = sin lista
  * @prop {boolean} waitlistAll «Avisar a todes a la vez desde el principio» (`todes_a_la_vez`)
+ * @prop {import('./extrasEditor.js').ExtraForm[]} [extras] extras de la compra (`extras`); sin el
+ *   campo (borradores viejos), ninguno
  */
 
 /*
@@ -379,7 +386,8 @@ export function readTicketsForm(meta) {
 		doorSet: typeof meta?.puerta === 'boolean',
 		doorPrice: str(meta?.puerta_precio),
 		...goalFields(meta?.[GOAL_KEY]),
-		...waitlistFields(meta?.[WAITLIST_KEY])
+		...waitlistFields(meta?.[WAITLIST_KEY]),
+		extras: readExtrasForm(meta?.[EXTRAS_KEY])
 	};
 }
 
@@ -659,6 +667,7 @@ export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
 	if (goal.error) errors.push(goal.error);
 	validateWaitlist(form, types, warnings);
 	errors.push(...waitlistLiveErrors(form, waitlistLive));
+	errors.push(...extrasFormErrors(form.extras));
 	return { errors, warnings };
 }
 
@@ -882,7 +891,8 @@ function normalized(f) {
 		doorPrice: f.enabled && f.door ? f.doorPrice.trim() : '',
 		// Con la venta apagada, la meta no se escribe (ni se borra).
 		goal: f.enabled ? formGoal(f) : '',
-		waitlist: f.enabled ? formWaitlist(f) : null
+		waitlist: f.enabled ? formWaitlist(f) : null,
+		extras: f.enabled ? formExtras(f.extras) : []
 	});
 }
 
@@ -1059,6 +1069,12 @@ export function applyTicketsForm(frontmatter, form, initial, opts) {
 			doc.set(WAITLIST_KEY, node);
 		}
 	}
+	/* Extras: solo si cambiaron (sin extras = sin la clave). */
+	const extras = formExtras(form.extras);
+	if (JSON.stringify(extras) !== JSON.stringify(formExtras(initial.extras))) {
+		if (!extras.length) doc.delete(EXTRAS_KEY);
+		else doc.set(EXTRAS_KEY, doc.createNode(extras));
+	}
 	return serializeFrontmatter(doc);
 }
 
@@ -1164,6 +1180,7 @@ export function describeTicketsForm(form, formatARS) {
 			.join(' · ') +
 		door +
 		goalText +
-		waitlistText
+		waitlistText +
+		describeExtras(form.extras, formatARS)
 	);
 }

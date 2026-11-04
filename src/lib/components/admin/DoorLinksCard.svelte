@@ -4,6 +4,10 @@
 	 * abre solo el modo puerta de este evento, sin cuenta, y revocar los vivos. El link con el token
 	 * se ve una sola vez, al crearlo (`result.url`); después solo su etiqueta, quién y cuándo.
 	 * Acciones `?/crearLinkPuerta` y `?/revocarLinkPuerta` del +page.server.js de la ficha.
+	 *
+	 * Con el interruptor `extras` y un evento con extras (`doorLinks.bar`), «Para» elige un link de
+	 * puerta o un «Link de barra», que abre solo /barra/<evento>: ver y entregar extras (decisión
+	 * 0056). Los links de barra llevan la marca «Barra» en la lista.
 	 */
 	import { enhance } from '$app/forms';
 	import { askConfirm } from '$lib/admin/confirm.js';
@@ -11,8 +15,9 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 
 	/**
-	 * @type {{ links: { id: string, label: string, createdBy: string, createdAt: number,
-	 *   expiresAt: number, lastUsedAt: number | null }[] | null, defaultExpires: string }}
+	 * @type {{ links: { id: string, scope?: string, label: string, createdBy: string,
+	 *   createdAt: number, expiresAt: number, lastUsedAt: number | null }[] | null,
+	 *   defaultExpires: string, bar?: boolean }}
 	 */
 	export let doorLinks;
 	/** Lo que devolvió la última acción (`form.doorLink`). */
@@ -20,6 +25,8 @@
 	export let result = null;
 
 	let copied = false;
+	/** @type {'puerta' | 'barra'} */
+	let scope = 'puerta';
 
 	/** @param {string} text */
 	async function copy(text) {
@@ -41,6 +48,12 @@
 			la puerta del panel menos el DNI completo, y no deja pasar límites ni entrar al resto del
 			panel. Lo que se hace con el link queda en el registro de actividad.
 		</p>
+		{#if doorLinks.bar}
+			<p class="muted small">
+				Un <strong>link de barra</strong> abre solo la barra: buscar una entrada y entregar sus extras
+				(«Entregar 1»), con el nombre de la entrada y nada más.
+			</p>
+		{/if}
 
 		{#if result}
 			<p class="flash" class:error={!result.ok} role="status">{result.message}</p>
@@ -74,6 +87,7 @@
 					{#each doorLinks.links as l (l.id)}
 						<li>
 							<div>
+								{#if l.scope === 'barra'}<span class="scope">Barra</span>{/if}
 								<strong>{l.label || 'Sin etiqueta'}</strong>
 								<small class="muted block">
 									Lo creó {l.createdBy} el {argDateLog(l.createdAt)} · vence el {argDateLog(
@@ -107,6 +121,15 @@
 			{/if}
 
 			<form method="POST" action="?/crearLinkPuerta" use:enhance class="create">
+				{#if doorLinks.bar}
+					<label>
+						<span>Para</span>
+						<select name="scope" bind:value={scope}>
+							<option value="puerta">La puerta (ingreso y venta)</option>
+							<option value="barra">La barra (solo extras)</option>
+						</select>
+					</label>
+				{/if}
 				<label>
 					<span>Etiqueta (para reconocerlo)</span>
 					<input
@@ -126,13 +149,24 @@
 						required={!doorLinks.defaultExpires}
 					/>
 				</label>
-				<button type="submit" class="kv-btn">Crear link de puerta</button>
+				<button type="submit" class="kv-btn"
+					>{scope === 'barra' ? 'Crear link de barra' : 'Crear link de puerta'}</button
+				>
 			</form>
 		{/if}
 	</Card>
 </section>
 
 <style>
+	.scope {
+		display: inline-block;
+		margin-right: 0.4em;
+		padding: 0 0.5em;
+		border-radius: var(--radius-pill, 999px);
+		background: var(--panel-accent-soft, #efe6f7);
+		font-size: var(--text-xs);
+		font-weight: 600;
+	}
 	.small {
 		font-size: var(--text-xs);
 		margin: 0;

@@ -91,6 +91,8 @@ export async function _editLoad({ locals, params, url, platform }) {
 		// anotada por alcance (no deja apagarla ni cambiar el alcance con gente anotada).
 		isEvent ? isFlagOn(db, 'lista_espera') : null,
 		isEvent ? waitlistLiveFor(db, params.postID) : null,
+		// «Extras» en la sección Entradas (interruptor `extras`, decisión 0056).
+		isEvent ? isFlagOn(db, 'extras') : false,
 		// «Lugar» del formulario: los lugares y el elegido (edge `lugar` del evento, no en el archivo).
 		isEvent ? venuePickerData(db, params.postID) : null,
 		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
@@ -108,6 +110,7 @@ export async function _editLoad({ locals, params, url, platform }) {
 		sales,
 		waitlistEnabled,
 		waitlistLive,
+		extrasEnabled,
 		venuePicker,
 		transfer,
 		editor,
@@ -118,6 +121,7 @@ export async function _editLoad({ locals, params, url, platform }) {
 		sales,
 		waitlistEnabled,
 		waitlistLive,
+		extrasEnabled,
 		venuePicker,
 		salesUnavailable: isEvent && sales === null,
 		transferReady: transfer,

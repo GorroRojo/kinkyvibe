@@ -87,6 +87,10 @@
 		{/if}
 		<dt>Entrada</dt>
 		<dd>{data.ticket.type}</dd>
+		{#if data.ticket.extras}
+			<dt>Extras de la compra</dt>
+			<dd>{data.ticket.extras}</dd>
+		{/if}
 		<dt>Estado</dt>
 		<dd class="state">
 			<!-- {' '}: Svelte saca el espacio del borde del {#if} y salía «ingresar(2/10/26, 13:14)». -->
