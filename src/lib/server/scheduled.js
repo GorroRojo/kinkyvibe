@@ -1,7 +1,8 @@
 /**
  * Tareas programadas del Worker (el `scheduled()` de worker/index.js). Los horarios están en
- * `[triggers] crons` de wrangler.toml, que tienen que coincidir con estas constantes (hay un
- * test que lo verifica). Los crons corren solo en producción: los Previews no los ejecutan.
+ * `[triggers] crons` de wrangler.toml, que tienen que coincidir con las constantes de
+ * ./vigilancia/crons.js (hay un test que lo verifica). Los crons corren solo en producción: los
+ * Previews no los ejecutan. Cada corrida deja su latido para la vigilancia (`handleScheduled`).
  *
  * Solo usa imports relativos: worker/index.js lo importa sin pasar por Vite.
  */
@@ -17,16 +18,18 @@ import {
 	recordIntegrityRun
 } from './objects/integrity.js';
 import { runMepRates } from './paypal/rates.js';
+import {
+	BACKUP_CRON,
+	RATES_CRON,
+	REMINDERS_CRON,
+	WATCH_CRON,
+	recordCronOk,
+	recordCronStart
+} from './vigilancia/crons.js';
 
-/** Recordatorios de entradas: cada 15 minutos (UTC). */
-export const REMINDERS_CRON = '*/15 * * * *';
-/** Backup de la base a R2: todas las noches a las 06:00 UTC (03:00 en Argentina). */
-export const BACKUP_CRON = '0 6 * * *';
-/**
- * Cotización del dólar MEP para PayPal: todos los días a las 21:15 UTC (18:15 en Argentina),
- * después del cierre del mercado (src/lib/server/paypal/rates.js).
- */
-export const RATES_CRON = '15 21 * * *';
+// Las expresiones de los crons viven en ./vigilancia/crons.js (la vigilancia las lee sin importar
+// este archivo); acá se reexportan.
+export { REMINDERS_CRON, BACKUP_CRON, RATES_CRON, WATCH_CRON };
 
 /** Origen por defecto para el pedido interno de los recordatorios (src/lib/utils/site.js). */
 export const DEFAULT_ORIGIN = SITE_URL;
@@ -53,6 +56,35 @@ export const DEFAULT_ORIGIN = SITE_URL;
  */
 
 /**
+ * Un `POST` a un endpoint de cron (`/api/cron/*`, con su control de CRON_SECRET) sin salir a
+ * internet: se le pasa directo al fetch de SvelteKit. Si no responde bien, tira (la corrida figura
+ * como fallida en Cloudflare, Cron Events).
+ *
+ * @param {string} area para el log (`recordatorios`, `vigilancia`)
+ * @param {string} path
+ * @param {ScheduledEnv} env
+ * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
+ * @param {AppFetch} appFetch
+ */
+async function postCronEndpoint(area, path, env, ctx, appFetch) {
+	const origin = siteOriginFrom(env.SITE_URL);
+	const response = await appFetch(
+		new Request(`${origin}${path}`, {
+			method: 'POST',
+			headers: { 'x-cron-secret': env.CRON_SECRET ?? '', accept: 'application/json' }
+		}),
+		env,
+		ctx
+	);
+	const body = (await response.text()).slice(0, 300);
+	if (!response.ok) {
+		throw new Error(`[${area}] ${response.status} ${body}`);
+	}
+	console.log(`[${area}] ${body}`);
+	return body;
+}
+
+/**
  * Recordatorios: el mismo pedido que antes hacía el Worker aparte `kinkyvibe-cron`, pero sin
  * salir a internet: se le pasa directo al fetch de SvelteKit. Así sigue corriendo exactamente
  * `POST /api/cron/recordatorios` (con su control de CRON_SECRET), sin duplicar su lógica.
@@ -62,23 +94,19 @@ export const DEFAULT_ORIGIN = SITE_URL;
  * @param {AppFetch} appFetch
  */
 export async function runReminders(env, ctx, appFetch) {
-	const origin = siteOriginFrom(env.SITE_URL);
-	const url = `${origin}/api/cron/recordatorios`;
-	const response = await appFetch(
-		new Request(url, {
-			method: 'POST',
-			headers: { 'x-cron-secret': env.CRON_SECRET ?? '', accept: 'application/json' }
-		}),
-		env,
-		ctx
-	);
-	const body = (await response.text()).slice(0, 300);
-	if (!response.ok) {
-		// Tirar el error hace que la corrida figure como fallida en Cloudflare (Cron Events).
-		throw new Error(`[recordatorios] ${response.status} ${body}`);
-	}
-	console.log(`[recordatorios] ${body}`);
-	return body;
+	return postCronEndpoint('recordatorios', '/api/cron/recordatorios', env, ctx, appFetch);
+}
+
+/**
+ * Vigilancia (cada hora): `POST /api/cron/vigilancia`, que mira que los otros crons anden (y avisa
+ * por Telegram si no) y borra los conteos de errores viejos (src/lib/server/vigilancia/).
+ *
+ * @param {ScheduledEnv} env
+ * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
+ * @param {AppFetch} appFetch
+ */
+export async function runWatch(env, ctx, appFetch) {
+	return postCronEndpoint('vigilancia', '/api/cron/vigilancia', env, ctx, appFetch);
 }
 
 /**
@@ -242,14 +270,14 @@ export async function runRates(env, now, fetchFn = fetch) {
 }
 
 /**
- * El handler `scheduled()`: elige la tarea según el cron que disparó.
+ * Elige la tarea según el cron que disparó.
  *
  * @param {{ cron: string, scheduledTime: number }} controller
  * @param {ScheduledEnv} env
  * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
  * @param {AppFetch} appFetch el fetch del Worker de SvelteKit
  */
-export async function handleScheduled(controller, env, ctx, appFetch) {
+async function runCron(controller, env, ctx, appFetch) {
 	switch (controller.cron) {
 		case REMINDERS_CRON:
 			return runReminders(env, ctx, appFetch);
@@ -267,7 +295,28 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 		}
 		case RATES_CRON:
 			return runRates(env, new Date(controller.scheduledTime));
+		case WATCH_CRON:
+			return runWatch(env, ctx, appFetch);
 		default:
 			throw new Error(`cron desconocido: ${controller.cron}`);
 	}
+}
+
+/**
+ * El handler `scheduled()`: anota el latido de la corrida en `cron_heartbeats` (cuándo arrancó y,
+ * si terminó bien, cuándo; ./vigilancia/crons.js) y corre la tarea del cron que disparó. Anotar
+ * nunca hace fallar la corrida; si la tarea falla, la corrida falla como siempre (y no se anota
+ * el final: la vigilancia avisa si sigue así).
+ *
+ * @param {{ cron: string, scheduledTime: number }} controller
+ * @param {ScheduledEnv} env
+ * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
+ * @param {AppFetch} appFetch el fetch del Worker de SvelteKit
+ * @param {() => number} [now] para los tests
+ */
+export async function handleScheduled(controller, env, ctx, appFetch, now = Date.now) {
+	await recordCronStart(env.DB, controller.cron, now());
+	const result = await runCron(controller, env, ctx, appFetch);
+	await recordCronOk(env.DB, controller.cron, now());
+	return result;
 }

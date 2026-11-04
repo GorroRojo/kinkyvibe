@@ -656,6 +656,25 @@ describe('upcomingEvents y reviewItems', () => {
 		]);
 	});
 
+	it('un lugar vinculado manda sobre el «Dónde» en texto libre (como en la página)', () => {
+		const withLocation = [
+			{ ...events[1], location: 'Zona Inventada, CABA' },
+			{ ...events[1], slug: 'hoy-sin-lugar', location: 'Calle Falsa 123' }
+		];
+		const venues = new Map([
+			['hoy', { title: 'Sala Inventada', area: 'Barrio Ficticio', city: 'CABA' }]
+		]);
+		const got = upcomingEvents({ events: withLocation, ticketed: new Map(), venues, now: NOW });
+		expect(got.map((e) => [e.slug, e.location])).toEqual([
+			['hoy', 'Sala Inventada, Barrio Ficticio'],
+			['hoy-sin-lugar', 'Calle Falsa 123']
+		]);
+		// Sin lugares (o si la consulta falló), el texto libre como siempre.
+		expect(
+			upcomingEvents({ events: withLocation, ticketed: new Map(), now: NOW }).map((e) => e.location)
+		).toEqual(['Zona Inventada, CABA', 'Calle Falsa 123']);
+	});
+
 	it('un tipo sin cupo (capacity null): el evento no tiene cupo total y ese tipo no se pasa', () => {
 		const [e] = upcomingEvents({
 			events: [events[1]],

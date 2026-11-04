@@ -668,7 +668,7 @@
 				tabindex="-1"
 				aria-labelledby="kv-search-help-{uid}"
 			>
-				<h3 id="kv-search-help-{uid}">Cómo buscar</h3>
+				<h3 id="kv-search-help-{uid}">{SEARCH_GUIDE_TEXT.title}</h3>
 				<p class="lead">
 					{guide.intro}
 					<button type="button" class="ex" on:click={() => tryExample(guide.combined)}

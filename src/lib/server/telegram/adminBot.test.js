@@ -113,7 +113,7 @@ describe('adminNav: los botones de admins', () => {
 		}
 	});
 
-	it('los tipos de aviso: los cinco de las partes 2 a 4, el del conector de Claude y las fallas en compras, en orden', () => {
+	it('los tipos de aviso: los cinco de las partes 2 a 4, el del conector de Claude, las fallas en compras y las del sitio, en orden', () => {
 		expect(NOTICE_KINDS).toEqual([
 			'resumen_diario',
 			'cada_venta',
@@ -121,7 +121,8 @@ describe('adminNav: los botones de admins', () => {
 			'dia_evento',
 			'recordatorios',
 			'conector_claude',
-			'fallas_compra'
+			'fallas_compra',
+			'fallas_sitio'
 		]);
 		expect(NOTICE_KINDS.map(noticeLabel)).toEqual([
 			'Resumen diario',
@@ -130,7 +131,8 @@ describe('adminNav: los botones de admins', () => {
 			'Día del evento',
 			'Recordatorios',
 			'Cambios de Claude',
-			'Fallas en compras'
+			'Fallas en compras',
+			'Fallas del sitio'
 		]);
 	});
 });

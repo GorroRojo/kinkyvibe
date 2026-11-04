@@ -10,6 +10,7 @@ import { renderContentBody } from '$lib/server/contenido/render.js';
 import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js';
 import { seriesTagInfo } from '$lib/server/series/web.js';
 import { followButtonState } from '$lib/server/sigo/button.js';
+import { linksHere } from '$lib/server/contenido/loQueEnlaza.js';
 
 /**
  * /wiki/<término>: la página de la wiki de esa etiqueta, desde la base (el texto de la wiki es el
@@ -44,6 +45,8 @@ export async function load({ params, platform, locals, url, request }) {
 		(request.method === 'GET' || request.method === 'HEAD')
 	)
 		redirect(301, canonicalPath + url.search);
+	// «Lo que enlaza acá» (interruptor `lo_que_enlaza`), a la par de la lista. Nunca tira.
+	const linksHereP = linksHere(platform, locals, { tag: key });
 	const children = tags.get(key)?.getAllChildren() ?? [];
 	/** @param {ProcessedPost[]} list */
 	const relatedOf = (list) =>
@@ -89,7 +92,7 @@ export async function load({ params, platform, locals, url, request }) {
 			updatedAt: entry.updatedAt ?? null
 		};
 	}
-	const [ticketStates, seriesInfo, follow, wiki, details] = await Promise.all([
+	const [ticketStates, seriesInfo, follow, wiki, details, linksHereList] = await Promise.all([
 		// «Comprar entradas» / «Agotadas» en las tarjetas.
 		ticketStatesP,
 		seriesTagInfo(platform, locals, key, { tags, posts }).catch(logged('series')),
@@ -97,7 +100,8 @@ export async function load({ params, platform, locals, url, request }) {
 		// El glosario de la página: las páginas de la wiki y las descripciones y relacionadas de las
 		// etiquetas (el layout raíz manda el árbol liviano: $lib/utils/tagDetails.js).
 		siteWikiPosts(platform),
-		siteTagDetails(platform)
+		siteTagDetails(platform),
+		linksHereP
 	]);
 	return {
 		...page,
@@ -108,7 +112,8 @@ export async function load({ params, platform, locals, url, request }) {
 		seriesInfo,
 		follow,
 		wiki,
-		siteTagDetails: details
+		siteTagDetails: details,
+		linksHere: linksHereList
 	};
 }
 

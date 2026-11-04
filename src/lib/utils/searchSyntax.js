@@ -12,7 +12,8 @@
  * vive cada texto de la guía»). Cada línea de las tres guías (cómo se escribe, el ejemplo y qué
  * hace) sale de acá, de `OPERATORS` y `HELP_ROWS`, por `searchHelp(buscador)`; ninguna guía escribe
  * una línea a mano (lo chequea searchGuide.test.js). Las frases de arriba de cada guía también
- * están acá (`SEARCH_GUIDE_TEXT`), salvo la del bot, que es un «Texto del bot» editable desde el
+ * están acá (`SEARCH_GUIDE_TEXT`, con el título y qué cubre el buscador, que vive en
+ * searchScope.js), salvo la del bot, que es un «Texto del bot» editable desde el
  * panel (`sitio.como_buscar` en $lib/utils/botTexts.js). Quién muestra cada guía:
  * - sitio: $lib/components/SearchPalette.svelte (`searchHelp('sitio')`, `SEARCH_GUIDE_TEXT.sitio`);
  * - bot: `searchHelpScreen` en $lib/server/telegram/screens.js (`searchHelp('bot')`), con el
@@ -20,6 +21,8 @@
  * - panel: $lib/components/admin/panel/SearchBox.svelte (`SEARCH_TIPS` de
  *   $lib/admin/paletteActions.js, que es `searchHelp('panel')`, y `SEARCH_GUIDE_TEXT.panel`).
  */
+
+import { SEARCH_SCOPE } from './searchScope.js';
 
 /** @typedef {'sitio' | 'bot' | 'panel'} Engine */
 /** @typedef {'calendario' | 'material' | 'amigues' | 'wiki' | 'serie'} DocType */
@@ -522,7 +525,9 @@ export function splitQuery(raw) {
  * @prop {DocType[]} hintTypes los tipos que suben esas palabras
  * @prop {string[]} exclude palabras o frases que no tienen que estar
  * @prop {DocType[] | null} types qué tipos pueden salir por los operadores de tipo (`null`: todos)
- * @prop {DocType[]} excludeTypes tipos que no (`-evento:`)
+ * @prop {DocType[]} excludeTypes tipos que no (`-evento:`, sin valor)
+ * @prop {{ types: DocType[], value: string }[]} excludeTyped lo de esos tipos que dice eso
+ *   (`-evento:latex`: los eventos que dicen «latex»; lo demás sigue)
  * @prop {DocType[] | null} implied el tipo que implican los operadores de un solo tipo (`lugar:`,
  *   las fechas): `['calendario']` o `null`
  * @prop {string[]} tags etiquetas pedidas (`#…`, `etiqueta:…`): tienen que estar todas
@@ -567,6 +572,7 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 		exclude: [],
 		types: null,
 		excludeTypes: [],
+		excludeTyped: [],
 		implied: null,
 		tags: [],
 		excludeTags: [],
@@ -736,7 +742,9 @@ export function parseSearch(raw, engine, { datesAsText = false } = {}) {
 		}
 		pq.operators = true;
 		if (t.neg) {
-			if (op.kind === 'type') pq.excludeTypes.push(...(op.types ?? []));
+			// `-evento:` saca los eventos; `-evento:latex`, solo los eventos que dicen «latex».
+			if (op.kind === 'type' && v) pq.excludeTyped.push({ types: [...(op.types ?? [])], value: v });
+			else if (op.kind === 'type') pq.excludeTypes.push(...(op.types ?? []));
 			else if (op.kind === 'tag') v && pq.excludeTags.push(v);
 			else if (op.kind === 'person') v && pq.excludePeople.push(v);
 			else if (op.kind === 'place') v && pq.excludePlaces.push(v);
@@ -876,7 +884,7 @@ export const HELP_ROWS = Object.freeze([
 		id: 'sin',
 		label: '-',
 		example: 'taller -online',
-		help: 'Sin esa palabra (también -#etiqueta o -evento:).',
+		help: 'Sin esa palabra (también -#etiqueta, -evento: o -evento:latex, que saca solo los eventos con «latex»). Sola, muestra todo lo demás.',
 		engines: ALL,
 		place: 'before'
 	},
@@ -935,6 +943,13 @@ const TRY_EXAMPLE = 'Tocá un ejemplo para probarlo.';
  * ($lib/utils/botTexts.js, se edita desde el panel); si cambiás una de estas, mirá esa también.
  */
 export const SEARCH_GUIDE_TEXT = Object.freeze({
+	/**
+	 * El título de la guía en el sitio y el panel. El del bot está en `sitio.como_buscar`
+	 * ($lib/utils/botTexts.js), con 🔎 adelante.
+	 */
+	title: '¿Cómo buscar?',
+	/** Qué cubre el buscador del sitio (vive en searchScope.js: el buscador lo usa sin el registro). */
+	scope: SEARCH_SCOPE,
 	/** El buscador del sitio (SearchPalette.svelte): el párrafo de arriba de la lista. */
 	sitio: Object.freeze({
 		intro: `Escribí palabras sueltas o sumá alguno de estos. ${TRY_EXAMPLE}`
@@ -945,10 +960,10 @@ export const SEARCH_GUIDE_TEXT = Object.freeze({
 		intro: 'Sin tildes ni mayúsculas, y las palabras en cualquier orden. Se pueden combinar:',
 		combined: '#shibari finde',
 		outro: TRY_EXAMPLE,
-		/** La línea de la paleta vacía: «Probá #etiqueta, @persona, hoy o "frase".» */
-		teaser: Object.freeze(['#etiqueta', '@persona', 'hoy', '"frase"']),
+		/** La línea de la paleta vacía: «Probá #etiqueta, @nombre, hoy o "frase".» */
+		teaser: Object.freeze(['#etiqueta', '@nombre', 'hoy', '"frase"']),
 		/** La pista de la acción «Cómo buscar» en la lista de acciones. */
-		commandHint: 'Operadores: #etiqueta, @persona, hoy, "frase", -palabra…'
+		commandHint: 'Operadores: #etiqueta, @nombre, hoy, "frase", -palabra…'
 	})
 });
 

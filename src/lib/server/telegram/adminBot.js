@@ -54,6 +54,8 @@ export function noticeLabel(kind) {
 			return botText('admin.aviso_conector');
 		case 'fallas_compra':
 			return botText('admin.aviso_fallas');
+		case 'fallas_sitio':
+			return botText('admin.aviso_fallas_sitio');
 		default:
 			return botText('admin.aviso_recordatorios');
 	}

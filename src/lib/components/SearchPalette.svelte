@@ -6,6 +6,8 @@
 	import { searchOpen, searchPrefill } from '$lib/utils/stores';
 	import { get } from 'svelte/store';
 	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
+	// Qué cubre el buscador (las secciones del sitio): una sola fuente, también para el bot.
+	import { SEARCH_SCOPE } from '$lib/utils/searchScope.js';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
 	const PER_GROUP = 5;
@@ -40,6 +42,7 @@
 	/** @type {import('$lib/utils/searchSyntax.js').SearchHelpRow[] | undefined} */
 	let helpRows;
 	let helpIntro = '';
+	let helpTitle = '';
 
 	/**
 	 * @typedef {{kind: 'hit', id: string, href: string, hit: import('$lib/utils/search').SearchHit}
@@ -247,6 +250,7 @@
 		if (showHelp && !helpRows) {
 			try {
 				const syntax = await import('$lib/utils/searchSyntax.js');
+				helpTitle = syntax.SEARCH_GUIDE_TEXT.title;
 				helpIntro = syntax.SEARCH_GUIDE_TEXT.sitio.intro;
 				helpRows = syntax.searchHelp('sitio');
 			} catch (e) {
@@ -301,7 +305,7 @@
 					bind:value={query}
 					on:keydown={onInputKeydown}
 					type="search"
-					placeholder="Buscar eventos, series, material, amigues, Kinkipedia…"
+					placeholder="Buscar {SEARCH_SCOPE}…"
 					autocomplete="off"
 					spellcheck="false"
 					role="combobox"
@@ -338,7 +342,7 @@
 			>
 				{#if showHelp && helpRows}
 					<div class="help" role="presentation">
-						<h3>¿Cómo buscar?</h3>
+						<h3>{helpTitle}</h3>
 						<p>{helpIntro}</p>
 						<dl>
 							{#each helpRows as row (row.id)}
@@ -358,7 +362,7 @@
 					<p class="status">{error}</p>
 				{:else if query.trim().length < 2}
 					<p class="status">
-						Buscá en todo el sitio: eventos, series, textos, amigues y la Kinkipedia.<br />
+						Buscá en todo el sitio: {SEARCH_SCOPE}.<br />
 						<small>Probá con «shibari», «consentimiento» o el nombre de une autore.</small>
 						<br /><button type="button" class="help-link" on:click={toggleHelp}
 							>¿Cómo buscar?</button

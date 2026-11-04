@@ -52,6 +52,8 @@ import {
  * @prop {SearchKind[] | null} kinds qué tipos de resultado pueden salir (`null`: todos)
  * @prop {string[]} tags etiquetas pedidas (`#…`, `etiqueta:…`): tienen que estar todas
  * @prop {string[]} excludeTags etiquetas que no tienen que estar
+ * @prop {{ kinds: SearchKind[], value: string }[]} excludeIn lo de esos tipos de resultado que
+ *   dice eso (`-evento:latex`: los eventos con «latex»; lo demás sigue)
  * @prop {string[]} places lugares pedidos (`lugar:…`)
  * @prop {When | null} when días pedidos (`hoy`, `cuando:sabado`…)
  * @prop {OrderStatus | null} status estado de orden pedido
@@ -170,6 +172,7 @@ export function parseSearchQuery(raw) {
 		kinds: null,
 		tags: [],
 		excludeTags: [],
+		excludeIn: [],
 		places: [],
 		when: null,
 		status: null,
@@ -219,6 +222,10 @@ export function parseSearchQuery(raw) {
 	if (pq.places.length) addFilter(['events']);
 	if (base.types) addScope(base.types.flatMap((t) => BASE_KINDS[t]));
 	for (const t of base.excludeTypes) for (const k of BASE_KINDS[t]) notKinds.add(k);
+	for (const { types, value } of base.excludeTyped) {
+		const kinds = types.flatMap((t) => BASE_KINDS[t]);
+		if (kinds.length) pq.excludeIn.push({ kinds, value });
+	}
 	const eventScope = Boolean(base.types?.includes('calendario'));
 
 	// Las fechas: `cuando:` (el último) manda; si no, la primera palabra de fecha suelta.
@@ -330,7 +337,39 @@ export function allowsKind(pq, kind) {
 }
 
 /**
- * ¿Hay algo para buscar registros? Texto de al menos {@link MIN_TERMS} letras o algún filtro.
+ * ¿Lo escrito son solo exclusiones (`-bondage`, `-#etiqueta`)? Entonces se muestra todo lo demás,
+ * como en el sitio y el bot (docs/buscar.md, «Cómo se lee lo que se escribe»).
+ * @param {ParsedQuery} pq
+ */
+export function onlyExclusions(pq) {
+	return (
+		(pq.exclude.length > 0 || pq.excludeTags.length > 0 || pq.excludeIn.length > 0) &&
+		pq.words.length === 0 &&
+		pq.phrases.length === 0 &&
+		pq.tags.length === 0 &&
+		pq.places.length === 0 &&
+		pq.when === null &&
+		pq.status === null
+	);
+}
+
+/**
+ * ¿Lo saca un `-evento:latex` (un tipo con valor)? Para un resultado de ese tipo, si alguno de
+ * sus campos dice eso.
+ * @param {ParsedQuery} pq
+ * @param {SearchKind} kind
+ * @param {...unknown} fields
+ */
+export function excludedIn(pq, kind, ...fields) {
+	const own = pq.excludeIn.filter((x) => x.kinds.includes(kind));
+	if (!own.length) return false;
+	const values = fields.map(foldQuery).filter(Boolean);
+	return own.some((x) => values.some((v) => v.includes(x.value)));
+}
+
+/**
+ * ¿Hay algo para buscar registros? Texto de al menos {@link MIN_TERMS} letras, algún filtro o solo
+ * exclusiones (que muestran todo lo demás).
  * @param {ParsedQuery} pq
  */
 export function hasRecordCriteria(pq) {
@@ -341,7 +380,8 @@ export function hasRecordCriteria(pq) {
 		pq.tags.length > 0 ||
 		pq.places.length > 0 ||
 		pq.when !== null ||
-		pq.status !== null
+		pq.status !== null ||
+		onlyExclusions(pq)
 	);
 }
 

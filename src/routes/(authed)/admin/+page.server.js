@@ -11,6 +11,7 @@ import {
 	arDayStart,
 	checkinTotalsQuery,
 	eventSalesTrendQuery,
+	eventVenuesQuery,
 	expiringTransfersQuery,
 	monthMoneyQuery,
 	recentActivityRowsQuery,
@@ -94,7 +95,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		});
 	// El bloque de ventas elige su evento con los totales, pero los que puede elegir se saben ya:
 	// su tendencia va en la segunda tanda, con los totales.
-	const focusSlugs = salesFocusSlugs(upcomingEvents({ events, ticketed, now, skip }));
+	const upcomingList = upcomingEvents({ events, ticketed, now, skip });
+	const focusSlugs = salesFocusSlugs(upcomingList);
 
 	// fondo.kinkyvibe.ar y el uso de las etiquetas no frenan la segunda tanda: se esperan al final.
 	const s1 = await first;
@@ -114,6 +116,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			checkins: checkinTotalsQuery(
 				soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
 			),
+			// El lugar vinculado de los próximos: manda sobre el «Dónde» en texto libre.
+			venues: eventVenuesQuery(upcomingList.map((e) => e.slug)),
 			since: s1.seen
 				? sinceLastVisitQuery({ since: s1.seen.since, login: user.login, titles })
 				: noQuery(null),
@@ -123,7 +127,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		},
 		{ failed }
 	);
-	const { totals, checkins, streamLinks, stuck, reminders, since, cancelled } = s2;
+	const { totals, checkins, streamLinks, stuck, reminders, since, cancelled, venues } = s2;
 	const { transfers, review, money, seen, expiring } = s1;
 	const [fondo, outside] = await others;
 
@@ -137,6 +141,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		streamLinks,
 		reminders,
 		stuck,
+		venues,
 		now,
 		skip
 	});

@@ -157,6 +157,43 @@ describe('selectInline', () => {
 	});
 });
 
+describe('selectInline: exclusiones (como el sitio)', () => {
+	const docs = [
+		eventDoc('fiesta-latex', '2031-02-01T20:00:00-03:00', { t: 'Fiesta latex' }),
+		eventDoc('fiesta-cuero', '2031-03-01T20:00:00-03:00', { t: 'Fiesta de cuero' }),
+		materialDoc('latex', { t: 'Cuidar el latex en la fiesta' }),
+		{ c: /** @type {const} */ ('amigues'), h: '/amigues/fiesta-latex', t: 'Fiesta Latex' },
+		{ c: /** @type {const} */ ('wiki'), h: '/wiki/bondage', t: 'Bondage' }
+	];
+	const source = sourceOf(docs);
+	/** @param {string} q (lo escrito en el modo inline o en «/buscar») */
+	const hrefs = (q) =>
+		selectInline(source, parseInlineQuery(q), NOW)
+			.map((d) => d.h)
+			.sort();
+
+	it('solo exclusiones: todo lo demás', () => {
+		expect(hrefs('-bondage')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/calendario/fiesta-latex',
+			'/material/latex'
+		]);
+	});
+
+	it('-evento:latex saca solo los eventos con «latex»', () => {
+		expect(parseInlineQuery('fiesta -evento:latex')).toEqual({
+			types: null,
+			text: 'fiesta -evento:latex'
+		});
+		expect(hrefs('fiesta -evento:latex')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/material/latex'
+		]);
+	});
+});
+
 describe('inlineThumbUrl', () => {
 	it('una imagen de la biblioteca en producción: la miniatura chiquita, nunca la original', () => {
 		const thumb = inlineThumbUrl(IMG, PROD);

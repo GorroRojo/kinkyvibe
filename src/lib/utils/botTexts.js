@@ -185,7 +185,9 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				'/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n' +
 				'/evento: elegí un evento de la lista\n' +
 				'/evento <nombre>: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
-				'/buscar <texto>: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n' +
+				// Qué cubre el buscador: copia de SEARCH_SCOPE ($lib/utils/searchScope.js), que es la
+				// fuente; acá va aparte porque se edita desde el panel (lo chequea searchGuide.test.js).
+				'/buscar <texto>: buscá en todo el sitio (materiales, perfiles, eventos y la Kinkipedia)\n' +
 				'/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n' +
 				'/inicio: volver al inicio, con botones para todo\n' +
 				'{cuenta}\n' +
@@ -287,7 +289,8 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			['semana', 'Lo que hay en los próximos 7 días'],
 			['finde', 'Lo que hay este fin de semana'],
 			['evento', 'Buscá un evento por nombre, fecha o lugar'],
-			['buscar', 'Buscá en todo el sitio: eventos, material, Kinkipedia y amigues'],
+			// Copia de SEARCH_SCOPE ($lib/utils/searchScope.js); lo chequea searchGuide.test.js.
+			['buscar', 'Buscá en todo el sitio: materiales, perfiles, eventos y la Kinkipedia'],
 			['fondo', 'Cuánto juntó el Fondo Kinky Vibe este mes'],
 			['ayuda', 'Qué podés pedirme']
 		].map(([command, value]) =>
@@ -937,7 +940,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Cambios de Claude**: si el conector de Claude aplica muchos cambios en una hora.\n• **Fallas en compras**: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude y las fallas en compras, en el momento.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Cambios de Claude**: si el conector de Claude aplica muchos cambios en una hora.\n• **Fallas en compras**: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• **Fallas del sitio**: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras y las fallas del sitio, en el momento.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -982,6 +985,17 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'Mis avisos: fallas en compras',
 			'Fallas en compras',
 			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_fallas_sitio',
+			'admin',
+			'button',
+			'Mis avisos: fallas del sitio',
+			'Fallas del sitio',
+			{
+				max: 56,
+				help: 'El bot le suma ✅ o ⬜ adelante.'
+			}
 		),
 		f('admin.prendido', 'admin', 'toast', 'Mis avisos: al prender uno', 'Prendido: {aviso}', {
 			vars: [{ name: 'aviso', label: 'el aviso', sample: 'Resumen diario' }]
@@ -1158,6 +1172,63 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				max: 40,
 				help: 'Va en {orden} cuando la falla no tiene orden (por ejemplo, un pago que no se pudo leer).'
 			}
+		),
+		f(
+			'admin.fallas_errores',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: muchos errores en una hora',
+			'⚠️ El sitio dio {cantidad} errores en la última hora.',
+			{
+				vars: [V.cantidad],
+				required: ['cantidad'],
+				help: 'Sale desde 10 errores en una hora, una vez por hora como mucho, a quienes prendieron «Fallas del sitio». Abajo van las rutas con sus errores y códigos.'
+			}
+		),
+		f(
+			'admin.fallas_compras',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: errores en las compras',
+			'🛒 Puede que haya fallado una compra: {cantidad} errores en la última hora en las páginas de compra.',
+			{
+				vars: [V.cantidad],
+				required: ['cantidad'],
+				help: 'Sale desde 2 errores en una hora en el webhook de Mercado Pago, el formulario de compra, la página de la orden, la puerta o las propinas. Una vez por hora como mucho.'
+			}
+		),
+		f(
+			'admin.fallas_codigos',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: dónde buscar los códigos',
+			'Cada código se busca en los registros del Worker en Cloudflare (Observability → Logs).'
+		),
+		f(
+			'admin.fallas_tarea',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: una tarea programada que no anda',
+			'⏰ La tarea programada «{tarea}» no termina bien desde {desde}.',
+			{
+				vars: [
+					{
+						name: 'tarea',
+						label: 'el nombre de la tarea',
+						sample: 'Todas las noches: backup de la base'
+					},
+					{ name: 'desde', label: 'desde cuándo', sample: 'hace 27 horas' }
+				],
+				required: ['tarea', 'desde'],
+				help: 'Una línea por tarea. Sale una vez cada 6 horas como mucho.'
+			}
+		),
+		f(
+			'admin.fallas_tarea_ayuda',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: qué mirar si una tarea no anda',
+			'Puede que no esté corriendo o que falle cada vez: mirá Cron Events y los registros del Worker en Cloudflare.'
 		),
 		f(
 			'admin.resumen_titulo',

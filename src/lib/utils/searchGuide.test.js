@@ -11,6 +11,7 @@ import { HELP_ROWS, OPERATORS, SEARCH_GUIDE_TEXT, searchHelp } from './searchSyn
 import { SEARCH_HELP_COMMAND, SEARCH_TIPS } from '$lib/admin/paletteActions.js';
 import { searchHelpLine, searchHelpScreen } from '$lib/server/telegram/screens.js';
 import { botTextField } from './botTexts.js';
+import { SEARCH_SCOPE, SEARCH_SCOPE_BEYOND_WIKI } from './searchScope.js';
 
 /** Los archivos que muestran las guías (y el de los textos del bot). */
 const RENDERERS = [
@@ -50,6 +51,31 @@ describe('las guías «Cómo buscar» salen del registro', () => {
 		expect(SEARCH_HELP_COMMAND.hint).toBe(SEARCH_GUIDE_TEXT.panel.commandHint);
 	});
 
+	it('el título es el mismo en las tres guías', () => {
+		expect(SEARCH_GUIDE_TEXT.title).toBe('¿Cómo buscar?');
+		expect(source('src/lib/components/admin/panel/SearchBox.svelte')).toContain(
+			'>{SEARCH_GUIDE_TEXT.title}</h3>'
+		);
+		expect(botTextField('sitio.como_buscar')?.value).toContain(`🔎 ${SEARCH_GUIDE_TEXT.title}`);
+	});
+
+	it('qué cubre el buscador: una fuente (searchScope.js) y las copias del bot dicen lo mismo', () => {
+		expect(SEARCH_GUIDE_TEXT.scope).toBe(SEARCH_SCOPE);
+		// Los textos del bot se editan desde el panel: tienen su copia, que tiene que coincidir.
+		expect(botTextField('inicio.ayuda')?.value).toContain(
+			`/buscar <texto>: buscá en todo el sitio (${SEARCH_SCOPE})`
+		);
+		expect(botTextField('comandos.buscar')?.value).toBe(`Buscá en todo el sitio: ${SEARCH_SCOPE}`);
+		// El sitio lo lee de searchScope.js, sin escribir la lista.
+		const palette = source('src/lib/components/SearchPalette.svelte');
+		expect(palette).toContain('placeholder="Buscar {SEARCH_SCOPE}…"');
+		expect(palette).toContain('Buscá en todo el sitio: {SEARCH_SCOPE}.');
+		expect(source('src/routes/(content)/wiki/+page.svelte')).toContain(
+			'buscalo en todo el sitio: {SEARCH_SCOPE_BEYOND_WIKI}.'
+		);
+		expect(SEARCH_SCOPE).toContain(SEARCH_SCOPE_BEYOND_WIKI.replace(' y eventos', ', eventos'));
+	});
+
 	it('bot: «🔎 Cómo buscar» lista exactamente las líneas del registro', () => {
 		const { text } = searchHelpScreen();
 		const rows = searchHelp('bot');
@@ -80,7 +106,8 @@ describe('las guías «Cómo buscar» salen del registro', () => {
 			SEARCH_GUIDE_TEXT.panel.intro,
 			SEARCH_GUIDE_TEXT.panel.outro,
 			SEARCH_GUIDE_TEXT.panel.combined,
-			SEARCH_GUIDE_TEXT.panel.commandHint
+			SEARCH_GUIDE_TEXT.panel.commandHint,
+			SEARCH_SCOPE
 		];
 		const evento = searchHelpLine(
 			/** @type {any} */ (searchHelp('bot').find((r) => r.id === 'evento'))
@@ -100,6 +127,8 @@ describe('las guías «Cómo buscar» salen del registro', () => {
 				}
 			}
 			for (const phrase of phrases) {
+				// El bot tiene su copia de qué cubre el buscador (chequeada arriba).
+				if (phrase === SEARCH_SCOPE && path.endsWith('botTexts.js')) continue;
 				expect(src, `${path}: «${phrase}»`).not.toContain(phrase);
 			}
 		}

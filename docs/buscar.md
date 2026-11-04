@@ -31,7 +31,11 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
    hasta el final.
 3. **Cada pieza se clasifica**, en este orden:
    - empieza con `-` y tiene algo después → **exclusión** de lo que sigue (palabra, frase, etiqueta
-     u operador);
+     u operador). Un operador de tipo con valor saca solo lo de ese tipo que dice ese valor:
+     `-evento:latex` saca los eventos que dicen «latex» y deja los demás eventos y todo lo de otros
+     tipos (`fiesta -evento:latex`: las fiestas que no son eventos de latex, también el material y
+     les amigues que dicen «latex»). Sin valor (`-evento:`) saca todos los eventos. El valor va pegado
+     (`-evento: latex` es «sin eventos» y la palabra `latex`);
    - empieza con `#` → **etiqueta**;
    - empieza con `@` → **persona**;
    - es `nombre:` o `nombre:valor` y `nombre` es un operador **de ese buscador** → **operador**. Si
@@ -52,16 +56,21 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 6. **El orden no importa**, salvo `>` (acciones del panel), que solo cuenta al principio.
 7. **Sin nada escrito** (o solo espacios), cada buscador muestra lo suyo de siempre (el sitio, lo
    próximo; el bot, su lista; el panel, Recientes y acciones).
-8. **Largo máximo**: 100 caracteres (`QUERY_MAX` del bot; acordado: lo mismo en los tres); lo que
+8. **Solo exclusiones** (`-bondage`, `-#latex`, `-evento:latex`) muestran **todo lo demás**, en los
+   tres: el sitio y el bot, todo el índice público menos lo excluido (en el orden de siempre); el
+   panel, cada grupo con sus primeros (`onlyExclusions` en `searchQuery.js`: eventos, etiquetas y,
+   en la base, órdenes, entradas, códigos, personas y perfiles). `-tipo:orden` solo no pide nada (es
+   sacar un grupo).
+9. **Largo máximo**: 100 caracteres (`QUERY_MAX` del bot; acordado: lo mismo en los tres); lo que
    sobra se corta antes de leer.
 
 ### Texto
 
-| Escribís         | Qué hace                                                                                              | Ejemplo                | Hoy               |
-| ---------------- | ----------------------------------------------------------------------------------------------------- | ---------------------- | ----------------- |
-| palabras sueltas | Tienen que estar todas, en cualquier campo y orden. Sitio y bot: perdona errores de tipeo y prefijos. | `cuerdas suspension`   | sitio, bot, panel |
-| `"frase"`        | Esas palabras juntas y en ese orden.                                                                  | `"reduccion de danos"` | sitio, bot, panel |
-| `-palabra`       | Sin esa palabra. También `-"frase"`, `-#etiqueta`, `-evento:` (sin eventos).                          | `taller -online`       | sitio, bot, panel |
+| Escribís         | Qué hace                                                                                                                                                        | Ejemplo                | Hoy               |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ----------------- |
+| palabras sueltas | Tienen que estar todas, en cualquier campo y orden. Sitio y bot: perdona errores de tipeo y prefijos.                                                           | `cuerdas suspension`   | sitio, bot, panel |
+| `"frase"`        | Esas palabras juntas y en ese orden.                                                                                                                            | `"reduccion de danos"` | sitio, bot, panel |
+| `-palabra`       | Sin esa palabra. También `-"frase"`, `-#etiqueta`, `-evento:` (sin eventos) y `-evento:latex` (sin los eventos que dicen «latex»). Sola, muestra todo lo demás. | `taller -online`       | sitio, bot, panel |
 
 - **Dónde se buscan las palabras** (sitio y bot): el título y sus otros nombres, las etiquetas
   (con sus otros nombres), les autores, el resumen, **todo el cuerpo**, y en un evento también el
@@ -69,6 +78,12 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
   las etiquetas y les autores, después el resto (el lugar de un evento pesa como el resumen).
   **Falta hoy**: el índice corta el cuerpo (400 caracteres en eventos, 2500 en lo demás,
   `BODY_MAX`); queda en `buscar-cuerpo-entero` (hay que medir cuánto crece el índice).
+- **Cómo saca cada buscador** (lo mismo en los tres): `-palabra` y `-"frase"` en cualquier campo
+  donde se busca; `-#etiqueta` por la etiqueta (sitio, bot y los eventos del panel, con su árbol);
+  `-evento:` el tipo entero; `-evento:latex` solo lo de ese tipo que dice el valor (sitio y bot: en
+  cualquier campo, con `excludeTyped` de `parseSearch`; panel: en el título o la dirección del
+  evento, el nombre de la etiqueta o del perfil, con `excludeIn` y `excludedIn` de
+  `searchQuery.js`). Solo exclusiones: todo lo demás (regla 8).
 - **`-palabra` y `-#etiqueta` no son lo mismo**: `-online` saca todo lo que diga «online» en
   cualquier lado (también un texto que diga «esto no es online»); `-#online` saca solo lo que tiene
   esa etiqueta. Casi siempre se quiere lo segundo.
@@ -276,16 +291,18 @@ dice lo mismo). Para cambiar un texto de la guía, cambialo ahí y cambia en las
 ninguna línea en los archivos que las muestran (lo chequean `src/lib/utils/searchGuide.test.js` y
 `src/lib/components/SearchPalette.dom.test.js`).
 
-| Texto                                                             | Dónde vive                                                                                                                                                                         | Sale en  |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| Cada operador: cómo se escribe, ejemplo y qué hace                | `OPERATORS` (`example`, `help`; `helpFor` para otra explicación o sacarlo de una guía)                                                                                             | las tres |
-| Frases, exclusiones y palabras de fecha (`"…"`, `-`, `hoy · …`)   | `HELP_ROWS` con `engines` de los tres y `place: 'before'` (`SEARCH_BASICS`)                                                                                                        | las tres |
-| La pestaña (`e:fiesta puerta`) y `>tema`                          | `HELP_ROWS` con `engines: ['panel']` y `place: 'after'`                                                                                                                            | panel    |
-| «Escribí palabras sueltas o sumá alguno de estos…»                | `SEARCH_GUIDE_TEXT.sitio.intro`                                                                                                                                                    | sitio    |
-| «Sin tildes ni mayúsculas…», `#shibari finde`, «Tocá un ejemplo…» | `SEARCH_GUIDE_TEXT.panel` (`intro`, `combined`, `outro`)                                                                                                                           | panel    |
-| «Probá #etiqueta, @persona, hoy o "frase".» (paleta vacía)        | `SEARCH_GUIDE_TEXT.panel.teaser`                                                                                                                                                   | panel    |
-| La pista de la acción «Cómo buscar»                               | `SEARCH_GUIDE_TEXT.panel.commandHint`                                                                                                                                              | panel    |
-| «🔎 ¿Cómo buscar? En /buscar y en el modo inline…»                | «Texto del bot» `sitio.como_buscar` en `src/lib/utils/botTexts.js` (editable desde el panel; su muestra de `{lista}` es una copia de la línea de `evento:`, chequeada por el test) | bot      |
+| Texto                                                                  | Dónde vive                                                                                                                                                                                                                                                                                                                | Sale en      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Cada operador: cómo se escribe, ejemplo y qué hace                     | `OPERATORS` (`example`, `help`; `helpFor` para otra explicación o sacarlo de una guía)                                                                                                                                                                                                                                    | las tres     |
+| Frases, exclusiones y palabras de fecha (`"…"`, `-`, `hoy · …`)        | `HELP_ROWS` con `engines` de los tres y `place: 'before'` (`SEARCH_BASICS`)                                                                                                                                                                                                                                               | las tres     |
+| La pestaña (`e:fiesta puerta`) y `>tema`                               | `HELP_ROWS` con `engines: ['panel']` y `place: 'after'`                                                                                                                                                                                                                                                                   | panel        |
+| El título «¿Cómo buscar?» (sitio y panel)                              | `SEARCH_GUIDE_TEXT.title`                                                                                                                                                                                                                                                                                                 | sitio, panel |
+| Qué cubre el buscador: «materiales, perfiles, eventos y la Kinkipedia» | `SEARCH_SCOPE` en `src/lib/utils/searchScope.js` (también `SEARCH_GUIDE_TEXT.scope`); desde la Kinkipedia, `SEARCH_SCOPE_BEYOND_WIKI`. Lo usan el placeholder y la línea de la paleta vacía del sitio y la Kinkipedia sin resultados; el bot tiene su copia en `inicio.ayuda` y `comandos.buscar` (chequeada por el test) | sitio, bot   |
+| «Escribí palabras sueltas o sumá alguno de estos…»                     | `SEARCH_GUIDE_TEXT.sitio.intro`                                                                                                                                                                                                                                                                                           | sitio        |
+| «Sin tildes ni mayúsculas…», `#shibari finde`, «Tocá un ejemplo…»      | `SEARCH_GUIDE_TEXT.panel` (`intro`, `combined`, `outro`)                                                                                                                                                                                                                                                                  | panel        |
+| «Probá #etiqueta, @nombre, hoy o "frase".» (paleta vacía)              | `SEARCH_GUIDE_TEXT.panel.teaser`                                                                                                                                                                                                                                                                                          | panel        |
+| La pista de la acción «Cómo buscar»                                    | `SEARCH_GUIDE_TEXT.panel.commandHint`                                                                                                                                                                                                                                                                                     | panel        |
+| «🔎 ¿Cómo buscar? En /buscar y en el modo inline…»                     | «Texto del bot» `sitio.como_buscar` en `src/lib/utils/botTexts.js` (editable desde el panel; su muestra de `{lista}` es una copia de la línea de `evento:`, chequeada por el test)                                                                                                                                        | bot          |
 
 Quién muestra cada guía (solo arma, no escribe textos):
 
@@ -296,7 +313,8 @@ Quién muestra cada guía (solo arma, no escribe textos):
 - **Panel**: `src/lib/components/admin/panel/SearchBox.svelte` (`SEARCH_TIPS` de
   `src/lib/admin/paletteActions.js`, que es `searchHelp('panel')`, y `SEARCH_GUIDE_TEXT.panel`).
 
-Lo que queda escrito en cada archivo son los títulos y botones («¿Cómo buscar?» del sitio, «Cómo
-buscar» del panel, «🔎 Cómo buscar» del bot en `inicio.boton_como_buscar`): son de su pantalla,
-no explican la sintaxis. El encabezado del bot sigue en `botTexts.js` porque se edita desde el
+Lo que queda escrito en cada archivo son los botones que abren la guía («¿Cómo buscar?» del
+sitio, «Cómo buscar» del panel, «🔎 Cómo buscar» del bot en `inicio.boton_como_buscar`): son de
+su pantalla, no explican la sintaxis. El título de la guía es «¿Cómo buscar?» en las tres (en el
+bot, con 🔎 adelante). El encabezado del bot sigue en `botTexts.js` porque se edita desde el
 panel; si cambiás una de las frases de `SEARCH_GUIDE_TEXT`, mirá esa también (y al revés).

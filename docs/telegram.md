@@ -50,7 +50,10 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
     ayuda) e «🏠 Inicio». El encabezado es «Textos del bot» `sitio.como_buscar`; la lista no se
     escribe a mano: sumar un operador al registro lo suma acá. Las líneas son las mismas que las
     de la guía del sitio y del panel (una sola fuente, `searchSyntax.js`; ver «Dónde vive cada
-    texto de la guía» en [buscar.md](buscar.md)).
+    texto de la guía» en [buscar.md](buscar.md)). Las exclusiones andan como en el sitio: solo
+    exclusiones (`-bondage`) muestra todo lo demás, y `-evento:latex` saca solo los eventos que
+    dicen «latex» (en el modo inline y en `/buscar`; `splitTypes` deja el `-evento:` en el texto
+    y lo saca `find`).
   - «🔎 Buscar» manda un mensaje nuevo que abre «responder» (`force_reply`, Bot API 10.3) con
     «Cancelar»; la respuesta trae los resultados. `/buscar <texto>` los trae directo (también en
     grupos; en un grupo, `/buscar` solo explica `/buscar cuerdas`).
@@ -506,8 +509,8 @@ salen lo que entiende el router y lo que se registra (un test, `commands.test.js
 coincidan).
 
 - **Para todes** (alcance `default`): `/inicio` (primero), `/proximos`, `/hoy`, `/semana`,
-  `/finde`, `/evento`, `/buscar` («Buscá en todo el sitio: eventos, material, Kinkipedia y
-  amigues»), `/fondo`, `/ayuda`.
+  `/finde`, `/evento`, `/buscar` («Buscá en todo el sitio: materiales, perfiles, eventos y
+  la Kinkipedia», copia de `SEARCH_SCOPE` de `searchScope.js`), `/fondo`, `/ayuda`.
 - **En grupos** (alcance `all_group_chats`): los mismos, **efímeros** (`is_ephemeral`).
 - **En chats privados** (alcance `all_private_chats`): esos y, solo con «Lo que sigo» prendido,
   `/vincular`, `/sigo`, `/entradas`, `/silenciar`, `/reanudar`, `/desvincular`.
@@ -977,6 +980,19 @@ a Actividad. Una vez por hora como mucho, nunca traba un cambio y si Telegram fa
 cambio reintenta. Detalle en [conector-claude.md](conector-claude.md#cambios)
 (`src/lib/server/mcp/avisoCambios.js`).
 
+**Fallas del sitio** (`fallas_sitio`, letra `s`; gorrite, 3/11: si algo falla de noche, el aviso va
+por este bot): sale cuando en la última hora el sitio dio 10 o más errores 5xx («⚠️ El sitio dio 12
+errores en la última hora.») o 2 o más en las páginas de compra («🛒 Puede que haya fallado una
+compra: 2 errores en la última hora en las páginas de compra.»), con una línea por ruta y estado
+(el patrón de la ruta, como `/api/mercadopago/webhook`, cuántos y el último código para buscar en
+los registros), una vez por hora como mucho; y cuando una tarea programada no termina bien en su
+plazo («⏰ La tarea programada «Todas las noches: backup de la base» no termina bien desde hace 27
+horas.»), una vez cada 6 horas como mucho. Sin botón: no hay pantalla del panel para esto. Nunca
+datos de quien compra, queries ni mensajes de error. Nunca traba un pedido; si Telegram falla, el
+próximo error (o la próxima vuelta de la vigilancia) reintenta. Detalle en
+[workers-migracion.md](workers-migracion.md#avisos-de-fallas-por-telegram)
+(`src/lib/server/vigilancia/`).
+
 **Aviso al vincular un Telegram de admin** (`notifyAdminLinked` / `queueAdminLinkedNotice`, lo
 engancha la ruta del webhook con `onLinked` de `botAdminLink`): cuando une admin vincula un
 Telegram desde Ajustes → Admins → «Vincular Telegram», les otres admins con Telegram vinculado que
@@ -1048,6 +1064,9 @@ DO NOTHING`: dos fallas a la vez no mandan dos avisos. Las ventanas son fijas (:
    (una compra de prueba, o esperar al cron de las 9).
 5. PR 3 (sin migración): prender «Día del evento» o «Recordatorios» en «🔔 Mis avisos» y probar en
    un preview con un evento de prueba para mañana o para hoy (a las 9, o con el cron a mano).
+6. «Fallas del sitio»: **aplicar la migración `0074_vigilancia.sql` en producción y en preview antes
+   de mergear** (0028; solo crea dos tablas). Después, prenderlo en «🔔 Mis avisos». Ver
+   [workers-migracion.md](workers-migracion.md#avisos-de-fallas-por-telegram).
 
 ## Estadísticas de uso (0045)
 

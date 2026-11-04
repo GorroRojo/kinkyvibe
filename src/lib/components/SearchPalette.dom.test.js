@@ -38,6 +38,7 @@ describe('SearchPalette: «¿Cómo buscar?»', () => {
 		await fireEvent.click(toggle);
 		await waitFor(() => expect(container.querySelector('.help')).not.toBeNull());
 		const help = /** @type {HTMLElement} */ (container.querySelector('.help'));
+		expect(help.querySelector('h3')?.textContent?.trim()).toBe(SEARCH_GUIDE_TEXT.title);
 		expect(help.querySelector('p')?.textContent?.trim()).toBe(SEARCH_GUIDE_TEXT.sitio.intro);
 		const rows = [...help.querySelectorAll('.help-row')].map((row) => {
 			const example = row.querySelector('button.example')?.textContent?.trim() ?? '';

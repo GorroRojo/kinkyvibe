@@ -34,20 +34,20 @@ import {
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 /**
- * Los eventos que tienen un lugar vinculado (edge `lugar` hacia un lugar sin borrar), en una
- * consulta para todos. Sin base o con un error, ninguno (el filtro «Online con lugar» mira solo
- * el texto libre).
+ * Los eventos que tienen un lugar vinculado (edge `lugar` hacia un lugar sin borrar), con el
+ * nombre del lugar, en una consulta para todos. Sin base o con un error, ninguno (el filtro
+ * «Online con lugar» mira solo el texto libre y la lista muestra el «Dónde» en texto libre).
  * @param {D1Database | null | undefined} db
- * @returns {Promise<Set<string>>}
+ * @returns {Promise<Map<string, string>>} dirección del evento → nombre del lugar
  */
 async function eventsWithVenue(db) {
-	if (!db) return new Set();
+	if (!db) return new Map();
 	try {
 		const links = await listEventVenues(db);
-		return new Set(links.filter((l) => !l.venueDeleted).map((l) => l.eventSlug));
+		return new Map(links.filter((l) => !l.venueDeleted).map((l) => [l.eventSlug, l.venueTitle]));
 	} catch (error) {
 		logDBError('lugares de los eventos para la lista del panel', error);
-		return new Set();
+		return new Map();
 	}
 }
 
@@ -81,6 +81,8 @@ export async function panelEventRows(db) {
 			status: e.status,
 			locationName: e.locationName,
 			location: e.location,
+			// El lugar vinculado manda sobre el texto libre al mostrar el «Dónde» (como la página).
+			venueName: withVenue.get(e.slug) ?? '',
 			place: e.place,
 			unlisted: e.unlisted,
 			unpublished: e.unpublished,

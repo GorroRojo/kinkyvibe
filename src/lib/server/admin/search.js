@@ -26,10 +26,12 @@ import { normalizeEmail, personId } from '$lib/server/admin/people.js';
 import {
 	allowsKind,
 	eventInWhen,
+	excludedIn,
 	foldQuery,
 	foldedRank,
 	hasRecordCriteria,
 	matchTerms,
+	onlyExclusions,
 	parseSearchQuery
 } from '$lib/utils/searchQuery.js';
 import { QUERY_MAX } from '$lib/utils/searchSyntax.js';
@@ -190,6 +192,7 @@ export function searchEvents(events, q, { limit = 6, ticketed = new Set(), tags 
 			if (!wanted.every((names) => own.some((t) => names.has(t)))) continue;
 			if (unwanted.some((names) => own.some((t) => names.has(t)))) continue;
 		}
+		if (excludedIn(pq, 'events', e.title, e.slug, e.slug.replace(/-/g, ' '))) continue;
 		const rank = matchTerms(pq, e.title, e.slug, e.slug.replace(/-/g, ' '));
 		if (rank === -1) continue;
 		const exact =
@@ -281,7 +284,9 @@ export function searchTags(tags, q, { limit = 5 } = {}) {
 	const pq = asQuery(q);
 	if (!allowsKind(pq, 'tags')) return [];
 	const f = pq.tags.length ? pq.tags[0] : [...pq.words, ...pq.phrases].join(' ');
-	if (f.length < MIN_QUERY && !(pq.tags.length && f)) return [];
+	// Solo exclusiones (`-bondage`): todas las demás.
+	const everythingElse = onlyExclusions(pq);
+	if (f.length < MIN_QUERY && !(pq.tags.length && f) && !everythingElse) return [];
 	const byId = new Map(tags.filter((t) => t?.id).map((t) => [t.id, t]));
 	/** @type {Map<string, { t: (typeof tags)[number], rank: number, alias: string }>} */
 	const found = new Map();
@@ -306,9 +311,12 @@ export function searchTags(tags, q, { limit = 5 } = {}) {
 			if (r !== -1) add(t, r, aka);
 		}
 	}
-	// `-palabra` también vale para las etiquetas.
+	// `-palabra` también vale para las etiquetas, y `-#etiqueta` saca esa.
 	const shown = [...found.values()].filter(
-		({ t }) => !pq.exclude.some((x) => [t.id, t.visible_name].some((n) => foldText(n).includes(x)))
+		({ t }) =>
+			!pq.exclude.some((x) => [t.id, t.visible_name].some((n) => foldText(n).includes(x))) &&
+			!pq.excludeTags.some((x) => [t.id, t.visible_name].some((n) => foldText(n) === x)) &&
+			!excludedIn(pq, 'tags', t.id, t.visible_name)
 	);
 	return shown
 		.sort((a, b) => a.rank - b.rank || String(a.t.id).localeCompare(String(b.t.id)))
@@ -383,6 +391,8 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 	// El filtro flojo de la base, con el pedazo más largo (los demás se comparan acá).
 	const longest = terms.reduce((a, b) => (b.length > a.length ? b : a), '');
 	const hasTerms = longest.length > 0;
+	// Solo exclusiones (`-bondage`): todo lo demás (con `like` = `%%`, la base trae todo).
+	const everythingElse = onlyExclusions(pq);
 	const like = looseLike(longest);
 	const query = pq.text.slice(0, MAX_QUERY);
 	const idPrefix = orderIdPrefix(query);
@@ -396,7 +406,8 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 		pq.exclude.length > 0 &&
 		fields.map(foldText).some((v) => pq.exclude.some((x) => v.includes(x)));
 	/** @param {import('$lib/utils/searchQuery.js').SearchKind} kind @param {boolean} [needsTerms] */
-	const wants = (kind, needsTerms = true) => allowsKind(pq, kind) && (hasTerms || !needsTerms);
+	const wants = (kind, needsTerms = true) =>
+		allowsKind(pq, kind) && (hasTerms || everythingElse || !needsTerms);
 	const status = pq.status ?? '';
 
 	const [orders, tickets, codes, people, profiles] = await Promise.all([
@@ -549,6 +560,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				.all();
 			const found = [];
 			for (const r of results) {
+				if (excludedIn(pq, 'profiles', r.title)) continue;
 				const rank = matchTerms(pq, r.title);
 				if (rank !== -1) found.push({ r, rank });
 			}

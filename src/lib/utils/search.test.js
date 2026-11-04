@@ -9,6 +9,7 @@ import {
 	queryTerms,
 	prepareIndex,
 	search,
+	find,
 	groupHits,
 	highlight,
 	snippet,
@@ -118,6 +119,62 @@ const raw = {
 		{ c: 'wiki', h: '/wiki/shibari', t: 'shibari', g: ['shibari'], k: ['kinbaku'] }
 	]
 };
+
+describe('find: exclusiones (docs/buscar.md, «Cómo se lee lo que se escribe»)', () => {
+	const index = prepareIndex({
+		v: 1,
+		tags: { latex: [] },
+		docs: [
+			{
+				c: 'calendario',
+				h: '/calendario/fiesta-latex',
+				t: 'Fiesta latex',
+				d: '2099-01-01T20:00:00Z'
+			},
+			{
+				c: 'calendario',
+				h: '/calendario/fiesta-cuero',
+				t: 'Fiesta de cuero',
+				d: '2099-02-01T20:00:00Z'
+			},
+			{ c: 'material', h: '/material/fiesta-latex', t: 'Cuidar el latex en la fiesta' },
+			{ c: 'amigues', h: '/amigues/fiesta-latex', t: 'Fiesta Latex (colectivo)' },
+			{ c: 'wiki', h: '/wiki/bondage', t: 'Bondage', s: 'Atar a alguien' }
+		]
+	});
+	/** @param {string} q */
+	const hrefs = (q) =>
+		find(index, q)
+			.map((h) => h.doc.h)
+			.sort();
+
+	it('solo exclusiones: muestra todo lo demás', () => {
+		expect(hrefs('-bondage')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/calendario/fiesta-latex',
+			'/material/fiesta-latex'
+		]);
+		expect(hrefs('-latex -bondage')).toEqual(['/calendario/fiesta-cuero']);
+	});
+
+	it('-evento:latex saca solo los eventos con «latex»; lo demás sigue', () => {
+		expect(hrefs('fiesta -evento:latex')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/material/fiesta-latex'
+		]);
+		// Solo, también muestra todo lo demás.
+		expect(hrefs('-evento:latex')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/material/fiesta-latex',
+			'/wiki/bondage'
+		]);
+		// Sin valor, saca todos los eventos.
+		expect(hrefs('fiesta -evento:')).toEqual(['/amigues/fiesta-latex', '/material/fiesta-latex']);
+	});
+});
 
 describe('search', () => {
 	const index = prepareIndex(raw);

@@ -39,6 +39,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [ui-impacto.md](ui-impacto.md)                 | Informe de impacto visual: capturas de las páginas principales antes y después de un cambio, comparadas             |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
+| [operacion.md](operacion.md)                   | Manual de operación: qué corre dónde, accesos, avisos, qué hacer si algo se rompe y antes de una venta grande       |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |
 | [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0051, cada una con su línea en su índice): leelo antes de cambiar un área |
 

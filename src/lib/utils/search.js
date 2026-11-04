@@ -554,6 +554,10 @@ export function findParsed(index, pq, now = Date.now()) {
 	const meaningfulWords = words.filter((w) => !STOPWORDS.has(w));
 	const asks = meaningfulWords.length > 0 || checks.length > (typesOnlyExclude ? 1 : 0);
 	for (const x of pq.exclude) checks.push((_, i) => !hasWords(docText(index, i), x));
+	// `-evento:latex`: saca solo lo de ese tipo que dice eso.
+	for (const { types: of, value } of pq.excludeTyped) {
+		checks.push((d, i) => !(of.includes(d.c) && hasWords(docText(index, i), value)));
+	}
 	for (const name of pq.excludeTags) {
 		const ids = new Set(tagsNamed(index, name));
 		if (ids.size) checks.push((d) => !hasTagIn(index, d, ids));

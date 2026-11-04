@@ -16,7 +16,8 @@
  * por persona de las estadísticas de uso del bot de más de 180 días (ver
  * $lib/server/telegram/uso.js) y avisa por IndexNow las páginas públicas que cambiaron (ver
  * $lib/server/seo/indexnow.js) y borra los avisos de puerta vencidos y avisa por mail a la casilla
- * de la organización los que vencen pronto (ver $lib/server/tickets/doorNotices.js). Lo llama cada
+ * de la organización los que vencen pronto (ver $lib/server/tickets/doorNotices.js) y mira que las
+ * otras tareas programadas anden (ver $lib/server/vigilancia/avisos.js). Lo llama cada
  * 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
@@ -48,6 +49,7 @@ import { isFlagOn, listaEsperaEnabled } from '$lib/server/flags.js';
 import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
 import { checkWebhookHealth } from '$lib/server/telegram/webhookHealth.js';
+import { runCronWatch } from '$lib/server/vigilancia/avisos.js';
 import {
 	notifyMailQuota,
 	runAdminEventDayCron,
@@ -236,9 +238,13 @@ export async function POST({ request, platform, url, fetch }) {
 			enabled: () => isFlagOn(db, 'telegram_bot'),
 			fetch
 		});
+		// La vigilancia de las tareas programadas (src/lib/server/vigilancia/avisos.js): este cron
+		// vigila al de cada hora (y los dos, a los de todos los días). Nunca tira.
+		const cronWatch = await runCronWatch({ db, token: env.TELEGRAM_BOT_TOKEN, fetch });
 		return json(
 			{
 				...r,
+				...(cronWatch ? { cronWatch } : {}),
 				...(mailsOff || ticketsOff ? { paused: { tickets: ticketsOff, mails: mailsOff } } : {}),
 				...(waitlist ? { waitlistAdvance: waitlist } : {}),
 				...(reconciled ? { reconciled } : {}),

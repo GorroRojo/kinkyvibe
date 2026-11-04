@@ -114,3 +114,40 @@ export function totalCapacity(capacities) {
 	}
 	return total;
 }
+
+/**
+ * @typedef {{ title: string, area?: string | null, city?: string | null }} PanelVenue
+ *   El lugar vinculado de un evento («Sucede en», edge `lugar`) como lo ve el panel: les admins
+ *   ven todo, así que va el nombre aunque la página pública lo oculte.
+ */
+
+/**
+ * El lugar vinculado en pocas palabras para el panel: el nombre y el barrio (o, sin barrio, la
+ * ciudad). «Pink Pony, San Telmo».
+ * @param {PanelVenue} venue
+ */
+export function panelVenueText(venue) {
+	const name = String(venue.title ?? '').trim();
+	const where = String(venue.area ?? '').trim() || String(venue.city ?? '').trim();
+	return [name, where && where.toLowerCase() !== name.toLowerCase() ? where : '']
+		.filter(Boolean)
+		.join(', ');
+}
+
+/**
+ * El «Dónde» de un evento en el panel, con la regla de la página pública (eventPlace.js): un
+ * lugar vinculado manda sobre el texto libre del «Dónde» (`location_name` / `location`, que puede
+ * haber quedado de antes de vincularlo). Sin lugar, el texto libre: «Nombre, Dirección» (la
+ * dirección solo si no es igual al nombre). '' sin nada.
+ * @param {{ locationName?: string | null, location?: string | null }} event
+ * @param {PanelVenue | null | undefined} [venue]
+ */
+export function panelPlaceText(event, venue) {
+	if (venue) {
+		const text = panelVenueText(venue);
+		if (text) return text;
+	}
+	const name = String(event.locationName ?? '').trim();
+	const address = String(event.location ?? '').trim();
+	return [name, address && address !== name ? address : ''].filter(Boolean).join(', ');
+}

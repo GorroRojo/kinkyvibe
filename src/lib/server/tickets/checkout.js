@@ -75,6 +75,7 @@ import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 import { reportPurchaseFailure } from '$lib/server/telegram/purchaseAlerts.js';
 import { unconfirmedMailAllowed } from '$lib/server/email/suppressions.js';
 import { ticketsPausedMessage } from '$lib/server/emergencia.js';
+import { markFailure } from '$lib/server/errorLog.js';
 
 /**
  * Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver).
@@ -655,9 +656,16 @@ export async function discountAction(event) {
 	const { params, platform, request } = event;
 	const db = getDB(platform);
 	const values = readForm(await request.formData());
-	/** @param {number} status @param {string} message */
-	const failWith = (status, message) =>
-		fail(status, { buy: { error: null, errors: { code: message }, values, discount: null } });
+	/**
+	 * Un 5xx cuenta para el aviso «Fallas del sitio» (markFailure: con JavaScript llega como 200).
+	 * @param {number} status @param {string} message
+	 */
+	const failWith = (status, message) => {
+		markFailure(event, status);
+		return fail(status, {
+			buy: { error: null, errors: { code: message }, values, discount: null }
+		});
+	};
 	if (!db) return failWith(503, 'No se pueden validar códigos ahora.');
 	if (!values.code) return failWith(400, 'Escribí el código.');
 	const config = await getEventTickets(params.event);
@@ -792,8 +800,10 @@ export async function buyAction(event) {
 	 */
 	let currentTier;
 	/** @param {number} status @param {string} error @param {Record<string, string>} [errors] */
-	const failWith = (status, error, errors = {}) =>
-		fail(status, {
+	const failWith = (status, error, errors = {}) => {
+		// Un 5xx cuenta para el aviso «Fallas del sitio» (con JavaScript, el `fail` llega como 200).
+		markFailure(event, status);
+		return fail(status, {
 			buy: {
 				error,
 				errors,
@@ -803,13 +813,19 @@ export async function buyAction(event) {
 				...(currentTier !== undefined && { tier: currentTier })
 			}
 		});
+	};
 
 	if (!db) return failWith(503, 'La venta de entradas no está disponible ahora.');
 	// Pausa de emergencia (TICKETS_PAUSED): no se crea ninguna orden (Mercado Pago, transferencia
 	// ni gratis), antes de tocar la base. Lo que ya está en curso (pagos, puerta, carga a mano)
 	// no pasa por acá.
 	const paused = ticketsPausedMessage();
-	if (paused) return failWith(503, paused);
+	if (paused) {
+		const response = failWith(503, paused);
+		// Pausada a propósito: no es una falla para avisar.
+		markFailure(event, 0);
+		return response;
+	}
 	// DEV ONLY: las pruebas E2E compran todo desde la misma conexión (localhost).
 	const relaxed = dev && env.TICKETS_DEV_RELAX_LIMITS === '1';
 	const client = relaxed ? `dev-${crypto.randomUUID()}` : await clientHash(clientAddress(event));

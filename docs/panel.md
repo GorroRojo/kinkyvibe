@@ -98,6 +98,14 @@ de confiabilidad, O36). Ajustes **no lleva pestañas** (ni la lista ▾ del celu
   del encabezado bajan debajo de las pestañas, más chicas: Editar y «⋯ Acciones» (Ver página,
   Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»). Desde
   el 12/10 `menu` es lo de siempre en `Tabs`: una barra nueva también pasa a la lista (gorrite).
+- **El «Dónde» de un evento en el panel**: un lugar vinculado («Sucede en») manda sobre el
+  «Dónde» en texto libre que pudo quedar de antes, como en la página pública (`eventPlace.js`).
+  Les admins ven todo: va el nombre del lugar y su barrio (o su ciudad) aunque la página lo
+  oculte (`panelPlaceText` en `$lib/admin/eventFormat.js`). Así en el encabezado de la ficha
+  (`panelVenueRow`, en el load del layout), en los próximos eventos y el bloque de ventas del
+  Inicio (`eventVenuesQuery`, en la segunda tanda) y en la lista de Eventos (nombre del lugar,
+  con la misma consulta de `listEventVenues`; también en la búsqueda y en la columna «lugar» del
+  CSV). La agenda (su planilla edita el texto libre) y `/admin/checkin` siguen con el texto libre.
 - **Más ágil**: mientras SvelteKit trae la página siguiente (`$navigating`) hay una barrita de 3
   px arriba de todo (aparece después de 120 ms, así lo rápido no parpadea; quieta con movimiento
   reducido) y el link o botón que se tocó queda «cargando» (`data-pending` y `aria-busy`, estilo
@@ -690,6 +698,11 @@ el sitio y el bot (`parseSearch`, `searchSyntax.js`); la sintaxis entera está e
 - Las palabras que nombran un tipo (`evento`, `taller`…) son texto en el panel (en el sitio y el
   bot suben ese tipo). Solo cuenta la primera palabra de fecha suelta.
 - Largo máximo: 100 caracteres, como en el sitio y el bot.
+- Exclusiones, como en el sitio y el bot ([buscar.md](buscar.md), «Cómo se lee lo que se
+  escribe»): solo exclusiones (`-bondage`) muestra todo lo demás, cada grupo con sus primeros
+  (`onlyExclusions`); `-evento:latex` saca solo los eventos con «latex» en el título o la dirección
+  (`excludeIn`/`excludedIn`), y `-amigues:x` o `-wiki:x` lo mismo con perfiles y etiquetas;
+  `-evento:` solo saca el grupo de eventos, como `-tipo:`.
 - Para la base, el filtro flojo (`looseLike`) usa la palabra o frase más larga; las demás y las
   excluidas se comparan en JS (`matchTerms`).
 - **Ayuda**: con la paleta vacía hay una línea con ejemplos; «Cómo buscar» (al pie de la paleta,
