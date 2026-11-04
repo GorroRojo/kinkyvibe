@@ -21,6 +21,7 @@
 	} from '$lib/components/ui';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import { CAJA, CAJA_LABEL, computeAccount, fondoLine } from '$lib/admin/reparto.js';
+	import { fmtDateTime } from '$lib/admin/format.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 
 	/** @type {import('./$types').PageData} */
@@ -157,14 +158,11 @@
 		return submit(/** @type {any} */ ({}));
 	};
 
-	/** @param {number} ms */
-	const when = (ms) =>
-		new Intl.DateTimeFormat('es-AR', {
-			dateStyle: 'short',
-			timeStyle: 'short',
-			timeZone: 'America/Argentina/Buenos_Aires'
-		}).format(new Date(ms));
+	const when = fmtDateTime;
 
+	$: cajaNote = result.feesToCaja
+		? ` (con ${formatARS(result.feesToCaja)} de contrataciones que se dejaron en la caja)`
+		: '';
 	$: payload = JSON.stringify(account);
 	// Hay algo sin guardar si lo de la página no es lo que vino de la base.
 	$: dirty = payload !== savedPayload;
@@ -745,10 +743,7 @@
 				>
 			{/if}
 			<p class="total-line">
-				<span
-					>{CAJA_LABEL}{#if result.feesToCaja}
-						(con {formatARS(result.feesToCaja)} de contrataciones que se dejaron en la caja){/if}</span
-				>
+				<span>{CAJA_LABEL}{cajaNote}</span>
 				<strong class="num">{formatARS(result.caja)}</strong>
 			</p>
 			<div class="row">
@@ -915,7 +910,7 @@
 	/* Cada renglón: concepto (y sacar) arriba; monto, quién y cuándo abajo. */
 	.line {
 		display: grid;
-		grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+		grid-template-columns: minmax(6.5rem, 2fr) minmax(0, 3fr) auto;
 		grid-template-areas: 'concept concept del' 'amount who who';
 		align-items: center;
 		gap: var(--space-3xs);
