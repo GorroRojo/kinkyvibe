@@ -28,6 +28,7 @@ import { answersStatement } from './signupFields.js';
 import { markPurchasedStatement } from './waitlist.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
 import { MP_FEE_ESTIMATED_SQL, MP_FEE_SQL, REVENUE_SQL } from '$lib/utils/salesGoal.js';
+import { foldText } from '$lib/utils/text.js';
 
 // El código corto se normaliza también en el navegador (modo puerta sin conexión).
 export { TICKET_CODE_LENGTH, normalizeTicketCode };
@@ -1340,19 +1341,8 @@ export async function listOrders(db, eventSlug) {
 	return /** @type {(Order & { checked_in: number })[]} */ (results);
 }
 
-/**
- * Texto para comparar sin distinguir mayúsculas ni tildes ("Ñandú José" → "nandu jose").
- *
- * @param {unknown} value
- */
-export function foldText(value) {
-	return String(value ?? '')
-		.normalize('NFD')
-		.replace(/\p{Diacritic}/gu, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
-}
+/** Texto para comparar sin distinguir mayúsculas ni tildes: la receta única de $lib/utils/text.js. */
+export { foldText };
 
 /** @typedef {'code' | 'holder' | 'pronouns' | 'buyer' | 'email' | 'dni'} SearchField */
 

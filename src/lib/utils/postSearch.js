@@ -2,15 +2,10 @@
  * Pure helpers for the PostList search (tag picker + free text).
  * Kept free of Svelte/SvelteKit imports so they can be unit tested.
  */
+import { foldText as normalizeText } from './text.js';
 
-/**
- * Lowercases and strips diacritics so "Córdoba" matches "cordoba".
- * @param {*} s
- * @returns {string}
- */
-export function normalizeText(s) {
-	return (s ?? '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-}
+/** Lowercases and strips diacritics so "Córdoba" matches "cordoba" (foldText in text.js). */
+export { normalizeText };
 
 /**
  * Resolves an alias (or unknown id) to its canonical tag id.
