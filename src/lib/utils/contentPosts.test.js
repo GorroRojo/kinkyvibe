@@ -1,3 +1,4 @@
+import { SUBTITLES_PROBLEM } from './videoExtras.js';
 import { describe, it, expect } from 'vitest';
 import {
 	buildContentMarkdown,
@@ -272,6 +273,28 @@ describe('contentProblemItems', () => {
 		expect(contentProblemItems('amigues', f).find((p) => p.text.includes('mail'))?.field).toBe(
 			'email-input'
 		);
+	});
+});
+
+describe('material: transcripción y subtítulos del video', () => {
+	it('la transcripción guarda sus saltos de línea y vuelve igual', () => {
+		const initial = readContentForm('material', MATERIAL);
+		const f = structuredClone(initial);
+		f.values.transcript = 'Primera línea.\r\nSegunda línea.\n\nOtro párrafo.';
+		const out = buildContentMarkdown('material', MATERIAL, initial, f);
+		expect(readContentForm('material', out).values.transcript).toBe(
+			'Primera línea.\nSegunda línea.\n\nOtro párrafo.'
+		);
+	});
+
+	it('unos subtítulos que no son un .vtt de la biblioteca no se guardan', () => {
+		const f = readContentForm('material', MATERIAL);
+		f.values.subtitles = 'https://otro.sitio/subtitulos.vtt';
+		expect(contentProblemItems('material', f)).toEqual([
+			{ text: SUBTITLES_PROBLEM, field: 'subtitles-input' }
+		]);
+		f.values.subtitles = `/media/file/${'a'.repeat(64)}.vtt`;
+		expect(contentProblemItems('material', f)).toEqual([]);
 	});
 });
 

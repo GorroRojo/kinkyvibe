@@ -69,8 +69,8 @@
 		{ label: 'pronombres', key: 'pronouns' },
 		{ label: 'email', key: 'email' },
 		{ label: 'codigo', value: (r) => r.discountCode ?? '' },
-		{ label: 'pedida', value: (r) => new Date(r.createdAt).toISOString() },
-		{ label: 'vence', value: (r) => new Date(r.expiresAt).toISOString() },
+		{ label: 'pedida', value: (r) => new Date(r.createdAt) },
+		{ label: 'vence', value: (r) => new Date(r.expiresAt) },
 		{
 			label: 'estado',
 			value: (r) =>
@@ -268,11 +268,18 @@
 											cancelLabel: 'Volver',
 											tone: 'danger'
 										});
-										if (!ok) cancel();
+										if (!ok) return cancel();
+										busy = o.id;
+										return async ({ update }) => {
+											await update();
+											busy = null;
+										};
 									}}
 								>
 									<input type="hidden" name="order" value={o.id} />
-									<button class="kv-btn ghost" type="submit">Cancelar</button>
+									<button class="kv-btn ghost" type="submit" disabled={busy === o.id}
+										>Cancelar</button
+									>
 								</form>
 							</div>{/if}
 					</li>

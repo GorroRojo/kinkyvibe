@@ -19,7 +19,10 @@
  *   (`linkedVenues` en src/lib/server/amigues/venues.js, que decide igual que la página del
  *   evento). De cada uno, lo que muestra su página: nombre, descripción, etiquetas y, según su
  *   nivel (`venuePageLevel`), barrio y ciudad. **Nunca la calle y número** ni «cómo llegar» o
- *   «accesibilidad»; tampoco en qué eventos está. El «Dónde» de los eventos tampoco entra;
+ *   «accesibilidad»; tampoco en qué eventos está;
+ * - de cada evento, su lugar como lo muestra su página (`eventPlace`, lo arma quien llama): el
+ *   nombre, el barrio y la ciudad del lugar vinculado según su nivel, o el nombre del «Dónde».
+ *   **Nunca la calle** (para `lugar:` y para encontrar un evento por su lugar, docs/buscar.md);
  * - la Kinkipedia: las entradas de la wiki y las etiquetas con descripción u otros nombres, con
  *   sus alias (los de la base vienen como `{ id, aliasOf }`, no como `aka`);
  * - las series: cada etiqueta que es serie, con su ícono, aunque no tenga
@@ -153,12 +156,14 @@ export function venueAreaText(o) {
  *     list: readonly IndexProfile[],
  *     imported: ReadonlySet<string>,
  *     linkedVenues?: readonly IndexProfile[]
- *   } | null
+ *   } | null,
+ *   eventPlace?: (meta: Record<string, any>) => string
  * }} IndexInput
  * `posts`: lo listado del sitio (`sitePosts`: eventos, material y fichas .md); `wikiPosts`: las
  * entradas de la wiki; `body`: el markdown de un post (de la base o del .md); `profiles`: los
  * perfiles de la base (`null` sin base: las fichas .md), con los lugares no listados a los que
- * lleva el link de un evento del índice (`linkedVenues`).
+ * lleva el link de un evento del índice (`linkedVenues`); `eventPlace`: el lugar público de un
+ * evento (nombre, barrio y ciudad; nunca la calle), sin él los eventos van sin lugar.
  */
 
 /**
@@ -167,7 +172,7 @@ export function venueAreaText(o) {
  * @param {IndexInput} input
  * @returns {Promise<RawSearchIndex>}
  */
-export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles }) {
+export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles, eventPlace }) {
 	/** @type {SearchDoc[]} */
 	const docs = [];
 	/** @type {Set<string>} */
@@ -197,6 +202,7 @@ export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles 
 			a: (meta.authors ?? []).map(str),
 			d: event ? isoDate(meta.start) : undefined,
 			e: event ? isoDate(meta.end) : undefined,
+			l: event && eventPlace ? str(eventPlace(meta)).trim() : undefined,
 			b: plainBody(await body(post), String(meta.category))
 		});
 	}
@@ -301,6 +307,25 @@ export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles 
 		usedTags.add(tag.id);
 	}
 
+	// Las madres de cada etiqueta usada (y las madres de esas), para buscar con el árbol.
+	/** @type {Record<string, string[]>} */
+	const parents = {};
+	const pending = [...usedTags];
+	while (pending.length) {
+		const id = /** @type {string} */ (pending.pop());
+		if (id in parents) continue;
+		const tag = tags.get(id);
+		const ps = (Array.isArray(tag.parents) ? tag.parents.map(String) : []).filter(
+			(p) => p !== 'root' && p !== id && !tags.get(p).orphan
+		);
+		parents[id] = ps;
+		for (const p of ps) {
+			usedTags.add(p);
+			pending.push(p);
+		}
+	}
+	for (const id of Object.keys(parents)) if (!parents[id].length) delete parents[id];
+
 	/** @type {Record<string, string[]>} tag id -> [nombre visible (si difiere), ...alias] */
 	const tagNames = {};
 	for (const id of usedTags) {
@@ -319,5 +344,5 @@ export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles 
 			if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) delete doc[k];
 		}
 	}
-	return { v: INDEX_VERSION, docs, tags: tagNames };
+	return { v: INDEX_VERSION, docs, tags: tagNames, p: parents };
 }

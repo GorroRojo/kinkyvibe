@@ -15,5 +15,6 @@
 </script>
 
 <svelte:head>
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- JSON-LD escapado con jsonForScript -->
 	{@html serializeSchema(schema)}
 </svelte:head>

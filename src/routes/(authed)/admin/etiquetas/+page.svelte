@@ -28,6 +28,7 @@
 	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
 	import { normalizeText } from '$lib/utils/adminTags.js';
 	import { wikiEditHref } from '$lib/admin/nav.js';
+	import { sigoRankingHref } from '$lib/admin/links.js';
 	import { tagSlug } from '$lib/utils/tagSlug.js';
 	import {
 		USAGE_CATEGORIES,
@@ -102,9 +103,17 @@
 	let newAlias = '';
 	let childName = '';
 	// `?etiqueta=<id>` (el buscador del panel): abre el árbol con esa etiqueta elegida.
+	// `?nueva=<nombre>` (Enlaces que faltan): «Nueva etiqueta» con ese nombre ya puesto; se crea
+	// recién con «Crear».
 	onMount(() => {
-		const id = new URL(location.href).searchParams.get('etiqueta');
+		const params = new URL(location.href).searchParams;
+		const id = params.get('etiqueta');
 		if (id && byIdNow().has(id)) selectTag(id);
+		const nueva = (params.get('nueva') ?? '').trim().slice(0, 200);
+		if (nueva && !selected) {
+			childName = nueva;
+			tick().then(() => document.getElementById('nueva-etiqueta-nombre')?.focus());
+		}
 	});
 
 	/** @param {string} id */
@@ -310,6 +319,8 @@
 	subtitle="El árbol de etiquetas del sitio, cuánto se usa cada una y la Kinkipedia. Arrastrá una etiqueta sobre otra para moverla."
 >
 	<svelte:fragment slot="actions">
+		<!-- Lo que los textos enlazan y no existe (plan `enlaces-falta`, docs/enlaces.md). -->
+		<a class="kv-btn ghost" href="/admin/etiquetas/falta">Enlaces que faltan</a>
 		<CsvButton rows={csvRows} columns={csvColumns} filename="etiquetas.csv" />
 	</svelte:fragment>
 </PageHeader>
@@ -412,6 +423,16 @@
 							>sin entrada</Badge
 						>{/if}
 				</div>
+				{#if data.followers}
+					{@const f = data.followers[n.id] ?? 0}
+					<p class="kv-note">
+						{f === 0
+							? 'Ninguna cuenta la sigue'
+							: `${f} ${f === 1 ? 'cuenta la sigue' : 'cuentas la siguen'}`}{#if f > 0}{' · '}<a
+								href={sigoRankingHref('etiqueta')}>quiénes, en Mensajes › Lo que sigo</a
+							>{/if}
+					</p>
+				{/if}
 				<TagGraph node={n} {byId} onSelect={selectTag} />
 
 				<div class="usage">
@@ -486,7 +507,7 @@
 						>Imagen (series) <input
 							class="kv-input"
 							bind:value={fields.image}
-							placeholder="Ej.: serie.webp (de src/lib/assets)"
+							placeholder="Ej.: serie.webp"
 						/></label
 					>
 
@@ -673,7 +694,13 @@
 							childName.trim()
 						)}
 				>
-					<label>Nombre <input class="kv-input" bind:value={childName} /></label>
+					<label
+						>Nombre <input
+							id="nueva-etiqueta-nombre"
+							class="kv-input"
+							bind:value={childName}
+						/></label
+					>
 					<label
 						>Dentro de <input
 							class="kv-input"

@@ -1,10 +1,10 @@
-# Venta de entradas (fase 1, prototipo)
+# Venta de entradas (fase 1)
 
 > Referencia completa. Para la versión corta (qué no se puede romper, cómo probar, tareas comunes) ver [entradas.md](entradas.md); los mails, en [mails.md](mails.md); la base, en [datos.md](datos.md).
 
 Permite que la gente compre entradas para un evento del calendario desde el sitio, pague con **Mercado Pago (Checkout Pro)** o **transferencia bancaria**, y reciba por email un **QR por entrada**. Hay **códigos de descuento**, el **Fondo KinkyVibe** (que cubre parte de cada entrada, y al que se puede aportar pagando una entrada solidaria), un **recargo por la comisión de Mercado Pago** y entradas **"a la gorra"** (cada quien elige cuánto paga; en eventos online, con el link de la transmisión en lugar de QR). Les organizadores ven quién compró en `/admin/ventas`, confirman transferencias, cargan el alias para transferir y la comisión en **Ajustes de venta** y controlan el ingreso en la puerta escaneando el QR (o tipeando el código corto de la entrada) con el celu.
 
-> Estado: prototipo probado solo con Mercado Pago y Resend **simulados** (el entorno donde se escribió no tenía acceso a sus APIs). Antes de vender de verdad hay que probarlo con las credenciales de prueba de MP y resolver la lista de [pendientes](#pendientes-antes-de-vender-de-verdad).
+> Estado: en producción, con Mercado Pago y Resend reales. El evento piloto ya vendió y los mails salieron (`lanzamiento-piloto` en el [plan](plan.md), 12/10). Lo que queda abierto antes de abrir la venta a todes está en [pendientes](#pendientes-antes-de-vender-de-verdad); los mails, en [mails.md](mails.md). En dev (`npm run dev:tickets`) los dos siguen simulados.
 
 ## Cómo se activa en un evento
 
@@ -79,7 +79,7 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 
 ## Cómo funciona
 
-1. **Compra** (página propia: **`/calendario/<slug>/entradas`**, separada de la del evento para que el formulario no empuje hacia abajo el texto del evento; arriba, un encabezado compacto con título, fecha, lugar e imagen):
+1. **Compra** (página propia: **`/calendario/<slug>/entradas`**, separada de la del evento para que el formulario no empuje hacia abajo el texto del evento; arriba, un encabezado compacto con título, fecha, lugar e imagen). Si el evento no vende por el sitio (se inscribe en otro lado o todavía no abrió la venta), la página redirige (302) a la del evento, que tiene el link real:
    - **Tres pasos: Entradas → Tus datos → Pagar.** **Entradas**: tipo (preventas/tandas), cómo pagarla (opciones del Fondo) o cuánto (a la gorra), cantidad y código de descuento. **Tus datos**: quien compra, cada entrada y las preguntas de inscripción. **Pagar**: medio de pago, condiciones, la casilla de +18 y el botón. Arriba, un **indicador de pasos** (`StepIndicator.svelte`, el actual con `aria-current="step"`; los pasos ya hechos son botones para volver). Al cambiar de paso el foco va al título del paso.
    - **Mails mal escritos.** Al salir del campo de mail (en «Tus datos» y en la lista de espera), si el dominio parece mal escrito (`gmai.com`, `hotmial.com`, `gmail.con`…) aparece «¿Quisiste decir …@gmail.com?» con «Sí, corregilo» (`EmailTypoHint.svelte`, `src/lib/utils/emailTypos.js`: dominios válidos que nunca se tocan, un mapa exacto de errores, TLD imposibles a `.com` y una letra de distancia de los dominios grandes). Solo sugiere, en el navegador: no bloquea la compra y el servidor no rechaza nada por esto (rechazar es una decisión de gorrite). En «Pagar», antes del botón: «Te mandamos las entradas a <mail>. Revisá que esté bien.» con «Cambiarlo», que vuelve a «Tus datos».
    - **Resumen siempre a la vista** (`PurchaseSummary.svelte`): tipo, opción, cada línea del precio y el total. En pantallas anchas es una columna al costado (fija al bajar); en el celu, una barra arriba del formulario con el total y un botón **Ver detalle**. Es un solo bloque que cambia con CSS (container queries sobre el bloque de compra), así el total aparece una sola vez. Las líneas salen de `computePrice` vía `purchaseSummary` (`src/lib/utils/purchaseSteps.js`): no hay otra cuenta.
@@ -97,9 +97,9 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
    - Si el **total queda en $ 0** (código de 100 %, o $ 0 a la gorra con mínimo 0): no pasa por Mercado Pago; se emiten las entradas en el momento (con los mismos límites de intentos). **Una orden gratis por mail y evento** (aprobada o reservada vigente), salvo que la cuenta con sesión sea la de ese mail: la controla la misma sentencia que el cupo (`freeOnce` en `reserveOrder`) y la página responde «Con este mail ya se pidieron entradas gratis para este evento. Si es tu mail, entrá a tu cuenta con ese mail para pedir más.» (`FREE_ONCE_MESSAGE`). La puerta y la carga a mano no tienen este tope.
 2. **Cupo sin sobreventa:** la reserva es una única sentencia `INSERT … SELECT … WHERE vendidas + reservadas + cantidad <= cupo` (o sin límite si el tipo no tiene cupo). D1 ejecuta cada sentencia de forma atómica y en serie, así que dos compras simultáneas no pueden pasarse. Cuentan las órdenes aprobadas y las reservas vigentes.
 3. **Webhook** `POST /api/mercadopago/webhook`: verifica la firma `x-signature` con `MP_WEBHOOK_SECRET`, y **no confía en el contenido**: pide el pago a la API de MP (`GET /v1/payments/<id>`), busca la orden por `external_reference`, compara monto y moneda (ARS) y actualiza el estado de forma idempotente (las notificaciones se repiten y llegan desordenadas). Al aprobarse se crean las entradas (una por unidad, con un token aleatorio de 256 bits) y se manda el email. Si una lectura falla después de aprobar (releer la orden, revisar el cupo de un pago tardío, leer las entradas), se loguea y el webhook contesta 2xx igual: la aprobación ya quedó hecha; si no se pudo revisar el cupo de un pago tardío, la orden queda para revisar. Si el email falla, lo reintenta el cron ([mails.md](mails.md#reintento-del-mail-de-las-entradas)).
-4. **Vuelta de MP** (`/entradas/<orden>/estado`): si el webhook todavía no llegó, vuelve a consultar el pago a la API igual que el webhook. Muestra el estado y, en el mismo navegador de la compra, los links a las entradas y el email completo (la cookie `kv_orders`, ver [Seguridad](#seguridad-resumen)). Mientras el pago sigue pendiente, la página vuelve a consultar sola, cada vez más espaciado (5, 10, 20 y después cada 30 segundos; 8 veces, unos 3 minutos: `nextOrderPollDelay` en `src/lib/utils/orderPolling.js`), y recarga solo la orden (`invalidate('kv:orden')`), no el layout del sitio. Después de leer la orden (y de re-consultar a MP), lo demás (la venta del evento, la cookie, las entradas, las partes del taller y los datos para transferir) se lee junto, no en fila.
+4. **Vuelta de MP** (`/entradas/<orden>/estado`): si el webhook todavía no llegó, vuelve a consultar el pago a la API igual que el webhook. Muestra el estado y, en el mismo navegador de la compra, los links a las entradas y el email completo (la cookie `kv_orders`, ver [Seguridad](#seguridad-resumen)). Mientras el pago sigue pendiente, la página vuelve a consultar sola, cada vez más espaciado (5, 10, 20 y después cada 30 segundos; 8 veces, unos 3 minutos: `nextOrderPollDelay` en `src/lib/utils/orderPolling.js`), y recarga solo la orden (`invalidate('kv:orden')`), no el layout del sitio. Después de leer la orden (y de re-consultar a MP), lo demás (la venta del evento, la cookie, las entradas, las partes del taller y los datos para transferir) se lee junto, no en fila. **Conciliación con Mercado Pago** (`reconcilePendingPayments` en `src/lib/server/tickets/reconcile.js`): si el webhook no llegó y la persona no volvió a esta página, el cron de cada 15 minutos le pregunta a MP (`findPaymentByOrder`) por las órdenes de Mercado Pago sin aprobar (pendientes, vencidas, rechazadas o canceladas sin pago) creadas hace entre 20 minutos y 72 horas, como mucho 20 por corrida. Cada orden se mira como mucho una vez por hora en sus primeras 6 horas y después cada 6 horas (un checkout abandonado no gasta un pedido por hora durante tres días); la marca es una fila de `rate_limits` con la clave `tickets:conc:<orden>`, sin columna nueva. Las ya miradas en su ventana quedan afuera en la consulta y las demás van de la mirada hace más tiempo (o nunca) a la más reciente, así ninguna queda sin mirar aunque haya muchas abandonadas. Una consulta que falla devuelve su marca (se reintenta en la corrida siguiente) y, después de 3 fallas seguidas (MP caído), la corrida deja de consultar para no demorar el resto del cron. El pago que encuentra se aplica con `processPayment`, el mismo camino idempotente del webhook (un pago ya aplicado no cambia nada; un pago tardío que pasa el cupo queda para revisar). La respuesta del cron suma `reconciled: { checked, approved, updated, failed }` (y `stopped` si cortó): `approved` son las órdenes que se aprobaron así, y cada una deja en el log `[conciliacion] orden …: pago … aplicado sin webhook (aprobada)`; `updated` son otros cambios de estado (rechazada, cancelada, reembolsada, para revisar), con su propia línea `estado actualizado sin webhook`. Si las aprobadas aparecen seguido, mirar en MP (Tus integraciones → Webhooks) los envíos fallidos.
 5. **Email** (Resend): datos del evento y un QR por entrada (imagen GIF servida en `/entradas/t/<token>/qr.gif`, porque Gmail no muestra SVG) con su **código corto en grande al lado**, y link a `/entradas/t/<token>`. En eventos online, en lugar de QR: el link de la transmisión si ya está cargado, o el aviso de que llega antes del evento.
-6. **Entrada** (`/entradas/t/<token>`): QR con el **código corto** al lado, en grande (ver abajo), nombre, pronombres, tipo y estado (válida / ya usada / anulada). No muestra datos de otras personas. En eventos online muestra el link de la transmisión cuando está (solo con la compra aprobada).
+6. **Entrada** (`/entradas/t/<token>`): QR con el **código corto** al lado, en grande (ver abajo), nombre, pronombres, tipo y estado (válida / ya usada / anulada). No muestra datos de otras personas, ni la hora del ingreso (solo a admins): quien compró para acompañantes no ve a qué hora entró cada une. En eventos online muestra el link de la transmisión cuando está (solo con la compra aprobada). La tarjeta de la entrada en «Mis entradas» del bot usa la misma regla y manda el link por el chat ([telegram.md](telegram.md)).
 7. **Código corto de cada entrada** (`tickets.code`): 6 caracteres de un alfabeto sin ambiguos (`23456789ABCDEFGHJKMNPQRSTUVWXYZ`: sin 0/O, 1/I/L), único por evento (índice único en la base), al azar (31⁶ ≈ 887 millones). Se elige dentro del mismo `INSERT` que emite la entrada entre tres candidatos al azar no usados en el evento, así que un choque nunca hace fallar la aprobación de un pago. Sirve para tipearlo en la puerta si el QR no se puede escanear: el control de ingreso lo acepta con o sin "KV-", espacios o guiones, y lee O como 0 e I/L como 1 (letras que los códigos no usan). No reemplaza al token del QR para ver la entrada: solo lo usan les admins en el control de ingreso.
 8. **Admin** (`/admin/ventas`): vendidas/cupo, reservas y recaudación bruta por tipo, y por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo**; por evento, la ficha `/admin/eventos/<slug>` con pestañas (Resumen, Editar, Ventas, Puerta, Códigos, Mails y Preguntas; Ventas tiene las vistas Totales con ventas por día y cómo pagaron, Órdenes y Transferencias, y Mails las vistas Mandar un aviso y Plantillas, ver [panel.md](panel.md)): la lista de órdenes, exportar CSV (`/admin/eventos/<slug>/ordenes.csv`) y reenviar el mail. El control de ingreso es el modo puerta (punto 9).
 9. **Modo puerta** (check-in): `/admin/checkin` elige el evento (hoy primero, después los próximos y los de los últimos 60 días, con cuántes entraron; con un solo evento hoy entra directo a ese, con «Otro evento» para volver a la lista, ver docs/panel.md) y abre `/admin/eventos/<slug>/ingreso`: pantalla completa y oscura, sin menús del panel (`bare: true`), con la pantalla siempre prendida (Screen Wake Lock, que se vuelve a pedir al volver a la pestaña). Arriba, el botón **?** abre la guía para quien está en la puerta ([Puerta: cómo hacerla](#puerta-cómo-hacerla)).
@@ -109,12 +109,38 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
    - **Escribir código** y **Buscar persona**: el código corto (ver arriba) o el link del QR; y un buscador con sugerencias mientras se escribe (desde 2 letras) por nombre y pronombres de la entrada, nombre, email y DNI de quien compró y código, sin distinguir tildes ni mayúsculas; cada sugerencia dice con qué campo coincidió (el DNI, parcial: la respuesta trae solo los últimos 3 dígitos, aunque se busque por el DNI completo, que se compara en el servidor). Es un combobox accesible (flechas, Enter). Las sugerencias vienen de `GET /admin/eventos/<slug>/ingreso/buscar?q=` (con `requireAdmin`); el filtro se hace en el servidor en JS porque SQLite no ignora tildes. Tocar una persona marca su ingreso.
    - **Últimos escaneos**: los últimos 5 de este celu, con su estado y la hora.
    - **Sin conexión**: al entrar, el celu baja la lista de entradas del evento (`GET …/ingreso/lista`: hash SHA-256 del token, código, persona, tipo, estado, ingreso, quién compró, email, últimos 3 del DNI y primera vez; nunca el token ni el DNI completo) y la guarda en localStorage. Si se corta la conexión, valida los QR y códigos contra esa lista, marca el ingreso local y lo encola con la hora; un aviso muestra que no hay conexión, qué sigue andando (validar, buscar en la lista guardada y vender en la puerta, con la nota de que las ventas se mandan después) y qué necesita conexión (ver el DNI completo), y cuántas ventas e ingresos faltan sincronizar («2 ventas y 1 ingreso por sincronizar»). Con conexión, cuando la lista ya quedó guardada, un cartel chico verde dice «Listo para sin conexión» con la hora de la lista, para que quien está en la puerta sepa que puede seguir si se corta (`doorConnectionNote` en `src/lib/admin/doorOffline.js`). Al volver, los manda (acción `?/sync`): el servidor los aplica de forma idempotente (reintentar no duplica) y, si otra persona u otro celu ya había marcado esa entrada, gana el primer ingreso guardado y el celu muestra el conflicto. La hora del celu se acota a los últimos 3 días y a no más que ahora. La página tiene que abrirse con conexión (no hay service worker); si se recarga sin conexión no carga. Por eso, sin conexión, el aviso dice además «No cierres ni recargues esta pestaña: sin conexión no vuelve a cargar» (`keep` de `doorConnectionNote`), la flecha «←» pregunta antes de salir (diálogo en la página, «Salir igual») y la pantalla no tiene «tirar para recargar» (`overscroll-behavior-y: contain`) (auditoría de UX, V12).
+   - **Con señal pero el servidor caído** (auditoría de confiabilidad, OX1): si un escaneo no recibe respuesta en 8 segundos, o el servidor contesta con un error (500) o con «se cerró la sesión», y hay lista guardada, se valida con la lista igual que sin conexión y un cartel dice «El servidor no contesta: validando con la lista guardada de las HH:MM» (o «Se cerró la sesión (volvé a entrar para sincronizar)»), con «Sincronizar». Mientras tanto los escaneos van directo a la lista y cada 30 segundos uno vuelve a probar con el servidor; el cartel se va solo cuando el servidor contesta (un escaneo, «Sincronizar» o la sincronización de cada 2 minutos). Los ingresos quedan en la cola y se mandan solos (idempotente: lo que el servidor llegó a marcar no se duplica). Sin lista guardada, los mensajes de siempre. La decisión es una función pura, `scanFallback` en `src/lib/admin/doorFallback.js`. Antes, un error de red dejaba la puerta «sin conexión» hasta que el navegador avisara que volvió la red, cosa que no pasa si la red nunca se cortó.
+   - **Colas largas** (auditoría de confiabilidad, OX2): la sincronización manda los ingresos en tandas de 500 y las ventas en tandas de 100 (lo más que acepta el servidor, `QUEUE_MAX_ITEMS` y `SALE_QUEUE_MAX_ITEMS` en `door.js`; antes una cola de más de 500 ingresos se rechazaba entera y no se sincronizaba nunca), en orden, aplicando el resultado de cada tanda al llegar. Si una tanda falla, se corta ahí, lo que queda sigue en la cola del celu y un aviso dice «No se pudo sincronizar: quedan N ingresos pendientes. Probá con «Sincronizar» o avisale a gorrite.» (`inBatches` en `src/lib/admin/doorFallback.js`).
    - **Vender en puerta** (en eventos con `puerta: false`, o pasando el cupo o las 10 entradas por venta, pide confirmar: ver [Pasar límites desde el panel](#pasar-límites-desde-el-panel)): tipo, cantidad (hasta 10 sin confirmar; tope técnico 100), **precio por entrada** (al lado de la cantidad, ya cargado con el de la puerta, `doorPrice`; se puede cambiar, ver abajo) y opción del fondo, o monto a la gorra (los montos se leen con `parseAmount`, como en la compra online: «5.000», «$ 5.000» o «5000,00» son $ 5.000, «5000.00» da error en vez de $ 500.000, y respetan el tope técnico de la compra), efectivo o transferencia ya recibida, nombre, y opcionales pronombres, DNI, email (y mandarle las entradas por mail), nombres de las otras personas y una **nota** («Agregar nota»). Crea una orden **ya aprobada** con `channel = 'puerta'` y `payment_method` `efectivo` o `transferencia` (quien vendió queda en `confirmed_by`), controla el **cupo en la misma sentencia** que la compra online (cuentan aprobadas y reservas vigentes: dos ventas a la vez no se pasan), emite las entradas y las marca adentro, todo en una transacción, y queda en el registro de actividad (`order.door_sale`). No aplica la ventana de venta, los topes por email ni códigos de descuento. Si se le mandan las entradas por mail y el evento tiene un combo, el mail lleva el código combo (ver [Códigos combo](#códigos-combo)).
      - **Una venta errada** (auditoría de UX, V12; gorrite, 26/10: **en la Puerta no hay «Anular» ni reembolso**, eso queda en el panel con su confirmación): el resultado de cada venta registrada dice «¿Te equivocaste? Ver la orden», que lleva a esa orden en Ventas › Órdenes (`orderHref` en `src/lib/admin/orderFormat.js`: `…/ordenes#orden-<id>`; la página baja hasta la orden, la marca y, si el filtro «Mostrar» la escondía, pasa a «Todas»). Una venta sin conexión que todavía no se sincronizó no tiene orden: ver «Descartar» abajo.
      - **Otro precio y nota** (gorrite, 12/10, probando la puerta con celus): en un tipo con precio, el precio por entrada se puede cambiar por lo que se cobró de verdad: entero de 0 a $ 100.000.000 (el tope de `price`; se lee con `parseAmount` a través de `parseDoorAmount` en `src/lib/admin/doorSale.js`; negativos, centavos o texto se rechazan) y el total de la venta dentro del tope técnico de la compra (`exceedsOrderMax`, como a la gorra). Se cobra como si fuera el `door_price` de esa venta: el Fondo sale de `parseDoorPrice` con el mismo porcentaje y el total de `computePrice` (sin recargo de Mercado Pago: en la puerta no hay). Si es distinto del de la puerta, el de la puerta queda en `orders.door_list_price` (migración 0063) y el panel dice «Precio cambiado en la puerta: $ 5.000 en vez de $ 12.000» (Órdenes, la hoja «Ver compra» y el resultado de la venta); el registro lo anota (`priceChanged: { from, to }` y «precio cambiado» en el resumen). **0 queda «sin cargo»** (`gratis`) como en la carga a mano, y con canal `manual`: la base solo acepta precio 0 en las manuales y a la gorra (CHECK de la migración 0010), y cambiar ese CHECK exige reconstruir `orders`, que hoy borraría en cascada `order_answers` (ítem `puerta-precio-cero-canal` del plan). Las entradas quedan adentro igual y va al registro como `order.door_sale`. Un 0 tiene que escribirlo quien vende: un `door_price: 0` de la configuración (el editor ya no lo deja guardar) sin precio escrito sigue avisando «cargala a mano», como dice arriba. La nota es la de la carga a mano: `orders.admin_note`, hasta 300 caracteres, solo en el panel (Órdenes, «Ver compra» y el resultado de la venta; nunca en mails); el registro anota solo que tiene nota (`withNote`).
    - **Vender en puerta sin conexión** ([decisión 0035](decisiones/0035-vender-en-puerta-sin-conexion.md)): el mismo formulario (con el precio por entrada y la nota), sin el DNI (sin conexión no se guarda en el celu) y, con transferencia, con la casilla «Vi que llegó la transferencia». Si con lo que sabe el celu (cupo de cuando había conexión, menos lo vendido sin conexión; 10 por venta; solo anticipadas) se pasaría un límite, avisa con el mismo diálogo, pero se puede guardar igual. La venta queda en la cola del celu (`localStorage`, `queueOfflineSale` en `src/lib/admin/doorOffline.js`) con un id del celu; sus entradas cuentan como adentro en ese celu y se ven como «pendiente de sincronizar». Al volver la conexión (o con «Sincronizar») se mandan **antes que los ingresos y en el orden en que se vendieron** (acción `?/syncSales`, `applyQueuedSales` en `door.js`): cada una pasa por la misma validación (`parseDoorSale`) y la misma función (`sellAtDoor`) que la venta con conexión, con la hora del celu (acotada como la de los ingresos); el precio cambiado y la nota viajan en la venta (`amount` y `note`), se validan otra vez al sincronizar y dan la misma orden que con conexión. Cambiar el precio **no es un límite**: no la manda a «Para revisar». Una venta guardada antes de que existiera el campo (sin `amount`) cobra el precio de la puerta; un precio inválido no se registra y queda a la vista en el celu. Es **idempotente**: el id del celu queda en `orders.client_sale_id` (índice único, migración 0051), así que un reintento devuelve la orden que ya existe. **Un límite no frena la venta**: si al sincronizar se pasa el cupo, se agotó el tipo, son más de 10, el evento es solo anticipadas o se canceló, se guarda igual con esos límites en `orders.offline_review`, sale en «Para revisar» («Venta sin conexión de … para revisar», con «Marcar como revisada» en Órdenes) y el celu muestra un aviso. **El precio es el de cuando se sincroniza**: la venta se registra con el precio en la puerta (salvo que quien vendía haya escrito otro) y el % del Fondo de ese momento, no con los de cuando se vendió. Por eso el celu manda lo que cobró (`charged_total`, el total que vio quien vendía) y, si el servidor la registra con otro total, también queda en `offline_review` (`{ kind: 'price', charged, recorded }`) y en «Para revisar»: «Se cobró $ 16.800; quedó registrada en $ 16.500». No se corrige sola: quien organiza decide. Una venta de un celu con una versión anterior (sin `charged_total`) no se compara. Si el servidor no la puede registrar (por ejemplo, un tipo que ya no existe), el celu la deja a la vista con sus datos («Cargala a mano») hasta que alguien descarta el aviso: nunca se borra sola. **Descartar una venta que todavía no se mandó** (auditoría de UX, V12): mientras está en la cola del celu, se puede descartar desde el resultado de la venta («¿Te equivocaste? Descartar esta venta»), desde «Ver compra» o desde «Opciones» › «Ventas sin sincronizar». Siempre pregunta antes con un diálogo en la página (nunca `window.confirm`) y solo la saca de la cola y de la lista local de este celu (`discardQueuedSale` en `doorOffline.js`, que sin `confirmed` no hace nada); no toca el servidor ni la plata (si se cobró, se devuelve a mano). Mientras se pregunta no se sincroniza, y con una sincronización en curso no se ofrece. Una venta que ya se sincronizó no se descarta en la Puerta: es una orden, con su «Ver la orden». Queda en el registro como `order.door_sale` (con `offline: true`) y, si pasó límites, `tickets.override`.
 
 10. **Cargar entradas a mano** (`/admin/eventos/<slug>/ordenes/cargar`; link en el menú "Opciones" del modo puerta): invitaciones, cortesías o pagos que llegaron por otro lado. Tipo, cantidad, nombre y email (opcional) de quien recibe, nombre de cada entrada, **cómo se pagó** (cortesía / invitación, efectivo, transferencia u otro), **monto por entrada** (0 = sin cargo; la cortesía siempre es 0; se lee con `parseAmount`, igual que en la compra online y en la puerta) y una nota opcional (solo en el panel, `orders.admin_note`). Crea una orden **ya aprobada** con `channel = 'manual'` (`createManualOrder` en `src/lib/server/tickets/manual.js`, con la misma sentencia que la venta en la puerta: `insertApprovedOrder` de `door.js`), no marca el ingreso y, si hay email y se tilda, manda las entradas por mail. Total 0 queda como `gratis`. Queda en el registro (`order.manual`). Límites (se pueden pasar confirmando): cupo, 20 por compra y venta cerrada (por horario, del tipo, agotadas o cancelado); "todavía no abrió" no es un límite. Migración 0010: canal `manual`, medio `otro`, precio 0 en las manuales y `admin_note`.
+
+### Canal de venta: una sola regla
+
+Todo lo que cuenta ventas por canal usa la misma función, `saleChannel` en
+`src/lib/utils/saleChannel.js` (con `countByChannel` para sumar entradas), y cuatro columnas
+(gorrite, Mesa `chica-536-canal-venta`, 4/11):
+
+| Canal                                 | Qué entra                                                                                                  |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Online**                            | la compra de la página (Mercado Pago o transferencia); una orden de antes de la columna `channel`, también |
+| **En la puerta** (`puerta`)           | lo vendido con la pantalla de la puerta (`channel = 'puerta'`), también $ 0 a la gorra                     |
+| **Cortesía / sin cargo** (`cortesia`) | lo que salió $ 0 (`payment_method = 'gratis'`): cortesías, $ 0 en la puerta en un tipo con precio, gratis  |
+| **Cargadas a mano** (`manual`)        | cargadas a mano en el panel y cobradas (efectivo, transferencia u otro)                                    |
+
+En ese orden se evalúa: primero la puerta, después $ 0, después la carga a mano; lo demás es
+online. La usan el termómetro de Ventas de cada evento (`buildSalesChart` en
+`src/lib/admin/salesChart.js`, una banda por canal), la tarjeta de ventas del Inicio
+(`eventSalesTrend` en `src/lib/server/admin/inicio.js`: muestra los canales con entradas cuando
+no es todo online) y la columna `canal` de `ordenes.csv` (`online`, `puerta`, `cortesía` o
+`cargada a mano`). Antes había dos reglas: el termómetro ponía una cargada a mano y cobrada por
+transferencia en «Cortesía», y el Inicio contaba como online todo lo que no era de la pantalla de
+la puerta. Con la regla única cambia en qué columna caen algunas ventas viejas; el total no
+cambia. El aviso «cada venta» del bot sigue mirando solo `channel = 'online'` (las compras de la
+página, también las gratis): no cuenta ventas, dice de dónde vino la orden.
 
 ### Puerta: cómo hacerla
 
@@ -175,7 +201,213 @@ con el mismo texto que acá. Si cambia una, cambiá la otra.
 - Si alguien está mal, se siente insegure o hay una situación de violencia, avisale enseguida a
   la persona de cuidado del evento.
 - No prestes tu sesión de admin ni el celu con el panel abierto: si hace falta alguien más en la
-  puerta, que lo resuelva une organizadore.
+  puerta, mejor un [link de puerta](#link-de-puerta).
+
+Con un link de puerta la guía cambia en dos cosas: si una venta pasa un límite no se puede vender
+desde ahí (llamá a une organizadore), y el link no se reenvía (si se pierde el celu, que une admin
+lo revoque).
+
+### Link de puerta
+
+Para que alguien haga la puerta **sin cuenta de admin** ([decisión 0052](decisiones/0052-link-de-puerta.md);
+auditoría de comunidad K28). Une admin lo crea en la ficha del evento (Resumen → **Links de
+puerta**), solo en eventos presenciales con entradas: una etiqueta para reconocerlo («voluntarie
+de la puerta») y hasta cuándo anda (por defecto, el fin del día en que termina el evento, en hora
+de Argentina, más 6 horas; entre 10 minutos y 7 días desde ahora). El link se ve **una sola vez**,
+al crearlo, con «Copiar». La ficha lista los links vivos (etiqueta, quién lo creó y cuándo, cuándo
+vence y si ya se abrió) con **Revocar**, que lo corta al toque, también en los celus donde ya está
+abierto. Como mucho 20 vivos por evento.
+
+**Qué abre.** Solo `/puerta/<slug>` de ese evento: la misma pantalla que el modo puerta del panel
+(`DoorScreen.svelte`, con la misma lógica en el servidor: `src/lib/server/tickets/doorScreen.js`)
+con escanear, escribir el código, buscar, ver la compra, vender en la puerta, deshacer, la lista
+sin conexión y sincronizar. Muestra lo mismo que la puerta del panel para hacer entrar a la gente
+(nombre, pronombres, tipo, quién compró y su mail, los últimos 3 del DNI, la compra). **No**: el
+DNI completo (`reveal` da 403), pasar límites (cupo, 10 por venta, solo anticipadas, evento
+cancelado: la venta contesta «la tiene que confirmar une admin», sin diálogo, y una clave de
+`override` no sirve), cobrar otro precio que el de la puerta o vender sin cargo en un tipo con
+precio (a la gorra, cualquier monto desde el mínimo), qué evento es una entrada «De otro evento»,
+ni ningún link al panel (volver a la ficha, órdenes, cargar a mano, otro evento). Tampoco ve lo
+interno del panel: en «Ver compra» y en el resultado de una venta no van la nota interna, quién
+confirmó la orden, el código de descuento ni el reembolso; el buscador no trae el token de las
+entradas ni busca por su comienzo (marcar desde una sugerencia usa el código o `ticket:<id>`, una
+entrada de ese evento); y donde dice quién marcó un ingreso, lo que marcó une admin dice «une
+admin», sin su login de GitHub. Los [avisos de puerta](#avisos-de-puerta) le llegan solo en la
+tarjeta de una entrada que escanea o marca con conexión; nunca en la lista sin conexión ni en la
+búsqueda.
+
+**Ventas sin conexión con un link.** Los límites del link valen también al sincronizar: una venta
+de más de 10 entradas, de un evento sin venta en la puerta o cancelado, con otro precio o sin
+cargo en un tipo con precio, vuelve al celu como rechazada (queda a la vista con el motivo, para
+cargarla a mano). Solo el **cupo** sigue la regla de [0035](decisiones/0035-vender-en-puerta-sin-conexion.md):
+la venta se guarda igual y queda en «Para revisar». El registro dice «con un link de puerta» y
+lleva `doorLink`. Las ventas sincronizadas con un link no mandan el mail de compra.
+
+**Topes por link** (por hora): 150 entradas vendidas (con conexión y sincronizadas; pasado el
+tope, la venta se rechaza y la carga une admin) y 40 mails de compra (solo en ventas con
+conexión; pasado el tope, la venta queda y el mail no sale).
+En iPhone se usa «Escribir código» o «Buscar persona» (abrir el QR con la app Cámara lleva a la
+página de la entrada, que marca el ingreso solo para admins).
+
+**Cómo funciona** (`src/lib/server/tickets/doorLinks.js`, tabla `door_links`, migración 0067):
+
+- El token es al azar (32 bytes en base64url); en la base queda solo su SHA-256 (`token_hash`).
+- El link es `https://kinkyvibe.ar/puerta#<token>`: el token va en el **fragmento**, que el
+  navegador no manda al servidor, así que no queda en los registros de pedidos ni en el Referer.
+  La página `/puerta` lo saca de la dirección y lo manda en el cuerpo de un POST (`?/entrar`,
+  con tope de 20 intentos cada 10 minutos por conexión, con la IP anónima). Si es de un link vivo
+  deja la cookie `kv_puerta` (httpOnly, `SameSite=Strict`, solo para `/puerta`, vence con el link)
+  y abre `/puerta/<slug>`. «Cerrar la puerta en este celu» (Opciones) la borra, junto con la lista
+  guardada en el celu (solo sin nada por sincronizar ni ventas sin registrar).
+- **Lo guardado en el celu.** La puerta con link guarda aparte de la del panel
+  (`kv-puerta-link:<slug>` y `kv-puerta-link-recent:<slug>` en localStorage; la del panel usa
+  `kv-door:`), así lo que se borra de un link nunca toca lo del panel. Cuando el servidor contesta
+  403 (el link venció o lo revocaron) o pasa el vencimiento del link (al abrir la pantalla y cada 30
+  segundos, aunque no haya conexión), se borran la lista sin conexión (nombres, mails), los ingresos
+  marcados sin conexión y los últimos escaneos, pero **nunca las ventas sin mandar** ni las que el
+  servidor no pudo registrar (una venta que pasó no se pierde, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)):
+  la pantalla avisa «Quedaron N ventas sin mandar: mostráselas a une admin para cargarlas», con
+  «Ver las ventas». Si en ese celu se abre otro link vivo del mismo evento, se mandan con ese link
+  (con sus límites; un reintento no duplica, `client_sale_id`). Con un link tampoco se ofrece
+  «Descartar» una venta sin mandar ni «¿Te equivocaste? Ver la orden» (eso es de la puerta del
+  panel). Abrir `/puerta` sin un link vivo
+  hace lo mismo con todas las puertas con link guardadas, muestra las ventas que quedaron y deja
+  borrarlas a mano («Ya las cargó une admin»). **Revocar no llega a un celu sin conexión**: ese
+  celu sigue con la lista hasta que vence el link o vuelve a hablar con el servidor.
+- En **cada** pedido de `/puerta/<slug>` (la página, cada acción y los tres GET: `buscar`,
+  `compra`, `lista`) `requireDoorLink` vuelve a mirar la base: el link existe, es de **ese**
+  evento, no venció y no se revocó; si no, 403 (y borra una cookie que ya no sirve). Además, un
+  tope de 3000 pedidos por hora por link.
+- La cookie no es una sesión de admin: no toca `locals.user`, así que el resto del panel
+  (`requireAdmin`) no la reconoce y sigue pidiendo GitHub.
+- Los ingresos y las ventas quedan a nombre de `puerta: <etiqueta>` (`checked_in_by`,
+  `confirmed_by`). En el registro de actividad, cada acción hecha con un link (ingreso, «ya
+  ingresó», deshacer, venta, sincronizar, ver una compra) queda como `puerta:<id del link>`, con
+  `doorLink` en el detalle. Crear y revocar quedan como `door_link.create` y `door_link.revoke`.
+  El token nunca se guarda ni se loguea.
+- `/puerta` no se indexa, no se guarda en la caché del borde, no se cuenta en las visitas, no se
+  puede meter en un iframe y no carga el beacon de Cloudflare Web Analytics (`hooks.server.js` lo
+  saca del HTML, `src/lib/server/analyticsBeacon.js`), así ningún script de terceros ve el
+  fragmento con el token.
+
+Las pruebas (`src/routes/puerta/puerta-link.test.js`) cubren el token (solo el hash, cambiado,
+cortado), vencido, revocado, de otro evento, cada acción y cada GET con un link ajeno, el DNI
+completo, los límites (también al sincronizar ventas sin conexión), el precio, lo interno del panel
+en «Ver compra», el buscador sin token, los topes de entradas y de mails, el beacon, que la puerta
+del panel sigue igual, el registro sin el token, que la puerta del panel, la ficha, órdenes,
+exportar, reembolsar y mails no reconocen la cookie, y que solo une admin crea y revoca.
+
+### Extras
+
+Prototipo detrás del interruptor **`extras`** (apagado; [decisión 0056](decisiones/0056-extras-en-la-compra.md),
+plan `extras-compra`). Cosas que se suman a la compra de entradas (tragos, una remera…), se pagan
+juntas y se entregan en la puerta o en la barra. **Apagado no cambia nada**: el editor no muestra la
+sección, la compra no ofrece extras (lo que llegue en el formulario se ignora), el panel no muestra
+nada y `/barra` da 404.
+
+**En el evento** (sección **Entradas** del editor, «Extras», `ExtrasField.svelte` y
+`src/lib/utils/extrasEditor.js`; en el evento, la clave `extras` junto a `tickets`):
+
+```yaml
+extras:
+  - id: trago # sale del nombre al crearlo y no cambia nunca (va en las órdenes)
+    name: Trago # hasta 40 letras
+    price: 3000 # pesos, entero > 0
+    description: Con o sin alcohol, en la barra # opcional, hasta 120
+    capacity: 100 # opcional: tope total (aprobadas + reservas vigentes)
+    per_order: 4 # opcional: máximo por compra (si falta, 20)
+```
+
+Hasta 10 por evento. **Un extra que ya vendió (o tiene reservas vigentes) no se puede sacar**, como un
+tipo de entrada (gorrite, 5/11): la × de su tarjeta queda apagada con «Tiene vendidos o reservados:
+no se puede sacar; para dejar de venderlo, poné el tope en 0.», y el servidor lo vuelve a revisar al
+guardar con lo de la base (`extrasSalesFor` en `src/lib/server/tickets/editor.js`,
+`extrasSoldErrors` en `ticketsEditor.js`). Para dejar de venderlo, el tope en 0 (aunque ya haya
+vendido más). Se validan con las mismas reglas en el navegador y en el servidor
+(`parseExtras` en `src/lib/utils/extras.js`); en la venta, unos extras que no se entienden quedan
+en «sin extras» y nunca frenan la venta de entradas (`config.extras`).
+
+**En la compra** (`/calendario/<slug>/entradas`, paso «Entradas», después del código): cada extra
+con su precio, su descripción y un stepper − n + (0 por defecto; `ExtrasPicker.svelte`, campos
+`extra_<id>`). El resumen suma una línea por extra («Trago (2 × $ 3.000)») y el total es lo que se
+paga. El servidor vuelve a validar el máximo por compra y lo que queda.
+
+**Precio** (`computePrice` con `extras`, la misma función en el formulario y en el servidor):
+
+1. Las entradas como siempre: Fondo (u aporte) y código de descuento **solo sobre las entradas**.
+2. Los extras a precio de lista (`extras` = Σ precio × cantidad): **sin Fondo ni código**.
+3. Recargo de Mercado Pago sobre **entradas + extras** (todo lo que se paga por MP).
+4. `total` = subtotal − descuento + recargo (lo de las entradas, con el recargo de todo) y
+   `paid` = `total` + extras: lo que se paga.
+
+La orden guarda `extras_amount` (migración 0077) y una fila por extra en `order_extras` (nombre y
+precio copiados al comprar, cantidad y `delivered`). Los CHECK de `orders` no cambian: `total`
+sigue cerrando como antes. Lo que se paga en total es `total + extras_amount` (`orderPaid`): eso
+cobra la preferencia de MP (un solo ítem «… + extras») y eso compara el webhook; la transferencia
+muestra y pide ese monto. Con extras siempre hay algo que pagar: una compra con un código de 100 %
+y extras no es gratis.
+
+**Tope sin sobreventa:** cada extra se inserta en la misma tanda que la orden con una sentencia
+que mira lo tomado (aprobadas + reservas vigentes, como el cupo de las entradas). Si no alcanza,
+inserta cantidad 0, el CHECK `extras_stock` falla y D1 deshace la tanda entera, con la orden: la
+compra contesta «Se agotó un extra mientras comprabas: revisá los extras.» con lo que queda de cada
+uno (`src/lib/server/tickets/extras.js`).
+
+**Dónde se ven** (todo solo con el interruptor prendido):
+
+- el mail de la compra y el de la transferencia: una línea por extra en el desglose
+  («2 × Trago: $ 6.000») y el total pagado (`withOrderExtras` en `index.js`, `priceLines`);
+- la página de estado de la compra y la de cada entrada («Extras de la compra: + 2 × Trago»);
+- Ventas › Órdenes: «Extras: 2 × Trago · 0 entregados · +$ 6.000 (pagó $ 14.000 en total)»;
+- `ordenes.csv`: dos columnas después de `total`, `extras` («2 × Trago (1 entregado)») y
+  `monto_extras` (solo en la fila de la entrada 1, como los demás montos);
+- Ventas › Totales: «Extras» aparte de «Recaudado» (que sigue siendo lo de las entradas), con
+  vendidos, entregados y lo que sumó cada uno (`extrasSummary`, órdenes aprobadas).
+
+**En la puerta y la carga a mano:** «Vender en puerta» y «Cargar entradas a mano» suman los extras
+del evento, a precio de lista y con su tope (une admin que pasa límites, sin tope). En una
+cortesía cargada a mano los extras van sin cargo. **Sin conexión, la puerta no vende extras** (el
+bloque se esconde: la venta sin conexión no los llevaría).
+
+**Canje («Entregar 1»):** al escanear una entrada con conexión en la puerta (la del panel y la del
+link), la tarjeta muestra los extras de su compra («2 × Trago · 0 entregados») con **Entregar 1**.
+Cada toque es un único `UPDATE` condicional (`delivered < quantity`, compra aprobada, entrada de
+ese evento): dos celus a la vez nunca entregan de más. Cada entrega queda en Actividad
+(`extras.deliver`, con el link si fue con uno).
+
+#### Link de barra
+
+Para pasarle la info a la barra sin cuenta: en la ficha del evento (Resumen → **Links de puerta**),
+con el interruptor prendido y un evento con extras, «Para» → **La barra (solo extras)** crea un
+**link de barra**. Es el mismo modelo que el [link de puerta](#link-de-puerta) (token al azar en el
+fragmento, `https://kinkyvibe.ar/barra#<token>`, en la base solo su hash, vencimiento, «Revocar»,
+cada pedido mirado de nuevo, tope de pedidos) con otro alcance (`door_links.scope = 'barra'`,
+cookie `kv_barra` solo para `/barra`):
+
+- abre **solo** `/barra/<slug>` de ese evento: escanear el QR, escribir el código o buscar por el
+  nombre de la entrada, y entregar extras de a uno;
+- de la persona, **solo el nombre de la entrada**: nada de quien compró (ni mail ni DNI), ni
+  ingresos, ni ventas, ni otro evento;
+- arriba, el resumen por extra: «Trago: vendidos 34 · entregados 12»;
+- un link de barra **no abre la puerta** y uno de puerta no abre la barra: el hash del token lleva
+  un prefijo por alcance (el código de antes ni lo encuentra) y además se compara `scope`;
+- cada entrega queda en Actividad como `barra:<id del link>`; `/barra` no se indexa, no se cachea,
+  no se cuenta en las visitas, no va en un iframe y no carga el beacon, como `/puerta`.
+
+Necesita conexión (no hay lista sin conexión).
+
+**A CONFIRMAR** (decisiones de la sesión para avanzar, no de gorrite):
+
+- los textos dicen «2 × Trago» (no «2 tragos»): el nombre lo escribe quien organiza y el plural en
+  castellano no se adivina bien;
+- en una cortesía cargada a mano los extras van sin cargo;
+- la puerta sin conexión no vende extras;
+- `refunded_amount` (reembolso parcial informado por MP) sigue con tope en `total`; un reembolso
+  total devuelve todo lo pagado por MP (entradas y extras);
+
+Pruebas: `src/lib/utils/extras.test.js` (precio, tope, textos, CSV),
+`src/lib/server/db/migration0077.test.js` y `src/routes/barra/extras-barra.test.js` (reserva con
+tope, pago de MP, compra con extras y CSV, «Entregar 1» en la puerta, link de barra).
 
 ### Pasar límites desde el panel
 
@@ -199,6 +431,27 @@ Cómo funciona (`src/lib/server/tickets/overrides.js`):
 4. Con la clave correcta, la función pasa `override: true` y la sentencia no controla el cupo. Se anota la acción de siempre (con `overrides` en el detalle) y una fila aparte `tickets.override`: "Pasó límites de entradas (venta en la puerta): cupo de «General» +2 (52 / 50)".
 
 La **compra pública no cambia**: `override` solo lo leen acciones del panel después de `requireAdmin`; `reserveOrder` no tiene override, y mandar `override` en `?/buy` no hace nada (hay tests). Con más vendidas que cupo, el panel muestra "52 / 50" con una marca (`CapacityBar`) y "quedan" nunca es negativo.
+
+### Avisos de puerta
+
+Personas que la organización no admite en los eventos que organiza Kinky Vibe ([decisión 0053](decisiones/0053-avisos-de-puerta.md)). El sistema **avisa y nunca frena**: decide quien está en la puerta, después de hablar con la organización.
+
+- **Dónde se cargan:** Comunidad › **Avisos de puerta** (`/admin/comunidad/avisos-de-puerta`), solo admins (`requireAdmin` en la página y en cada acción). Es el único lugar donde se ve el motivo.
+- **Quién es:** un aviso es de un **mail** y, si el mail es de una cuenta (no borrada), también de esa **cuenta**; nunca de un nombre. Siempre se guarda el **hash** del mail (`email_hash`; `noticeEmailHash`: SHA-256 de `puerta:aviso:<mail normalizado>`, con un prefijo propio para que no se cruce con los otros hashes de mail de la base) y, si hay cuenta, también `account_id`. Coincide con las órdenes de esa cuenta y con las órdenes cuyo mail da el mismo hash (también el mail actual de la cuenta, si cambió). Para avisar alcanza con comparar, así que el mail no se guarda como texto, sino como código; el panel tampoco puede mostrarlo: la fila dice «Mail (guardado como código)» y se encuentra con «¿Hay un aviso para este mail?» (por POST, para que el mail no quede en la dirección). Límite conocido: quien tenga acceso a la base y sospeche de un mail puede confirmar si tiene aviso calculando el hash.
+- **Coincide por quien compró, no por quien entra:** se mira la orden (su cuenta y su mail), porque las entradas no tienen mail de titular. Todas las entradas de una compra hecha por una persona con aviso lo muestran (también las de sus amigues), y una persona con aviso que entra con una entrada comprada por otra persona no aparece. Lo dice «Cómo funciona» en el panel.
+- **El mail se compara exacto**, salvo mayúsculas y espacios al principio y al final (`normalizeEmail`). Si la persona usa otras variantes de su mail, se carga un aviso por cada una.
+- **Es un registro propio de la organización, con vencimiento:** borrar la cuenta (`deleteAccount`, que no se toca acá) no lo apaga. La cuenta queda marcada como borrada y sin mail, y las órdenes sin cuenta, pero el aviso sigue por el hash del mail (compras nuevas sin sesión con ese mail y las entradas que ya tenía) hasta que vence o une admin lo quita. Si la fila de la cuenta se borrara de verdad, `account_id` pasa a `NULL` y queda el hash.
+- **Dos admins a la vez:** si dos cargan el mismo mail al mismo tiempo, el índice único deja entrar a uno y al otro le dice «Ya hay un aviso vigente…» (no un error).
+- **Vence siempre:** 6 meses, 1 año o una fecha de hasta 2 años (`doorNoticeExpiry` en `src/lib/utils/doorNotices.js`). «Renovar» lo hace vencer de nuevo desde hoy. Uno vencido nunca avisa, aunque todavía esté en la tabla.
+- **Cron** (el de los recordatorios, cada 15 minutos; `runDoorNoticesCron` en `src/lib/server/tickets/doorNotices.js`): borra los vencidos (cada uno queda en Actividad como `door_notice.expire`, «automático») y, **14 días antes** de que venza uno, manda **un** mail a la casilla de la organización (la de los comprobantes, `replyToAddress`) para renovarlo o dejarlo vencer, con las fechas y el link al panel, sin el motivo ni el mail de la persona. Se marca `reminded_at` antes de mandar: sale una sola vez; si el envío falla, se suelta para la corrida siguiente. Renovar vuelve a avisar antes del nuevo vencimiento.
+- **Solo en eventos de Kinky Vibe:** la etiqueta KinkyVibe («Lo organiza KinkyVibe» en el editor), resuelta con el árbol de etiquetas por `isKinkyVibeEvent`, la misma regla del Fondo (`parseTicketConfig` la guarda como `fondoEnabled`; `isKinkyVibeDoor`). En los demás eventos nunca aparece.
+- **En la puerta:** al escanear, buscar (sugerencias), validar sin conexión o vender en la puerta, la tarjeta de la entrada lleva `notice: true` si quien compró coincide (mail de la orden o cuenta de la orden) y la pantalla muestra solo **«Avisá a la organización antes de dejar pasar»** (`DOOR_NOTICE_TEXT`), en `DoorResult`, en las sugerencias de «Buscar persona» y en la puerta por Telegram (`notice` en la respuesta de la Mini App). Nada más del aviso viaja al celu: ni motivo, ni quién lo cargó, ni vencimiento. El ingreso se marca igual (si hace falta, «Deshacer»). La lista sin conexión lleva el mismo sí/no.
+- **La marca en el celu vence:** la lista sin conexión trae `noticeUntil` (`doorNoticeKeepUntil`: 3 días después del final del evento, o de su comienzo, y nunca menos de 3 días desde que se bajó). Pasada esa fecha, el celu saca `notice` de lo guardado en localStorage (`stripStaleNotices` al leer y al guardar, y `pruneDoorNotices` en todas las listas guardadas cada vez que se abre el panel). El resto de la lista y lo que falta sincronizar no se tocan.
+- **Con la cámara del celu** (`/entradas/t/[token]`, la página de la entrada): si la abre une admin y el evento es de Kinky Vibe, el bloque de admin muestra el mismo texto (`adminNotice` en el `load` y `notice` en la respuesta de «Marcar ingreso»; el texto llega del servidor, no está en el JavaScript de la página). Para quien no es admin, la respuesta es exactamente la de siempre: no lleva el campo ni hace la consulta de los avisos. La página no se guarda en cachés compartidas (`cache-control: private, no-store` de `src/routes/entradas/+layout.server.js`, y `/entradas` está fuera de la caché de 1 minuto, decisión 0049).
+- **Cualquier pantalla de puerta nueva** usa `doorNoticeMatcher` + `ticketCard(…, { notice })` (en el modo puerta, `noticesFor` de `doorScreen.js`, que con un link solo los da para la tarjeta de un escaneo) y muestra solo `DOOR_NOTICE_TEXT`.
+- **Link de puerta** (`/puerta/<slug>`, para quien no es admin; decisión 0052): como dice la decisión 0053, recibe `notice` **solo** en la tarjeta de una entrada que escanea o marca con conexión (`?/checkin`: el QR, el código o `ticket:<id>` desde una sugerencia), y `DoorResult` muestra el mismo cartel que ve une admin. Nunca en la lista sin conexión (que tampoco lleva `noticeUntil`), ni en las sugerencias de la búsqueda (`searchRows` con `forLink`), ni en la tarjeta de una venta en la puerta: ahí el servidor ni consulta los avisos (`noticesFor` en `src/lib/server/tickets/doorScreen.js` devuelve `null` con un link salvo para `checkinAction`) y no manda el campo, ni en `false`. Así, sin ser admin, no se puede bajar quién tiene aviso. El celu, por las dudas, tampoco guarda `notice` en la lista de un link (`stripStaleNotices` con `link`).
+- **Privacidad:** el motivo (opcional, hasta 500 caracteres) solo se ve en la página del panel; nunca va a la puerta, a la entrada de la persona, a sus mails, a los CSV ni a Actividad. Cargar, renovar, quitar y vencer quedan en Actividad (`door_notice.add` / `renew` / `remove` / `expire`) con quién y cuándo, sin el mail ni el motivo (solo el id del aviso y el vencimiento). Los logs del cron llevan solo cuántos. Los backups de la base sí incluyen la tabla (son la copia para restaurar): un aviso quitado o vencido sigue en Time Travel de D1 (30 días) y en los backups (nocturnos 30 días, mensuales 12 meses y el del primero de cada año, que se guarda siempre; ver [workers-migracion.md](workers-migracion.md#backups-de-la-base)). El panel lo dice en «Cómo funciona».
+- **Sin la migración** (`0068_avisos_puerta.sql`, tabla `door_notices`) la puerta anda como siempre, sin avisos, y la página del panel dice que falta.
 
 ### Preventas escalonadas y tipos encadenados
 
@@ -263,14 +516,26 @@ El panel mostraba el avance de cada evento contra **vender todas las entradas** 
 que casi nunca pasa. Ahora cada evento puede tener **una** meta (decisión de gorrite):
 
 - **`meta_venta: plata:250000`**: pesos **netos**, después de la comisión de Mercado Pago. Neto =
-  la suma del `total` de las órdenes aprobadas (el «Recaudado» del panel) **menos la comisión de MP
-  de las que se pagaron con Mercado Pago**. Esa comisión es el recargo guardado en la orden
-  (`surcharge_amount`): se calcula al comprar con la tasa vigente (`mp_fee_percent` del evento,
-  Ajustes → Cobros, `TICKETS_MP_FEE_PERCENT` o 2 %) justo para que, después de la comisión, quede la
-  base (ver [Precio](#precio-fondo-código-y-recargo)), así que neto = lo que pagó cada quien sin el
-  recargo. Las órdenes por transferencia, en la puerta, cargadas a mano o sin cargo no tienen
-  comisión. Una sola definición: `MP_FEE_SQL` / `orderMpFee` y `netRevenue` en
+  lo recaudado de las órdenes aprobadas (el «Recaudado» del panel: su `total` menos los reembolsos
+  parciales hechos en MP, ver [Reembolsos](#reembolsos)) **menos la comisión de MP de las que se
+  pagaron con Mercado Pago**. Esa comisión es, por orden (gorrite, Mesa `plata-numeros-panel`):
+  - la que **cobró MP**, si el pago la informó: el aviso de MP guarda en `mp_fee_amount` (migración 0069) la suma de `fee_details[].amount` con `fee_payer = 'collector'` del pago (`GET
+/v1/payments/{id}`; los campos, verificados con la búsqueda de documentación de MP el
+    2026-10-26). La financiación de las cuotas la paga quien compra y no cuenta;
+  - si no, la **estimada**: el recargo guardado en la orden (`surcharge_amount`), que se calcula al
+    comprar con la tasa vigente (`mp_fee_percent` del evento, Ajustes → Cobros,
+    `TICKETS_MP_FEE_PERCENT` o 2 %) justo para que, después de la comisión, quede la base (ver
+    [Precio](#precio-fondo-código-y-recargo)).
+
+  Con algo estimado, el panel lo dice: «netos **estimados**» en la meta (y el detalle al pasar el
+  mouse: cuánto de la comisión es estimado), «Neto estimado» si toda la comisión es estimada y, si
+  es una mezcla, «Neto (comisión estimada en parte: $ X de $ Y)» en «Entradas este mes» del Inicio
+  y en «Recaudado» de la ficha; Estadísticas › Ventas muestra por mes la comisión cobrada por MP y
+  la estimada por separado. Las órdenes por transferencia, en la puerta, cargadas a mano o sin
+  cargo no tienen comisión. Una sola definición: `REVENUE_SQL` / `orderRevenue`, `MP_FEE_SQL` /
+  `orderMpFee`, `MP_FEE_ESTIMATED_SQL` / `orderMpFeeEstimated`, `netRevenue` y `netEstimate` en
   `src/lib/utils/salesGoal.js`.
+
 - **`meta_venta: entradas:30`**: entradas vendidas (órdenes aprobadas, sin las reservadas). La
   comisión no cuenta.
 - Sin `meta_venta`: como siempre, contra el cupo.
@@ -297,7 +562,8 @@ Sin meta, el cupo, como antes:
 - Ventas → Todas las ventas: debajo del título de cada evento.
 
 El cupo no cambia en ningún lado: sigue siendo el límite de la venta y se sigue mostrando como
-número («vendidas / cupo») donde ya estaba. «Recaudado» también sigue igual (antes de la comisión).
+número («vendidas / cupo») donde ya estaba. «Recaudado» sigue siendo antes de la comisión (sin los
+reembolsos parciales hechos en MP).
 
 Código: `src/lib/utils/salesGoal.js` (leer, formulario, lo neto, `goalProgress`; con pruebas en
 `salesGoal.test.js`), `goal` en `EventTickets` (`parseTicketConfig`), `mpFee` en `getCounts`
@@ -532,7 +798,9 @@ no borra esa fila (la vuelve a `retry`), y su «Volver a anotarme» anda igual q
 `TICKETS_PAUSED` (variable del Worker, en el panel de Cloudflare; vacía = apagada) frena la venta
 online de todos los eventos de golpe: la página del evento y la de compra muestran su texto (p. ej.
 «Volvemos en un rato») en lugar de los botones (`getTicketsView` devuelve `reason: 'paused'` y
-`pausedMessage`; un evento cancelado sigue diciendo que se canceló), y `?/buy` contesta 503 con ese
+`pausedMessage`; un evento cancelado sigue diciendo que se canceló; las tarjetas de las listas no
+muestran nada de la venta, ni «Comprar entradas» ni «Venta no disponible»: `listStates.js` da
+`reason: 'paused'` y `ticketCta` lo vuelve `none`), y `?/buy` contesta 503 con ese
 texto **antes de tocar la base**: no se crea ninguna orden de Mercado Pago, transferencia ni
 gratis, ni con el link de una oferta de la lista de espera. La lista de espera no avanza.
 
@@ -619,6 +887,10 @@ La página de compra (`/calendario/<slug>/entradas`) hace lo mismo: el evento, l
 
 **El porcentaje que se cobra es el que se vio.** Como con los tramos de preventa, el formulario manda el porcentaje que mostró (`fondo_percent`, campo oculto, solo con «Con el descuento del fondo» elegido) **solo para avisar**: si no coincide con el vigente al comprar, `?/buy` no reserva y contesta 409 «El descuento del Fondo cambió: ahora es X %. Revisá el total y volvé a confirmar.». Toda respuesta con error de `?/buy` en un evento con Fondo lleva el porcentaje de ahora (`fondoPercent`) y la página de compra rearma los precios con él (`withFondoPercent` en `src/lib/utils/tickets.js`), así confirmar de nuevo pasa sin recargar. Sin el campo (o vacío: formularios viejos, precio completo o solidarias, eventos sin Fondo) no se frena nada.
 
+#### Precios con el Fondo en el editor
+
+En **Entradas** del editor de eventos (crear y editar), si el evento tiene la etiqueta KinkyVibe y el porcentaje de hoy es mayor que 0, debajo de cada precio (el fijo, el de cada tramo de preventa y el «Precio en puerta», si está) se ve cuánto sale con el Fondo, con el corazón violeta de siempre («💜 -20% = $ 11.200»), y cambia mientras se escribe. Un lector de pantalla lee «Con el descuento del Fondo (20 %): $ 11.200» (el emoji va con `aria-hidden`). El resumen de los tramos también lo dice («Preventa 1 ($ 14.000 · 💜 -20% = $ 11.200, hasta el 7/11) → …») y avisa una vez «El descuento del Fondo hoy es 20 %: puede cambiar.». Al lado, **Copiar precios** copia una línea por tramo para la agenda y los flyers («Preventa 1: $ 14.000 · 💜 -20% = $ 11.200 · hasta el 7/11», y «En la puerta: $ 20.000 · 💜 -20% = $ 16.000» si el tipo tiene precio en puerta propio); sin Fondo, sin la parte del corazón. Si el portapapeles no anda, el texto queda a la vista, seleccionado. Las cuentas son las de la compra (`fondoFor` y `unitPrice`, en `src/lib/utils/fondoPrices.js`). El porcentaje llega del load con `editorFondoPercent` (`src/lib/server/tickets/fondo.js`): el último conocido (`staleOk`, se actualiza en segundo plano) y, si no hay ninguno, espera a la API como mucho 0,8 s; si no llega o falla, el editor no muestra esas líneas. Es solo para mostrar: lo que se cobra lo decide la compra con el porcentaje de ese momento.
+
 ### Reembolsos
 
 En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada orden aprobada tiene **Reembolsar…**, que abre un paso de confirmación con el monto, quién compró y sus entradas:
@@ -627,8 +899,16 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
 - **Transferencia:** "Marcar como reembolsada (transferencia devuelta a mano)" hace la misma contabilidad sin llamar a MP. **Sin cargo:** "Anular las entradas".
 - Después, `refundOrder` (un único `UPDATE … WHERE status = 'approved'`) pasa la orden a `refunded` y guarda quién y cuándo (`refunded_by`, `refunded_at`). Una orden reembolsada no cuenta para el cupo, los usos de códigos ni los totales (cobrado, fondo usado, aportes); sus entradas quedan anuladas (el control de ingreso dice "Entrada anulada" y la página de la entrada, "Reembolsada"). Se le manda un mail corto a quien compró.
 - **Idempotente:** un segundo click (o una pestaña vieja) responde "ya estaba reembolsada". Si el reembolso se hace desde el panel de MP, llega por el webhook (`refunded` / `charged_back`), la orden pasa a `refunded` (sin `refunded_by`) y se manda el mismo mail; si el webhook llega después de un reembolso hecho desde el admin, no cambia nada. Un **contracargo** (`charged_back`: el banco de quien compró revirtió el cobro) también deja la orden en `refunded` y libera el lugar para la lista de espera, pero **no** manda el mail de reembolso (no lo devolvimos nosotres): queda un `console.warn` con la orden y el pago, y les admins que prendieron «Cada venta» en «🔔 Mis avisos» de Telegram reciben «⚠️ Contracargo en Mercado Pago…» con la referencia de la orden, el evento y el total (docs/telegram.md). No se marca «Para revisar»: los motivos de esa marca (`needs_review`) son solo pago tardío y pago duplicado, y sumar otro pediría una migración.
-- No hay reembolsos parciales (por entrada) todavía: para eso, hacerlo desde el panel de MP y anotar a mano.
-- **«Reembolsar todas» (evento cancelado, decisión [0051](decisiones/0051-reembolsar-todas-evento-cancelado.md)):** en la pestaña Órdenes de un evento con `status: cancelado`, arriba, un bloque con cuántas órdenes de Mercado Pago quedan sin reembolsar y por cuánto en total (`refundAllPreview` en `src/lib/server/admin/refunds.js`: aprobadas, `payment_method = 'mercadopago'`, con número de pago y compradas online). Solo admins. «Reembolsar todas…» abre la confirmación en la misma página: hay que escribir **REEMBOLSAR**, y el servidor rechaza si el evento no está cancelado o si la cantidad o el total que vio le admin ya no son los de ahora. La acción `refundAll` (`eventActions.js`) las reembolsa **de a 10 por pedido** (`REFUND_ALL_BATCH`), una después de otra y en orden de compra, cada una con **el mismo paso que «Reembolsar…»** (`refundFromPanel`: MP con `refund-<orden>` y después `refundOrder`; `afterRefund`: Actividad `order.refund`, el mismo mail «Reembolsamos tu compra» y la lista de espera). Si quedan más, «Seguir con las N que faltan» continúa después de la última vista. Nunca reembolsa dos veces (lo reembolsado no se vuelve a pedir; dos pedidos a la vez mandan la misma clave a MP y marcan la orden una vez). Si `refundPayment` da error (o se corta), se consulta el pago (`getPayment`): si MP ya lo tiene reembolsado, la orden se marca con el mismo `refundOrder` y cuenta como hecha; si no, se vuelve a leer la orden (si el webhook la marcó mientras tanto, «ya estaba»). Esto vale también para «Reembolsar…» de una orden. Lo que MP rechaza queda aprobado y el resumen pide revisar el pago en Mercado Pago antes de devolverlo a mano (para no pagarlo dos veces). Un error en una orden no corta la tanda (queda «not-marked», para revisar), y el resumen y la Actividad se anotan igual. Un «Seguir» con una orden que no es de este evento se rechaza (400) en vez de volver a empezar sin el control de cantidad y total; cada tanda queda en Actividad (`event.refund_all`) y en el log. Las aprobadas que no son de MP online (puerta, carga a mano, transferencia) se listan aparte como **«Para devolver a mano»** y no se tocan; las sin cargo solo se cuentan.
+- No hay reembolsos parciales (por entrada) desde el panel: se hacen desde el panel de MP
+  (decisión 0044). Cuando MP avisa un pago que sigue aprobado con algo reembolsado
+  (`transaction_amount_refunded`), el aviso lo **anota solo** en la orden (`refunded_amount`,
+  migración 0069; el acumulado, idempotente) sin cambiar nada más: la orden sigue aprobada, las
+  entradas siguen valiendo y no se manda ningún mail. En la pestaña Órdenes la orden dice
+  «Reembolso parcial en Mercado Pago: $ X (quedan $ Y)» (y, si MP la informó, «comisión de MP
+  $ Z»); el CSV de órdenes todavía no lo trae, y se resta de «Recaudado», de lo neto y de los totales del panel y de Estadísticas
+  (`REVENUE_SQL`). Un reembolso total sigue pasando la orden a `refunded`, como siempre.
+  Código: `paymentAmounts` y `recordPaymentAmounts` en `src/lib/server/tickets/orders.js`.
+- **«Reembolsar todas» (evento cancelado, decisión [0051](decisiones/0051-reembolsar-todas-evento-cancelado.md)):** en la pestaña Órdenes de un evento con `status: cancelado`, arriba, un bloque con cuántas órdenes de Mercado Pago quedan sin reembolsar y por cuánto en total (`refundAllPreview` en `src/lib/server/admin/refunds.js`: aprobadas, `payment_method = 'mercadopago'`, con número de pago y compradas online). El total, cada orden del resumen y la Actividad usan **lo que queda por devolver** de cada orden: su total menos el reembolso parcial ya hecho en MP (`refunded_amount`, `orderRevenue` / `REVENUE_SQL`); una orden a la que no le queda nada no se cuenta ni se le pide a MP. El pedido a MP sigue siendo el reembolso total (body vacío): MP no deja que lo reembolsado de un pago pase lo pagado, así que nunca devuelve de más. Lo mismo en «Reembolsar…» de una orden: el monto que muestra es lo que queda. Solo admins. «Reembolsar todas…» abre la confirmación en la misma página: hay que escribir **REEMBOLSAR**, y el servidor rechaza si el evento no está cancelado o si la cantidad o el total que vio le admin ya no son los de ahora. La acción `refundAll` (`eventActions.js`) las reembolsa **de a 10 por pedido** (`REFUND_ALL_BATCH`), una después de otra y en orden de compra, cada una con **el mismo paso que «Reembolsar…»** (`refundFromPanel`: MP con `refund-<orden>` y después `refundOrder`; `afterRefund`: Actividad `order.refund`, el mismo mail «Reembolsamos tu compra» y la lista de espera). Si quedan más, «Seguir con las N que faltan» continúa después de la última vista. Nunca reembolsa dos veces (lo reembolsado no se vuelve a pedir; dos pedidos a la vez mandan la misma clave a MP y marcan la orden una vez). Si `refundPayment` da error (o se corta), se consulta el pago (`getPayment`): si MP ya lo tiene reembolsado, la orden se marca con el mismo `refundOrder` y cuenta como hecha; si no, se vuelve a leer la orden (si el webhook la marcó mientras tanto, «ya estaba»). Esto vale también para «Reembolsar…» de una orden. Lo que MP rechaza queda aprobado y el resumen pide revisar el pago en Mercado Pago antes de devolverlo a mano (para no pagarlo dos veces). Un error en una orden no corta la tanda (queda «not-marked», para revisar), y el resumen y la Actividad se anotan igual. Un «Seguir» con una orden que no es de este evento se rechaza (400) en vez de volver a empezar sin el control de cantidad y total; cada tanda queda en Actividad (`event.refund_all`) y en el log. Las aprobadas que no son de MP online (puerta, carga a mano, transferencia) se listan aparte como **«Para devolver a mano»** y no se tocan; las sin cargo solo se cuentan.
 
 ### Mails y recordatorios
 
@@ -671,6 +951,25 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 
 (Reescrita para que se lea más clara, con el mismo sentido que el texto original de la organización. En el formulario va dentro de la misma lista que las demás condiciones.)
 
+### Cancelar un evento con entradas vendidas
+
+Receta (auditoría de confiabilidad, O24), siguiendo las decisiones
+[0044](decisiones/0044-reglas-de-la-venta-de-entradas.md) y
+[0051](decisiones/0051-reembolsar-todas-evento-cancelado.md): se le devuelve todo a todes desde el
+panel o, si la persona lo prefiere, un taller grabado. Cancelar no reembolsa ni avisa solo.
+
+1. **Editar el evento → estado `cancelado`.** Cierra la venta, saltea los recordatorios y cierra la
+   lista de espera (con su mail).
+2. **Avisar:** ficha del evento → Mail → «Mail a compradores», con un texto que ofrezca las dos
+   salidas (la devolución o un taller grabado) y diga cómo pedir el taller.
+3. **Devolver:** Ventas › Órdenes. Las de Mercado Pago, con «Reembolsar todas» (de a 10, hay que
+   escribir REEMBOLSAR) o una por una con «Reembolsar…»; cada reembolso manda su mail. Las que MP
+   rechace (sin saldo, más de 180 días) quedan aprobadas: anotarlas y reintentar, o devolver a mano
+   después de mirar el pago en MP. Las de la puerta, carga a mano o transferencia van en «Para
+   devolver a mano». Quien eligió el taller grabado: no se reembolsa; anotarlo (por ejemplo, en una nota interna de la persona).
+4. **Transferencias pendientes:** Ventas › Transferencias → Cancelar cada una.
+5. Mientras quede algo por devolver, el evento sale en «Para revisar» del Inicio.
+
 ### Evento de prueba
 
 `prueba-entradas-2026-12` (en la semilla de contenido, `src/lib/server/semilla/calendario.json`; en producción ya está borrado) es un evento **oculto** (`force_unlisted`) con entradas (General y Anticipada, con fondo en las dos), los dos medios de pago, y en el cuerpo las instrucciones paso a paso para probar todo. `prueba-entradas-gorra-2026-12` es otro, online y a la gorra.
@@ -683,6 +982,8 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 | Ajustes de venta                                 | `src/lib/server/tickets/settings.js`, `admin/ajustes/*`                                            |
 | Link de la transmisión (online)                  | `src/lib/server/tickets/stream.js`                                                                 |
 | Control de ingreso: código y sugerencias         | `src/lib/server/tickets/checkin.js`, `ingreso/buscar`                                              |
+| Modo puerta (panel y link) y links de puerta     | `src/lib/server/tickets/doorScreen.js`, `doorLinks.js`, `DoorScreen.svelte`, `src/routes/puerta/`  |
+| Extras y link de barra                           | `src/lib/utils/extras.js`, `src/lib/server/tickets/extras.js`, `barra.js`, `src/routes/barra/`     |
 | Cálculo de precio, DNI, política (compartido)    | `src/lib/utils/tickets.js`                                                                         |
 | Preventas (tramos) y tipos encadenados           | `src/lib/utils/ticketTiers.js`, `config.js` (`parseTiers`, `withTier`), `TicketTiersEditor.svelte` |
 | Códigos de descuento                             | `src/lib/server/tickets/discounts.js`, `admin/ventas/codigos`                                      |
@@ -797,18 +1098,20 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 
 - **Precio:** solo desde el frontmatter en el servidor; el webhook además compara el monto y la moneda del pago con el total guardado en la orden.
 - **Webhook:** firma HMAC-SHA256 con comparación de tiempo constante y `ts` de hasta 15 minutos; aun con firma válida, el estado se toma de la API de MP con nuestro token, nunca del body. Las notificaciones IPN viejas (`?topic=…`, sin firma) se ignoran.
-- **Sobreventa:** reserva atómica (ver arriba); test con 30 compras concurrentes. Los tramos de preventa se controlan en la misma sentencia (tests de carrera con filas precargadas en `tiers.test.js`). Un pago de Mercado Pago aprobado después de vencida la reserva se acepta (la plata entró), pero si con eso el tipo pasa su cupo la orden queda **para revisar** (`needs_review = 'late_payment'`); otro pago aprobado para una orden ya pagada queda como `duplicate_payment` (posible cobro doble). Las dos se ven en `/admin/ventas` y en la página del evento ("⚠️ Para revisar", con "Marcar como revisada").
+- **Sobreventa:** reserva atómica (ver arriba); test con 30 compras concurrentes. Los tramos de preventa se controlan en la misma sentencia (tests de carrera con filas precargadas en `tiers.test.js`). Un pago de Mercado Pago aprobado después de vencida la reserva se acepta (la plata entró), pero si con eso el tipo pasa su cupo la orden queda **para revisar** (`needs_review = 'late_payment'`); otro pago aprobado para una orden ya pagada queda como `duplicate_payment` (posible cobro doble; el aviso dice el monto, que es el total de la orden, y el número del otro pago). Las dos se ven en `/admin/ventas` y en la página del evento ("⚠️ Para revisar", con "Marcar como revisada"). "Marcar como revisada" saca la marca de la orden (y su detalle); lo que decía, con el número del otro pago, queda en Actividad (`order.reviewed`).
 - **Reservas y abuso:** límites en capas en `?/buy` (`CHECKOUT_RATE_LIMITS` en `checkout.js`): primero por cliente (hash con sal de la conexión que rota cada día, `safeguards.js`; la IP no se guarda; una IPv6 cuenta por su red /64), un techo general holgado por evento y por email. Topes de reservas abiertas a la vez por evento (`HOLD_LIMITS` en `orders.js`, en la misma sentencia atómica que el cupo): por email (2 reservas y 20 entradas) y por cliente (40 entradas). Las transferencias arrancan con una reserva corta que se extiende al confirmarla desde el mail. Como mucho 3 mails de reserva o de entradas gratis por hora a una misma dirección y, si no es la dirección de la cuenta con sesión, 5 por día sumando todos los formularios que mandan mails a una dirección sin confirmar (`UNCONFIRMED_MAIL_CAP`; si la base falla, no sale). Una orden gratis por mail y evento salvo con la cuenta de ese mail. Los nombres no aceptan links ni caracteres de control. `TICKETS_CLIENT_SALT` (opcional, secreto) hace secreta la sal del hash de cliente.
 - **Eventos de prueba:** los `prueba-entradas-*` del repo solo venden en `vite dev` (`isTestEventSlug` en `events.js`); en el sitio publicado no tienen venta.
 - **Tokens:** 256 bits aleatorios (`crypto.getRandomValues`), únicos; el check-in es un único `UPDATE` condicional (dos escaneos simultáneos: gana uno). Las páginas con tokens o ids de orden mandan `Referrer-Policy: no-referrer`, `noindex` y `no-store`; las que tienen un formulario POST común (sin `use:enhance`), como los links de los mails y el gracias de las propinas, van con `same-origin` (con no-referrer el POST sale con `Origin: null` y SvelteKit lo rechaza; ver [mails.md](mails.md)).
 - **Compras de este navegador:** la cookie httpOnly `kv_orders` (`path=/entradas`, 7 días) guarda las últimas 5 órdenes como `<orden>.<firma>`, separadas por `~`; la firma es `signLink` con la clave `orders_cookie_key` (se crea sola en `ticket_settings`, ver `signedLinks.js`), cortada a 16 caracteres. `rememberedOrders` (`checkout.js`) solo cuenta las entradas con la firma que puso el servidor; las demás se ignoran (las cookies viejas, sin firma, dejan de contar y la página de estado muestra la compra como a cualquiera: sin entradas y con el email enmascarado).
 - **Admin:** cada `load`, cada form action y el CSV llaman a `requireAdmin` en el servidor (las form actions y los `+server.js` no pasan por el layout).
 - **Mocks:** detrás de `dev` de `$app/environment`, que es `false` en el build: el módulo del mock, la sesión falsa y el fixture no llegan al worker de producción.
-- **CSV:** se arma con `toCsv`/`csvResponse` (`$lib/admin/csv.js`), como los demás del panel: celdas que empiezan con `= + - @` se escapan (inyección de fórmulas) y las fechas (`fecha`, `ingreso`) van en hora de Argentina, `2026-10-02 22:30`.
-- **Privacidad:** de quien compra, nombre, pronombres, email y DNI; de cada entrada, nombre y pronombres. En el navegador, el borrador del formulario (DNI incluido) vive solo en `sessionStorage` de esa pestaña y se borra al comprar; nunca en `localStorage`. El DNI nunca va en mails, logs, URLs ni en la página pública de la entrada (que muestra nombre y pronombres); solo lo ven les admins en las órdenes, el CSV y el control de ingreso. En el control de ingreso, lo que baja al celu (las sugerencias de «Buscar persona», la lista sin conexión, el resultado del escaneo) lleva solo los últimos 3 dígitos; el DNI completo se pide aparte con «ver completo», que queda en el registro de actividad (`order.reveal_dni`). Los datos por entrada viajan en la orden hasta que se emiten las entradas y ahí se borran de la orden.
+- **CSV:** se arma con `toCsv`/`csvResponse` (`$lib/admin/csv.js`), como los demás del panel: celdas que empiezan con `= + - @` se escapan (inyección de fórmulas), un texto con forma de notación científica (un código corto como `234E56`, que Excel y Sheets volverían número) va con `'` adelante, y las fechas (`fecha`, `ingreso`, `reembolsada_el`) van en hora de Argentina, `2026-10-02 22:30`. El `estado` de `ordenes.csv` es el que muestra el panel (una reserva vencida que todavía no se marcó sale `expired`) y, antes de `pago_mp` y `confirmo` (que sigue siendo la última columna fija, antes de las preguntas), van `canal` (online, puerta, cortesía o cargada a mano: la regla de [Canal de venta](#canal-de-venta-una-sola-regla)), `nota` (la de la carga a mano o la puerta), `reembolsada_el` y `reembolsada_por` («Mercado Pago» si llegó por el webhook).
+- **Privacidad:** de quien compra, nombre, pronombres, email y DNI; de cada entrada, nombre y pronombres. En el navegador, el borrador del formulario (DNI incluido) vive solo en `sessionStorage` de esa pestaña y se borra al comprar (con Mercado Pago, cuando la página de estado ve la compra aprobada: un pago rechazado vuelve al formulario con los datos cargados); nunca en `localStorage`. El DNI nunca va en mails, logs, URLs ni en la página pública de la entrada (que muestra nombre y pronombres); solo lo ven les admins en las órdenes, el CSV y el control de ingreso. En el control de ingreso, lo que baja al celu (las sugerencias de «Buscar persona», la lista sin conexión, el resultado del escaneo) lleva solo los últimos 3 dígitos; el DNI completo se pide aparte con «ver completo», que queda en el registro de actividad (`order.reveal_dni`). Los datos por entrada viajan en la orden hasta que se emiten las entradas y ahí se borran de la orden.
 - **Códigos:** revalidados en la misma sentencia atómica que el cupo; límite de intentos por cliente y evento, el mismo contador para "Aplicar" y para comprar con un código.
 - **Transferencias:** confirmación solo de admins, idempotente, sin sobreventa al confirmar reservas vencidas.
 - **Entradas:** quien tiene el link de una entrada no puede marcarse el ingreso (el form action `?/checkin` llama a `requireAdmin`: sin sesión redirige a `/login`, con sesión no admin a `/`; y la página no muestra el botón): tests en `src/routes/entradas/t/[token]/security.test.js`. El checkout simulado responde 404 fuera de `vite dev` con el mock (test en `simular-pago/[order]/gate.test.js`).
+- **Links de barra:** solo ver y entregar los extras de un evento, con el nombre de la entrada y nada más; un link de barra no abre la puerta ni uno de puerta la barra. Ver [Link de barra](#link-de-barra).
+- **Links de puerta:** solo la puerta de un evento, con un link vivo de ese evento mirado en cada pedido; ni el DNI completo, ni límites, ni el resto del panel. Ver [Link de puerta](#link-de-puerta).
 - **Link de transmisión:** solo en D1, nunca en el repo; se muestra solo en entradas de compras aprobadas.
 
 ## Verificación contra la documentación de Mercado Pago

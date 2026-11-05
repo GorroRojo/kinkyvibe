@@ -3,8 +3,10 @@
  * de la lista de órdenes del evento (`listOrders`). Funciones puras: no tocan la base, así se
  * prueban sin D1 y no suman consultas.
  *
- * Solo cuentan las órdenes aprobadas, salvo `heldBreakdown` (reservas vigentes).
+ * Solo cuentan las órdenes aprobadas, salvo `heldBreakdown` (reservas vigentes). La plata es la
+ * recaudada, sin los reembolsos parciales hechos en MP (`orderRevenue`).
  */
+import { orderRevenue } from '$lib/utils/salesGoal.js';
 
 /** Argentina no tiene horario de verano: UTC−3 fijo (igual que el resto del sitio). */
 const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -15,7 +17,8 @@ const HOLDING_STATUSES = ['pending', 'rejected', 'awaiting_transfer'];
 /**
  * @typedef {Pick<import('./orders.js').Order,
  *   'status' | 'quantity' | 'total' | 'created_at' | 'payment_method' | 'fondo_option'
- *   | 'fondo_amount' | 'fondo_contribution' | 'discount_code' | 'discount_amount' | 'expires_at'>
+ *   | 'fondo_amount' | 'fondo_contribution' | 'discount_code' | 'discount_amount' | 'expires_at'
+ *   | 'refunded_amount'>
  * } StatsOrder
  */
 
@@ -52,7 +55,7 @@ export function salesPerDay(orders, { now = Date.now(), days = 14 } = {}) {
 		if (!day) continue;
 		day.tickets += o.quantity;
 		day.orders += 1;
-		day.amount += o.total;
+		day.amount += orderRevenue(o);
 	}
 	return [...byDay.values()];
 }
@@ -82,7 +85,7 @@ export function paymentSplit(orders) {
 		}
 		row.orders += 1;
 		row.tickets += o.quantity;
-		row.amount += o.total;
+		row.amount += orderRevenue(o);
 		total += o.quantity;
 	}
 	const rows = [...by.values()];

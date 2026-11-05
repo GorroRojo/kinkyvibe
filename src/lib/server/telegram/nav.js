@@ -55,6 +55,7 @@ import { parseCallbackData as parseLegacy } from './keyboards.js';
  *   | { screen: 'sigo' }
  *   | { screen: 'fondo' }
  *   | { screen: 'help' }
+ *   | { screen: 'search_help' }
  *   | { screen: 'follow', id: string }
  *   | { screen: 'follow_do', id: string, tag: string }
  *   | { screen: 'site_results', query: string, page: number }
@@ -195,6 +196,9 @@ export function encodeNav(state) {
 		case 'help':
 			data = 'a';
 			break;
+		case 'search_help':
+			data = 'sa';
+			break;
 		case 'follow':
 			data = `f:${state.id}`;
 			break;
@@ -240,6 +244,7 @@ const FIXED = {
 	g: { screen: 'sigo' },
 	fo: { screen: 'fondo' },
 	a: { screen: 'help' },
+	sa: { screen: 'search_help' },
 	x: { screen: 'noop' }
 };
 

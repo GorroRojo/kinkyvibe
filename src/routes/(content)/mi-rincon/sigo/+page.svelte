@@ -199,7 +199,7 @@
 		<ul class="what">
 			<li>lo que seguís con «En mi calendario» (arriba, en cada cosa que seguís);</li>
 			<li>tus entradas, también las de eventos no listados;</li>
-			<li>los eventos donde participás, con un perfil que manejás.</li>
+			<li>los eventos donde participás, con un perfil que gestionás.</li>
 		</ul>
 		<form method="POST" action="?/calendario" use:enhance={submit('calendario')} class="options">
 			<label>
@@ -220,7 +220,7 @@
 					disabled={busy === 'calendario'}
 					on:change={autoSave}
 				/>
-				Los eventos donde participo (con un perfil que manejás)
+				Los eventos donde participo (con un perfil que gestiono)
 			</label>
 			<noscript><button class="pill-btn ghost small" type="submit">Guardar</button></noscript>
 		</form>

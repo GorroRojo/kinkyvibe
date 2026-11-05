@@ -3,12 +3,18 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { configDefaults, defineConfig } from 'vitest/config';
 import { deployBranchFromEnv } from './src/lib/server/deployBranch.js';
 import { commitShaFromEnv, latestMigrationName } from './src/lib/server/buildInfo.js';
+import { appServerForTests } from './scripts/vite/app-server-tests.js';
 import { lucideDeepImports } from './scripts/vite/lucide-deep-imports.js';
 import DurationSequencer from './scripts/vitest/sequencer.js';
 
 export default defineConfig({
-	// En vitest, los íconos se importan de a uno (ver scripts/vite/lucide-deep-imports.js).
-	plugins: [sveltekit(), process.env.VITEST ? lucideDeepImports() : null],
+	// En vitest, los íconos se importan de a uno (ver scripts/vite/lucide-deep-imports.js) y
+	// `$app/server` es solo `getRequestEvent` (scripts/vite/app-server-tests.js).
+	plugins: [
+		sveltekit(),
+		process.env.VITEST ? lucideDeepImports() : null,
+		process.env.VITEST ? appServerForTests() : null
+	],
 	// Rama del deploy (Workers Builds; '' en local): ver
 	// src/lib/server/deployBranch.js y src/lib/server/deploy.js.
 	// La última migración de migrations/ y el commit del build (Workers Builds; '' en local), para
@@ -27,8 +33,12 @@ export default defineConfig({
 		assetsInlineLimit: 0
 	},
 	test: {
-		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js).
-		setupFiles: ['src/tests/setup.js'],
+		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js). Con `SHIFT_DAYS`,
+		// también el reloj adelantado (scripts/vitest/shift-clock.js; corrida semanal).
+		setupFiles: [
+			'src/tests/setup.js',
+			...(process.env.SHIFT_DAYS ? ['scripts/vitest/shift-clock.js'] : [])
+		],
 		// Reparte las partes de la CI (`--shard`) por lo que tarda cada archivo
 		// (scripts/vitest/durations.json), no por cantidad de archivos.
 		sequence: { sequencer: DurationSequencer },

@@ -163,7 +163,15 @@ describe('fondoByMonth', () => {
 			['2026-08', 500, 300, -200, 70],
 			['2026-09', 0, 1000, 1000, 0]
 		]);
-		expect(r.totals).toEqual({ used: 500, contributed: 1300, net: 800, surcharge: 70 });
+		// La comisión de MP: sin la que informa MP (`mp_fee_amount`), la estimada (el recargo).
+		expect(r.totals).toEqual({
+			used: 500,
+			contributed: 1300,
+			net: 800,
+			surcharge: 70,
+			mpFee: 70,
+			mpFeeEstimated: 70
+		});
 	});
 });
 

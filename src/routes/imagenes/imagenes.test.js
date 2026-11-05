@@ -56,13 +56,15 @@ async function member(name = 'persona-prueba', manages = true) {
 			},
 			{ actor: `cuenta:${a.id}` }
 		);
-		// Tabla de apoyo (no es objects/edges): quién gestiona el perfil.
+		// Tabla de apoyo (no es objects/edges): quién gestiona el perfil. Como en el sitio, quien
+		// gestiona un perfil tiene el permiso «puede tener perfiles» (sin él, /imagenes da 404).
 		await t.db
 			.prepare(
 				"INSERT INTO profile_managers (profile_id, account_id, role, created_at) VALUES (?1, ?2, 'owner', 1)"
 			)
 			.bind(p.id, a.id)
 			.run();
+		await t.db.prepare('UPDATE accounts SET can_have_profiles = 1 WHERE id = ?1').bind(a.id).run();
 	}
 	return { user: undefined, user_token: '', member: { id: a.id, email: a.email } };
 }

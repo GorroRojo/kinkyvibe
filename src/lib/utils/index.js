@@ -142,6 +142,8 @@ export function tagSorter(tagManager) {
 	tagManager.tagIDs().forEach((id, i) => {
 		if (!tagIndex.has(id)) tagIndex.set(id, i);
 	});
+	/** @type {Set<string>} las que se están armando: un ciclo de madres en los datos no la cuelga */
+	const inProgress = new Set();
 	/**
 	 * @param {ProcessedTag} tag
 	 * @return {string[][]}
@@ -149,6 +151,8 @@ export function tagSorter(tagManager) {
 	const ancestry = (tag) => {
 		const cached = ancestryCache.get(tag.id);
 		if (cached) return cached;
+		if (inProgress.has(tag.id)) return [];
+		inProgress.add(tag.id);
 		let branches = [];
 		let tagParents = tag.parents?.filter((p) => p != 'root') ?? [];
 		for (let p of tagParents) {
@@ -163,6 +167,7 @@ export function tagSorter(tagManager) {
 			}
 			branches.push(...subbranch);
 		}
+		inProgress.delete(tag.id);
 		ancestryCache.set(tag.id, branches);
 		return branches;
 	};

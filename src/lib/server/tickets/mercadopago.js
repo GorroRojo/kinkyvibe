@@ -126,7 +126,7 @@ export function checkoutProPreference({ items, externalReference, backUrl, from,
  * Cuerpo de la preferencia de Checkout Pro para una orden.
  *
  * @param {{
- *   order: { id: string, ticket_type: string, quantity: number, unit_price: number, total?: number, buyer_email: string, buyer_name: string, expires_at: number, created_at: number },
+ *   order: { id: string, ticket_type: string, quantity: number, unit_price: number, total?: number, extras_amount?: number | null, buyer_email: string, buyer_name: string, expires_at: number, created_at: number },
  *   eventTitle: string,
  *   typeName: string,
  *   origin: string
@@ -135,9 +135,13 @@ export function checkoutProPreference({ items, externalReference, backUrl, from,
 export function buildPreference({ order, eventTitle, typeName, origin }) {
 	// Si el total no es precio × cantidad (fondo, código de descuento o recargo), un solo ítem
 	// por el total: MP no acepta ítems negativos y el webhook compara lo pagado con `orders.total`.
-	const single = order.total !== undefined && order.total !== order.unit_price * order.quantity;
+	// Con extras (decisión 0056), también un solo ítem: por lo que se paga en total (`orderPaid`),
+	// que es lo que compara el webhook.
+	const extras = Number(order.extras_amount ?? 0);
+	const due = order.total !== undefined ? order.total + extras : undefined;
+	const single = due !== undefined && due !== order.unit_price * order.quantity;
 	const title = single
-		? `${order.quantity} × Entrada ${typeName} · ${eventTitle}`
+		? `${order.quantity} × Entrada ${typeName}${extras > 0 ? ' + extras' : ''} · ${eventTitle}`
 		: `Entrada ${typeName} · ${eventTitle}`;
 	return checkoutProPreference({
 		items: [
@@ -145,7 +149,7 @@ export function buildPreference({ order, eventTitle, typeName, origin }) {
 				id: `${order.ticket_type}`,
 				title,
 				quantity: single ? 1 : order.quantity,
-				unit_price: single ? /** @type {number} */ (order.total) : order.unit_price,
+				unit_price: single ? /** @type {number} */ (due) : order.unit_price,
 				currency_id: 'ARS'
 			}
 		],

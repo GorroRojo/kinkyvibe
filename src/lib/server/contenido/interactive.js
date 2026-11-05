@@ -80,17 +80,24 @@ function decodeEntities(s) {
 }
 
 /**
- * Los atributos de un elemento como texto (los mismos que da el HTML), sin los `on…`.
+ * Los atributos de un elemento como texto (los mismos que da el HTML), sin los `on…`. Cada uno se
+ * arma solo, en un elemento propio: así un `>` o unas comillas dentro de un valor no se pueden
+ * leer como otro atributo.
  * @param {any} el
  */
 function attrsOf(el) {
-	const open = stringify({ ...el, children: [] }).match(/^<[^\s>]+([^>]*)>/)?.[1] ?? '';
 	/** @type {Record<string, string>} */
 	const attrs = {};
-	const re = /([^\s=/]+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
-	for (let m = re.exec(open); m; m = re.exec(open)) {
-		if (!SAFE_ATTR.test(m[1])) continue;
-		attrs[m[1]] = decodeEntities(m[2] ?? m[3] ?? m[4] ?? '');
+	for (const [key, value] of Object.entries(el.properties ?? {})) {
+		const html = stringify({
+			type: 'element',
+			tagName: 'x',
+			properties: { [key]: value },
+			children: []
+		});
+		const m = /^<x ([^\s="'>/]+)(?:="([^"]*)")?><\/x>$/.exec(html);
+		if (!m || !SAFE_ATTR.test(m[1])) continue;
+		attrs[m[1]] = decodeEntities(m[2] ?? '');
 	}
 	return attrs;
 }

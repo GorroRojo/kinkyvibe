@@ -14,7 +14,6 @@ import { FICHA_CATEGORIES } from './fichas.js';
  * @param {string} category
  * @param {string} [_slug] el post que se edita; sin pasar, uno nuevo
  */
-// eslint-disable-next-line no-unused-vars
 export async function panelSavesToDb(_platform, category, _slug = '') {
 	return (
 		Object.hasOwn(CONTENT_CATEGORIES, category) ||

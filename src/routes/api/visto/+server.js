@@ -5,6 +5,7 @@
  */
 import { isBot } from '$lib/server/analytics/classify.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
+import { readTextCapped } from '$lib/server/http/body.js';
 import {
 	BEACON_LIMIT,
 	MAX_BEACON_BYTES,
@@ -24,9 +25,9 @@ export async function POST({ request, url, platform }) {
 	if ((origin && origin !== url.origin) || (site && site !== 'same-origin')) {
 		return new Response(null, { status: 403, headers: noStore });
 	}
-	const length = Number(request.headers.get('content-length') ?? 0);
-	if (length > MAX_BEACON_BYTES) return new Response(null, { status: 413, headers: noStore });
-	const text = (await request.text()).slice(0, MAX_BEACON_BYTES + 1);
+	// Tope también sin content-length: se corta al leer, sin guardar el cuerpo entero.
+	const text = await readTextCapped(request, MAX_BEACON_BYTES);
+	if (text === null) return new Response(null, { status: 413, headers: noStore });
 	const parsed = parseBeacon(text);
 	if (!parsed.ok) return new Response(null, { status: 400, headers: noStore });
 	if (isBot(request.headers.get('user-agent'))) {

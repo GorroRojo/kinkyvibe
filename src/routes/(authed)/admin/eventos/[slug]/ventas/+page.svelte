@@ -9,6 +9,7 @@
 	import SalesThermometer from '$lib/components/admin/panel/SalesThermometer.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
+	import { netEstimate, netEstimateText, netRevenue } from '$lib/utils/salesGoal.js';
 	import { fondoOptionLabel, formatSaleTime } from '$lib/utils/tickets.js';
 	import { dayLabel as argentinaDayLabel } from '$lib/admin/eventFormat.js';
 
@@ -107,7 +108,35 @@
 		sub="{t.held.paying} pagando · {t.held.transfers} por transferencia"
 		href={t.held.transfers ? eventHref(e.slug, 'transferencias') : ''}
 	/>
-	<Stat label="Recaudado" value={formatARS(t.revenue)} sub="antes de la comisión de Mercado Pago" />
+	<Stat
+		label="Recaudado"
+		value={formatARS(t.revenue)}
+		sub="antes de la comisión de Mercado Pago{t.partialRefunds
+			? ` · sin ${formatARS(t.partialRefunds)} de reembolsos parciales en MP`
+			: ''}"
+	>
+		{#if t.mpFee}
+			{@const kind = netEstimate(t)}
+			<small
+				class="net-line"
+				title={netEstimateText(t) || 'Lo recaudado menos la comisión que cobró Mercado Pago.'}
+				>{kind === 'all' ? 'Neto estimado' : 'Neto'}: {formatARS(
+					netRevenue({ revenue: t.revenue, mpFee: t.mpFee })
+				)}{kind === 'part'
+					? ` (comisión estimada en parte: ${formatARS(t.mpFeeEstimated)} de ${formatARS(t.mpFee)})`
+					: ''}</small
+			>
+		{/if}
+	</Stat>
+	{#if data.extras}
+		<Stat
+			label="Extras"
+			value={formatARS(data.extras.amount)}
+			sub={data.extras.rows.length
+				? data.extras.rows.map((x) => `${x.sold} × ${x.name}`).join(' · ')
+				: 'todavía ninguno'}
+		/>
+	{/if}
 	{#if showFondo}
 		<Stat
 			label="Neto del fondo"
@@ -153,6 +182,25 @@
 			{/each}
 		</ul>
 	</Card>
+
+	{#if data.extras?.rows.length}
+		<Card title="Extras">
+			<p class="muted small">Aparte de lo recaudado por entradas (sin Fondo ni descuentos).</p>
+			<ul class="types">
+				{#each data.extras.rows as x (x.id)}
+					<li>
+						<div class="row">
+							<strong>{x.name}</strong>
+							<span class="num">{formatARS(x.amount)}</span>
+						</div>
+						<div class="row muted small">
+							<span>Vendidos {x.sold} · entregados {x.delivered}</span>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		</Card>
+	{/if}
 
 	<Card title="Vendidas por día">
 		<svelte:fragment slot="actions">
@@ -553,5 +601,10 @@
 		flex-wrap: wrap;
 		gap: var(--space-2xs);
 		margin-top: 1rem;
+	}
+	.net-line {
+		display: block;
+		font-size: var(--text-xs);
+		color: var(--muted);
 	}
 </style>

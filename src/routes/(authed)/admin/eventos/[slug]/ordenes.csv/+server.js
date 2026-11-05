@@ -12,6 +12,10 @@ import { orderReference } from '$lib/utils/tickets.js';
 import { answersByOrder, fieldsForEvent } from '$lib/server/tickets/signupFields.js';
 import { answerColumns, answerFor } from '$lib/utils/signupFields.js';
 import { csvFilename, csvResponse, toCsv } from '$lib/admin/csv.js';
+import { SALE_CHANNEL_SINGULAR, saleChannel } from '$lib/utils/saleChannel.js';
+import { extrasEnabled } from '$lib/server/flags.js';
+import { extrasByOrder } from '$lib/server/tickets/extras.js';
+import { extrasCsvCells } from '$lib/utils/extras.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ locals, url, params, platform }) {
@@ -20,11 +24,14 @@ export async function GET({ locals, url, params, platform }) {
 	if (!config) error(404, 'Ese evento no vende entradas.');
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const [orders, tickets, answers, fields] = await Promise.all([
+	const [orders, tickets, answers, fields, extras] = await Promise.all([
 		listOrders(db, params.slug),
 		listEventTickets(db, params.slug),
 		answersByOrder(db, params.slug),
-		eventFieldsForCsv(db, params.slug)
+		eventFieldsForCsv(db, params.slug),
+		// Extras de la compra (interruptor `extras`, decisión 0056): dos columnas después de `total`.
+		// Apagado, el CSV queda como siempre.
+		extrasEnabled(platform).then((on) => (on ? extrasByOrder(db, params.slug) : null))
 	]);
 	// Una columna por pregunta de inscripción (las de hoy y las que solo tienen respuestas viejas).
 	// Sin preguntas ni respuestas, el CSV queda como siempre.
@@ -63,6 +70,15 @@ export async function GET({ locals, url, params, platform }) {
 		'descuento',
 		'recargo_mp',
 		'total',
+		// Con el interruptor `extras`: «2 × Trago» y lo que sumaron (aparte de `total`, que es lo de
+		// las entradas; lo pagado es `total` + `monto_extras`).
+		...(extras ? ['extras', 'monto_extras'] : []),
+		// Antes de `pago_mp` y `confirmo`: `confirmo` sigue siendo la última columna fija (las
+		// preguntas de inscripción van después).
+		'canal',
+		'nota',
+		'reembolsada_el',
+		'reembolsada_por',
 		'pago_mp',
 		'confirmo',
 		...extra.map((c) => c.label)
@@ -72,7 +88,15 @@ export async function GET({ locals, url, params, platform }) {
 	// de Argentina (`2026-10-02 22:30`).
 	/** @type {unknown[][]} */
 	const rows = [];
+	const now = Date.now();
 	for (const o of orders) {
+		// El estado que muestra el panel (eventOrders.js): una reserva vencida que todavía no se
+		// marcó como tal sale como vencida.
+		const status =
+			(o.status === 'pending' || o.status === 'awaiting_transfer' || o.status === 'rejected') &&
+			o.expires_at <= now
+				? 'expired'
+				: o.status;
 		const issued = byOrder.get(o.id) ?? [];
 		const people = issued.length
 			? issued.map((t) => ({
@@ -88,7 +112,7 @@ export async function GET({ locals, url, params, platform }) {
 				o.id,
 				orderReference(o.id),
 				new Date(o.created_at),
-				o.status,
+				status,
 				o.payment_method,
 				names[o.ticket_type] ?? o.ticket_type,
 				o.buyer_name,
@@ -111,6 +135,12 @@ export async function GET({ locals, url, params, platform }) {
 				first ? o.discount_amount : '',
 				first ? o.surcharge_amount : '',
 				first ? o.total : '',
+				...(extras ? extrasCsvCells(extras.get(o.id) ?? [], { first }) : []),
+				// La regla única de los canales (saleChannel.js): online, puerta, cortesía o cargada a mano.
+				SALE_CHANNEL_SINGULAR[saleChannel(o)],
+				o.admin_note ?? '',
+				o.refunded_at ? new Date(o.refunded_at) : '',
+				o.refunded_at ? (o.refunded_by ?? 'Mercado Pago') : '',
 				o.mp_payment_id,
 				o.confirmed_by,
 				...extra.map((c) => answerFor(answers.get(o.id), c.id))

@@ -386,7 +386,7 @@ async function writeRow(db, cat, category, row, { actor, now }) {
 			title: mapped.title,
 			slug: /** @type {string} */ (row.slug),
 			data,
-			edges: { ...edges, ...(await legacyVenueEdge(db, category, row.legacySlug)) },
+			edges,
 			visibility: mapped.visibility
 		},
 		{
@@ -405,39 +405,6 @@ async function writeRow(db, cat, category, row, { actor, now }) {
 		}
 	);
 	return { ...publicRow(row), objectId: saved.id, slug: saved.slug };
-}
-
-/**
- * El lugar que un evento tenía en la tabla vieja `event_venues` (antes de que «sucede en» fuera un
- * edge), para el evento que se importa recién ahora: la migración 0035 pasó a edges los vínculos
- * de los eventos que ya estaban en la base; los de los que todavía eran solo .md se pasan acá, al
- * crearlos. Es la única lectura que queda de esa tabla (ya nadie la escribe). Solo si el lugar
- * sigue vivo y es un lugar.
- *
- * @param {D1Database} db
- * @param {string} category
- * @param {string} legacySlug
- * @returns {Promise<{ lugar?: { to: number, data: { privacy: string } | null }[] }>}
- */
-async function legacyVenueEdge(db, category, legacySlug) {
-	if (category !== 'calendario') return {};
-	let row;
-	try {
-		row = await db
-			.prepare(
-				`SELECT ev.venue_id, ev.privacy FROM event_venues ev
-				JOIN objects o ON o.id = ev.venue_id AND o.type = 'perfil' AND o.deleted_at IS NULL
-					AND json_extract(o.data, '$.kind') = 'lugar'
-				WHERE ev.event_slug = ?1`
-			)
-			.bind(legacySlug)
-			.first();
-	} catch {
-		return {}; // una base sin la tabla vieja
-	}
-	if (!row) return {};
-	const privacy = typeof row.privacy === 'string' ? row.privacy : null;
-	return { lugar: [{ to: Number(row.venue_id), data: privacy ? { privacy } : null }] };
 }
 
 /**

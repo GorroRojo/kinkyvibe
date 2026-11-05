@@ -13,6 +13,7 @@ import { ARGENTINA_TIME_NOTE } from '$lib/utils/expiry.js';
 import { TRANSFER_HOLD_AFTER, transferHoldText } from '$lib/utils/transferDeadline.js';
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
+import { orderPaid } from '$lib/utils/extras.js';
 import { salePlaceText } from '$lib/utils/eventPlace.js';
 import {
 	WHY_BOUGHT,
@@ -24,6 +25,7 @@ import {
 	templateDef
 } from '$lib/utils/emailTemplates.js';
 import { MAIL_COLORS, MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
+import { escapeHtml } from '$lib/utils/escape.js';
 import {
 	eventReservationScript,
 	googleCalendarUrl,
@@ -212,7 +214,7 @@ export function templateVars(order, event, typeName) {
 		tipo: typeName,
 		cantidad: order.quantity,
 		entradas: order.quantity === 1 ? 'una entrada' : `${order.quantity} entradas`,
-		total: formatARS(order.total),
+		total: formatARS(orderPaid(order)),
 		referencia: orderReference(order.id)
 	};
 }
@@ -234,9 +236,12 @@ function policyBlocks(contactEmail) {
 }
 
 /**
- * Líneas del desglose de precio de una orden (fondo, descuento, recargo, total).
+ * Líneas del desglose de precio de una orden (fondo, descuento, extras, recargo, total).
  *
- * @param {import('./orders.js').Order} order
+ * Extras (decisión 0056): si quien manda el mail los leyó (`order.extras`, `withOrderExtras` en
+ * index.js), una línea por extra («2 × Trago: $ 6.000»); el total es lo que se pagó (`orderPaid`).
+ *
+ * @param {import('./orders.js').Order & { extras?: { name: string, quantity: number, price: number }[] }} order
  * @param {string} typeName
  */
 export function priceLines(order, typeName) {
@@ -254,22 +259,18 @@ export function priceLines(order, typeName) {
 	if (order.discount_amount) {
 		lines.push(`Código ${order.discount_code}: −${formatARS(order.discount_amount)}`);
 	}
+	for (const e of order.extras ?? []) {
+		lines.push(`${e.quantity} × ${e.name}: ${formatARS(e.price * e.quantity)}`);
+	}
 	if (order.surcharge_amount) {
 		lines.push(`Recargo Mercado Pago: +${formatARS(order.surcharge_amount)}`);
 	}
-	lines.push(`Total: ${formatARS(order.total)}`);
+	lines.push(`Total: ${formatARS(orderPaid(order))}`);
 	return lines;
 }
 
-/** @param {string} s */
-export function escapeHtml(s) {
-	return s
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#39;');
-}
+// El escape de siempre ($lib/utils/escape.js); se reexporta para los mails que lo importan de acá.
+export { escapeHtml };
 
 /**
  * Fecha y hora del evento en horario de Argentina.
@@ -894,15 +895,17 @@ export function buildDateChangeEmail({
 export function buildRefundEmail({ order, event, typeName, contactEmail, origin, template }) {
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
 	const subject = custom.subject ?? `Reembolso de tu compra · ${event.title}`;
-	const how =
-		order.payment_method === 'mercadopago'
+	// «Sin cargo» solo si no se cobró nada: una carga a mano con medio «otro» y monto sí se cobró.
+	const how = !orderPaid(order)
+		? 'Era una compra sin cargo: no hay dinero para devolver.'
+		: order.payment_method === 'mercadopago'
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
 			: order.payment_method === 'transferencia'
 				? 'Te devolvimos el dinero por transferencia.'
 				: order.payment_method === 'efectivo'
 					? 'Te devolvimos el dinero en efectivo.'
-					: 'Era una compra sin cargo: no hay dinero para devolver.';
-	const amount = order.total ? ` de ${formatARS(order.total)}` : '';
+					: 'Te devolvimos el dinero.';
+	const amount = orderPaid(order) ? ` de ${formatARS(orderPaid(order))}` : '';
 	const html = mailLayout({
 		origin,
 		label: custom.label ?? 'Reembolso',
@@ -980,7 +983,7 @@ export function buildTransferEmail({
 	const holdHtml = `<p style="background:#fff3c4;border-radius:12px;padding:12px 16px;margin:0 0 16px">Te guardamos el lugar hasta el <strong>${escapeHtml(deadline)}</strong> (${ARGENTINA_TIME_NOTE}). ${escapeHtml(TRANSFER_HOLD_AFTER)}</p>`;
 	const intro =
 		custom.bodyHtml ??
-		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmar tus entradas transferí <strong>${formatARS(order.total)}</strong>.</p>`;
+		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmar tus entradas transferí <strong>${formatARS(orderPaid(order))}</strong>.</p>`;
 	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventWhen(event.start, event.end))}</p>${parts.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="${MAIL_STYLES.box};white-space:pre-line">${escapeHtml(transferInfo)}</div>
@@ -1004,7 +1007,7 @@ export function buildTransferEmail({
 	const text = [
 		custom.headingText ?? 'Reservamos tus entradas',
 		'',
-		custom.bodyText ?? `Para confirmar tus entradas transferí ${formatARS(order.total)}.`,
+		custom.bodyText ?? `Para confirmar tus entradas transferí ${formatARS(orderPaid(order))}.`,
 		'',
 		holdText,
 		...(custom.helpText !== null ? ['', custom.helpText] : []),
@@ -1099,6 +1102,9 @@ export function resendBackoff(error) {
 	return error.status >= 500 ? 'server' : null;
 }
 
+/** Lo que Resend acepta como valor de un tag. */
+const RESEND_TAG_VALUE = /^[A-Za-z0-9_-]{1,256}$/;
+
 /** @param {number} ms */
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -1133,10 +1139,13 @@ async function resendError(res) {
  *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[],
  *     headers?: Record<string, string> },
  *   idempotencyKey?: string,
+ *   kind?: string,
  *   timeoutMs?: number,
  *   wait?: (ms: number) => Promise<unknown>
  * }} input `message.headers`: cabeceras de este mail, sobre {@link MAIL_HEADERS}. `wait`: la
- *   espera del reintento corto (para los tests).
+ *   espera del reintento corto (para los tests). `kind`: el tipo de mail (`entradas`, `codigo`,
+ *   `serie`…), que va como tag `tipo` de Resend para filtrar por tipo en Resend → Emails y en los
+ *   eventos del webhook. Solo letras ASCII, números, `_` y `-` (lo que acepta Resend).
  * @throws {ResendError} si Resend responde con un error (ver {@link resendBackoff}).
  *   Un 429 por tasa se reintenta una sola vez antes, esperando lo que diga `retry-after` (como
  *   mucho {@link RESEND_RETRY_MAX_WAIT_MS}): Resend no lo aceptó, así que no se duplica.
@@ -1149,6 +1158,7 @@ export async function sendWithResend({
 	replyTo,
 	message,
 	idempotencyKey,
+	kind,
 	timeoutMs = RESEND_TIMEOUT_MS,
 	wait = sleep
 }) {
@@ -1163,7 +1173,8 @@ export async function sendWithResend({
 		text: message.text,
 		...(message.attachments?.length ? { attachments: message.attachments } : {}),
 		...(replyTo ? { reply_to: replyTo } : {}),
-		headers: { ...MAIL_HEADERS, ...message.headers }
+		headers: { ...MAIL_HEADERS, ...message.headers },
+		...(kind && RESEND_TAG_VALUE.test(kind) ? { tags: [{ name: 'tipo', value: kind }] } : {})
 	});
 	const post = () =>
 		fetch('https://api.resend.com/emails', {

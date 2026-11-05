@@ -98,8 +98,8 @@ describe('/admin/eventos/lugares: qué se muestra de la dirección en un evento'
 	});
 });
 
-describe('/admin/eventos/lugares: la dirección escrita en el archivo del evento', () => {
-	const NOTE = 'Su archivo tiene la dirección escrita (el repo es público): sacala del';
+describe('/admin/eventos/lugares: la dirección escrita en el «Dónde» del evento', () => {
+	const NOTE = 'El evento tiene la dirección escrita en su «Dónde» y este lugar no la';
 	const link = {
 		eventSlug: 'evento-inventado',
 		venueId: 1,

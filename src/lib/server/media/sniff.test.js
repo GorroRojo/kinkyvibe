@@ -120,6 +120,17 @@ describe('sniffDocument (documentos y video de la biblioteca)', () => {
 		// Una imagen no es un documento.
 		expect(sniffDocument(solidPng(3, 3))).toBeNull();
 	});
+	it('subtítulos WebVTT: solo si empiezan con WEBVTT y son texto UTF-8', () => {
+		const vtt = { kind: 'documento', mime: 'text/vtt', ext: 'vtt' };
+		expect(sniffDocument(enc('WEBVTT\n\n00:00.000 --> 00:02.000\nHola'))).toEqual(vtt);
+		expect(sniffDocument(enc('WEBVTT'))).toEqual(vtt);
+		expect(sniffDocument(enc('\uFEFFWEBVTT - con título\r\n'))).toEqual(vtt);
+		// otra cosa después de WEBVTT, un HTML, bytes nulos o UTF-8 roto: no
+		expect(sniffDocument(enc('WEBVTTX\n'))).toBeNull();
+		expect(sniffDocument(enc('<script>WEBVTT</script>'))).toBeNull();
+		expect(sniffDocument(new Uint8Array([...enc('WEBVTT\n'), 0, 65]))).toBeNull();
+		expect(sniffDocument(new Uint8Array([...enc('WEBVTT\n'), 0xff, 0xfe]))).toBeNull();
+	});
 	it('sniffMedia: imagen o documento/video, con su clase', () => {
 		expect(sniffMedia(solidPng(3, 3))).toMatchObject({ kind: 'imagen', mime: 'image/png' });
 		expect(sniffMedia(fakePdf())).toMatchObject({ kind: 'documento', ext: 'pdf' });

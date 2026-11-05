@@ -6,8 +6,8 @@
  * - `<script>` / `<style>` blocks (mdsvex imports) are dropped; Svelte expressions `{x}` stay as
  *   written.
  * - Inline HTML (<small>, <div>, <img>…) is rendered: posts use it a lot. The result must go
- *   through `sanitizePreview` in the browser before `{@html}` (drops scripts, iframes, event
- *   handlers and javascript: URLs), since the text is whatever the person typed.
+ *   through `sanitizePreview` (./sanitizePreview.js, DOMPurify) in the browser before `{@html}`,
+ *   since the text is whatever the person typed.
  */
 import { micromark } from 'micromark';
 import { gfm, gfmHtml } from 'micromark-extension-gfm';
@@ -71,46 +71,10 @@ export function stripScriptAndStyle(text) {
  * @param {string} body
  */
 export function renderPreviewHtml(body) {
-	const md = wikiLinksToMarkdown(
-		stripScriptAndStyle(String(body ?? '').replace(/\r\n?/g, '\n'))
-	);
+	const md = wikiLinksToMarkdown(stripScriptAndStyle(String(body ?? '').replace(/\r\n?/g, '\n')));
 	return micromark(md, {
 		allowDangerousHtml: true,
 		extensions: [gfm()],
 		htmlExtensions: [gfmHtml()]
 	});
-}
-
-const DROP = 'script,style,iframe,object,embed,link,meta,base,form,input,button,textarea,select';
-
-/**
- * Cleans rendered preview HTML in place with the browser's parser: removes active elements,
- * `on*` attributes and non-http(s)/relative URLs. Browser only.
- * @param {string} html
- * @returns {string}
- */
-export function sanitizePreview(html) {
-	if (typeof DOMParser === 'undefined') return '';
-	const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
-	const root = doc.body.firstElementChild;
-	if (!root) return '';
-	root.querySelectorAll(DROP).forEach((el) => el.remove());
-	root.querySelectorAll('*').forEach((el) => {
-		for (const attr of [...el.attributes]) {
-			const name = attr.name.toLowerCase();
-			const value = attr.value.trim().toLowerCase();
-			if (name.startsWith('on') || name === 'style' || name === 'srcdoc')
-				el.removeAttribute(attr.name);
-			else if (
-				['href', 'src', 'xlink:href', 'action', 'formaction'].includes(name) &&
-				/^(javascript|data|vbscript):/.test(value.replace(/\s+/g, ''))
-			)
-				el.removeAttribute(attr.name);
-		}
-		if (el.tagName === 'A') {
-			el.setAttribute('target', '_blank');
-			el.setAttribute('rel', 'noreferrer');
-		}
-	});
-	return root.innerHTML;
 }

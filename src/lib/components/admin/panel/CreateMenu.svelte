@@ -115,7 +115,6 @@
 				class="chev"
 			/>{/if}</button
 	>
-	<!-- svelte-ignore a11y-no-noninteractive-element-interactions (las flechas y Escape) -->
 	<ul
 		class="menu"
 		id="kv-create-{uid}"

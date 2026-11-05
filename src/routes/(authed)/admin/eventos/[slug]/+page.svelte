@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { Check, Send, X } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
+	import DoorLinksCard from '$lib/components/admin/DoorLinksCard.svelte';
 	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
 	import ConfirmDraft from '$lib/components/admin/agenda/ConfirmDraft.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
@@ -15,7 +16,8 @@
 	/** @type {import('./$types').PageData} */
 	export let data;
 	/** `stream`: lo que devuelven las actions del link (la de «Confirmar» no lo trae). */
-	/** @type {import('./$types').ActionData & { stream?: any }} */
+	/** `doorLink`: lo que devuelven las de los links de puerta. */
+	/** @type {import('./$types').ActionData & { stream?: any, doorLink?: any }} */
 	export let form;
 
 	$: e = data.event;
@@ -130,8 +132,6 @@
 				<dd><a href={e.link} target="_blank" rel="noreferrer">{e.link}</a></dd>{/if}
 			{#if e.summary}<dt>Resumen</dt>
 				<dd>{e.summary}</dd>{/if}
-			<dt>Archivo</dt>
-			<dd><code>calendario/{e.slug}.md</code></dd>
 		</dl>
 		<p><a class="kv-btn ghost" href={eventHref(e.slug, 'editar')}>Editar los datos</a></p>
 	</Card>
@@ -141,8 +141,8 @@
 			<Card title="Link de la transmisión" tag="div">
 				<p class="muted small">
 					Evento online: las entradas llevan este link en lugar de un QR (no hay control de
-					ingreso). El link no está en el repo: se guarda solo acá. Si lo cargás antes de que
-					alguien compre, le llega en el mail de las entradas.
+					ingreso). El link no aparece en la página del evento: se guarda solo acá. Si lo cargás
+					antes de que alguien compre, le llega en el mail de las entradas.
 				</p>
 				{#if form?.stream}
 					<p class="flash" class:error={!form.stream.ok} role="status">{form.stream.message}</p>
@@ -199,7 +199,8 @@
 							Solo le escribe a quien todavía no recibió este link (tocarlo dos veces no manda nada
 							de nuevo). Si cambiás el link, se puede mandar el nuevo a todes. Manda de a tandas (<a
 								href="/admin/mensajes/configuracion">Mensajes → Configuración</a
-							>): si son muches, el resto sale solo en las próximas vueltas del cron.
+							>): si son muches, el resto sale solo en las próximas vueltas de mails (cada 15
+							minutos).
 						</p>
 					{/if}
 				{:else}
@@ -207,6 +208,11 @@
 				{/if}
 			</Card>
 		</section>
+	{/if}
+
+	{#if data.doorLinks}
+		<!-- Links de puerta (docs/tickets.md, «Link de puerta»): presenciales con entradas. -->
+		<DoorLinksCard doorLinks={data.doorLinks} result={form?.doorLink ?? null} />
 	{/if}
 </div>
 

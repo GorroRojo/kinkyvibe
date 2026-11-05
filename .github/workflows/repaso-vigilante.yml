@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Solo el script y package.json (`"type": "module"`, para importarlo como ESM).
           sparse-checkout: |
@@ -35,7 +35,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: ¿Corrió el repaso semanal?
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const { run } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/repaso-vigilante.js`);

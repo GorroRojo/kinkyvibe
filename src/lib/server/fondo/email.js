@@ -1,5 +1,5 @@
 /**
- * Mail «tu link» del Fondo KinkyVibe (fondo.kinkyvibe.ar, «¿Ya sos Mecenas?»): le manda a une
+ * Mail «tu link» del Fondo Kinky Vibe (fondo.kinkyvibe.ar, «¿Ya sos Mecenas?»): le manda a une
  * mecenas el link de cada una de sus suscripciones para elegir cómo aparece en el Fondo. Lo pide
  * fondo.kinkyvibe.ar por `POST /api/fondo/mi-link` (docs/mails.md, «Mail del Fondo (tu link)»);
  * el asunto, los textos y el remitente son fijos acá: quien llama solo elige la dirección y los
@@ -11,7 +11,7 @@ import { MAIL_STYLES, mailButton, mailLayout } from '$lib/server/email/layout.js
 /** Remitente fijo (no el de entradas de Mensajes → Configuración). */
 export const FONDO_MAIL_FROM = 'Fondo KinkyVibe <fondo@kinkyvibe.ar>';
 
-export const FONDO_MAIL_SUBJECT = 'Tu link para elegir cómo aparecés en el Fondo KinkyVibe';
+export const FONDO_MAIL_SUBJECT = 'Tu link para elegir cómo aparecés en el Fondo Kinky Vibe';
 
 /** Aviso de seguridad, igual en el HTML y en el texto plano. */
 export const FONDO_MAIL_WARNING =
@@ -32,8 +32,8 @@ export const fondoButtonLabel = (tier) => `Mecenas ${tier}: elegir cómo aparezc
 export function buildFondoLinkEmail({ links, origin }) {
 	const several = links.length > 1;
 	const intro = several
-		? 'Estos son tus links para elegir cómo aparecés en el Fondo KinkyVibe, uno por cada suscripción:'
-		: 'Este es tu link para elegir cómo aparecés en el Fondo KinkyVibe:';
+		? 'Estos son tus links para elegir cómo aparecés en el Fondo Kinky Vibe, uno por cada suscripción:'
+		: 'Este es tu link para elegir cómo aparecés en el Fondo Kinky Vibe:';
 	const text = [
 		'Hola:',
 		'',
@@ -47,7 +47,7 @@ export function buildFondoLinkEmail({ links, origin }) {
 		.join('\n<div style="height:10px;line-height:10px;">&nbsp;</div>\n');
 	const html = mailLayout({
 		origin,
-		label: 'Fondo KinkyVibe',
+		label: 'Fondo Kinky Vibe',
 		titleHtml: several ? 'Tus links de Mecenas' : 'Tu link de Mecenas',
 		contentHtml: `<p style="${MAIL_STYLES.p}">Hola:</p>
 <p style="${MAIL_STYLES.p}">${escapeHtml(intro)}</p>

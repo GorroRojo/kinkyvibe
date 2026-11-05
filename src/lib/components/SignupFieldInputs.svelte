@@ -41,6 +41,7 @@
 						required={f.required}
 						checked={values[name] === 'on'}
 						aria-invalid={errors[name] ? 'true' : undefined}
+						aria-describedby={errors[name] ? `${id}-error` : undefined}
 					/>
 					<span
 						>{f.label}{#if !f.required}&nbsp;<small>(opcional)</small>{/if}</span
@@ -56,6 +57,7 @@
 						{name}
 						required={f.required}
 						aria-invalid={errors[name] ? 'true' : undefined}
+						aria-describedby={errors[name] ? `${id}-error` : undefined}
 					>
 						<option value="">Elegí una opción</option>
 						{#each f.options as o (o)}
@@ -75,10 +77,11 @@
 						maxlength={ANSWER_MAX}
 						required={f.required}
 						value={values[name] ?? ''}
-						aria-invalid={errors[name] ? 'true' : undefined}></textarea>
+						aria-invalid={errors[name] ? 'true' : undefined}
+						aria-describedby={errors[name] ? `${id}-error` : undefined}></textarea>
 				</label>
 			{/if}
-			{#if errors[name]}<span class="field-error">{errors[name]}</span>{/if}
+			{#if errors[name]}<span class="field-error" id="{id}-error">{errors[name]}</span>{/if}
 		{/each}
 		{#if hint}<small class="hint">Tus respuestas las ven solo les organizadores.</small>{/if}
 	</fieldset>

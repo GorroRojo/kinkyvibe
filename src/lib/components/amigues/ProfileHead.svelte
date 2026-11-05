@@ -3,7 +3,8 @@
 	 * `<head>` de la página de un perfil (título con pronombres, descripción e imagen para
 	 * compartir). Lo usan las fichas .md y los perfiles de la base.
 	 * Props: `title`, `pronoun` (link de pronombr.es o texto), `summary`, `image`, `url`,
-	 * `canonical` (opcional), `noindex` (no listado).
+	 * `canonical` (opcional), `noindex` (no listado), `card` (sin imagen: la tarjeta dibujada del
+	 * perfil, `/og/objeto/…`).
 	 * La vista previa al compartir (Open Graph, Twitter, canónica) la pone `SeoHead`.
 	 */
 	import { pronounLabel } from '$lib/utils/mentions';
@@ -22,6 +23,8 @@
 	export let canonical = null;
 	/** No listado: sin `noindex` los buscadores lo guardarían. */
 	export let noindex = false;
+	/** @type {Readonly<Required<import('$lib/utils/seo.js').PreviewImage>> | null | undefined} */
+	export let card = undefined;
 
 	$: shownPronoun =
 		pronoun && (pronoun + '').split('/').pop() != 'evitar'
@@ -32,7 +35,7 @@
 </script>
 
 <svelte:head>
-	<title>{title} {shownPronoun ? `| ${shownPronoun}` : ''}</title>
+	<title>{title}{shownPronoun ? ` | ${shownPronoun}` : ''} · {SITE_NAME}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 	<!-- Sin `article:*`: son de `og:type` article y un perfil es `profile` (docs/compartir.md). -->
@@ -42,6 +45,7 @@
 	description={summary || `${title} en Amigues de ${SITE_NAME}.`}
 	{image}
 	imageAlt={title}
+	{card}
 	type="profile"
 	canonical={canonical || url}
 	{noindex}
