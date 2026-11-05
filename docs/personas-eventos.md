@@ -155,6 +155,13 @@ Topes: 10 preguntas propias por evento, 30 generales, 12 opciones por pregunta, 
 pregunta y 500 por respuesta. En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
 solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de siempre.
 
+**Editor compartido (interruptor `formularios`).** Con el interruptor prendido, las preguntas
+propias de un evento y las generales se editan con el mismo editor que los formularios
+([formularios.md](formularios.md)): una tarjeta por pregunta, ↑ ↓ (y arrastrar en la compu),
+«Duplicar», «Sacar» y vista previa, y un solo «Guardar preguntas» (`?/saveFields`). Los datos son
+los de siempre (`signup_fields`); el orden va en `position` y las que ya había quedan en el que
+tenían. Sacar una pide confirmar y es el mismo borrado suave (se recupera desde Actividad).
+
 ### Respuestas para les organizadores
 
 Decisión de gorrite: además de les admins, ven las respuestas quienes **gestionan** (dueñes o

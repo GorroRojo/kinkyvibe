@@ -216,7 +216,7 @@ export const FLAGS = Object.freeze({
 			'respuestas. Prendido, las preguntas de inscripción también se editan con el editor nuevo ' +
 			'(con orden). Apagado, nada de esto se ve y las páginas públicas dan 404.',
 		tech:
-			'docs/formularios.md, decisión 0056. Antes de prenderlo: migración 0079 (forms, ' +
+			'docs/formularios.md, decisión 0057. Antes de prenderlo: migración 0079 (forms, ' +
 			'form_responses, form_sends). La encuesta sale con el cron de cada 15 minutos ' +
 			'(src/lib/server/formularios/send.js).',
 		envVar: 'FORMULARIOS_ENABLED'

@@ -54,17 +54,25 @@ sus plantillas propias) está en la ficha del evento.
 
 ## Los mails
 
-| Mail                      | Cuándo sale                                                             | Plantilla     | Código                                  |
-| ------------------------- | ----------------------------------------------------------------------- | ------------- | --------------------------------------- |
-| Tus entradas              | al aprobarse una compra o confirmarse una transferencia; "Reenviar"     | `tickets`     | `buildTicketEmail` en `email.js`        |
-| Reserva por transferencia | al reservar pagando por transferencia                                   | `transfer`    | `buildTransferEmail`                    |
-| Link de la transmisión    | "Enviar el link a todes" en un evento online                            | `stream`      | `buildStreamLinkEmail`, `stream.js`     |
-| Recordatorio              | antes del evento, según Mensajes → Configuración                        | `reminder`    | `buildReminderEmail`, `reminders.js`    |
-| Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`      | `buildRefundEmail`                      |
-| Cambió la fecha           | «Avisar a les compradores» después de cambiar la fecha de un evento     | `date_change` | `buildDateChangeEmail`, `dateChange.js` |
-| Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —             | `buyerMail.js`                          |
-| Código para entrar        | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
-| Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
+| Mail                      | Cuándo sale                                                               | Plantilla     | Código                                  |
+| ------------------------- | ------------------------------------------------------------------------- | ------------- | --------------------------------------- |
+| Tus entradas              | al aprobarse una compra o confirmarse una transferencia; "Reenviar"       | `tickets`     | `buildTicketEmail` en `email.js`        |
+| Reserva por transferencia | al reservar pagando por transferencia                                     | `transfer`    | `buildTransferEmail`                    |
+| Link de la transmisión    | "Enviar el link a todes" en un evento online                              | `stream`      | `buildStreamLinkEmail`, `stream.js`     |
+| Recordatorio              | antes del evento, según Mensajes → Configuración                          | `reminder`    | `buildReminderEmail`, `reminders.js`    |
+| Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                       | `refund`      | `buildRefundEmail`                      |
+| Cambió la fecha           | «Avisar a les compradores» después de cambiar la fecha de un evento       | `date_change` | `buildDateChangeEmail`, `dateChange.js` |
+| Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                        | —             | `buyerMail.js`                          |
+| Código para entrar        | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md))   | —             | `src/lib/server/cuentas/email.js`       |
+| Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)                | —             | `src/lib/server/fondo/email.js`         |
+| Encuesta / formulario     | un día después del evento, o «Mandar el link» (interruptor `formularios`) | —             | `src/lib/server/formularios/email.js`   |
+
+**Encuesta y formularios** ([formularios.md](formularios.md), interruptor `formularios`): el link
+personal de un formulario para quienes tenían entrada. La encuesta sale sola un día después del
+fin del evento (nunca más de 3 días tarde); un formulario «quienes tenían entrada», cuando une
+admin toca «Mandar el link». Una vez por compra (`form_sends`, con reintentos), con lo que sobra de
+la tanda, nunca con `MAILS_PAUSED`, con `optOut` («No fui yo») y `Auto-Submitted`. El asunto de la
+encuesta no lleva el título del evento. Textos fijos en el código (todavía no es una plantilla).
 
 **Reembolso: la línea de cómo se devuelve** (fija, no está en la plantilla) sale del total y el
 medio de la compra: total 0 → «Era una compra sin cargo: no hay dinero para devolver.»; si no,

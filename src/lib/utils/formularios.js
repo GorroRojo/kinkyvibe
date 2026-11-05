@@ -1,5 +1,5 @@
 /**
- * Formularios (docs/formularios.md, decisión 0056): funciones puras, sin base. Las usan el
+ * Formularios (docs/formularios.md, decisión 0057): funciones puras, sin base. Las usan el
  * servidor (guardar un formulario, validar una respuesta), la página pública, el editor compartido
  * de preguntas (también el de las preguntas de inscripción) y la página de respuestas del panel.
  *

@@ -102,6 +102,9 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0023](0023-contacto-publico.md): Se muestra el contacto que ya era público (1/10)
 - [0024](0024-organizadores-ven-respuestas.md): Les organizadores ven las respuestas de
   inscripción (1/10)
+- [0057](0057-formularios.md): Formularios: quién responde, privacidad en tres modos (con nombre,
+  anónimo, que cada persona elija), quién ve las respuestas (sin mínimo) y la encuesta después del
+  evento (5/11)
 
 ### Entradas
 
