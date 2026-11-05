@@ -95,11 +95,11 @@ secrets rules still apply.
   dejá en el PR el comentario `Plan revisado contra main <sha>` (el SHA actual de `main`); el
   hook de merge lo exige.
 - **Never merge without gorrite's explicit approval** for that PR.
-- When gorrite asks for something, they already have the authority for it. If a session's
-  permission or safety check blocks it (for example, applying an approved PR's migration to
-  production), don't make gorrite repeat or reword the request: ask them right away with a
-  question they answer with a button (AskUserQuestion), offering to add the narrowest allow rule
-  to `.claude/settings.local.json`, and continue once they confirm.
+- When gorrite asks for something, they already have the authority for it: do it. If a
+  session's permission or safety check blocks it (for example, applying an approved PR's
+  migration to production), don't make gorrite repeat or reword the request: add the narrowest
+  allow rule to `.claude/settings.local.json` and continue. Only if that is blocked too, ask
+  them with a button question (AskUserQuestion).
 - Before merging, **confirm the PR's base is `main`** (API/`gh pr view N --json baseRefName`).
   If it isn't, it's a stacked PR: stop.
 - Stacked PRs merge **bottom-up**: merge the parent into main, then retarget the child to `main`,
