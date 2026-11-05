@@ -9,11 +9,9 @@ import { error, fail } from '@sveltejs/kit';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logDBError } from '$lib/server/db';
 import {
-	createFieldAction,
-	deleteFieldAction,
 	eventTicketTypes,
 	requirePersonasAdmin,
-	updateFieldAction
+	saveFieldsAction
 } from '$lib/server/personas/admin.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import {
@@ -49,15 +47,11 @@ export async function load(event) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	createField: async (event) => {
+	// El editor de preguntas (el mismo de los formularios): la lista entera, con su orden.
+	saveFields: async (event) => {
 		await requireTicketed(event.params.slug);
-		return createFieldAction(event, event.params.slug);
+		return saveFieldsAction(event, event.params.slug);
 	},
-	updateField: async (event) => {
-		await requireTicketed(event.params.slug);
-		return updateFieldAction(event, event.params.slug);
-	},
-	deleteField: (event) => deleteFieldAction(event, event.params.slug),
 	setGeneral: async (event) => {
 		const { db } = await requirePersonasAdmin(event);
 		await requireTicketed(event.params.slug);
