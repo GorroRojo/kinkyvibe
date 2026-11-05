@@ -84,6 +84,7 @@ import {
 	CalendarPlus,
 	CalendarRange,
 	ChartLine,
+	ClipboardList,
 	Database,
 	Eye,
 	EyeOff,
@@ -446,6 +447,19 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// Formularios propios, la encuesta de cada evento y plantillas (docs/formularios.md,
+		// decisión 0057). Con el interruptor apagado las páginas dan 404.
+		id: 'formularios',
+		href: '/admin/comunidad/formularios',
+		icon: ClipboardList,
+		emoji: '📋',
+		label: 'Formularios',
+		area: 'comunidad',
+		soon: false,
+		flag: 'formularios',
+		hiddenWhenOff: true
+	},
+	{
 		// Personas que la organización no admite en los eventos de Kinky Vibe (decisión 0053). Solo
 		// admins; el motivo se ve solo ahí.
 		id: 'avisos-puerta',
@@ -788,7 +802,10 @@ export const EVENT_TABS = Object.freeze(
 				{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias' },
 				// Lista de espera (interruptor `lista_espera`): la ficha la muestra con la lista
 				// prendida, o si el evento ya tiene lista o gente anotada.
-				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' }
+				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' },
+				// Gastos y reparto (prototipo, interruptor `gastos_reparto`): la ficha la muestra solo
+				// con el interruptor prendido.
+				{ id: 'gastos', suffix: '/gastos', label: 'Gastos y reparto' }
 			]
 		},
 		{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false, section: 'checkin' },
@@ -810,7 +827,10 @@ export const EVENT_TABS = Object.freeze(
 			emoji: '✉️',
 			views: [
 				{ id: 'mail', suffix: '/mail', label: 'Mandar un aviso' },
-				{ id: 'mails', suffix: '/mails', label: 'Plantillas' }
+				{ id: 'mails', suffix: '/mails', label: 'Plantillas' },
+				// La encuesta de después del evento (interruptor `formularios`, docs/formularios.md):
+				// la ficha la muestra solo con el interruptor prendido.
+				{ id: 'encuesta', suffix: '/encuesta', label: 'Encuesta' }
 			]
 		},
 		// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.

@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
 	EXTRA_COMMANDS,
+	FORM_TEMPLATE_LINKS,
 	SEARCH_HELP_COMMAND,
 	SEARCH_TIPS,
 	paletteCommands,
@@ -14,6 +15,7 @@ import {
 import { buildCommands, matchCommands } from './commands.js';
 import { NAV, REVIEW_LINK, navItem } from './nav.js';
 import { parseSearchQuery } from '$lib/utils/searchQuery.js';
+import { FORM_TEMPLATES } from '$lib/server/formularios/templates.js';
 
 const ROUTES = join(import.meta.dirname, '..', '..', 'routes', '(authed)');
 const BASE = 'https://panel.test';
@@ -231,5 +233,26 @@ describe('placeSections (la paleta sin nada escrito: Fijados y Recientes)', () =
 		expect(placeSections([], recent).map((s) => s.id)).toEqual(['recent']);
 		expect(placeSections(pinned, []).map((s) => s.id)).toEqual(['pinned']);
 		expect(placeSections([], [])).toEqual([]);
+	});
+});
+
+describe('Formularios en la paleta', () => {
+	it('con el interruptor prendido: la lista, «Crear: Formulario», «Cómo salen por defecto» y cada plantilla', () => {
+		const ids = paletteCommands({ flags: { formularios: true } }).map((c) => c.id);
+		expect(ids).toContain('nav:formularios');
+		expect(ids).toContain('create:formulario');
+		expect(ids).toContain('forms-defaults');
+		for (const t of FORM_TEMPLATE_LINKS) expect(ids).toContain(`form-template:${t.slug}`);
+	});
+
+	it('apagado: nada de Formularios (sus páginas dan 404)', () => {
+		const ids = paletteCommands({ flags: { formularios: false } }).map((c) => c.id);
+		expect(ids.filter((id) => /formulario|forms-/.test(id))).toEqual([]);
+	});
+
+	it('las plantillas son las que se crean solas (templates.js)', () => {
+		expect(FORM_TEMPLATE_LINKS.map((t) => [t.slug, t.title])).toEqual(
+			FORM_TEMPLATES.map((t) => [t.slug, t.title])
+		);
 	});
 });
