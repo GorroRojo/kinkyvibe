@@ -113,8 +113,8 @@ function markupOf(src) {
 	const blank = (/** @type {string} */ m) => m.replace(/[^\n]/g, ' ');
 	return src
 		.replace(/<!--[\s\S]*?--!?>/g, blank)
-		.replace(/<script\b[\s\S]*?<\/script\s*>/gi, blank)
-		.replace(/<style\b[\s\S]*?<\/style\s*>/gi, blank);
+		.replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, blank)
+		.replace(/<style\b[\s\S]*?<\/style\b[^>]*>/gi, blank);
 }
 
 /**
