@@ -4,6 +4,8 @@
  * metadata lo que la lista no trae (etiquetas, nombre del lugar, link, organizadores).
  */
 import { featuredURL, listEvents } from './index.js';
+import { panelEventVenuesFrom, panelEventVenuesStatement } from '$lib/server/amigues/venues.js';
+import { logDBError } from '$lib/server/db';
 import { agendaRowFromMeta } from '$lib/utils/agenda.js';
 import { eventMissing, missingInputFromMeta } from '$lib/utils/eventMissing.js';
 import { splitEventTags } from '$lib/utils/adminTags.js';
@@ -168,15 +170,39 @@ export function panelEventFromMeta(slug, meta) {
 }
 
 /**
+ * Los borradores de `events` que tienen un lugar vinculado (edge `lugar`), en una sola consulta.
+ * Vacío sin base o si falla: entonces «Qué falta» mira solo el texto libre, como antes.
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {{ slug: string }[]} events
+ * @param {Map<string, Record<string, any> | null>} metas
+ * @returns {Promise<Set<string>>}
+ */
+async function draftVenueSlugs(db, events, metas) {
+	if (!db) return new Set();
+	const drafts = events.filter((e) => metas.get(e.slug)?.borrador === true).map((e) => e.slug);
+	const statement = panelEventVenuesStatement(db, drafts);
+	if (!statement) return new Set();
+	try {
+		const { results } = await statement.all();
+		return new Set(panelEventVenuesFrom(results ?? []).keys());
+	} catch (e) {
+		logDBError('lugares de los borradores de la agenda', e);
+		return new Set();
+	}
+}
+
+/**
  * Filas de la agenda: los eventos desde hoy (hora de Argentina) en adelante, del más cercano al
  * más lejano. Los despublicados (`force_unpublished`) no están: no se ven en ningún lado.
- * @param {{ today?: string }} [options]
+ * @param {{ today?: string, db?: import('@cloudflare/workers-types').D1Database | null }} [options]
+ *   `db`: para saber qué borradores tienen un lugar vinculado (con eso no les falta «Dónde»).
  */
-export async function agendaRows({ today = todayInArgentina() } = {}) {
+export async function agendaRows({ today = todayInArgentina(), db = null } = {}) {
 	const events = (await listEvents()).filter(
 		(e) => !e.unpublished && e.start && e.start.slice(0, 10) >= today
 	);
 	const metas = await bundleMetas(events.map((e) => e.slug));
+	const withVenue = await draftVenueSlugs(db, events, metas);
 	const rows = [];
 	for (const e of events) {
 		const meta = metas.get(e.slug) ?? null;
@@ -193,7 +219,10 @@ export async function agendaRows({ today = todayInArgentina() } = {}) {
 			sellsTickets: Array.isArray(meta?.tickets) && meta.tickets.length > 0,
 			// Borrador del panel (`borrador: true`) y «qué falta» (lo muestra la agenda en los borradores).
 			draft: meta?.borrador === true,
-			missing: eventMissing(missingInputFromMeta({ ...(meta ?? {}), status: e.status }))
+			missing: eventMissing({
+				...missingInputFromMeta({ ...(meta ?? {}), status: e.status }),
+				hasVenue: withVenue.has(e.slug)
+			})
 		});
 	}
 	rows.sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`));

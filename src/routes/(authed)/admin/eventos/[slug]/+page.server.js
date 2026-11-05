@@ -186,6 +186,8 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 			});
 		}
 	}
+	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
+	const venue = await venueP;
 	// Borrador del panel (`borrador: true` y no listado): «Confirmar», con lo que le falta.
 	const draft = Boolean(event.draft && event.unlisted);
 	const missing = draft
@@ -198,11 +200,10 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 				authors: event.authors,
 				link: event.link,
 				tickets: Boolean(event.sellsTickets),
-				status: event.status
+				status: event.status,
+				hasVenue: Boolean(venue)
 			})
 		: [];
-	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
-	const venue = await venueP;
 	// Links de puerta (presenciales con entradas).
 	const doorLinks = await doorLinksFor(db, params.slug, config);
 	// Etiqueta «Online» y además un lugar: un aviso arriba (no cambia nada).
