@@ -7,8 +7,8 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
-	import SignupFieldForm from '$lib/components/admin/SignupFieldForm.svelte';
-	import SignupFieldList from '$lib/components/admin/SignupFieldList.svelte';
+	import SignupQuestionsEditor from '$lib/components/admin/forms/SignupQuestionsEditor.svelte';
+	import { FIELD_CSV_COLUMNS, MAX_GENERAL_FIELDS } from '$lib/utils/signupFields.js';
 	import { ROLE_MAX } from '$lib/utils/personas.js';
 
 	/** @type {import('./$types').PageData} */
@@ -89,28 +89,31 @@
 	</Card>
 
 	<Card title="Preguntas generales">
+		<svelte:fragment slot="actions">
+			{#if data.fields.length}
+				<CsvButton
+					rows={data.fields}
+					columns={FIELD_CSV_COLUMNS}
+					filename="preguntas-generales.csv"
+				/>
+			{/if}
+		</svelte:fragment>
 		<p class="kv-note">
 			Se definen una vez y cada evento elige cuáles usa (pestaña Preguntas de su ficha). Las
 			respuestas son datos de quien compra: se ven solo en Órdenes y en su CSV.
 		</p>
-		{#if form?.field?.message}
-			<p class="kv-flash" class:bad={!form.field.ok} role="status">{form.field.message}</p>
-		{/if}
-		<SignupFieldList
+		<SignupQuestionsEditor
 			fields={data.fields}
-			csvName="preguntas-generales.csv"
-			empty="Todavía no hay preguntas generales."
 			{form}
 			idPrefix="general"
+			max={MAX_GENERAL_FIELDS}
 		/>
-		<h3>Agregar una pregunta general</h3>
-		<SignupFieldForm {form} idPrefix="general" />
 	</Card>
 </div>
 
 <style>
 	.settings {
-		max-width: 48rem;
+		max-width: 80rem;
 	}
 	.roles {
 		list-style: none;

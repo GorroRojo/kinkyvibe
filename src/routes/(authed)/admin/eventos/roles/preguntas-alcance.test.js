@@ -113,6 +113,54 @@ const audit = async (action) =>
 			.all()
 	).results;
 
+/*
+ * Las preguntas se editan con el editor de preguntas (el de los formularios, siempre prendido):
+ * `?/saveFields` guarda la lista entera. Estas ayudas arman esa lista como lo haría el editor: la
+ * de hoy (de `load`), más, menos o con una pregunta cambiada.
+ */
+/** @param {any} f una pregunta guardada (`load`) */
+const asItem = (f) => ({
+	id: f.id,
+	label: f.label,
+	kind: f.kind,
+	required: f.required,
+	options: f.options,
+	perTicket: Boolean(f.perTicket),
+	scope: f.ticketTypes?.length ? 'some' : 'all',
+	ticketTypes: f.ticketTypes ?? []
+});
+/** @param {Record<string, string | string[]>} form lo que mandaba el formulario de una pregunta */
+const formItem = (form) => ({
+	label: String(form.label ?? ''),
+	kind: String(form.kind ?? 'text'),
+	required: form.required === 'on',
+	options: String(form.options ?? '')
+		.split('\n')
+		.map((o) => o.trim())
+		.filter(Boolean),
+	perTicket: form.per_ticket === 'on',
+	scope: form.scope === 'some' ? 'some' : 'all',
+	ticketTypes: [form.ticket_types ?? []].flat()
+});
+/**
+ * Guarda la lista de preguntas de un evento (`at`: el path de su pestaña Preguntas) o las
+ * generales (`at` null), cambiada por `change`.
+ * @param {string | null} at
+ * @param {(list: any[]) => any[]} change
+ * @param {any} [user]
+ */
+async function saveFieldList(at, change, user = admin) {
+	const current = at
+		? /** @type {any} */ (await preguntas.load(fakeEvent({ path: at }))).own
+		: /** @type {any} */ (await ajustes.load(fakeEvent())).fields;
+	const questions = JSON.stringify(change(current.map(asItem)));
+	return /** @type {any} */ (
+		at
+			? await preguntas.actions.saveFields(fakeEvent({ path: at, user, form: { questions } }))
+			: await ajustes.actions.saveFields(fakeEvent({ user, form: { questions } }))
+	);
+}
+
 const path = `/admin/eventos/${SLUG}/preguntas`;
 const buyPath = `/calendario/${SLUG}/entradas`;
 const buyBody = {
@@ -141,7 +189,18 @@ const csvText = async () =>
 
 /** @param {Record<string, string | string[]>} form */
 async function create(form) {
-	return /** @type {any} */ (await preguntas.actions.createField(fakeEvent({ path, form })));
+	return saveFieldList(path, (l) => [...l, formItem(form)]);
+}
+/**
+ * Cambia la pregunta `id` del evento como lo haría el editor (lo demás queda igual).
+ * @param {number} id @param {Record<string, string | string[]>} form @param {any} [user]
+ */
+async function update(id, form, user) {
+	return saveFieldList(
+		path,
+		(l) => l.map((q) => (q.id === id ? { id, ...formItem(form) } : q)),
+		user
+	);
 }
 async function own() {
 	return /** @type {any} */ (await preguntas.load(fakeEvent({ path }))).own;
@@ -151,8 +210,12 @@ describe('editar una pregunta', () => {
 	// Sin el «404 con el interruptor apagado»: `personas_eventos` quedó prendido para siempre.
 	it('solo admins (403)', async () => {
 		const noUser = await thrown(() =>
-			preguntas.actions.updateField(
-				fakeEvent({ path, user: notAdmin, form: { id: '1', label: 'Otra', kind: 'text' } })
+			preguntas.actions.saveFields(
+				fakeEvent({
+					path,
+					user: notAdmin,
+					form: { questions: JSON.stringify([{ id: 1, label: 'Otra', kind: 'text' }]) }
+				})
 			)
 		);
 		expect(noUser?.status).toBe(403);
@@ -173,38 +236,20 @@ describe('editar una pregunta', () => {
 		);
 		expect(bought?.status).toBe(303);
 
-		const bad = /** @type {any} */ (
-			await preguntas.actions.updateField(
-				fakeEvent({
-					path,
-					form: { id: String(field.id), label: 'Menú', kind: 'choice', options: 'una sola' }
-				})
-			)
-		);
+		const bad = await update(field.id, { label: 'Menú', kind: 'choice', options: 'una sola' });
 		expect(bad.status).toBe(400);
-		expect(bad.data.field).toMatchObject({
-			editing: field.id,
-			errors: { options: expect.any(String) }
-		});
+		expect(bad.data.fields.errors[0]).toMatchObject({ options: expect.any(String) });
 
-		const r = /** @type {any} */ (
-			await preguntas.actions.updateField(
-				fakeEvent({
-					path,
-					form: {
-						id: String(field.id),
-						label: 'Elegí tu menú',
-						kind: 'choice',
-						options: 'Vegano\nComún',
-						required: 'on',
-						per_ticket: 'on',
-						scope: 'some',
-						ticket_types: ['vip']
-					}
-				})
-			)
-		);
-		expect(r.field.ok).toBe(true);
+		const r = await update(field.id, {
+			label: 'Elegí tu menú',
+			kind: 'choice',
+			options: 'Vegano\nComún',
+			required: 'on',
+			per_ticket: 'on',
+			scope: 'some',
+			ticket_types: ['vip']
+		});
+		expect(r.fields.ok).toBe(true);
 		expect((await own())[0]).toMatchObject({
 			label: 'Elegí tu menú',
 			kind: 'choice',
@@ -213,8 +258,8 @@ describe('editar una pregunta', () => {
 			perTicket: true,
 			ticketTypes: ['vip']
 		});
-		expect((await audit('signup_field.update'))[0].summary).toBe(
-			'Editó la pregunta «Elegí tu menú» (antes «¿Alguna restricción alimentaria?»)'
+		expect((await audit('signup_field.save')).at(-1)?.summary).toBe(
+			'Guardó las preguntas (1 cambiada)'
 		);
 		// El CSV muestra la respuesta como se dio (la columna lleva el texto de hoy).
 		const lines = (await csvText()).split('\r\n');
@@ -230,16 +275,9 @@ describe('editar una pregunta', () => {
 	it('elegir algunos tipos sin marcar ninguno: error, no cambia nada', async () => {
 		await create({ label: 'Talle de remera', kind: 'text' });
 		const [field] = await own();
-		const r = /** @type {any} */ (
-			await preguntas.actions.updateField(
-				fakeEvent({
-					path,
-					form: { id: String(field.id), label: 'Talle', kind: 'text', scope: 'some' }
-				})
-			)
-		);
+		const r = await update(field.id, { label: 'Talle', kind: 'text', scope: 'some' });
 		expect(r.status).toBe(400);
-		expect(r.data.field.errors.ticketTypes).toBe('Elegí al menos un tipo de entrada.');
+		expect(r.data.fields.errors[0].ticketTypes).toBe('Elegí al menos un tipo de entrada.');
 		expect((await own())[0].label).toBe('Talle de remera');
 	});
 });
@@ -320,9 +358,10 @@ describe('alcance en la compra, Órdenes y su CSV', () => {
 	});
 
 	it('una general se acota a algunos tipos en este evento', async () => {
-		await ajustes.actions.createField(
-			fakeEvent({ form: { label: 'Quiero recibir novedades', kind: 'checkbox', per_ticket: 'on' } })
-		);
+		await saveFieldList(null, (l) => [
+			...l,
+			formItem({ label: 'Quiero recibir novedades', kind: 'checkbox', per_ticket: 'on' })
+		]);
 		const loaded = /** @type {any} */ (await preguntas.load(fakeEvent({ path })));
 		expect(loaded.types).toEqual([
 			{ id: 'general', name: 'General' },

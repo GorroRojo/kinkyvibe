@@ -45,6 +45,8 @@
 	export let name = undefined;
 	/** @type {string | undefined} */
 	export let value = undefined;
+	/** Otra acción del formulario para este botón (`formaction`). @type {string | undefined} */
+	export let formaction = undefined;
 	let className = '';
 	export { className as class };
 
@@ -95,6 +97,7 @@
 		{form}
 		{name}
 		{value}
+		{formaction}
 		aria-busy={busy ? 'true' : undefined}
 		aria-label={a11yLabel}
 		title={hoverTitle}

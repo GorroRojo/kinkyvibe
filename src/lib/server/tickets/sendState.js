@@ -43,10 +43,12 @@ const TABLES = Object.freeze({
 	reminder_sends: { owner: 'order_id', keys: ['reminder_id'] },
 	stream_link_sends: { owner: 'order_id', keys: ['link_hash'] },
 	date_change_sends: { owner: 'order_id', keys: ['version'] },
-	waitlist_sends: { owner: 'entry_id', keys: ['kind', 'round'] }
+	waitlist_sends: { owner: 'entry_id', keys: ['kind', 'round'] },
+	// El link personal de un formulario (migración 0079, src/lib/server/formularios/send.js).
+	form_sends: { owner: 'order_id', keys: ['form_id'] }
 });
 
-/** @typedef {'reminder_sends' | 'stream_link_sends' | 'date_change_sends' | 'waitlist_sends'} SendTable */
+/** @typedef {'reminder_sends' | 'stream_link_sends' | 'date_change_sends' | 'waitlist_sends' | 'form_sends'} SendTable */
 /** @typedef {string | number} KeyValue */
 /**
  * A quién va el envío: `orderId` en las tablas por orden, `entryId` en `waitlist_sends`.
