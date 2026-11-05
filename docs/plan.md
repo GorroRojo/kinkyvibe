@@ -274,8 +274,9 @@ CI) va en la fase 0.
 - `test-cuentas-lento` · fase 0 · hecho · pruebas · `cuentas.test.js` «límite de intentos por mail y por conexión» pasaba los 5 s con la máquina cargada: los mails del límite por conexión tienen cuenta con hash barato (queda uno sin cuenta) · #330
 - `tickets-ajustes-spec` · fase 0 · hecho · pruebas · `tests/tickets/ajustes.spec.js` buscaba la pestaña «Cobros», que se fue con la portada de Ajustes: ahora entra por la portada y su tarjeta · #330
 - `tests-consultas-batch` · fase 0 · hecho · pruebas · `importTags` de la semilla en tandas de `saveObjects` (1835 → 80 consultas) · #328
-- `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas (última vez: 28/10, con los tiempos de la CI del PR que sacó wrangler de cada archivo) · #559
-- `ci-cache-semilla` · fase 0 · sigue · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
+- `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 4 partes sigan parejas (última vez: 5/11, con los tiempos de una corrida de `main`; desde `ci-mas-rapida` cada archivo cuenta al menos 0,3 s, así los de 0 s no se juntan en una parte) · #559
+- `ci-cache-semilla` · fase 0 · hecho · pruebas · La base ya sembrada de `e2e` va en caché (~1,5 min menos cuando no cambian migraciones, semilla ni el código que la carga) · [pruebas-y-ci.md](pruebas-y-ci.md)
+- `ci-mas-rapida` · fase 0 · hecho · pruebas · CI más rápida (pedido de gorrite, 5/11): vitest en 4 partes parejas, base sembrada en caché, Chromium sin `apt` si no hace falta, cachés que solo guarda `main`, `main` no se cancela, E2E se saltea si el PR no toca el sitio construido, e `ui-impacto` captura los dos lados a la vez (y ya no pierde 2 min en la grilla del calendario) · [pruebas-y-ci.md](pruebas-y-ci.md#tiempos-de-la-ci)
 - `tests-rapidos` · fase 0 · hecho · pruebas · Pruebas y CI más rápidas, `test:related` · #307, #311, #312, #285
 - `prueba-fugas` · fase 0 · hecho · pruebas · Prueba de que lo privado no sale en público · #291
 
