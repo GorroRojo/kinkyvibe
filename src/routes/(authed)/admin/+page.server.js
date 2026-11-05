@@ -31,7 +31,12 @@ import {
 	skipReviewEvent
 } from '$lib/server/admin/review.js';
 import { markSeen, touchLastSeenQuery } from '$lib/server/admin/lastSeen.js';
-import { kb, saveProfileImageAlt, swapCover } from '$lib/server/admin/contentReview.js';
+import {
+	kbText,
+	saveProfileImageAlt,
+	setHeavyOk,
+	swapCover
+} from '$lib/server/admin/contentReview.js';
 import { cleanAlt } from '$lib/utils/imageAlt.js';
 import { listEvents } from '$lib/server/eventos/index.js';
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
@@ -351,7 +356,9 @@ export const actions = {
 		}
 		const r = await swapCover(db, { ownerId, oldImageId, newImageId }, { actor: user.login });
 		if (!r.ok) return fail(r.status, { contentFix: { id, ok: false, message: r.message } });
-		const sizes = `${kb(r.before ?? 0)} → ${kb(r.after ?? 0)}`;
+		const before = kbText(r.before ?? 0, r.after ?? 0);
+		const after = kbText(r.after ?? 0, r.before ?? 0);
+		const sizes = `${before} → ${after}`;
 		await logAdminAction(db, locals, {
 			action: 'content.cover.shrink',
 			targetType: 'object',
@@ -363,10 +370,17 @@ export const actions = {
 			contentFix: {
 				id,
 				ok: true,
-				message: `Listo: la portada de «${r.title}» ahora pesa ${kb(r.after ?? 0)} (antes ${kb(r.before ?? 0)}). La original sigue en la biblioteca.`
+				message: `Listo: la portada de «${r.title}» ahora pesa ${after} (antes ${before}). La original sigue en la biblioteca.`
 			}
 		};
 	},
+
+	// «Dejarla así» en «Portadas pesadas» (Para revisar): la imagen queda como está y sale de la
+	// lista (`heavy_ok` en sus datos). Lleva «Deshacer» (`portadaAsiDeshacer`).
+	portadaAsi: async (event) => heavyOkAction(event, true),
+
+	// «Deshacer» después de «Dejarla así»: la portada vuelve a «Portadas pesadas».
+	portadaAsiDeshacer: async (event) => heavyOkAction(event, false),
 
 	// "Marcar como visto" en "Desde tu última visita".
 	seen: async ({ locals, url, platform }) => {
@@ -375,3 +389,53 @@ export const actions = {
 		return { seen: { ok } };
 	}
 };
+
+/**
+ * «Dejarla así» (`ok`) y su «Deshacer» (Portadas pesadas): marca o desmarca la imagen como
+ * aceptada (setHeavyOk), con su versión en el historial y su línea en Actividad.
+ * @param {import('./$types').RequestEvent} event
+ * @param {boolean} ok
+ */
+async function heavyOkAction({ locals, url, platform, request }, ok) {
+	const user = requireAdmin(locals, url);
+	const db = getDB(platform);
+	const form = await request.formData();
+	const id = String(form.get('item') ?? '');
+	if (!db) return fail(503, { contentFix: { id, ok: false, message: 'Sin base de datos.' } });
+	const imageId = Number(form.get('image'));
+	const ownerId = Number(form.get('owner'));
+	if (![imageId, ownerId].every((n) => Number.isSafeInteger(n) && n > 0)) {
+		return fail(400, { contentFix: { id, ok: false, message: 'Portada inválida.' } });
+	}
+	const r = await setHeavyOk(db, { imageId, ok }, { actor: user.login });
+	if (!r.ok) return fail(r.status, { contentFix: { id, ok: false, message: r.message } });
+	const owner = await db
+		.prepare(`SELECT title FROM objects WHERE id = ?1`)
+		.bind(ownerId)
+		.first()
+		.catch(() => null);
+	const title = String(owner?.title ?? r.title);
+	await logAdminAction(db, locals, {
+		action: ok ? 'content.cover.accept' : 'content.cover.unaccept',
+		targetType: 'object',
+		targetId: imageId,
+		summary: ok
+			? `Dejó como está la portada pesada de «${title}»`
+			: `Volvió a poner la portada de «${title}» en «Portadas pesadas»`,
+		detail: { from: 'inicio', owner: ownerId }
+	});
+	return {
+		contentFix: ok
+			? {
+					id,
+					ok: true,
+					message: `Listo: la portada de «${title}» queda como está y sale de la lista.`,
+					undo: { item: id, image: imageId, owner: ownerId }
+				}
+			: {
+					id,
+					ok: true,
+					message: `Listo: la portada de «${title}» volvió a «Portadas pesadas».`
+				}
+	};
+}

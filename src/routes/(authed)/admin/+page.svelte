@@ -16,6 +16,7 @@
 	import TodayThumb from '$lib/components/admin/inicio/TodayThumb.svelte';
 	import ContentFix from '$lib/components/admin/inicio/ContentFix.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
+	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
@@ -149,6 +150,10 @@
 	];
 
 	let resending = '';
+	/** Deshaciendo «Dejarla así» (Portadas pesadas). */
+	let undoing = false;
+	/** El «Deshacer» de «Dejarla así», si el último arreglo lo trae. */
+	$: fixUndo = form?.contentFix?.ok && 'undo' in form.contentFix ? form.contentFix.undo : undefined;
 </script>
 
 <svelte:head><title>Inicio · Panel</title></svelte:head>
@@ -305,7 +310,25 @@
 						{#if form?.resend}
 							<p class="flash" class:bad={!form.resend.ok} role="status">{form.resend.message}</p>
 						{/if}
-						{#if form?.contentFix?.ok}
+						{#if form?.contentFix && fixUndo}
+							<!-- «Dejarla así» (Portadas pesadas): con «Deshacer», que la vuelve a la lista. -->
+							<form
+								method="POST"
+								action="?/portadaAsiDeshacer"
+								use:enhance={() => {
+									undoing = true;
+									return async ({ update }) => {
+										await update();
+										undoing = false;
+									};
+								}}
+							>
+								<input type="hidden" name="item" value={fixUndo.item} />
+								<input type="hidden" name="image" value={fixUndo.image} />
+								<input type="hidden" name="owner" value={fixUndo.owner} />
+								<UndoToast message={form.contentFix.message} submit busy={undoing} />
+							</form>
+						{:else if form?.contentFix?.ok}
 							<!-- Un arreglo de contenido que salió bien: su fila ya no está (ContentFix). -->
 							<p class="flash" role="status">{form.contentFix.message}</p>
 						{/if}

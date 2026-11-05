@@ -18,6 +18,7 @@ import {
 	mediaKeyOf,
 	missingAltRow,
 	saveProfileImageAlt,
+	setHeavyOk,
 	swapCover,
 	videosRow
 } from './contentReview.js';
@@ -311,5 +312,100 @@ describe('swapCover', () => {
 		expect(
 			await swapCover(t.db, { ownerId: ev, oldImageId: other, newImageId: bigger }, { actor })
 		).toMatchObject({ ok: false, status: 400 });
+	});
+});
+
+describe('swapCover: solo si la copia pesa bastante menos', () => {
+	it('rechaza una copia casi igual (381 KB → 380,6 KB) o un 11 % más liviana arriba de 300 KB', async () => {
+		const heavy = await image('a', 390_144);
+		const same = await image('b', 389_734);
+		const ev = /** @type {number} */ (await makeEvent(t.db, 'fiesta-inventada'));
+		await edit(ev, { edges: { portada: [heavy] } });
+		const r = await swapCover(
+			t.db,
+			{ ownerId: ev, oldImageId: heavy, newImageId: same },
+			{ actor }
+		);
+		expect(r).toMatchObject({ ok: false, status: 400 });
+		expect(/** @type {any} */ (r).message).toContain('380,6 KB');
+		const big = await image('c', 900_000);
+		const bit = await image('d', 800_000);
+		const ev2 = /** @type {number} */ (await makeEvent(t.db, 'otra-fiesta'));
+		await edit(ev2, { edges: { portada: [big] } });
+		expect(
+			await swapCover(t.db, { ownerId: ev2, oldImageId: big, newImageId: bit }, { actor })
+		).toMatchObject({ ok: false, status: 400 });
+		// la portada no cambió
+		const edge = await t.db
+			.prepare(`SELECT to_id FROM edges WHERE from_id = ?1 AND kind = 'portada'`)
+			.bind(ev)
+			.first();
+		expect(edge?.to_id).toBe(heavy);
+	});
+
+	it('acepta una copia un 15 % más liviana aunque siga arriba de 300 KB', async () => {
+		const big = await image('a', 900_000);
+		const lighter = await image('b', 760_000);
+		const ev = /** @type {number} */ (await makeEvent(t.db, 'fiesta-inventada'));
+		await edit(ev, { edges: { portada: [big] } });
+		expect(
+			await swapCover(t.db, { ownerId: ev, oldImageId: big, newImageId: lighter }, { actor })
+		).toMatchObject({ ok: true, before: 900_000, after: 760_000 });
+	});
+});
+
+describe('setHeavyOk («Dejarla así»)', () => {
+	it('saca la portada de la lista (con su versión en el historial) y «Deshacer» la vuelve', async () => {
+		const heavy = await image('a', HEAVY_COVER_BYTES + 5000);
+		const ev = /** @type {number} */ (
+			await makeEvent(t.db, 'fiesta-inventada', { title: 'Fiesta Inventada' })
+		);
+		await edit(ev, { edges: { portada: [heavy] } });
+		const covers = async () =>
+			contentReviewRows(await read()).filter((r) => r.id === 'group-content-covers');
+		expect(await covers()).toHaveLength(1);
+
+		const now = Date.parse('2026-11-05T12:00:00Z');
+		expect(await setHeavyOk(t.db, { imageId: heavy, ok: true }, { actor, now })).toMatchObject({
+			ok: true,
+			id: heavy
+		});
+		expect(await covers()).toEqual([]);
+		const o = /** @type {any} */ (await getObject(t.db, { id: heavy }, ADMIN));
+		expect(o.data.heavy_ok).toEqual({ by: actor, at: '2026-11-05T12:00:00.000Z' });
+		// el resto de la imagen, igual
+		expect(o.data).toMatchObject({ size: HEAVY_COVER_BYTES + 5000, alt: 'Una imagen inventada' });
+		const revisions = await t.db
+			.prepare(
+				`SELECT COUNT(*) AS n FROM object_revisions WHERE object_id = ?1 AND source = 'panel'`
+			)
+			.bind(heavy)
+			.first();
+		expect(revisions?.n).toBe(1);
+
+		expect(await setHeavyOk(t.db, { imageId: heavy, ok: false }, { actor })).toMatchObject({
+			ok: true
+		});
+		expect(await covers()).toHaveLength(1);
+		const back = /** @type {any} */ (await getObject(t.db, { id: heavy }, ADMIN));
+		expect(back.data.heavy_ok).toBeUndefined();
+	});
+
+	it('una portada nueva (otra imagen) se revisa de nuevo', async () => {
+		const accepted = await image('a', HEAVY_COVER_BYTES + 5000);
+		const other = await image('b', HEAVY_COVER_BYTES + 9000);
+		const ev = /** @type {number} */ (await makeEvent(t.db, 'fiesta-inventada'));
+		await edit(ev, { edges: { portada: [accepted] } });
+		await setHeavyOk(t.db, { imageId: accepted, ok: true }, { actor });
+		await edit(ev, { edges: { portada: [other] } });
+		const rows = /** @type {any[]} */ (contentReviewRows(await read()));
+		expect(rows.find((r) => r.id === 'group-content-covers')?.items[0].shrink.imageId).toBe(other);
+	});
+
+	it('si la imagen ya no está, no hace nada', async () => {
+		expect(await setHeavyOk(t.db, { imageId: 99999, ok: true }, { actor })).toMatchObject({
+			ok: false,
+			status: 404
+		});
 	});
 });

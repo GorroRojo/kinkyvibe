@@ -8,7 +8,7 @@
  * - **Portadas pesadas**: las portadas (evento o material) cuya imagen pesa más de
  *   {@link HEAVY_COVER_BYTES}. «Achicar» la pasa por el mismo achique de la subida (en el
  *   navegador), la sube como imagen nueva y cambia la portada ({@link swapCover}); la original
- *   queda en la biblioteca.
+ *   queda en la biblioteca. «Dejarla así» la saca de la lista sin tocarla ({@link setHeavyOk}).
  * - **Videos sin transcripción**: el material con un video en el texto y sin «Transcripción».
  *   Lleva a su editor (alguien que conoce el audio la escribe ahí).
  *
@@ -28,10 +28,10 @@ import { mediaImportNames } from '$lib/server/amigues/render.js';
 import { editEventHref } from '$lib/admin/links.js';
 import { contentAdminHref } from '$lib/admin/nav.js';
 import { imagesWithoutAlt, setImageAlt } from '$lib/utils/imageAlt.js';
-import { HEAVY_COVER_BYTES } from '$lib/utils/imageResize.js';
+import { HEAVY_COVER_BYTES, kbText, muchLighter } from '$lib/utils/imageResize.js';
 import { legacyAssetURL, legacyMediaURL, legacyNumberedURL } from '$lib/utils/legacyMedia.js';
 
-export { HEAVY_COVER_BYTES };
+export { HEAVY_COVER_BYTES, kbText };
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./inicio.js').ReviewItem} ReviewItem */
@@ -86,14 +86,16 @@ export function contentReviewQuery() {
 					OR instr(json_extract(o.data, '$.body'), '![') > 0)
 				ORDER BY o.title COLLATE NOCASE`
 			),
-			// Las imágenes pesadas de la biblioteca (un GIF puede ser animado: no se achica).
+			// Las imágenes pesadas de la biblioteca (un GIF puede ser animado: no se achica), menos
+			// las que une admin dejó así (`heavy_ok`, {@link setHeavyOk}).
 			db
 				.prepare(
 					`SELECT id, title, json_extract(data, '$.key') AS key, json_extract(data, '$.size') AS size,
 						json_extract(data, '$.alt') AS alt, json_extract(data, '$.mime') AS mime
 					FROM objects WHERE type = 'imagen' AND deleted_at IS NULL
 					AND CAST(json_extract(data, '$.size') AS INTEGER) > ?1
-					AND json_extract(data, '$.mime') != 'image/gif'`
+					AND json_extract(data, '$.mime') != 'image/gif'
+					AND json_extract(data, '$.heavy_ok') IS NULL`
 				)
 				.bind(HEAVY_COVER_BYTES),
 			// Las portadas (edge `portada`) que son una de esas imágenes.
@@ -106,6 +108,7 @@ export function contentReviewQuery() {
 					WHERE e.kind = 'portada' AND o.type IN ('evento', 'material') AND o.deleted_at IS NULL
 					AND i.type = 'imagen' AND i.deleted_at IS NULL
 					AND CAST(json_extract(i.data, '$.size') AS INTEGER) > ?1
+					AND json_extract(i.data, '$.heavy_ok') IS NULL
 					ORDER BY o.title COLLATE NOCASE`
 				)
 				.bind(HEAVY_COVER_BYTES),
@@ -352,7 +355,7 @@ export function heavyCoversRow(heavy, covers, { shown = CONTENT_REVIEW_SHOWN } =
 		tone: 'info',
 		icon: 'cover',
 		title: plural(items.length, 'portada pesada', 'portadas pesadas'),
-		text: `Pesan más de ${kb(HEAVY_COVER_BYTES)} y tardan en cargar. «Achicar» hace una copia más liviana; la original queda en la biblioteca`,
+		text: `Pesan más de ${kb(HEAVY_COVER_BYTES)} y tardan en cargar. «Achicar» hace una copia más liviana; la original queda en la biblioteca. Si se ve bien así, «Dejarla así» la saca de la lista`,
 		action: 'Ver',
 		items: [
 			...items.slice(0, shown),
@@ -464,7 +467,8 @@ export async function saveProfileImageAlt(db, { profileId, index, src, alt }, { 
  * Cambia la portada de un evento o un material por su copia achicada, desde «Portadas pesadas».
  * La imagen nueva ya está en la biblioteca (la subió el navegador con el achique de siempre); la
  * original queda en la biblioteca. Solo si la portada sigue siendo la que se achicó (si no, alguien
- * la cambió mientras tanto y no se toca) y si la nueva pesa menos. Como al elegir una imagen en el
+ * la cambió mientras tanto y no se toca) y si la nueva pesa bastante menos (`muchLighter`: como
+ * mucho {@link HEAVY_COVER_BYTES}, o un 15 % menos; la misma regla que usa el navegador). Como al elegir una imagen en el
  * selector, se saca la imagen vieja del repo (`featured`).
  *
  * @param {D1Database} db
@@ -501,9 +505,6 @@ export async function swapCover(db, { ownerId, oldImageId, newImageId }, { actor
 	if (!before || !after || oldImageId === newImageId) {
 		return { ok: false, status: 400, message: 'No encontramos la imagen nueva. Probá de nuevo.' };
 	}
-	if (Number(after.size) >= Number(before.size)) {
-		return { ok: false, status: 400, message: 'La copia no pesa menos que la original.' };
-	}
 	if (edge) {
 		if (Number(edge.to_id) !== oldImageId) return changed;
 	} else {
@@ -513,6 +514,14 @@ export async function swapCover(db, { ownerId, oldImageId, newImageId }, { actor
 		const key =
 			refs[0]?.key ?? mediaKeyOf(legacyCoverURL(category, owner.slug, owner.data.featured));
 		if (key !== String(before.key)) return changed;
+	}
+	// Después de ver que sigue siendo la misma portada (si no, «cambió mientras tanto»).
+	if (!muchLighter(Number(before.size), Number(after.size))) {
+		return {
+			ok: false,
+			status: 400,
+			message: `La copia no pesa bastante menos que la original (${kbText(Number(after.size), Number(before.size))} contra ${kbText(Number(before.size), Number(after.size))}): la portada no se cambió.`
+		};
 	}
 	const data = { ...owner.data };
 	const hadFeatured = 'featured' in data;
@@ -540,4 +549,43 @@ export async function swapCover(db, { ownerId, oldImageId, newImageId }, { actor
 		before: Number(before.size),
 		after: Number(after.size)
 	};
+}
+
+/**
+ * «Dejarla así» en «Portadas pesadas» (`ok: true`): marca la imagen de la biblioteca como aceptada
+ * (`heavy_ok: { by, at }` en sus datos) y deja de aparecer en la lista. «Deshacer» (`ok: false`)
+ * saca la marca y vuelve. Se guarda con saveObject(), con su versión en el historial; la acción la
+ * anota en Actividad. La marca es de esa imagen: una portada nueva es otra imagen y se revisa de nuevo.
+ *
+ * @param {D1Database} db
+ * @param {{ imageId: number, ok: boolean }} input
+ * @param {{ actor: string, now?: number }} ctx
+ * @returns {Promise<FixResult>}
+ */
+export async function setHeavyOk(db, { imageId, ok }, { actor, now = Date.now() }) {
+	const image = await getObject(db, { id: imageId }, ADMIN_VIEWER);
+	if (!image || image.type !== 'imagen') {
+		return { ok: false, status: 404, message: 'Esa imagen ya no está en la biblioteca.' };
+	}
+	const data = { ...image.data };
+	if (ok === Boolean(data.heavy_ok)) return { ok: true, title: image.title, id: image.id };
+	if (ok) data.heavy_ok = { by: actor, at: new Date(now).toISOString() };
+	else delete data.heavy_ok;
+	try {
+		await saveObject(
+			db,
+			{ id: image.id, type: 'imagen', version: image.version, data },
+			{ actor, now, also: (self) => [panelRevisionStatement(db, self, 'panel')] }
+		);
+	} catch (e) {
+		if (e instanceof VersionConflictError) {
+			return {
+				ok: false,
+				status: 409,
+				message: 'Esa imagen cambió mientras tanto. Recargá la página y probá de nuevo.'
+			};
+		}
+		throw e;
+	}
+	return { ok: true, title: image.title, id: image.id };
 }
