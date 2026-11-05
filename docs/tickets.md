@@ -318,7 +318,12 @@ extras:
     per_order: 4 # opcional: máximo por compra (si falta, 20)
 ```
 
-Hasta 10 por evento. Se validan con las mismas reglas en el navegador y en el servidor
+Hasta 10 por evento. **Un extra que ya vendió (o tiene reservas vigentes) no se puede sacar**, como un
+tipo de entrada (gorrite, 5/11): la × de su tarjeta queda apagada con «Tiene vendidos o reservados:
+no se puede sacar; para dejar de venderlo, poné el tope en 0.», y el servidor lo vuelve a revisar al
+guardar con lo de la base (`extrasSalesFor` en `src/lib/server/tickets/editor.js`,
+`extrasSoldErrors` en `ticketsEditor.js`). Para dejar de venderlo, el tope en 0 (aunque ya haya
+vendido más). Se validan con las mismas reglas en el navegador y en el servidor
 (`parseExtras` en `src/lib/utils/extras.js`); en la venta, unos extras que no se entienden quedan
 en «sin extras» y nunca frenan la venta de entradas (`config.extras`).
 
@@ -399,8 +404,6 @@ Necesita conexión (no hay lista sin conexión).
 - la puerta sin conexión no vende extras;
 - `refunded_amount` (reembolso parcial informado por MP) sigue con tope en `total`; un reembolso
   total devuelve todo lo pagado por MP (entradas y extras);
-- borrar un extra que ya vendió no está bloqueado en el editor (las órdenes guardan su nombre y su
-  precio, y se siguen viendo y entregando).
 
 Pruebas: `src/lib/utils/extras.test.js` (precio, tope, textos, CSV),
 `src/lib/server/db/migration0077.test.js` y `src/routes/barra/extras-barra.test.js` (reserva con

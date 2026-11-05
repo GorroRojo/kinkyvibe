@@ -15,6 +15,8 @@ import {
 import { applyDiscount, computePrice, mpSurcharge } from './tickets.js';
 import { purchaseSummary } from './purchaseSteps.js';
 import { formatARS } from './money.js';
+import { readTicketsForm, validateTicketsForm } from './ticketsEditor.js';
+import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
 
 const TRAGO = {
 	id: 'trago',
@@ -219,5 +221,53 @@ describe('ordenes.csv: extras y monto_extras', () => {
 			''
 		]);
 		expect(extrasCsvCells([], { first: true })).toEqual(['', 0]);
+	});
+});
+
+describe('editor: un extra que ya vendió no se puede borrar (como un tipo de entrada)', () => {
+	const meta = {
+		tickets: [{ id: 'general', name: 'General', price: 8000 }],
+		extras: [
+			{ id: 'trago', name: 'Trago', price: 3000, capacity: 50 },
+			{ id: 'remera', name: 'Remera', price: 15000 }
+		]
+	};
+
+	it('borrar uno con vendidos o reservados da error; sin ventas, se puede', () => {
+		const form = readTicketsForm(meta);
+		form.extras = form.extras?.filter((x) => x.origId !== 'trago');
+		expect(validateTicketsForm(form, { extrasSales: { trago: 2 } }).errors).toEqual([
+			'No se puede borrar el extra «trago»: ya tiene 2 vendidos o reservados. Para dejar de venderlo, poné el tope en 0.'
+		]);
+		expect(validateTicketsForm(form, { extrasSales: { trago: 1 } }).errors[0]).toContain(
+			'ya tiene 1 vendido o reservado.'
+		);
+		// Sin ventas de ese extra (o sin datos de la base), se puede sacar.
+		expect(validateTicketsForm(form, { extrasSales: { remera: 3 } }).errors).toEqual([]);
+		expect(validateTicketsForm(form).errors).toEqual([]);
+	});
+
+	it('para dejar de venderlo alcanza con el tope en 0 (aunque ya vendió más)', () => {
+		const form = readTicketsForm(meta);
+		const trago = form.extras?.find((x) => x.origId === 'trago');
+		if (trago) trago.capacity = '0';
+		expect(validateTicketsForm(form, { extrasSales: { trago: 7 } }).errors).toEqual([]);
+	});
+
+	it('el servidor hace lo mismo al guardar el archivo', () => {
+		const file = [
+			'---',
+			'title: Evento de prueba',
+			'tickets:',
+			'  - { id: general, name: General, price: 8000 }',
+			'extras:',
+			'  - { id: remera, name: Remera, price: 15000 }',
+			'---',
+			''
+		].join('\n');
+		expect(ticketsFileErrors(file, { extrasSales: { trago: 2 } })).toEqual([
+			'Entradas: No se puede borrar el extra «trago»: ya tiene 2 vendidos o reservados. Para dejar de venderlo, poné el tope en 0.'
+		]);
+		expect(ticketsFileErrors(file, { extrasSales: { remera: 2 } })).toEqual([]);
 	});
 });

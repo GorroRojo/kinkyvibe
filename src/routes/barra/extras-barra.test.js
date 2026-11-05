@@ -74,6 +74,7 @@ import { ADMINS } from '$lib/server/auth.js';
 import { clearFlagCache, setFlag } from '$lib/server/flags.js';
 import { applyPayment, reserveOrder } from '$lib/server/tickets/orders.js';
 import { deliverExtra } from '$lib/server/tickets/extras.js';
+import { extrasSalesFor } from '$lib/server/tickets/editor.js';
 import {
 	BAR_LINK_COOKIE,
 	DOOR_LINK_COOKIE,
@@ -257,6 +258,12 @@ describe('reserva con extras', () => {
 		// Queda 1: entra.
 		expect((await orderWithExtras({ tragos: 1, approve: false })).ok).toBe(true);
 		expect((await orderWithExtras({ tragos: 1, approve: false })).reason).toBe('extras');
+	});
+
+	it('el editor sabe qué extras vendieron (no deja borrarlos)', async () => {
+		await orderWithExtras({ tragos: 2 });
+		expect(await extrasSalesFor(t.db, SLUG)).toEqual({ trago: 2 });
+		expect(await extrasSalesFor(t.db, OTHER)).toEqual({});
 	});
 
 	it('una reserva vencida devuelve su parte del tope', async () => {

@@ -424,11 +424,11 @@
 				</div>
 				{#if o.extras?.length}
 					<!-- Extras de la compra (decisión 0056): aparte del total de las entradas. -->
-					<p class="extras-line">
-						<strong>Extras:</strong>
-						{o.extras.map(extraDeliveryText).join(' · ')} · +{formatARS(o.extrasAmount)}
+					<div class="what">
+						Extras: {o.extras.map(extraDeliveryText).join(' · ')} ·
+						<strong>+{formatARS(o.extrasAmount)}</strong>
 						<small>(pagó {formatARS(o.total + o.extrasAmount)} en total)</small>
-					</p>
+					</div>
 				{/if}
 				{#if o.refundedAmount}<p class="admin-note">
 						Reembolso parcial en Mercado Pago: {formatARS(o.refundedAmount)} (quedan {formatARS(
@@ -843,8 +843,5 @@
 		overflow: hidden;
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
-	}
-	.extras-line {
-		margin: 0.25em 0 0;
 	}
 </style>

@@ -4,12 +4,19 @@
 	 * de una entrada de este evento y entregar sus extras de a uno. Arriba, el resumen: por extra,
 	 * cuántos se vendieron y cuántos se entregaron. De la persona, solo el nombre de la entrada.
 	 * Ver +page.server.js. Necesita conexión (no hay lista sin conexión).
+	 *
+	 * Se ve como la puerta (DoorScreen): los mismos tokens oscuros, el escáner (DoorScanner), el
+	 * bloque de resultado (el de DoorResult), las baldosas «Escribir código» / «Buscar persona» y sus
+	 * hojas (Sheet), con los mismos valores de estilo.
 	 */
 	import { deserialize } from '$app/forms';
+	import { tick } from 'svelte';
+	import { CircleCheck, CircleX, Keyboard, Search } from '@lucide/svelte';
 	import { argDateLog } from '$lib/utils/dates.js';
 	import { extraSummaryText } from '$lib/utils/extras.js';
 	import DoorScanner from '$lib/components/admin/door/DoorScanner.svelte';
 	import ExtrasDelivery from '$lib/components/admin/door/ExtrasDelivery.svelte';
+	import Sheet from '$lib/components/admin/door/Sheet.svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -25,6 +32,12 @@
 	let busy = false;
 	let code = '';
 	let q = '';
+	let codeOpen = false;
+	let searchOpen = false;
+	/** @type {HTMLInputElement | undefined} */
+	let codeInput;
+	/** @type {HTMLInputElement | undefined} */
+	let searchInput;
 	/** @type {{ ticketId: string, holder: string }[]} */
 	let results = [];
 	/** @type {ReturnType<typeof setTimeout> | undefined} */
@@ -60,6 +73,8 @@
 			if (!r) return;
 			if (r.type === 'success' && r.data?.ver?.ok) {
 				ticket = r.data.ver.ticket;
+				codeOpen = false;
+				searchOpen = false;
 				results = [];
 				q = '';
 				code = '';
@@ -110,6 +125,17 @@
 			}
 		}, 250);
 	}
+
+	async function openCode() {
+		codeOpen = true;
+		await tick();
+		codeInput?.focus();
+	}
+	async function openSearch() {
+		searchOpen = true;
+		await tick();
+		searchInput?.focus();
+	}
 </script>
 
 <svelte:head>
@@ -117,20 +143,23 @@
 	<meta name="theme-color" content="#16121a" />
 </svelte:head>
 
-<div class="bar-root">
-	<main class="bar-page">
-		<header>
-			<h1>{data.title}</h1>
-			<p class="link-note">
-				Link de barra{data.link.label ? ` «${data.link.label}»` : ''} · anda hasta el {argDateLog(
-					data.link.expiresAt
-				)}
-			</p>
+<div class="door-root">
+	<div class="door">
+		<header class="bar">
+			<div class="heading">
+				<h1>{data.title}</h1>
+				<p>Barra · solo extras</p>
+				<p class="link-note">
+					Link de barra{data.link.label ? ` «${data.link.label}»` : ''} · anda hasta el {argDateLog(
+						data.link.expiresAt
+					)}
+				</p>
+			</div>
 		</header>
 
-		<section class="summary" aria-label="Resumen de extras">
+		<section class="counter" aria-label="Resumen de extras">
 			{#if summary.length}
-				<ul>
+				<ul class="types">
 					{#each summary as x (x.id)}<li>{extraSummaryText(x)}</li>{/each}
 				</ul>
 			{:else}
@@ -140,10 +169,16 @@
 
 		<DoorScanner onscan={view} cameraApp={false}>
 			{#if ticket}
-				<div class="result" role="status" aria-live="polite">
-					<p class="who"><strong>{ticket.holder}</strong></p>
+				<div class="result" class:ok={ticket.approved} class:bad={!ticket.approved} role="status">
+					<p class="title">
+						{#if ticket.approved}<CircleCheck size={34} strokeWidth={2.5} />{:else}<CircleX
+								size={34}
+								strokeWidth={2.5}
+							/>{/if}
+						<span>{ticket.holder}</span>
+					</p>
 					{#if !ticket.approved}
-						<p class="warn">
+						<p class="who">
 							Esta compra no está aprobada (reembolsada o sin pagar): no se entrega.
 						</p>
 					{/if}
@@ -155,58 +190,74 @@
 							on:deliver={deliver}
 						/>
 					{:else}
-						<p class="muted">Esta compra no tiene extras.</p>
+						<p class="who">Esta compra no tiene extras.</p>
 					{/if}
 				</div>
 			{/if}
 		</DoorScanner>
 
-		{#if message}<p class="error" role="alert">{message}</p>{/if}
+		{#if message}<p class="warn-note" role="alert">{message}</p>{/if}
 
-		<form class="row" on:submit|preventDefault={() => view(code)}>
-			<label>
-				<span>Escribir código</span>
+		<div class="actions">
+			<button type="button" class="tile" on:click={openCode}>
+				<Keyboard size={30} /> Escribir código
+			</button>
+			<button type="button" class="tile" on:click={openSearch}>
+				<Search size={30} /> Buscar persona
+			</button>
+		</div>
+	</div>
+
+	<Sheet bind:open={codeOpen} title="Escribir código">
+		<form class="stack" on:submit|preventDefault={() => view(code)}>
+			<label class="field">
+				<span>Código de la entrada (el de al lado del QR) o link del QR</span>
 				<input
+					bind:this={codeInput}
 					bind:value={code}
+					class="code-input"
 					autocomplete="off"
 					autocapitalize="characters"
 					spellcheck="false"
-					placeholder="Las 6 letras y números del QR"
+					placeholder="Ej.: 7HQ 4XM"
+					required
 				/>
 			</label>
-			<button type="submit" class="go" disabled={busy || !code.trim()}>Ver</button>
+			<button type="submit" class="primary" disabled={busy}>Ver</button>
 		</form>
+	</Sheet>
 
-		<div class="search">
-			<label>
-				<span>Buscar por nombre</span>
-				<input
-					type="search"
-					bind:value={q}
-					on:input={search}
-					autocomplete="off"
-					placeholder="El nombre de la entrada"
-				/>
-			</label>
-			{#if results.length}
-				<ul class="results">
-					{#each results as r (r.ticketId)}
-						<li>
-							<button type="button" on:click={() => view(`ticket:${r.ticketId}`)}>{r.holder}</button
-							>
-						</li>
-					{/each}
-				</ul>
-			{:else if q.trim().length >= 2}
-				<p class="muted small">Nadie con extras con ese nombre.</p>
-			{/if}
+	<Sheet bind:open={searchOpen} title="Buscar persona">
+		<div class="stack">
+			<input
+				bind:this={searchInput}
+				type="search"
+				bind:value={q}
+				on:input={search}
+				placeholder="El nombre de la entrada"
+				aria-label="Buscar por el nombre de la entrada"
+				autocomplete="off"
+				autocapitalize="off"
+				spellcheck="false"
+			/>
+			<ul class="suggestions" aria-label="Sugerencias">
+				{#each results as r (r.ticketId)}
+					<li>
+						<button type="button" class="option" on:click={() => view(`ticket:${r.ticketId}`)}
+							><strong>{r.holder}</strong></button
+						>
+					</li>
+				{:else}
+					{#if q.trim().length >= 2}<li class="muted">Nadie con extras con ese nombre.</li>{/if}
+				{/each}
+			</ul>
 		</div>
-	</main>
+	</Sheet>
 </div>
 
 <style>
-	/* Oscuro, como la puerta. */
-	.bar-root {
+	/* Los mismos tokens y valores que la puerta (DoorScreen.svelte, DoorResult.svelte). */
+	.door-root {
 		--bg: #16121a;
 		--surface: #221c28;
 		--surface-2: #2c2533;
@@ -214,8 +265,14 @@
 		--text: #f1ecf4;
 		--muted: #a9a0b0;
 		--accent: hsl(319, 90%, 60%);
+		--accent-dark: hsl(319, 100%, 35%);
+		--link: hsl(262, 100%, 82%);
+		--ok: hsl(165, 70%, 62%);
+		--ok-bg: hsl(165, 40%, 14%);
 		--warn: hsl(50, 100%, 70%);
 		--bad: hsl(330, 100%, 78%);
+		--bad-bg: hsl(325, 55%, 20%);
+		--warn-bg: hsl(45, 45%, 22%);
 		--accent-ink: white;
 		color-scheme: dark;
 		color: var(--text);
@@ -223,127 +280,206 @@
 		min-height: 100dvh;
 		font-family: 'Lato', sans-serif;
 	}
-	:global(html:has(.bar-root)),
-	:global(body:has(.bar-root)) {
-		background: #16121a;
-	}
-	.bar-page {
+	.door {
+		background: var(--bg);
+		color: var(--text);
+		padding: calc(env(safe-area-inset-top, 0px) + 0.8rem) 16px
+			calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
 		max-width: 40rem;
 		margin: 0 auto;
-		padding: calc(env(safe-area-inset-top, 0px) + 0.8rem) 16px 1.5rem;
-		display: grid;
-		gap: 0.8rem;
 		box-sizing: border-box;
+	}
+	:global(html:has(.door-root)),
+	:global(body:has(.door-root)) {
+		background: #16121a;
 	}
 	h1,
 	p {
 		margin: 0;
 	}
+	.bar {
+		display: flex;
+		align-items: center;
+		gap: var(--space-xs);
+	}
+	.heading {
+		flex: 1;
+		min-width: 0;
+	}
 	h1 {
-		font-size: var(--text-base, 1rem);
+		font-size: var(--text-base);
+		font-weight: 700;
 		line-height: 1.2;
 	}
-	.link-note {
+	.heading p {
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
+	.heading .link-note {
 		color: var(--warn);
-		font-size: var(--text-sm, 0.9rem);
 	}
-	.summary {
-		padding: 0.6rem 0.8rem;
-		border-radius: 0.8rem;
+	.counter {
 		background: var(--surface);
+		border-radius: var(--radius-l);
+		padding: var(--space-xs) var(--space-s);
 	}
-	.summary ul {
+	.types {
 		list-style: none;
 		margin: 0;
 		padding: 0;
-		display: grid;
-		gap: 0.2rem;
-		font-weight: 700;
-	}
-	.result {
-		display: grid;
-		gap: 0.5rem;
-		padding: 0.7rem 0.8rem;
-		border-radius: 0.8rem;
-		background: var(--surface);
-		box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
-	}
-	.who {
-		font-size: var(--text-lg, 1.2rem);
-	}
-	.warn {
-		color: var(--warn);
-	}
-	.error {
-		color: var(--bad);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
 		font-weight: 700;
 	}
 	.muted {
 		color: var(--muted);
 	}
-	.small {
-		font-size: var(--text-sm, 0.9rem);
+	/* El bloque de resultado de DoorResult.svelte. */
+	.result {
+		border-radius: var(--radius-l);
+		padding: var(--space-xs) var(--space-s) var(--space-xs);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
+		animation: pop 0.22s ease-out;
+		box-shadow: var(--shadow-3);
 	}
-	label {
-		display: grid;
-		gap: 0.25rem;
+	.ok {
+		background: var(--3);
+		color: #032a1f;
+	}
+	.bad {
+		background: var(--1-dark-fixed, hsl(319, 100%, 40%));
+		color: #fff;
+	}
+	.title {
 		flex: 1;
-		min-width: 0;
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		font-size: var(--text-2xl);
+		font-weight: 700;
+		line-height: 1.1;
+		overflow-wrap: anywhere;
 	}
-	label span {
-		font-size: var(--text-sm, 0.9rem);
-		color: var(--muted);
+	.who {
+		font-size: var(--text-base);
+		overflow-wrap: anywhere;
 	}
-	input {
-		min-height: 48px;
-		padding: 0 0.8rem;
-		border-radius: 0.6rem;
-		border: 1px solid var(--line);
+	@keyframes pop {
+		from {
+			transform: scale(0.95);
+			opacity: 0.5;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.result {
+			animation: none;
+		}
+	}
+	.warn-note {
+		display: flex;
+		gap: var(--space-2xs);
+		align-items: flex-start;
+		margin: 0;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
+		background: color-mix(in srgb, var(--warn) 18%, var(--surface));
+		color: var(--text);
+	}
+	.actions {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-2xs);
+	}
+	.tile {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.4rem;
+		padding: var(--space-s) var(--space-2xs);
+		border-radius: var(--radius-l);
+		border: 0;
 		background: var(--surface-2);
 		color: var(--text);
-		font: inherit;
-		box-sizing: border-box;
-		width: 100%;
+		font-weight: 700;
+		font-size: var(--text-base);
+		cursor: pointer;
 	}
-	.row {
+	.stack {
 		display: flex;
-		align-items: end;
-		gap: 0.5rem;
+		flex-direction: column;
+		gap: var(--space-xs);
 	}
-	.go {
-		min-height: 48px;
-		padding: 0 1.1rem;
-		border: 0;
-		border-radius: 999px;
-		background: var(--accent);
-		color: var(--accent-ink);
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
+		font-size: var(--text-sm);
+		color: var(--muted);
+		min-width: 0;
+	}
+	input {
+		font: inherit;
+		font-size: var(--text-field);
+		padding: var(--space-2xs) var(--space-xs);
+		min-height: 3rem;
+		border-radius: var(--radius-m);
+		border: 2px solid var(--line);
+		background: var(--surface-2);
+		color: var(--text);
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.code-input {
+		font-size: var(--text-lg) !important;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+		text-align: center;
+	}
+	.primary {
 		font: inherit;
 		font-weight: 700;
+		font-size: var(--text-base);
+		min-height: 3.2rem;
+		border: 0;
+		border-radius: 2em;
+		background: var(--accent);
+		color: #fff;
+		cursor: pointer;
 	}
-	.go:disabled {
-		background: var(--line);
-		color: var(--muted);
+	.primary:disabled {
+		opacity: 0.6;
+		cursor: default;
 	}
-	.search {
-		display: grid;
-		gap: 0.4rem;
-	}
-	.results {
+	.suggestions {
 		list-style: none;
 		margin: 0;
 		padding: 0;
-		display: grid;
-		gap: 0.3rem;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
 	}
-	.results button {
+	.option {
+		display: flex;
 		width: 100%;
-		min-height: 44px;
 		text-align: left;
-		padding: 0 0.8rem;
-		border: 1px solid var(--line);
-		border-radius: 0.6rem;
-		background: var(--surface);
-		color: var(--text);
 		font: inherit;
+		color: var(--text);
+		border: 0;
+		padding: var(--space-2xs) var(--space-xs);
+		min-height: 2.8rem;
+		border-radius: var(--radius-m);
+		background: var(--surface-2);
+		cursor: pointer;
+		overflow-wrap: anywhere;
+	}
+	.option:hover,
+	.option:focus-visible {
+		outline: 2px solid var(--link);
 	}
 </style>

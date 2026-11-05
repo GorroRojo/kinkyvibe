@@ -13,6 +13,9 @@
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { argDateLog } from '$lib/utils/dates.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
+	import Field from '$lib/components/ui/Field.svelte';
+	import Badge from '$lib/components/ui/Badge.svelte';
+	import { Martini } from '@lucide/svelte';
 
 	/**
 	 * @type {{ links: { id: string, scope?: string, label: string, createdBy: string,
@@ -60,7 +63,7 @@
 		{/if}
 		{#if result?.ok && result.url}
 			<div class="created">
-				<label>
+				<label class="kv-field">
 					<span>Link{result.label ? ` «${result.label}»` : ''}</span>
 					<input
 						type="text"
@@ -87,7 +90,7 @@
 					{#each doorLinks.links as l (l.id)}
 						<li>
 							<div>
-								{#if l.scope === 'barra'}<span class="scope">Barra</span>{/if}
+								{#if l.scope === 'barra'}<Badge tone="info" icon={Martini}>Barra</Badge>{/if}
 								<strong>{l.label || 'Sin etiqueta'}</strong>
 								<small class="muted block">
 									Lo creó {l.createdBy} el {argDateLog(l.createdAt)} · vence el {argDateLog(
@@ -122,33 +125,33 @@
 
 			<form method="POST" action="?/crearLinkPuerta" use:enhance class="create">
 				{#if doorLinks.bar}
-					<label>
-						<span>Para</span>
-						<select name="scope" bind:value={scope}>
+					<Field label="Para" let:id let:describedBy>
+						<select {id} aria-describedby={describedBy} name="scope" bind:value={scope}>
 							<option value="puerta">La puerta (ingreso y venta)</option>
 							<option value="barra">La barra (solo extras)</option>
 						</select>
-					</label>
+					</Field>
 				{/if}
-				<label>
-					<span>Etiqueta (para reconocerlo)</span>
+				<Field label="Etiqueta (para reconocerlo)" let:id let:describedBy>
 					<input
+						{id}
+						aria-describedby={describedBy}
 						type="text"
 						name="label"
 						maxlength="40"
-						placeholder="Por ejemplo: voluntarie de la puerta"
+						placeholder={scope === 'barra'
+							? 'Por ejemplo: barra de la fiesta'
+							: 'Por ejemplo: voluntarie de la puerta'}
 						autocomplete="off"
 					/>
-				</label>
-				<label>
-					<span>Anda hasta (hora de Argentina)</span>
-					<input
-						type="datetime-local"
-						name="expires"
-						value={doorLinks.defaultExpires}
-						required={!doorLinks.defaultExpires}
-					/>
-				</label>
+				</Field>
+				<Field
+					label="Anda hasta (hora de Argentina)"
+					type="datetime-local"
+					name="expires"
+					value={doorLinks.defaultExpires}
+					required={!doorLinks.defaultExpires}
+				/>
 				<button type="submit" class="kv-btn"
 					>{scope === 'barra' ? 'Crear link de barra' : 'Crear link de puerta'}</button
 				>
@@ -158,15 +161,6 @@
 </section>
 
 <style>
-	.scope {
-		display: inline-block;
-		margin-right: 0.4em;
-		padding: 0 0.5em;
-		border-radius: var(--radius-pill, 999px);
-		background: var(--panel-accent-soft, #efe6f7);
-		font-size: var(--text-xs);
-		font-weight: 600;
-	}
 	.small {
 		font-size: var(--text-xs);
 		margin: 0;
@@ -183,10 +177,6 @@
 	.created input {
 		width: 100%;
 		font-family: monospace;
-	}
-	label {
-		display: grid;
-		gap: 0.2rem;
 	}
 	.links {
 		list-style: none;

@@ -1727,11 +1727,10 @@
 			{/if}
 			{#if data.extras?.length && online}
 				<!-- Extras (decisión 0056): a precio de lista, se cobran con la venta. Solo con conexión. -->
-				<fieldset class="sale-extras">
-					<legend>Extras</legend>
+				<div class="row">
 					{#each data.extras as x (x.id)}
-						<label class="field extra-qty">
-							<span>{x.name} <small class="muted">({formatARS(x.price)} c/u)</small></span>
+						<label class="field">
+							<span>{x.name} ({formatARS(x.price)} c/u)</span>
 							<input
 								type="number"
 								name="extra_{x.id}"
@@ -1743,10 +1742,10 @@
 							/>
 						</label>
 					{/each}
-					{#if saleExtrasAmount}<p class="muted small">
-							Extras: +{formatARS(saleExtrasAmount)} (se cobran aparte del precio de la entrada)
-						</p>{/if}
-				</fieldset>
+				</div>
+				{#if saleExtrasAmount}<p class="muted small">
+						Extras: +{formatARS(saleExtrasAmount)} (se cobran aparte del precio de la entrada)
+					</p>{/if}
 			{/if}
 			<fieldset class="methods">
 				<legend>Cómo pagó</legend>
@@ -2669,19 +2668,5 @@
 	}
 	.email {
 		overflow-wrap: anywhere;
-	}
-	.sale-extras {
-		border: 0;
-		padding: 0;
-		margin: 0;
-		display: grid;
-		gap: 0.4rem;
-	}
-	.sale-extras legend {
-		font-weight: 700;
-		margin-bottom: 0.2rem;
-	}
-	.extra-qty input {
-		max-width: 6rem;
 	}
 </style>

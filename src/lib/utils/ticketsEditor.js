@@ -521,11 +521,13 @@ const salesOf = (sales, id) => {
  * existentes y avisa de lo que no las cambia.
  *
  * @param {TicketsForm} form
- * @param {{ sales?: SalesByType, waitlistLive?: Record<string, number> }} [opts] `waitlistLive`:
- *   las anotaciones vivas de la lista de espera por alcance (ver {@link waitlistLiveErrors})
+ * @param {{ sales?: SalesByType, waitlistLive?: Record<string, number>,
+ *   extrasSales?: Record<string, number> }} [opts] `waitlistLive`: las anotaciones vivas de la
+ *   lista de espera por alcance (ver {@link waitlistLiveErrors}); `extrasSales`: vendidos y
+ *   reservados por extra (un extra que vendió no se puede borrar, como un tipo)
  * @returns {{ errors: string[], warnings: string[] }}
  */
-export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
+export function validateTicketsForm(form, { sales, waitlistLive, extrasSales } = {}) {
 	/** @type {string[]} */
 	const errors = [];
 	/** @type {string[]} */
@@ -667,7 +669,7 @@ export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
 	if (goal.error) errors.push(goal.error);
 	validateWaitlist(form, types, warnings);
 	errors.push(...waitlistLiveErrors(form, waitlistLive));
-	errors.push(...extrasFormErrors(form.extras));
+	errors.push(...extrasFormErrors(form.extras), ...extrasSoldErrors(form, extrasSales));
 	return { errors, warnings };
 }
 
@@ -1183,4 +1185,23 @@ export function describeTicketsForm(form, formatARS) {
 		waitlistText +
 		describeExtras(form.extras, formatARS)
 	);
+}
+
+/**
+ * Un extra que ya vendió (o tiene reservas vigentes) no se puede borrar, como un tipo de entrada:
+ * para dejar de venderlo, el tope en 0 (decisión 0056).
+ *
+ * @param {TicketsForm} form
+ * @param {Record<string, number> | undefined} extrasSales vendidos y reservados por id de extra
+ * @returns {string[]}
+ */
+export function extrasSoldErrors(form, extrasSales) {
+	if (!extrasSales) return [];
+	const kept = new Set((form.extras ?? []).map((x) => x.origId).filter(Boolean));
+	return Object.entries(extrasSales)
+		.filter(([id, n]) => n > 0 && !kept.has(id))
+		.map(
+			([id, n]) =>
+				`No se puede borrar el extra «${id}»: ya tiene ${n} ${n === 1 ? 'vendido o reservado' : 'vendidos o reservados'}. Para dejar de venderlo, poné el tope en 0.`
+		);
 }
