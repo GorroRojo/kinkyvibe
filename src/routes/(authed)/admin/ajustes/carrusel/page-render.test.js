@@ -34,10 +34,13 @@ function renderPage(slides) {
 		missing: { total: 0, images: [] }
 	});
 	// Sin las etiquetas ni los comentarios de Svelte: el texto como se lee.
-	return render(Page, { props: { data, form: null } })
-		.body.replace(/<!--[^>]*-->/g, '')
-		.replace(/<[^>]+>/g, ' ')
-		.replace(/\s+/g, ' ');
+	// Se repite hasta que no quede ninguno (sacar uno no puede armar otro).
+	let html = render(Page, { props: { data, form: null } }).body;
+	for (let prev = ''; prev !== html;) {
+		prev = html;
+		html = html.replace(/<!--[^>]*-->/g, '');
+	}
+	return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 }
 
 describe('Ajustes › Carrusel de la portada: de dónde salen los colores', () => {
