@@ -103,6 +103,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 		'ajustes de mails plantillas recordatorios remitente email envios pie de mail firma',
 	'ajustes-vistas-previas':
 		'vistas previas al compartir link whatsapp telegram tarjeta imagen og textos titulo descripcion',
+	'ajustes-carrusel':
+		'carrusel portada estilos flyers colores diapositivas inicio rotar pila franja stickers diagonal zines',
 	'ajustes-plantillas':
 		'plantillas textos mails email compra recordatorio mensajes pie de mail asunto',
 	'ajustes-textos-bot':
@@ -163,6 +165,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-fondo': 'settings',
 	'ajustes-mails': 'mail',
 	'ajustes-vistas-previas': 'eye',
+	'ajustes-carrusel': 'eye',
 	'ajustes-plantillas': 'mail',
 	'ajustes-textos-bot': 'mail',
 	'ajustes-admins': 'key',

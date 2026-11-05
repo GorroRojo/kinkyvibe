@@ -6,7 +6,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+	OBJECT_CARD_COLORS,
 	OBJECT_CARD_KINDS,
+	categoryTileLook,
 	eventCardDate,
 	eventCardSpec,
 	isObjectCardKind,
@@ -310,5 +312,28 @@ describe('objectCardTree', () => {
 		);
 		expect(icon).toBeTruthy();
 		expect(atob(icon.props.src.split(',')[1])).toContain('<circle cx="12" cy="12" r="10"/>');
+	});
+});
+
+describe('categoryTileLook (la ficha sin imagen del carrusel de la portada)', () => {
+	/** @param {string} src */
+	const svg = (src) => atob(src.replace('data:image/svg+xml;base64,', ''));
+	it('el color y el símbolo de cada tipo, los de la vista previa', () => {
+		const material = categoryTileLook('material', ['descargable']);
+		expect(material?.bg).toBe(OBJECT_CARD_COLORS.teal);
+		expect(material?.ink).toBe(OBJECT_CARD_COLORS.tealDark);
+		// el símbolo de descargar (la flecha hacia abajo de Lucide)
+		expect(svg(String(material?.icon))).toContain('M12 15V3');
+		expect(svg(String(categoryTileLook('material', ['pago'])?.icon))).toContain('circle');
+		const perfil = categoryTileLook('amigues');
+		expect(perfil?.bg).toBe(OBJECT_CARD_COLORS.yellow);
+		expect(perfil?.icon).toMatch(/^data:image\/svg\+xml;base64,/);
+		const wiki = categoryTileLook('wiki');
+		expect(wiki?.bg).toBe('white');
+		expect(wiki?.ink).toBe(OBJECT_CARD_COLORS.violet);
+	});
+	it('un evento (u otra cosa) no tiene ficha', () => {
+		expect(categoryTileLook('calendario')).toBeNull();
+		expect(categoryTileLook('')).toBeNull();
 	});
 });
