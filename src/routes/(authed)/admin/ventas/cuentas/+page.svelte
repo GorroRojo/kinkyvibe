@@ -31,7 +31,7 @@
 	/** @param {string} d */
 	const day = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 
-	/** @typedef {'tickets' | 'presale' | 'door' | 'fondo_net' | 'other_income' | 'venue' | 'fees' | 'other_expenses' | 'expenses_total' | 'caja' | 'profit'} Column */
+	/** @typedef {'tickets' | 'presale' | 'door' | 'fondo_net' | 'other_income' | 'income_total' | 'venue' | 'fees' | 'other_expenses' | 'expenses_total' | 'caja' | 'profit'} Column */
 
 	/** @type {[Column, string][]} */
 	const COLUMNS = [
@@ -40,18 +40,19 @@
 		['door', 'Puerta'],
 		['fondo_net', 'Fondo neto'],
 		['other_income', 'Otros ingresos'],
+		['income_total', 'Ingresos'],
 		['venue', 'Lugar'],
 		['fees', 'Contrataciones'],
 		['other_expenses', 'Otros gastos'],
 		['expenses_total', 'Gastos'],
 		['caja', 'Caja KV'],
-		['profit', 'Ganancia']
+		['profit', 'Ganancia o pérdida']
 	];
 	/** @param {Column} key @param {number} value */
 	const cell = (key, value) =>
 		key === 'tickets'
 			? String(value)
-			: key === 'fondo_net'
+			: key === 'fondo_net' || key === 'profit'
 				? formatSignedARS(value)
 				: formatARS(value);
 </script>
@@ -84,9 +85,9 @@
 		<Stat label="Ingresos" value={formatARS(data.total.income_total)} />
 		<Stat label="Gastos" value={formatARS(data.total.expenses_total)} />
 		<Stat
-			label="Ganancia"
-			value={formatARS(data.total.profit)}
-			tone={data.total.profit >= 0 ? 'ok' : 'bad'}
+			label={data.total.profit < 0 ? 'Pérdida' : 'Ganancia'}
+			value={formatARS(Math.abs(data.total.profit))}
+			tone={data.total.profit > 0 ? 'ok' : data.total.profit < 0 ? 'bad' : ''}
 		/>
 		<Stat label="Caja KV" value={formatARS(data.total.caja)} />
 	</div>
@@ -113,7 +114,7 @@
 					</tbody>
 					<tfoot>
 						<tr>
-							<th scope="row">Total {data.year}</th>
+							<th scope="row">Año {data.year}</th>
 							<td class="r num">{data.total.events}</td>
 							{#each COLUMNS as [key] (key)}<td class="r num">{cell(key, data.total[key])}</td
 								>{/each}
@@ -168,9 +169,9 @@
 	}
 	.stats {
 		display: grid;
-		gap: var(--space-xs);
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
-		margin-block: 1rem;
+		gap: var(--space-2xs);
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+		margin-block: var(--space-2xs) var(--space-xs);
 	}
 	.cards {
 		display: flex;
@@ -191,6 +192,6 @@
 	}
 	.small {
 		font-size: var(--text-xs);
-		display: block;
+		margin-left: var(--space-3xs);
 	}
 </style>

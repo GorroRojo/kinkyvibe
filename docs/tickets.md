@@ -464,7 +464,7 @@ Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y `S
 Pedido de gorrite (27/10: «gastos y reparto de la plata en el sitio para la mayoría de los
 eventos»; ítem `gastos-reparto` del [plan](plan.md)). El prototipo (#549) se rehízo con lo que
 decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_reparto`** (apagado;
-[interruptores.md](interruptores.md)), solo admins. Migración `0075_gastos_reparto.sql`
+[interruptores.md](interruptores.md)), solo admins. Migración `0078_gastos_reparto.sql`
 ([datos.md](datos.md)).
 
 - **Para qué eventos:** solo los que venden entradas por el sitio. Las cuentas del Club de Hosts
@@ -491,13 +491,15 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   vinculado («Sucede en») tiene una regla guardada, la cuenta nueva arranca con esa. «Guardar como
   regla de <lugar>» la guarda en `venue_cost_rules` (aparte de los datos del perfil, que se ven en
   su página y los edita quien lo gestiona; las horas no se guardan). Sin regla: 30 % (talleres).
-- **Contrataciones** (monitores, fotografía, técnica): concepto, monto, «Es del equipo de KV» y,
-  si lo es, «Cobra» o «Lo deja en la caja» (entonces va a la Caja KV). **Otros gastos**: concepto
+- **Contrataciones** (quien cobra un monto fijo: Monitorea, Anfitrione, Fotografía, Técnica, con
+  atajos; gorrite, Mesa 5/11): concepto, monto, «Es del equipo de KV» y, si lo es, «Cobra» o «Lo
+  deja en la caja» (entonces va a la Caja KV). **Otros gastos**: concepto
   y monto, con atajos. Cada gasto, el lugar y cada contratación: quién pagó (Caja KV, une
   facilitadore o «Falta pagarlo») y «pagado el». Nunca alias ni CBU.
 - **Reparto** (regla de talleres, editable por evento): ganancia = ingresos − lugar −
   contrataciones − otros gastos; de la ganancia, 30 % a la **Caja KV** por producir y el resto
-  entre les facilitadores (partes iguales o porcentajes que suman 100). La parte de quien tiene
+  entre les facilitadores, quienes facilitan el taller (en el evento, rol «Facilita»; «Enseña»
+  cuenta igual; gorrite, Mesa 5/11), en partes iguales o porcentajes que suman 100. La parte de quien tiene
   «Es del equipo de KV» va a la Caja KV. Ejemplo: Mel (equipo) + Memi → Memi 35 %, Caja KV 65 %.
   La Caja KV es la plata de Kinky Vibe (no es el Fondo) y se queda con lo que sobra, también los
   pesos del redondeo (cada parte se redondea para abajo). **Producción:** la Caja KV produce; si
@@ -519,8 +521,17 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   Cerrada, la página muestra la foto y avisa si después cambiaron las ventas; **Reabrir la cuenta**
   borra el cierre. Todo queda en Actividad (`event_account.save`, `.close`, `.reopen`,
   `venue.cost_rule`).
-- **Cuentas del año:** los cierres de un año por el mes del evento, con el total y la lista de
-  eventos.
+- **Cuentas del año:** los cierres de un año por el mes del evento, con el renglón del año y la
+  lista de eventos.
+- **La página** (gorrite, Mesa 5/11: más compacta): arriba, ingresos, gastos, ganancia o pérdida y
+  Caja KV; abajo, cuatro tarjetas: **Ingresos** (lo que entró y otros ingresos), **Gastos** (lugar,
+  contrataciones y otros gastos), **Reparto** y **Quién le pasa a quién**. En la compu van en dos
+  columnas (ingresos y reparto a la izquierda, gastos y quién le pasa a quién a la derecha); en el
+  celu, una, en ese orden. Cada renglón de gasto va en una línea si entra.
+- **Cada total dice qué suma** (gorrite, Mesa 5/11), igual en la página, en el resumen de la cuenta
+  cerrada y en Cuentas del año: «Otros ingresos: $ …», «Ingresos», «Lugar: $ …», «Contrataciones:
+  $ …», «Otros gastos: $ …», «Gastos» y «Ganancia» o «Pérdida» (sin signo; en la tabla del año,
+  «Ganancia o pérdida» con signo). Nunca un «Total» a secas.
 
 ### Lista de espera (en construcción)
 
