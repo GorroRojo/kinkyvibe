@@ -39,6 +39,7 @@ import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
 import { parseReminders, retryFailedReminders } from '$lib/server/tickets/reminders.js';
+import { retryFailedFormSends } from '$lib/server/formularios/store.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { eventLink, orderHref, transfersHref } from '$lib/admin/links.js';
 import { navItem, navLink } from '$lib/admin/nav.js';
@@ -267,6 +268,36 @@ export const actions = {
 				message: n
 					? `Listo: ${n === 1 ? 'el recordatorio sale' : `los ${n} recordatorios salen`} en la próxima vuelta del cron (cada 15 minutos).`
 					: 'No había recordatorios fallidos para reintentar.'
+			}
+		};
+	},
+
+	// "Reintentar" desde "Para revisar": los links personales de un formulario que fallaron todos
+	// sus intentos vuelven a la cola (docs/formularios.md); los manda el próximo cron.
+	retryFormSends: async ({ locals, url, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { resend: { ok: false, message: 'Sin base de datos.' } });
+		const formId = Number((await request.formData()).get('form'));
+		if (!Number.isSafeInteger(formId) || formId <= 0) {
+			return fail(400, { resend: { ok: false, message: 'Formulario inválido.' } });
+		}
+		const n = await retryFailedFormSends(db, formId);
+		if (n) {
+			await logAdminAction(db, locals, {
+				action: 'form.retry',
+				targetType: 'form',
+				targetId: String(formId),
+				summary: `Volvió a poner en la cola ${n === 1 ? '1 link de un formulario' : `${n} links de un formulario`}`,
+				detail: { count: n }
+			});
+		}
+		return {
+			resend: {
+				ok: true,
+				message: n
+					? `Listo: ${n === 1 ? 'el link sale' : `los ${n} links salen`} en la próxima vuelta del cron (cada 15 minutos).`
+					: 'No había links fallidos para reintentar.'
 			}
 		};
 	},

@@ -20,6 +20,8 @@ import { panelVenueRow } from '$lib/server/amigues/eventFormVenue.js';
 import { getPanelEvent } from '$lib/server/eventos/panel.js';
 import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { formulariosEnabled } from '$lib/server/flags.js';
+import { eventForms } from '$lib/server/formularios/store.js';
 import {
 	DOOR_LINK_MIN_MS,
 	createDoorLink,
@@ -74,6 +76,29 @@ const CLOSED_REASON = {
 	closed: 'Venta cerrada',
 	notyet: 'La venta todavía no abrió'
 };
+
+/**
+ * Los formularios del evento para la tarjeta «Formularios de este evento», o `null` con el
+ * interruptor apagado o sin base.
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ * @param {App.Platform | undefined} platform
+ * @param {string} slug
+ */
+async function formsFor(db, platform, slug) {
+	if (!db || !(await formulariosEnabled(platform))) return null;
+	try {
+		return (await eventForms(db, slug)).map((f) => ({
+			id: f.id,
+			kind: f.kind,
+			title: f.title,
+			open: f.open,
+			responses: f.responses
+		}));
+	} catch (e) {
+		logDBError('formularios en la ficha', e);
+		return [];
+	}
+}
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, parent, setHeaders }) {
@@ -203,6 +228,9 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		: [];
 	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
 	const venue = await venueP;
+	// Formularios de este evento (interruptor `formularios`, docs/formularios.md): la encuesta y los
+	// que lo eligieron, con links. `null` apagado (la tarjeta no se ve).
+	const forms = await formsFor(db, platform, params.slug);
 	// Links de puerta (presenciales con entradas).
 	const doorLinks = await doorLinksFor(db, params.slug, config);
 	// Etiqueta «Online» y además un lugar: un aviso arriba (no cambia nada).
@@ -211,6 +239,7 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		{ hasVenue: Boolean(venue) }
 	);
 	return {
+		forms,
 		checklist,
 		stream,
 		sale,

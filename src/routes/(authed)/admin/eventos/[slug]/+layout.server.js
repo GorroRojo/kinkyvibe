@@ -139,23 +139,27 @@ export async function load({ locals, url, params, platform }) {
 	const db = getDB(platform);
 	// Ya con el evento y su venta: lo demás no depende entre sí, a la par (con las tandas
 	// automáticas, en una ida). Cada parte con su manejo de errores de siempre.
-	const [tabCounts, dateChange, waitlist, workshop, venue, gastosTab] = await Promise.all([
-		db && config ? orderCounts(db, params.slug) : { orders: 0, transfers: 0, review: 0 },
-		// «Cambiaste la fecha»: el aviso de arriba de todas las pestañas (dateChange.js), con
-		// «Avisar a les compradores». Solo si hay a quién avisar.
-		db && config ? dateChangeOf(db, params.slug, config) : null,
-		// Lista de espera: la pestaña (con el interruptor, o si el evento ya tiene lista o gente
-		// anotada) y su contador (las anotaciones vivas). Sin la migración 0053, nada.
-		config
-			? Promise.all([isFlagOn(db, 'lista_espera'), db ? waitlistCount(db, params.slug) : 0])
-			: null,
-		workshopChip(db, params.slug),
-		// El lugar vinculado («Sucede en»): manda sobre el «Dónde» en texto libre en el encabezado,
-		// como en la página pública. `null` sin lugar o si la base falla (queda el texto libre).
-		panelVenueRow(db, params.slug),
-		// Gastos y reparto (prototipo): la vista de Ventas, solo con el interruptor.
-		config ? isFlagOn(db, 'gastos_reparto') : false
-	]);
+	const [tabCounts, dateChange, waitlist, workshop, venue, surveyOn, gastosTab] = await Promise.all(
+		[
+			db && config ? orderCounts(db, params.slug) : { orders: 0, transfers: 0, review: 0 },
+			// «Cambiaste la fecha»: el aviso de arriba de todas las pestañas (dateChange.js), con
+			// «Avisar a les compradores». Solo si hay a quién avisar.
+			db && config ? dateChangeOf(db, params.slug, config) : null,
+			// Lista de espera: la pestaña (con el interruptor, o si el evento ya tiene lista o gente
+			// anotada) y su contador (las anotaciones vivas). Sin la migración 0053, nada.
+			config
+				? Promise.all([isFlagOn(db, 'lista_espera'), db ? waitlistCount(db, params.slug) : 0])
+				: null,
+			workshopChip(db, params.slug),
+			// El lugar vinculado («Sucede en»): manda sobre el «Dónde» en texto libre en el encabezado,
+			// como en la página pública. `null` sin lugar o si la base falla (queda el texto libre).
+			panelVenueRow(db, params.slug),
+			// La encuesta de después del evento (Mails › Encuesta): solo con el interruptor `formularios`.
+			config ? isFlagOn(db, 'formularios') : false,
+			// Gastos y reparto (prototipo): la vista de Ventas, solo con el interruptor.
+			config ? isFlagOn(db, 'gastos_reparto') : false
+		]
+	);
 	const counts = { ...tabCounts, waitlist: waitlist ? waitlist[1] : 0 };
 	const waitlistTab = config
 		? Boolean(waitlist?.[0]) || Boolean(config.waitlist) || counts.waitlist > 0
@@ -170,6 +174,7 @@ export async function load({ locals, url, params, platform }) {
 		// Pestaña Preguntas (preguntas de inscripción).
 		signupFieldsTab: Boolean(db && config),
 		waitlistTab,
+		surveyTab: Boolean(db && surveyOn),
 		gastosTab
 	};
 }

@@ -80,9 +80,12 @@
 	};
 	// Lista de espera (una vista de Ventas): con el interruptor prendido, o si el evento ya tiene
 	// lista o gente anotada.
-	// Gastos y reparto (prototipo): solo con su interruptor.
+	// Encuesta (una vista de Mails) y Gastos y reparto (Ventas): solo con su interruptor.
 	$: views = (here?.tab.views ?? []).filter(
-		(v) => (v.id !== 'lista-espera' || data.waitlistTab) && (v.id !== 'gastos' || data.gastosTab)
+		(v) =>
+			(v.id !== 'lista-espera' || data.waitlistTab) &&
+			(v.id !== 'encuesta' || data.surveyTab) &&
+			(v.id !== 'gastos' || data.gastosTab)
 	);
 	$: when = [shortDate(e.start), timeRange(e.start, e.end)].filter(Boolean).join(' · ');
 	// Un lugar vinculado manda sobre el «Dónde» en texto libre (como en la página pública).

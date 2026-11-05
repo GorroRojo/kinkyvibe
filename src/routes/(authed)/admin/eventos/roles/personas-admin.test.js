@@ -113,6 +113,54 @@ const audit = async (action) =>
 			.all()
 	).results;
 
+/*
+ * Las preguntas se editan con el editor de preguntas (el de los formularios, siempre prendido):
+ * `?/saveFields` guarda la lista entera. Estas ayudas arman esa lista como lo haría el editor: la
+ * de hoy (de `load`), más, menos o con una pregunta cambiada.
+ */
+/** @param {any} f una pregunta guardada (`load`) */
+const asItem = (f) => ({
+	id: f.id,
+	label: f.label,
+	kind: f.kind,
+	required: f.required,
+	options: f.options,
+	perTicket: Boolean(f.perTicket),
+	scope: f.ticketTypes?.length ? 'some' : 'all',
+	ticketTypes: f.ticketTypes ?? []
+});
+/** @param {Record<string, string | string[]>} form lo que mandaba el formulario de una pregunta */
+const formItem = (form) => ({
+	label: String(form.label ?? ''),
+	kind: String(form.kind ?? 'text'),
+	required: form.required === 'on',
+	options: String(form.options ?? '')
+		.split('\n')
+		.map((o) => o.trim())
+		.filter(Boolean),
+	perTicket: form.per_ticket === 'on',
+	scope: form.scope === 'some' ? 'some' : 'all',
+	ticketTypes: [form.ticket_types ?? []].flat()
+});
+/**
+ * Guarda la lista de preguntas de un evento (`at`: el path de su pestaña Preguntas) o las
+ * generales (`at` null), cambiada por `change`.
+ * @param {string | null} at
+ * @param {(list: any[]) => any[]} change
+ * @param {any} [user]
+ */
+async function saveFieldList(at, change, user = admin) {
+	const current = at
+		? /** @type {any} */ (await preguntas.load(fakeEvent({ path: at }))).own
+		: /** @type {any} */ (await ajustes.load(fakeEvent())).fields;
+	const questions = JSON.stringify(change(current.map(asItem)));
+	return /** @type {any} */ (
+		at
+			? await preguntas.actions.saveFields(fakeEvent({ path: at, user, form: { questions } }))
+			: await ajustes.actions.saveFields(fakeEvent({ user, form: { questions } }))
+	);
+}
+
 const ROUTES = /** @type {const} */ ([
 	['ajustes', ajustes, '/admin/eventos/roles'],
 	['preguntas', preguntas, `/admin/eventos/${SLUG}/preguntas`]
@@ -210,21 +258,18 @@ describe('Eventos › Roles y preguntas', () => {
 	});
 
 	it('preguntas generales: se validan, se guardan y se borran', async () => {
-		const bad = /** @type {any} */ (
-			await ajustes.actions.createField(fakeEvent({ form: { label: 'x', kind: 'choice' } }))
-		);
+		const bad = await saveFieldList(null, (l) => [...l, formItem({ label: 'x', kind: 'choice' })]);
 		expect(bad.status).toBe(400);
-		expect(Object.keys(bad.data.field.errors).sort()).toEqual(['label', 'options']);
-		await ajustes.actions.createField(
-			fakeEvent({
-				form: {
-					label: '¿Cómo te enteraste?',
-					kind: 'choice',
-					options: 'Instagram\nUna amistad',
-					required: 'on'
-				}
+		expect(Object.keys(bad.data.fields.errors[0]).sort()).toEqual(['label', 'options']);
+		await saveFieldList(null, (l) => [
+			...l,
+			formItem({
+				label: '¿Cómo te enteraste?',
+				kind: 'choice',
+				options: 'Instagram\nUna amistad',
+				required: 'on'
 			})
-		);
+		]);
 		const data = /** @type {any} */ (await ajustes.load(fakeEvent()));
 		expect(data.fields).toHaveLength(1);
 		expect(data.fields[0]).toMatchObject({
@@ -232,10 +277,10 @@ describe('Eventos › Roles y preguntas', () => {
 			required: true,
 			options: ['Instagram', 'Una amistad']
 		});
-		await ajustes.actions.deleteField(fakeEvent({ form: { id: String(data.fields[0].id) } }));
+		await saveFieldList(null, () => []);
 		expect(/** @type {any} */ (await ajustes.load(fakeEvent())).fields).toEqual([]);
-		expect((await audit('signup_field.delete'))[0].summary).toBe(
-			'Borró la pregunta «¿Cómo te enteraste?» (general)'
+		expect((await audit('signup_field.save')).at(-1)?.summary).toBe(
+			'Guardó las preguntas generales (1 borrada)'
 		);
 	});
 
@@ -243,15 +288,15 @@ describe('Eventos › Roles y preguntas', () => {
 	// quien lo hizo, y recuperar los vuelve a poner en esta página.
 	it('un rol sacado y una pregunta borrada se recuperan desde Actividad', async () => {
 		await ajustes.actions.addRole(fakeEvent({ form: { name: 'Cuida la puerta' } }));
-		await ajustes.actions.createField(
-			fakeEvent({ form: { label: '¿Cómo te enteraste?', kind: 'text' } })
-		);
-		const before = /** @type {any} */ (await ajustes.load(fakeEvent()));
+		await saveFieldList(null, (l) => [
+			...l,
+			formItem({ label: '¿Cómo te enteraste?', kind: 'text' })
+		]);
 		const removed = /** @type {any} */ (
 			await ajustes.actions.removeRole(fakeEvent({ form: { name: 'Cuida la puerta' } }))
 		);
 		expect(removed.role.message).toContain('lo recuperás desde Actividad');
-		await ajustes.actions.deleteField(fakeEvent({ form: { id: String(before.fields[0].id) } }));
+		await saveFieldList(null, () => []);
 		const gone = /** @type {any} */ (await ajustes.load(fakeEvent()));
 		expect(gone.roles.some((/** @type {any} */ r) => r.name === 'Cuida la puerta')).toBe(false);
 		expect(gone.fields).toEqual([]);
@@ -268,7 +313,7 @@ describe('Eventos › Roles y preguntas', () => {
 		expect(back.roles.at(-1)).toMatchObject({ name: 'Cuida la puerta', fixed: false });
 		expect(back.fields.map((/** @type {any} */ f) => f.label)).toEqual(['¿Cómo te enteraste?']);
 		expect(await audit('persona_role.remove')).toHaveLength(1);
-		expect(await audit('signup_field.delete')).toHaveLength(1);
+		expect(await audit('signup_field.save')).toHaveLength(2);
 		expect((await audit('persona_role.restore'))[0]).toMatchObject({
 			actor_login: admin.login,
 			summary: 'Recuperó el rol «Cuida la puerta»'
@@ -320,15 +365,14 @@ describe('compra con preguntas, Órdenes y su CSV', () => {
 
 	it('con preguntas: valida, guarda las respuestas con la orden y las muestra en el CSV', async () => {
 		await transferInfo();
-		await preguntas.actions.createField(
-			fakeEvent({
-				path,
-				form: { label: '¿Alguna restricción alimentaria?', kind: 'text', required: 'on' }
-			})
-		);
-		await ajustes.actions.createField(
-			fakeEvent({ form: { label: 'Quiero recibir novedades', kind: 'checkbox' } })
-		);
+		await saveFieldList(path, (l) => [
+			...l,
+			formItem({ label: '¿Alguna restricción alimentaria?', kind: 'text', required: 'on' })
+		]);
+		await saveFieldList(null, (l) => [
+			...l,
+			formItem({ label: 'Quiero recibir novedades', kind: 'checkbox' })
+		]);
 		const loaded = /** @type {any} */ (await preguntas.load(fakeEvent({ path })));
 		expect(loaded.own).toHaveLength(1);
 		expect(loaded.general).toHaveLength(1);

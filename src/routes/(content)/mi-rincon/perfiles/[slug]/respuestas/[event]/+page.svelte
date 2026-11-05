@@ -55,6 +55,25 @@
 			</ul>
 		{/if}
 	</section>
+
+	{#if data.forms?.length}
+		<section class="surface-card" aria-labelledby="forms-title">
+			<h2 id="forms-title">Formularios de este evento</h2>
+			<ul class="forms">
+				{#each data.forms as f (f.id)}
+					<li>
+						<a href="{base}/respuestas/{data.event.slug}/formularios/{f.id}"
+							>{f.kind === 'survey' ? 'Encuesta de después del evento' : f.title}</a
+						>
+						<span class="hint"
+							>{f.responses}
+							{f.responses === 1 ? 'respuesta' : 'respuestas'}</span
+						>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 </div>
 
 <style>
@@ -119,5 +138,15 @@
 	dd {
 		margin: 0 0 0.4em;
 		white-space: pre-wrap;
+	}
+	.forms {
+		margin: 0;
+		padding-left: 1.2em;
+		display: grid;
+		gap: 0.4em;
+	}
+	.forms a {
+		color: var(--2-dark);
+		font-weight: bold;
 	}
 </style>
