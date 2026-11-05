@@ -1,6 +1,7 @@
 /**
  * Ajustes › Carrusel de la portada: «Cómo se ve ahora» dice de dónde salen los colores de cada
- * diapositiva, con el castellano bien armado («del flyer», «de la imagen»). Datos inventados.
+ * evento, con el castellano bien armado («del flyer»); lo nuevo va como su vista previa al
+ * compartir. Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
@@ -16,6 +17,7 @@ const slide = (over) => ({
 	estiloDelEvento: null,
 	colors: null,
 	editHref: '/admin/eventos/x/editar#sec-datos',
+	ficha: null,
 	...over
 });
 
@@ -49,12 +51,18 @@ describe('Ajustes › Carrusel de la portada: de dónde salen los colores', () =
 		expect(text).not.toContain('de el flyer');
 	});
 
-	it('lo nuevo con imagen sin colores: «faltan los colores de la imagen»', () => {
+	it('lo nuevo va como su vista previa: sin estilo ni colores de la marca', () => {
 		const text = renderPage([
-			slide({ path: '/material/x', tipo: 'Material', start: null, editHref: null })
+			slide({
+				path: '/material/x',
+				tipo: 'Material',
+				start: null,
+				editHref: null,
+				ficha: 'Material · Guía descargable'
+			})
 		]);
-		expect(text).toContain(
-			'Fondo de la marca, rotando: faltan los colores de la imagen (calculalos abajo).'
-		);
+		expect(text).toContain('Como su vista previa al compartir («Material · Guía descargable»).');
+		expect(text).not.toContain('Estilo:');
+		expect(text).toContain('Ver la página');
 	});
 });

@@ -51,13 +51,17 @@
 	$: paletas = paletasDelCarrusel(
 		data.slides.map((s) => ({ hasImage: Boolean(s.featured), colors: s.colors }))
 	);
+	// Los estilos rotan entre los eventos; lo nuevo va como su vista previa (`ficha`).
+	$: eventos = data.slides.filter((s) => !s.ficha);
 	$: shown = data.slides.map((s, i) => ({
 		...s,
-		estilo: estiloDeDiapositiva(
-			/** @type {import('$lib/utils/carruselEstilos.js').CarruselModo} */ (modo),
-			s.estiloDelEvento,
-			i
-		),
+		estilo: s.ficha
+			? 'ficha'
+			: estiloDeDiapositiva(
+					/** @type {import('$lib/utils/carruselEstilos.js').CarruselModo} */ (modo),
+					s.estiloDelEvento,
+					eventos.indexOf(s)
+				),
 		paleta: paletas[i],
 		segunFlyer: Boolean(s.featured && parseColors(s.colors))
 	}));
@@ -259,44 +263,44 @@
 							<small class="kv-note"
 								>{s.tipo}{#if s.start}{' · ' + argDateList(s.start)}{/if}</small
 							>
-							<span>
-								Estilo: {s.estilo.toUpperCase()} · {nombreDelEstilo(s.estilo)}
-								{#if s.estiloDelEvento}<span class="tag">elegido en el evento</span>{/if}
-							</span>
-							<span class="colores">
-								<span
-									class="muestra"
-									style:background={s.paleta.bg}
-									style:color={s.paleta.tituloInk}>Aa</span
-								>
-								<span
-									class="muestra"
-									style:background={s.paleta.alt}
-									style:color={s.paleta.altTituloInk}>Aa</span
-								>
-								<span
-									class="muestra"
-									style:background={s.paleta.cinta}
-									style:color={s.paleta.cintaInk}>Aa</span
-								>
-								{#if s.segunFlyer}
-									<small class="kv-note"
-										>Fondo de la marca elegido para que {s.start ? 'el flyer' : 'la imagen'} resalte.</small
+							{#if s.ficha}
+								<span>Como su vista previa al compartir («{s.ficha}»).</span>
+							{:else}
+								<span>
+									Estilo: {s.estilo.toUpperCase()} · {nombreDelEstilo(s.estilo)}
+									{#if s.estiloDelEvento}<span class="tag">elegido en el evento</span>{/if}
+								</span>
+							{/if}
+							{#if !s.ficha}<span class="colores">
+									<span
+										class="muestra"
+										style:background={s.paleta.bg}
+										style:color={s.paleta.tituloInk}>Aa</span
 									>
-								{:else if s.featured}
-									<small class="kv-note"
-										>Fondo de la marca, rotando: faltan los colores {s.start
-											? 'del flyer'
-											: 'de la imagen'} (calculalos abajo).</small
+									<span
+										class="muestra"
+										style:background={s.paleta.alt}
+										style:color={s.paleta.altTituloInk}>Aa</span
 									>
-								{:else}
-									<small class="kv-note"
-										>Fondo de la marca, rotando: {s.start
-											? 'el evento no tiene flyer'
-											: 'no tiene imagen'}.</small
+									<span
+										class="muestra"
+										style:background={s.paleta.cinta}
+										style:color={s.paleta.cintaInk}>Aa</span
 									>
-								{/if}
-							</span>
+									{#if s.segunFlyer}
+										<small class="kv-note"
+											>Fondo de la marca elegido para que el flyer resalte.</small
+										>
+									{:else if s.featured}
+										<small class="kv-note"
+											>Fondo de la marca, rotando: faltan los colores del flyer (calculalos abajo).</small
+										>
+									{:else}
+										<small class="kv-note"
+											>Fondo de la marca, rotando: el evento no tiene flyer.</small
+										>
+									{/if}
+								</span>{/if}
 							{#if s.editHref}
 								<a class="kv-link" href={s.editHref}>Cambiar el estilo de este evento</a>
 							{:else}

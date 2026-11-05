@@ -130,7 +130,7 @@ describe('components render frontmatter as text', () => {
 		}
 	});
 
-	it('Carrousel: lo nuevo (material, amigues, Kinkipedia) lleva su tipo y «Ver», sin fecha ni estrella', () => {
+	it('Carrousel: lo nuevo (material, amigues, Kinkipedia) va como su vista previa (la ficha), con su tipo y «Ver», en cualquier estilo', () => {
 		for (const [category, tipo] of [
 			['material', 'Material'],
 			['amigues', 'Amigues'],
@@ -155,7 +155,22 @@ describe('components render frontmatter as text', () => {
 				expect(body).not.toContain('class="when');
 				expect(body).not.toContain('class="franja');
 				expect(body).toContain('Algo &lt;img');
+				// la ficha de la vista previa, no el estilo elegido; con imagen, la imagen
+				expect(body).toContain('slide v-ficha');
+				expect(body).not.toContain(`v-${estilo} `);
+				expect(body).toContain('class="ficha-foto');
+				expect(body).not.toContain('class="ficha-tile');
 			}
+			// sin imagen, la ficha con el símbolo del tipo (como la tarjeta de la vista previa)
+			const { body } = render(Carrousel, {
+				props: {
+					posts: /** @type {any[]} */ ([
+						{ path: `/${category}/x`, meta: { title: 'Sin imagen', category, summary: 'R' } }
+					])
+				}
+			});
+			expect(body).toContain('class="ficha-tile');
+			expect(body).toContain('src="data:image/svg+xml;base64,');
 		}
 	});
 });

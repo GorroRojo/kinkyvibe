@@ -19,6 +19,10 @@
 	//   al subir la imagen) eligen cuál paleta va detrás (la que más se le distingue) y dan el acento
 	//   (la estrella, la cinta). Textos: blanco si se lee, si no la tinta (títulos 3:1, el resto
 	//   4.5:1). $lib/utils/carruselPaletas.js.
+	// - Lo que no es un evento (material, perfiles, la Kinkipedia) no usa los cinco estilos: va como
+	//   su vista previa al compartir, el diseño «Ficha» de las tarjetas sin imagen (#619,
+	//   $lib/utils/ogObjeto.js): el fondo violeta, la ficha con el símbolo del tipo (o su imagen) y el
+	//   tipo, el título, el resumen y las etiquetas. gorrite, 5/11.
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { ChevronLeft, ChevronRight, Pause, Play } from '@lucide/svelte';
 	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
@@ -27,11 +31,20 @@
 	import { ticketCta } from '$lib/utils/ticketCta.js';
 	import { ROTAR, estiloDeDiapositiva, isCarruselEstilo } from '$lib/utils/carruselEstilos.js';
 	import { conFondoPropio, paletasDelCarrusel } from '$lib/utils/carruselPaletas.js';
-	import { CARRUSEL_TIPOS } from '$lib/utils/carrusel.js';
+	import {
+		OBJECT_CARD_COLORS as FICHA,
+		materialCardSpec,
+		objectTileLook,
+		profileCardSpec,
+		wikiCardSpec
+	} from '$lib/utils/ogObjeto.js';
 
 	/** Los eventos, ya elegidos y en orden (`carruselSlides`, src/lib/server/carrusel.js), con el
 	 * estilo de cada uno (sin estilo, rotan) y los colores de su flyer (sin colores, la marca).
-	 * @type {{ path: string, meta: Record<string, any>, estilo?: string, colors?: string[] | null }[]} */
+	 * Lo que no es un evento trae su ficha (`ficha`, src/lib/server/carruselFicha.js; sin ella se
+	 * arma acá, sin etiquetas).
+	 * @type {{ path: string, meta: Record<string, any>, estilo?: string, colors?: string[] | null,
+	 *   ficha?: import('$lib/utils/ogObjeto.js').ObjectCardSpec | null }[]} */
 	export let posts;
 	/** La venta de entradas por slug, como en las tarjetas (`ticketStatesFor`).
 	 * @type {import('$lib/utils/ticketCta.js').TicketStates | null} */
@@ -88,10 +101,20 @@
 	$: paletas = paletasDelCarrusel(
 		posts.map((p) => ({ hasImage: hasImageOf(p.meta), colors: p.colors }))
 	);
+	/**
+	 * La ficha de lo que no es un evento, si no vino del servidor (sin etiquetas).
+	 * @param {Record<string, any>} meta
+	 */
+	function fichaDe(meta) {
+		if (meta.category === 'wiki') return wikiCardSpec({ title: meta.title, summary: meta.summary });
+		if (meta.category === 'material') return materialCardSpec({ meta });
+		return profileCardSpec({ title: meta.title, kind: meta.kind, bio: meta.summary });
+	}
 	$: slides = posts.map((post, i) => {
 		const meta = post.meta;
-		// Lo nuevo (material, perfiles, la Kinkipedia) no tiene fecha ni entradas: va su tipo.
+		// Lo nuevo (material, perfiles, la Kinkipedia) va como su vista previa: la ficha.
 		const evento = !['material', 'amigues', 'wiki'].includes(meta.category);
+		const ficha = evento ? null : (post.ficha ?? fichaDe(meta));
 		const start = parseSiteDate(evento ? (meta.start ?? '') : '');
 		const [day, time] = evento ? argDateList(meta.start ?? '').split(' · ') : [];
 		const hasImage = hasImageOf(meta);
@@ -101,9 +124,13 @@
 			: paletas[i];
 		return {
 			post,
-			evento,
-			tipo: CARRUSEL_TIPOS[/** @type {keyof typeof CARRUSEL_TIPOS} */ (meta.category)] ?? '',
-			estilo: isCarruselEstilo(post.estilo) ? post.estilo : estiloDeDiapositiva(ROTAR, null, i),
+			ficha,
+			look: ficha ? objectTileLook(ficha) : null,
+			estilo: ficha
+				? 'ficha'
+				: isCarruselEstilo(post.estilo)
+					? post.estilo
+					: estiloDeDiapositiva(ROTAR, null, i),
 			paleta,
 			ink: paleta.ink,
 			day,
@@ -243,7 +270,6 @@
 				class="slide v-{slide.estilo}"
 				class:active
 				class:sin-imagen={!slide.hasImage}
-				class:nuevo={!slide.evento}
 				role="group"
 				aria-roledescription="diapositiva"
 				aria-label="{i + 1} de {count}"
@@ -270,114 +296,162 @@
 				style:--papel={slide.paleta.papel}
 				style:--sello-borde={slide.paleta.sello}
 				style:--tilt="{slide.tilt}deg"
+				style:--ficha-sombra={slide.look?.shadow}
+				style:--ficha-color={slide.look?.label}
+				style:--ficha-fondo={slide.look ? FICHA.bg : undefined}
+				style:--ficha-tinte={slide.look ? FICHA.tint : undefined}
+				style:--ficha-violeta={slide.look ? FICHA.violetLight : undefined}
+				style:--ficha-verde={slide.look ? FICHA.teal : undefined}
+				style:--ficha-verde-tinta={slide.look ? FICHA.tealDark : undefined}
 			>
-				<!-- El fondo, de borde a borde: dibujitos (A, B, C), dos mitades (D) o la mesa (E). -->
-				<div class="fondo" aria-hidden="true">
-					{#if slide.estilo === 'd'}
-						<span class="mitad mitad-1"></span>
-						<span class="mitad mitad-2"></span>
-					{:else if slide.estilo === 'e' && slide.hasImage && load}
-						{#each MESA as [x, y, r, w]}
-							<img
-								class="copia"
-								src={meta.featured}
-								srcset={slide.srcset}
-								sizes={slide.srcset ? '18rem' : undefined}
-								alt=""
-								loading="lazy"
-								decoding="async"
-								style:left="{x}%"
-								style:top="{y}%"
-								style:width="{w}rem"
-								style:--r="{r}deg"
-							/>
-						{/each}
-						<span class="velo"></span>
-					{/if}
-				</div>
-				<div class="inner">
-					<div class="art">
-						{#if slide.estilo === 'a'}
-							<span class="papel papel-1" aria-hidden="true"></span>
-							<span class="papel papel-2" aria-hidden="true"></span>
-						{/if}
-						<div class="img-box">
+				{#if slide.ficha && slide.look}
+					<!-- Como la vista previa al compartir (diseño «Ficha», $lib/utils/ogObjeto.js). -->
+					<div class="fondo ficha-fondo" aria-hidden="true"></div>
+					<div class="inner">
+						<div class="art ficha-art">
 							{#if slide.hasImage}
-								{#if load}
-									<img
-										src={meta.featured}
-										srcset={slide.srcset}
-										sizes={slide.srcset ? '(min-width: 44rem) 24rem, 70vw' : undefined}
-										width="720"
-										height="720"
-										alt=""
-										loading={i === 0 ? 'eager' : 'lazy'}
-										fetchpriority={i === 0 ? 'high' : undefined}
-										decoding={i === 0 ? undefined : 'async'}
-									/>
-								{/if}
+								<div class="ficha-foto">
+									{#if load}
+										<img
+											src={meta.featured}
+											srcset={slide.srcset}
+											sizes={slide.srcset ? '(min-width: 44rem) 22rem, 60vw' : undefined}
+											width="720"
+											height="720"
+											alt=""
+											loading={i === 0 ? 'eager' : 'lazy'}
+											fetchpriority={i === 0 ? 'high' : undefined}
+											decoding={i === 0 ? undefined : 'async'}
+										/>
+									{/if}
+								</div>
 							{:else}
-								<!-- Sin imagen: un flyer hecho con el título, en la letra de los flyers. -->
-								<span class="flyer" aria-hidden="true">
-									<span class="flyer-titulo">{meta.title}</span>
-									<img class="flyer-logo" src={LOGO} alt="" />
-								</span>
+								<span class="ficha-tile" style:background={slide.look.bg} aria-hidden="true"
+									><img src={slide.look.icon} alt="" width="200" height="200" /></span
+								>
 							{/if}
 						</div>
-						{#if slide.estilo === 'a'}
-							<span class="cinta-adhesiva" aria-hidden="true"></span>
-						{:else if (slide.estilo === 'b' || slide.estilo === 'd') && parts[1]}
-							<!-- estrella con la fecha, como el «NUEVO» de la tienda -->
-							<span class="sello" aria-hidden="true"
-								><span class="sello-borde"></span><span class="sello-centro"
-									><b>{parts[1]}</b>{parts[2] ?? ''}</span
-								></span
-							>
-						{/if}
+						<div class="details ficha-details">
+							<p class="ficha-tipo">{slide.ficha.label}</p>
+							<h3 id="carrusel-{i}-titulo"><span>{meta.title}</span></h3>
+							{#if slide.ficha.summary}<p class="ficha-resumen">{slide.ficha.summary}</p>{/if}
+							{#if slide.ficha.tags.length}
+								<ul class="ficha-etiquetas">
+									{#each slide.ficha.tags as tag}<li>{tag}</li>{/each}
+								</ul>
+							{/if}
+							<div class="actions">
+								<a
+									class="btn ficha-ver"
+									href={slide.post.path}
+									aria-describedby="carrusel-{i}-titulo">Ver</a
+								>
+							</div>
+						</div>
 					</div>
-					<div class="details">
+				{:else}
+					<!-- El fondo, de borde a borde: dibujitos (A, B, C), dos mitades (D) o la mesa (E). -->
+					<div class="fondo" aria-hidden="true">
 						{#if slide.estilo === 'd'}
-							<p class="miga">
-								{#if slide.evento}talleres y eventos <span aria-hidden="true">›</span>
-									{slide.day}{:else}{slide.tipo}{/if}
-							</p>
-						{:else if slide.estilo !== 'b' && (slide.day || !slide.evento)}
-							<!-- la fecha del evento o, en lo nuevo, su tipo («Material», «Kinkipedia»…) -->
-							<p class="fecha"><span>{slide.evento ? slide.day : slide.tipo}</span></p>
+							<span class="mitad mitad-1"></span>
+							<span class="mitad mitad-2"></span>
+						{:else if slide.estilo === 'e' && slide.hasImage && load}
+							{#each MESA as [x, y, r, w]}
+								<img
+									class="copia"
+									src={meta.featured}
+									srcset={slide.srcset}
+									sizes={slide.srcset ? '18rem' : undefined}
+									alt=""
+									loading="lazy"
+									decoding="async"
+									style:left="{x}%"
+									style:top="{y}%"
+									style:width="{w}rem"
+									style:--r="{r}deg"
+								/>
+							{/each}
+							<span class="velo"></span>
 						{/if}
-						{#if slide.estilo === 'b'}
-							<p class="antetitulo">{slide.evento ? 'Se viene' : slide.tipo}</p>
-						{/if}
-						<h3 id="carrusel-{i}-titulo"><span>{meta.title}</span></h3>
-						{#if slide.when}
-							<p class="when">
-								<time datetime={slide.iso}
-									>{slide.estilo === 'b' || slide.estilo === 'd'
-										? slide.when
-										: (slide.time ?? slide.when)}</time
-								>{#if slide.place}<span class="place">{' · ' + slide.place}</span>{/if}
-							</p>
-						{/if}
-						{#if meta.summary && (slide.estilo !== 'b' || !slide.evento)}<p class="summary">
-								{meta.summary}
-							</p>{/if}
-						<div class="actions">
-							{#if slide.cta?.kind === 'buy'}
-								<a class="btn buy" href={slide.cta.href}>{slide.cta.text}</a>
-							{:else if slide.cta?.kind === 'note'}
-								<span class="note">{slide.cta.text}</span>
+					</div>
+					<div class="inner">
+						<div class="art">
+							{#if slide.estilo === 'a'}
+								<span class="papel papel-1" aria-hidden="true"></span>
+								<span class="papel papel-2" aria-hidden="true"></span>
 							{/if}
-							<a class="btn mas" href={slide.post.path} aria-describedby="carrusel-{i}-titulo"
-								>{slide.evento ? 'Saber más' : 'Ver'}</a
-							>
+							<div class="img-box">
+								{#if slide.hasImage}
+									{#if load}
+										<img
+											src={meta.featured}
+											srcset={slide.srcset}
+											sizes={slide.srcset ? '(min-width: 44rem) 24rem, 70vw' : undefined}
+											width="720"
+											height="720"
+											alt=""
+											loading={i === 0 ? 'eager' : 'lazy'}
+											fetchpriority={i === 0 ? 'high' : undefined}
+											decoding={i === 0 ? undefined : 'async'}
+										/>
+									{/if}
+								{:else}
+									<!-- Sin imagen: un flyer hecho con el título, en la letra de los flyers. -->
+									<span class="flyer" aria-hidden="true">
+										<span class="flyer-titulo">{meta.title}</span>
+										<img class="flyer-logo" src={LOGO} alt="" />
+									</span>
+								{/if}
+							</div>
+							{#if slide.estilo === 'a'}
+								<span class="cinta-adhesiva" aria-hidden="true"></span>
+							{:else if (slide.estilo === 'b' || slide.estilo === 'd') && parts[1]}
+								<!-- estrella con la fecha, como el «NUEVO» de la tienda -->
+								<span class="sello" aria-hidden="true"
+									><span class="sello-borde"></span><span class="sello-centro"
+										><b>{parts[1]}</b>{parts[2] ?? ''}</span
+									></span
+								>
+							{/if}
+						</div>
+						<div class="details">
+							{#if slide.estilo === 'd'}
+								<p class="miga">talleres y eventos <span aria-hidden="true">›</span> {slide.day}</p>
+							{:else if slide.estilo !== 'b' && slide.day}
+								<p class="fecha"><span>{slide.day}</span></p>
+							{/if}
+							{#if slide.estilo === 'b'}
+								<p class="antetitulo">Se viene</p>
+							{/if}
+							<h3 id="carrusel-{i}-titulo"><span>{meta.title}</span></h3>
+							{#if slide.when}
+								<p class="when">
+									<time datetime={slide.iso}
+										>{slide.estilo === 'b' || slide.estilo === 'd'
+											? slide.when
+											: (slide.time ?? slide.when)}</time
+									>{#if slide.place}<span class="place">{' · ' + slide.place}</span>{/if}
+								</p>
+							{/if}
+							{#if meta.summary && slide.estilo !== 'b'}<p class="summary">{meta.summary}</p>{/if}
+							<div class="actions">
+								{#if slide.cta?.kind === 'buy'}
+									<a class="btn buy" href={slide.cta.href}>{slide.cta.text}</a>
+								{:else if slide.cta?.kind === 'note'}
+									<span class="note">{slide.cta.text}</span>
+								{/if}
+								<a class="btn mas" href={slide.post.path} aria-describedby="carrusel-{i}-titulo"
+									>Saber más</a
+								>
+							</div>
 						</div>
 					</div>
-				</div>
-				{#if slide.estilo === 'b' && slide.evento}
-					<!-- la franja que cruza toda la pantalla, como la violeta del cartel de la tienda -->
-					<p class="franja" aria-hidden="true">
-						<span>{slide.when}{slide.place ? ' · ' + slide.place : ''}</span>
-					</p>
+					{#if slide.estilo === 'b'}
+						<!-- la franja que cruza toda la pantalla, como la violeta del cartel de la tienda -->
+						<p class="franja" aria-hidden="true">
+							<span>{slide.when}{slide.place ? ' · ' + slide.place : ''}</span>
+						</p>
+					{/if}
 				{/if}
 			</div>
 		{/each}
@@ -1193,18 +1267,122 @@
 		outline-color: white;
 	}
 
-	/* Lo nuevo (sin fecha): el resumen se ve también en D y E, y B no lleva franja abajo. */
-	.slide.nuevo .summary {
-		display: -webkit-box;
+	/* ---------- Ficha: lo que no es un evento, como su vista previa al compartir ----------
+	   Los colores y la ficha, los de las tarjetas sin imagen (OBJECT_CARD_COLORS y objectTileLook
+	   en $lib/utils/ogObjeto.js): fondo violeta oscuro con un brillo a la izquierda, la ficha de
+	   esquinas redondas con sombra corrida, el tipo en el color del tipo, el título en la letra
+	   gorda, el resumen rosado claro, las etiquetas de contorno y la píldora verde. */
+	.slide.v-ficha {
+		--ink: white;
+		background: var(--ficha-fondo);
+		color: white;
 	}
-	.v-b.nuevo .inner {
-		padding-bottom: calc(var(--nav-alto) + var(--space-s));
+	.ficha-fondo::before {
+		display: none;
+	}
+	.ficha-fondo {
+		background: radial-gradient(
+			circle at 22% 50%,
+			hsla(262, 90%, 60%, 0.45),
+			hsla(319, 90%, 60%, 0.12) 35%,
+			hsla(262, 75%, 13%, 0) 65%
+		);
+	}
+	.ficha-art {
+		max-width: 21rem;
+	}
+	.ficha-tile,
+	.ficha-foto {
+		display: grid;
+		place-items: center;
+		width: 100%;
+		border-radius: 11%;
+		overflow: hidden;
+		box-shadow: 0.9rem 0.9rem 0 var(--ficha-sombra);
+	}
+	.ficha-tile {
+		aspect-ratio: 330 / 380;
+	}
+	.ficha-tile img {
+		width: 61%;
+		height: auto;
+	}
+	.ficha-foto {
+		aspect-ratio: 1;
+		background: white;
+	}
+	.ficha-foto img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.ficha-details {
+		gap: var(--space-xs);
+	}
+	.ficha-tipo {
+		margin: 0;
+		color: var(--ficha-color);
+		font-weight: 700;
+		font-size: var(--text-base, 1.1rem);
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+	}
+	.v-ficha h3 {
+		color: white;
+		text-wrap: balance;
+	}
+	.ficha-resumen {
+		margin: 0;
+		max-width: 38rem;
+		color: var(--ficha-tinte);
+		font-weight: 700;
+		line-height: 1.32;
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+	.ficha-etiquetas {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2xs);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.ficha-etiquetas li {
+		padding: 0.15em 0.75em;
+		border: 2px solid var(--ficha-violeta);
+		border-radius: var(--radius-pill);
+		color: var(--ficha-tinte);
+		font-weight: 700;
+		font-size: 0.95rem;
+	}
+	.btn.ficha-ver {
+		background: var(--ficha-verde);
+		color: var(--ficha-verde-tinta);
+	}
+	.btn.ficha-ver:focus-visible {
+		outline-color: var(--ficha-verde);
+	}
+	.en-ficha {
+		--nav-ink: white !important;
 	}
 
 	/* ---------- Celu ---------- */
 	@media (max-width: 44rem) {
 		.carrusel {
 			--nav-alto: 3.75rem;
+		}
+		/* con muchas diapositivas (hasta 12), los puntos más angostos: las flechas siguen entrando
+		   en 390 px (cada punto, 24 px de ancho para tocarlo) */
+		.dot {
+			min-width: 1.5rem;
+		}
+		.nav {
+			gap: var(--space-3xs, 0.25rem);
 		}
 		.inner,
 		.v-b .inner,
@@ -1227,9 +1405,15 @@
 		h3 {
 			font-size: var(--text-2xl);
 		}
-		.summary,
-		.slide.nuevo .summary {
+		.summary {
 			display: none;
+		}
+		.ficha-art {
+			max-width: 58%;
+		}
+		.ficha-resumen {
+			-webkit-line-clamp: 4;
+			line-clamp: 4;
 		}
 		.v-b .inner {
 			padding-bottom: calc(var(--nav-alto) + 3.5rem);

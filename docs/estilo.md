@@ -363,11 +363,23 @@ sin guardarlo).
   - Los días (1 a 60) y el máximo (1 a 12) se cambian en Ajustes › Carrusel de la portada, «Qué
     entra» (`ticket_settings`, filas `carrusel_dias` y `carrusel_maximo`). Sin nada que entre, no
     hay carrusel.
-  - Lo que no es un evento usa su imagen (la portada, o la foto del perfil) como flyer, y en lugar
-    de la fecha lleva su tipo como lo nombra el sitio («Material», «Amigues», «Kinkipedia»): en la
-    franja de la fecha (A, C, E), arriba del título (B) o en la miga (D). Sin estrella ni franja de
-    la fecha, con el resumen (en la compu) y «Ver» en vez de «Saber más». El estilo elegido por
-    evento existe solo en los eventos; lo demás usa el de Ajustes.
+  - **Lo que no es un evento va como su vista previa al compartir** (gorrite, 5/11: «fijate cómo
+    resolvemos esto en las vistas previas cuando la publicación no tiene imagen»): el diseño
+    «Ficha» de las tarjetas sin imagen ([compartir.md](compartir.md), «Objetos sin imagen: su
+    tarjeta»; #619), armado en HTML con los mismos colores y la misma ficha (`objectTileLook` y
+    las funciones `…CardSpec` de `$lib/utils/ogObjeto.js`, y `src/lib/server/carruselFicha.js`
+    para las etiquetas, sin consultas). Fondo violeta oscuro con el brillo de la izquierda; la
+    ficha con el símbolo del tipo (el corazón de Amigues, el globo de la Kinkipedia, el ícono del
+    material) o, si tiene imagen, la imagen en la misma ficha (la vista previa no le pone marco a
+    una imagen: va tal cual); el tipo como en la vista previa («Material · Guía descargable»,
+    «Amigues · Proyecto», «Kinkipedia») en su color, el título, el resumen, hasta 3 etiquetas con
+    página en la Kinkipedia y «Ver» en la píldora verde.
+  - **Por qué una sola forma y no los cinco estilos**: los cinco están hechos alrededor del flyer y
+    la fecha de un evento (la estrella, la franja, la pila de papeles, la mesa de copias). Con una
+    portada de material, una foto de perfil o sin imagen quedaban como marcos improvisados. La
+    ficha es lo que el sitio ya muestra de esas mismas publicaciones al compartirlas, y se lee
+    igual en la compu y en el celu. Los estilos (y el de Ajustes, que rota) siguen para los
+    eventos, que rotan entre ellos; el estilo elegido por evento existe solo en los eventos.
 - **Cinco estilos** (`$lib/utils/carruselEstilos.js`), los cinco del prototipo que eligió
   gorrite: **A** Pila de flyers (el flyer impreso y torcido sobre papeles de colores), **B** Franja
   cruzada (título grande, la fecha en una estrella y una franja de lado a lado), **C** Mesa de

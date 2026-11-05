@@ -199,9 +199,12 @@ export async function colorsByFeatured(db, featured) {
 	return out;
 }
 
+/** El diseño de lo que no es un evento: como su vista previa al compartir. */
+export const FICHA = 'ficha';
+
 /**
  * @template {{ path: string, meta: Record<string, any> }} P
- * @typedef {P & { estilo: CarruselEstilo, colors: string[] | null }} CarruselSlide
+ * @typedef {P & { estilo: CarruselEstilo | 'ficha', colors: string[] | null }} CarruselSlide
  */
 
 /**
@@ -225,14 +228,18 @@ export async function carruselSlides(
 	const a = ajustes ?? (await carruselAjustesCached(db, now));
 	const chosen = carruselPosts(posts, { now, dias: a.dias, limit: a.maximo });
 	if (!chosen.length) return [];
+	// Los cinco estilos son para los eventos (sus flyers y su fecha); lo nuevo va siempre como su
+	// vista previa al compartir: `ficha` (src/lib/server/carruselFicha.js), sin los colores de su
+	// imagen.
+	const events = chosen.filter((p) => p.meta?.category === 'calendario');
 	const colors = await colorsByFeatured(
 		db,
-		chosen.map((p) => p.meta.featured)
+		events.map((p) => p.meta.featured)
 	);
-	const estilos = estilosDelCarrusel(chosen, modo ?? a.modo);
-	return chosen.map((p, i) => ({
+	const estilos = estilosDelCarrusel(events, modo ?? a.modo);
+	return chosen.map((p) => ({
 		...p,
-		estilo: estilos[i],
-		colors: colors.get(p.meta.featured) ?? null
+		estilo: p.meta?.category === 'calendario' ? estilos[events.indexOf(p)] : FICHA,
+		colors: (p.meta?.category === 'calendario' && colors.get(p.meta.featured)) || null
 	}));
 }

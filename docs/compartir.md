@@ -251,6 +251,10 @@ presenciales), el resumen, hasta 3 etiquetas, el logo y `kinkyvibe.ar`.
   (casi todo resvg) y entre 70 y 110 KB.
 - **Sin dibujante** (`vite dev`) o si falla: 302 a la tarjeta de `static/`, por un rato
   (`x-og-fallback` dice por qué).
+- **También en el carrusel de la portada**: lo nuevo (material, perfiles, la Kinkipedia) se ve con
+  este mismo diseño, armado en HTML (`objectTileLook` y `OBJECT_CARD_COLORS` de `ogObjeto.js`, que
+  usa también el dibujo; [estilo.md](estilo.md), «Carrusel de la portada»). Si se cambia el diseño
+  acá, cambiarlo también allá.
 
 ## Imágenes y WhatsApp
 
