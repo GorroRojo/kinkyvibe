@@ -17,6 +17,7 @@ import { ONLINE_MISMATCH_TEXT, onlineTagMismatch } from './onlineTagMismatch.js'
  * @prop {string} summary el resumen de las listas
  * @prop {string} location dirección
  * @prop {string} locationName nombre del lugar
+ * @prop {boolean} [hasVenue] tiene un lugar vinculado (edge `lugar`): con eso ya tiene «Dónde»
  * @prop {string[]} tags etiquetas (región y precio salen de acá)
  * @prop {string} [modalidad] `modalidad` del frontmatter (online | presencial), si tiene
  * @prop {string[]} authors organizan
@@ -75,7 +76,12 @@ export function eventMissing(e) {
 		imagen: !e.image,
 		resumen: !text(e.summary),
 		// Un evento online (la regla de la página: eventMode, en eventPlace.js) no necesita «Dónde».
-		donde: eventMode(placeMeta(e)) !== 'online' && !text(e.location) && !text(e.locationName),
+		// Un lugar vinculado ya es «Dónde» (manda sobre el texto libre, como en la página).
+		donde:
+			eventMode(placeMeta(e)) !== 'online' &&
+			!e.hasVenue &&
+			!text(e.location) &&
+			!text(e.locationName),
 		region: !tags.place,
 		precio: !tags.prices.length,
 		inscripcion: !e.tickets && (!text(e.link) || e.status === 'anunciado'),

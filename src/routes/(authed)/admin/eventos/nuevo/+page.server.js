@@ -43,6 +43,9 @@ import {
 } from '$lib/server/amigues/eventFormVenue.js';
 import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { duplicableEvents } from '$lib/server/eventos/drafts.js';
+import { copyEventSurvey } from '$lib/server/formularios/store.js';
+import { copyEventSignupFields } from '$lib/server/tickets/signupFields.js';
+import { logDBError } from '$lib/server/db';
 import { inOrder } from '$lib/utils/inOrder.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/admin/plantillas/evento.md?raw';
@@ -61,6 +64,50 @@ const NO_PERMISSION = 'No tenés permiso para cargar eventos. Probá salir y vol
 
 /** @param {string} slug */
 const eventPath = (slug) => `${POSTS_DIR}/${slug}.md`;
+
+/**
+ * Al duplicar: copia las preguntas de inscripción y la encuesta del original (lo demás va en el
+ * archivo del evento: entradas, recordatorios, personas). Devuelve los avisos de lo que no se pudo.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {App.Locals} locals
+ * @param {{ source: string, slug: string, by: string }} input
+ * @returns {Promise<string[]>}
+ */
+async function copyFromSource(db, locals, { source, slug, by }) {
+	if (!db) return [];
+	/** @type {string[]} */
+	const warnings = [];
+	let fields = 0;
+	/** @type {number | null} */
+	let survey = null;
+	try {
+		fields = await copyEventSignupFields(db, source, slug, { by });
+	} catch (e) {
+		logDBError('copiar preguntas al duplicar', e);
+		warnings.push(
+			'El evento se guardó, pero no se pudieron copiar sus preguntas de inscripción: cargalas en su pestaña Preguntas.'
+		);
+	}
+	try {
+		survey = await copyEventSurvey(db, source, slug, { by });
+	} catch (e) {
+		logDBError('copiar encuesta al duplicar', e);
+		warnings.push(
+			'El evento se guardó, pero no se pudo copiar su encuesta: revisala en Mails › Encuesta.'
+		);
+	}
+	if (fields || survey) {
+		await logAdminAction(db, locals, {
+			action: 'event.duplicate_extras',
+			targetType: 'event',
+			targetId: slug,
+			summary: `Copió de ${source}${fields ? ` ${fields === 1 ? '1 pregunta' : `${fields} preguntas`}` : ''}${fields && survey ? ' y' : ''}${survey ? ' la encuesta' : ''}`,
+			detail: { source, fields, survey }
+		});
+	}
+	return warnings;
+}
 
 /** @param {unknown} e */
 function describeError(e) {
@@ -462,6 +509,16 @@ export const actions = {
 				by: admin.login
 			});
 			if (!venueSaved.ok) warnings.push(venueNotSavedWarning(venueSaved.message));
+			// Al duplicar, lo que vive en la base y no en el archivo del evento: las preguntas de
+			// inscripción (con su orden) y la encuesta de después del evento (docs/formularios.md).
+			if (source) {
+				const copied = await copyFromSource(getDB(platform), locals, {
+					source,
+					slug,
+					by: admin.login
+				});
+				warnings.push(...copied);
+			}
 			return {
 				success: true,
 				slug,

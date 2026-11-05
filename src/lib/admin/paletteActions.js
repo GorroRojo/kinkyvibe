@@ -6,7 +6,7 @@
  * ejemplos de la ayuda «Cómo buscar» (los operadores, ver $lib/utils/searchQuery.js). Sin
  * dependencias del navegador.
  */
-import { REVIEW_LINK } from './nav.js';
+import { NAV, REVIEW_LINK, navState } from './nav.js';
 import { buildCommands, fold } from './commands.js';
 import { createItems } from './createMenu.js';
 import { SEARCH_GUIDE_TEXT, searchHelp } from '$lib/utils/searchSyntax.js';
@@ -177,18 +177,21 @@ const CREATE_ICONS = /** @type {Record<string, string>} */ ({
 	codigo: 'tag',
 	perfil: 'profile',
 	material: 'book',
-	kinkipedia: 'tag'
+	kinkipedia: 'tag',
+	formulario: 'mail'
 });
 
 /**
  * «Crear: …» (las del menú «+ Crear ▾», `createMenu.js`) que no son ya otra acción con la misma
- * URL (como «Nuevo material» o «Cargar evento»). Lo que viene no está: no hay a dónde ir.
+ * URL (como «Nuevo material» o «Cargar evento»). Lo que viene no está: no hay a dónde ir; lo que
+ * está detrás de un interruptor apagado (`flags`), tampoco.
  * @param {Command[]} existing las acciones que ya hay
+ * @param {Record<string, boolean>} [flags]
  * @returns {Command[]}
  */
-export function createCommands(existing) {
+export function createCommands(existing, flags = {}) {
 	const hrefs = new Set(existing.map((c) => c.href));
-	return createItems({ hideSoon: true })
+	return createItems({ hideSoon: true, flags })
 		.filter((c) => c.href && !hrefs.has(c.href))
 		.map((c) => ({
 			id: `create:${c.id}`,
@@ -201,16 +204,63 @@ export function createCommands(existing) {
 }
 
 /**
+ * Las plantillas de formularios (las que se crean solas, `src/lib/server/formularios/templates.js`;
+ * una prueba controla que sean las mismas). Cada una es una acción de la paleta que lleva a su
+ * fila en Comunidad › Formularios, con «Usar esta plantilla».
+ */
+export const FORM_TEMPLATE_LINKS = Object.freeze([
+	{ slug: 'plantilla-encuesta', title: '¿Cómo la pasaste?' },
+	{ slug: 'plantilla-propuesta', title: 'Proponé un taller o una colaboración' },
+	{ slug: 'plantilla-beca', title: 'Pedido de beca' },
+	{ slug: 'plantilla-comentarios', title: 'Contanos qué te parece' }
+]);
+
+/**
+ * Atajos de Formularios (interruptor `formularios`): «Cómo salen por defecto» y una acción por
+ * plantilla. La lista y «Crear: Formulario» salen de la sección y del menú «Crear».
+ * @type {readonly Command[]}
+ */
+export const FORM_COMMANDS = Object.freeze([
+	{
+		id: 'forms-defaults',
+		label: 'Cómo salen por defecto los formularios',
+		hint: 'Formularios · encuesta, privacidad, mails',
+		keywords:
+			'formularios encuesta por defecto ajustes privacidad anonima dias despues mail asunto',
+		icon: 'mail',
+		href: '/admin/comunidad/formularios/por-defecto'
+	},
+	...FORM_TEMPLATE_LINKS.map((t) => ({
+		id: `form-template:${t.slug}`,
+		label: `Plantilla de formulario: ${t.title}`,
+		hint: 'Formularios · usar esta plantilla',
+		keywords: `plantilla formulario encuesta copiar ${t.title}`,
+		icon: 'mail',
+		href: `/admin/comunidad/formularios#${t.slug}`
+	}))
+]);
+
+/**
  * Las acciones de la paleta, en orden: las de `buildCommands`, después las de
- * {@link EXTRA_COMMANDS}, las de «Crear» que faltan, «Cómo buscar» y las preferencias.
- * @param {{ today?: { slug: string, title: string, href: string }[], hideSoon?: boolean }} [opts]
+ * {@link EXTRA_COMMANDS}, las de Formularios (si está prendido), las de «Crear» que faltan,
+ * «Cómo buscar» y las preferencias. Con un interruptor apagado (`flags[x] === false`), las
+ * secciones que esconde no están.
+ * @param {{ today?: { slug: string, title: string, href: string }[], hideSoon?: boolean,
+ *   flags?: Record<string, boolean> }} [opts]
  * @returns {Command[]}
  */
-export function paletteCommands({ today = [], hideSoon = false } = {}) {
-	const base = [...buildCommands({ today }), ...EXTRA_COMMANDS];
+export function paletteCommands({ today = [], hideSoon = false, flags = {} } = {}) {
+	const hidden = new Set(
+		NAV.filter((i) => navState(i, flags) === 'hidden').map((i) => `nav:${i.id}`)
+	);
+	const base = [
+		...buildCommands({ today }).filter((c) => !hidden.has(c.id)),
+		...EXTRA_COMMANDS,
+		...(flags.formularios === false ? [] : FORM_COMMANDS)
+	];
 	return [
 		...base,
-		...createCommands(base),
+		...createCommands(base, flags),
 		SEARCH_HELP_COMMAND,
 		...preferenceCommands({ hideSoon })
 	];

@@ -558,6 +558,7 @@
 					<SearchBox
 						bind:this={searchBox}
 						{hideSoon}
+						{flags}
 						pinned={pinnedHrefs}
 						pinFull={pinned.length >= PIN_MAX}
 						pinnedPlaces={pinned}
@@ -645,6 +646,7 @@
 						compact
 						hotkeys={false}
 						{hideSoon}
+						{flags}
 						pinned={pinnedHrefs}
 						pinFull={pinned.length >= PIN_MAX}
 						pinnedPlaces={pinned}
