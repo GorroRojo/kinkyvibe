@@ -779,7 +779,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'admin.aviso_recordatorios',
 			'admin.aviso_conector',
 			'admin.aviso_fallas',
-			'admin.aviso_fallas_sitio'
+			'admin.aviso_fallas_sitio',
+			'admin.aviso_deploy'
 		],
 		build: (t) => ({
 			html: t('admin.avisos'),
@@ -792,6 +793,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[{ text: `⬜ ${t('admin.aviso_conector')}` }],
 				[{ text: `⬜ ${t('admin.aviso_fallas')}` }],
 				[{ text: `⬜ ${t('admin.aviso_fallas_sitio')}` }],
+				[{ text: `⬜ ${t('admin.aviso_deploy')}` }],
 				[{ text: t('admin.boton_estado') }, { text: t('inicio.boton_inicio') }]
 			]
 		})

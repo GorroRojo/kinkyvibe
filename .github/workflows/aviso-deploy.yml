@@ -1,0 +1,54 @@
+# Aviso «Cada deploy» por Telegram (ítem `avisos-deploy` en docs/plan.md; docs/telegram.md,
+# «Cada deploy»).
+#
+# En cada push a `main`: busca los PRs del push, espera que termine el build de producción de
+# Workers Builds (el check «Workers Builds: kinkyvibe», hasta 20 minutos) y le pide al sitio
+# (`POST /api/interno/deploy`, con el secreto DEPLOY_NOTIFY_SECRET) que mande el aviso a les admins
+# que prendieron «Cada deploy» en «🔔 Mis avisos». Sin el secreto cargado en GitHub, no hace nada.
+# La lógica está en scripts/aviso-deploy.js (con tests). No es un chequeo de PR: no corre en PRs
+# ni va en los `needs` de `ci-ok`.
+name: Aviso de deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: aviso-deploy-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Solo el script y package.json (`"type": "module"`, para importarlo como ESM).
+          sparse-checkout: |
+            /package.json
+            /scripts/aviso-deploy.js
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Esperar el build y avisar
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          # Por variable de entorno, no interpolado en el script. Vacío: no hace nada.
+          DEPLOY_NOTIFY_SECRET: ${{ secrets.DEPLOY_NOTIFY_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://kinkyvibe.ar' }}
+        with:
+          script: |
+            const { run } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/aviso-deploy.js`);
+            await run({
+              github,
+              context,
+              core,
+              siteUrl: process.env.SITE_URL,
+              secret: process.env.DEPLOY_NOTIFY_SECRET
+            });
