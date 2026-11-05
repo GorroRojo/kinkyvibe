@@ -112,9 +112,9 @@ function svelteFiles(dir) {
 function markupOf(src) {
 	const blank = (/** @type {string} */ m) => m.replace(/[^\n]/g, ' ');
 	return src
-		.replace(/<!--[\s\S]*?-->/g, blank)
-		.replace(/<script\b[\s\S]*?<\/script>/g, blank)
-		.replace(/<style\b[\s\S]*?<\/style>/g, blank);
+		.replace(/<!--[\s\S]*?--!?>/g, blank)
+		.replace(/<script\b[\s\S]*?<\/script\s*>/gi, blank)
+		.replace(/<style\b[\s\S]*?<\/style\s*>/gi, blank);
 }
 
 /**
