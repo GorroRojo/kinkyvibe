@@ -1,5 +1,5 @@
 -- Migration number: 0079 	 2026-11-05T12:00:00.000Z
--- Formularios (docs/formularios.md, decisión 0056, plan `formularios`; interruptor `formularios`,
+-- Formularios (docs/formularios.md, decisión 0057, plan `formularios`; interruptor `formularios`,
 -- apagado). Creada a mano con el formato de `npm run db:migrations:new` (0076, 0077 y 0078 están
 -- reservadas para otros PRs).
 --

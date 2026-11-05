@@ -448,7 +448,7 @@ export const NAV = Object.freeze([
 	},
 	{
 		// Formularios propios, la encuesta de cada evento y plantillas (docs/formularios.md,
-		// decisión 0056). Con el interruptor apagado las páginas dan 404.
+		// decisión 0057). Con el interruptor apagado las páginas dan 404.
 		id: 'formularios',
 		href: '/admin/comunidad/formularios',
 		icon: ClipboardList,
