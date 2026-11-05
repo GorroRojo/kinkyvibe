@@ -4,6 +4,7 @@ import { getAllCounts, salesTotals, summarizeEvent } from '$lib/server/admin/sal
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { ordersNeedingReview } from '$lib/server/tickets/orders.js';
+import { countUninvoicedOrders } from '$lib/server/admin/invoiced.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders, fetch }) {
@@ -17,6 +18,13 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 		? [ordersNeedingReview(db), getAllCounts(db, now)]
 		: [Promise.resolve([]), Promise.resolve(new Map())];
 	const settled = Promise.allSettled([toReview, allCounts]);
+	// Compras para facturar (el número del botón): si falla, el botón va sin número.
+	const toInvoice = db
+		? countUninvoicedOrders(db).catch((e) => {
+				logDBError('admin ventas', e);
+				return 0;
+			})
+		: Promise.resolve(0);
 	const fondo = await resolveFondoPercent({ db, fetch });
 	const events = await listTicketedEvents({ fondoPercent: fondo.percent });
 	/** @type {Map<string, number>} */
@@ -43,6 +51,7 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 		upcoming,
 		past,
 		totals: { upcoming: salesTotals(upcoming), all: salesTotals(rows) },
+		toInvoice: await toInvoice,
 		dbAvailable: Boolean(db)
 	};
 }

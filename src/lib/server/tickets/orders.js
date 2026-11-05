@@ -58,7 +58,8 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
  *   admin_note?: string | null, ticket_tier?: string | null,
  *   client_sale_id?: string | null, offline_review?: string | null,
- *   door_list_price?: number | null, extras_amount?: number
+ *   door_list_price?: number | null, extras_amount?: number,
+ *   invoiced_at?: number | null, invoiced_by?: string | null
  * }} Order
  */
 /**
