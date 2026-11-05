@@ -21,6 +21,7 @@ import { validateEventTags } from '$lib/utils/adminTags.js';
 import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { linkFileErrors, placeFileErrors } from '$lib/server/eventos/fileErrors.js';
 import { transferReady } from '$lib/server/tickets/index.js';
+import { isFlagOn } from '$lib/server/flags.js';
 import { editorFondoPercent } from '$lib/server/tickets/fondo.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { saveCopy } from '$lib/admin/saveCopy.js';
@@ -144,6 +145,8 @@ export async function load({ locals, url, platform, fetch }) {
 	}
 	const [editor, personas, duplicables, venuePicker, transfer, fondoPercent] = await rest;
 	return {
+		// «Extras» en la sección Entradas (interruptor `extras`, decisión 0056).
+		extrasEnabled: await isFlagOn(getDB(platform), 'extras'),
 		source,
 		seriesPrompt,
 		...editor,

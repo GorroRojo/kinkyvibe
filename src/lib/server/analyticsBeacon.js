@@ -1,6 +1,7 @@
 /**
  * El beacon de Cloudflare Web Analytics (en `src/app.html`) no se carga en la puerta con link
- * (`/puerta`, `/puerta/<slug>`): el link lleva el token en el fragmento (`/puerta#<token>`) y un
+ * (`/puerta`, `/puerta/<slug>`) ni en la barra con link (`/barra…`, decisión 0056): el link lleva el
+ * token en el fragmento (`/puerta#<token>`) y un
  * script de terceros que lee la dirección de la página no tiene por qué verlo. `hooks.server.js`
  * pasa cada página por `withoutBeacon`, que en esas rutas saca el bloque del HTML
  * (`transformPageChunk`).
@@ -16,7 +17,7 @@ const BEACON_BLOCK =
  * @param {string} pathname
  */
 export function skipsBeacon(pathname) {
-	return pathname === '/puerta' || pathname.startsWith('/puerta/');
+	return ['/puerta', '/barra'].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 /**

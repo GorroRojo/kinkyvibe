@@ -523,6 +523,30 @@
 		}
 	}
 
+	/** Entregando un extra. */
+	let delivering = false;
+	/**
+	 * «Entregar 1» de un extra de la compra (decisión 0056). Solo con conexión.
+	 * @param {CustomEvent<{ card: Card, extra: string }>} e
+	 */
+	async function deliver(e) {
+		const { card, extra } = e.detail;
+		if (!online) return say('Sin conexión: los extras se entregan con conexión.');
+		delivering = true;
+		try {
+			const r = await postAction('entregar', { ticket: card.ticketId, extra });
+			if (r.type === 'success' && r.data?.deliver?.ok) {
+				if (scan?.card && scan.card.ticketId === card.ticketId)
+					scan = { ...scan, card: { ...scan.card, extras: r.data.deliver.extras } };
+				say('Entregado.');
+			} else say(r.data?.deliver?.message ?? 'No se pudo entregar.');
+		} catch {
+			say('Sin conexión: no se pudo entregar.');
+		} finally {
+			delivering = false;
+		}
+	}
+
 	/** @param {CustomEvent<Card>} e */
 	async function reveal(e) {
 		const card = e.detail;
@@ -988,6 +1012,12 @@
 	let saleError = '';
 	let saleEmail = '';
 	let noteOpen = false;
+	/** Extras de la venta (id → cantidad; interruptor `extras`, decisión 0056). @type {Record<string, number>} */
+	let saleExtras = Object.fromEntries((data.extras ?? []).map((x) => [x.id, 0]));
+	$: saleExtrasAmount = (data.extras ?? []).reduce(
+		(s, x) => s + x.price * Math.max(0, Math.trunc(Number(saleExtras[x.id])) || 0),
+		0
+	);
 	$: sType = data.types.find((t) => t.id === saleType);
 	// Al cambiar de tipo, el precio por entrada vuelve al de la puerta (en la gorra, vacío). Un
 	// precio en puerta de $ 0 (configuración vieja: el editor ya no lo deja guardar, #374) no se
@@ -1161,6 +1191,7 @@
 		saleQty = 1;
 		saleEmail = '';
 		amountFor = '';
+		saleExtras = Object.fromEntries((data.extras ?? []).map((x) => [x.id, 0]));
 	}
 
 	/** @param {SubmitEvent} e */
@@ -1433,6 +1464,8 @@
 						on:undo={undo}
 						on:discard={(e) => discardSale(pendingSaleId(e.detail.ticketId))}
 						canReveal={!linkMode}
+						{delivering}
+						on:deliver={deliver}
 						on:reveal={reveal}
 						on:details={openDetails}
 					/>
@@ -1691,6 +1724,28 @@
 			{/if}
 			{#if saleBreakdown}
 				<p class="muted small" id="sale-breakdown">{saleBreakdown}</p>
+			{/if}
+			{#if data.extras?.length && online}
+				<!-- Extras (decisión 0056): a precio de lista, se cobran con la venta. Solo con conexión. -->
+				<div class="row">
+					{#each data.extras as x (x.id)}
+						<label class="field">
+							<span>{x.name} ({formatARS(x.price)} c/u)</span>
+							<input
+								type="number"
+								name="extra_{x.id}"
+								min="0"
+								max={x.max}
+								step="1"
+								inputmode="numeric"
+								bind:value={saleExtras[x.id]}
+							/>
+						</label>
+					{/each}
+				</div>
+				{#if saleExtrasAmount}<p class="muted small">
+						Extras: +{formatARS(saleExtrasAmount)} (se cobran aparte del precio de la entrada)
+					</p>{/if}
 			{/if}
 			<fieldset class="methods">
 				<legend>Cómo pagó</legend>

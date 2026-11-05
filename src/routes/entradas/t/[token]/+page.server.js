@@ -25,6 +25,9 @@ import { qrSvg } from '$lib/server/tickets/qr.js';
 import { buyerLocation } from '$lib/server/amigues/venues.js';
 import { workshopPartsList } from '$lib/server/tickets/workshopParts.js';
 import { salePlaceText } from '$lib/utils/eventPlace.js';
+import { extrasEnabled } from '$lib/server/flags.js';
+import { orderExtras } from '$lib/server/tickets/extras.js';
+import { extrasShortText } from '$lib/utils/extras.js';
 
 /**
  * El texto del aviso de puerta si la entrada coincide y el evento es de Kinky Vibe; si no, `null`.
@@ -50,7 +53,7 @@ export async function load({ params, platform, url, locals }) {
 	// La venta del evento, el lugar y las partes del taller, juntos (cada ida y vuelta a D1 cuenta).
 	const configP = getEventTickets(ticket.event_slug);
 	const onlineP = configP.then((config) => Boolean(config?.online));
-	const [config, buyerVenue, parts, streamLink] = await Promise.all([
+	const [config, buyerVenue, parts, streamLink, extras] = await Promise.all([
 		configP,
 		// Con la compra aprobada, el lugar completo (aunque en el sitio no se muestre la dirección).
 		// Se lee sin esperar a saber si es online; si lo es, no se usa.
@@ -59,7 +62,14 @@ export async function load({ params, platform, url, locals }) {
 		// completo solo con la compra aprobada, como el del taller).
 		workshopPartsList(db, ticket.event_slug, { online: onlineP, buyer: valid }),
 		// Eventos online: el link de la transmisión (solo con la compra aprobada), sin QR.
-		onlineP.then((online) => (online && valid ? streamLinkFor(db, ticket.event_slug) : null))
+		onlineP.then((online) => (online && valid ? streamLinkFor(db, ticket.event_slug) : null)),
+		// Extras de la compra (interruptor `extras`, decisión 0056): «+ 2 × Trago».
+		// Sin extras en el evento, ni el interruptor ni la tabla se leen.
+		configP.then(async (c) =>
+			valid && c?.extras?.length && (await extrasEnabled(platform))
+				? orderExtras(db, ticket.order_id)
+				: []
+		)
 	]);
 	const online = Boolean(config?.online);
 	const venue = online ? null : buyerVenue;
@@ -85,7 +95,8 @@ export async function load({ params, platform, url, locals }) {
 			// La hora del ingreso, solo para admins: quien compró entradas para otres no tiene por
 			// qué saber a qué hora entró cada une (auditoría de comunidad, T7).
 			checkedInAt: isAdmin(locals.user) ? ticket.checked_in_at : null,
-			code: ticket.code ?? null
+			code: ticket.code ?? null,
+			extras: extrasShortText(extras)
 		},
 		event: {
 			slug: ticket.event_slug,

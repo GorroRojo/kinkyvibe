@@ -128,6 +128,15 @@
 			>
 		{/if}
 	</Stat>
+	{#if data.extras}
+		<Stat
+			label="Extras"
+			value={formatARS(data.extras.amount)}
+			sub={data.extras.rows.length
+				? data.extras.rows.map((x) => `${x.sold} × ${x.name}`).join(' · ')
+				: 'todavía ninguno'}
+		/>
+	{/if}
 	{#if showFondo}
 		<Stat
 			label="Neto del fondo"
@@ -173,6 +182,25 @@
 			{/each}
 		</ul>
 	</Card>
+
+	{#if data.extras?.rows.length}
+		<Card title="Extras">
+			<p class="muted small">Aparte de lo recaudado por entradas (sin Fondo ni descuentos).</p>
+			<ul class="types">
+				{#each data.extras.rows as x (x.id)}
+					<li>
+						<div class="row">
+							<strong>{x.name}</strong>
+							<span class="num">{formatARS(x.amount)}</span>
+						</div>
+						<div class="row muted small">
+							<span>Vendidos {x.sold} · entregados {x.delivered}</span>
+						</div>
+					</li>
+				{/each}
+			</ul>
+		</Card>
+	{/if}
 
 	<Card title="Vendidas por día">
 		<svelte:fragment slot="actions">
