@@ -205,6 +205,20 @@ export const FLAGS = Object.freeze({
 			'tope: aviso «Cambios de Claude» por Telegram desde 20 cambios en una hora (mcp/avisoCambios.js).',
 		envVar: 'CONECTOR_CLAUDE_EDICION_ENABLED'
 	},
+	gastos_reparto: {
+		label: 'Gastos y reparto',
+		description:
+			'En la ficha de cada evento que vende entradas, Ventas → «Gastos y reparto»: lo que entró ' +
+			'(con el Fondo calculado orden por orden), el lugar, las contrataciones, los otros gastos y ' +
+			'otros ingresos, y el reparto de la ganancia entre las partes que elijas (la Caja KV, les ' +
+			'facilitadores, quien co-produce…), con «quién le pasa a quién». Se guarda en la base y «Cerrar la cuenta» congela los números ' +
+			'para Ventas → Cuentas del año. Solo admins. Apagado, no se ve.',
+		tech:
+			'docs/tickets.md, «Gastos y reparto». Migración 0078 (event_accounts, ' +
+			'event_account_closings, venue_cost_rules); cuenta en src/lib/admin/reparto.js. Apagado, ' +
+			'/admin/eventos/<slug>/gastos y /admin/ventas/cuentas dan 404.',
+		envVar: 'GASTOS_REPARTO_ENABLED'
+	},
 	fediverso: {
 		label: 'Agenda en el fediverso (prototipo)',
 		description:
@@ -437,6 +451,15 @@ export function extrasEnabled(platform) {
  */
 export function conectorClaudeEnabled(platform) {
 	return isFlagOn(getDB(platform), 'conector_claude');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido Gastos y reparto? (docs/tickets.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function gastosRepartoEnabled(platform) {
+	return isFlagOn(getDB(platform), 'gastos_reparto');
 }
 
 /**
