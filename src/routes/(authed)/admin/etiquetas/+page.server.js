@@ -10,6 +10,9 @@ import {
 	saveDbTagEdit
 } from '$lib/server/etiquetas/panel.js';
 import { tagUsageAndWiki } from '$lib/server/etiquetas/review.js';
+import { getDB } from '$lib/server/db';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { tagFollowerCounts } from '$lib/server/sigo/stats.js';
 
 /** @param {unknown} e */
 const describe = (e) => (e instanceof Error ? e.message : String(e));
@@ -18,6 +21,11 @@ const describe = (e) => (e instanceof Error ? e.message : String(e));
 export async function load({ locals, url, platform }) {
 	const login = requireAdmin(locals, url).login;
 	// Lo mismo que cuenta la fila de etiquetas de «Para revisar» (src/lib/server/etiquetas/review.js).
+	// «N cuentas la siguen» en la ficha de cada etiqueta (Lo que sigo, decisión 0043: solo admins;
+	// quiénes, en Mensajes › Lo que sigo), a la par. `null` si no se pudo contar.
+	const followersP = siteTagManager(platform)
+		.then((tags) => tagFollowerCounts(getDB(platform), tags))
+		.catch(() => null);
 	const counts = await tagUsageAndWiki();
 	// Las etiquetas se editan solo en la base (ya no hay commits al archivo de etiquetas).
 	const fromDb = await dbTagsForAdmin(platform, login);
@@ -25,6 +33,7 @@ export async function load({ locals, url, platform }) {
 	return {
 		entries: recordsToRawTags(fromDb.records),
 		...counts,
+		followers: await followersP,
 		fromRepo: false,
 		mock: false,
 		dbMode: true

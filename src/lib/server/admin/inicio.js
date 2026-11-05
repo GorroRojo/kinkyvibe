@@ -61,6 +61,7 @@ import {
 	withTagEdges
 } from '$lib/server/contenido/etiquetasEdges.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
+import { countByChannel } from '$lib/utils/saleChannel.js';
 import { fondoTipTotalsStatement, readFondoTipTotals } from '$lib/server/propinas/index.js';
 import { tipCategoryLabel } from '$lib/utils/propinas.js';
 import { SALE_AT_SQL } from './saleMonth.js';
@@ -361,7 +362,8 @@ export const EMAIL_PROBLEM_VISIBLE_MS = 14 * 24 * 60 * 60 * 1000;
 
 /**
  * Órdenes aprobadas cuyo mail con las entradas no salió (`email_sent_at` vacío), más viejas que
- * {@link EMAIL_GRACE_MS}, y las que salió pero Resend avisó que rebotó o lo marcaron como spam
+ * {@link EMAIL_GRACE_MS} (sin las que no tienen mail, como una venta en la puerta sin mail: no hay a
+ * quién mandárselo, igual que en el reintento de unsentOrders.js), y las que salió pero Resend avisó que rebotó o lo marcaron como spam
  * (`problem`, de los últimos {@link EMAIL_PROBLEM_VISIBLE_MS}).
  *
  * @param {D1Database | null | undefined} db
@@ -385,6 +387,7 @@ export function unsentEmailsQuery(now) {
 				.prepare(
 					`SELECT id, event_slug, buyer_name, updated_at AS at, NULL AS email_problem FROM orders
 				WHERE status = 'approved' AND email_sent_at IS NULL AND updated_at < ?1
+					AND TRIM(buyer_email) != ''
 				UNION ALL
 				SELECT id, event_slug, buyer_name, email_problem_at AS at, email_problem FROM orders
 				WHERE email_problem IS NOT NULL AND email_problem_at > ?2 AND status = 'approved'
@@ -408,17 +411,22 @@ export function unsentEmailsQuery(now) {
 /**
  * Órdenes marcadas para revisar a mano: pago tardío o duplicado (`needs_review`) o una venta en la
  * puerta hecha sin conexión que pasó un límite al sincronizarse (`offline_review`, migración 0051;
- * `reason` = 'door_offline'). Dos consultas unidas, cada una por su índice parcial.
+ * `reason` = 'door_offline'). Dos consultas unidas, cada una por su índice parcial. `total` y
+ * `detail` (en un pago duplicado, el número del otro pago) dicen cuánto se cobró de más: el monto
+ * de un pago tiene que ser el total de la orden (applyPayment).
+ *
+ * @typedef {{ id: string, ref: string, slug: string, reason: string, buyerName: string,
+ *   total: number, detail: string | null }} ReviewOrder
  *
  * @param {D1Database | null | undefined} db
- * @returns {Promise<{ id: string, ref: string, slug: string, reason: string, buyerName: string }[]>}
+ * @returns {Promise<ReviewOrder[]>}
  */
 export function reviewOrders(db) {
 	return runQuery(db, reviewOrdersQuery());
 }
 
 /**
- * @returns {BatchQuery<{ id: string, ref: string, slug: string, reason: string, buyerName: string }[]>}
+ * @returns {BatchQuery<ReviewOrder[]>}
  */
 export function reviewOrdersQuery() {
 	return query(
@@ -426,10 +434,10 @@ export function reviewOrdersQuery() {
 		[],
 		(db) => [
 			db.prepare(
-				`SELECT id, event_slug, needs_review, buyer_name, updated_at FROM orders
-				WHERE needs_review IS NOT NULL
+				`SELECT id, event_slug, needs_review, buyer_name, updated_at, total, review_detail
+				FROM orders WHERE needs_review IS NOT NULL
 				UNION ALL
-				SELECT id, event_slug, 'door_offline', buyer_name, updated_at FROM orders
+				SELECT id, event_slug, 'door_offline', buyer_name, updated_at, total, NULL FROM orders
 				WHERE offline_review IS NOT NULL AND needs_review IS NULL
 				ORDER BY updated_at DESC LIMIT 50`
 			)
@@ -440,7 +448,10 @@ export function reviewOrdersQuery() {
 				ref: orderReference(String(r.id)),
 				slug: String(r.event_slug),
 				reason: String(r.needs_review),
-				buyerName: String(r.buyer_name)
+				buyerName: String(r.buyer_name),
+				total: Number(r.total ?? 0),
+				detail:
+					r.review_detail === null || r.review_detail === undefined ? null : String(r.review_detail)
 			}))
 	);
 }
@@ -680,7 +691,8 @@ const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
 	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Entrar',
 	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón',
 	[ACCOUNT_EVENT_ACTIONS.venueResubmitted]: 'Lugar para aprobar · Mi rincón',
-	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón'
+	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón',
+	[ACCOUNT_EVENT_ACTIONS.profileEdited]: 'Perfil editado · Mi rincón'
 });
 
 /**
@@ -1181,7 +1193,8 @@ export function claimReviewItems(claims, { formatWhen } = {}) {
  *   transfers: { slug: string, count: number, oldestExpiry: number }[],
  *   unsent: { id: string, ref: string, slug: string, buyerName: string,
  *     problem?: UnsentEmail['problem'] }[],
- *   review: { id: string, ref: string, slug: string, reason: string, buyerName: string }[],
+ *   review: { id: string, ref: string, slug: string, reason: string, buyerName: string,
+ *     total?: number, detail?: string | null }[],
  *   titles: Map<string, string>,
  *   links: {
  *     transfers: (slug: string) => string,
@@ -1223,7 +1236,11 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 					: o.reason === 'door_offline'
 						? `Venta sin conexión de ${o.buyerName} para revisar`
 						: `Pago tardío de ${o.buyerName} (la reserva había vencido)`,
-			text: `${o.ref} · ${title(o.slug)}`,
+			// Un pago duplicado es del mismo monto que la orden: cuánto se cobró de más y con qué pago.
+			text:
+				o.reason === 'duplicate_payment' && o.total
+					? `${o.ref} · ${title(o.slug)} · otro cobro de ${formatARS(o.total)}${o.detail ? ` (Mercado Pago n.° ${o.detail})` : ''}`
+					: `${o.ref} · ${title(o.slug)}`,
 			action: 'Ver orden',
 			href: links.order(o.slug, o.id)
 		});
@@ -1894,13 +1911,16 @@ export function agendaItems({
 }
 
 /**
- * @typedef {{ days: { day: string, count: number }[], online: number, door: number }} SalesTrend
+ * `channels`: entradas por canal (la regla única de $lib/utils/saleChannel.js).
+ * @typedef {{ days: { day: string, count: number }[],
+ *   channels: Record<import('$lib/utils/saleChannel.js').SaleChannel, number> }} SalesTrend
  */
 
 /**
  * Ventas de un evento por día (fecha de la compra, hora de Argentina) en los últimos `days` días
- * hasta hoy inclusive, y cuántas entradas se vendieron online y en la puerta. La columna
- * `channel` llega con la migración del modo puerta: sin ella todo cuenta como online.
+ * hasta hoy inclusive, y cuántas entradas salieron por cada canal (online, puerta, cortesía y
+ * cargadas a mano: {@link countByChannel}). La columna `channel` llega con la migración del modo
+ * puerta: sin ella todo lo cobrado cuenta como online.
  * Una sola ida a la base (un batch).
  *
  * @param {D1Database | null | undefined} db
@@ -1937,8 +1957,9 @@ export function eventSalesTrendQuery(slug, now, days = 7) {
 	const byChannel = (db, withChannel) =>
 		db
 			.prepare(
-				`SELECT ${withChannel ? 'channel' : "'online'"} AS channel, SUM(quantity) AS n
-					FROM orders WHERE event_slug = ? AND status = 'approved' GROUP BY 1`
+				`SELECT ${withChannel ? 'channel' : "'online'"} AS channel, payment_method,
+					SUM(quantity) AS quantity
+					FROM orders WHERE event_slug = ? AND status = 'approved' GROUP BY 1, 2`
 			)
 			.bind(slug);
 	/** @param {import('$lib/server/db/batch.js').D1Result[]} res */
@@ -1946,19 +1967,19 @@ export function eventSalesTrendQuery(slug, now, days = 7) {
 		/** @type {Map<number, number>} */
 		const counts = new Map();
 		for (const r of rowsOf(res, 0)) counts.set(Number(r.d), Number(r.n ?? 0));
-		let online = 0;
-		let door = 0;
-		for (const r of rowsOf(res, 1)) {
-			if (r.channel === 'puerta') door += Number(r.n ?? 0);
-			else online += Number(r.n ?? 0);
-		}
+		const channels = countByChannel(
+			rowsOf(res, 1).map((r) => ({
+				channel: r.channel == null ? null : String(r.channel),
+				payment_method: r.payment_method == null ? null : String(r.payment_method),
+				quantity: Number(r.quantity ?? 0)
+			}))
+		);
 		return {
 			days: Array.from({ length: days }, (_, i) => ({
 				day: arDay(from + i * DAY_MS),
 				count: counts.get(i) ?? 0
 			})),
-			online,
-			door
+			channels
 		};
 	};
 	return {

@@ -1,7 +1,7 @@
 /**
- * Guardar una fila de la agenda (/admin/eventos/agenda): lee el archivo del evento del repo
- * (GitHub, o la capa demo en los previews: siempre por `getRepoClient()`), aplica solo los campos
- * que cambiaron y hace un commit, igual que el editor de eventos.
+ * Guardar una fila de la agenda (/admin/eventos/agenda): lee el evento por el cliente de contenido
+ * (`getRepoClient()`, que lee y guarda en la base), aplica solo los campos que cambiaron y lo
+ * guarda, igual que el editor de eventos.
  */
 import { FileChangedError } from '../contenido/cliente.js';
 import { POSTS_DIR } from './paths.js';

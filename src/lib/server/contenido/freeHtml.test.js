@@ -12,7 +12,10 @@ async function html(md) {
 	const out = (await renderFreeBody(md)).html;
 	return out
 		.replace(/<svg[\s\S]*?<\/svg>/g, '')
-		.replace('<nav class="toc"><ol class="toc-level toc-level-1"></ol></nav>', '')
+		.replace(
+			'<nav class="toc" aria-label="Índice"><ol class="toc-level toc-level-1"></ol></nav>',
+			''
+		)
 		.replace(/\n/g, '');
 }
 
@@ -96,6 +99,13 @@ describe('las comillas, como retext-smartypants (por oración)', () => {
 });
 
 describe('código y listas', () => {
+	it('un separador de línea U+2028 pegado del celu no rompe la página', async () => {
+		const out = await html('Actividad abierta\u2028📍 Córdoba\n\nOtro párrafo.');
+		expect(out).toContain('Actividad abierta');
+		expect(out).toContain('📍 Córdoba');
+		expect(out).toContain('<p>Otro párrafo.</p>');
+	});
+
 	it('en el código en línea las entidades valen; en un bloque de código, no', async () => {
 		expect(await html('Usá `uno&nbsp;dos <tres>` así.\n\n```sh\nuno&nbsp;dos\n```')).toBe(
 			'<p>Usá <code>uno dos &#x3C;tres></code> así.</p>' +

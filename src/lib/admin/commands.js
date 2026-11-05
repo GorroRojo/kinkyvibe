@@ -10,6 +10,7 @@
  *   Ctrl/⌘+K abren la paleta y `?` muestra la hoja de atajos.
  */
 import { NAV, NAV_AREAS, navItem, navLink } from './nav.js';
+import { foldText } from '$lib/utils/text.js';
 
 /**
  * @typedef {{
@@ -277,18 +278,8 @@ export function buildCommands({ today = [] } = {}) {
 	return out;
 }
 
-/**
- * Texto para comparar sin mayúsculas ni tildes.
- * @param {unknown} s
- */
-export function fold(s) {
-	return String(s ?? '')
-		.normalize('NFD')
-		.replace(/\p{Diacritic}/gu, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
-}
+/** Texto para comparar sin mayúsculas ni tildes: la receta única ({@link foldText}). */
+export const fold = foldText;
 
 /**
  * Filtra y ordena las acciones para lo que se escribió: primero las que empiezan igual, después

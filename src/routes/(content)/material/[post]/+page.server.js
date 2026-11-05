@@ -11,6 +11,7 @@ import { askPostPageEarly } from '$lib/server/contenido/adelantar.js';
 import { authorLinksFrom } from '$lib/utils/jsonLd.js';
 import { wikiLinkedTags } from '$lib/server/wiki/site.js';
 import { linksHere } from '$lib/server/contenido/loQueEnlaza.js';
+import { materialCard } from '$lib/server/ogObjeto.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, locals, setHeaders }) {
@@ -57,8 +58,16 @@ export async function load({ params, platform, locals, setHeaders }) {
 			linksHereP
 		]
 	);
+	// Sin portada, la vista previa propia del material (docs/compartir.md); si falla, la por defecto.
+	const ogCard = await materialCard(platform, params.post, { meta: post.meta, wikiTags }).catch(
+		(e) => {
+			console.error('[og] tarjeta del material:', e);
+			return null;
+		}
+	);
 	return {
 		...post,
+		ogCard,
 		html,
 		css,
 		parts: parts ?? null,

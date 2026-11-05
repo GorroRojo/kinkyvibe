@@ -188,6 +188,17 @@ siempre los minutos de siempre y el navegador los cambia después de hidratar so
 eligió otra velocidad. Dónde se guarda (navegador y cuenta) y quién gana al entrar:
 [cuentas.md](cuentas.md), «Velocidad de lectura». También se elige en Mi rincón.
 
+**Barra de progreso de lectura** (idea de #19, decisión 0044; pedido de gorrite, 12/10). En los
+textos largos de Material y de la Kinkipedia, una línea fina (3px) arriba de todo se llena mientras
+se lee: empieza cuando el borde de arriba de la ventana llega al título y se llena cuando el de
+abajo llega al final del texto (no cuenta la propina, «Más cosas de…» ni la lista de abajo).
+«Largo» sale del tiempo de lectura: 3 minutos o más a la velocidad de siempre
+(`MIN_MINUTES_FOR_PROGRESS` y `showsReadingProgress` en `src/lib/utils/readingTime.js`, unas 600
+palabras), no a la elegida, así está o no está igual para todes y el servidor ya la dibuja. La
+dibuja `src/lib/components/ReadingProgress.svelte`: fija y con `transform`, sin correr nada; en
+violeta (`--2`), para no confundirse con la barra de carga rosa, que queda por encima; decorativa
+(`aria-hidden`); con «reducir movimiento», sigue al scroll sin el suavizado cortito.
+
 ## En la base (solo la base)
 
 **Eventos** y **material** (`material`, mismo camino; ver `src/lib/server/contenido/categories.js`).
@@ -223,7 +234,7 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
 - **Cómo se ve el texto** (decisión 0004: superadmins pueden usar HTML libre). Cada texto guarda
   cómo se muestra (`data.body_html`):
   - libre (lo que vino de los `.md` y lo que guarda une superadmin): `freeHtml.js` lo arma con el
-    mismo camino que usaba mdsvex (rehype-slug, rehype-toc, `customRehype`, comillas tipográficas,
+    mismo camino que usaba mdsvex (rehype-slug, rehype-toc: el índice solo con 2 títulos o más, `customRehype`, comillas tipográficas,
     menciones y wiki). Lee el markdown como el parser de mdsvex donde CommonMark lo lee distinto
     (énfasis con `*` pegado o con espacios, una etiqueta HTML que corta el párrafo, listas) y no
     toca el HTML escrito a mano (como mdsvex: sin comillas tipográficas, menciones ni anclas
@@ -239,6 +250,14 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   - lista corta: `amigues/sanitize.js`, como los perfiles (imágenes solo de la biblioteca propia,
     `/media/…`; ver [amigues.md](amigues.md)). Es también lo que se usa sin valor guardado: el
     HTML libre tiene que estar escrito (`body_html: 'libre'`; en la wiki, `wiki_body_html`).
+  - **Anidado demasiado hondo**: rehype recorre el árbol con recursión, y miles de elementos uno
+    adentro de otro (`<div>` × 5000, o `>` × 2000 en markdown) lo dejan sin pila (`RangeError`,
+    error 500 para todes en esa página). Más de 500 niveles (`$lib/utils/htmlNesting.js`, una
+    cuenta aproximada y barata que cierra lo que el navegador cierra solo, como `<li>a<li>b`, y no
+    cuenta lo de adentro de `<script>`/`<style>` ni el código de markdown) no se guardan: el campo del texto (`markup: true` en
+    `objects/fields.js`: eventos, material, perfiles y wiki) da el error en el panel. Uno que ya
+    estaba guardado se muestra vacío y deja una línea `area: 'contenido'` en los registros. Los
+    textos de la semilla no pasan de 10 niveles.
 - **La vista previa del editor** (`ContentEditor`, mientras se escribe) arma el HTML en el
   navegador (`renderPreviewHtml`, `src/lib/utils/markdownPreview.js`) y lo limpia antes de
   mostrarlo con `sanitizePreview` (`src/lib/utils/sanitizePreview.js`): DOMPurify con su lista de

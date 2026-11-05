@@ -28,6 +28,7 @@ import { answersStatement } from './signupFields.js';
 import { markPurchasedStatement } from './waitlist.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
 import { MP_FEE_ESTIMATED_SQL, MP_FEE_SQL, REVENUE_SQL } from '$lib/utils/salesGoal.js';
+import { foldText } from '$lib/utils/text.js';
 
 // El código corto se normaliza también en el navegador (modo puerta sin conexión).
 export { TICKET_CODE_LENGTH, normalizeTicketCode };
@@ -1198,6 +1199,27 @@ export async function markEmailSent(db, orderId, now = Date.now(), emailId = nul
 }
 
 /**
+ * El mail de las entradas no se mandó porque el dominio de la dirección no recibe correo
+ * (`domainAcceptsMail`, email/mx.js): la orden queda como si Resend hubiera avisado un rebote
+ * (`email_problem = 'bounced'`, sin id de Resend). Queda como enviada para que el reintento del cron
+ * no la vuelva a tomar; «Corregir el mail…» limpia la marca y la manda a la dirección nueva.
+ *
+ * @param {D1Database} db
+ * @param {string} orderId
+ * @param {number} [now]
+ */
+export async function markEmailUndeliverable(db, orderId, now = Date.now()) {
+	await db
+		.prepare(
+			`UPDATE orders SET email_sent_at = ?2, email_id = NULL, email_problem = 'bounced',
+				email_problem_at = ?2
+			WHERE id = ?1`
+		)
+		.bind(orderId, now)
+		.run();
+}
+
+/**
  * Corrige el mail de quien compró una orden aprobada de un evento (Órdenes → «Corregir el mail y
  * reenviar»). El mail queda como no enviado hasta que salga a la dirección nueva. `false` si la
  * orden no es de ese evento, no está aprobada o ya tenía esa dirección. Los códigos combo de la
@@ -1319,19 +1341,8 @@ export async function listOrders(db, eventSlug) {
 	return /** @type {(Order & { checked_in: number })[]} */ (results);
 }
 
-/**
- * Texto para comparar sin distinguir mayúsculas ni tildes ("Ñandú José" → "nandu jose").
- *
- * @param {unknown} value
- */
-export function foldText(value) {
-	return String(value ?? '')
-		.normalize('NFD')
-		.replace(/\p{Diacritic}/gu, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
-}
+/** Texto para comparar sin distinguir mayúsculas ni tildes: la receta única de $lib/utils/text.js. */
+export { foldText };
 
 /** @typedef {'code' | 'holder' | 'pronouns' | 'buyer' | 'email' | 'dni'} SearchField */
 

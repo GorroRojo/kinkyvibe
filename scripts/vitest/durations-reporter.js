@@ -7,9 +7,12 @@
 // Los tiempos de la CI son los que sirven: en otra máquina (y más con otras cosas corriendo) las
 // proporciones cambian.
 //
-//   VITEST_DURATIONS_OUT=<archivo>   dónde escribir (si no, en scripts/vitest/durations.json)
+//   VITEST_DURATIONS_OUT=<archivo>   dónde escribir (si no, vitest-durations.json en la carpeta
+//                                    temporal del sistema: nunca en el repo)
 //   npm run test:durations           todas las pruebas en tu compu (menos preciso que la CI)
+// El único que escribe scripts/vitest/durations.json es merge-durations.js, con tiempos de la CI.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { relativeKey } from './sequencer.js';
@@ -47,7 +50,7 @@ export default class DurationsReporter {
 	/** @type {Record<string, number>} */
 	measured = {};
 	root = process.cwd();
-	file = process.env.VITEST_DURATIONS_OUT || DURATIONS_FILE;
+	file = process.env.VITEST_DURATIONS_OUT || path.join(tmpdir(), 'vitest-durations.json');
 
 	/** @param {import('vitest/node').Vitest} vitest */
 	onInit(vitest) {

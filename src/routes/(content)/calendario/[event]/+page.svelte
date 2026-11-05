@@ -42,7 +42,7 @@
 	import Quienes from '$lib/components/evento/Quienes.svelte';
 	import Serie from '$lib/components/evento/Serie.svelte';
 	import {
-		eventPageTitle,
+		eventTabTitle,
 		isPastEvent,
 		mainSeries,
 		nextEdition,
@@ -150,7 +150,7 @@
 	)}
 />
 <svelte:head>
-	<title>{eventPageTitle(data.meta)} · Kinky Vibe</title>
+	<title>{eventTabTitle(data.meta)}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
@@ -163,6 +163,7 @@
 	image={data.meta.featured}
 	imageInfo={data.cover}
 	imageAlt={data.meta.title}
+	card={data.ogCard}
 	type="event"
 	noindex={Boolean(data.meta.force_unlisted || data.meta.force_unpublished)}
 />
@@ -188,7 +189,7 @@
 								(/** @type {ProcessedPost} */ a) => a.meta.postID == author
 							)}{#if i > 0}{i === authors.length - 1 ? ' y ' : ', '}{/if}{#if profile}<a
 								rel="author"
-								class="p-author u-url"
+								class="p-author h-card"
 								href={profile.path}>{author}</a
 							>{:else}<span class="p-author">{author}</span>{/if}{/each}{/await}
 			</address>
@@ -384,6 +385,10 @@
 	.afiche {
 		order: -1;
 		width: 100%;
+		/* `height: auto`: los atributos width/height del <img> (las medidas de la portada) valen como
+		   alto fijo en CSS y le ganaban al `aspect-ratio`: el afiche quedaba de 1000 px de alto y
+		   recortado. */
+		height: auto;
 		aspect-ratio: 1;
 		object-fit: cover;
 		border-radius: var(--radius-l);

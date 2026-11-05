@@ -440,12 +440,15 @@ export function kinkipediaSchema() {
 
 /**
  * Una entrada de la Kinkipedia (/wiki/<término>) como término definido. Sin entrada, ver
- * {@link tagTermSchema}.
- * @param {{ title?: string, summary?: string, path?: string, aka?: unknown }} entry
+ * {@link tagTermSchema}. Con `updatedAt` (el último guardado de la etiqueta, en ms), la página
+ * (`mainEntityOfPage`, un `WebPage`) lleva su `dateModified`: `DefinedTerm` no es un CreativeWork y
+ * no admite fechas propias.
+ * @param {{ title?: string, summary?: string, path?: string, aka?: unknown, updatedAt?: number | null }} entry
  * @returns {JsonLd | null}
  */
-export function wikiTermSchema({ title, summary, path, aka }) {
+export function wikiTermSchema({ title, summary, path, aka, updatedAt }) {
 	if (!title || !path) return null;
+	const modified = updatedAt ? isoDate(updatedAt) : undefined;
 	return clean({
 		'@context': 'https://schema.org',
 		'@type': 'DefinedTerm',
@@ -454,7 +457,15 @@ export function wikiTermSchema({ title, summary, path, aka }) {
 		alternateName: tagList(aka).filter((a) => a !== title),
 		url: absoluteUrl(path),
 		// Sin `inLanguage`: DefinedTerm no es un CreativeWork (validator.schema.org lo marca).
-		inDefinedTermSet: kinkipediaRef()
+		inDefinedTermSet: kinkipediaRef(),
+		mainEntityOfPage: modified
+			? {
+					'@type': 'WebPage',
+					url: absoluteUrl(path),
+					dateModified: modified,
+					inLanguage: SITE_LANGUAGE
+				}
+			: undefined
 	});
 }
 

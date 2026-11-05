@@ -26,7 +26,9 @@ export const REVISION_SOURCES = /** @type {const} */ ([
 	'demo',
 	// Un cambio del conector de Claude (docs/conector-claude.md): `saved_by` es le admin que lo
 	// autorizó y `confirmed_by`, si vino, quién del equipo lo confirmó (migración 0072).
-	'claude'
+	'claude',
+	// Lo que guarda una cuenta desde Mi rincón (sus perfiles: src/lib/server/cuentas/perfiles.js).
+	'cuenta'
 ]);
 
 /**

@@ -28,6 +28,7 @@
 	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
 	import { normalizeText } from '$lib/utils/adminTags.js';
 	import { wikiEditHref } from '$lib/admin/nav.js';
+	import { sigoRankingHref } from '$lib/admin/links.js';
 	import { tagSlug } from '$lib/utils/tagSlug.js';
 	import {
 		USAGE_CATEGORIES,
@@ -422,6 +423,16 @@
 							>sin entrada</Badge
 						>{/if}
 				</div>
+				{#if data.followers}
+					{@const f = data.followers[n.id] ?? 0}
+					<p class="kv-note">
+						{f === 0
+							? 'Ninguna cuenta la sigue'
+							: `${f} ${f === 1 ? 'cuenta la sigue' : 'cuentas la siguen'}`}{#if f > 0}{' · '}<a
+								href={sigoRankingHref('etiqueta')}>quiénes, en Mensajes › Lo que sigo</a
+							>{/if}
+					</p>
+				{/if}
 				<TagGraph node={n} {byId} onSelect={selectTag} />
 
 				<div class="usage">
@@ -496,7 +507,7 @@
 						>Imagen (series) <input
 							class="kv-input"
 							bind:value={fields.image}
-							placeholder="Ej.: serie.webp (de src/lib/assets)"
+							placeholder="Ej.: serie.webp"
 						/></label
 					>
 

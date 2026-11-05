@@ -8,6 +8,8 @@
  *   {@link RETRY_WINDOW_MS}; las más viejas primero, como mucho `limit` por corrida.
  * - Manda con `sendOrderEmailResult` y la misma clave de idempotencia de siempre
  *   (`tickets-<orden>`): si el primer intento sí había salido, Resend no lo duplica.
+ * - Un dominio que no recibe correo (`undeliverable`, email/mx.js): `sendOrderEmailResult` ya marcó
+ *   la orden como enviada y rebotada; acá solo cuenta como salteada.
  * - Un mail cortado a propósito (`simulated`: «No fui yo» en una orden gratis, un preview sin
  *   EMAIL_ALLOWLIST, dev sin clave) cuenta como resuelto: se marca `email_sent_at` (como hacen los
  *   envíos en tandas con su estado 'sent') y no se vuelve a tomar.
@@ -32,7 +34,11 @@ import { markEmailSent } from './orders.js';
 export const RETRY_WINDOW_MS = 48 * 60 * 60 * 1000;
 /** Intentos por orden y por día. */
 export const RETRY_ATTEMPTS = 3;
-/** Cuántas candidatas se leen por cada mail de la tanda (deja lugar a las salteadas). */
+/**
+ * Cuántas candidatas se leen por cada mail de la tanda (deja lugar a las salteadas). Las que ya
+ * gastaron sus intentos del día no se leen (la ventana en curso de `hitRateLimit`; quien decide es
+ * `hitRateLimit`, la consulta solo las saca para que no ocupen el lugar de las más nuevas).
+ */
 const SCAN_FACTOR = 4;
 /** La ventana de los intentos por orden. */
 const RETRY_RULE = Object.freeze({ limit: RETRY_ATTEMPTS, windowSeconds: 24 * 60 * 60 });
@@ -66,9 +72,18 @@ export async function resendUnsentOrderEmails({
 			WHERE status = 'approved' AND email_sent_at IS NULL
 				AND buyer_email IS NOT NULL AND TRIM(buyer_email) != ''
 				AND updated_at >= ?1 AND updated_at <= ?2
+				AND COALESCE((SELECT SUM(r.hits) FROM rate_limits r
+					WHERE r.bucket = 'mail:reintento-entradas:' || orders.id
+						AND r.window_start > ?4), 0) < ?5
 			ORDER BY updated_at ASC LIMIT ?3`
 		)
-		.bind(now - RETRY_WINDOW_MS, now - EMAIL_GRACE_MS, limit * SCAN_FACTOR)
+		.bind(
+			now - RETRY_WINDOW_MS,
+			now - EMAIL_GRACE_MS,
+			limit * SCAN_FACTOR,
+			Math.floor(now / 1000) - RETRY_RULE.windowSeconds,
+			RETRY_ATTEMPTS
+		)
 		.all();
 	let attempted = 0;
 	for (const order of /** @type {import('./orders.js').Order[]} */ (results)) {
@@ -95,6 +110,9 @@ export async function resendUnsentOrderEmails({
 			}
 		} else if (result === 'sent') counts.sent++;
 		else if (result === 'failed') counts.failed++;
+		// El dominio no recibe correo: la orden ya quedó enviada y con el rebote marcado (no se
+		// marca de nuevo: `markEmailSent` borraría el rebote).
+		else if (result === 'undeliverable') counts.skipped++;
 		else {
 			await markEmailSent(db, order.id, now);
 			counts.skipped++;

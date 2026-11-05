@@ -47,7 +47,7 @@ describe('noResultsHelp', () => {
 
 	it('si lo parecido son eventos, la sección es el calendario', () => {
 		const help = noResultsHelp(source, 'chorlx', NOW, manager());
-		expect(help.suggestions[0]?.query).toBe('charla');
+		expect(help.suggestions[0]?.query).toBe('Charla');
 		expect(help.section).toEqual({ id: 'calendario' });
 	});
 });

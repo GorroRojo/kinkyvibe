@@ -33,6 +33,16 @@
 		tipo && data.kinds && tipo in data.kinds
 			? amiguesPosts.filter((p) => p.meta.kind === tipo)
 			: amiguesPosts;
+	// Los botones del filtro: sin los tipos que no tienen ningún perfil que quien mira pueda ver
+	// (hoy, «Lugares» sin lugares públicos mostraba una lista vacía), salvo el elegido. `?tipo=`
+	// sigue andando con todos (`data.kinds`).
+	$: filterKinds = data.kinds
+		? Object.fromEntries(
+				Object.entries(data.kinds).filter(
+					([value]) => value === tipo || amiguesPosts.some((p) => p.meta.kind === value)
+				)
+			)
+		: null;
 </script>
 
 <svelte:head>
@@ -98,8 +108,8 @@
 	</dl>
 </div>
 
-{#if data.kinds}
-	<KindFilter kinds={data.kinds} current={tipo} />
+{#if filterKinds}
+	<KindFilter kinds={filterKinds} current={tipo} />
 {/if}
 
 {#key tipo}

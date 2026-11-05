@@ -125,7 +125,8 @@ export function waitlistSender(db, fetchFn, { batch = false } = {}) {
 				message,
 				idempotencyKey,
 				from: AVISOS_FROM_EMAIL,
-				optOut: true
+				optOut: true,
+				kind: 'lista-espera'
 			});
 		} catch (e) {
 			if (batch && resendBackoff(e)) throw e;

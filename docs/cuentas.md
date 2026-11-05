@@ -70,7 +70,8 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
   - sus **perfiles de persona** (también los que ya había borrado) **se vacían**: sin
     presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
     sin los proyectos de los que eran parte, sin su fila de gestión, sus bloqueos ni sus invitaciones
-    de proyectos pendientes, y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
+    de proyectos pendientes, sin las versiones que guardó desde Mi rincón (`object_revisions` con
+    `source = 'cuenta'`, abajo), y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
     todas las cuentas borradas, así nada los vincula entre sí). La fila queda, borrada (borrado
     suave), solo para que la dirección no la use otra persona;
   - cada **proyecto** pasa a quien lo gestiona hace más tiempo, con sus datos (son del proyecto), o se
@@ -86,7 +87,10 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 - **Las compras se ven solo con el mail verificado** (P7.5): una orden aparece si tiene el
   `account_id` de la cuenta o si su `buyer_email` (sin importar mayúsculas) es el mail verificado.
   Solo lectura: no se modifica ninguna orden. Se muestran las aprobadas, las que esperan la
-  transferencia y las reembolsadas.
+  transferencia y las reembolsadas. En un taller de varias partes con una sola entrada, la fecha
+  es la de la parte que toca: la primera que no pasó o, si pasaron todas, la última (la misma
+  regla que «Mis entradas» del bot, `ticketDate` en `src/lib/utils/partes.js`;
+  [talleres-partes.md](talleres-partes.md)).
 - **Las entradas gratis pedidas sin la sesión de la cuenta se preguntan** (decisión
   [0048](decisiones/0048-entradas-gratis-sin-sesion-se-preguntan.md), «No fui yo» parte 2 en
   [mails.md](mails.md#no-fui-yo)): cualquiera puede escribir un mail ajeno en el formulario de
@@ -176,8 +180,9 @@ dejaría saltar los límites. Las IPv4 cuentan igual que antes.
 
 El **tope global** (`src/lib/server/cuentas/mailCap.js`) suma todos los mails de cuentas que
 salen (códigos para entrar, códigos para confirmar y avisos de invitación), de cualquier conexión
-y a cualquier mail: estos mails usan la misma cuenta de Resend que los de las entradas, y así
-nunca se comen ese cupo. Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
+y a cualquier mail. Estos mails usan la misma cuenta de Resend que los de las entradas: el tope
+acota cuánto gastan, pero es por hora y no garantiza que no se coman el cupo (ver «Límites
+conocidos»). Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
 un código responde "Estamos mandando muchos mails en este momento. Probá en un rato." (el mismo
 texto para cualquier mail, así no dice nada de la dirección) y los avisos de invitación no salen
 (la invitación se crea igual y aparece en Mi rincón).
@@ -215,8 +220,9 @@ el código por mail sigue andando.
   solo se van filas que nunca más se usan. Si falla, lo escribe en el log y la corrida sigue; en el
   log va solo cuántas borró.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
-  cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
-  saca acceso.
+  cuenta, también la de ese navegador, desvincula el Telegram (`unlinkAccount`: el chat y los
+  códigos pendientes) y anula el link del calendario personal (`revokeFeeds`; para volver a usarlo
+  se crea uno nuevo), y vuelve a `/ingresar` con un aviso. No pide código: solo saca acceso.
 - **«Dónde tenés la sesión abierta»** (Mi rincón, `#sesiones`): la lista de las sesiones de la
   cuenta (`listSessions`, hasta 50), la de ese navegador primero con la marca «esta». De cada una:
   el navegador («Firefox en Android»), cuándo y cómo se entró (código o contraseña) y la última vez,
@@ -410,6 +416,8 @@ Sin el permiso, la cuenta **no ve nada de perfiles**:
 - además, en `perfiles.js`: `listMyProfiles` y `getManagedProfile` (que usan casi todas las
   acciones) piden el permiso en la misma consulta, `createProfile` y `answerInvite` lo chequean
   antes, y `myInvites`, `listMyMemberInvites` y `listMyMemberships` no devuelven nada;
+- `/imagenes` (subir, buscar y borrar imágenes de la biblioteca para un perfil) da **404**, aunque
+  la cuenta siga anotada como gestora de un perfil (`imageAccess` de `src/lib/server/media/access.js`);
 - las **invitaciones** (a gestionar un proyecto o a ser integrante) no se le muestran ni las puede
   aceptar o rechazar, y el aviso por mail no sale (`sendInviteNotice`, que corre después de
   responder). **Quien invita recibe exactamente la misma respuesta de siempre** y ve la
@@ -420,6 +428,18 @@ Lo único de perfiles que sí ve una cuenta sin el permiso es **«¿Es tu perfil
 pública de un perfil (y en Mi rincón, la tarjeta «¿Ya estás en Amigues?» que lo explica): pide
 hacerse cargo de un perfil que ya existe y une admin lo revisa; para aprobarlo, le da el permiso
 antes ([amigues.md](amigues.md)). No hay ningún texto para pedir el permiso en sí.
+
+**Tus pedidos de perfiles** (Mi rincón, con o sin el permiso): la tarjeta sale solo si la cuenta
+pidió alguno, y lista **sus** pedidos «¿Es tu perfil?» (`myClaims` de
+`src/lib/server/amigues/claims.js`, hasta 50, del más nuevo al más viejo, sin los de perfiles
+borrados) con su estado: **Pendiente**, **Aprobado** o **No aprobado**, y cuándo se pidió y se
+resolvió. Nada de quién lo resolvió ni de otros pedidos. El nombre lleva a la página del perfil
+si no está oculto. En la página del perfil, si el último pedido de la cuenta no se aprobó, dice
+«no aprobado» en vez de volver a ofrecer «¿Es tu perfil?» (`claimStatusOf`); si se aprobó y la
+cuenta ya no lo gestiona, se puede volver a pedir. El servidor también lo frena: después de un
+«no aprobado», `createClaim` contesta 409 («Pediste este perfil: no aprobado…») a un pedido nuevo
+de esa cuenta para ese perfil, aunque llegue a mano. El aviso por mail al resolverse queda
+pendiente (`rincon-pedidos-mail` en el plan).
 
 Sacar el permiso **no borra nada**: los perfiles quedan y vuelven a verse si se prende de nuevo.
 Les admins los siguen viendo en el panel. Si une dueñe de un proyecto pierde el permiso, sigue
@@ -453,6 +473,11 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
   actividad y en "Desde tu última visita". Se anotan donde pasan (`upsertVerifiedAccount` cuando
   la cuenta es nueva, `createProfile`) en `admin_audit`, con el autor `cuentas (sitio)`
   (`src/lib/server/admin/accountEvents.js`), sin mails ni ids de cuenta en el texto.
+- **Editar un perfil ya aprobado** desde Mi rincón: el cambio sale al toque (no vuelve a «Para
+  aprobar», decisión [0022](decisiones/0022-lugares-desde-cuentas.md)) y deja ««…» editó su perfil
+  (persona/proyecto/lugar)» en la actividad (`profile.account_edit`, `logProfileEdited`), con link
+  al perfil; qué cambió se ve en su historial. Un perfil sin aprobar no deja aviso: ya está en
+  «Para aprobar» (gorrite, Mesa `chica-532-revision-perfiles`).
 - **Para revisar:** cada perfil creado por una cuenta queda en "Para revisar" del Inicio (y en el
   contador del menú, en Perfiles) hasta que une admin lo marca como revisado, lo oculta o lo
   borra. No hay columna nueva: la marca es la entrada de Actividad de esa acción
@@ -509,6 +534,12 @@ aprobar").
 
   Un perfil de persona tiene una sola fila (su dueñe). La fila de le dueñe se crea en la misma
   tanda que el perfil (opción `also` de `saveObject()`): o entran los dos o ninguno.
+
+- **Historial**: crear o editar un perfil desde Mi rincón guarda, en la misma tanda, la versión
+  que quedó en `object_revisions` con `source = 'cuenta'` (`revisionStatement`,
+  `src/lib/server/contenido/revisions.js`). Si alguien escribe algo en un perfil y después lo
+  borra, les admins pueden ver qué decía. Por ahora no hay pantalla: se mira en la base. Al borrar
+  la cuenta, las versiones `'cuenta'` de sus perfiles de persona se borran (abajo).
 
 - **Invitaciones a gestionar** en `profile_invites`: solo el hash del mail (el mismo de
   `login_codes`), vencen a los 14 días. `invited_by` pasa a `NULL` si se borra de verdad la
@@ -653,7 +684,10 @@ actualizá esta lista.
 - **Límites por conexión.** Alguien con muchas IPv4 distintas puede repartir pedidos entre ellas.
   El tope global de 300 mails por hora es el respaldo, pero también se puede llenar a propósito:
   mientras dure (como mucho una hora) nadie recibe códigos nuevos. Las sesiones abiertas no se
-  ven afectadas.
+  ven afectadas. Además, como es por hora, en un día deja pasar muchos más mails que el cupo
+  diario de algunos planes de Resend: un abuso sostenido podría agotar ese cupo y dejar sin mail
+  las entradas hasta que se renueve. Cuánto margen hay depende del plan de Resend (lo decide
+  gorrite); un tope diario atado al plan sería el arreglo.
 - **Turnstile** (o una regla de rate limiting de Cloudflare en `/ingresar`) queda como opción para
   más adelante: necesita claves y configuración en el panel de Cloudflare.
 - **Contraseña bloqueada por otres.** Diez contraseñas mal escritas para un mail, desde cualquier
