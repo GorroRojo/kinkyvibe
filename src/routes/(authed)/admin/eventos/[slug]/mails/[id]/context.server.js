@@ -3,9 +3,13 @@
  * evento, la plantilla general y lo que cambia para el evento.
  */
 import { error } from '@sveltejs/kit';
-import { getEventTickets } from '$lib/server/tickets/events.js';
+import { buyerLocation } from '$lib/server/amigues/venues.js';
+import { readWorkshop } from '$lib/server/eventos/partes.js';
+import { getEventMeta, getEventTickets } from '$lib/server/tickets/events.js';
 import { getTemplateOverride } from '$lib/server/tickets/templates.js';
+import { workshopPartsList } from '$lib/server/tickets/workshopParts.js';
 import { TEMPLATE_KEYS, templateDef } from '$lib/utils/emailTemplates.js';
+import { partDateText, partLabel, partsCoveredBy } from '$lib/utils/partes.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -51,4 +55,65 @@ export async function generalTemplate(db, def) {
 		if (v) inherited[k] = v;
 	}
 	return { general, inherited };
+}
+
+/** Los mails que llevan «Las N partes del taller» en un taller con una sola entrada. */
+const PARTS_MAILS = new Set(['tickets', 'transfer', 'reminder']);
+
+/**
+ * La vista previa en un taller con una sola entrada para todas las partes
+ * (docs/talleres-partes.md): el evento lleva la lista de partes, como en los mails de verdad, y
+ * el recordatorio (que sale una vez por parte) se ve para la parte elegida, con su título, su
+ * fecha y su lugar. En otro evento, o en otro mail, todo queda como estaba.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} slug
+ * @param {Awaited<ReturnType<typeof eventMailOr404>>} mail
+ * @param {string | null} [part] la dirección de la parte elegida (si no es una del taller, la 1)
+ * @returns {Promise<{ event: Awaited<ReturnType<typeof eventMailOr404>>['previewEvent']
+ *   & { parts?: import('$lib/server/tickets/workshopParts.js').PartsList | null },
+ *   choices: { slug: string, label: string }[] }>}
+ */
+export async function workshopPreview(db, slug, { def, config, previewEvent }, part = null) {
+	const plain = { event: previewEvent, choices: [] };
+	if (!PARTS_MAILS.has(def.id)) return plain;
+	/** @type {Awaited<ReturnType<typeof readWorkshop>>} */
+	let ws = null;
+	try {
+		ws = await readWorkshop(db, slug);
+	} catch (e) {
+		console.error(`[mails] no se pudo leer las partes del taller ${slug}:`, e);
+	}
+	const covered = partsCoveredBy(ws, slug);
+	if (!covered) return plain;
+	const parts = await workshopPartsList(db, slug, {
+		online: Boolean(config.online),
+		// Como al mandar: en el de transferencia (sin pagar), el lugar como se ve en el sitio.
+		buyer: def.id !== 'transfer'
+	});
+	if (def.id !== 'reminder') return { event: { ...previewEvent, parts }, choices: [] };
+	const choices = covered.map((p) => ({
+		slug: p.slug,
+		label: [
+			partLabel(p.n, covered.length),
+			partDateText(p.start),
+			p.status === 'cancelado' ? 'cancelada' : ''
+		]
+			.filter(Boolean)
+			.join(' · ')
+	}));
+	const chosen = covered.find((p) => p.n > 1 && p.slug === part);
+	if (!chosen) return { event: { ...previewEvent, parts }, choices };
+	// Como el recordatorio de verdad: el lugar de quien compró o, si no, el de la ficha de la parte.
+	const place = (await buyerLocation(db, chosen.slug)) ?? (await getEventMeta(chosen.slug));
+	return {
+		event: {
+			title: chosen.title,
+			start: chosen.start ?? undefined,
+			location: place?.location,
+			location_name: place?.location_name,
+			parts
+		},
+		choices
+	};
 }

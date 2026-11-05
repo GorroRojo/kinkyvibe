@@ -138,6 +138,13 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 		f('inicio.boton_fondo', 'inicio', 'button', 'Botón del inicio: Fondo', '💗 Fondo'),
 		f('inicio.boton_ayuda', 'inicio', 'button', 'Botón del inicio: ayuda', '❓ Ayuda'),
 		f(
+			'inicio.boton_como_buscar',
+			'inicio',
+			'button',
+			'Botón de la ayuda: cómo buscar',
+			'🔎 Cómo buscar'
+		),
+		f(
 			'inicio.boton_calendario',
 			'inicio',
 			'button',
@@ -178,7 +185,9 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				'/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n' +
 				'/evento: elegí un evento de la lista\n' +
 				'/evento <nombre>: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
-				'/buscar <texto>: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n' +
+				// Qué cubre el buscador: copia de SEARCH_SCOPE ($lib/utils/searchScope.js), que es la
+				// fuente; acá va aparte porque se edita desde el panel (lo chequea searchGuide.test.js).
+				'/buscar <texto>: buscá en todo el sitio (materiales, perfiles, eventos y la Kinkipedia)\n' +
 				'/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n' +
 				'/inicio: volver al inicio, con botones para todo\n' +
 				'{cuenta}\n' +
@@ -265,7 +274,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'inicio',
 			'message',
 			'Fondo: si no se pudieron leer los números',
-			'**💗 Fondo Kinky Vibe**\n\nAhora no pude leer los números del Fondo. Mirálos en {fondo}',
+			'**💗 Fondo Kinky Vibe**\n\nAhora no pude leer los números del Fondo. Miralos en {fondo}',
 			{ vars: [{ name: 'fondo', label: 'la dirección del Fondo', sample: 'fondo.kinkyvibe.ar' }] }
 		),
 		f('inicio.fondo_boton', 'inicio', 'button', 'Fondo: el botón', 'Sumate al Fondo ↗'),
@@ -280,7 +289,8 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			['semana', 'Lo que hay en los próximos 7 días'],
 			['finde', 'Lo que hay este fin de semana'],
 			['evento', 'Buscá un evento por nombre, fecha o lugar'],
-			['buscar', 'Buscá en todo el sitio: eventos, material, Kinkipedia y amigues'],
+			// Copia de SEARCH_SCOPE ($lib/utils/searchScope.js); lo chequea searchGuide.test.js.
+			['buscar', 'Buscá en todo el sitio: materiales, perfiles, eventos y la Kinkipedia'],
 			['fondo', 'Cuánto juntó el Fondo Kinky Vibe este mes'],
 			['ayuda', 'Qué podés pedirme']
 		].map(([command, value]) =>
@@ -471,8 +481,9 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'message',
 			'Seguir: las opciones de un evento',
 			'**⭐ Seguir**\n\nDe «{evento}» podés seguir estas etiquetas y series (tocá una):\n\n' +
-				'Te avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, ' +
-				'prendé la columna Telegram en Mi rincón → Lo que sigo.',
+				// Seguir desde el bot también prende los avisos por Telegram (decisión 0036).
+				'Te avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. ' +
+				'Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.',
 			{ vars: [V.evento] }
 		),
 		f(
@@ -916,13 +927,6 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'Estado: sin reservas ni nada para revisar',
 			'✅ Sin reservas sin pagar ni nada para revisar.'
 		),
-		f(
-			'admin.pie',
-			'admin',
-			'line',
-			'Estado: el pie',
-			'Solo cantidades: lo de cada compra está en el panel.'
-		),
 		f('admin.boton_actualizar', 'admin', 'button', 'Estado: actualizar', '🔄 Actualizar'),
 		f(
 			'admin.boton_panel',
@@ -936,7 +940,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Cambios de Claude**: si el conector de Claude aplica muchos cambios en una hora.\n• **Fallas en compras**: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• **Fallas del sitio**: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras y las fallas del sitio, en el momento.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -965,6 +969,33 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'Mis avisos: recordatorios',
 			'Recordatorios',
 			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_conector',
+			'admin',
+			'button',
+			'Mis avisos: cambios de Claude',
+			'Cambios de Claude',
+			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_fallas',
+			'admin',
+			'button',
+			'Mis avisos: fallas en compras',
+			'Fallas en compras',
+			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f(
+			'admin.aviso_fallas_sitio',
+			'admin',
+			'button',
+			'Mis avisos: fallas del sitio',
+			'Fallas del sitio',
+			{
+				max: 56,
+				help: 'El bot le suma ✅ o ⬜ adelante.'
+			}
 		),
 		f('admin.prendido', 'admin', 'toast', 'Mis avisos: al prender uno', 'Prendido: {aviso}', {
 			vars: [{ name: 'aviso', label: 'el aviso', sample: 'Resumen diario' }]
@@ -1057,6 +1088,149 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			}
 		),
 		f(
+			'admin.conector_cambios',
+			'admin',
+			'line',
+			'Aviso «Cambios de Claude»: muchos cambios en una hora',
+			'⚠️ Claude aplicó {cantidad} cambios en la última hora desde el conector.',
+			{
+				vars: [V.cantidad],
+				required: ['cantidad'],
+				help: 'Sale una vez por hora como mucho, a quienes prendieron «Cambios de Claude».'
+			}
+		),
+		f(
+			'admin.conector_autorizo',
+			'admin',
+			'line',
+			'Aviso «Cambios de Claude»: quién autorizó',
+			'Autorizó: {admins}',
+			{
+				vars: [{ name: 'admins', label: 'les admins dueñes de la conexión', sample: '@gorrite' }],
+				required: ['admins']
+			}
+		),
+		f(
+			'admin.conector_confirmo',
+			'admin',
+			'line',
+			'Aviso «Cambios de Claude»: quién confirmó en el chat',
+			'Confirmado por: {nombres}',
+			{
+				vars: [{ name: 'nombres', label: 'los nombres de «confirmado por»', sample: 'Mel, Juan' }],
+				required: ['nombres'],
+				help: 'Solo si alguno de los cambios vino con «confirmado por».'
+			}
+		),
+		f(
+			'admin.mails_cupo',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: Resend frenó los mails por el cupo',
+			'📭 Resend frenó los mails por el cupo. Compras aprobadas que esperan el mail con sus entradas: {pendientes}. Se reintentan solas cada 15 minutos; mirá el Inicio del panel.',
+			{
+				vars: [
+					{
+						name: 'pendientes',
+						label: 'cuántas órdenes aprobadas de las últimas 48 h no tienen el mail',
+						sample: '4'
+					}
+				],
+				required: ['pendientes'],
+				help: 'Les llega a quienes prendieron «Cada venta», como mucho uno por hora. Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.falla_compra',
+			'admin',
+			'line',
+			'Aviso «Fallas en compras»: algo de una compra falló',
+			'⚠️ **Falló una compra**: {falla}.\nOrden: {orden} · código de la falla: {codigo}\nVan {veces} desde las {desde}. El detalle está en los registros de Cloudflare (Workers Logs).',
+			{
+				vars: [
+					{
+						name: 'falla',
+						label: 'qué falló',
+						sample: 'no se pudo crear el pago en Mercado Pago'
+					},
+					{ name: 'orden', label: 'la referencia de la orden', sample: 'KV-1A2B3C4D' },
+					{ name: 'codigo', label: 'el código de la falla', sample: 'mp_preferencia' },
+					{ name: 'veces', label: 'cuántas van en esta media hora', sample: '3' },
+					{ name: 'desde', label: 'desde qué hora (Argentina)', sample: '14:30' }
+				],
+				required: ['falla', 'codigo'],
+				help: 'Como mucho uno por falla cada media hora, y 12 por día. Nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.falla_sin_orden',
+			'admin',
+			'line',
+			'Aviso «Fallas en compras»: cuando no se sabe la orden',
+			'sin identificar',
+			{
+				max: 40,
+				help: 'Va en {orden} cuando la falla no tiene orden (por ejemplo, un pago que no se pudo leer).'
+			}
+		),
+		f(
+			'admin.fallas_errores',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: muchos errores en una hora',
+			'⚠️ El sitio dio {cantidad} errores en la última hora.',
+			{
+				vars: [V.cantidad],
+				required: ['cantidad'],
+				help: 'Sale desde 10 errores en una hora, una vez por hora como mucho, a quienes prendieron «Fallas del sitio». Abajo van las rutas con sus errores y códigos.'
+			}
+		),
+		f(
+			'admin.fallas_compras',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: errores en las compras',
+			'🛒 Puede que haya fallado una compra: {cantidad} errores en la última hora en las páginas de compra.',
+			{
+				vars: [V.cantidad],
+				required: ['cantidad'],
+				help: 'Sale desde 2 errores en una hora en el webhook de Mercado Pago, el formulario de compra, la página de la orden, la puerta o las propinas. Una vez por hora como mucho.'
+			}
+		),
+		f(
+			'admin.fallas_codigos',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: dónde buscar los códigos',
+			'Cada código se busca en los registros del Worker en Cloudflare (Observability → Logs).'
+		),
+		f(
+			'admin.fallas_tarea',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: una tarea programada que no anda',
+			'⏰ La tarea programada «{tarea}» no termina bien desde {desde}.',
+			{
+				vars: [
+					{
+						name: 'tarea',
+						label: 'el nombre de la tarea',
+						sample: 'Todas las noches: backup de la base'
+					},
+					{ name: 'desde', label: 'desde cuándo', sample: 'hace 27 horas' }
+				],
+				required: ['tarea', 'desde'],
+				help: 'Una línea por tarea. Sale una vez cada 6 horas como mucho.'
+			}
+		),
+		f(
+			'admin.fallas_tarea_ayuda',
+			'admin',
+			'line',
+			'Aviso «Fallas del sitio»: qué mirar si una tarea no anda',
+			'Puede que no esté corriendo o que falle cada vez: mirá Cron Events y los registros del Worker en Cloudflare.'
+		),
+		f(
 			'admin.resumen_titulo',
 			'admin',
 			'line',
@@ -1108,6 +1282,48 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				required: ['cantidad']
 			}
 		),
+		f(
+			'admin.dia_titulo',
+			'admin',
+			'line',
+			'Día del evento: el título del resumen de ese día',
+			'📣 **Hoy: {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.manana_titulo',
+			'admin',
+			'line',
+			'Recordatorios: el título del de la víspera (el evento es mañana)',
+			'⏰ **Mañana: {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.falta_titulo',
+			'admin',
+			'line',
+			'Recordatorios: el título del del mismo día, si todavía falta el lugar o el link',
+			'⚠️ **Hoy: {evento}**',
+			{
+				vars: [V.evento],
+				required: ['evento'],
+				help: 'Solo sale si falta algo, y no a quien prendió «Día del evento» (su resumen ya lo dice).'
+			}
+		),
+		f(
+			'admin.falta_lugar',
+			'admin',
+			'line',
+			'Día del evento y recordatorios: un evento presencial sin lugar (solo si falta)',
+			'📍 Todavía no tiene lugar: cargalo en el panel.'
+		),
+		f(
+			'admin.falta_link',
+			'admin',
+			'line',
+			'Día del evento y recordatorios: un evento online sin el link de la transmisión (solo si falta)',
+			'🔗 Todavía falta el link de la transmisión: cargalo en el panel y mandáselo a todes.'
+		),
 
 		// -----------------------------------------------------------------------------------------
 		// Buscar en todo el sitio y modo inline (#298)
@@ -1120,6 +1336,29 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'🔎 Escribí qué buscás: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.',
 			{
 				help: 'El bot reconoce la respuesta por este mensaje: cambiarlo no rompe los que ya se mandaron.'
+			}
+		),
+		// El encabezado de la guía «Cómo buscar» del bot. Las líneas ({lista}) salen del registro
+		// ($lib/utils/searchSyntax.js, `searchHelp('bot')`); las frases de arriba de las guías del
+		// sitio y del panel están en `SEARCH_GUIDE_TEXT` de ese archivo: si cambiás esta, mirá esas
+		// (docs/buscar.md, «Dónde vive cada texto de la guía»). La muestra de {lista} es la línea de
+		// `evento:` de esa guía, copiada (lo chequea searchGuide.test.js).
+		f(
+			'sitio.como_buscar',
+			'sitio',
+			'message',
+			'Cómo buscar (el botón «🔎 Cómo buscar» de la ayuda)',
+			'**🔎 ¿Cómo buscar?**\n\nEn /buscar y en el modo inline podés escribir palabras sueltas o sumar alguno de estos:\n\n{lista}',
+			{
+				vars: [
+					{
+						name: 'lista',
+						label: 'cada operador con lo que hace y un ejemplo (sale del registro de la búsqueda)',
+						sample: '• <b>evento: · e:</b>: Solo eventos.\n<code>evento: cuerdas</code>',
+						html: true
+					}
+				],
+				required: ['lista']
 			}
 		),
 		f(
@@ -1545,8 +1784,28 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'entradas.online',
 			'entradas',
 			'line',
-			'La entrada de un evento online (no lleva QR)',
-			'💻 Es online: el link de la transmisión está en tu entrada, en el sitio.'
+			'La entrada de un evento online, todavía sin el link de la transmisión (no lleva QR)',
+			'💻 Es online. Todavía no está el link de la transmisión: te lo mandamos por mail antes del evento y también va a aparecer acá.'
+		),
+		f(
+			'entradas.online_link',
+			'entradas',
+			'line',
+			'La entrada de un evento online, con el link de la transmisión ya cargado',
+			'💻 Es online. El link de la transmisión: {link}',
+			{
+				vars: [
+					{ name: 'link', label: 'el link de la transmisión', sample: 'https://ejemplo.com/vivo' }
+				],
+				required: ['link']
+			}
+		),
+		f(
+			'entradas.boton_transmision',
+			'entradas',
+			'button',
+			'La entrada de un evento online: el botón al link de la transmisión',
+			'📺 Ver la transmisión'
 		),
 		f(
 			'entradas.ver_qr',

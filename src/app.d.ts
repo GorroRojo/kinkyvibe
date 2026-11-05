@@ -33,6 +33,13 @@ declare global {
 				readingSpeed?: number | null;
 				canHaveProfiles?: boolean;
 			};
+			/** Código corto del error de este pedido (src/lib/server/errorLog.js), si hubo uno. */
+			errorId?: string;
+			/**
+			 * Estado de una acción que falló, para el conteo de errores 5xx (`markFailure` de
+			 * src/lib/server/errorLog.js; `0`: una falla esperada que no cuenta).
+			 */
+			failureStatus?: number;
 		}
 		/** Lo que llega a la página de error (src/lib/server/errorLog.js). */
 		interface Error {
@@ -61,6 +68,13 @@ declare global {
 				 * en los pedidos a `/og/…` (lo agrega worker/index.js); en `vite dev` falta.
 				 */
 				OG_RENDER?: import('../worker/og-render.js').OgRenderer;
+				/**
+				 * Purga automática de `/media` en la caché del borde (src/lib/server/media/purge.js):
+				 * un token de API con solo Zone › Cache Purge (secreto) y el id de la zona. Se cargan en
+				 * el panel de Cloudflare; sin alguno de los dos, la purga sigue siendo a mano.
+				 */
+				CLOUDFLARE_PURGE_TOKEN?: string;
+				CLOUDFLARE_ZONE_ID?: string;
 				/** `off`: sin las tandas automáticas de D1 (src/lib/server/db/autoBatch.js). */
 				KV_D1_TANDAS?: string;
 			};

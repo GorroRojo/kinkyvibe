@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-	{#if !inPanel}<title>KV Admin</title>{/if}
+	{#if !inPanel}<title>Panel</title>{/if}
 </svelte:head>
 {#if !inPanel}
 	<header>

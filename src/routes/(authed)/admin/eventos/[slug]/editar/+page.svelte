@@ -2,12 +2,19 @@
 	import PostEditor from '$lib/components/admin/PostEditor.svelte';
 	import PartesEditor from '$lib/components/admin/PartesEditor.svelte';
 	import '$lib/admin/panel-editor.scss';
+	import { fmtDateTime } from '$lib/admin/format.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
 	/** @type {import('./$types').ActionData} */
 	export let form;
 </script>
+
+{#if data.lastEdit}
+	<p class="kv-note last-edit">
+		Última edición: {fmtDateTime(data.lastEdit.at)}, {data.lastEdit.by}.
+	</p>
+{/if}
 
 <!-- Al guardar se vuelve a leer la página: el editor se arma de nuevo con el archivo guardado. -->
 {#key data.post}
@@ -19,3 +26,9 @@
 		</svelte:fragment>
 	</PostEditor>
 {/key}
+
+<style>
+	.last-edit {
+		margin: 0 0 var(--space-xs);
+	}
+</style>

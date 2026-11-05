@@ -1,6 +1,13 @@
 /**
  * Página de una entrada: QR y datos de ESA entrada (nada de otras personas).
  * Si la abre une admin (p. ej. escaneando el QR con la cámara del celu), puede marcar el ingreso.
+ *
+ * Avisos de puerta (decisión 0053, $lib/server/tickets/doorNotices.js): solo para une admin y en
+ * un evento de Kinky Vibe, el bloque de admin muestra «Avisá a la organización antes de dejar
+ * pasar» si la entrada coincide (`adminNotice`, y `notice` en la respuesta de `checkin`: el texto
+ * o `null`; el texto viaja desde acá, así no está en el JavaScript de la página). Para
+ * cualquier otra persona la respuesta es la misma de siempre: ni el campo ni la consulta. La página
+ * no queda en cachés compartidas (`cache-control: private, no-store` en ../../+layout.server.js).
  */
 import { error, fail } from '@sveltejs/kit';
 import { isAdmin, requireAdmin } from '$lib/server/auth';
@@ -9,10 +16,31 @@ import { formatEventDate } from '$lib/server/tickets/email.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { siteOrigin, streamLinkFor } from '$lib/server/tickets/index.js';
 import { checkIn, getTicketByToken, isValidToken } from '$lib/server/tickets/orders.js';
+import {
+	DOOR_NOTICE_TEXT,
+	isKinkyVibeDoor,
+	ticketHasDoorNotice
+} from '$lib/server/tickets/doorNotices.js';
 import { qrSvg } from '$lib/server/tickets/qr.js';
 import { buyerLocation } from '$lib/server/amigues/venues.js';
 import { workshopPartsList } from '$lib/server/tickets/workshopParts.js';
 import { salePlaceText } from '$lib/utils/eventPlace.js';
+import { extrasEnabled } from '$lib/server/flags.js';
+import { orderExtras } from '$lib/server/tickets/extras.js';
+import { extrasShortText } from '$lib/utils/extras.js';
+
+/**
+ * El texto del aviso de puerta si la entrada coincide y el evento es de Kinky Vibe; si no, `null`.
+ * Solo se llama para admins.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} token
+ * @param {{ fondoEnabled?: boolean } | null | undefined} config
+ */
+async function noticeText(db, token, config) {
+	if (!isKinkyVibeDoor(config)) return null;
+	return (await ticketHasDoorNotice(db, { token, kinkyVibe: true })) ? DOOR_NOTICE_TEXT : null;
+}
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, url, locals }) {
@@ -25,7 +53,7 @@ export async function load({ params, platform, url, locals }) {
 	// La venta del evento, el lugar y las partes del taller, juntos (cada ida y vuelta a D1 cuenta).
 	const configP = getEventTickets(ticket.event_slug);
 	const onlineP = configP.then((config) => Boolean(config?.online));
-	const [config, buyerVenue, parts, streamLink] = await Promise.all([
+	const [config, buyerVenue, parts, streamLink, extras] = await Promise.all([
 		configP,
 		// Con la compra aprobada, el lugar completo (aunque en el sitio no se muestre la dirección).
 		// Se lee sin esperar a saber si es online; si lo es, no se usa.
@@ -34,11 +62,21 @@ export async function load({ params, platform, url, locals }) {
 		// completo solo con la compra aprobada, como el del taller).
 		workshopPartsList(db, ticket.event_slug, { online: onlineP, buyer: valid }),
 		// Eventos online: el link de la transmisión (solo con la compra aprobada), sin QR.
-		onlineP.then((online) => (online && valid ? streamLinkFor(db, ticket.event_slug) : null))
+		onlineP.then((online) => (online && valid ? streamLinkFor(db, ticket.event_slug) : null)),
+		// Extras de la compra (interruptor `extras`, decisión 0056): «+ 2 × Trago».
+		// Sin extras en el evento, ni el interruptor ni la tabla se leen.
+		configP.then(async (c) =>
+			valid && c?.extras?.length && (await extrasEnabled(platform))
+				? orderExtras(db, ticket.order_id)
+				: []
+		)
 	]);
 	const online = Boolean(config?.online);
 	const venue = online ? null : buyerVenue;
 	const place = venue ?? config;
+	const admin = isAdmin(locals.user);
+	// Solo une admin, y solo en eventos de Kinky Vibe, llega a consultar los avisos.
+	const adminNotice = admin ? await noticeText(db, params.token, config) : null;
 	return {
 		// Nombre y pronombres, nunca el DNI (esta página la ve cualquiera que tenga el QR).
 		ticket: {
@@ -54,8 +92,11 @@ export async function load({ params, platform, url, locals }) {
 							? 'used'
 							: 'valid'
 			),
-			checkedInAt: ticket.checked_in_at,
-			code: ticket.code ?? null
+			// La hora del ingreso, solo para admins: quien compró entradas para otres no tiene por
+			// qué saber a qué hora entró cada une (auditoría de comunidad, T7).
+			checkedInAt: isAdmin(locals.user) ? ticket.checked_in_at : null,
+			code: ticket.code ?? null,
+			extras: extrasShortText(extras)
 		},
 		event: {
 			slug: ticket.event_slug,
@@ -67,7 +108,9 @@ export async function load({ params, platform, url, locals }) {
 		},
 		streamLink,
 		qr: online ? null : qrSvg(`${siteOrigin(url)}/entradas/t/${params.token}`),
-		isAdmin: isAdmin(locals.user)
+		isAdmin: admin,
+		// Para quien no es admin, el campo no existe (la respuesta es la de siempre).
+		...(admin ? { adminNotice } : {})
 	};
 }
 
@@ -76,19 +119,26 @@ export const actions = {
 	checkin: async ({ params, platform, locals, url }) => {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
-		if (!db) return fail(503, { checkin: { result: 'error', at: null, by: null } });
+		if (!db) return fail(503, { checkin: { result: 'error', at: null, by: null, notice: null } });
 		const ticket = await getTicketByToken(db, params.token);
-		if (!ticket) return fail(404, { checkin: { result: 'invalid', at: null, by: null } });
-		const r = await checkIn(db, {
-			token: params.token,
-			eventSlug: ticket.event_slug,
-			by: admin.login
-		});
+		if (!ticket)
+			return fail(404, { checkin: { result: 'invalid', at: null, by: null, notice: null } });
+		const [r, notice] = await Promise.all([
+			checkIn(db, {
+				token: params.token,
+				eventSlug: ticket.event_slug,
+				by: admin.login
+			}),
+			getEventTickets(ticket.event_slug)
+				.then((config) => noticeText(db, params.token, config))
+				.catch(() => null)
+		]);
 		return {
 			checkin: {
 				result: r.result,
 				at: r.ticket?.checked_in_at ?? null,
-				by: r.ticket?.checked_in_by ?? null
+				by: r.ticket?.checked_in_by ?? null,
+				notice
 			}
 		};
 	}

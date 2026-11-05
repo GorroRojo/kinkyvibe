@@ -600,6 +600,26 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'entrada_online_link',
+		label: 'Mis entradas: una entrada online con el link de la transmisión',
+		keys: ['entradas.online_link', 'entradas.boton_transmision'],
+		build: (t) => ({
+			html: [
+				`🎟 <b>${escapeTelegramHtml('Charla online de ejemplo')}</b>`,
+				`📅 ${escapeTelegramHtml(SAMPLE_EVENTS[1].when)}`,
+				t('entradas.titular'),
+				t('entradas.tipo', { tipo: 'A la gorra' }),
+				'',
+				t('entradas.online_link')
+			].join('\n'),
+			buttons: [
+				[{ text: t('entradas.boton_transmision'), link: true }],
+				[{ text: t('entradas.boton_ver'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
 		id: 'entradas_vacio',
 		label: 'Mis entradas: sin entradas',
 		keys: ['entradas.vacio'],
@@ -701,7 +721,6 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'admin.transferencias',
 			'admin.revisar',
 			'admin.espera',
-			'admin.pie',
 			'admin.boton_actualizar',
 			'admin.boton_panel'
 		],
@@ -720,8 +739,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 					t('admin.transferencias', { cantidad: 2 }),
 					t('admin.revisar', { cantidad: 1 }),
 					t('admin.espera', { cantidad: 5 })
-				].join('\n'),
-				t('admin.pie')
+				].join('\n')
 			].join('\n\n'),
 			buttons: [
 				[{ text: t('admin.boton_actualizar') }, { text: t('admin.boton_panel'), link: true }],
@@ -741,8 +759,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 					t('admin.tipo', { tipo: 'General', vendidas: 0, cupo: 50 }),
 					t('admin.total_sin_cupo', { vendidas: 0 })
 				].join('\n'),
-				t('admin.nada_pendiente'),
-				t('admin.pie')
+				t('admin.nada_pendiente')
 			].join('\n\n'),
 			buttons: [
 				[{ text: t('admin.boton_actualizar') }, { text: t('admin.boton_panel'), link: true }],
@@ -759,7 +776,10 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'admin.aviso_venta',
 			'admin.aviso_transferencia',
 			'admin.aviso_dia',
-			'admin.aviso_recordatorios'
+			'admin.aviso_recordatorios',
+			'admin.aviso_conector',
+			'admin.aviso_fallas',
+			'admin.aviso_fallas_sitio'
 		],
 		build: (t) => ({
 			html: t('admin.avisos'),
@@ -769,6 +789,9 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[{ text: `⬜ ${t('admin.aviso_transferencia')}` }],
 				[{ text: `⬜ ${t('admin.aviso_dia')}` }],
 				[{ text: `⬜ ${t('admin.aviso_recordatorios')}` }],
+				[{ text: `⬜ ${t('admin.aviso_conector')}` }],
+				[{ text: `⬜ ${t('admin.aviso_fallas')}` }],
+				[{ text: `⬜ ${t('admin.aviso_fallas_sitio')}` }],
 				[{ text: t('admin.boton_estado') }, { text: t('inicio.boton_inicio') }]
 			]
 		})
@@ -783,8 +806,14 @@ export const PREVIEW_SCREENS = Object.freeze([
 	},
 	{
 		id: 'admin_aviso_venta',
-		label: 'Avisos (admins): cada venta, cada transferencia y los contracargos',
-		keys: ['admin.venta', 'admin.ventas', 'admin.transferencia', 'admin.contracargo'],
+		label: 'Avisos (admins): cada venta, cada transferencia, los contracargos y el cupo de mails',
+		keys: [
+			'admin.venta',
+			'admin.ventas',
+			'admin.transferencia',
+			'admin.contracargo',
+			'admin.mails_cupo'
+		],
 		build: (t) => ({
 			html: [
 				t('admin.venta', {
@@ -806,9 +835,81 @@ export const PREVIEW_SCREENS = Object.freeze([
 					orden: 'KV-1A2B3C4D',
 					evento: 'Fiesta de ejemplo',
 					monto: '$ 10.000'
+				}),
+				t('admin.mails_cupo', { pendientes: 4 })
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_aviso_conector',
+		label: 'Avisos (admins): muchos cambios de Claude en una hora',
+		keys: ['admin.conector_cambios', 'admin.conector_autorizo', 'admin.conector_confirmo'],
+		build: (t) => ({
+			html: [
+				t('admin.conector_cambios', { cantidad: 20 }),
+				t('admin.conector_autorizo', { admins: '@admin-de-ejemplo' }),
+				t('admin.conector_confirmo', { nombres: 'Mel, Juan' })
+			].join('\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_falla_compra',
+		label: 'Avisos (admins): falló una compra',
+		keys: ['admin.falla_compra', 'admin.falla_sin_orden'],
+		build: (t) => ({
+			html: [
+				t('admin.falla_compra', {
+					falla: 'no se pudo crear el pago en Mercado Pago',
+					orden: 'KV-1A2B3C4D',
+					codigo: 'mp_preferencia',
+					veces: 3,
+					desde: '14:30'
+				}),
+				t('admin.falla_compra', {
+					falla: 'el webhook no pudo leer un pago de Mercado Pago',
+					orden: t('admin.falla_sin_orden'),
+					codigo: 'mp_pago',
+					veces: 1,
+					desde: '15:00'
 				})
 			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_aviso_fallas_errores',
+		label: 'Avisos (admins): muchos errores del sitio o en las compras',
+		keys: ['admin.fallas_errores', 'admin.fallas_compras', 'admin.fallas_codigos'],
+		build: (t) => ({
+			html: [
+				t('admin.fallas_compras', { cantidad: 3 }),
+				'',
+				'• <code>/api/mercadopago/webhook</code> · 500 × 3 · <code>a1b2c3d4</code>',
+				'',
+				t('admin.fallas_errores', { cantidad: 12 }),
+				'',
+				'• <code>/calendario/[event]</code> · 500 × 9 · <code>0f1e2d3c</code>',
+				'• <code>/api/mercadopago/webhook</code> · 502 × 3',
+				'',
+				t('admin.fallas_codigos')
+			].join('\n')
+		})
+	},
+	{
+		id: 'admin_aviso_fallas_tareas',
+		label: 'Avisos (admins): una tarea programada que no anda',
+		keys: ['admin.fallas_tarea', 'admin.fallas_tarea_ayuda'],
+		build: (t) => ({
+			html: [
+				t('admin.fallas_tarea', {
+					tarea: 'Todas las noches: backup de la base',
+					desde: 'hace 27 horas'
+				}),
+				'',
+				t('admin.fallas_tarea_ayuda')
+			].join('\n')
 		})
 	},
 	{
@@ -832,8 +933,50 @@ export const PREVIEW_SCREENS = Object.freeze([
 					t('admin.transferencias', { cantidad: 2 }),
 					t('admin.revisar', { cantidad: 1 }),
 					t('admin.espera', { cantidad: 5 })
+				].join('\n')
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_dia',
+		label: 'Avisos (admins): el día del evento',
+		keys: ['admin.dia_titulo', 'admin.falta_lugar'],
+		build: (t) => ({
+			html: [
+				`${t('admin.dia_titulo', { evento: 'Fiesta de ejemplo' })}\n📅 sáb 11 ene · 23:00`,
+				t('admin.total', { vendidas: 45, cupo: 50 }),
+				[
+					t('admin.reservas', { cantidad: 2, por_vencer: 1 }),
+					t('admin.transferencias', { cantidad: 1 })
 				].join('\n'),
-				t('admin.pie')
+				t('admin.falta_lugar')
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_manana',
+		label: 'Avisos (admins): recordatorio del evento de mañana',
+		keys: ['admin.manana_titulo', 'admin.falta_link'],
+		build: (t) => ({
+			html: [
+				`${t('admin.manana_titulo', { evento: 'Taller online de ejemplo' })}\n📅 vie 10 ene · 19:00`,
+				t('admin.total_sin_cupo', { vendidas: 12 }),
+				t('admin.falta_link')
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_falta',
+		label: 'Avisos (admins): recordatorio del mismo día, si todavía falta algo',
+		keys: ['admin.falta_titulo', 'admin.falta_link'],
+		build: (t) => ({
+			html: [
+				`${t('admin.falta_titulo', { evento: 'Taller online de ejemplo' })}\n📅 vie 10 ene · 19:00`,
+				t('admin.total_sin_cupo', { vendidas: 14 }),
+				t('admin.falta_link')
 			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})

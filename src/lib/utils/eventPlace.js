@@ -12,6 +12,7 @@
  * guardado está en $lib/server/eventos/fileErrors.js.
  */
 import { venueLine, venueSchema } from './venues.js';
+import { stripMarks } from './text.js';
 
 /**
  * Texto del link al mapa (página y .ics). Está acá y no en icsFeed.js (que lo reexporta) para que
@@ -76,9 +77,7 @@ export const ONLINE_PLACE_TEXT = 'Online';
  * @param {unknown} raw
  */
 export function normalizePlaceText(raw) {
-	return String(raw ?? '')
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
+	return stripMarks(raw)
 		.toLowerCase()
 		.replace(/[^\p{L}\p{N}]+/gu, ' ')
 		.trim();

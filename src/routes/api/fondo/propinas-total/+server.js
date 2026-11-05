@@ -9,6 +9,7 @@
 import { env } from '$env/dynamic/private';
 import { getDB } from '$lib/server/db';
 import { handlePropinasTotal } from '$lib/server/fondo/propinasTotal.js';
+import { paypalEnabled } from '$lib/server/flags.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ request, url, platform }) {
@@ -16,6 +17,8 @@ export async function GET({ request, url, platform }) {
 		request,
 		url,
 		secret: env.FONDO_MAIL_SECRET,
-		db: getDB(platform)
+		db: getDB(platform),
+		// Con `paypal` prendido se suma `paypal: { usd, ars, count }` (docs/propinas.md).
+		paypal: () => paypalEnabled(platform)
 	});
 }

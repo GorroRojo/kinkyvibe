@@ -32,6 +32,8 @@ const tagsOf = (meta) => (Array.isArray(meta.tags) ? meta.tags : []);
  *   ($ 12.000). Con la cookie `kv-dev-hoy=<slug>` en el pedido, ese evento empieza hoy a las 23
  *   (hora de Argentina): para probar la Puerta que entra directo al único evento de hoy sin
  *   cambiar las demás pruebas (tests/tickets/menu.spec.js).
+ *   Con `TICKETS_DEV_FIXTURE_EXTRAS=1`, además dos extras (Trago $ 3.000 con tope 50 y máximo 4 por
+ *   compra; Remera $ 15.000), para probar los extras (interruptor `extras`, decisión 0056).
  * - `TICKETS_DEV_FIXTURE_GORRA=slug`: evento online SIN la etiqueta KinkyVibe (se le saca si la
  *   tiene: sin Fondo), "a la gorra" (mínimo $ 1.000, sugerido $ 5.000; y "Libre" con mínimo $ 0,
  *   sugerido $ 3.000) y "Precio fijo" ($ 6.000), Mercado Pago y transferencia.
@@ -79,7 +81,22 @@ function devFixture(slug, meta) {
 		tickets: [
 			{ id: 'general', name: 'General', price: 10000 },
 			{ id: 'anticipada', name: 'Anticipada', price: 8000, capacity: 3 }
-		]
+		],
+		...(env.TICKETS_DEV_FIXTURE_EXTRAS === '1'
+			? {
+					extras: [
+						{
+							id: 'trago',
+							name: 'Trago',
+							price: 3000,
+							description: 'Con o sin alcohol, en la barra',
+							capacity: 50,
+							per_order: 4
+						},
+						{ id: 'remera', name: 'Remera', price: 15000, description: 'Talle único' }
+					]
+				}
+			: {})
 	};
 }
 
@@ -270,6 +287,30 @@ async function eventsWithVenue(slug) {
 	return (await import('../amigues/venues.js')).eventsWithVenue(db, slug);
 }
 
+/** @typedef {{ slug: string, title: string, message: string }} BrokenTicketConfig */
+
+/**
+ * Si un evento próximo y no cancelado tiene entradas pero su configuración no se puede leer: su
+ * dirección, título y el error de validación (corto). `null` si no.
+ *
+ * @param {string} slug
+ * @param {Record<string, any>} meta
+ * @param {number} now
+ * @returns {BrokenTicketConfig | null}
+ */
+export function brokenTicketConfig(slug, meta, now) {
+	if (!sellsTickets(meta) || meta.status === 'cancelado') return null;
+	const start = Date.parse(String(meta.start ?? ''));
+	if (Number.isFinite(start) && start < now) return null;
+	try {
+		parseTicketConfig(meta, {});
+		return null;
+	} catch (error) {
+		const message = String(/** @type {Error} */ (error)?.message ?? error).slice(0, 200);
+		return { slug, title: String(meta.title ?? slug), message };
+	}
+}
+
 /**
  * @param {string} slug
  * @param {Record<string, any> | null} meta
@@ -291,10 +332,16 @@ function ticketsOf(slug, meta, options) {
 /**
  * Todos los eventos publicados que venden entradas.
  *
- * @param {{ fondoPercent?: number | null }} [options] ver `getEventTickets`
+ * `broken` (opcional): una lista donde se anotan los eventos próximos y no cancelados que tienen
+ * entradas pero cuya configuración ya no se puede leer (una regla endurecida después, un dato
+ * editado a mano): no venden y la ficha los muestra como «no vende», así que «Para revisar» los
+ * avisa (auditoría de confiabilidad, O19). Solo la dirección, el título y el error de validación.
+ *
+ * @param {{ fondoPercent?: number | null, broken?: BrokenTicketConfig[], now?: number }} [options]
+ *   ver `getEventTickets`; `now`, para decidir qué evento es próximo
  * @returns {Promise<{ slug: string, config: import('./config.js').EventTickets }[]>}
  */
-export async function listTicketedEvents(options = {}) {
+export async function listTicketedEvents({ broken, now = Date.now(), ...options } = {}) {
 	const out = [];
 	// Los eventos con lugar, a la par de la lista (ver {@link getEventTickets}): solo se usan si
 	// alguno vende entradas.
@@ -304,6 +351,10 @@ export async function listTicketedEvents(options = {}) {
 	for (const { slug, meta } of metas) {
 		const config = ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
 		if (config) out.push({ slug, config });
+		else if (broken) {
+			const b = brokenTicketConfig(slug, meta, now);
+			if (b) broken.push(b);
+		}
 	}
 	out.sort((a, b) => String(b.config.start ?? '').localeCompare(String(a.config.start ?? '')));
 	return out;

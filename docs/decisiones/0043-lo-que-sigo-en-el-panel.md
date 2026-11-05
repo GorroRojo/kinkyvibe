@@ -41,3 +41,6 @@ decían que eso estaba bien. Además faltaba la página reservada Mensajes › L
 - Les admins ven quién sigue qué en dos lugares (la ficha y Mensajes › Lo que sigo); nadie más.
   La página tiene mails: va sin caché y sin referrer, como Cuentas.
 - Las capturas de estas páginas en los PRs van con datos inventados (el repo es público).
+- Las fichas del panel de una etiqueta y de un perfil dicen cuántas cuentas lo siguen, con link a
+  «Lo más seguido» para ver quiénes (`lo-que-sigo-fichas`). Sigue siendo el panel: el «N personas
+  siguen esto» que no va es el del sitio.

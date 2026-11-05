@@ -10,6 +10,8 @@ import { renderContentBody } from '$lib/server/contenido/render.js';
 import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js';
 import { seriesTagInfo } from '$lib/server/series/web.js';
 import { followButtonState } from '$lib/server/sigo/button.js';
+import { linksHere } from '$lib/server/contenido/loQueEnlaza.js';
+import { wikiCard } from '$lib/server/ogObjeto.js';
 
 /**
  * /wiki/<término>: la página de la wiki de esa etiqueta, desde la base (el texto de la wiki es el
@@ -44,6 +46,8 @@ export async function load({ params, platform, locals, url, request }) {
 		(request.method === 'GET' || request.method === 'HEAD')
 	)
 		redirect(301, canonicalPath + url.search);
+	// «Lo que enlaza acá» (interruptor `lo_que_enlaza`), a la par de la lista. Nunca tira.
+	const linksHereP = linksHere(platform, locals, { tag: key });
 	const children = tags.get(key)?.getAllChildren() ?? [];
 	/** @param {ProcessedPost[]} list */
 	const relatedOf = (list) =>
@@ -62,7 +66,7 @@ export async function load({ params, platform, locals, url, request }) {
 	const related = await relatedWithVenuePlaces(getDB(platform), current);
 	/**
 	 * La página de la wiki (sin página: nada, y +page.js muestra la etiqueta).
-	 * @type {{ meta?: Record<string, any>, path?: string, html?: string, css?: string, parts?: import('$lib/server/contenido/interactive.js').Part[] | null, readingMinutes?: number, readingWords?: number }}
+	 * @type {{ meta?: Record<string, any>, ogCard?: Awaited<ReturnType<typeof wikiCard>>, path?: string, updatedAt?: number | null, html?: string, css?: string, parts?: import('$lib/server/contenido/interactive.js').Part[] | null, readingMinutes?: number, readingWords?: number }}
 	 */
 	let page = {};
 	if (entry) {
@@ -78,16 +82,20 @@ export async function load({ params, platform, locals, url, request }) {
 		);
 		page = {
 			...post,
+			// La vista previa propia de la entrada (docs/compartir.md); si falla, la de la Kinkipedia.
+			ogCard: await wikiCard(entry.slug, post.meta).catch(() => null),
 			html: body.html,
 			css: body.css,
 			parts: body.parts ?? null,
 			// «X min de lectura» del texto guardado (0 si es corto): $lib/utils/readingTime.js.
 			readingMinutes: pageReadingMinutes(entry.body),
 			// Las palabras, para recalcular con la velocidad de cada persona en el navegador.
-			readingWords: pageReadingWords(entry.body)
+			readingWords: pageReadingWords(entry.body),
+			// El último guardado de la etiqueta: el `dateModified` de los datos estructurados.
+			updatedAt: entry.updatedAt ?? null
 		};
 	}
-	const [ticketStates, seriesInfo, follow, wiki, details] = await Promise.all([
+	const [ticketStates, seriesInfo, follow, wiki, details, linksHereList] = await Promise.all([
 		// «Comprar entradas» / «Agotadas» en las tarjetas.
 		ticketStatesP,
 		seriesTagInfo(platform, locals, key, { tags, posts }).catch(logged('series')),
@@ -95,7 +103,8 @@ export async function load({ params, platform, locals, url, request }) {
 		// El glosario de la página: las páginas de la wiki y las descripciones y relacionadas de las
 		// etiquetas (el layout raíz manda el árbol liviano: $lib/utils/tagDetails.js).
 		siteWikiPosts(platform),
-		siteTagDetails(platform)
+		siteTagDetails(platform),
+		linksHereP
 	]);
 	return {
 		...page,
@@ -106,7 +115,8 @@ export async function load({ params, platform, locals, url, request }) {
 		seriesInfo,
 		follow,
 		wiki,
-		siteTagDetails: details
+		siteTagDetails: details,
+		linksHere: linksHereList
 	};
 }
 

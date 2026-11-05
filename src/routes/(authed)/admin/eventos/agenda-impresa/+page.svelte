@@ -133,6 +133,7 @@
 
 <svelte:head>
 	<title>Agenda impresa · Panel</title>
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- CSS fijo armado acá, sin datos de nadie -->
 	{@html pageCss}
 </svelte:head>
 
@@ -331,6 +332,7 @@
 						<span>{footer}</span>
 						{#if showQr}
 							<!-- El SVG lo arma el servidor (qrcode-generator) con una URL fija. -->
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG del QR armado en el servidor -->
 							<span class="f-qr">{@html data.qr}</span>
 						{/if}
 					</footer>

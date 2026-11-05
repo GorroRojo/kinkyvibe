@@ -16,6 +16,7 @@ import { mediaURL } from '$lib/utils';
 import { renderProfileBody } from '$lib/server/amigues/render.js';
 import { renderFreeBody, scopeCss } from './freeHtml.js';
 import { interactiveParts, markBody, unmark } from './interactive.js';
+import { addVideoExtras } from '$lib/utils/videoExtras.js';
 
 /** Clase del contenedor del texto con HTML libre: sus `<style>` se aplican solo adentro. */
 export const FREE_BODY_CLASS = 'kv-texto-libre';
@@ -64,12 +65,16 @@ export async function renderContentBody(data, category, folder, { vars = {} } = 
 		contentMediaURL(category, /\/media\/([\w.-]+)\//.exec(path)?.[1] ?? folder, file);
 	// Los interactivos registrados como marcas (y toda otra `<kv-…` escapada), ver ./interactive.js.
 	const marked = markBody(body);
+	// La transcripción y los subtítulos del video (material), después de limpiar el texto: lo que
+	// suman lo arma addVideoExtras, escapado ($lib/utils/videoExtras.js).
+	/** @param {string} html */
+	const withVideo = (html) => addVideoExtras(html, /** @type {any} */ (data ?? {}));
 	if (data?.body_html === 'libre') {
 		const { html, css } = await renderFreeBody(marked.text, { resolveMedia, vars });
-		return withParts({ html, css: scopeCss(css, `.${FREE_BODY_CLASS}`) }, marked);
+		return withParts({ html: withVideo(html), css: scopeCss(css, `.${FREE_BODY_CLASS}`) }, marked);
 	}
 	const html = await renderProfileBody(marked.text, { resolveMedia });
-	return withParts({ html, css: '' }, marked);
+	return withParts({ html: withVideo(html), css: '' }, marked);
 }
 
 /**

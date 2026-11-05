@@ -14,6 +14,8 @@
 	import Agenda from '$lib/components/admin/inicio/Agenda.svelte';
 	import SalesCard from '$lib/components/admin/inicio/SalesCard.svelte';
 	import TodayThumb from '$lib/components/admin/inicio/TodayThumb.svelte';
+	import ContentFix from '$lib/components/admin/inicio/ContentFix.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
@@ -23,6 +25,7 @@
 	import { navItem, navLink } from '$lib/admin/nav.js';
 	import { checkinHref, eventLink } from '$lib/admin/links.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
+	import { netEstimate, netEstimateText, netRevenue } from '$lib/utils/salesGoal.js';
 	import {
 		Activity,
 		ArrowLeftRight,
@@ -45,7 +48,10 @@
 		Inbox,
 		Sparkles,
 		Tag,
-		TriangleAlert
+		TriangleAlert,
+		Video,
+		ImageDown,
+		ScanText
 	} from '@lucide/svelte';
 
 	export let data;
@@ -62,7 +68,10 @@
 		profile: IdCard,
 		place: MapPin,
 		tag: Tag,
-		import: DatabaseZap
+		import: DatabaseZap,
+		video: Video,
+		alt: ScanText,
+		cover: ImageDown
 	});
 
 	$: user = data.user;
@@ -73,8 +82,8 @@
 	// varias, como «3 transferencias», también). El botón «Para revisar» de arriba cuenta lo mismo:
 	// las dos salen de `reviewRows` (src/lib/server/admin/review.js, decisión 0030).
 	$: reviewCount = data.todo.length;
-	$: checkinItem = navItem('checkin');
-	$: checkinGeneral = checkinItem ? navLink(checkinItem) : null;
+	const checkinItem = navItem('checkin');
+	const checkinGeneral = checkinItem ? navLink(checkinItem) : null;
 	$: todayEvent = data.todayEvents.find((e) => e.ticketed) ?? data.todayEvents[0];
 	$: checkinQuick = todayEvent?.ticketed ? checkinHref(todayEvent.slug) : checkinGeneral;
 
@@ -152,6 +161,8 @@
 			·
 			{#if reviewCount}
 				<a href="#para-revisar">{plural(reviewCount, 'cosa para revisar', 'cosas para revisar')}</a>
+			{:else if data.unreadable?.length}
+				no pudimos leer todo
 			{:else}
 				todo al día
 			{/if}
@@ -160,6 +171,13 @@
 			{/if}
 		</p>
 	</header>
+
+	{#if data.unreadable?.length}
+		<Notice tone="error" role={null}>
+			No pudimos leer: {data.unreadable.join(', ')}. Lo que ves puede estar incompleto; si sigue
+			así, avisale a gorrite.
+		</Notice>
+	{/if}
 
 	<div class="layout">
 		<div class="main-col">
@@ -206,7 +224,7 @@
 						><ScanLine size={18} aria-hidden="true" /> Puerta</a
 					>
 				{/if}
-				<a class="kv-btn ghost" href="/admin/ventas/codigos"
+				<a class="kv-btn ghost" href="/admin/ventas/codigos#nuevo"
 					><Tag size={18} aria-hidden="true" /> Nuevo código</a
 				>
 			</nav>
@@ -222,7 +240,21 @@
 							'entradas'
 						)} · de los eventos de este mes"
 						href="/admin/ventas"
-					/>
+					>
+						{#if data.money.mpFee}
+							{@const kind = netEstimate(data.money)}
+							<small
+								class="net-line"
+								title={netEstimateText(data.money) ||
+									'Lo recaudado menos la comisión que cobró Mercado Pago.'}
+								>{kind === 'all' ? 'Neto estimado' : 'Neto'}: {formatARS(
+									netRevenue({ revenue: data.money.total, mpFee: data.money.mpFee })
+								)}{kind === 'part'
+									? ` (comisión estimada en parte: ${formatARS(data.money.mpFeeEstimated)} de ${formatARS(data.money.mpFee)})`
+									: ''}</small
+							>
+						{/if}
+					</Stat>
 					<Stat
 						label="Neto del fondo"
 						value={formatSignedARS(data.money.fondoNet)}
@@ -273,6 +305,10 @@
 						{#if form?.resend}
 							<p class="flash" class:bad={!form.resend.ok} role="status">{form.resend.message}</p>
 						{/if}
+						{#if form?.contentFix?.ok}
+							<!-- Un arreglo de contenido que salió bien: su fila ya no está (ContentFix). -->
+							<p class="flash" role="status">{form.contentFix.message}</p>
+						{/if}
 						{#if data.todo.length}
 							<ul class="todo">
 								{#each data.todo as t (t.id)}
@@ -298,9 +334,13 @@
 												<ul class="sub">
 													{#each t.items as i (i.id)}
 														<li>
-															<span class="grow"><b>{i.name ?? i.title}</b></span>
-															{#if i.href}<a class="kv-btn ghost sm" href={i.href}>{i.action}</a
-																>{/if}
+															{#if i.altFix || i.shrink}
+																<ContentFix item={i} {form} />
+															{:else}
+																<span class="grow"><b>{i.name ?? i.title}</b></span>
+																{#if i.href}<a class="kv-btn ghost sm" href={i.href}>{i.action}</a
+																	>{/if}
+															{/if}
 														</li>
 													{/each}
 												</ul>
@@ -368,7 +408,9 @@
 							<EmptyState
 								icon={Sparkles}
 								title="Nada para revisar"
-								text="Todo al día. ¡Bien ahí!"
+								text={data.unreadable?.length
+									? 'Puede faltar algo: no pudimos leer todo (mirá el aviso de arriba).'
+									: 'Todo al día. ¡Bien ahí!'}
 							/>
 						{/if}
 					</Card>
@@ -965,5 +1007,10 @@
 			width: 100%;
 			justify-content: center;
 		}
+	}
+	.net-line {
+		display: block;
+		font-size: var(--text-xs);
+		color: var(--muted);
 	}
 </style>

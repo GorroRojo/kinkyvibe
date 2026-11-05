@@ -6,6 +6,7 @@
  * TICKETS_MP_FEE_PERCENT, EMAIL_ALLOWLIST (obligatoria para mandar
  * mails desde un preview; ver emailGuard.js). Solo en dev: MP_MOCK, TICKETS_DEV_FIXTURE.
  */
+import { orderExtras } from './extras.js';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { siteOriginFrom } from '$lib/utils/site.js';
@@ -35,7 +36,7 @@ import { isPreviewDeploy } from '../deploy.js';
 import { sha256Hex } from '../hash.js';
 import { trackFunnel } from '../analytics/track.js';
 import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
-import { applyPayment, getOrderTickets, markEmailSent } from './orders.js';
+import { applyPayment, getOrderTickets, markEmailSent, markEmailUndeliverable } from './orders.js';
 import {
 	DEFAULT_FROM_EMAIL,
 	DEFAULT_REPLY_TO,
@@ -56,6 +57,7 @@ import {
 } from './stream.js';
 import { mailBatchSize } from './batchSize.js';
 import { withMailFooter } from '../email/layout.js';
+import { domainAcceptsMail } from '../email/mx.js';
 import { isFreeOrder, isSuppressed, optOutUrl } from '../email/suppressions.js';
 import { runMailQueueWith } from './mailQueue.js';
 import { calendarStamp } from './calendarFile.js';
@@ -64,6 +66,7 @@ import { comboCodesForOrder } from './combos.js';
 import { isFlagOn } from '../flags.js';
 import { logMailsPaused, mailsPaused } from '../emergencia.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
+import { reportPurchaseFailure } from '$lib/server/telegram/purchaseAlerts.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -298,6 +301,17 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 	if (result.outcome === 'unknown-order') {
 		console.warn(`[tickets] pago ${payment.id} sin orden conocida`);
 	}
+	if (result.outcome === 'mismatch') {
+		// El monto, la moneda o el medio no coinciden (ya quedó en el log): «Fallas en compras».
+		await reportPurchaseFailure({
+			db,
+			platform,
+			code: 'pago_no_coincide',
+			order: result.order,
+			origin,
+			fetch: fetchFn
+		});
+	}
 	if (result.outcome === 'updated' && result.order?.status === 'refunded') {
 		if (payment.status === 'charged_back') {
 			// Contracargo: el banco de quien compró revirtió el cobro, no se lo devolvimos nosotres.
@@ -356,12 +370,13 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 /**
  * Manda un mail con Resend. Sin RESEND_API_KEY: en dev lo resume en la consola (`simulated`),
  * en producción loguea un error (`failed`). En un preview, solo a EMAIL_ALLOWLIST (emailGuard.js).
- * `from`: remitente fijo de un mail que no es del sitio de entradas (el del Fondo); sin él, el de
- * los ajustes, como siempre.
+ * `from`: remitente fijo de un mail que no es de entradas (el del Fondo, `AVISOS_FROM_EMAIL` de los
+ * avisos); sin él, el de los ajustes, como siempre.
  * `optOut`: un mail que no es de una compra pagada (entradas gratis, reservas por transferencia,
  * lista de espera, avisos de series…): si la dirección dijo «No fui yo» (email/suppressions.js), no
  * sale y vuelve `simulated` (como enviado: no se reintenta). Si no se puede leer la base, no sale
  * (`failed`). Los de una compra pagada no lo llevan y salen siempre.
+ * `kind`: el tipo de mail, que va como tag `tipo` de Resend (ver `sendWithResend`).
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
@@ -372,7 +387,8 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *   idempotencyKey?: string,
  *   log?: string,
  *   from?: string,
- *   optOut?: boolean
+ *   optOut?: boolean,
+ *   kind?: string
  * }} input
  * @param {(emailId: string | null) => void} [onSent] recibe el id que devolvió Resend, si salió (el
  *   mail de las entradas lo guarda en la orden: docs/mails.md, «Rebotes y quejas»)
@@ -387,7 +403,8 @@ async function deliver(
 		idempotencyKey,
 		log = '',
 		from: fixedFrom,
-		optOut = false
+		optOut = false,
+		kind
 	},
 	onSent
 ) {
@@ -443,7 +460,8 @@ async function deliver(
 			to: route.to,
 			replyTo,
 			message: { ...message, subject: route.subject },
-			idempotencyKey
+			idempotencyKey,
+			kind
 		});
 	} catch (error) {
 		// Cupo terminado: queda el aviso en «Para revisar» (resendQuota.js). El error sigue: quien
@@ -541,22 +559,41 @@ export async function sendOrderEmail(input) {
  * `failed`. Lo usa el reintento del cron (unsentOrders.js) para no volver a tomar una orden
  * cortada a propósito. Si Resend dijo «ahora no» (cupo, tasa o un 5xx: `resendBackoff` en
  * email.js), devuelve eso en vez de `failed`, así el reintento no gasta el intento.
+ * `undeliverable`: el dominio de la dirección no recibe correo (email/mx.js); no se mandó y la
+ * orden ya quedó marcada como enviada y rebotada (`markEmailUndeliverable`).
  *
  * @param {Parameters<typeof sendOrderEmail>[0]} input
- * @returns {Promise<'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server'>}
+ * @returns {Promise<'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server' | 'undeliverable'>}
  */
 export async function sendOrderEmailResult({
 	db,
-	order,
+	order: plainOrder,
 	tickets,
 	origin,
 	fetch: fetchFn,
 	idempotent = true,
-	idempotencyKey = idempotent ? `tickets-${order.id}` : undefined
+	idempotencyKey = idempotent ? `tickets-${plainOrder.id}` : undefined
 }) {
 	/** @type {string | null} */
 	let claimedLink = null;
+	// Con extras (decisión 0056), el mail los lista: se leen una vez acá.
+	const order = await withOrderExtras(db, plainOrder);
 	try {
+		// Un dominio que seguro no recibe correo (un tipeo como gmail.con): no se le pide a Resend
+		// un envío que rebota seguro, y la orden queda marcada como rebotada, como si hubiera
+		// avisado el webhook (Órdenes y «Para revisar»: docs/mails.md, «Rebotes y quejas»). Sin
+		// RESEND_API_KEY (dev, E2E) no sale nada igual: no se consulta.
+		if (
+			env.RESEND_API_KEY &&
+			!(await domainAcceptsMail(order.buyer_email, { salt: env.RESEND_API_KEY }))
+		) {
+			console.warn(
+				`[mails] el dominio del mail de la orden ${order.id} no recibe correo: no se manda y queda como rebotado`
+			);
+			await markEmailUndeliverable(db, order.id, Date.now());
+			// Ni `simulated`: el reintento del cron marcaría la orden como enviada y borraría el rebote.
+			return 'undeliverable';
+		}
 		const list = tickets?.length ? tickets : await getOrderTickets(db, order.id);
 		const config = await getEventTickets(order.event_slug);
 		const typeName =
@@ -615,6 +652,7 @@ export async function sendOrderEmailResult({
 				to: order.buyer_email,
 				message,
 				idempotencyKey,
+				kind: 'entradas',
 				optOut: isFreeOrder(order),
 				// Nunca logueamos el token completo: con él se entra al evento.
 				log: list
@@ -628,6 +666,10 @@ export async function sendOrderEmailResult({
 		if (result === 'failed' && claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink });
 		}
+		if (result === 'failed') {
+			// «Fallas en compras» por Telegram (nunca tira); el cron lo reintenta igual.
+			await reportPurchaseFailure({ db, code: 'mail_entradas', order, origin, fetch: fetchFn });
+		}
 		if (result !== 'sent') return result;
 		await markEmailSent(db, order.id, Date.now(), emailId);
 		return 'sent';
@@ -636,7 +678,11 @@ export async function sendOrderEmailResult({
 		if (claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink }).catch(() => {});
 		}
-		return resendBackoff(error) ?? 'failed';
+		const backoff = resendBackoff(error);
+		if (!backoff) {
+			await reportPurchaseFailure({ db, code: 'mail_entradas', order, origin, fetch: fetchFn });
+		}
+		return backoff ?? 'failed';
 	}
 }
 
@@ -723,6 +769,7 @@ export async function sendStreamLinkEmails({
 				to: order.buyer_email,
 				message: autoSubmitted(message),
 				idempotencyKey: `stream-${order.id}-${key}`,
+				kind: 'transmision',
 				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
@@ -802,6 +849,7 @@ export async function sendDateChangeEmails({
 				to: order.buyer_email,
 				message: autoSubmitted(message),
 				idempotencyKey: `datechange-${order.id}-${change.version}`,
+				kind: 'cambio-fecha',
 				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
@@ -809,8 +857,12 @@ export async function sendDateChangeEmails({
 	});
 }
 
+/** Cuánto se espera antes de reintentar el mail con los datos para transferir. */
+export const TRANSFER_RETRY_DELAY_MS = 2000;
+
 /**
- * Manda (o, sin RESEND_API_KEY, loguea) el email con los datos para transferir.
+ * Manda (o, sin RESEND_API_KEY, loguea) el email con los datos para transferir. Si falla, lo
+ * reintenta una vez a los {@link TRANSFER_RETRY_DELAY_MS} con la misma clave de idempotencia.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
@@ -820,7 +872,8 @@ export async function sendDateChangeEmails({
  * }} input
  * @returns {Promise<boolean>} si se envió
  */
-export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
+export async function sendTransferEmail({ db, order: plainOrder, origin, fetch: fetchFn }) {
+	const order = await withOrderExtras(db, plainOrder);
 	try {
 		const info = await transferInfo(db);
 		if (!info) throw new Error('no hay datos para transferir configurados');
@@ -846,14 +899,37 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			// Todavía no está pagada: el pie lleva «¿No reservaste vos?» (email/suppressions.js).
 			optOutUrl: await optOutUrl(db, origin, order.buyer_email)
 		});
-		const result = await deliver({
-			db,
-			fetch: fetchFn,
-			to: order.buyer_email,
-			message,
-			idempotencyKey: `transfer-${order.id}`,
-			optOut: true
-		});
+		/** @returns {Promise<'sent' | 'simulated' | 'failed'>} */
+		const send = async () => {
+			try {
+				return await deliver({
+					db,
+					fetch: fetchFn,
+					to: order.buyer_email,
+					message,
+					idempotencyKey: `transfer-${order.id}`,
+					kind: 'transferencia',
+					optOut: true
+				});
+			} catch (error) {
+				// Cupo terminado: reintentar enseguida no sirve (queda el aviso en «Para revisar»).
+				if (resendBackoff(error) === 'quota') throw error;
+				console.error(`[tickets] el mail de transferencia ${order.id} falló:`, error);
+				return 'failed';
+			}
+		};
+		let result = await send();
+		if (result === 'failed') {
+			// Un reintento, como el mail de las entradas (auditoría de confiabilidad, O29): sin los
+			// datos, la reserva vence sin que la persona sepa adónde transferir. La misma clave de
+			// idempotencia: si el primero sí salió, Resend no lo duplica.
+			console.warn(`[tickets] el mail de transferencia ${order.id} falló: se reintenta una vez`);
+			await new Promise((resolve) => setTimeout(resolve, TRANSFER_RETRY_DELAY_MS));
+			result = await send();
+			if (result === 'failed') {
+				console.error(`[tickets] el mail de transferencia ${order.id} no salió`);
+			}
+		}
 		return result === 'sent';
 	} catch (error) {
 		console.error(`[tickets] no se pudo mandar el email de transferencia ${order.id}:`, error);
@@ -866,7 +942,8 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
  *
  * @param {{ db: import('@cloudflare/workers-types').D1Database, order: import('./orders.js').Order, fetch: typeof fetch }} input
  */
-export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
+export async function sendRefundEmail({ db, order: plainOrder, fetch: fetchFn }) {
+	const order = await withOrderExtras(db, plainOrder);
 	// Una venta en la puerta puede no tener email.
 	if (!order.buyer_email) return false;
 	try {
@@ -884,6 +961,7 @@ export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
 			to: order.buyer_email,
 			message,
 			idempotencyKey: `refund-${order.id}`,
+			kind: 'reembolso',
 			optOut: isFreeOrder(order)
 		});
 		return result !== 'failed';
@@ -1035,6 +1113,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				to: order.buyer_email,
 				message: autoSubmitted(message),
 				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`,
+				kind: 'recordatorio',
 				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
@@ -1128,6 +1207,7 @@ export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit })
 				to: recipient.email,
 				message,
 				idempotencyKey: `buyer-mail-${send.id}-${who}`,
+				kind: 'mail-compradores',
 				optOut: !recipient.paid
 			});
 			return result !== 'failed';
@@ -1153,7 +1233,8 @@ export async function sendTestEmail({ db, fetch: fetchFn, to, message }) {
 			db,
 			fetch: fetchFn,
 			to,
-			message: { ...message, subject: `[Prueba] ${message.subject}` }
+			message: { ...message, subject: `[Prueba] ${message.subject}` },
+			kind: 'prueba'
 		});
 	} catch (error) {
 		console.error('[tickets] no se pudo mandar el mail de prueba:', error);
@@ -1171,4 +1252,18 @@ export async function inBackground(task, platform) {
 	const ctx = platform?.ctx;
 	if (ctx?.waitUntil) ctx.waitUntil(task);
 	else await task;
+}
+
+/**
+ * La orden con sus extras (`extras`, para el desglose de los mails: `priceLines` en email.js), si
+ * tiene (decisión 0056). Sin extras, la misma orden, sin leer nada.
+ *
+ * @template {{ id: string, extras_amount?: number | null }} T
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ * @param {T} order
+ * @returns {Promise<T & { extras?: { name: string, quantity: number, price: number }[] }>}
+ */
+export async function withOrderExtras(db, order) {
+	if (!db || !(Number(order.extras_amount ?? 0) > 0)) return order;
+	return { ...order, extras: await orderExtras(db, order.id) };
 }

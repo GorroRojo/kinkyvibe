@@ -24,6 +24,7 @@ import {
 	updateProfile
 } from './perfiles.js';
 import { ACCOUNT_EVENT_ACTOR } from '$lib/server/admin/accountEvents.js';
+import { approveProfile } from '$lib/server/amigues/approvals.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -301,5 +302,55 @@ describe('novedades para el panel', () => {
 		expect(JSON.parse(String(row?.detail))).toEqual({ kind: 'proyecto', visibility: 'public' });
 		expect(JSON.stringify(row)).not.toContain(a.id);
 		expect(JSON.stringify(row)).not.toContain('@example.com');
+	});
+
+	it('"editó su perfil": solo si ya estaba aprobado, sale al toque y sin datos de la cuenta', async () => {
+		const a = await permitted('dueñe-inventade');
+		const g = await createProfile(
+			t.db,
+			a.id,
+			{ kind: 'persona', title: 'Persona Inventada' },
+			opts
+		);
+		if (!g.ok) throw new Error(g.message);
+		const edits = () =>
+			t.db.prepare("SELECT * FROM admin_audit WHERE action = 'profile.account_edit'").all();
+
+		// Sin aprobar: ya está en «Para aprobar», no hay aviso aparte.
+		const first = await updateProfile(
+			t.db,
+			a.id,
+			'persona-inventada',
+			{ title: 'Persona Inventada', bio: 'Hola', version: 1 },
+			opts
+		);
+		expect(first.ok).toBe(true);
+		expect((await edits()).results).toEqual([]);
+
+		await approveProfile(t.db, g.profile.id, 'gorrite', { now: NOW });
+		const second = await updateProfile(
+			t.db,
+			a.id,
+			'persona-inventada',
+			{ title: 'Persona Renombrada', bio: 'Chau', version: 2 },
+			opts
+		);
+		expect(second.ok).toBe(true);
+		// Sale al toque: el cambio ya está guardado y sigue aprobado.
+		const saved = await t.db.prepare('SELECT title, version FROM objects').first();
+		expect(saved).toEqual({ title: 'Persona Renombrada', version: 3 });
+		const { results } = await edits();
+		expect(results).toHaveLength(1);
+		expect(results[0]).toMatchObject({
+			actor_id: null,
+			actor_login: ACCOUNT_EVENT_ACTOR,
+			target_type: 'profile',
+			target_id: String(g.profile.id),
+			summary: '«Persona Renombrada» editó su perfil (persona)'
+		});
+		expect(JSON.parse(String(results[0].detail))).toEqual({ kind: 'persona' });
+		expect(JSON.stringify(results)).not.toContain(a.id);
+		expect(JSON.stringify(results)).not.toContain('@example.com');
+		expect(JSON.stringify(results)).not.toContain('Chau');
 	});
 });

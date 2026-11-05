@@ -8,21 +8,22 @@
  * de "días antes del evento" es una resta.
  */
 
+import { SALE_CHANNELS, SALE_CHANNEL_LABELS, saleChannel } from '../utils/saleChannel.js';
+
 /** Argentina no tiene horario de verano: UTC−3 fijo (igual que el resto del sitio). */
 const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
-/** Canales, en el orden en que se apilan (de abajo hacia arriba). */
-export const CHANNELS = /** @type {const} */ (['online', 'puerta', 'cortesia']);
-/** @typedef {(typeof CHANNELS)[number]} Channel */
+/**
+ * Canales, en el orden en que se apilan (de abajo hacia arriba), y sus nombres: los de la regla
+ * única de $lib/utils/saleChannel.js.
+ */
+export const CHANNELS = SALE_CHANNELS;
+/** @typedef {import('$lib/utils/saleChannel.js').SaleChannel} Channel */
 
-export const CHANNEL_LABELS = /** @type {Record<Channel, string>} */ ({
-	online: 'Online',
-	puerta: 'En la puerta',
-	cortesia: 'Cortesía / sin cargo'
-});
+export const CHANNEL_LABELS = SALE_CHANNEL_LABELS;
 
 /** Días de ritmo reciente para la proyección, y mínimo de días con historia para proyectar. */
 export const PACE_WINDOW = 7;
@@ -55,26 +56,12 @@ export function dayShort(day, weekday = false) {
 	return weekday ? `${WEEKDAYS[d.getUTCDay()]} ${text}` : text;
 }
 
-/**
- * Canal de venta de una orden:
- * - `puerta`: vendida en la puerta (`channel = 'puerta'`, o pagada en efectivo);
- * - `cortesia`: sin cargo (entrada gratis o de cortesía cargada a mano);
- * - `online`: la compra de la página (Mercado Pago o transferencia).
- *
- * @param {{ payment_method?: string, channel?: string | null }} order
- * @returns {Channel}
- */
-export function channelOf(order) {
-	const channel = order.channel ?? '';
-	if (channel === 'puerta' || order.payment_method === 'efectivo') return 'puerta';
-	if (channel === 'manual' || channel === 'cortesia' || order.payment_method === 'gratis')
-		return 'cortesia';
-	return 'online';
-}
+/** Canal de venta de una orden: la regla única ({@link saleChannel}). */
+export const channelOf = saleChannel;
 
 /**
- * @typedef {{ day: number, online: number, puerta: number, cortesia: number, total: number,
- *   added: number }} SeriesPoint
+ * @typedef {{ day: number, online: number, puerta: number, cortesia: number, manual: number,
+ *   total: number, added: number }} SeriesPoint
  */
 
 /**
@@ -88,8 +75,9 @@ export function channelOf(order) {
  */
 export function cumulativeSeries(orders, { from, to }) {
 	const n = Math.max(0, to - from + 1);
-	/** @type {Record<Channel, number[]>} */
-	const per = { online: Array(n).fill(0), puerta: Array(n).fill(0), cortesia: Array(n).fill(0) };
+	const per = /** @type {Record<Channel, number[]>} */ (
+		Object.fromEntries(CHANNELS.map((c) => [c, Array(n).fill(0)]))
+	);
 	for (const o of orders) {
 		if (o.status !== 'approved') continue;
 		const i = Math.max(0, dayNumber(o.created_at) - from);
@@ -98,14 +86,14 @@ export function cumulativeSeries(orders, { from, to }) {
 	}
 	/** @type {SeriesPoint[]} */
 	const out = [];
-	const acc = { online: 0, puerta: 0, cortesia: 0 };
+	const acc = { online: 0, puerta: 0, cortesia: 0, manual: 0 };
 	for (let i = 0; i < n; i++) {
 		let added = 0;
 		for (const c of CHANNELS) {
 			acc[c] += per[c][i];
 			added += per[c][i];
 		}
-		const total = acc.online + acc.puerta + acc.cortesia;
+		const total = acc.online + acc.puerta + acc.cortesia + acc.manual;
 		out.push({ day: from + i, ...acc, total, added });
 	}
 	return out;

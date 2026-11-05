@@ -236,6 +236,55 @@ describe('staleOk: solo para mostrar, sin esperar a la API', () => {
 	});
 });
 
+describe('editorFondoPercent: el editor de eventos nunca espera a la API', () => {
+	it('con un porcentaje guardado, lo da sin esperar a la API (y la consulta en segundo plano)', async () => {
+		let f = await load();
+		await f.resolveFondoPercent({ db: t.db, fetch: fakeFetch({ percent: 20 }), now: 1000 });
+		f = await load(); // otro isolate: la memoria venció
+		const api = gatedFetch(30);
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		const percent = await f.editorFondoPercent({
+			db: t.db,
+			fetch: api.fn,
+			ctx: { waitUntil: (p) => void tasks.push(p) }
+		});
+		expect(percent).toBe(20);
+		expect(tasks).toHaveLength(1);
+		api.release();
+		await Promise.all(tasks);
+	});
+
+	it('sin porcentaje conocido y la API colgada: null al rato, sin frenar la página', async () => {
+		const f = await load();
+		const api = gatedFetch(30);
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		const started = Date.now();
+		const percent = await f.editorFondoPercent({
+			db: t.db,
+			fetch: api.fn,
+			ctx: { waitUntil: (p) => void tasks.push(p) },
+			maxWaitMs: 20
+		});
+		expect(percent).toBeNull();
+		expect(Date.now() - started).toBeLessThan(1000);
+		// La consulta sigue en segundo plano y queda para la próxima.
+		expect(tasks).toHaveLength(1);
+		api.release();
+		await Promise.all(tasks);
+		expect(await f.editorFondoPercent({ db: t.db, fetch: down })).toBe(30);
+	});
+
+	it('el fijado en Ajustes y el de dev (FONDO_PERCENT_OVERRIDE) se usan tal cual', async () => {
+		const f = await load({ dev: true, env: { FONDO_PERCENT_OVERRIDE: '20' } });
+		expect(await f.editorFondoPercent({ db: t.db, fetch: down })).toBe(20);
+		const v = /** @type {any} */ (validateSalesSettings({ fondo_percent_override: '0' })).value;
+		await saveSalesSettings(t.db, v, { by: 'admin' });
+		expect(await f.editorFondoPercent({ db: t.db, fetch: down })).toBe(0);
+	});
+});
+
 describe('precedencia y redondeo en la configuración del evento', () => {
 	const META = {
 		title: 'x',

@@ -7,6 +7,7 @@ import { fondoOptionLabel } from '$lib/utils/tickets.js';
 import { MONTHS_SHORT_ES, TIMEZONE } from '$lib/utils/dates.js';
 import { normalizeEmail, seriesLabel } from './people.js';
 import { saleAt } from './saleMonth.js';
+import { orderRevenue } from '$lib/utils/salesGoal.js';
 
 /** @typedef {import('./people.js').PersonOrder} PersonOrder */
 /** @typedef {import('./people.js').EventInfo} EventInfo */
@@ -65,7 +66,7 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 		const m = byMonth.get(monthKey(saleAt(o)));
 		if (!m) continue;
 		m.tickets += o.quantity;
-		m.revenue += o.total;
+		m.revenue += orderRevenue(o);
 		m.orders++;
 	}
 
@@ -82,7 +83,7 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 			events: new Set()
 		};
 		s.tickets += o.quantity;
-		s.revenue += o.total;
+		s.revenue += orderRevenue(o);
 		s.events.add(o.event_slug);
 		bySeries.set(key, s);
 	}
@@ -97,7 +98,7 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 			const r = m.get(k) ?? { key: k, label: label(k), orders: 0, tickets: 0, revenue: 0 };
 			r.orders++;
 			r.tickets += o.quantity;
-			r.revenue += o.total;
+			r.revenue += orderRevenue(o);
 			m.set(k, r);
 		}
 		return [...m.values()].sort((a, b) => b.orders - a.orders);
@@ -125,7 +126,10 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 		const series = seriesOf(slug);
 		const already = seen.get(series) ?? new Set();
 		const attendees = new Set(
-			evOrders.filter((o) => o.checked > 0).map((o) => normalizeEmail(o.buyer_email))
+			evOrders
+				.filter((o) => o.checked > 0)
+				.map((o) => normalizeEmail(o.buyer_email))
+				.filter(Boolean)
 		);
 		const firstTimers = [...attendees].filter((e) => !already.has(e)).length;
 		for (const e of attendees) already.add(e);
@@ -151,6 +155,8 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 		const series = seriesOf(o.event_slug);
 		const bySerie = visits.get(series) ?? new Map();
 		const email = normalizeEmail(o.buyer_email);
+		// Una venta en la puerta sin mail no es una persona (no se sabe quién es).
+		if (!email) continue;
 		const slugs = bySerie.get(email) ?? new Set();
 		slugs.add(o.event_slug);
 		bySerie.set(email, slugs);
@@ -172,7 +178,7 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 	const totalTickets = orders.reduce((s, o) => s + o.quantity, 0);
 	const totalChecked = perEvent.reduce((s, e) => s + e.checked, 0);
 	const totalSoldPast = perEvent.reduce((s, e) => s + e.sold, 0);
-	const people = new Set(orders.map((o) => normalizeEmail(o.buyer_email)));
+	const people = new Set(orders.map((o) => normalizeEmail(o.buyer_email)).filter(Boolean));
 	const allVisits = [...visits.values()].flatMap((m) => [...m.entries()]);
 	/** @type {Map<string, number>} */
 	const eventsPerPerson = new Map();
@@ -183,10 +189,10 @@ export function computeStats(allOrders, events, { now = Date.now(), months = 12 
 	return {
 		kpis: {
 			tickets: totalTickets,
-			revenue: orders.reduce((s, o) => s + o.total, 0),
+			revenue: orders.reduce((s, o) => s + orderRevenue(o), 0),
 			people: people.size,
 			avgTicket: totalTickets
-				? Math.round(orders.reduce((s, o) => s + o.total, 0) / totalTickets)
+				? Math.round(orders.reduce((s, o) => s + orderRevenue(o), 0) / totalTickets)
 				: 0,
 			checkinRate: totalSoldPast ? totalChecked / totalSoldPast : 0,
 			returningRate: eventsPerPerson.size ? returningAny / eventsPerPerson.size : 0,

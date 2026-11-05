@@ -15,6 +15,8 @@ import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { getCounts, listOrders } from '$lib/server/tickets/orders.js';
 import { previousEditionSales } from '$lib/server/tickets/salesHistory.js';
 import { goalProgress } from '$lib/utils/salesGoal.js';
+import { extrasEnabled } from '$lib/server/flags.js';
+import { extrasSummary } from '$lib/server/tickets/extras.js';
 import {
 	codesUsed,
 	fondoBreakdown,
@@ -37,10 +39,12 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 	if (!db) error(503, 'No hay base de datos disponible.');
 	const now = Date.now();
 	const eventStart = toTime(config.start);
-	const [orders, counts, previous] = await Promise.all([
+	const [orders, counts, previous, extras] = await Promise.all([
 		listOrders(db, params.slug),
 		getCounts(db, params.slug, now),
-		previousSales(db, params.slug, eventStart)
+		previousSales(db, params.slug, eventStart),
+		// Extras de la compra (interruptor `extras`, decisión 0056): aparte de lo de las entradas.
+		extrasEnabled(platform).then((on) => (on ? extrasSummary(db, params.slug) : null))
 	]);
 	const types = config.types.map((t) => {
 		const c = counts.get(t.id);
@@ -57,7 +61,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 			revenue: c?.revenue ?? 0,
 			fondoUsed: c?.fondo ?? 0,
 			contribution: c?.contribution ?? 0,
-			mpFee: c?.mpFee ?? 0
+			mpFee: c?.mpFee ?? 0,
+			mpFeeEstimated: c?.mpFeeEstimated ?? 0
 		};
 	});
 	// Sin cupo total si algún tipo no tiene cupo (`capacity: null`, sin límite).
@@ -82,6 +87,12 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 	const revenue = types.reduce((s, t) => s + t.revenue, 0);
 	// La comisión de Mercado Pago de lo cobrado: la meta en plata cuenta lo neto.
 	const mpFee = types.reduce((s, t) => s + t.mpFee, 0);
+	const mpFeeEstimated = types.reduce((s, t) => s + t.mpFeeEstimated, 0);
+	// Reembolsos parciales hechos en MP (la orden sigue aprobada): ya están restados de `revenue`.
+	const partialRefunds = orders.reduce(
+		(s, o) => s + (o.status === 'approved' ? Number(o.refunded_amount) || 0 : 0),
+		0
+	);
 	return {
 		chart,
 		types,
@@ -89,11 +100,14 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 			sold,
 			capacity,
 			revenue,
+			mpFee,
+			mpFeeEstimated,
+			partialRefunds,
 			held: heldBreakdown(orders, now)
 		},
 		// Avance contra la meta de venta (`meta_venta`; la de plata, neta de la comisión de MP), o
 		// null: entonces, contra el cupo.
-		progress: goalProgress(config.goal, { sold, revenue, mpFee }),
+		progress: goalProgress(config.goal, { sold, revenue, mpFee, mpFeeEstimated }),
 		perDay: salesPerDay(orders, { now }),
 		closes,
 		payments: paymentSplit(orders),
@@ -101,6 +115,12 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		fondoEnabled: config.fondoEnabled,
 		fondoPercent: config.fondoPercent,
 		codes: codesUsed(orders),
+		// Con el interruptor `extras`: por extra, vendidos, entregados y lo que sumaron (órdenes
+		// aprobadas). `null` apagado: no se muestra nada.
+		extras: extras && {
+			rows: extras,
+			amount: extras.reduce((s, x) => s + x.amount, 0)
+		},
 		now
 	};
 }

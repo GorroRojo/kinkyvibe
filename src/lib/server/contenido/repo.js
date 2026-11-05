@@ -677,6 +677,8 @@ export function withContentDb(base) {
 			// nombre que se muestra (`pr.who`).
 			const author = panelAuthor();
 			const actor = String(author?.login || opts.actor || 'panel');
+			// Un cambio del conector de Claude: el historial lo dice (y quién lo confirmó).
+			const claude = author?.claude ?? null;
 			const superadmin = author ? author.superadmin : opts.superadmin === true;
 
 			// Todo .md de evento, material, amigues o la wiki va a la base (nunca al repo).
@@ -760,7 +762,7 @@ export function withContentDb(base) {
 			const saved = [];
 			for (const w of writes) {
 				try {
-					await writePost(db, w, actor);
+					await writePost(db, w, actor, claude);
 				} catch (error) {
 					if (error instanceof VersionConflictError) throw new FileChangedError(w.path);
 					if (error instanceof ObjectError) {
@@ -835,11 +837,14 @@ export function bodyHtmlFor(existing, body, superadmin) {
  * @param {D1Database} db
  * @param {PlannedWrite} w
  * @param {string} actor
+ * @param {{ confirmedBy: string | null } | null} [claude] lo pidió el conector de Claude
  */
-async function writePost(db, w, actor) {
+async function writePost(db, w, actor, claude = null) {
 	const type = CONTENT_CATEGORIES[w.category].type;
 	const also = (/** @type {import('$lib/server/objects/save.js').SavedRef} */ self) => [
-		revisionStatement(db, self, 'panel')
+		claude
+			? revisionStatement(db, self, 'claude', claude.confirmedBy)
+			: revisionStatement(db, self, 'panel')
 	];
 	if (w.remove) {
 		const e = /** @type {DbPostFile} */ (w.existing);

@@ -79,7 +79,7 @@ export function followTargets(tags, manager) {
 }
 
 /**
- * La cuenta vinculada a un chat (y no borrada), o `null`. Se mira en cada mensaje (0029).
+ * La cuenta vinculada a un chat (ni borrada ni suspendida), o `null`. Se mira en cada mensaje (0029).
  *
  * @param {D1Database} db
  * @param {number | string} chatId
@@ -89,6 +89,7 @@ export async function chatAccount(db, chatId) {
 		.prepare(
 			`SELECT c.account_id FROM telegram_chats c
 			JOIN accounts a ON a.id = c.account_id AND a.deleted_at IS NULL
+				AND a.suspended_at IS NULL
 			WHERE c.chat_id = ?1`
 		)
 		.bind(String(chatId))

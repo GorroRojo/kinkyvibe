@@ -277,6 +277,7 @@ describe('backup en R2', () => {
 			/** @type {unknown} */ ({
 				put: real.put.bind(real),
 				head: real.head.bind(real),
+				get: real.get.bind(real),
 				list: real.list.bind(real),
 				delete: async () => {
 					throw new Error('objeto bloqueado');

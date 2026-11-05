@@ -50,7 +50,7 @@ import {
 	publicLinksOf,
 	withPublicLinks
 } from './vinculosPublicos.js';
-import { imageOfFrom } from '$lib/server/media/library.js';
+import { imageOf, imageOfFrom } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
 import { authorProfilePosts, authorSlugs, toPublic } from '$lib/server/amigues/asPost.js';
 import {
@@ -887,6 +887,25 @@ const resolveContentParams = (cat, category, slug) => [
 ];
 
 /**
+ * El id del objeto al que lleva una dirección de una categoría, como subconsulta (`SELECT id …`,
+ * solo `?` sin número): para pedir algo del post por su dirección sin esperar a saber su id (como
+ * «Lo que enlaza acá», ./loQueEnlaza.js). Sin mirar visibilidad. `null` si la
+ * categoría no existe.
+ *
+ * @param {string} category
+ * @param {string} slug
+ * @returns {{ sql: string, params: string[] } | null}
+ */
+export function contentIdFrom(category, slug) {
+	const cat = CONTENT_CATEGORIES[category];
+	if (!cat) return null;
+	return {
+		sql: `SELECT id FROM (${RESOLVE_CONTENT_SQL})`,
+		params: resolveContentParams(cat, category, slug)
+	};
+}
+
+/**
  * A qué objeto lleva una dirección de una categoría (sin mirar visibilidad: es para decidir el
  * camino). Primero la dirección vieja de un .md importado (`todo-kink-…-BDSM-cuir`), después la
  * del objeto.
@@ -915,6 +934,27 @@ export async function resolveContentSlug(db, category, slug) {
  */
 export function resolveEventSlug(db, slug) {
 	return resolveContentSlug(db, EVENT_CATEGORY, slug);
+}
+
+/**
+ * La portada de la biblioteca (edge `portada`) de la publicación de una dirección, o null (sin
+ * base, sin esa dirección o si no se pudo leer: entonces el editor muestra la vieja del repo). La
+ * usan los editores del panel (material y eventos) y «Cargar evento» desde otro.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string} category
+ * @param {string} slug
+ * @param {Viewer} viewer
+ * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
+ */
+export async function libraryCoverOf(db, category, slug, viewer) {
+	if (!db) return null;
+	try {
+		const ref = await resolveContentSlug(db, category, slug);
+		return ref ? await imageOf(db, ref.id, 'portada', viewer) : null;
+	} catch {
+		return null;
+	}
 }
 
 /**

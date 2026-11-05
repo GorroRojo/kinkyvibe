@@ -5,22 +5,39 @@
  */
 
 /**
- * Lowercase, without accents, trimmed, single spaces: "  Córdoba   Capital " → "cordoba capital".
- * For comparing and searching, never for showing.
+ * Las marcas que se sacan para comparar: las tildes y diéresis sueltas que deja `normalize('NFD')`
+ * (U+0300–U+036F) y los signos diacríticos de Unicode, que incluyen los que van sueltos como
+ * ´ ^ ¨ ` y el punto volado · («Mel·la»). La receta amplia (gorrite, Mesa
+ * `chica-567-quitar-tildes`): la que ya usaban el buscador del panel, la puerta y las órdenes.
+ */
+const FOLD_MARKS = /[\p{Diacritic}\u0300-\u036f]/gu;
+
+/**
+ * Sin tildes ni signos diacríticos, sin tocar mayúsculas ni espacios: "Mel·la Ñandú" → "Mella
+ * Nandu". Para comparar y buscar, nunca para mostrar ni para armar direcciones ({@link slugify}
+ * tiene su propia receta, así los slugs que ya existen no cambian).
+ * @param {unknown} s
+ */
+export function stripMarks(s) {
+	return String(s ?? '')
+		.normalize('NFD')
+		.replace(FOLD_MARKS, '');
+}
+
+/**
+ * Lowercase, without accents or diacritic signs, trimmed, single spaces: "  Córdoba   Capital " →
+ * "cordoba capital", "Mel·la" → "mella". The one recipe for comparing and searching text (panel
+ * search, door, orders, the bot, imports...), never for showing.
  * @param {unknown} s
  */
 export function foldText(s) {
-	return String(s ?? '')
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
+	return stripMarks(s).toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 /**
  * "¡Córdoba! Taller de Ecofetichismo" → "cordoba-taller-de-ecofetichismo" (at most 80 characters,
- * never ending in a dash).
+ * never ending in a dash). Keeps its own narrow accent recipe on purpose (only U+0300–U+036F, not
+ * {@link foldText}'s): "Mel·la" stays "mel-la", so slugs and URLs that already exist don't change.
  * @param {unknown} text
  */
 export function slugify(text) {

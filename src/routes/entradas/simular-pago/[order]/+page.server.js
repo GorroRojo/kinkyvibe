@@ -11,6 +11,7 @@ import { getDB } from '$lib/server/db';
 import { isMpMock, webhookSecret } from '$lib/server/tickets/index.js';
 import { itemDetail } from '$lib/server/tickets/mercadopago.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
+import { orderPaid } from '$lib/utils/extras.js';
 
 async function loadMock() {
 	// Con `dev` constante `false` en el build, el import desaparece del bundle de producción.
@@ -29,7 +30,8 @@ export async function load({ params, platform }) {
 		order: {
 			id: order.id,
 			status: order.status,
-			total: order.total,
+			// Lo que se paga en total (entradas y extras).
+			total: orderPaid(order),
 			email: order.buyer_email,
 			expiresAt: order.expires_at
 		},

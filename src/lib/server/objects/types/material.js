@@ -11,12 +11,15 @@
  *   hasta que se pasen a la biblioteca (objetos `archivo`, docs/imagenes.md).
  * - El texto enlaza los archivos de la biblioteca por su dirección (`/media/file/<hash>.pdf`) y el
  *   material tiene un edge `adjunto` hacia cada uno: lo calcula cada guardado (`deriveEdges`).
+ *   Los subtítulos del video (`subtitles`, un .vtt de la biblioteca) también cuentan.
  *
  * El sitio lo lee solo de la base (docs/contenido.md, «En la base»).
  */
 import { fileKeysInText, liveFileIds } from './archivo.js';
+import { SUBTITLES_PROBLEM, isSubtitlesPath } from '../../../utils/videoExtras.js';
 import { linkProblem } from './evento.js';
 import { personaItemsProblems } from '../../../utils/personasList.js';
+import { ENLAZA_EDGE_DEF, deriveEnlaza } from '../enlaces.js';
 
 /** @type {import('./index.js').CoreType} */
 const material = {
@@ -24,7 +27,7 @@ const material = {
 	label: 'Material',
 	fields: {
 		summary: { kind: 'text', label: 'Resumen', max: 1000 },
-		body: { kind: 'longtext', label: 'Texto' },
+		body: { kind: 'longtext', label: 'Texto', markup: true },
 		// Cómo se muestra el texto (decisión 0004), como en `evento`: 'libre' o 'corta'
 		// (src/lib/server/contenido/render.js).
 		body_html: { kind: 'option', label: 'HTML del texto', options: ['libre', 'corta'] },
@@ -47,6 +50,12 @@ const material = {
 		original_published_date: { kind: 'text', label: 'Publicación original', max: 40 },
 		access_date: { kind: 'text', label: 'Último acceso al link', max: 40 },
 		unlisted: { kind: 'boolean', label: 'No listado' },
+		// El video del texto (el primero, si hay varios): su transcripción (texto, se ve debajo del
+		// video en «Ver transcripción») y sus subtítulos (un .vtt de la biblioteca,
+		// `/media/file/<hash>.vtt`, que va como `<track>`). Ver docs/imagenes.md, «Video:
+		// transcripción y subtítulos».
+		transcript: { kind: 'longtext', label: 'Transcripción del video', max: 100_000 },
+		subtitles: { kind: 'text', label: 'Subtítulos del video', max: 200 },
 		extra: { kind: 'json', label: 'Otros datos del archivo', max: 50_000 }
 	},
 	edges: {
@@ -65,21 +74,34 @@ const material = {
 		// en `body` o en `link`): uno por archivo vivo, en el orden del texto, sin `data`. SIGUE AL
 		// TEXTO: cada guardado lo recalcula (`deriveEdges`) y nadie lo manda a mano. Un enlace a un
 		// archivo que no existe o está borrado no es edge (el próximo guardado lo saca).
-		adjunto: { label: 'Archivos enlazados', to: ['archivo'], derived: true }
+		adjunto: { label: 'Archivos enlazados', to: ['archivo'], derived: true },
+		// Lo que nombra el texto (`[[…]]`, `@`, `#`, docs/enlaces.md): un edge por objeto, en el orden
+		// del texto, sin `data`. SIGUE AL TEXTO: cada guardado lo recalcula y nadie lo manda a mano
+		// (../enlaces.js, que dice cómo se resuelve cada nombre).
+		enlaza: ENLAZA_EDGE_DEF
 	},
-	async deriveEdges(db, data) {
-		return { adjunto: await liveFileIds(db, fileKeysInText([data.body, data.link])) };
+	async deriveEdges(db, data, self) {
+		const [adjunto, links] = await Promise.all([
+			liveFileIds(db, fileKeysInText([data.body, data.link, data.subtitles])),
+			deriveEnlaza(db, data, self)
+		]);
+		return { adjunto, ...links };
 	},
 	check(data) {
 		const link = data.link ? String(data.link) : '';
 		const problem = link && !/^\d+$/.test(link) ? linkProblem(link) : null;
+		const subtitles = data.subtitles ? String(data.subtitles) : '';
 		return [
 			...(problem ? [{ path: 'link', message: `Link: ${problem}` }] : []),
+			...(subtitles && !isSubtitlesPath(subtitles)
+				? [{ path: 'subtitles', message: SUBTITLES_PROBLEM }]
+				: []),
 			...personaItemsProblems(data.personas).map((message) => ({ path: 'personas', message }))
 		];
 	},
 	searchText(data) {
-		return [data.summary, data.body].filter(Boolean).join('\n');
+		// La transcripción del video también se busca (lo que se dice en el video).
+		return [data.summary, data.body, data.transcript].filter(Boolean).join('\n');
 	}
 };
 

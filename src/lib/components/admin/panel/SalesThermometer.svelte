@@ -523,11 +523,13 @@
 
 <style>
 	/* Colores de los canales: los mismos tres validados del gráfico "Cómo pagaron" (daltonismo y
-	   contraste, en claro y en oscuro). El texto nunca va en estos colores. */
+	   contraste, en claro y en oscuro) y, para «Cargadas a mano», el magenta de los gráficos del
+	   panel (Chart.svelte). El texto nunca va en estos colores. */
 	.thermo {
 		--ch-online: #813df5;
 		--ch-puerta: #0d9b78;
 		--ch-cortesia: #f79c06;
+		--ch-manual: #c20a88;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2xs);
@@ -537,12 +539,14 @@
 			--ch-online: #9d6cf7;
 			--ch-puerta: #119a77;
 			--ch-cortesia: #bb800a;
+			--ch-manual: #e0329f;
 		}
 	}
 	:global(:root[data-theme='dark']) .thermo {
 		--ch-online: #9d6cf7;
 		--ch-puerta: #119a77;
 		--ch-cortesia: #bb800a;
+		--ch-manual: #e0329f;
 	}
 	.head {
 		display: flex;
@@ -688,6 +692,9 @@
 	.band.ch-cortesia {
 		fill: var(--ch-cortesia);
 	}
+	.band.ch-manual {
+		fill: var(--ch-manual);
+	}
 	.band-line.ch-online {
 		stroke: var(--ch-online);
 	}
@@ -696,6 +703,9 @@
 	}
 	.band-line.ch-cortesia {
 		stroke: var(--ch-cortesia);
+	}
+	.band-line.ch-manual {
+		stroke: var(--ch-manual);
 	}
 	.proj-line {
 		fill: none;
@@ -798,6 +808,9 @@
 	}
 	.sw.ch-cortesia {
 		background: var(--ch-cortesia);
+	}
+	.sw.ch-manual {
+		background: var(--ch-manual);
 	}
 	.key {
 		display: inline-block;

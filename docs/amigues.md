@@ -11,13 +11,19 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   direcciones** (`/amigues/Gorro_Rojo` sigue andando). **Solo la base**: los `.md` ya no están en
   el repo ([0032](decisiones/0032-borrar-los-md.md); el último commit con ellos tiene el tag
   `posts-md-final`).
-- `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
+- `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`, que conserva las
+  etiquetas `?tags=` y la búsqueda elegidas) y página de cada uno. El filtro no muestra el botón de
+  un tipo sin ningún perfil que quien mira pueda ver (por ejemplo «Lugares» sin lugares públicos),
+  salvo el elegido; `?tipo=` anda igual con todos.
 - **"Es mi perfil"**: cualquier cuenta pide hacerse cargo de un perfil que ya existe, tenga o no
   el permiso "puede tener perfiles" (gorrite, 26/10: en vez de un canal para pedir el permiso,
   reclamar un perfil). Pedir no da nada: une admin lo revisa en el panel y lo aprueba (la cuenta
   pasa a ser dueñe) o lo rechaza; para aprobarlo, la cuenta tiene que tener el permiso (el panel
   lo avisa y une admin se lo da antes). Mi rincón, sin el permiso, tiene la tarjeta «¿Ya estás en
-  Amigues?» que lo explica.
+  Amigues?» que lo explica, y a cualquier cuenta que pidió alguno le lista sus pedidos con su estado
+  (pendiente, aprobado, no aprobado; [cuentas.md](cuentas.md)). Si el último no se aprobó, la
+  página del perfil dice «no aprobado» en vez de volver a ofrecer el botón, y el servidor no acepta
+  otro pedido de esa cuenta para ese perfil.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
 - **Ocultar desde el panel** (la ficha del perfil, `hideProfile` en
@@ -26,6 +32,9 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   `src/lib/server/amigues/approvals.js`). Quien lo gestiona lo sigue editando en Mi rincón, pero si
   le vuelve a cambiar la visibilidad no reaparece hasta que une admin lo apruebe de nuevo (queda
   «para aprobar»).
+- **Suspender la cuenta** de quien gestiona un perfil (la ficha de la cuenta, ver
+  [cuentas.md](cuentas.md#suspender-una-cuenta)) no oculta sus perfiles: siguen como estaban
+  hasta que une admin los oculta o los borra desde acá.
 - **Lugares desde las cuentas** (decisión de gorrite,
   [0022](decisiones/0022-lugares-desde-cuentas.md)): una cuenta con el permiso de perfiles crea un
   lugar en Mi rincón → Perfiles y completa su dirección. No aparece en el sitio (ni en `/amigues`,
@@ -98,8 +107,9 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   nunca el objeto. **El contacto se muestra** (decisión de gorrite,
   [0023](decisiones/0023-contacto-publico.md)): los links, el mail y el teléfono de la ficha
   (públicos a propósito, están en el repo) salen en "Contacto" de la página del perfil o del lugar
-  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). El
-  cumpleaños y la identidad de género se importan pero no se muestran, como antes.
+  (`contactItems()` en `src/lib/utils/perfiles.js`: solo links web, `mailto:` y `tel:`). Los links
+  web (y el botón del primero) llevan `rel="nofollow ugc noopener noreferrer"`: los escribe quien
+  gestiona el perfil, como el texto. El cumpleaños y la identidad de género se importan pero no se muestran, como antes.
 - **Quienes gestionan no se muestran nunca**; integrantes de un proyecto, solo con `show_members`,
   solo aceptades, aprobades y visibles para quien mira.
 - **«Se muestra al público» es una sola regla** para perfiles y lugares: quien mira lo puede ver
@@ -428,7 +438,7 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
   «Dejar como texto».
 - **Qué se ve**: con el lugar elegido, la página dice qué eventos se van a ver distinto y por qué
   (`eventFit`, la misma lista blanca que la página del evento).
-- **Privacidad** (decidido por Claude, a confirmar): cada evento queda con el nivel del lugar,
+- **Privacidad** (decidido por Claude, **A CONFIRMAR**): cada evento queda con el nivel del lugar,
   salvo que el evento mostraba menos (por ejemplo, solo el nombre): entonces lleva ese nivel como
   propio en el edge (`linkPrivacy`). Nunca muestra del lugar más de lo que el lugar deja ver por
   defecto, aunque el evento mostrara más en su texto.
@@ -471,11 +481,12 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
   [panel.md](panel.md), «Aviso «Online con lugar»».
 - `eventVenuesStamp` (lo usa el índice de la búsqueda para saber si cambió algo) suma la versión de
   los eventos con lugar: cualquier cambio del vínculo la mueve.
-- **La tabla `event_venues` queda en la base pero nadie la usa** (las migraciones solo agregan).
-  La migración `0035_relaciones_edges.sql` pasó a edges las filas de los eventos que ya estaban en
-  la base; todos los eventos están en la base desde 0032 (`legacyVenueEdge` en
-  `contenido/importer.js` la sigue leyendo al cargar la semilla). Una migración futura la puede
-  borrar.
+- **La tabla `event_venues` se borra** con la migración `0075_borrar_event_venues.sql` (gorrite,
+  Mesa `chica-592-event-venues`). La `0035_relaciones_edges.sql` pasó a edges las filas de los
+  eventos que ya estaban en la base; todos los eventos están en la base desde 0032, y ya nada la
+  lee ni la escribe (la importación dejó de buscar ahí el lugar de un evento nuevo, y la demo, de
+  limpiarla). Antes de aplicar la 0075 en producción: un marcador de time travel y el chequeo que
+  trae escrito (cada fila con su edge `lugar`), con el visto bueno de gorrite.
 - Antes (0017 → 0035) era esa tabla, por la dirección del evento, mientras los eventos eran `.md`.
 
 ## Tablas (migraciones 0017, 0024, 0025 y 0046)
@@ -487,7 +498,7 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
 | `profile_claims`         | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
 | `profile_rejections`     | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; «Volver a mandar» o aprobarlo borra la fila                                                                                                  |
 | `event_venue_dismissals` | «Dejar como texto» de Vincular lugares (0046): un evento por fila, con la clave de su «Dónde» de entonces; si el «Dónde» cambia, se vuelve a sugerir                                                                                |
-| `event_venues`           | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento y la tabla ya no se usa                                                                                                                                 |
+| `event_venues`           | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento; la 0075 la borra                                                                                                                                       |
 
 ## Dónde está el código
 

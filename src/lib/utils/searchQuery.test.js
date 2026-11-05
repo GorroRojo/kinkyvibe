@@ -214,6 +214,24 @@ describe('parseSearchQuery: operadores', () => {
 		expect(parseSearchQuery('tipo:pizza')).toMatchObject({ kinds: null, words: ['tipo:pizza'] });
 	});
 
+	it('solo exclusiones: busca todo lo demás', () => {
+		for (const q of ['-bondage', '-#latex', '-"de dia"', '-evento:latex']) {
+			expect(hasRecordCriteria(parseSearchQuery(q)), q).toBe(true);
+		}
+		// `-tipo:` solo saca un grupo: no pide nada.
+		expect(hasRecordCriteria(parseSearchQuery('-tipo:orden'))).toBe(false);
+	});
+
+	it('-evento:latex saca solo los eventos con «latex» (no todos los eventos)', () => {
+		const pq = parseSearchQuery('fiesta -evento:latex');
+		expect(pq.excludeIn).toEqual([{ kinds: ['events'], value: 'latex' }]);
+		expect(allowsKind(pq, 'events')).toBe(true);
+		expect(pq.words).toEqual(['fiesta']);
+		expect(pq.exclude).toEqual([]);
+		// Sin valor, saca los eventos.
+		expect(allowsKind(parseSearchQuery('fiesta -evento:'), 'events')).toBe(false);
+	});
+
 	it('-tipo: saca ese tipo', () => {
 		const pq = parseSearchQuery('ana -tipo:orden');
 		expect(allowsKind(pq, 'orders')).toBe(false);

@@ -8,6 +8,7 @@
  * Saving only touches the keys that changed, so comments, key order and keys the form doesn't
  * know are kept (applyFrontmatterChanges).
  */
+import { SUBTITLES_PROBLEM, isSubtitlesPath } from './videoExtras.js';
 import { parseDocument } from 'yaml';
 import { personasFromMd, personasToMd } from './personasList.js';
 import {
@@ -26,12 +27,15 @@ export const CONTENT_CATEGORIES = Object.freeze(['material', 'amigues']);
  * @typedef {object} ContentField
  * @prop {string} key frontmatter key
  * @prop {string} label
- * @prop {'text'|'textarea'|'url'|'email'|'tel'|'date'|'checkbox'} type
+ * @prop {'text'|'textarea'|'longtext'|'url'|'email'|'tel'|'date'|'checkbox'} type `textarea`: un
+ *   texto corto en varias líneas (se guarda en una); `longtext`: un texto largo con sus saltos de
+ *   línea (la transcripción de un video)
  * @prop {string} [placeholder]
  * @prop {string} [help]
  * @prop {boolean} [required]
  * @prop {boolean} [wide]
- * @prop {'contacto'} [section] fields shown in the collapsed "public contact data" section
+ * @prop {'contacto' | 'video'} [section] fields shown in the collapsed "public contact data"
+ *   section, or in «Video» (material: the transcript and subtitles of the video in the text)
  */
 
 /** @type {ContentField[]} */
@@ -86,7 +90,25 @@ export const CONTENT_FIELDS = Object.freeze({
 		},
 		{ key: 'original_published_date', label: 'Fecha de publicación original', type: 'date' },
 		{ key: 'access_date', label: 'Última fecha de acceso al link', type: 'date' },
-		UNLISTED
+		UNLISTED,
+		{
+			key: 'transcript',
+			label: 'Transcripción',
+			type: 'longtext',
+			wide: true,
+			section: 'video',
+			placeholder: 'Lo que se dice en el video (y lo que se escucha, si importa)',
+			help: 'Se ve debajo del video, en «Ver transcripción». La escribe alguien que conoce el audio.'
+		},
+		{
+			key: 'subtitles',
+			label: 'Subtítulos (archivo .vtt)',
+			type: 'text',
+			wide: true,
+			section: 'video',
+			placeholder: '/media/file/….vtt',
+			help: 'Opcional. Subí el .vtt en Contenido → Biblioteca y pegá su dirección: el video los muestra.'
+		}
 	],
 	amigues: [
 		...COMMON,
@@ -242,6 +264,7 @@ export function fromInputValue(f, v) {
 		return isValidDate(s) ? formatPostDate(s) : s;
 	}
 	if (f.type === 'textarea') return s.replace(/\s*\n\s*/g, ' ');
+	if (f.type === 'longtext') return s.replace(/\r\n?/g, '\n');
 	return s;
 }
 
@@ -353,6 +376,9 @@ export function contentProblemItems(category, form) {
 		!String(form.values.link ?? '').trim()
 	)
 		add('Para ir directo al link hace falta el link.', 'link-input');
+	const subtitles = String(form.values.subtitles ?? '').trim();
+	if (category === 'material' && subtitles && !isSubtitlesPath(subtitles))
+		add(SUBTITLES_PROBLEM, 'subtitles-input');
 	return out;
 }
 

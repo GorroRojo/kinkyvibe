@@ -36,7 +36,7 @@
 		.trim()
 		.split(/\n{2,}/)
 		.filter(Boolean);
-	$: people = (/** @type {number} */ n) => (n === 1 ? '1 persona' : `${n} personas`);
+	const people = (/** @type {number} */ n) => (n === 1 ? '1 persona' : `${n} personas`);
 	$: pct = result?.progress?.total
 		? Math.round((result.progress.sent / result.progress.total) * 100)
 		: 0;

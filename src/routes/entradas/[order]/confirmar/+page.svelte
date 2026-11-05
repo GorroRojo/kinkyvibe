@@ -17,7 +17,8 @@
 	<title>Tu reserva · Kinky Vibe</title>
 </svelte:head>
 
-<main class="confirm">
+<!-- No es un <main>: el layout de /entradas ya pone uno. -->
+<div class="confirm">
 	{#if order.state === 'held'}
 		<h1>Tu reserva ya está guardada 💜</h1>
 		<p>
@@ -33,7 +34,7 @@
 		<p>Si ya transferiste, respondé el mail con el comprobante y lo revisamos.</p>
 	{/if}
 	<p><a href="/entradas/{order.id}/estado">Ver el estado de tu compra</a></p>
-</main>
+</div>
 
 <style>
 	.confirm {

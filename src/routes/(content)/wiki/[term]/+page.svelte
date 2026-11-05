@@ -12,14 +12,16 @@
 		wikiTermSchema
 	} from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
+	import LoQueEnlaza from '$lib/components/LoQueEnlaza.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { tagSlug } from '$lib/utils/tagSlug.js';
 	import { tagManager, userConfig } from '$lib/utils/stores.js';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { pastPostsLoader } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
-	import { readingTimeLabel } from '$lib/utils/readingTime.js';
+	import ReadingProgress from '$lib/components/ReadingProgress.svelte';
+	import { readingTimeLabel, showsReadingProgress } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { cardImage, linkPreviewOf, seriesDescription, tagDescription } from '$lib/utils/seo.js';
 	/** Sin imagen propia, la tarjeta de la Kinkipedia. */
@@ -28,6 +30,12 @@
 	export let data;
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
 	$: readingTime = data.html ? readingTimeLabel(data.readingMinutes) : '';
+	// La barra de progreso de lectura, solo en los textos largos (ReadingProgress.svelte).
+	$: longText = Boolean(data.html) && showsReadingProgress(data.readingMinutes);
+	/** @type {HTMLElement | undefined} */
+	let articleEl;
+	/** @type {HTMLElement | undefined} */
+	let textEl;
 	// Los estilos propios del texto (ya limitados al texto en el servidor). La etiqueta se arma por
 	// partes para que el preprocesador de Svelte no la tome como el bloque de estilos del componente.
 	const STYLE_TAG = 'style';
@@ -35,14 +43,16 @@
 
 	let haswiki = (/**@type string*/ n) =>
 		true || data.wiki?.some((/** @type {ProcessedPost} */ e) => e.meta.wiki == n);
-	/**@type {(termino:string, groups?: Group[], parents?: {name:string, disabled?: boolean}[])=>{name:string, disabled?: boolean}[][]}*/
-	function getAscendance(termino) {
+	// `path`: las de esta rama, para no volver a abrir una si los datos traen un ciclo de madres.
+	/**@type {(termino:string, path?: string[])=>{name:string, disabled?: boolean}[][]}*/
+	function getAscendance(termino, path = [termino]) {
 		/**@type {{name:string, disabled?: boolean}[][]}*/
 		let branches = [];
 		let tagParents = $tagManager.get(termino)?.parents?.filter((p) => p != 'root') ?? [];
 		for (let p of tagParents) {
+			if (path.includes(p)) continue;
 			let subbranch = [];
-			let grandparents = getAscendance(p);
+			let grandparents = getAscendance(p, [...path, p]);
 			if (grandparents.length > 0) {
 				for (let g of grandparents) {
 					subbranch.push([...g, { name: p, disabled: !haswiki(p) }]);
@@ -55,13 +65,14 @@
 		return branches.filter((branch) => branch.some((i) => !i.disabled));
 	}
 
-	/**@type {(termino:string, groups?: Group[], parents?: {name:string,disabled?:boolean}[])=>{name:string,disabled?:boolean}[][]}*/
-	function getDescendance(termino) {
+	/**@type {(termino:string, path?: string[])=>{name:string,disabled?:boolean}[][]}*/
+	function getDescendance(termino, path = [termino]) {
 		/**@type {{name:string, disabled?: boolean}[][]}*/
 		let branches = [];
 		let tagChildren = $tagManager.get(termino)?.children ?? [];
 		for (let c of tagChildren) {
-			let grandchildren = getDescendance(c);
+			if (path.includes(c)) continue;
+			let grandchildren = getDescendance(c, [...path, c]);
 			if (grandchildren.length > 0) {
 				for (let g of grandchildren) {
 					branches.push([{ name: c, disabled: !haswiki(c) }, ...g]);
@@ -100,13 +111,8 @@
 	};
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (relatedPosts = posts.filter(isRelated)))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (relatedPosts = posts.filter(isRelated)));
+	$: if ($userConfig.show_past_events && data.relatedPastCount > 0) loadPast();
 	// La entrada como término definido (schema.org, jsonLd.js); sin entrada, la etiqueta si tiene
 	// descripción (docs/seo.md); si no, nada.
 	// Una serie (con ediciones que ve cualquiera): su descripción y sus datos estructurados.
@@ -117,7 +123,8 @@
 				title: data.meta.title,
 				summary: data.meta.summary,
 				path: data.path,
-				aka: $tagManager.get(data.meta.wiki)?.aka
+				aka: $tagManager.get(data.meta.wiki)?.aka,
+				updatedAt: data.updatedAt
 			})
 		: data?.tag
 			? tagTermSchema({
@@ -137,20 +144,23 @@
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md): la entrada de la Kinkipedia o, sin entrada,
      la etiqueta (o la serie) con su descripción en texto o, sin descripción, una genérica; sin
-     imagen, la tarjeta de la Kinkipedia. -->
+     imagen, la tarjeta dibujada de la entrada (`ogCard`) o, sin entrada, la de la Kinkipedia. -->
 <SeoHead
 	title={pageTitle}
 	description={data?.meta?.summary ||
 		plainTagDescription(data?.tag?.description) ||
 		(series?.total ? seriesDescription(series) : tagDescription(pageTitle))}
-	image={data?.meta?.featured || KINKIPEDIA_CARD.url}
-	imageInfo={data?.meta?.featured ? undefined : KINKIPEDIA_CARD}
+	image={data?.meta?.featured}
+	card={data?.ogCard ?? KINKIPEDIA_CARD}
 	imageAlt={pageTitle}
 	type={data?.meta ? 'article' : 'website'}
 	canonical={data.canonicalPath}
 />
 
-<article class="h-entry wiki" id="title">
+{#if longText}
+	<ReadingProgress from={articleEl} text={textEl} />
+{/if}
+<article class="h-entry wiki" id="title" bind:this={articleEl}>
 	<div class="content">
 		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
 		{#if readingTime}
@@ -161,7 +171,7 @@
 		{#if data.html}
 			<!-- El texto de la wiki, de la base (src/lib/server/contenido/render.js): HTML libre con sus
 			     estilos solo adentro, o la lista corta de HTML. -->
-			<div class="kv-texto-libre">
+			<div class="kv-texto-libre" bind:this={textEl}>
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html ownStyle}
 				{#if data.parts}
@@ -235,6 +245,8 @@
 		</div>
 	</div>
 </article>
+<!-- «Lo que enlaza acá» (interruptor `lo_que_enlaza`): apagado o sin nada, `null` o vacío y no se ve. -->
+<LoQueEnlaza links={data.linksHere} />
 {#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	<!-- Los feeds de la etiqueta (eventos y material; wiki/[term]/feed.atom y feed.json). -->
 	<FeedLinks

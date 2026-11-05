@@ -37,6 +37,7 @@ import rehypeSlug from 'rehype-slug';
 import toc from '@jsdevtools/rehype-toc';
 import customRehype from '$lib/utils/customRehype.js';
 import { resolveMediaImports } from '$lib/server/amigues/render.js';
+import { tooDeepToRender } from '$lib/utils/htmlNesting.js';
 
 /** Elementos cuyo texto no se toca (como smartypants). */
 const SKIP_TAGS = new Set([
@@ -66,8 +67,12 @@ const HTML_BLOCK_TAGS = new Set(
 
 /** Un ítem de lista: viñeta (`-`, `*`, `+`) o número, y después un espacio o nada. */
 const LIST_ITEM = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
-/** El comienzo de una línea dentro de citas (`> `, `> > `…) y lo que sigue. */
-const QUOTED = /^((?:[ ]{0,3}>[ ]?)*)(.*)$/;
+/**
+ * El comienzo de una línea dentro de citas (`> `, `> > `…) y lo que sigue. `[^]*` y no `.*`: el
+ * punto no toma el separador de línea U+2028 ni U+2029 (vienen pegados del celu) y entonces la
+ * línea no coincidía y la página daba error 500.
+ */
+const QUOTED = /^((?:[ ]{0,3}>[ ]?)*)([^]*)$/;
 
 /**
  * Ajusta el markdown para que micromark (CommonMark) lo lea como lo lee el parser de mdsvex
@@ -869,6 +874,24 @@ function rehypePreLanguage() {
 	};
 }
 
+/**
+ * Cuántos títulos lista el índice (un link por título).
+ *
+ * @param {any} node
+ * @returns {number}
+ */
+function countTocLinks(node) {
+	if (!node || typeof node !== 'object') return 0;
+	const own = node.type === 'element' && node.tagName === 'a' ? 1 : 0;
+	return (
+		own +
+		(node.children ?? []).reduce(
+			(/** @type {number} */ n, /** @type {any} */ c) => n + countTocLinks(c),
+			0
+		)
+	);
+}
+
 // Los plugins están tipados para distintas versiones de unified (los de mdsvex, para otra): es el
 // mismo árbol hast.
 /** @type {any[]} */
@@ -881,10 +904,22 @@ const PLUGINS = [
 	rehypeWikiLinks,
 	customRehype,
 	rehypeRestoreBrackets,
-	toc
+	// El índice solo con 2 títulos o más: con uno (o ninguno) no ayuda a ubicarse y ocupa lugar.
+	// Y con nombre: en un evento conviven varios <nav> (menú, migas, índice).
+	[
+		toc,
+		{
+			/** @param {any} nav */
+			customizeTOC: (nav) => {
+				if (countTocLinks(nav) < 2) return false;
+				nav.properties.ariaLabel = 'Índice';
+				return nav;
+			}
+		}
+	]
 ];
 const processor = PLUGINS.reduce(
-	(p, plugin) => p.use(plugin),
+	(p, plugin) => (Array.isArray(plugin) ? p.use(...plugin) : p.use(plugin)),
 	/** @type {any} */ (rehype().data('settings', { fragment: true, allowDangerousHtml: true }))
 ).freeze();
 
@@ -915,6 +950,10 @@ export async function renderFreeBody(body, { resolveMedia = () => undefined, var
 			holdRawHtml(held)
 		]
 	});
+	// Miles de elementos uno adentro de otro rompen rehype (se queda sin pila): vacío, no un error.
+	// Cuenta también el HTML apartado (`held`), en su lugar: vuelve adentro del texto al final.
+	const whole = markup.replace(RAW_MARK, (_, n) => held[Number(n)] ?? '');
+	if (tooDeepToRender(whole, 'libre')) return { html: '', css: [] };
 	const file = await processor.process({ value: nofollow(markup), data: { held } });
 	// El HTML escrito a mano salió tal cual: una pasada más lo deja bien armado (una etiqueta sin
 	// cerrar se cierra adentro del texto y no se come el resto de la página).

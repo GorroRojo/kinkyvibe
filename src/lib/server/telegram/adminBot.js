@@ -50,6 +50,12 @@ export function noticeLabel(kind) {
 			return botText('admin.aviso_transferencia');
 		case 'dia_evento':
 			return botText('admin.aviso_dia');
+		case 'conector_claude':
+			return botText('admin.aviso_conector');
+		case 'fallas_compra':
+			return botText('admin.aviso_fallas');
+		case 'fallas_sitio':
+			return botText('admin.aviso_fallas_sitio');
 		default:
 			return botText('admin.aviso_recordatorios');
 	}
@@ -171,12 +177,7 @@ export function adminStatusScreen(choice, status, ctx) {
 		...(when ? [`📅 ${when}`] : []),
 		...(choice.cancelled ? [escapeHtml(botText('admin.cancelado'))] : [])
 	];
-	const text = [
-		head.join('\n'),
-		typeLines(status).join('\n'),
-		pendingLines(status).join('\n'),
-		botText('admin.pie')
-	]
+	const text = [head.join('\n'), typeLines(status).join('\n'), pendingLines(status).join('\n')]
 		.filter(Boolean)
 		.join('\n\n');
 	/** @type {Button[]} */
