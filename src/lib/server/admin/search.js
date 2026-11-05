@@ -9,9 +9,9 @@
  * primer filtro flojo ({@link looseLike}) y la comparación de verdad se hace acá. Sin columnas
  * nuevas ni migraciones: con cientos o pocos miles de filas alcanza.
  *
- * Entiende los operadores de `$lib/utils/searchQuery.js` (`#etiqueta`, `@persona`, `e:evento`,
- * `orden:`, `estado:`, `tipo:`, `lugar:`, `hoy`/`semana`/`finde`, `"frase"`, `-palabra`): cada
- * función recibe lo escrito o lo ya leído (`ParsedQuery`).
+ * Entiende los operadores de `$lib/utils/searchQuery.js` (la sintaxis base de docs/buscar.md,
+ * compartida con el sitio y el bot, más `@persona`, `orden:`, `estado:`, `tipo:` y las pestañas):
+ * cada función recibe lo escrito o lo ya leído (`ParsedQuery`).
  *
  * Solo para admins (Q30). El DNI nunca sale de la base: si alguien busca por DNI, la consulta
  * devuelve solo los últimos 3 dígitos para mostrar "DNI ···123". Las búsquedas no se guardan.
@@ -26,12 +26,15 @@ import { normalizeEmail, personId } from '$lib/server/admin/people.js';
 import {
 	allowsKind,
 	eventInWhen,
+	excludedIn,
 	foldQuery,
 	foldedRank,
 	hasRecordCriteria,
 	matchTerms,
+	onlyExclusions,
 	parseSearchQuery
 } from '$lib/utils/searchQuery.js';
+import { QUERY_MAX } from '$lib/utils/searchSyntax.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
@@ -46,7 +49,8 @@ import {
  */
 
 export const MIN_QUERY = 2;
-export const MAX_QUERY = 80;
+/** Largo máximo de lo buscado: el mismo en los tres buscadores (docs/buscar.md). */
+export const MAX_QUERY = QUERY_MAX;
 
 const STATUS_LABEL = /** @type {Record<string, string>} */ ({
 	pending: 'pendiente',
@@ -77,6 +81,23 @@ export const MAX_CANDIDATES = 1000;
  * patrón flojo valen cualquier carácter.
  */
 const LOOSE_LETTERS = /[aeiouncy]/;
+
+/**
+ * Signos diacríticos sueltos que `foldText` saca y que pueden estar guardados en un nombre
+ * («Mel·la»). El patrón flojo no puede saltear un carácter, así que la columna se compara sin
+ * ellos ({@link withoutSigns}).
+ */
+const SPACING_SIGNS = ['·', '´', '`', '^', '¨', '˜', '¸', '¯', 'ˆ', 'ˇ', '˘', '˙', '˚', '˝'];
+
+/**
+ * La columna `col` sin {@link SPACING_SIGNS}, para el `LIKE` flojo: así «mella» (y «Mel·la», que
+ * `foldText` deja en «mella») trae a «Mel·la» (Mesa `chica-567-quitar-tildes`). Un `LIKE '%…%'`
+ * no usa índices de todos modos.
+ * @param {string} col una columna (texto fijo del código, nunca algo escrito por alguien)
+ */
+export function withoutSigns(col) {
+	return SPACING_SIGNS.reduce((sql, c) => `replace(${sql}, '${c}', '')`, col);
+}
 
 /**
  * Patrón LIKE flojo para un texto ya pasado por `foldText`: cada letra que puede venir acentuada
@@ -188,6 +209,7 @@ export function searchEvents(events, q, { limit = 6, ticketed = new Set(), tags 
 			if (!wanted.every((names) => own.some((t) => names.has(t)))) continue;
 			if (unwanted.some((names) => own.some((t) => names.has(t)))) continue;
 		}
+		if (excludedIn(pq, 'events', e.title, e.slug, e.slug.replace(/-/g, ' '))) continue;
 		const rank = matchTerms(pq, e.title, e.slug, e.slug.replace(/-/g, ' '));
 		if (rank === -1) continue;
 		const exact =
@@ -279,7 +301,9 @@ export function searchTags(tags, q, { limit = 5 } = {}) {
 	const pq = asQuery(q);
 	if (!allowsKind(pq, 'tags')) return [];
 	const f = pq.tags.length ? pq.tags[0] : [...pq.words, ...pq.phrases].join(' ');
-	if (f.length < MIN_QUERY && !(pq.tags.length && f)) return [];
+	// Solo exclusiones (`-bondage`): todas las demás.
+	const everythingElse = onlyExclusions(pq);
+	if (f.length < MIN_QUERY && !(pq.tags.length && f) && !everythingElse) return [];
 	const byId = new Map(tags.filter((t) => t?.id).map((t) => [t.id, t]));
 	/** @type {Map<string, { t: (typeof tags)[number], rank: number, alias: string }>} */
 	const found = new Map();
@@ -304,9 +328,12 @@ export function searchTags(tags, q, { limit = 5 } = {}) {
 			if (r !== -1) add(t, r, aka);
 		}
 	}
-	// `-palabra` también vale para las etiquetas.
+	// `-palabra` también vale para las etiquetas, y `-#etiqueta` saca esa.
 	const shown = [...found.values()].filter(
-		({ t }) => !pq.exclude.some((x) => [t.id, t.visible_name].some((n) => foldText(n).includes(x)))
+		({ t }) =>
+			!pq.exclude.some((x) => [t.id, t.visible_name].some((n) => foldText(n).includes(x))) &&
+			!pq.excludeTags.some((x) => [t.id, t.visible_name].some((n) => foldText(n) === x)) &&
+			!excludedIn(pq, 'tags', t.id, t.visible_name)
 	);
 	return shown
 		.sort((a, b) => a.rank - b.rank || String(a.t.id).localeCompare(String(b.t.id)))
@@ -381,6 +408,8 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 	// El filtro flojo de la base, con el pedazo más largo (los demás se comparan acá).
 	const longest = terms.reduce((a, b) => (b.length > a.length ? b : a), '');
 	const hasTerms = longest.length > 0;
+	// Solo exclusiones (`-bondage`): todo lo demás (con `like` = `%%`, la base trae todo).
+	const everythingElse = onlyExclusions(pq);
 	const like = looseLike(longest);
 	const query = pq.text.slice(0, MAX_QUERY);
 	const idPrefix = orderIdPrefix(query);
@@ -394,7 +423,8 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 		pq.exclude.length > 0 &&
 		fields.map(foldText).some((v) => pq.exclude.some((x) => v.includes(x)));
 	/** @param {import('$lib/utils/searchQuery.js').SearchKind} kind @param {boolean} [needsTerms] */
-	const wants = (kind, needsTerms = true) => allowsKind(pq, kind) && (hasTerms || !needsTerms);
+	const wants = (kind, needsTerms = true) =>
+		allowsKind(pq, kind) && (hasTerms || everythingElse || !needsTerms);
 	const status = pq.status ?? '';
 
 	const [orders, tickets, codes, people, profiles] = await Promise.all([
@@ -408,7 +438,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 					FROM orders
 					WHERE (?5 = '' OR status = ?5) AND (
 						(?1 != '' AND id LIKE ?1 || '%')
-						OR buyer_name LIKE ?2 ESCAPE '\\' OR buyer_email LIKE ?2 ESCAPE '\\'
+						OR ${withoutSigns('buyer_name')} LIKE ?2 ESCAPE '\\' OR buyer_email LIKE ?2 ESCAPE '\\'
 						OR (?3 != '' AND buyer_dni LIKE ?3 ESCAPE '\\'))
 					ORDER BY key_hit DESC, created_at DESC LIMIT ?4`
 				)
@@ -444,7 +474,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 					`SELECT t.code, t.event_slug, t.holder_name, t.order_id, t.checked_in_at, o.status,
 						(?1 != '' AND t.code = ?1) AS key_hit
 					FROM tickets t JOIN orders o ON o.id = t.order_id
-					WHERE (?1 != '' AND t.code = ?1) OR t.holder_name LIKE ?2 ESCAPE '\\'
+					WHERE (?1 != '' AND t.code = ?1) OR ${withoutSigns('t.holder_name')} LIKE ?2 ESCAPE '\\'
 					ORDER BY key_hit DESC, o.created_at DESC LIMIT ?3`
 				)
 				.bind(code ?? '', like, MAX_CANDIDATES)
@@ -505,7 +535,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				.prepare(
 					`SELECT buyer_email, buyer_name, buyer_pronouns, event_slug, created_at FROM orders
 					WHERE status IN ('approved', 'refunded')
-						AND (buyer_name LIKE ?1 ESCAPE '\\' OR buyer_email LIKE ?1 ESCAPE '\\')
+						AND (${withoutSigns('buyer_name')} LIKE ?1 ESCAPE '\\' OR buyer_email LIKE ?1 ESCAPE '\\')
 					ORDER BY created_at DESC LIMIT ?2`
 				)
 				.bind(like, MAX_CANDIDATES)
@@ -540,13 +570,14 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				.prepare(
 					`SELECT o.slug, o.title, s.legacy_slug FROM objects o
 					LEFT JOIN profile_sources s ON s.profile_id = o.id
-					WHERE o.type = 'perfil' AND o.deleted_at IS NULL AND o.title LIKE ?1 ESCAPE '\\'
+					WHERE o.type = 'perfil' AND o.deleted_at IS NULL AND ${withoutSigns('o.title')} LIKE ?1 ESCAPE '\\'
 					ORDER BY o.title LIMIT ?2`
 				)
 				.bind(like, MAX_CANDIDATES)
 				.all();
 			const found = [];
 			for (const r of results) {
+				if (excludedIn(pq, 'profiles', r.title)) continue;
 				const rank = matchTerms(pq, r.title);
 				if (rank !== -1) found.push({ r, rank });
 			}

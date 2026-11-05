@@ -31,6 +31,7 @@ import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.
 import { isOnlineEvent, modalidadOf } from './eventPlace.js';
 import { currentSiteTags } from './siteTags.js';
 import { formatARS } from './money.js';
+import { fondoTag, fondoTagSpoken, untilShort } from './fondoPrices.js';
 import { chainCycle, doorPrice, unreachableAfter } from './ticketTiers.js';
 import {
 	ORDER_MAX_TOTAL,
@@ -231,19 +232,26 @@ export function tiersForMode(t) {
  * Preventa 2 ($ 9.000, hasta el 9/10) → General ($ 10.000, el resto)". Quien compra ve solo el
  * tramo vigente.
  *
+ * Con el porcentaje del Fondo (eventos KinkyVibe), cada precio lleva también el precio con el
+ * Fondo: "Preventa 1 ($ 8.000 · 💜 -20% = $ 6.400, las primeras 5) → …" (con `spoken`, para un
+ * lector de pantalla: "$ 8.000; con el descuento del Fondo (20 %): $ 6.400").
+ *
  * @param {TierForm[]} tiers
+ * @param {number | null} [fondoPercent] `null` o 0: sin el precio con el Fondo
+ * @param {{ spoken?: boolean }} [opts]
  */
-export function tierPreview(tiers) {
+export function tierPreview(tiers, fondoPercent = null, { spoken = false } = {}) {
 	if (!tiers.length) return '';
 	const steps = tiers.map((tr, j) => {
 		const p = parseAmount(tr.price);
 		const q = tr.quantity.trim() && /^\d+$/.test(tr.quantity.trim()) ? Number(tr.quantity) : null;
-		const until = LOCAL_RE.test(tr.until.trim())
-			? `hasta el ${Number(tr.until.slice(8, 10))}/${Number(tr.until.slice(5, 7))}`
-			: '';
+		const until = untilShort(tr.until);
 		const first = j === 0 ? 'primeras' : 'siguientes';
+		const tag = spoken
+			? fondoTagSpoken(p, fondoPercent).replace(/^C/, 'c')
+			: fondoTag(p, fondoPercent);
 		const parts = [
-			p === null ? '$ ?' : formatARS(p),
+			p === null ? '$ ?' : tag ? `${formatARS(p)}${spoken ? '; ' : ' · '}${tag}` : formatARS(p),
 			q !== null ? (q === 1 ? (j === 0 ? 'la primera' : 'la siguiente') : `las ${first} ${q}`) : '',
 			until,
 			q === null && !until ? 'el resto' : ''
@@ -918,7 +926,7 @@ export function applyTicketsForm(frontmatter, form, initial, opts) {
 	if (!formChanged && !needsDoorKey(form, initial)) return frontmatter;
 	const doc = parseDocument(frontmatter.replace(/\r\n?/g, '\n'));
 	if (doc.errors.length) throw new Error(doc.errors[0].message);
-	// @ts-ignore frontmatter vacío
+	// @ts-expect-error frontmatter vacío
 	if (doc.contents === null) doc.contents = doc.createNode({});
 	if (!form.enabled) {
 		for (const key of TICKET_KEYS) doc.delete(key);

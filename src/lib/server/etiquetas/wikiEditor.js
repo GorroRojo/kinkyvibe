@@ -16,7 +16,7 @@ import { VersionConflictError, ObjectError } from '$lib/server/objects/errors.js
 import { saveObject } from '$lib/server/objects/save.js';
 import { TAG_TYPE } from '$lib/server/objects/types/etiqueta.js';
 import { readFicha } from '$lib/server/contenido/fichas.js';
-import { revisionStatement } from '$lib/server/contenido/revisions.js';
+import { panelRevisionStatement } from '$lib/server/contenido/author.js';
 import { asTextList as strList, asText as str } from '$lib/utils/text.js';
 import { clearTagSourceCache } from './source.js';
 import { hasWikiPage, wikiBodyHtmlFor, withWikiPage } from './wikiPages.js';
@@ -144,7 +144,7 @@ export async function saveWikiPage(db, tag, values, { actor, superadmin, remove 
 			{
 				actor,
 				...(now ? { now } : {}),
-				also: (self) => [revisionStatement(db, self, 'panel')]
+				also: (self) => [panelRevisionStatement(db, self, 'panel')]
 			}
 		);
 		return { ok: true, tag: saved };

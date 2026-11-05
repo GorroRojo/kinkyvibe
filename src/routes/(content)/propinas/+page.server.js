@@ -3,7 +3,8 @@
  * Sin JavaScript (o si algo falló), muestra el mismo formulario con los errores.
  *
  * `?de=fondo` (con el interruptor `propinas_fondo`): el formulario para dejar una propina para el
- * Fondo Kinky Vibe sin publicación, al que lleva «Una vez» de fondo.kinkyvibe.ar. `&monto=<n>`
+ * Fondo Kinky Vibe sin publicación, al que lleva «Una vez» de fondo.kinkyvibe.ar. `/propinas` a
+ * secas muestra el mismo formulario (toda propina va al Fondo igual). `&monto=<n>`
  * solo elige el monto de entrada si está dentro del mínimo y el máximo; el servidor vuelve a
  * validar el monto del POST (`validateTip`).
  */
@@ -12,6 +13,7 @@ import { env } from '$env/dynamic/private';
 import { fail, redirect } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
 import { readTipForm, startTip } from '$lib/server/propinas/checkout.js';
+import { markFailure } from '$lib/server/errorLog.js';
 import { findTipPost } from '$lib/server/propinas/posts.js';
 import { getGateway, siteOrigin } from '$lib/server/tickets/index.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
@@ -23,8 +25,8 @@ export async function load({ url, setHeaders, platform }) {
 	setHeaders({ 'x-robots-tag': 'noindex' });
 	const de = url.searchParams.get('de') ?? '';
 	const fondoEnabled = await propinasFondoEnabled(platform);
-	// `?de=fondo`: desde fondo.kinkyvibe.ar (sin publicación).
-	if (de === TIP_SOURCE_FONDO && fondoEnabled) {
+	// `?de=fondo`: desde fondo.kinkyvibe.ar (sin publicación); a secas, lo mismo.
+	if ((de === TIP_SOURCE_FONDO || de === '') && fondoEnabled) {
 		return {
 			post: null,
 			fondo: true,
@@ -58,6 +60,8 @@ export const actions = {
 			fondoEnabled: values.source === TIP_SOURCE_FONDO && (await propinasFondoEnabled(platform))
 		});
 		if (!result.ok) {
+			// Un 5xx cuenta para el aviso «Fallas del sitio» (con JavaScript, el `fail` llega como 200).
+			markFailure(event, result.status);
 			return fail(result.status, { values, error: result.error, errors: result.errors });
 		}
 		redirect(303, result.checkoutUrl);

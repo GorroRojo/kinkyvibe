@@ -33,7 +33,6 @@ function orphanTagFactory(id, data) {
  *   en la app; las etiquetas viven en la base)
  * @return {TagManager}
  */
-// @ts-ignore
 export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 	/** @type Array<ProcessedTag> */
 	/**@type Map<TagID, ProcessedTag> */
@@ -68,7 +67,6 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 		 * @param {*} value
 		 */
 		set(id, value) {
-			// @ts-ignore
 			tagsMap.set(id, orphanTagFactory(id, value));
 			return;
 		},
@@ -90,10 +88,10 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 				tagManager.set(childID, {
 					parents: [id]
 				});
-			} else if (child.parents && !child.parents.includes(id)) {
-				child.parents = [...child.parents, id];
-			} else {
+			} else if (!child.parents) {
 				child.parents = [id];
+			} else if (!child.parents.includes(id)) {
+				child.parents = [...child.parents, id];
 			}
 		}
 		// generate alias tags from "aka"
@@ -107,29 +105,18 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 				}
 			}
 		}
-		// backlink related tags
-		if (tag.related && tag.related.length > 0) {
-			for (let relatedToThis of tag.related) {
-				let r = tagManager.get(relatedToThis);
-				if (r !== undefined) {
-					if (r.related && r.related.length > 0) {
-						if (!r.related.includes(tag.id)) {
-							r.related.push(tag.id);
-						}
-					} else r.related = [tag.id];
-				} else {
-					missingTags.push(relatedToThis);
-				}
-			}
-		}
 		tag.getColor = () => {
 			if (tag.color !== undefined) {
 				return tag.color;
 			}
 			let queue = [tag.id];
+			// Cada etiqueta se mira una vez: un ciclo de madres en los datos no la cuelga.
+			let seen = new Set();
 			while (queue.length > 0) {
 				let currID = queue.pop();
 				if (currID === undefined) return undefined;
+				if (seen.has(currID)) continue;
+				seen.add(currID);
 				let curr = tagManager.get(currID);
 				if (curr == undefined) {
 					continue;
@@ -146,51 +133,80 @@ export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 			}
 			return undefined;
 		};
-		tag.getAllChildren = () => {
-			let res = [];
-			let queue = [tag.id];
-			while (queue.length > 0) {
-				let currID = queue.pop();
-				if (currID === undefined) return res;
-				let curr = tagManager.get(currID);
-				if (curr === undefined || curr.children === undefined) continue;
-				queue.push(...curr.children);
-				res.push(...curr.children);
-			}
-			return res;
-		};
-		tag.getAllParents = () => {
-			let res = [];
-			let queue = [tag.id];
-			while (queue.length > 0) {
-				let currID = queue.pop();
-				if (currID === undefined) return res;
-				let curr = tagManager.get(currID);
-				if (curr === undefined || curr.parents === undefined) continue;
-				queue.push(...curr.parents);
-				res.push(...curr.parents);
-			}
-			return res;
-		};
-		if (tag.description !== undefined) {
-			tag.parsedDescription = parseDescription(tag.description, '').map((l) => {
-				if (l.type == 'link') {
-					if (tagManager.get(l.line) === undefined) {
-						missingTags.push(l.line);
-						return { type: 'text', line: l.line };
-					} else return l;
-				} else return l;
-			});
-		}
+		tag.getAllChildren = () => walkTags(tagManager, tag.id, 'children');
+		tag.getAllParents = () => walkTags(tagManager, tag.id, 'parents');
 		tag.visible_name = tag.visible_name ?? tag.id;
 	}
 
-	// link related and wikilinks
+	// link related and wikilinks, once every tag exists (children and aliases from "aka" are
+	// created during the loop above, so checking there would flag the later ones as missing)
+	/**
+	 * `get()` never returns undefined (it falls back to an orphan tag), so ask the map.
+	 * @param {TagID} id
+	 */
+	const exists = (id) => {
+		const t = tagsMap.get(id);
+		return t !== undefined && (t.aliasOf === undefined || tagsMap.has(t.aliasOf));
+	};
+	for (let [, tag] of tagManager) {
+		// backlink related tags
+		for (let relatedToThis of tag.related ?? []) {
+			if (exists(relatedToThis)) {
+				let r = tagManager.get(relatedToThis);
+				if (r.related && r.related.length > 0) {
+					if (!r.related.includes(tag.id)) {
+						r.related.push(tag.id);
+					}
+				} else r.related = [tag.id];
+			} else {
+				missingTags.push(relatedToThis);
+			}
+		}
+		// wikilinks to tags that don't exist become plain text
+		if (tag.description !== undefined) {
+			tag.parsedDescription = parseDescription(tag.description, '').map((l) => {
+				if (l.type == 'link' && !exists(l.href ?? l.line)) {
+					missingTags.push(l.href ?? l.line);
+					return { type: 'text', line: l.line };
+				} else return l;
+			});
+		}
+	}
 
-	// @ts-ignore
 	return { ...tagManager, missingTags: [...new Set(missingTags)] };
 }
 export default tagsFactory;
+
+/**
+ * Las hijas (o madres) de `id` y las de ellas, hasta abajo (o arriba) de todo, en el orden de
+ * siempre y con repetidas si se llega por dos caminos. No vuelve a abrir una etiqueta que ya está
+ * en el camino que lleva hasta ella: si los datos traen un ciclo, termina igual.
+ *
+ * @param {{ get: (id: TagID) => ProcessedTag }} tagManager
+ * @param {TagID} id
+ * @param {'children' | 'parents'} key
+ * @returns {TagID[]}
+ */
+function walkTags(tagManager, id, key) {
+	/** @typedef {{ id: TagID, up: Step | null }} Step */
+	/** @type {TagID[]} */
+	let res = [];
+	/** @type {Step[]} */
+	let queue = [{ id, up: null }];
+	while (queue.length > 0) {
+		let step = /** @type {Step} */ (queue.pop());
+		if (step.id === undefined) return res;
+		let next = tagManager.get(step.id)?.[key];
+		if (next === undefined) continue;
+		res.push(...next);
+		for (let n of next) {
+			let onPath = false;
+			for (let s = /** @type {Step | null} */ (step); s && !onPath; s = s.up) onPath = s.id === n;
+			if (!onPath) queue.push({ id: n, up: step });
+		}
+	}
+	return res;
+}
 
 /**
  * Normalizes a string by converting it to lowercase and replacing
@@ -270,6 +286,6 @@ function parseDescription(description, query) {
 		})
 		.flat()
 		.filter(({ line }) => line !== '');
-	// @ts-ignore
+	// @ts-expect-error las líneas mezclan los dos tipos que arma el map
 	return lines.length > 0 ? lines : [];
 }

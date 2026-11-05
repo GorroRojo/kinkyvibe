@@ -6,9 +6,12 @@ quien programa (personas y agentes): si cambiás cómo se escribe o se dibuja un
 en el mismo PR. Por qué es así: [0047](decisiones/0047-cuerpos-enlazados.md). La sintaxis de
 búsqueda (la que va dentro de una consulta viva) está en [buscar.md](buscar.md).
 
-> **Estado (12/10):** acordado con gorrite, **casi nada hecho todavía**. Hoy anda Markdown con
-> los `[[término : texto]]` viejos (solo a la Kinkipedia) y las menciones `@`. La columna «Hoy»
-> dice qué ya anda; cada PR que suma algo la actualiza.
+> **Estado (28/10):** acordado con gorrite, **casi nada hecho todavía**. Hoy anda Markdown con
+> los `[[término : texto]]` viejos (solo a la Kinkipedia) y las menciones `@`, y al guardar, los
+> `[[…]]`, `![[…]]`, `@` y `#` del cuerpo ya quedan como edges `enlaza` (abajo, «Al guardar»),
+> aunque todavía no se dibujen. «Lo que enlaza acá» ya está, detrás del interruptor
+> `lo_que_enlaza` (apagado; abajo). La columna «Hoy» dice qué ya se dibuja; cada PR que suma algo la
+> actualiza.
 
 ## La idea
 
@@ -44,7 +47,7 @@ lo guarda y lo dibuja el sitio.
 | `[[Consentimiento#En la práctica]]`   | Enlace a una sección.                                                                      | Obsidian            | —                         |
 | `[[Consentimiento#^a1b2]]`            | Enlace a un párrafo (más adelante).                                                        | Obsidian            | —                         |
 | `![[Taller de cuerdas nivel 1]]`      | El objeto incrustado como tarjeta (un evento con su fecha y su botón, una imagen…).        | Obsidian            | —                         |
-| `#cuerdas`                            | Etiqueta dentro del texto (enlaza a la etiqueta y se la suma al objeto).                   | Obsidian            | —                         |
+| `#cuerdas`                            | Etiqueta dentro del texto (enlaza a la etiqueta; no se la suma al objeto, ver abajo).      | Obsidian            | —                         |
 | `#[[reducción de daños]]`             | Etiqueta con espacios.                                                                     | Logseq              | —                         |
 | `@nombre`                             | Mención de un perfil del sitio (enlaza a su página).                                       | nuestra             | sí                        |
 | `> [!aviso] Título`                   | Un aviso destacado (tipos: `aviso`, `nota`, `idea`…).                                      | Obsidian            | —                         |
@@ -93,7 +96,7 @@ Cada uno se suma a esta tabla cuando se hace:
 - **Se guarda Markdown**: es lo que se edita, en los dos editores (abajo).
 - **Los enlaces van a la base**: al guardar, cada `[[…]]`, `![[…]]`, `@` y `#` se resuelve a un
   objeto y queda como una relación en el grafo (`edges`, con su tipo). De ahí salen «Lo que enlaza
-  acá» y `enlaza:` en la búsqueda.
+  acá» y `enlaza:` en la búsqueda. **Ya anda** (abajo, «Al guardar» y «Lo que enlaza acá»).
 - **Apuntan al objeto, no al título**: cambiarle el nombre a una entrada no rompe los enlaces y se
   ven con el nombre nuevo.
 - **Quién puede ver qué**: un enlace a algo que quien lee no puede ver se dibuja como texto
@@ -104,6 +107,132 @@ Cada uno se suma a esta tabla cuando se hace:
   crecer la Kinkipedia.
 - **Lo viejo**: los links internos que hoy están como URL (`/wiki/…`, `/material/…`) se pasan a
   `[[…]]` de a tandas, cada una con el OK de gorrite en la Mesa.
+
+### Al guardar: el edge `enlaza`
+
+Lo hace `saveObject()` en cada guardado, por cualquier camino (panel, Mi rincón, importaciones), en
+la misma tanda que el objeto: es un edge **calculado** (`derived`, como `adjunto` del material,
+[objetos.md](objetos.md)). Lo tienen los cuatro tipos con cuerpo (`data.body`): evento, material,
+perfil y etiqueta (el texto de la wiki).
+
+- **Qué se lee**: `bodyReferences` (`src/lib/utils/enlaces.js`) saca del cuerpo lo que nombran
+  `[[…]]`, `![[…]]`, `@nombre`, `#etiqueta` y `#[[etiqueta]]`, sin el texto visible (`|texto`,
+  ` : texto`) ni la sección (`#…`). No cuenta lo que está en código, en `<script>`/`<style>`, en
+  comentarios HTML, en direcciones (`instagram.com/@alguien`, `href="#x"`) ni lo escapado.
+- **Cómo se resuelve** (`src/lib/server/objects/enlaces.js`, solo entre objetos vivos y nunca el
+  mismo objeto):
+  - `@nombre`: el perfil con esa dirección (la vieja de la ficha o la del objeto), como
+    `/amigues/<nombre>`;
+  - `#etiqueta`: la etiqueta con ese nombre (`key`; un alias es una etiqueta más), comparado como
+    `/wiki/<término>` (sin mayúsculas, guiones por espacios), o con esa dirección;
+  - `[[nombre]]`: primero una etiqueta (lo que hacen hoy los `[[…]]`), si no el objeto con ese
+    título (sin mayúsculas), si no el de esa dirección. Si empatan dos tipos gana material, después
+    evento, perfil y etiqueta; en el mismo tipo, el más viejo.
+  - **Lo público gana** (gorrite, 3 nov 2026): si el nombre lleva a algo que cualquiera puede ver
+    (público; un perfil, además, aprobado y no oculto) y también a algo oculto, «solo con cuenta» o
+    sin aprobar, gana lo público, antes que las reglas de arriba. Si solo lleva a algo que no es
+    público, apunta ahí igual (no es «falta»). «No listado» cuenta como público.
+- **Qué se guarda**: un edge `enlaza` por objeto, en el orden del texto (`position`), sin `data`,
+  como mucho 200 por objeto. Se suman los nuevos y se sacan los que el texto ya no nombra; los demás
+  edges (`persona`, `etiqueta`, `lugar`…) no se tocan. Nadie los manda a mano (es un error).
+- **Lo que falta no se guarda**: un edge necesita un objeto en la otra punta y no hay tabla para
+  los nombres sueltos. La lista de lo que falta (abajo, «Enlaces que faltan») lo vuelve a calcular
+  leyendo los cuerpos, con la misma resolución.
+- **Lo que se guarda junto con otros**: en una importación grande (`saveObjects`), un enlace a un
+  objeto que se crea en la misma tanda todavía no se encuentra; el próximo guardado (o
+  `scripts/enlaces-backfill.js`) lo suma.
+- **`#etiqueta` no suma la etiqueta al objeto**: es un enlace `enlaza` como cualquier otro; el
+  campo de etiquetas y sus edges `etiqueta` no cambian. gorrite no está segure de que tenga que
+  sumarla (3 nov 2026), así que queda para más adelante (`enlaces-etiqueta-suma`, «algún día»).
+- **Quién puede ver qué** (para «Lo que enlaza acá», abajo, y quien dibuje los enlaces): el edge
+  se guarda aunque la otra punta sea oculta, «solo con cuenta» o un perfil sin aprobar. Quien lo
+  lea muestra un edge solo si quien mira puede ver **las dos** puntas
+  (`getEdges` con su `viewer`; los perfiles, además, aprobados, como `vinculosPublicos.js`), y un
+  enlace a algo que quien mira no puede ver se dibuja **igual que uno a algo que no existe** (si se
+  dibujaran distinto, se sabría que existe algo oculto con ese nombre).
+- **Lo ya guardado**: `node scripts/enlaces-backfill.js` (solo la base local) cuenta qué cambiaría;
+  con `--apply`, vuelve a guardar con `saveObject()` los objetos que cambian, sin tocar sus datos
+  (sube la versión, suma una fila «migracion» al historial, deja `updated_at` y lo importado sin
+  editar como estaba). Para preview o producción no tiene opción. En producción se corre una vez
+  que el diseño de los enlaces esté asentado (gorrite, 3 nov 2026: «una vez estemos bien con el
+  diseño sí»); hasta entonces, no (`enlaces-pasar-guardados`).
+
+### Lo que enlaza acá
+
+Al pie de la página de un evento, un material, un perfil y una entrada de la Kinkipedia (o de una
+etiqueta sin texto), la sección «Lo que enlaza acá»: las páginas cuyo cuerpo la enlaza (los edges
+`enlaza` que llegan), por título, con su tipo (Evento, Material, Amigues, Kinkipedia). Sin nada,
+no se ve. Detrás del interruptor **`lo_que_enlaza`** (`LO_QUE_ENLAZA_ENABLED`, apagado;
+[interruptores.md](interruptores.md)). Código: `src/lib/server/contenido/loQueEnlaza.js` y
+`src/lib/components/LoQueEnlaza.svelte`.
+
+- **Cómo se ve** (opción A, elegida por gorrite en #586, plegable): una tarjeta blanca, **cerrada
+  de entrada**, con el ícono de enlace, «Lo que enlaza acá» y cuántas son; se abre con un toque o
+  con Enter/Espacio (es un `<details>`: anda sin JS) y la flecha gira (sin animación con
+  «reducir movimiento»). Abierta, cada página es una pastilla del color y el ícono de su tipo
+  (rosa eventos, violeta material, verde amigues, amarillo Kinkipedia) con su fecha si tiene; en
+  el celular, un título largo se corta con «…». Los lectores de pantalla oyen el tipo («Evento:»)
+  y la cantidad («8 páginas»).
+- **Quién ve qué**: un edge sale solo si quien mira (anónime, con cuenta, admin) ve **las dos**
+  puntas: `visibleWhere` en las dos, `partVisibleWhere` (la parte de un taller que oculta sus
+  partes) y, en los perfiles, aprobados y no ocultos (`shownProfileSql`, como /amigues). Lo **no
+  listado** tampoco sale (se abre con el link, no aparece en listas), salvo para admins.
+- **En la Kinkipedia** cuenta también lo que enlaza a un alias de la etiqueta (`[[alias]]` lleva
+  a la misma página).
+- **Caché**: se lee en cada pedido, con quien mira; no se recuerda entre pedidos. La caché de 1
+  minuto ([0049](decisiones/0049-cache-de-1-minuto-sin-sesion.md)) guarda solo pedidos sin
+  cookies, o sea anónimes: la página guardada lleva solo lo que ve cualquiera (público → público).
+- **Una consulta por página**, por la dirección de la página (no por su id ya leído): con las
+  tandas automáticas sale en la misma ida a la base que lo demás de la página, y no suma idas
+  (`pedido-consultas.test.js`). Apagado, ninguna consulta. Como mucho 50 por página.
+- **Lo guardado antes de `enlaces-guardar`** no tiene edges hasta que se vuelve a guardar (o
+  `scripts/enlaces-backfill.js`, `enlaces-pasar-guardados`).
+- Un `[[Título]]` que nombra a la vez algo público y algo oculto lleva a lo público («Lo público
+  gana», arriba). Si igual lleva a algo que quien mira no ve, ese edge no sale.
+
+### Enlaces que faltan (panel)
+
+Etiquetas › **Enlaces que faltan** (`/admin/etiquetas/falta`, en el menú del panel debajo de
+Árbol de etiquetas y con un botón arriba de Etiquetas; solo admins): los `[[…]]`, `@` y `#` de los cuerpos que no llevan a ningún objeto, de lo que más se
+escribe a lo que menos, con cuántas veces y en qué objetos (con link a su editor y a su página, y
+si son «solo con cuenta» u ocultos), en lista y detalle (abajo). Es la lista de qué escribir para hacer crecer la Kinkipedia.
+Código: `src/lib/server/contenido/enlacesFalta.js`.
+
+- **Se calcula al abrir la página** (no hay tabla): dos consultas en fila, los cuerpos (como mucho
+  3000, los editados más recientemente primero; si hay más, la página lo dice) y, con todo lo que
+  nombran junto, los candidatos (`candidatesFor`, la misma del guardado). Con la semilla local
+  (541 cuerpos, 426 enlaces, 40 que faltan en 16 nombres), ~270 ms en local.
+- **Se resuelve igual que al guardar**, sin mirar visibilidad: lo que lleva a algo oculto no falta.
+- `[[x]]`, `![[x]]` y `#x` cuentan como un mismo nombre (sin mayúsculas); `@x` va aparte.
+- **Un botón por nombre para crear la página** (gorrite, 3/11/2026), por el formulario de siempre
+  con el nombre ya puesto; nada se guarda hasta confirmarlo ahí (`createFor`):
+  - `@nombre` → «Crear perfil»: Perfil nuevo (`/admin/comunidad/perfiles/nuevo?nombre=…&oculto=1`),
+    que **arranca oculto** (gorrite, 3/11/2026: «Que arranque oculto»): `?oculto=1` deja «Quién lo
+    puede ver» en Oculto, y se puede cambiar antes de crearlo. Perfil nuevo abierto desde otro lado
+    sigue arrancando público. Con Oculto elegido (desde acá o al cambiarlo, en cualquier Perfil
+    nuevo) el botón dice «Crear oculto» y el subtítulo «Queda oculto: no aparece en Amigues hasta
+    que lo cambies.»; con las otras, «Crear y publicar» y «Se publica en Amigues al guardar.»
+    (gorrite, 3/11/2026);
+  - `[[nombre]]`, `![[nombre]]` y `#nombre` → «Crear etiqueta»: «Nueva etiqueta» del árbol
+    (`/admin/etiquetas?nueva=…`), porque hoy un `[[…]]` lleva a la Kinkipedia. Después se escribe
+    su entrada en la Kinkipedia como siempre.
+- **En el menú** (gorrite, 3/11/2026): `etiquetas-falta` en `src/lib/admin/nav.js`, área
+  Etiquetas.
+- **Lista y detalle** (gorrite, 3/11/2026, opción C de tres diseños): a la izquierda los nombres,
+  de lo más escrito a lo menos, con una barrita de cuántas veces; al elegir uno, a la derecha
+  (abajo en el celular) qué falta («Mención a un perfil que no existe» o «Página de la Kinkipedia
+  que no existe»), «Escrito N veces en N textos.», el botón grande para crearlo y «Dónde se
+  escribe»: cada texto con su tipo, si es «solo con cuenta» u oculto, y botones para editarlo y
+  ver su página.
+  - **El nombre elegido va en la URL** (`?nombre=@x`, como se escribe): los nombres son links, así
+    que se puede compartir y anda sin JavaScript. Elegir uno no vuelve a calcular la lista (el
+    `load` no lee `?nombre=`; lo lee la página).
+  - Sin `?nombre=`: en la compu se ve el primero; en el celular, solo la lista (el detalle de ese
+    primero se esconde con CSS, así que no depende de JavaScript). Con uno elegido en el celular,
+    la lista se achica y el foco pasa al detalle; en la compu el foco se queda en la lista.
+  - Un `?nombre=` que ya no falta (lo crearon, o se escribió distinto) avisa «… ya no falta (o no
+    se escribe así).» y muestra el primero.
+  - Prueba: `src/routes/(authed)/admin/etiquetas/falta/falta-render.test.js`.
 
 ## Los dos editores
 
@@ -122,6 +251,9 @@ Para los dos tipos de gente que escribe, y se pasa de uno al otro cuando se quie
   `rehypeWikiLinks`, que arman `/wiki/<término>`), `src/lib/utils/customRehype.js` (menciones y
   enlaces), `src/lib/utils/markdownPreview.js` (la vista previa del panel) y
   `src/lib/utils/jsonLd.js` (saca los corchetes para los datos estructurados).
+  Al guardar: `src/lib/utils/enlaces.js` (qué nombra el texto) y
+  `src/lib/server/objects/enlaces.js` (a qué objeto, y el edge `enlaza`). «Lo que enlaza acá»:
+  `src/lib/server/contenido/loQueEnlaza.js`.
 - **Acordado**: un solo procesador de Markdown con las extensiones de arriba, que usan la página,
   la vista previa, el bot (los mensajes enriquecidos) y la búsqueda (el texto que se indexa).
   Cada extensión con sus tests: lo escrito → lo que se dibuja, y lo escrito → las relaciones que se

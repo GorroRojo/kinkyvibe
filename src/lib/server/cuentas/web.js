@@ -5,6 +5,7 @@ import { error } from '@sveltejs/kit';
 import { getDB, logDBError } from '$lib/server/db';
 import { deliverEmail } from '$lib/server/tickets/index.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
+import { deviceLabel } from '$lib/utils/userAgent.js';
 import {
 	SESSION_COOKIE,
 	createSession,
@@ -70,7 +71,9 @@ export async function requireCuentas(platform) {
 export async function startSession(event, db, accountId, method) {
 	// Si había otra sesión en este navegador, se cierra (no quedan tokens huérfanos).
 	await destroySession(db, event.cookies.get(SESSION_COOKIE));
-	const token = await createSession(db, accountId, method);
+	// Solo un nombre corto del navegador («Firefox en Android»), nunca el user agent entero.
+	const device = deviceLabel(event.request?.headers.get('user-agent'));
+	const token = await createSession(db, accountId, method, { device });
 	event.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(event.url));
 }
 
@@ -100,12 +103,14 @@ export function clientOf(event) {
  *
  * @param {import('@sveltejs/kit').RequestEvent} event
  * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} [kind] el tipo de mail para Resend (`sendWithResend`): los códigos, salvo que se
+ *   diga otro
  * @returns {import('./index.js').SendMail}
  */
-export function mailSender(event, db) {
+export function mailSender(event, db, kind = 'codigo') {
 	return async (to, message, log) => {
 		try {
-			return await deliverEmail({ db, fetch: event.fetch, to, message, log });
+			return await deliverEmail({ db, fetch: event.fetch, to, message, log, kind });
 		} catch (e) {
 			console.error('[cuentas] no se pudo mandar el mail:', e);
 			return 'failed';

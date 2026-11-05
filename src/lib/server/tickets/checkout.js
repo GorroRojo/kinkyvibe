@@ -72,8 +72,10 @@ import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 import { markFreeOrderMine } from '$lib/server/cuentas/orders.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
+import { reportPurchaseFailure } from '$lib/server/telegram/purchaseAlerts.js';
 import { unconfirmedMailAllowed } from '$lib/server/email/suppressions.js';
 import { ticketsPausedMessage } from '$lib/server/emergencia.js';
+import { markFailure } from '$lib/server/errorLog.js';
 
 /**
  * Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver).
@@ -175,6 +177,14 @@ export function methodsFor(config, transferReady) {
 	return config.paymentMethods.filter((m) =>
 		m === 'mercadopago' ? Boolean(env.MP_ACCESS_TOKEN) || isMpMock() : transferReady
 	);
+}
+
+/**
+ * ¿Está prendida la pausa de emergencia de la venta (`TICKETS_PAUSED`)? Para las tarjetas de las
+ * listas (listStates.js), que tienen que decir lo mismo que la página del evento.
+ */
+export function salesPaused() {
+	return ticketsPausedMessage() !== null;
 }
 
 /**
@@ -646,9 +656,16 @@ export async function discountAction(event) {
 	const { params, platform, request } = event;
 	const db = getDB(platform);
 	const values = readForm(await request.formData());
-	/** @param {number} status @param {string} message */
-	const failWith = (status, message) =>
-		fail(status, { buy: { error: null, errors: { code: message }, values, discount: null } });
+	/**
+	 * Un 5xx cuenta para el aviso «Fallas del sitio» (markFailure: con JavaScript llega como 200).
+	 * @param {number} status @param {string} message
+	 */
+	const failWith = (status, message) => {
+		markFailure(event, status);
+		return fail(status, {
+			buy: { error: null, errors: { code: message }, values, discount: null }
+		});
+	};
 	if (!db) return failWith(503, 'No se pueden validar códigos ahora.');
 	if (!values.code) return failWith(400, 'Escribí el código.');
 	const config = await getEventTickets(params.event);
@@ -697,8 +714,9 @@ async function codeAttemptAllowed(db, slug, client) {
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string} email
  * @param {boolean} confirmed
+ * @param {string} [orderId] para el log (el id de la orden no es un dato personal)
  */
-async function mailAllowed(db, email, confirmed) {
+async function mailAllowed(db, email, confirmed, orderId) {
 	try {
 		const limit = await hitRateLimit(
 			db,
@@ -706,7 +724,9 @@ async function mailAllowed(db, email, confirmed) {
 			CHECKOUT_RATE_LIMITS.mail
 		);
 		if (!limit.allowed) {
-			console.warn('[tickets] límite de mails a una dirección: no se manda');
+			console.warn(
+				`[tickets] límite de mails a una dirección: no se manda${orderId ? ` (orden ${orderId})` : ''}`
+			);
 			return false;
 		}
 	} catch (error) {
@@ -780,8 +800,10 @@ export async function buyAction(event) {
 	 */
 	let currentTier;
 	/** @param {number} status @param {string} error @param {Record<string, string>} [errors] */
-	const failWith = (status, error, errors = {}) =>
-		fail(status, {
+	const failWith = (status, error, errors = {}) => {
+		// Un 5xx cuenta para el aviso «Fallas del sitio» (con JavaScript, el `fail` llega como 200).
+		markFailure(event, status);
+		return fail(status, {
 			buy: {
 				error,
 				errors,
@@ -791,13 +813,19 @@ export async function buyAction(event) {
 				...(currentTier !== undefined && { tier: currentTier })
 			}
 		});
+	};
 
 	if (!db) return failWith(503, 'La venta de entradas no está disponible ahora.');
 	// Pausa de emergencia (TICKETS_PAUSED): no se crea ninguna orden (Mercado Pago, transferencia
 	// ni gratis), antes de tocar la base. Lo que ya está en curso (pagos, puerta, carga a mano)
 	// no pasa por acá.
 	const paused = ticketsPausedMessage();
-	if (paused) return failWith(503, paused);
+	if (paused) {
+		const response = failWith(503, paused);
+		// Pausada a propósito: no es una falla para avisar.
+		markFailure(event, 0);
+		return response;
+	}
 	// DEV ONLY: las pruebas E2E compran todo desde la misma conexión (localhost).
 	const relaxed = dev && env.TICKETS_DEV_RELAX_LIMITS === '1';
 	const client = relaxed ? `dev-${crypto.randomUUID()}` : await clientHash(clientAddress(event));
@@ -1046,6 +1074,8 @@ export async function buyAction(event) {
 		});
 	} catch (error) {
 		logDBError('reserve order', error);
+		// «Fallas en compras» por Telegram a les admins que lo prendieron (nunca tira).
+		await reportPurchaseFailure({ db, platform, code: 'reserva', origin: siteOrigin(url), fetch });
 		return failWith(500, 'No pudimos reservar tus entradas. Probá de nuevo más tarde.');
 	}
 	if (!reserved.ok) {
@@ -1143,6 +1173,7 @@ export async function buyAction(event) {
 			}
 		} catch (error) {
 			logDBError('approve free order', error);
+			await reportPurchaseFailure({ db, platform, code: 'gratis', order, origin, fetch });
 			return failWith(500, 'No pudimos emitir tus entradas. Probá de nuevo más tarde.');
 		}
 		await rememberOrder(db, cookies, url, order.id);
@@ -1150,7 +1181,7 @@ export async function buyAction(event) {
 	}
 
 	if (method === 'transferencia') {
-		if (await mailAllowed(db, order.buyer_email, confirmedEmail))
+		if (await mailAllowed(db, order.buyer_email, confirmedEmail, order.id))
 			await inBackground(sendTransferEmail({ db, order, origin, fetch }), platform);
 		// «Cada transferencia» por Telegram a les admins que lo prendieron (decisión 0041).
 		await queueOrderNotice({ db, platform, kind: 'transferencia', order, origin, fetch });
@@ -1175,6 +1206,7 @@ export async function buyAction(event) {
 		checkoutUrl = created.init_point;
 	} catch (error) {
 		console.error(`[tickets] no se pudo crear la preferencia de la orden ${order.id}:`, error);
+		await reportPurchaseFailure({ db, platform, code: 'mp_preferencia', order, origin, fetch });
 		await cancelPendingOrder(db, order.id).catch((e) => logDBError('cancel order', e));
 		// Si era la compra de alguien con su lugar guardado, vuelve a tenerlo (y si no, el lugar
 		// liberado pasa a la lista de espera).

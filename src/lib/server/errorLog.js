@@ -5,6 +5,9 @@
  * Cada error (menos los 404) deja UNA línea JSON en los registros del Worker, con un código corto
  * que también llega a la página de error. Si alguien nos escribe con ese código, se busca en los
  * registros de Cloudflare (Workers Logs) y aparece el error exacto.
+ *
+ * El código también queda en `event.locals.errorId`: el conteo de errores 5xx
+ * (src/lib/server/vigilancia/avisos.js) lo guarda como «último código» de esa ruta.
  */
 
 /** Líneas del stack que se guardan (las primeras: las que dicen dónde pasó). */
@@ -48,6 +51,7 @@ export function buildHandleError({ preview, isPreview, log = console }) {
 		// Una dirección que no existe no es un error para diagnosticar: el 404 de siempre, sin código.
 		if (status === 404) return { message };
 		const id = crypto.randomUUID().slice(0, 8);
+		if (event?.locals) event.locals.errorId = id;
 		log.error(
 			JSON.stringify({
 				area: 'error',
@@ -65,4 +69,17 @@ export function buildHandleError({ preview, isPreview, log = console }) {
 		}
 		return { message, id };
 	};
+}
+
+/**
+ * Marca el estado de una acción de formulario que falló (src/lib/server/vigilancia/avisos.js):
+ * con JavaScript, un `fail(502)` llega como una respuesta 200 y el conteo de errores 5xx no lo
+ * vería. Lo usan las acciones de compra. `0` marca una falla esperada que no tiene que contar
+ * (por ejemplo, la venta pausada a propósito), aunque la respuesta sin JavaScript sea un 503.
+ *
+ * @param {{ locals?: App.Locals } | null | undefined} event
+ * @param {number} status
+ */
+export function markFailure(event, status) {
+	if (event?.locals) event.locals.failureStatus = status;
 }

@@ -28,6 +28,7 @@ import { ANON, visibleWhere } from '$lib/server/objects/index.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { PROFILE_APPROVED_SQL } from '$lib/server/admin/cuentas.js';
 import { getDB, logDBError } from '$lib/server/db';
+import { D1_MAX_PARAMS, inList } from '$lib/server/db/sql.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import {
 	PERSONAS_KEY,
@@ -51,8 +52,8 @@ import { splitMarkdown } from '$lib/utils/eventDraft.js';
 /** @typedef {'persona' | 'proyecto'} PersonaKind */
 /** @typedef {{ rol: string, items: PublicProfileRef[] }} PersonasGroup */
 
-/** Cuántas direcciones por consulta (D1 acepta hasta 100 parámetros por sentencia). */
-const CHUNK = 90;
+/** Cuántas direcciones por consulta: lugar para los otros parámetros de la consulta. */
+const CHUNK = D1_MAX_PARAMS - 10;
 /** Cuántos perfiles ofrece el editor. */
 export const PICKER_LIMIT = 500;
 
@@ -128,7 +129,7 @@ export async function publicProfilesBySlug(db, slugs) {
 		const { results } = await db
 			.prepare(
 				`${PROFILE_SELECT}
-				WHERE o.type = ? AND o.slug IN (${chunk.map(() => '?').join(', ')})
+				WHERE o.type = ? AND o.slug IN (${inList(chunk)})
 				AND ${vis.sql} AND ${PROFILE_APPROVED_SQL}`
 			)
 			.bind(PROFILE_TYPE, ...chunk, ...vis.params)

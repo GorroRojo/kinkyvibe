@@ -5,7 +5,12 @@
  * perfil del lugar; tampoco los perfiles de `personas` (edges `persona`, ver `edges` abajo).
  *
  * - `start`/`end` llevan su zona; las columnas generadas `start_at`/`end_at` (migración 0031) los
- *   tienen en ms para ordenar y filtrar. `event_status` y `unlisted` también son columnas.
+ *   tienen en ms. `event_status` y `unlisted` también son columnas. Hoy se leen `start_at` (el mes
+ *   del evento en las ventas, admin/saleMonth.js) y `unlisted` (contenido/posts.js); `end_at` y
+ *   `event_status`, y los índices `objects_evento_*`, no los lee ninguna consulta: quedan para
+ *   cuando se ordene o filtre en SQL, no hacer DROP (auditoría de plata, D31). `unixepoch` descarta
+ *   las fracciones de segundo y lee una fecha sin zona como UTC (no pasa: `fields.js` exige zona y
+ *   guarda −03:00).
  * - `unlisted` es el `force_unlisted` de los .md (se ve con el link, no en las listas). El
  *   `force_unpublished` no es un campo: es la visibilidad `hidden` del objeto.
  * - `extra`: lo que el frontmatter tiene y el tipo todavía no conoce como campo propio
@@ -17,6 +22,7 @@
 
 import { eventLinkProblem } from '../../../utils/eventLink.js';
 import { personaItemsProblems } from '../../../utils/personasList.js';
+import { ENLAZA_EDGE_DEF, deriveEnlaza } from '../enlaces.js';
 
 /**
  * @typedef {{
@@ -76,7 +82,7 @@ const evento = {
 		// con `mailto:` o con un link a otra página del sitio («/calendario/…»).
 		link: { kind: 'text', label: 'Link de acción', max: 2000 },
 		link_text: { kind: 'text', label: 'Texto del link', max: 80 },
-		body: { kind: 'longtext', label: 'Descripción' },
+		body: { kind: 'longtext', label: 'Descripción', markup: true },
 		// Cómo se muestra el texto (decisión 0004): 'libre' (HTML libre: lo importado del repo y lo
 		// que guarda une superadmin, se ve como hoy) o 'corta' (la lista corta de HTML). Se decide al
 		// guardar, según quién escribió el texto (src/lib/server/contenido/render.js).
@@ -126,8 +132,13 @@ const evento = {
 		// Etiquetas y series (docs/objetos.md, «Etiquetas de los eventos»): un edge por etiqueta viva,
 		// `data: { at: [0, …] }`: su lugar en la lista de `tags` (src/lib/server/contenido/
 		// etiquetasEdges.js). Un nombre que no es de ninguna etiqueta queda en `data.tags`.
-		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: EVENT_TAGS_MAX }
+		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: EVENT_TAGS_MAX },
+		// Lo que nombra el texto (`[[…]]`, `@`, `#`, docs/enlaces.md): un edge por objeto, en el orden
+		// del texto, sin `data`. SIGUE AL TEXTO: cada guardado lo recalcula y nadie lo manda a mano
+		// (../enlaces.js, que dice cómo se resuelve cada nombre).
+		enlaza: ENLAZA_EDGE_DEF
 	},
+	deriveEdges: deriveEnlaza,
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */
 		const errors = [];

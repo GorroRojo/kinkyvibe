@@ -2,10 +2,12 @@
 	import { onMount, tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
-	import { Search, X, LoaderCircle } from '@lucide/svelte';
+	import { Search, X, LoaderCircle, CircleQuestionMark } from '@lucide/svelte';
 	import { searchOpen, searchPrefill } from '$lib/utils/stores';
 	import { get } from 'svelte/store';
 	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
+	// Qué cubre el buscador (las secciones del sitio): una sola fuente, también para el bot.
+	import { SEARCH_SCOPE } from '$lib/utils/searchScope.js';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
 	const PER_GROUP = 5;
@@ -31,6 +33,16 @@
 	/** @type {Element | null} */
 	let previouslyFocused = null;
 	let shortcut = 'Ctrl K';
+	/**
+	 * «¿Cómo buscar?»: las líneas (`searchHelp('sitio')`) y el párrafo de arriba
+	 * (`SEARCH_GUIDE_TEXT.sitio`) salen de searchSyntax.js, la fuente única de las guías del sitio,
+	 * el bot y el panel: acá no se escriben.
+	 */
+	let showHelp = false;
+	/** @type {import('$lib/utils/searchSyntax.js').SearchHelpRow[] | undefined} */
+	let helpRows;
+	let helpIntro = '';
+	let helpTitle = '';
 
 	/**
 	 * @typedef {{kind: 'hit', id: string, href: string, hit: import('$lib/utils/search').SearchHit}
@@ -69,7 +81,7 @@
 	function compute(q, idx, exp) {
 		if (!engine || !idx || q.trim().length < 2) return [];
 		const t0 = performance.now();
-		const grouped = engine.groupHits(engine.search(idx, q));
+		const grouped = engine.groupHits(engine.find(idx, q));
 		lastMs = performance.now() - t0;
 		const limit = grouped.length === 1 ? PER_GROUP * 2 : PER_GROUP;
 		return grouped.map((g) => {
@@ -94,10 +106,34 @@
 	$: if (active >= flat.length) active = Math.max(0, flat.length - 1);
 	$: activeId = flat[active]?.id;
 
+	// Lo que se anuncia a los lectores de pantalla en una región fija (role="status"): cargando,
+	// sin resultados o cuántos hay. Un rato después de dejar de tipear, para no leer cada letra.
+	$: statusText = error
+		? error
+		: query.trim().length < 2
+			? ''
+			: !index
+				? 'Cargando el índice…'
+				: flat.length === 0
+					? `No encontramos nada para «${query.trim()}».`
+					: `${total} resultado${total === 1 ? '' : 's'}`;
+	let liveStatus = '';
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let statusTimer;
+	/** @param {string} text */
+	function scheduleStatus(text) {
+		if (typeof window === 'undefined') return;
+		clearTimeout(statusTimer);
+		statusTimer = setTimeout(() => (liveStatus = text), 400);
+	}
+	$: scheduleStatus(statusText);
+
 	/** @param {string} _q */
 	function resetSelection(_q) {
 		active = 0;
 		expanded = {};
+		// Escribir cierra la ayuda: se ven los resultados.
+		showHelp = false;
 	}
 	$: resetSelection(query);
 
@@ -131,6 +167,7 @@
 		});
 		return () => {
 			unsubscribe();
+			clearTimeout(statusTimer);
 			document.body.style.overflow = '';
 		};
 	});
@@ -207,6 +244,30 @@
 		}
 	}
 
+	/** Abre o cierra «¿Cómo buscar?» (el registro se baja recién la primera vez, como el motor). */
+	async function toggleHelp() {
+		showHelp = !showHelp;
+		if (showHelp && !helpRows) {
+			try {
+				const syntax = await import('$lib/utils/searchSyntax.js');
+				helpTitle = syntax.SEARCH_GUIDE_TEXT.title;
+				helpIntro = syntax.SEARCH_GUIDE_TEXT.sitio.intro;
+				helpRows = syntax.searchHelp('sitio');
+			} catch (e) {
+				console.error(e);
+				showHelp = false;
+			}
+		}
+	}
+
+	/** Prueba un ejemplo de la ayuda: lo escribe en el buscador. @param {string} example */
+	async function tryExample(example) {
+		query = example;
+		showHelp = false;
+		await tick();
+		input?.focus();
+	}
+
 	/** @param {string} d */
 	const formatDate = (d) => argDateList(parseSiteDate(d));
 </script>
@@ -244,7 +305,7 @@
 					bind:value={query}
 					on:keydown={onInputKeydown}
 					type="search"
-					placeholder="Buscar eventos, series, material, amigues, Kinkipedia…"
+					placeholder="Buscar {SEARCH_SCOPE}…"
 					autocomplete="off"
 					spellcheck="false"
 					role="combobox"
@@ -254,30 +315,66 @@
 					aria-activedescendant={flat.length > 0 ? activeId : undefined}
 					aria-label="Buscar"
 				/>
+				<button
+					class="help-toggle"
+					type="button"
+					on:click={toggleHelp}
+					aria-expanded={showHelp}
+					aria-controls="search-results"
+					aria-label="¿Cómo buscar?"
+					title="¿Cómo buscar?"
+				>
+					<CircleQuestionMark size="1.2em" />
+				</button>
 				<button class="close" on:click={() => searchOpen.set(false)} aria-label="Cerrar buscador">
 					<span class="esc" aria-hidden="true">Esc</span>
 					<span class="x" aria-hidden="true"><X size="1.3em" /></span>
 				</button>
 			</div>
 
+			<!-- Listbox solo con resultados: los avisos («No encontramos nada…») no son opciones. -->
 			<div
 				class="results"
 				id="search-results"
-				role="listbox"
-				aria-label="Resultados"
+				role={flat.length > 0 ? 'listbox' : undefined}
+				aria-label={flat.length > 0 ? 'Resultados' : undefined}
 				data-ms={lastMs.toFixed(1)}
 			>
-				{#if error}
+				{#if showHelp && helpRows}
+					<div class="help" role="presentation">
+						<h3>{helpTitle}</h3>
+						<p>{helpIntro}</p>
+						<dl>
+							{#each helpRows as row (row.id)}
+								<div class="help-row">
+									<dt><code>{row.label}</code></dt>
+									<dd>
+										{row.help}
+										<button type="button" class="example" on:click={() => tryExample(row.example)}
+											>{row.example}</button
+										>
+									</dd>
+								</div>
+							{/each}
+						</dl>
+					</div>
+				{:else if error}
 					<p class="status">{error}</p>
 				{:else if query.trim().length < 2}
 					<p class="status">
-						Buscá en todo el sitio: eventos, series, textos, amigues y la Kinkipedia.<br />
+						Buscá en todo el sitio: {SEARCH_SCOPE}.<br />
 						<small>Probá con «shibari», «consentimiento» o el nombre de une autore.</small>
+						<br /><button type="button" class="help-link" on:click={toggleHelp}
+							>¿Cómo buscar?</button
+						>
 					</p>
 				{:else if !index}
 					<p class="status">Cargando el índice…</p>
 				{:else if flat.length === 0}
-					<p class="status">No encontramos nada para «{query.trim()}».</p>
+					<p class="status">
+						No encontramos nada para «{query.trim()}».
+						<button type="button" class="help-link" on:click={toggleHelp}>¿Cómo buscar?</button>
+					</p>
 				{:else}
 					{#each groups as group (group.key)}
 						<div class="group" role="group" aria-labelledby="search-group-{group.key}">
@@ -343,6 +440,7 @@
 				{/if}
 			</div>
 
+			<p class="visually-hidden" role="status">{liveStatus}</p>
 			<div class="footer" aria-hidden="true">
 				<span><kbd>↑</kbd><kbd>↓</kbd> moverse</span>
 				<span><kbd>Enter</kbd> abrir</span>
@@ -440,6 +538,81 @@
 		padding: 0.05em 0.4em;
 		color: #555;
 		background: #fafafa;
+	}
+	.help-toggle {
+		border: 0;
+		background: none;
+		cursor: pointer;
+		color: gray;
+		display: flex;
+		align-items: center;
+		padding: 0.3em;
+		border-radius: 0.4em;
+		&[aria-expanded='true'] {
+			color: var(--1);
+		}
+		&:focus-visible {
+			outline: 2px solid var(--2);
+		}
+	}
+	.help-link {
+		border: 0;
+		background: none;
+		padding: 0;
+		margin-top: 0.6em;
+		font: inherit;
+		font-size: 0.9em;
+		color: var(--2);
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	.help {
+		padding: 0.6em 0.5em;
+		color: #333;
+		h3 {
+			margin: 0 0 0.3em;
+			font-size: 1em;
+			color: var(--1-dark);
+		}
+		p {
+			margin: 0 0 0.6em;
+			font-size: 0.9em;
+			color: #555;
+		}
+		dl {
+			margin: 0;
+		}
+		.help-row {
+			display: grid;
+			grid-template-columns: minmax(8em, max-content) 1fr;
+			gap: 0.2em 0.8em;
+			padding: 0.35em 0;
+			border-top: 1px solid #eee;
+		}
+		dt code {
+			font-weight: bold;
+			color: var(--1-dark);
+		}
+		dd {
+			margin: 0;
+			font-size: 0.9em;
+		}
+		.example {
+			border: 1px solid var(--1-light);
+			background: none;
+			border-radius: var(--radius-m);
+			padding: 0 0.5em;
+			margin-left: 0.3em;
+			font: inherit;
+			font-family: monospace;
+			font-size: 0.95em;
+			color: var(--1-dark);
+			cursor: pointer;
+			&:hover,
+			&:focus-visible {
+				background: color-mix(in srgb, var(--1) 10%, white);
+			}
+		}
 	}
 	.results {
 		overflow-y: auto;

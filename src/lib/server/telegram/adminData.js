@@ -9,8 +9,8 @@
  * - **Estado**: solo cantidades (consultas con `SUM`/`COUNT`, nunca columnas de compradores: ni
  *   nombres, ni mails, ni DNI, ni teléfonos). Lo de cada compra queda en el panel.
  * - **Mis avisos**: qué avisos eligió cada admin (migración 0054). Vienen apagados (sin fila =
- *   apagado). El resumen diario y los de cada venta y cada transferencia los manda
- *   adminNotify.js; el día del evento y los recordatorios, el PR 3 (decisión 0041).
+ *   apagado). Los manda adminNotify.js: el resumen diario, los de cada venta y cada
+ *   transferencia, el día del evento y los recordatorios (decisión 0041).
  */
 import { isAdmin } from '$lib/server/auth';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -94,7 +94,7 @@ export function adminEventChoices(events, now) {
 			title: String(config.title || slug),
 			start: new Date(ms).toISOString(),
 			today: group === 'hoy',
-			cancelled: config.status === 'cancelled',
+			cancelled: config.status === 'cancelado',
 			ms
 		});
 	}
@@ -331,6 +331,32 @@ export async function noticeRecipients(db, kind) {
 			WHERE n.kind = ?1 ORDER BY l.github_id`
 		)
 		.bind(kind)
+		.all();
+	return results
+		.map((r) => ({
+			telegramUserId: String(r.telegram_user_id),
+			githubId: Number(r.github_id),
+			login: String(r.github_login)
+		}))
+		.filter((r) => isAdmin({ id: r.githubId, login: r.login }));
+}
+
+/**
+ * A quién avisarle que une admin vinculó un Telegram (adminNotify.js, `notifyAdminLinked`): todes
+ * les admins con el Telegram vinculado que **siguen** en `ADMINS`, menos le que acaba de vincular.
+ * No depende de «🔔 Mis avisos»: es un aviso de seguridad y no se apaga.
+ *
+ * @param {D1Database} db
+ * @param {number} exceptGithubId le admin que vinculó
+ * @returns {Promise<{ telegramUserId: string, githubId: number, login: string }[]>}
+ */
+export async function linkNoticeRecipients(db, exceptGithubId) {
+	const { results } = await db
+		.prepare(
+			`SELECT telegram_user_id, github_id, github_login FROM telegram_admin_links
+			WHERE github_id <> ?1 ORDER BY github_id`
+		)
+		.bind(exceptGithubId)
 		.all();
 	return results
 		.map((r) => ({

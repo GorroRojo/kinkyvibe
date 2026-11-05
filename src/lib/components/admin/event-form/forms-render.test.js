@@ -327,9 +327,8 @@ Texto.
 });
 
 /*
- * Contenido en la base (el interruptor `contenido_db` quedó fijo): ningún texto de los formularios habla de
- * GitHub ni de esperar minutos; apagado, los textos son los de siempre. Y la barra de guardar
- * usa SaveButton (la ruedita y «Guardando…» mientras guarda).
+ * Contenido en la base (decisión 0032): ningún texto de los formularios habla de GitHub ni de
+ * esperar minutos. Y la barra de guardar usa SaveButton (la ruedita y «Guardando…» mientras guarda).
  */
 describe('textos según adónde se guarda (savesToDb)', () => {
 	const MATERIAL = `---
@@ -414,29 +413,6 @@ Texto.
 			.join(' ')
 			.split(/\s+/)
 			.join(' ');
-
-	describe('apagado (GitHub): los textos de siempre', () => {
-		it('Editar: el aviso de las pruebas automáticas y @Gorro_Rojo', () => {
-			for (const body of [editBody(false), editBody(undefined)]) {
-				expect(text(body)).toContain(
-					'Al guardar, el cambio pasa por las pruebas automáticas y se publica solo: tarda unos minutos (normalmente menos de 15) en verse. Si pasa más tiempo, avisale a @Gorro_Rojo .'
-				);
-				expect(text(body)).toContain('Ver el archivo que se va a guardar');
-			}
-		});
-
-		it('Crear: «Ver el archivo que se va a guardar»', () => {
-			expect(text(newBody(false))).toContain('Ver el archivo que se va a guardar');
-		});
-
-		it('Material: los cambios tardan unos minutos', () => {
-			const t = text(contentBody(false));
-			expect(t).toContain(
-				'Los cambios tardan unos minutos (normalmente entre 2 y 5) en verse en el sitio.'
-			);
-			expect(t).toContain('Ver el archivo que se va a guardar');
-		});
-	});
 
 	describe('prendido (la base): sin GitHub ni minutos de espera', () => {
 		const NOT_GITHUB = /GitHub|pruebas automáticas|deploy|Si pasa más tiempo/;

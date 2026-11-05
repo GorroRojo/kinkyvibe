@@ -81,6 +81,15 @@ export function profileHref(id) {
 	return `/admin/comunidad/cuentas/perfiles/${encodeURIComponent(String(id))}`;
 }
 
+/**
+ * Mensajes › Lo que sigo, en el grupo de «Lo más seguido» donde está cada cosa con «Quiénes»
+ * (decisión 0043: solo admins).
+ * @param {'etiqueta' | 'perfil' | 'lugar'} group
+ */
+export function sigoRankingHref(group) {
+	return `/admin/mensajes/lo-que-sigo#rank-${group}`;
+}
+
 /** Comunidad › Perfiles, solo los creados por cuentas que esperan revisión. */
 export const PROFILES_TO_REVIEW_HREF = '/admin/comunidad/perfiles?estado=sin-revisar';
 

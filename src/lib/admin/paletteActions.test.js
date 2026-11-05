@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { searchHelp } from '$lib/utils/searchSyntax.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -124,10 +125,60 @@ describe('«Cómo buscar»', () => {
 	it('cada ejemplo usa de verdad un operador (la ayuda no promete lo que no anda)', () => {
 		expect(SEARCH_TIPS.length).toBeGreaterThanOrEqual(8);
 		for (const tip of SEARCH_TIPS) {
-			for (const q of [tip.q, ...(tip.also ?? [])]) {
-				expect(parseSearchQuery(q).operators, q).toBe(true);
+			expect(parseSearchQuery(tip.q).operators, tip.q).toBe(true);
+			// Cada forma del operador, con el valor de su ejemplo (`e:cuerdas`, `#shibari`, `@ana`),
+			// también. Las comillas y el `-` no tienen clave: ya los prueba su ejemplo.
+			const value = tip.q.replace(/^[^:#@]*[:#@]\s*/, '').split(' ')[0];
+			for (const form of tip.label?.split(' · ') ?? []) {
+				if (form === '"…"' || form === '-') continue;
+				// Una palabra que vale sola (`hoy`, `finde`) se prueba tal cual.
+				const filled = form.endsWith(':')
+					? form + value
+					: /^[#@]/.test(form)
+						? form.replace(/\p{L}+$/u, value)
+						: form;
+				expect(parseSearchQuery(filled).operators, filled).toBe(true);
 			}
 		}
+	});
+
+	it('los ejemplos salen del registro de la búsqueda (también `>` y la pestaña, líneas de solo el panel)', () => {
+		const rows = searchHelp('panel');
+		expect(SEARCH_TIPS).toEqual(
+			rows.map((r) => ({
+				q: r.example,
+				...(r.label === undefined ? {} : { label: r.label }),
+				text: r.help
+			}))
+		);
+		// La pestaña y `>` van al final, sin etiqueta (no son operadores: la línea es el ejemplo).
+		expect(SEARCH_TIPS.slice(-2)).toEqual([
+			{
+				q: 'e:fiesta puerta',
+				text: 'Con puerta, órdenes, mail, ventas o duplicar al final, directo a esa pestaña del evento.'
+			},
+			{ q: '>tema', text: 'Solo acciones (tiene que ir al principio).' }
+		]);
+		const ids = rows.map((r) => r.id);
+		// Lo del panel sí; `material:` (el panel no busca material) y el `@` del sitio, no: en el
+		// panel `@` es `persona:`.
+		expect(ids).toEqual(expect.arrayContaining(['orden', 'estado', 'tipo', 'persona-panel']));
+		expect(ids).not.toContain('material');
+		expect(ids).not.toContain('persona');
+		expect(rows.find((r) => r.id === 'persona-panel')?.label).toBe('@nombre · persona:');
+	});
+
+	it('cada línea de la guía: sus formas juntas en una etiqueta y un ejemplo que no las repite', () => {
+		// `@` va en la misma etiqueta que `persona:` («@nombre · persona:»), no en otra aparte.
+		const persona = SEARCH_TIPS.find((t) => t.text === 'Solo personas y perfiles.');
+		expect(persona?.label).toBe('@nombre · persona:');
+		expect(SEARCH_TIPS.filter((t) => t.label?.includes('persona:'))).toHaveLength(1);
+		for (const tip of SEARCH_TIPS) {
+			// El ejemplo no es una de las formas (la guía mostraba «finde» dos veces).
+			expect(tip.label?.split(' · ') ?? [], tip.q).not.toContain(tip.q);
+		}
+		const dates = SEARCH_TIPS.find((t) => t.label === 'hoy · mañana · semana · finde');
+		expect(dates?.q).not.toBe('finde');
 	});
 });
 

@@ -13,6 +13,9 @@
 		refunded: 'Reembolsada (ya no es válida)'
 	};
 
+	// La hora del ingreso llega solo para admins (+page.server.js).
+	const usedAt = $derived(data.ticket.state === 'used' ? data.ticket.checkedInAt : null);
+
 	/** @param {number | null | undefined} ms */
 	function time(ms) {
 		return ms ? argDateLog(ms) : '';
@@ -58,6 +61,7 @@
 		<div class="qr-row">
 			<div class="qr" role="img" aria-label="Código QR de la entrada">
 				<!-- SVG generado en el servidor a partir de la URL de esta entrada. -->
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG del QR armado en el servidor -->
 				{@html data.qr}
 			</div>
 			{#if data.ticket.code}
@@ -86,9 +90,7 @@
 		<dt>Estado</dt>
 		<dd class="state">
 			<!-- {' '}: Svelte saca el espacio del borde del {#if} y salía «ingresar(2/10/26, 13:14)». -->
-			{stateText[data.ticket.state]}{#if data.ticket.state === 'used'}{' '}({time(
-					data.ticket.checkedInAt
-				)}){/if}
+			{stateText[data.ticket.state]}{#if usedAt}{' '}({time(usedAt)}){/if}
 		</dd>
 	</dl>
 	{#if !data.event.online}
@@ -101,6 +103,10 @@
 	{#if data.isAdmin && !data.event.online}
 		<form method="POST" action="?/checkin" use:enhance class="admin">
 			<p><strong>Admin:</strong> marcar ingreso de esta entrada</p>
+			<!-- Aviso de puerta (decisión 0053): el texto llega del servidor solo para admins. -->
+			{#if data.adminNotice || form?.checkin?.notice}
+				<p class="door-notice" role="alert">⚠️ {form?.checkin?.notice ?? data.adminNotice}</p>
+			{/if}
 			<button type="submit">Marcar ingreso</button>
 			{#if form?.checkin}
 				{@const r = form.checkin}
@@ -120,6 +126,15 @@
 </article>
 
 <style>
+	.door-notice {
+		margin: 0;
+		padding: 0.6em 0.8em;
+		background: #fff1c2;
+		color: #2e2600;
+		border: 3px solid #2e2600;
+		border-radius: var(--radius-m);
+		font-weight: 700;
+	}
 	.ticket {
 		background: white;
 		border-radius: var(--radius-m);

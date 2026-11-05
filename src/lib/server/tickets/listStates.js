@@ -17,7 +17,7 @@ import { batchesReads } from '$lib/server/db/autoBatch.js';
 import { peekListedPosts } from '$lib/server/contenido/posts.js';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 import { startsAfter } from '$lib/utils/dates.js';
-import { methodsFor, typeBuyableNow } from './checkout.js';
+import { methodsFor, salesPaused, typeBuyableNow } from './checkout.js';
 import { salesState, typeAvailability } from './config.js';
 import { getEventTicketsMany } from './events.js';
 import { transferInfo } from './index.js';
@@ -128,9 +128,14 @@ async function computeStates(db, slugs, now) {
 	const out = {};
 	/** @type {typeof configs} */
 	const selling = [];
+	// Pausa de emergencia: como `getTicketsView`, nada se puede comprar (un evento cancelado sigue
+	// diciendo eso).
+	const paused = salesPaused();
 	for (const { slug, config } of configs) {
 		const state = salesState(config, now);
-		if (state.open) selling.push({ slug, config });
+		if (paused && !(!state.open && state.reason === 'cancelled'))
+			out[slug] = { open: false, reason: 'paused', opensAt: config.opensAt ?? null };
+		else if (state.open) selling.push({ slug, config });
 		else out[slug] = { open: false, reason: state.reason, opensAt: config.opensAt ?? null };
 	}
 	if (!selling.length) return out;

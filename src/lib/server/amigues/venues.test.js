@@ -690,23 +690,17 @@ describe('«sucede en» es el edge `lugar` del evento', () => {
 		expect(await m.removeEventVenue(t.db, 'con-edge', { by: 'c' })).toBe(false);
 	});
 
-	it('nada de `event_venues`: ni se escribe ni se lee', async () => {
+	// La tabla vieja ya no existe (migración 0075): el lugar se escribe y se lee solo como edge.
+	it('sin la tabla vieja `event_venues`: el lugar es solo el edge', async () => {
 		const m = await import('./venues.js');
 		const v = await venue('public');
+		const table = await t.db
+			.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'event_venues'")
+			.first();
+		expect(table).toBeNull();
 		await makeEvent(t.db, 'sin-tabla');
 		await m.setEventVenue(t.db, { eventSlug: 'sin-tabla', venueId: v.id, privacy: null, by: 'a' });
-		const { results } = await t.db.prepare('SELECT count(*) AS n FROM event_venues').all();
-		expect(results[0].n).toBe(0);
-		// Una fila vieja en la tabla no cuenta para nada.
-		await makeEvent(t.db, 'fila-vieja');
-		await t.db
-			.prepare(
-				`INSERT INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by)
-				VALUES ('fila-vieja', ?1, NULL, 1, 'a', 1, 'a')`
-			)
-			.bind(v.id)
-			.run();
-		expect(await m.eventVenue(t.db, 'fila-vieja')).toBeNull();
+		expect((await m.eventVenue(t.db, 'sin-tabla'))?.venue.id).toBe(v.id);
 		expect((await m.listEventVenues(t.db)).map((l) => l.eventSlug)).toEqual(['sin-tabla']);
 	});
 

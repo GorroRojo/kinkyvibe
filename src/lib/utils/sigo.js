@@ -4,6 +4,7 @@
  * de la lista. Las lecturas y escrituras están en $lib/server/sigo/.
  */
 import { foldText } from './text.js';
+import { argDate } from './dates.js';
 
 /** Las clases de cosas que se pueden seguir (`follows.target_kind`). */
 export const FOLLOW_KINDS = /** @type {const} */ (['etiqueta', 'perfil']);
@@ -359,5 +360,6 @@ export const FOLLOW_CSV_COLUMNS = [
 		label: o.label.toLowerCase(),
 		value: (/** @type {FollowView} */ r) => r.options[o.name]
 	})),
-	{ label: 'desde', value: (r) => new Date(r.createdAt).toISOString().slice(0, 10) }
+	// El día en hora de Argentina (en UTC, lo seguido desde las 21:00 caía al día siguiente).
+	{ label: 'desde', value: (r) => argDate(r.createdAt) }
 ];
