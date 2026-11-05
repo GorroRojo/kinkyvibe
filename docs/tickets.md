@@ -358,7 +358,8 @@ uno (`src/lib/server/tickets/extras.js`).
 - el mail de la compra y el de la transferencia: una línea por extra en el desglose
   («2 × Trago: $ 6.000») y el total pagado (`withOrderExtras` en `index.js`, `priceLines`);
 - la página de estado de la compra y la de cada entrada («Extras de la compra: + 2 × Trago»);
-- Ventas › Órdenes: «Extras: 2 × Trago · 0 entregados · +$ 6.000 (pagó $ 14.000 en total)»;
+- Ventas › Órdenes: suman a «Pagó $ 14.000» y van en el desglose de abajo («2 × Trago
+  $ 6.000»; ver [La plata de cada orden en Órdenes](#la-plata-de-cada-orden-en-órdenes));
 - `ordenes.csv`: dos columnas después de `total`, `extras` («2 × Trago (1 entregado)») y
   `monto_extras` (solo en la fila de la entrada 1, como los demás montos);
 - Ventas › Totales: «Extras» aparte de «Recaudado» (que sigue siendo lo de las entradas), con
@@ -509,6 +510,19 @@ Ejemplo: $ 10.000 con 20 % de fondo, 2 entradas solidarias, código 20 %, Mercad
 El formulario muestra "Entradas (n × $X) · 💜 Ya descontado: el Fondo cubre $F / 💜 Incluye $A de aporte al Fondo KinkyVibe · Código −$D · Recargo Mercado Pago $Y · Total $Z" y cambia en vivo.
 
 La orden guarda `unit_price` (precio completo), `fondo_option`, `fondo_amount` (fondo usado, ≥ 0, solo con `fondo`), `fondo_contribution` (aporte, ≥ 0, solo con las solidarias), `subtotal`, `discount_code`, `discount_amount`, `surcharge_amount` y `total` (con `CHECK` en la base que obligan a que cierren las cuentas: `migrations/0002_tickets.sql`). `/admin/ventas` muestra por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo** = aportes − fondo usado (solo órdenes aprobadas; con signo: verde "+" si entró más de lo que cubrió el fondo, rojo "−" si el fondo puso más); la página de cada evento, las tres columnas por tipo y en el total; el CSV, `opcion_fondo`, `fondo` y `aporte_fondo`. Si una compra solidaria usa además un código, el aporte guardado es el nominal (el código lo pone la organización: lo tomamos como un costo de la organización, no del fondo; decisión [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)). Con fondo, aporte, código o recargo, la preferencia de MP lleva un solo ítem por el total (MP no acepta ítems negativos) y el webhook compara lo pagado con `total`.
+
+#### La plata de cada orden en Órdenes
+
+En Ventas › Órdenes cada orden muestra la plata en dos líneas (opción A de gorrite;
+`orderMoneyLines` en `src/lib/admin/orderFormat.js`):
+
+- arriba, «1 × General · Pagó $ 13.776 · te quedan $ 13.528», y después el medio de pago y quiénes
+  ingresaron. «Pagó» es `total` más los extras; «te quedan» es eso menos la comisión que informó
+  MP (`mp_fee_amount`), y no aparece si MP no la informó (o no es MP). Una orden sin cobrar
+  (pendiente, vencida, rechazada, cancelada) dice «Total» en lugar de «Pagó»;
+- abajo, chico y gris, solo lo que corresponde: «$ 1.500 del Fondo · recargo MP $ 276 · MP se quedó
+  $ 248», más la gorra, el aporte al Fondo, el código de descuento y cada extra («2 × Trago
+  $ 4.000»). Lo entregado de cada extra se ve en la puerta y en la barra.
 
 ### Meta de venta
 
@@ -1002,8 +1016,8 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
   (`transaction_amount_refunded`), el aviso lo **anota solo** en la orden (`refunded_amount`,
   migración 0069; el acumulado, idempotente) sin cambiar nada más: la orden sigue aprobada, las
   entradas siguen valiendo y no se manda ningún mail. En la pestaña Órdenes la orden dice
-  «Reembolso parcial en Mercado Pago: $ X (quedan $ Y)» (y, si MP la informó, «comisión de MP
-  $ Z»); el CSV de órdenes todavía no lo trae, y se resta de «Recaudado», de lo neto y de los totales del panel y de Estadísticas
+  «Reembolso parcial en Mercado Pago: $ X (quedan $ Y)» (y, si MP la informó, «MP se quedó
+  $ Z» en el desglose); el CSV de órdenes todavía no lo trae, y se resta de «Recaudado», de lo neto y de los totales del panel y de Estadísticas
   (`REVENUE_SQL`). Un reembolso total sigue pasando la orden a `refunded`, como siempre.
   Código: `paymentAmounts` y `recordPaymentAmounts` en `src/lib/server/tickets/orders.js`.
 - **«Reembolsar todas» (evento cancelado, decisión [0051](decisiones/0051-reembolsar-todas-evento-cancelado.md)):** en la pestaña Órdenes de un evento con `status: cancelado`, arriba, un bloque con cuántas órdenes de Mercado Pago quedan sin reembolsar y por cuánto en total (`refundAllPreview` en `src/lib/server/admin/refunds.js`: aprobadas, `payment_method = 'mercadopago'`, con número de pago y compradas online). El total, cada orden del resumen y la Actividad usan **lo que queda por devolver** de cada orden: su total menos el reembolso parcial ya hecho en MP (`refunded_amount`, `orderRevenue` / `REVENUE_SQL`); una orden a la que no le queda nada no se cuenta ni se le pide a MP. El pedido a MP sigue siendo el reembolso total (body vacío): MP no deja que lo reembolsado de un pago pase lo pagado, así que nunca devuelve de más. Lo mismo en «Reembolsar…» de una orden: el monto que muestra es lo que queda. Solo admins. «Reembolsar todas…» abre la confirmación en la misma página: hay que escribir **REEMBOLSAR**, y el servidor rechaza si el evento no está cancelado o si la cantidad o el total que vio le admin ya no son los de ahora. La acción `refundAll` (`eventActions.js`) las reembolsa **de a 10 por pedido** (`REFUND_ALL_BATCH`), una después de otra y en orden de compra, cada una con **el mismo paso que «Reembolsar…»** (`refundFromPanel`: MP con `refund-<orden>` y después `refundOrder`; `afterRefund`: Actividad `order.refund`, el mismo mail «Reembolsamos tu compra» y la lista de espera). Si quedan más, «Seguir con las N que faltan» continúa después de la última vista. Nunca reembolsa dos veces (lo reembolsado no se vuelve a pedir; dos pedidos a la vez mandan la misma clave a MP y marcan la orden una vez). Si `refundPayment` da error (o se corta), se consulta el pago (`getPayment`): si MP ya lo tiene reembolsado, la orden se marca con el mismo `refundOrder` y cuenta como hecha; si no, se vuelve a leer la orden (si el webhook la marcó mientras tanto, «ya estaba»). Esto vale también para «Reembolsar…» de una orden. Lo que MP rechaza queda aprobado y el resumen pide revisar el pago en Mercado Pago antes de devolverlo a mano (para no pagarlo dos veces). Un error en una orden no corta la tanda (queda «not-marked», para revisar), y el resumen y la Actividad se anotan igual. Un «Seguir» con una orden que no es de este evento se rechaza (400) en vez de volver a empezar sin el control de cantidad y total; cada tanda queda en Actividad (`event.refund_all`) y en el log. Las aprobadas que no son de MP online (puerta, carga a mano, transferencia) se listan aparte como **«Para devolver a mano»** y no se tocan; las sin cargo solo se cuentan.
