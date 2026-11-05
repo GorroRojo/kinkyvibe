@@ -385,6 +385,10 @@
 	.afiche {
 		order: -1;
 		width: 100%;
+		/* `height: auto`: los atributos width/height del <img> (las medidas de la portada) valen como
+		   alto fijo en CSS y le ganaban al `aspect-ratio`: el afiche quedaba de 1000 px de alto y
+		   recortado. */
+		height: auto;
 		aspect-ratio: 1;
 		object-fit: cover;
 		border-radius: var(--radius-l);
