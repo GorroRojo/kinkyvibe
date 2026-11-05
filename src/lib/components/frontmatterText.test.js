@@ -129,4 +129,33 @@ describe('components render frontmatter as text', () => {
 			expect(heading({ tags: ['AMBA'] }, estilo)).toBe('20:00');
 		}
 	});
+
+	it('Carrousel: lo nuevo (material, amigues, Kinkipedia) lleva su tipo y «Ver», sin fecha ni estrella', () => {
+		for (const [category, tipo] of [
+			['material', 'Material'],
+			['amigues', 'Amigues'],
+			['wiki', 'Kinkipedia']
+		]) {
+			for (const estilo of ['a', 'b', 'c', 'd', 'e']) {
+				const { body } = render(Carrousel, {
+					props: {
+						posts: /** @type {any[]} */ ([
+							{
+								path: `/${category}/x`,
+								meta: { title: `Algo ${EVIL}`, category, summary: 'R', featured: '/x.webp' },
+								estilo
+							}
+						])
+					}
+				});
+				expect(body, `${category} ${estilo}`).toContain(`>${tipo}<`);
+				expect(body).toContain('>Ver</a>');
+				expect(body).not.toContain('Saber más');
+				expect(body).not.toContain('class="sello');
+				expect(body).not.toContain('class="when');
+				expect(body).not.toContain('class="franja');
+				expect(body).toContain('Algo &lt;img');
+			}
+		}
+	});
 });

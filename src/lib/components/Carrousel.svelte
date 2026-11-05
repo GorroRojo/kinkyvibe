@@ -27,6 +27,7 @@
 	import { ticketCta } from '$lib/utils/ticketCta.js';
 	import { ROTAR, estiloDeDiapositiva, isCarruselEstilo } from '$lib/utils/carruselEstilos.js';
 	import { conFondoPropio, paletasDelCarrusel } from '$lib/utils/carruselPaletas.js';
+	import { CARRUSEL_TIPOS } from '$lib/utils/carrusel.js';
 
 	/** Los eventos, ya elegidos y en orden (`carruselSlides`, src/lib/server/carrusel.js), con el
 	 * estilo de cada uno (sin estilo, rotan) y los colores de su flyer (sin colores, la marca).
@@ -89,8 +90,10 @@
 	);
 	$: slides = posts.map((post, i) => {
 		const meta = post.meta;
-		const start = parseSiteDate(meta.start ?? '');
-		const [day, time] = argDateList(meta.start ?? '').split(' · ');
+		// Lo nuevo (material, perfiles, la Kinkipedia) no tiene fecha ni entradas: va su tipo.
+		const evento = !['material', 'amigues', 'wiki'].includes(meta.category);
+		const start = parseSiteDate(evento ? (meta.start ?? '') : '');
+		const [day, time] = evento ? argDateList(meta.start ?? '').split(' · ') : [];
 		const hasImage = hasImageOf(meta);
 		const propio = hex6(meta.carrousel_background);
 		const paleta = propio
@@ -98,6 +101,8 @@
 			: paletas[i];
 		return {
 			post,
+			evento,
+			tipo: CARRUSEL_TIPOS[/** @type {keyof typeof CARRUSEL_TIPOS} */ (meta.category)] ?? '',
 			estilo: isCarruselEstilo(post.estilo) ? post.estilo : estiloDeDiapositiva(ROTAR, null, i),
 			paleta,
 			ink: paleta.ink,
@@ -106,10 +111,10 @@
 			hasImage,
 			tilt: [-3, 2.5, -1.5, 3, -2][i % 5],
 			background: paleta.bg,
-			when: argDateList(meta.start ?? ''),
+			when: evento ? argDateList(meta.start ?? '') : '',
 			iso: isNaN(start.getTime()) ? undefined : start.toISOString(),
-			place: placeShort(meta),
-			cta: ticketCta(meta, ticketStates),
+			place: evento ? placeShort(meta) : '',
+			cta: evento ? ticketCta(meta, ticketStates) : null,
 			srcset: posterSrcset(meta.featured) || undefined
 		};
 	});
@@ -211,7 +216,7 @@
 	style:--nav-acento={current.paleta.acento}
 	style:--nav-oscuro={current.paleta.oscuro}
 >
-	<h2 id="carrusel-titulo" class="visually-hidden">Próximos eventos de Kinky Vibe</h2>
+	<h2 id="carrusel-titulo" class="visually-hidden">Lo nuevo de Kinky Vibe</h2>
 	{#if canRotate}
 		<!-- Lo primero del carrusel en el orden del foco (APG): pausar antes de las diapositivas. -->
 		<button
@@ -238,6 +243,7 @@
 				class="slide v-{slide.estilo}"
 				class:active
 				class:sin-imagen={!slide.hasImage}
+				class:nuevo={!slide.evento}
 				role="group"
 				aria-roledescription="diapositiva"
 				aria-label="{i + 1} de {count}"
@@ -331,12 +337,16 @@
 					</div>
 					<div class="details">
 						{#if slide.estilo === 'd'}
-							<p class="miga">talleres y eventos <span aria-hidden="true">›</span> {slide.day}</p>
-						{:else if slide.estilo !== 'b' && slide.day}
-							<p class="fecha"><span>{slide.day}</span></p>
+							<p class="miga">
+								{#if slide.evento}talleres y eventos <span aria-hidden="true">›</span>
+									{slide.day}{:else}{slide.tipo}{/if}
+							</p>
+						{:else if slide.estilo !== 'b' && (slide.day || !slide.evento)}
+							<!-- la fecha del evento o, en lo nuevo, su tipo («Material», «Kinkipedia»…) -->
+							<p class="fecha"><span>{slide.evento ? slide.day : slide.tipo}</span></p>
 						{/if}
 						{#if slide.estilo === 'b'}
-							<p class="antetitulo">Se viene</p>
+							<p class="antetitulo">{slide.evento ? 'Se viene' : slide.tipo}</p>
 						{/if}
 						<h3 id="carrusel-{i}-titulo"><span>{meta.title}</span></h3>
 						{#if slide.when}
@@ -348,7 +358,9 @@
 								>{#if slide.place}<span class="place">{' · ' + slide.place}</span>{/if}
 							</p>
 						{/if}
-						{#if meta.summary && slide.estilo !== 'b'}<p class="summary">{meta.summary}</p>{/if}
+						{#if meta.summary && (slide.estilo !== 'b' || !slide.evento)}<p class="summary">
+								{meta.summary}
+							</p>{/if}
 						<div class="actions">
 							{#if slide.cta?.kind === 'buy'}
 								<a class="btn buy" href={slide.cta.href}>{slide.cta.text}</a>
@@ -356,12 +368,12 @@
 								<span class="note">{slide.cta.text}</span>
 							{/if}
 							<a class="btn mas" href={slide.post.path} aria-describedby="carrusel-{i}-titulo"
-								>Saber más</a
+								>{slide.evento ? 'Saber más' : 'Ver'}</a
 							>
 						</div>
 					</div>
 				</div>
-				{#if slide.estilo === 'b'}
+				{#if slide.estilo === 'b' && slide.evento}
 					<!-- la franja que cruza toda la pantalla, como la violeta del cartel de la tienda -->
 					<p class="franja" aria-hidden="true">
 						<span>{slide.when}{slide.place ? ' · ' + slide.place : ''}</span>
@@ -372,12 +384,7 @@
 	</div>
 	{#if count > 1}
 		<div class="nav">
-			<button
-				type="button"
-				class="control"
-				aria-label="Evento anterior"
-				on:click={() => go(index - 1)}
-			>
+			<button type="button" class="control" aria-label="Anterior" on:click={() => go(index - 1)}>
 				<ChevronLeft size={22} aria-hidden="true" />
 			</button>
 			<div class="picker">
@@ -386,7 +393,7 @@
 						type="button"
 						class="dot"
 						data-slide={i}
-						aria-label="Evento {i + 1}: {slide.post.meta.title}"
+						aria-label="{i + 1}: {slide.post.meta.title}"
 						aria-current={i === index ? 'true' : undefined}
 						tabindex={i === index ? 0 : -1}
 						style:--flyer={slide.paleta.flyer}
@@ -405,12 +412,7 @@
 					</button>
 				{/each}
 			</div>
-			<button
-				type="button"
-				class="control"
-				aria-label="Evento siguiente"
-				on:click={() => go(index + 1)}
-			>
+			<button type="button" class="control" aria-label="Siguiente" on:click={() => go(index + 1)}>
 				<ChevronRight size={22} aria-hidden="true" />
 			</button>
 		</div>
@@ -1191,6 +1193,14 @@
 		outline-color: white;
 	}
 
+	/* Lo nuevo (sin fecha): el resumen se ve también en D y E, y B no lleva franja abajo. */
+	.slide.nuevo .summary {
+		display: -webkit-box;
+	}
+	.v-b.nuevo .inner {
+		padding-bottom: calc(var(--nav-alto) + var(--space-s));
+	}
+
 	/* ---------- Celu ---------- */
 	@media (max-width: 44rem) {
 		.carrusel {
@@ -1217,7 +1227,8 @@
 		h3 {
 			font-size: var(--text-2xl);
 		}
-		.summary {
+		.summary,
+		.slide.nuevo .summary {
 			display: none;
 		}
 		.v-b .inner {

@@ -6,6 +6,7 @@ import { askTicketStatesEarly, ticketStatesFor } from '$lib/server/tickets/listS
 import { carruselPortadaEnabled } from '$lib/server/flags.js';
 import { carruselSlides } from '$lib/server/carrusel.js';
 import { carruselModo } from '$lib/utils/carruselEstilos.js';
+import { siteWikiPosts } from '$lib/server/wiki/site.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ platform, url }) {
@@ -30,8 +31,12 @@ export async function load({ platform, url }) {
 		posts,
 		ticketStates,
 		// Las diapositivas, con su estilo y los colores de su flyer (src/lib/server/carrusel.js).
+		// Con lo nuevo de la Kinkipedia: sus páginas vienen con el árbol de etiquetas, que el layout
+		// ya leyó (recordado 30 s por isolate): sin consultas de más.
 		carrusel: show
-			? await carruselSlides(platform, posts, { modo: probar ? carruselModo(probar) : null })
+			? await carruselSlides(platform, [...posts, ...(await siteWikiPosts(platform))], {
+					modo: probar ? carruselModo(probar) : null
+				})
 			: []
 	};
 }

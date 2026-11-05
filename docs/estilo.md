@@ -348,9 +348,26 @@ ese preview: `?carrousel` en la dirección ya no lo muestra en producción ni en
 en `npm run dev` (ahí `?carrousel` lo muestra apagado y `?carrousel=a…e|rotar` prueba un estilo
 sin guardarlo).
 
-- **Qué eventos** (`carruselPosts` en `$lib/utils/carrusel.js`): los del calendario que todavía
-  no empezaron, con la etiqueta `KinkyVibe` y sin cancelar, por fecha, hasta 5, con o sin imagen.
-  Sin ninguno, no hay carrusel.
+- **Qué entra** (`carruselPosts` en `$lib/utils/carrusel.js`; gorrite, 5/11: «todo lo nuevo por
+  ahora, de cualquier categoría de las 4»):
+  - primero, los **eventos** del calendario que todavía no empezaron, con la etiqueta `KinkyVibe`
+    y sin cancelar, por fecha, con o sin imagen;
+  - después, **lo nuevo** de Material, Amigues (perfiles) y la Kinkipedia publicado en los últimos
+    **14 días**, lo más nuevo primero e intercalando los tipos (uno de cada uno por vuelta), así uno
+    no llena todo. Solo lo que tiene página pública: lo listado y visible (nada oculto, sin listar
+    ni sin aprobar) y sin el material que redirige directo a su link. La fecha: `published_date`
+    del material y de los perfiles. La Kinkipedia no tiene fecha de publicación propia: cuenta la
+    de cuando se creó su etiqueta (`created_at`), así que escribirle la página a una etiqueta vieja
+    no la hace nueva (**A CONFIRMAR**);
+  - como mucho **8** diapositivas en total, contando los eventos.
+  - Los días (1 a 60) y el máximo (1 a 12) se cambian en Ajustes › Carrusel de la portada, «Qué
+    entra» (`ticket_settings`, filas `carrusel_dias` y `carrusel_maximo`). Sin nada que entre, no
+    hay carrusel.
+  - Lo que no es un evento usa su imagen (la portada, o la foto del perfil) como flyer, y en lugar
+    de la fecha lleva su tipo como lo nombra el sitio («Material», «Amigues», «Kinkipedia»): en la
+    franja de la fecha (A, C, E), arriba del título (B) o en la miga (D). Sin estrella ni franja de
+    la fecha, con el resumen (en la compu) y «Ver» en vez de «Saber más». El estilo elegido por
+    evento existe solo en los eventos; lo demás usa el de Ajustes.
 - **Cinco estilos** (`$lib/utils/carruselEstilos.js`), los cinco del prototipo que eligió
   gorrite: **A** Pila de flyers (el flyer impreso y torcido sobre papeles de colores), **B** Franja
   cruzada (título grande, la fecha en una estrella y una franja de lado a lado), **C** Mesa de
@@ -394,9 +411,11 @@ sin guardarlo).
   es el de la más alta desde el HTML del servidor, y la imagen tiene su cuadrado reservado. La
   imagen de la primera va `eager` con `fetchpriority="high"`; las demás, recién después de
   hidratar, de a una por delante de la que se ve, y `lazy`. Con `posterSrcset` (copias chicas).
-- **Lo que cuesta**: la portada lee el modo una vez cada 30 s por isolate y los colores de las
-  hasta 5 imágenes en una consulta, solo con el carrusel prendido. Nada de mirar imágenes en cada
-  visita.
+- **Lo que cuesta**: la portada lee los ajustes (una consulta) una vez cada 30 s por isolate y
+  los colores de las imágenes que entran en otra, solo con el carrusel prendido. Los eventos, el
+  material y los perfiles son las listas de siempre de la portada; las páginas de la Kinkipedia
+  vienen con el árbol de etiquetas, que el layout ya leyó (recordado 30 s por isolate). Nada de
+  mirar imágenes en cada visita.
 
 ## Componentes
 

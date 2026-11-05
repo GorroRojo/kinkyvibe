@@ -31,7 +31,7 @@ export const CARRUSEL_ESTILOS = Object.freeze([
 		id: /** @type {CarruselEstilo} */ ('c'),
 		nombre: 'Mesa de stickers',
 		texto:
-			'Fondo claro con dibujitos; el flyer como sticker y los eventos como stickers chiquitos abajo.'
+			'Fondo claro con dibujitos; el flyer como sticker y los demás como stickers chiquitos abajo.'
 	},
 	{
 		id: /** @type {CarruselEstilo} */ ('d'),

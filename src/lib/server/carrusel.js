@@ -1,57 +1,112 @@
 /**
  * El carrusel de la portada del lado del servidor (docs/estilo.md, «Carrusel de la portada»):
  *
- * - **El modo** de Ajustes › Carrusel de la portada («Rotar» o un estilo fijo): en
- *   `ticket_settings` (la tabla clave → valor de los ajustes del panel, migración 0002), fila
- *   {@link CARRUSEL_SETTING}. Sin tabla nueva ni migración. Sin fila, «Rotar». La portada lo lee
- *   una vez cada {@link CARRUSEL_CACHE_MS} por isolate (como los interruptores).
- * - **Las diapositivas**: los eventos de `carruselPosts`, cada uno con su estilo
- *   (`estilosDelCarrusel`) y los colores guardados de su flyer (`colors` del objeto `imagen`;
- *   $lib/utils/flyerColors.js; con ellos el componente elige la paleta de la marca:
- *   $lib/utils/carruselPaletas.js). Una consulta para los colores de las 5 imágenes, nada más: los
- *   colores se calcularon al subir la imagen, no acá.
+ * - **Los ajustes** de Ajustes › Carrusel de la portada: el modo («Rotar» o un estilo fijo), de
+ *   cuántos días para atrás es «nuevo» y cuántas diapositivas como mucho. En `ticket_settings` (la
+ *   tabla clave → valor de los ajustes del panel, migración 0002), una fila cada uno
+ *   ({@link CARRUSEL_SETTING}, {@link CARRUSEL_DIAS_SETTING}, {@link CARRUSEL_MAXIMO_SETTING}).
+ *   Sin tabla nueva ni migración. Sin filas: «Rotar», 14 días y 8. La portada los lee (una
+ *   consulta) una vez cada {@link CARRUSEL_CACHE_MS} por isolate (como los interruptores).
+ * - **Las diapositivas**: lo que elige `carruselPosts` (eventos y lo nuevo de material, perfiles y
+ *   la Kinkipedia), cada una con su estilo (`estilosDelCarrusel`) y los colores guardados de su
+ *   imagen (`colors` del objeto `imagen`; $lib/utils/flyerColors.js; con ellos el componente elige
+ *   la paleta de la marca: $lib/utils/carruselPaletas.js). Una consulta para los colores de esas
+ *   imágenes, nada más: los colores se calcularon al subir la imagen, no acá.
  *
  * Sin imports de SvelteKit (vitest).
  */
 import { getDB, logDBError } from './db/index.js';
 import { IMAGE_TYPE } from './media/library.js';
-import { carruselPosts } from '../utils/carrusel.js';
+import {
+	CARRUSEL_DIAS,
+	CARRUSEL_DIAS_RANGO,
+	CARRUSEL_MAXIMO,
+	CARRUSEL_MAXIMO_RANGO,
+	carruselPosts,
+	enRango
+} from '../utils/carrusel.js';
 import { carruselModo, estilosDelCarrusel } from '../utils/carruselEstilos.js';
 import { parseColors } from '../utils/flyerColors.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('../utils/carruselEstilos.js').CarruselModo} CarruselModo */
 /** @typedef {import('../utils/carruselEstilos.js').CarruselEstilo} CarruselEstilo */
+/**
+ * @typedef {{ modo: CarruselModo, dias: number, maximo: number, updatedAt: number | null,
+ *   updatedBy: string | null }} CarruselAjustes `updatedAt`/`updatedBy`: el último cambio de los tres
+ */
 
-/** La fila de `ticket_settings` con el modo del carrusel. */
+/** Las filas de `ticket_settings` del carrusel. */
 export const CARRUSEL_SETTING = 'carrusel_estilo';
+export const CARRUSEL_DIAS_SETTING = 'carrusel_dias';
+export const CARRUSEL_MAXIMO_SETTING = 'carrusel_maximo';
+const KEYS = [CARRUSEL_SETTING, CARRUSEL_DIAS_SETTING, CARRUSEL_MAXIMO_SETTING];
 
-/** Cuánto recuerda la portada el modo leído (ms). */
+/** Cuánto recuerda la portada los ajustes leídos (ms). */
 export const CARRUSEL_CACHE_MS = 30_000;
 
+/** @returns {CarruselAjustes} */
+const porDefecto = () => ({
+	modo: carruselModo(null),
+	dias: CARRUSEL_DIAS,
+	maximo: CARRUSEL_MAXIMO,
+	updatedAt: null,
+	updatedBy: null
+});
+
 /**
- * El modo guardado, con quién y cuándo lo cambió. Sin base, sin fila o si algo falla: «Rotar».
+ * Los ajustes guardados (una consulta), con quién y cuándo cambió el último. Sin base, sin filas o
+ * si algo falla: los de por defecto.
  * @param {D1Database | null} db
- * @returns {Promise<{ modo: CarruselModo, updatedAt: number | null, updatedBy: string | null }>}
+ * @returns {Promise<CarruselAjustes>}
  */
-export async function readCarruselModo(db) {
-	const none = { modo: carruselModo(null), updatedAt: null, updatedBy: null };
-	if (!db) return none;
+export async function readCarruselAjustes(db) {
+	const out = porDefecto();
+	if (!db) return out;
 	try {
-		const row = await db
-			.prepare('SELECT value, updated_at, updated_by FROM ticket_settings WHERE key = ?1')
-			.bind(CARRUSEL_SETTING)
-			.first();
-		if (!row) return none;
-		return {
-			modo: carruselModo(row.value),
-			updatedAt: Number(row.updated_at) || null,
-			updatedBy: row.updated_by ? String(row.updated_by) : null
-		};
+		const { results } = await db
+			.prepare(
+				'SELECT key, value, updated_at, updated_by FROM ticket_settings WHERE key IN (?1, ?2, ?3)'
+			)
+			.bind(...KEYS)
+			.all();
+		for (const row of results) {
+			if (row.key === CARRUSEL_SETTING) out.modo = carruselModo(row.value);
+			if (row.key === CARRUSEL_DIAS_SETTING)
+				out.dias = enRango(row.value, CARRUSEL_DIAS_RANGO, CARRUSEL_DIAS);
+			if (row.key === CARRUSEL_MAXIMO_SETTING)
+				out.maximo = enRango(row.value, CARRUSEL_MAXIMO_RANGO, CARRUSEL_MAXIMO);
+			const at = Number(row.updated_at) || 0;
+			if (at > (out.updatedAt ?? 0)) {
+				out.updatedAt = at;
+				out.updatedBy = row.updated_by ? String(row.updated_by) : null;
+			}
+		}
+		return out;
 	} catch (error) {
-		logDBError('modo del carrusel', error);
-		return none;
+		logDBError('ajustes del carrusel', error);
+		return porDefecto();
 	}
+}
+
+/**
+ * @param {D1Database} db
+ * @param {[string, string][]} pairs
+ * @param {{ by: string, now: number }} ctx
+ */
+async function saveRows(db, pairs, { by, now }) {
+	await db.batch(
+		pairs.map(([key, value]) =>
+			db
+				.prepare(
+					`INSERT INTO ticket_settings (key, value, updated_at, updated_by) VALUES (?1, ?2, ?3, ?4)
+					ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at,
+						updated_by = excluded.updated_by`
+				)
+				.bind(key, value, now, by)
+		)
+	);
+	cached = null;
 }
 
 /**
@@ -61,18 +116,28 @@ export async function readCarruselModo(db) {
  * @param {{ by: string, now?: number }} ctx
  */
 export async function saveCarruselModo(db, modo, { by, now = Date.now() }) {
-	await db
-		.prepare(
-			`INSERT INTO ticket_settings (key, value, updated_at, updated_by) VALUES (?1, ?2, ?3, ?4)
-			ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at,
-				updated_by = excluded.updated_by`
-		)
-		.bind(CARRUSEL_SETTING, carruselModo(modo), now, by)
-		.run();
-	cached = null;
+	await saveRows(db, [[CARRUSEL_SETTING, carruselModo(modo)]], { by, now });
 }
 
-/** @type {{ db: D1Database, expires: number, modo: CarruselModo } | null} */
+/**
+ * Guarda de cuántos días para atrás es «nuevo» y cuántas diapositivas como mucho (dentro de sus
+ * rangos).
+ * @param {D1Database} db
+ * @param {{ dias: number, maximo: number }} values
+ * @param {{ by: string, now?: number }} ctx
+ */
+export async function saveCarruselCantidad(db, { dias, maximo }, { by, now = Date.now() }) {
+	await saveRows(
+		db,
+		[
+			[CARRUSEL_DIAS_SETTING, String(enRango(dias, CARRUSEL_DIAS_RANGO, CARRUSEL_DIAS))],
+			[CARRUSEL_MAXIMO_SETTING, String(enRango(maximo, CARRUSEL_MAXIMO_RANGO, CARRUSEL_MAXIMO))]
+		],
+		{ by, now }
+	);
+}
+
+/** @type {{ db: D1Database, expires: number, ajustes: CarruselAjustes } | null} */
 let cached = null;
 
 /** Para las pruebas: olvidar lo leído. */
@@ -81,17 +146,17 @@ export function resetCarruselCache() {
 }
 
 /**
- * El modo, recordado {@link CARRUSEL_CACHE_MS} por isolate (para la portada).
+ * Los ajustes, recordados {@link CARRUSEL_CACHE_MS} por isolate (para la portada).
  * @param {D1Database | null} db
  * @param {number} [now]
- * @returns {Promise<CarruselModo>}
+ * @returns {Promise<CarruselAjustes>}
  */
-export async function carruselModoCached(db, now = Date.now()) {
-	if (!db) return carruselModo(null);
-	if (cached && cached.db === db && cached.expires > now) return cached.modo;
-	const { modo } = await readCarruselModo(db);
-	cached = { db, expires: now + CARRUSEL_CACHE_MS, modo };
-	return modo;
+export async function carruselAjustesCached(db, now = Date.now()) {
+	if (!db) return porDefecto();
+	if (cached && cached.db === db && cached.expires > now) return cached.ajustes;
+	const ajustes = await readCarruselAjustes(db);
+	cached = { db, expires: now + CARRUSEL_CACHE_MS, ajustes };
+	return ajustes;
 }
 
 /** `/media/img/<hash>.<ext>` → `<hash>` (el slug de la imagen), o `null`. */
@@ -140,28 +205,31 @@ export async function colorsByFeatured(db, featured) {
  */
 
 /**
- * Las diapositivas del carrusel: los eventos que entran (`carruselPosts`), cada uno con su estilo
+ * Las diapositivas del carrusel: lo que entra (`carruselPosts`), cada una con su estilo
  * y los colores de su flyer (o `null`: las paletas de la marca rotan).
  *
  * @template {{ path: string, meta: Record<string, any> }} P
  * @param {App.Platform | undefined} platform
  * @param {readonly P[]} posts
- * @param {{ modo?: CarruselModo | null, now?: number }} [opts] `modo`: para probar uno sin
- *   guardarlo (solo en desarrollo, `?carrousel=`)
+ * @param {{ modo?: CarruselModo | null, ajustes?: CarruselAjustes | null, now?: number }} [opts]
+ *   `modo`: para probar uno sin guardarlo (solo en desarrollo, `?carrousel=`); `ajustes`: los ya
+ *   leídos (el panel los lee sin caché); sin ellos, los de la caché
  * @returns {Promise<CarruselSlide<P>[]>}
  */
-export async function carruselSlides(platform, posts, { modo = null, now = Date.now() } = {}) {
-	const chosen = carruselPosts(posts, { now });
-	if (!chosen.length) return [];
+export async function carruselSlides(
+	platform,
+	posts,
+	{ modo = null, ajustes = null, now = Date.now() } = {}
+) {
 	const db = getDB(platform);
-	const [saved, colors] = await Promise.all([
-		modo ? Promise.resolve(modo) : carruselModoCached(db, now),
-		colorsByFeatured(
-			db,
-			chosen.map((p) => p.meta.featured)
-		)
-	]);
-	const estilos = estilosDelCarrusel(chosen, saved);
+	const a = ajustes ?? (await carruselAjustesCached(db, now));
+	const chosen = carruselPosts(posts, { now, dias: a.dias, limit: a.maximo });
+	if (!chosen.length) return [];
+	const colors = await colorsByFeatured(
+		db,
+		chosen.map((p) => p.meta.featured)
+	);
+	const estilos = estilosDelCarrusel(chosen, modo ?? a.modo);
 	return chosen.map((p, i) => ({
 		...p,
 		estilo: estilos[i],

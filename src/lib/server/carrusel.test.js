@@ -8,10 +8,11 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import {
 	CARRUSEL_CACHE_MS,
-	carruselModoCached,
+	carruselAjustesCached,
 	carruselSlides,
 	colorsByFeatured,
-	readCarruselModo,
+	readCarruselAjustes,
+	saveCarruselCantidad,
 	resetCarruselCache,
 	saveCarruselModo
 } from './carrusel.js';
@@ -70,51 +71,76 @@ const event = (slug, days, meta = {}) => ({
 	}
 });
 
-describe('el modo de Ajustes', () => {
-	it('sin nada guardado, rotar', async () => {
-		expect(await readCarruselModo(t.db)).toEqual({
+describe('los ajustes (modo, días y máximo)', () => {
+	it('sin nada guardado: rotar, 14 días y 8', async () => {
+		expect(await readCarruselAjustes(t.db)).toEqual({
 			modo: 'rotar',
+			dias: 14,
+			maximo: 8,
 			updatedAt: null,
 			updatedBy: null
 		});
-		expect(await readCarruselModo(null)).toMatchObject({ modo: 'rotar' });
+		expect(await readCarruselAjustes(null)).toMatchObject({ modo: 'rotar', dias: 14, maximo: 8 });
 	});
 
-	it('se guarda en ticket_settings, con quién y cuándo', async () => {
+	it('el modo se guarda en ticket_settings, con quién y cuándo', async () => {
 		await saveCarruselModo(t.db, 'c', { by: 'admin-prueba', now: NOW });
-		expect(await readCarruselModo(t.db)).toEqual({
+		expect(await readCarruselAjustes(t.db)).toEqual({
 			modo: 'c',
+			dias: 14,
+			maximo: 8,
 			updatedAt: NOW,
 			updatedBy: 'admin-prueba'
 		});
 		await saveCarruselModo(t.db, 'rotar', { by: 'otre-admin', now: NOW + 1 });
-		expect((await readCarruselModo(t.db)).modo).toBe('rotar');
+		expect((await readCarruselAjustes(t.db)).modo).toBe('rotar');
 		const rows = await t.db
 			.prepare("SELECT COUNT(*) AS n FROM ticket_settings WHERE key = 'carrusel_estilo'")
 			.first();
 		expect(rows?.n).toBe(1);
 	});
 
-	it('lo raro guardado a mano se lee como rotar', async () => {
-		await t.db
-			.prepare(
-				"INSERT INTO ticket_settings (key, value, updated_at, updated_by) VALUES ('carrusel_estilo', 'zzz', 1, 'x')"
-			)
-			.run();
-		expect((await readCarruselModo(t.db)).modo).toBe('rotar');
+	it('días y máximo, cada uno en su fila, dentro de su rango; el último cambio manda', async () => {
+		await saveCarruselModo(t.db, 'b', { by: 'admin-prueba', now: NOW });
+		await saveCarruselCantidad(t.db, { dias: 30, maximo: 5 }, { by: 'otre-admin', now: NOW + 5 });
+		expect(await readCarruselAjustes(t.db)).toEqual({
+			modo: 'b',
+			dias: 30,
+			maximo: 5,
+			updatedAt: NOW + 5,
+			updatedBy: 'otre-admin'
+		});
+		await saveCarruselCantidad(t.db, { dias: 999, maximo: 0 }, { by: 'x', now: NOW + 6 });
+		expect(await readCarruselAjustes(t.db)).toMatchObject({ dias: 60, maximo: 1 });
 	});
 
-	it('la portada lo recuerda un rato; guardar lo olvida', async () => {
-		expect(await carruselModoCached(t.db, NOW)).toBe('rotar');
+	it('lo raro guardado a mano se lee como lo de por defecto', async () => {
+		await t.db
+			.prepare(
+				`INSERT INTO ticket_settings (key, value, updated_at, updated_by) VALUES
+				('carrusel_estilo', 'zzz', 1, 'x'), ('carrusel_dias', 'muchos', 1, 'x'),
+				('carrusel_maximo', '2.5', 1, 'x')`
+			)
+			.run();
+		expect(await readCarruselAjustes(t.db)).toMatchObject({ modo: 'rotar', dias: 14, maximo: 8 });
+	});
+
+	it('la portada los recuerda un rato; guardar los olvida', async () => {
+		expect((await carruselAjustesCached(t.db, NOW)).modo).toBe('rotar');
 		await t.db
 			.prepare(
 				"INSERT INTO ticket_settings (key, value, updated_at, updated_by) VALUES ('carrusel_estilo', 'b', 1, 'x')"
 			)
 			.run();
-		expect(await carruselModoCached(t.db, NOW + 1000)).toBe('rotar');
-		expect(await carruselModoCached(t.db, NOW + CARRUSEL_CACHE_MS + 1)).toBe('b');
+		expect((await carruselAjustesCached(t.db, NOW + 1000)).modo).toBe('rotar');
+		expect((await carruselAjustesCached(t.db, NOW + CARRUSEL_CACHE_MS + 1)).modo).toBe('b');
 		await saveCarruselModo(t.db, 'e', { by: 'x', now: NOW });
-		expect(await carruselModoCached(t.db, NOW + CARRUSEL_CACHE_MS + 2)).toBe('e');
+		expect((await carruselAjustesCached(t.db, NOW + CARRUSEL_CACHE_MS + 2)).modo).toBe('e');
+		await saveCarruselCantidad(t.db, { dias: 3, maximo: 2 }, { by: 'x', now: NOW });
+		expect(await carruselAjustesCached(t.db, NOW + CARRUSEL_CACHE_MS + 3)).toMatchObject({
+			dias: 3,
+			maximo: 2
+		});
 	});
 });
 
@@ -170,6 +196,52 @@ describe('carruselSlides', () => {
 		// `modo` (solo en desarrollo, `?carrousel=`) prueba otro sin guardarlo
 		const tried = await carruselSlides(t.platform, posts, { now: NOW, modo: 'rotar' });
 		expect(tried.map((s) => s.estilo)).toEqual(['a', 'b', 'c']);
+	});
+
+	it('lo nuevo después de los eventos, con los días y el máximo de Ajustes', async () => {
+		await image(HASH_A, { colors: ['#0f8b7a'] });
+		const day = 86_400_000;
+		const fecha = (/** @type {number} */ d) => new Date(NOW - d * day).toISOString();
+		const posts = [
+			event('evento', 3),
+			{
+				path: '/material/guia',
+				meta: {
+					title: 'Guía',
+					category: 'material',
+					published_date: fecha(2),
+					featured: `/media/img/${HASH_A}.webp`
+				}
+			},
+			{
+				path: '/amigues/alguien',
+				meta: { title: 'Alguien', category: 'amigues', published_date: fecha(1) }
+			},
+			{
+				path: '/material/vieja',
+				meta: { title: 'Vieja', category: 'material', published_date: fecha(20) }
+			},
+			{
+				path: '/wiki/termino',
+				meta: { title: 'Término', category: 'wiki' },
+				createdAt: NOW - 4 * day
+			}
+		];
+		const slides = await carruselSlides(t.platform, posts, { now: NOW });
+		expect(slides.map((s) => [s.path, s.estilo, s.colors])).toEqual([
+			['/calendario/evento', 'a', null],
+			['/amigues/alguien', 'b', null],
+			['/material/guia', 'c', ['#0f8b7a']],
+			['/wiki/termino', 'd', null]
+		]);
+		await saveCarruselCantidad(t.db, { dias: 30, maximo: 3 }, { by: 'x', now: NOW });
+		resetCarruselCache();
+		const otra = await carruselSlides(t.platform, posts, { now: NOW });
+		expect(otra.map((s) => s.path)).toEqual([
+			'/calendario/evento',
+			'/amigues/alguien',
+			'/material/guia'
+		]);
 	});
 
 	it('sin eventos que entren, ninguna (y no consulta nada)', async () => {

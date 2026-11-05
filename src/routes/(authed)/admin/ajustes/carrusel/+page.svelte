@@ -1,7 +1,8 @@
 <script>
 	/**
-	 * Ajustes › Carrusel de la portada (ver +page.server.js): el estilo de las diapositivas, cómo se
-	 * ve ahora y los colores de los flyers que faltan, calculados acá mismo en el navegador.
+	 * Ajustes › Carrusel de la portada (ver +page.server.js): el estilo de las diapositivas, qué
+	 * entra (días y máximo), cómo se ve ahora y los colores de los flyers que faltan, calculados acá
+	 * mismo en el navegador.
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { deserialize, enhance } from '$app/forms';
@@ -9,7 +10,7 @@
 	import { Palette } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import { areaBackLink } from '$lib/admin/nav.js';
-	import { Button, Card, ChoiceCard, Notice } from '$lib/components/ui';
+	import { Button, Card, ChoiceCard, Field, Notice } from '$lib/components/ui';
 	import {
 		CARRUSEL_ESTILOS,
 		ROTAR,
@@ -27,11 +28,21 @@
 	let modo = data.modo;
 	$: savedModo = data.modo;
 
+	/** La respuesta de `?/cantidad` (o de otra acción), leída sin la unión de tipos de las tres. */
+	/** @type {Record<string, any> | null | undefined} */
+	let f;
+	$: f = form;
+	/** Qué entra: lo escrito (o lo guardado). */
+	let dias = String(/** @type {any} */ (form)?.values?.dias ?? data.dias);
+	let maximo = String(/** @type {any} */ (form)?.values?.maximo ?? data.maximo);
+	/** @type {Record<string, string>} */
+	$: cantidadErrors = f?.cantidad ? (f?.errors ?? {}) : {};
+
 	const OPCIONES = [
 		{
 			id: ROTAR,
 			nombre: 'Rotar',
-			texto: 'Cada evento con un estilo distinto, en orden: A, B, C, D, E y de vuelta.'
+			texto: 'Cada diapositiva con un estilo distinto, en orden: A, B, C, D, E y de vuelta.'
 		},
 		...CARRUSEL_ESTILOS.map((e) => ({ ...e, nombre: `${e.id.toUpperCase()} · ${e.nombre}` }))
 	];
@@ -133,7 +144,7 @@
 <PageHeader
 	back={areaBackLink('ajustes-carrusel')}
 	title="Carrusel de la portada"
-	subtitle="Cómo se ven los próximos eventos de Kinky Vibe arriba de la portada: el estilo de cada diapositiva y sus colores, que salen del flyer."
+	subtitle="Lo que se ve arriba de la portada: los próximos eventos de Kinky Vibe y lo nuevo de Material, Amigues y la Kinkipedia. Acá se elige el estilo de cada diapositiva y cuánto entra."
 />
 
 <div class="kv-form settings">
@@ -152,9 +163,9 @@
 				update({ reset: false })}
 	>
 		<Card title="Estilo">
-			{#if form?.message}
+			{#if form?.message && !form?.cantidad}
 				<Notice>{form.message}</Notice>
-			{:else if form?.error}
+			{:else if form?.error && !form?.cantidad}
 				<Notice tone="error">{form.error}</Notice>
 			{/if}
 			<p class="kv-note">
@@ -180,15 +191,58 @@
 		</Card>
 	</form>
 
+	<form
+		method="POST"
+		action="?/cantidad"
+		use:enhance={() =>
+			async ({ update }) =>
+				update({ reset: false })}
+	>
+		<Card title="Qué entra">
+			{#if f?.message && f?.cantidad}
+				<Notice>{f.message}</Notice>
+			{:else if f?.error && f?.cantidad}
+				<Notice tone="error">{f.error}</Notice>
+			{/if}
+			<p class="kv-note">
+				Primero los próximos eventos de Kinky Vibe, por fecha. Después, lo nuevo de Material,
+				Amigues y la Kinkipedia (lo más nuevo primero, intercalando), hasta el máximo.
+			</p>
+			<div class="cantidad">
+				<Field
+					label="Lo nuevo de los últimos (días)"
+					type="number"
+					name="dias"
+					inputmode="numeric"
+					bind:value={dias}
+					error={cantidadErrors.dias ?? ''}
+					help="De {data.rangos.dias.min} a {data.rangos.dias.max}. Cuenta desde que se publicó."
+				/>
+				<Field
+					label="Máximo de diapositivas"
+					type="number"
+					name="maximo"
+					inputmode="numeric"
+					bind:value={maximo}
+					error={cantidadErrors.maximo ?? ''}
+					help="De {data.rangos.maximo.min} a {data.rangos.maximo.max}, contando los eventos."
+				/>
+			</div>
+			<div class="actions">
+				<Button type="submit">Guardar</Button>
+			</div>
+		</Card>
+	</form>
+
 	<Card title="Cómo se ve ahora">
 		{#if shown.length === 0}
 			<p class="kv-note">
-				Ahora no entra ningún evento: el carrusel muestra los próximos de Kinky Vibe (con la
-				etiqueta KinkyVibe), sin cancelar, hasta 5. Sin ninguno, no aparece.
+				Ahora no entra nada: ni próximos eventos de Kinky Vibe ni nada nuevo de los últimos {data.dias}
+				días. Sin nada, el carrusel no aparece.
 			</p>
 		{:else}
 			<p class="kv-note">
-				Los eventos que entran hoy, en orden{modo !== savedModo
+				Lo que entra hoy, en orden{modo !== savedModo
 					? ', con el estilo elegido (todavía sin guardar)'
 					: ''}.
 			</p>
@@ -202,7 +256,9 @@
 						{/if}
 						<div class="slide-text">
 							<strong>{s.title}</strong>
-							{#if s.start}<small class="kv-note">{argDateList(s.start)}</small>{/if}
+							<small class="kv-note"
+								>{s.tipo}{#if s.start}{' · ' + argDateList(s.start)}{/if}</small
+							>
 							<span>
 								Estilo: {s.estilo.toUpperCase()} · {nombreDelEstilo(s.estilo)}
 								{#if s.estiloDelEvento}<span class="tag">elegido en el evento</span>{/if}
@@ -224,19 +280,28 @@
 									style:color={s.paleta.cintaInk}>Aa</span
 								>
 								{#if s.segunFlyer}
-									<small class="kv-note">Fondo de la marca elegido para que el flyer resalte.</small
+									<small class="kv-note"
+										>Fondo de la marca elegido para que {s.start ? 'el flyer' : 'la imagen'} resalte.</small
 									>
 								{:else if s.featured}
 									<small class="kv-note"
-										>Fondo de la marca, rotando: faltan los colores del flyer (calculalos abajo).</small
+										>Fondo de la marca, rotando: faltan los colores de {s.start
+											? 'el flyer'
+											: 'la imagen'} (calculalos abajo).</small
 									>
 								{:else}
 									<small class="kv-note"
-										>Fondo de la marca, rotando: el evento no tiene flyer.</small
+										>Fondo de la marca, rotando: {s.start
+											? 'el evento no tiene flyer'
+											: 'no tiene imagen'}.</small
 									>
 								{/if}
 							</span>
-							<a class="kv-link" href={s.editHref}>Cambiar el estilo de este evento</a>
+							{#if s.editHref}
+								<a class="kv-link" href={s.editHref}>Cambiar el estilo de este evento</a>
+							{:else}
+								<a class="kv-link" href={s.path}>Ver la página</a>
+							{/if}
 						</div>
 					</li>
 				{/each}
@@ -285,6 +350,12 @@
 		display: grid;
 		gap: 1rem;
 		max-width: 52rem;
+	}
+	.cantidad {
+		display: grid;
+		gap: 0.75rem;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+		margin-block: 0.75rem;
 	}
 	.opciones {
 		display: grid;
