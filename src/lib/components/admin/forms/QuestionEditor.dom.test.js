@@ -84,9 +84,10 @@ describe('guarda: sin inputs a mano en el panel de formularios', () => {
 			for (const e of entries) {
 				if (!e.isFile() || !e.name.endsWith('.svelte')) continue;
 				const src = readFileSync(path.join(e.parentPath, e.name), 'utf8');
+				const blank = (/** @type {string} */ m) => m.replace(/[^\n]/g, ' ');
 				const markup = src
-					.replace(/<script[\s\S]*?<\/script>/g, '')
-					.replace(/<style[\s\S]*?<\/style>/g, '');
+					.replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, blank)
+					.replace(/<style\b[\s\S]*?<\/style\b[^>]*>/gi, blank);
 				for (const m of markup.matchAll(/<(input|select|textarea)\b[^>]*>/g)) {
 					if (/type="hidden"/.test(m[0])) continue;
 					offenders.push(
