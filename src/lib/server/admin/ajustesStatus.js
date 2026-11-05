@@ -1,9 +1,13 @@
 /**
  * La línea de estado de cada tarjeta de la portada de Ajustes (`/admin/ajustes`, decisión 0042):
  * «10 % de cada entrada», «2 en prueba», «Todo al día»… Una sección sin un dato barato y claro no
- * lleva línea (mejor nada que adivinar): el Fondo, si no hay uno fijado a mano ni llegó todavía
- * ninguno de fondo.kinkyvibe.ar (la portada no lo va a buscar; en `vite dev` cuenta
- * `FONDO_PERCENT_OVERRIDE`, como al vender), o una parte que no se pudo leer.
+ * lleva línea (mejor nada que adivinar): una parte que no se pudo leer.
+ *
+ * El Fondo: el fijado a mano o el último porcentaje que llegó de fondo.kinkyvibe.ar (guardado en
+ * la base; en `vite dev` cuenta `FONDO_PERCENT_OVERRIDE`, como al vender). Si todavía no llegó
+ * ninguno, «Automático (todavía no llegó el porcentaje)», y lo va a buscar **en segundo plano**
+ * (`waitUntil`, como la página del evento con `staleOk`): la portada nunca lo espera, y la próxima
+ * vez ya dice el porcentaje.
  *
  * Idas a la base: una tanda ($lib/server/db/batch.js) con los ajustes guardados
  * (`ticket_settings`: cobros, Fondo, textos del bot y de las vistas previas), los interruptores, lo
@@ -22,7 +26,7 @@ import { rowsOf, runQueries } from '$lib/server/db/batch.js';
 import { loadAutomations } from '$lib/server/admin/automatizaciones.js';
 import { FLAGS, envOverride } from '$lib/server/flags.js';
 import { emergencyPauses } from '$lib/server/emergencia.js';
-import { parsePercent } from '$lib/server/tickets/fondo.js';
+import { parsePercent, resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { transferReadyFromSettings } from '$lib/server/tickets/index.js';
 import { readSalesSettings, salesSettingsStatement } from '$lib/server/tickets/settings.js';
 import { BOT_TEXTS_SETTING } from '$lib/server/telegram/texts.js';
@@ -45,6 +49,9 @@ const FONDO_LAST_KEY = 'fondo_percent_last';
 /** Desde cuándo el último porcentaje del Fondo muestra de cuándo es. */
 const FONDO_STALE_MS = 24 * 60 * 60 * 1000;
 const PREVIEW_TEXTS_KEY = 'link_preview_texts';
+
+/** La línea del Fondo cuando todavía no llegó ningún porcentaje automático. */
+export const FONDO_PENDING_TEXT = 'Automático (todavía no llegó el porcentaje)';
 
 /**
  * Lo que la portada lee de la base, ya armado.
@@ -152,6 +159,7 @@ export function buildAjustesStatus({
 		else if (fondoDevPercent !== null)
 			out['ajustes-fondo'] = { text: `${fondoDevPercent} % de cada entrada` };
 		else if (last !== null) out['ajustes-fondo'] = { text: `${last} % de cada entrada${lastAge}` };
+		else out['ajustes-fondo'] = { text: FONDO_PENDING_TEXT };
 
 		const bot = Object.keys(cleanBotTextOverrides(jsonRow(settings, BOT_TEXTS_SETTING))).length;
 		out['ajustes-textos-bot'] = {
@@ -212,11 +220,22 @@ export function buildAjustesStatus({
  *   db: D1Database | null | undefined,
  *   env?: Record<string, string | undefined>,
  *   mpReady?: boolean,
- *   now?: number
- * }} input `env`: las variables (interruptores forzados y secretos del bot, solo sí/no)
+ *   now?: number,
+ *   waitUntil?: (task: Promise<unknown>) => void,
+ *   fondo?: typeof resolveFondoPercent
+ * }} input `env`: las variables (interruptores forzados y secretos del bot, solo sí/no).
+ *   `waitUntil`: para ir a buscar el Fondo en segundo plano si todavía no llegó ninguno (sin él,
+ *   no lo busca). `fondo`: cómo se busca (para los tests).
  * @returns {Promise<Record<string, AjusteStatus>>}
  */
-export async function loadAjustesStatus({ db, env = {}, mpReady = false, now = Date.now() }) {
+export async function loadAjustesStatus({
+	db,
+	env = {},
+	mpReady = false,
+	now = Date.now(),
+	waitUntil,
+	fondo = resolveFondoPercent
+}) {
 	const data = await runQueries(db, {
 		settings: {
 			what: 'portada de Ajustes: ajustes',
@@ -265,7 +284,7 @@ export async function loadAjustesStatus({ db, env = {}, mpReady = false, now = D
 		}
 	}
 	const fondoDevPercent = dev ? parsePercent(env.FONDO_PERCENT_OVERRIDE) : null;
-	return buildAjustesStatus({
+	const status = buildAjustesStatus({
 		...data,
 		flags,
 		mpReady,
@@ -274,4 +293,18 @@ export async function loadAjustesStatus({ db, env = {}, mpReady = false, now = D
 		pauses: emergencyPauses(env),
 		now
 	});
+	// Todavía no llegó ningún porcentaje del Fondo: se busca en segundo plano (lo guarda en la base
+	// para la próxima vez), nunca esperándolo. Nunca tira.
+	if (db && waitUntil && status['ajustes-fondo']?.text === FONDO_PENDING_TEXT) {
+		try {
+			waitUntil(
+				fondo({ db, now }).catch((error) =>
+					console.error('[admin] portada de Ajustes: Fondo', error)
+				)
+			);
+		} catch (error) {
+			console.error('[admin] portada de Ajustes: Fondo', error);
+		}
+	}
+	return status;
 }
