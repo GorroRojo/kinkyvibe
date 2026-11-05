@@ -223,6 +223,52 @@ código por separado: borrá solo el que señala) y `svelte/no-immutable-reactiv
 que no depende de nada reactivo es un `const`). `npm run lint` lleva
 `--report-unused-disable-directives`: un `eslint-disable` que ya no hace falta también es error.
 
+## Tiempos de la CI
+
+Medido el 5/11/2026 (pedido de gorrite: la CI tardaba 15-20 minutos), con 15 corridas de
+`ci.yml` y los tiempos de cada job y paso de la API de GitHub. Lo que hacía esperar no eran las
+pruebas que exige `ci-ok` (~3 minutos) sino **`ui-impacto`**: es solo informativo, pero la guardia
+de merge (`scripts/hooks/check-merge.js`) espera a que termine todo chequeo, y tardaba 10-22
+minutos en cada PR de diseño. Dos veces, además, `playwright install-deps` (apt) tardó más de 9
+minutos.
+
+| Qué                               | Antes (15 corridas)         | Después (PR `ci-mas-rapida`)         |
+| --------------------------------- | --------------------------- | ------------------------------------ |
+| `ci-ok` verde, sin cola           | 170-200 s (mediana ~193 s)  | 182 s sin cachés, 167 s con cachés   |
+| Parte de vitest más lenta (job)   | 146-185 s (3 partes)        | 132-147 s (4 partes)                 |
+| `e2e`                             | 118-163 s (una vez 635 s)   | 91 s con la base en caché, 161 s sin |
+| Librerías de Chromium (apt)       | 16-557 s                    | 0 s (no hacían falta)                |
+| `ui-impacto` (job)                | 610-1302 s (mediana ~780 s) | 337-488 s                            |
+| Corrida entera de un PR de diseño | 622-1305 s (mediana ~790 s) | 340-491 s                            |
+
+Qué se hizo, y por qué:
+
+- **`ui-impacto` captura los dos lados a la vez** (cada uno con su `vite dev`): de ~4 + 4 minutos
+  de capturas a ~4. Comparando una rama consigo misma con los dos lados a la vez no cambió
+  ninguna de las 72 capturas. La captura de la grilla del calendario esperaba un selector que ya
+  no existe: perdía 30 s por captura (2 minutos por corrida) y siempre daba error.
+- **Chromium sin apt** si no le falta nada (`scripts/chromium-ci.sh`), en `e2e` y `ui-impacto`.
+- **vitest en 4 partes** y un piso de 0,3 s por archivo en el reparto (los ~90 archivos de 0 s
+  caían todos en la misma parte, que era siempre la última); `durations.json` al día.
+- **La base sembrada de `e2e` en caché** (clave exacta por lo que la arma, ver «Detalles de
+  `e2e`»): ~1 minuto menos en casi todos los PRs.
+- Las cachés de vitest y los artifacts de tiempos los guarda solo `main`, y `main` no se cancela.
+
+**Pruebas que cambiaron** (gorrite, 5/11: se pueden cortar o mover pruebas si es con criterio y
+se dice; nunca para tapar una falla real):
+
+- **Condicional**: `e2e` se saltea en los PRs que solo tocan documentación, pruebas unitarias o
+  herramientas de la CI que no entran al build (ver arriba, «PRs que no tocan el sitio
+  construido»). Esos archivos no pueden cambiar lo que recorre Playwright. En `main` corre siempre.
+- **Borradas o movidas a una corrida programada: ninguna.** Con los tiempos de cada archivo
+  (`npx vitest run --reporter=json`) no hay ninguno que pese: el más lento
+  (`mi-link.test.js`, ~21 s en una compu cargada) es menos del 4 % del total, y mover un archivo
+  ahorra menos que el arranque de una máquina. Y borrar una prueba sigue necesitando el sí de
+  gorrite por cada una (`tests-auditoria` en [plan.md](plan.md)).
+
+Lo que sigue pesando: las máquinas de GitHub no son todas iguales (la misma parte de vitest tarda
+75 s o 140 s según cuál toque) y, si hay muchos PRs a la vez, la cola (hasta ~2 minutos).
+
 ## Los tipos de pruebas
 
 ### Unitarias (vitest)
