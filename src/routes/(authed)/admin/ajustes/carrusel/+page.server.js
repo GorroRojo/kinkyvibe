@@ -26,7 +26,6 @@ import {
 	saveCarruselModo
 } from '$lib/server/carrusel.js';
 import { siteWikiPosts } from '$lib/server/wiki/site.js';
-import { conFichas } from '$lib/server/carruselFicha.js';
 import { CARRUSEL_DIAS_RANGO, CARRUSEL_MAXIMO_RANGO, CARRUSEL_TIPOS } from '$lib/utils/carrusel.js';
 import { imagesWithoutColors, saveImageColors } from '$lib/server/media/library.js';
 import { carruselModo, estiloDelEvento, nombreDelEstilo } from '$lib/utils/carruselEstilos.js';
@@ -51,10 +50,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 				})
 			: { total: 0, images: [] }
 	]);
-	const slides = await conFichas(
-		platform,
-		await carruselSlides(platform, [...posts, ...wiki], { ajustes: saved })
-	);
+	const slides = await carruselSlides(platform, [...posts, ...wiki], { ajustes: saved });
 	return {
 		dbAvailable: Boolean(db),
 		enabled,
@@ -71,13 +67,14 @@ export async function load({ locals, url, platform, setHeaders }) {
 				path: s.path,
 				title: String(s.meta.title ?? ''),
 				tipo: CARRUSEL_TIPOS[/** @type {keyof typeof CARRUSEL_TIPOS} */ (s.meta.category)] ?? '',
+				// La categoría y las etiquetas: la ficha de lo que no tiene imagen (su símbolo).
+				category: String(s.meta.category ?? ''),
+				tags: Array.isArray(s.meta.tags) ? s.meta.tags.filter((t) => typeof t === 'string') : [],
 				featured: typeof s.meta.featured === 'string' ? s.meta.featured : null,
 				start: evento ? (s.meta.start ?? null) : null,
 				estiloDelEvento: evento ? estiloDelEvento(s.meta) : null,
 				colors: s.colors,
-				// Lo nuevo va como su vista previa al compartir (su tipo, como en la vista previa).
-				ficha: s.ficha ? s.ficha.label : null,
-				// El estilo por evento solo existe en los eventos.
+				// El estilo por evento solo existe en los eventos; lo demás usa el de Ajustes.
 				editHref: evento ? `/admin/eventos/${encodeURIComponent(postID)}/editar#sec-datos` : null
 			};
 		}),

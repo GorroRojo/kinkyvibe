@@ -16,7 +16,6 @@ import {
 	resetCarruselCache,
 	saveCarruselModo
 } from './carrusel.js';
-import { conFichas } from './carruselFicha.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -229,20 +228,11 @@ describe('carruselSlides', () => {
 			}
 		];
 		const slides = await carruselSlides(t.platform, posts, { now: NOW });
-		// Lo nuevo va como su vista previa (`ficha`), sin los colores de su imagen; los estilos son
-		// para los eventos.
 		expect(slides.map((s) => [s.path, s.estilo, s.colors])).toEqual([
 			['/calendario/evento', 'a', null],
-			['/amigues/alguien', 'ficha', null],
-			['/material/guia', 'ficha', null],
-			['/wiki/termino', 'ficha', null]
-		]);
-		const fichas = await conFichas(t.platform, slides);
-		expect(fichas.map((s) => s.ficha && [s.ficha.kind, s.ficha.label, s.ficha.icon])).toEqual([
-			null,
-			['perfil', 'Amigues', 'heart'],
-			['material', 'Material', 'book-open'],
-			['wiki', 'Kinkipedia', 'globe']
+			['/amigues/alguien', 'b', null],
+			['/material/guia', 'c', ['#0f8b7a']],
+			['/wiki/termino', 'd', null]
 		]);
 		await saveCarruselCantidad(t.db, { dias: 30, maximo: 3 }, { by: 'x', now: NOW });
 		resetCarruselCache();

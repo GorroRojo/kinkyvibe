@@ -5,7 +5,6 @@ import { askVenuePlacesEarly, withVenuePlaces } from '$lib/server/amigues/venues
 import { askTicketStatesEarly, ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { carruselPortadaEnabled } from '$lib/server/flags.js';
 import { carruselSlides } from '$lib/server/carrusel.js';
-import { conFichas } from '$lib/server/carruselFicha.js';
 import { carruselModo } from '$lib/utils/carruselEstilos.js';
 import { siteWikiPosts } from '$lib/server/wiki/site.js';
 
@@ -35,12 +34,9 @@ export async function load({ platform, url }) {
 		// Con lo nuevo de la Kinkipedia: sus páginas vienen con el árbol de etiquetas, que el layout
 		// ya leyó (recordado 30 s por isolate): sin consultas de más.
 		carrusel: show
-			? await conFichas(
-					platform,
-					await carruselSlides(platform, [...posts, ...(await siteWikiPosts(platform))], {
-						modo: probar ? carruselModo(probar) : null
-					})
-				)
+			? await carruselSlides(platform, [...posts, ...(await siteWikiPosts(platform))], {
+					modo: probar ? carruselModo(probar) : null
+				})
 			: []
 	};
 }

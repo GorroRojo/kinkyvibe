@@ -130,7 +130,7 @@ describe('components render frontmatter as text', () => {
 		}
 	});
 
-	it('Carrousel: lo nuevo (material, amigues, Kinkipedia) va como su vista previa (la ficha), con su tipo y «Ver», en cualquier estilo', () => {
+	it('Carrousel: lo nuevo (material, amigues, Kinkipedia) lleva su tipo y «Ver», sin fecha ni estrella', () => {
 		for (const [category, tipo] of [
 			['material', 'Material'],
 			['amigues', 'Amigues'],
@@ -155,22 +155,61 @@ describe('components render frontmatter as text', () => {
 				expect(body).not.toContain('class="when');
 				expect(body).not.toContain('class="franja');
 				expect(body).toContain('Algo &lt;img');
-				// la ficha de la vista previa, no el estilo elegido; con imagen, la imagen
-				expect(body).toContain('slide v-ficha');
-				expect(body).not.toContain(`v-${estilo} `);
-				expect(body).toContain('class="ficha-foto');
-				expect(body).not.toContain('class="ficha-tile');
+				// con imagen, la imagen tal cual en el lugar del flyer; sin la ficha
+				expect(body).toContain('src="/x.webp"');
+				expect(body).not.toContain('class="ficha');
 			}
-			// sin imagen, la ficha con el símbolo del tipo (como la tarjeta de la vista previa)
-			const { body } = render(Carrousel, {
-				props: {
-					posts: /** @type {any[]} */ ([
-						{ path: `/${category}/x`, meta: { title: 'Sin imagen', category, summary: 'R' } }
-					])
-				}
-			});
-			expect(body).toContain('class="ficha-tile');
-			expect(body).toContain('src="data:image/svg+xml;base64,');
 		}
+	});
+
+	it('Carrousel: lo nuevo sin imagen lleva la ficha de su tipo (color y símbolo de su vista previa) con el título, en los cinco estilos', () => {
+		for (const [category, bg] of [
+			['material', 'hsl(165, 84%, 45%)'],
+			['amigues', 'hsl(50, 100%, 60%)'],
+			['wiki', 'white']
+		]) {
+			for (const estilo of ['a', 'b', 'c', 'd', 'e']) {
+				const { body } = render(Carrousel, {
+					props: {
+						posts: /** @type {any[]} */ ([
+							{ path: `/${category}/x`, meta: { title: `Sin ${EVIL}`, category }, estilo }
+						])
+					}
+				});
+				expect(body, `${category} ${estilo}`).toContain('class="ficha');
+				expect(body).toContain(`background: ${bg}`);
+				expect(body).toContain('src="data:image/svg+xml;base64,');
+				expect(body).toContain('Sin &lt;img');
+				// no el flyer improvisado de antes
+				expect(body).not.toContain('class="flyer ');
+				// en E, la mesa con copias de la ficha
+				if (estilo === 'e') expect(body).toContain('ficha-copia');
+			}
+		}
+		// la paleta de la marca se elige contra el color de la ficha: una ficha verde no va sobre
+		// el verde de la marca
+		const { body } = render(Carrousel, {
+			props: {
+				posts: /** @type {any[]} */ ([
+					{ path: '/material/x', meta: { title: 'X', category: 'material' }, estilo: 'a' }
+				])
+			}
+		});
+		expect(body).not.toContain('--slide-bg: #12d3a3');
+	});
+
+	it('Carrousel: un evento sin imagen sigue con el flyer hecho con el título', () => {
+		const { body } = render(Carrousel, {
+			props: {
+				posts: /** @type {any[]} */ ([
+					{
+						path: '/calendario/x',
+						meta: { title: 'Evento', category: 'calendario', start: '2099-12-01T20:00-03:00' }
+					}
+				])
+			}
+		});
+		expect(body).toContain('class="flyer ');
+		expect(body).not.toContain('class="ficha');
 	});
 });

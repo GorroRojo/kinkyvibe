@@ -294,11 +294,11 @@ export const OBJECT_CARD_COLORS = C;
 
 /**
  * La ficha de la izquierda sin fecha (un material, un perfil, la Kinkipedia o un evento sin fecha):
- * su fondo, la sombra corrida, el símbolo (dirección `data:` del SVG) y el color de la etiqueta de
- * arriba. La usan el dibujo de acá y el carrusel de la portada (que la arma en HTML), así se ven
- * igual.
+ * su fondo, la sombra corrida, el símbolo (dirección `data:` del SVG), el color de la etiqueta de
+ * arriba y el de un texto sobre la ficha (`ink`). La usan el dibujo de acá y el carrusel de la
+ * portada (la ficha de lo que no tiene imagen), así se ven igual.
  * @param {Pick<ObjectCardSpec, 'kind' | 'icon'>} spec
- * @returns {{ bg: string, shadow: string, icon: string, label: string }}
+ * @returns {{ bg: string, shadow: string, icon: string, label: string, ink: string }}
  */
 export function objectTileLook(spec) {
 	const accent = ACCENT[spec.kind];
@@ -308,19 +308,39 @@ export function objectTileLook(spec) {
 			bg: accent,
 			shadow: C.pink,
 			icon: iconSrc(spec.icon, { color: C.ink, fill: C.pink, stroke: 1.5 }),
-			label
+			label,
+			ink: C.ink
 		};
 	}
 	if (spec.kind === 'material') {
-		return { bg: accent, shadow: C.pink, icon: iconSrc(spec.icon, { color: C.tealDark }), label };
+		return {
+			bg: accent,
+			shadow: C.pink,
+			icon: iconSrc(spec.icon, { color: C.tealDark }),
+			label,
+			ink: C.tealDark
+		};
 	}
 	// la Kinkipedia y un evento sin fecha: blanca, con el color del tipo
-	return {
-		bg: 'white',
-		shadow: accent,
-		icon: iconSrc(spec.icon, { color: spec.kind === 'wiki' ? C.violet : C.ink }),
-		label
-	};
+	const ink = spec.kind === 'wiki' ? C.violet : C.ink;
+	return { bg: 'white', shadow: accent, icon: iconSrc(spec.icon, { color: ink }), label, ink };
+}
+
+/**
+ * La ficha de un material, un perfil o una entrada de la Kinkipedia sin imagen, por su categoría
+ * del sitio (`material`, `amigues`, `wiki`) y sus etiquetas (el símbolo del material). `null` para
+ * otra cosa.
+ * @param {string} category
+ * @param {readonly unknown[]} [tags]
+ */
+export function categoryTileLook(category, tags = []) {
+	if (category === 'material') {
+		const t = tags.filter((x) => typeof x === 'string');
+		return objectTileLook({ kind: 'material', icon: materialIcon(/** @type {string[]} */ (t)) });
+	}
+	if (category === 'amigues') return objectTileLook({ kind: 'perfil', icon: 'heart' });
+	if (category === 'wiki') return objectTileLook({ kind: 'wiki', icon: 'globe' });
+	return null;
 }
 
 /** La ficha de la izquierda. @param {ObjectCardSpec} spec */

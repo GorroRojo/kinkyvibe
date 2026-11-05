@@ -42,6 +42,22 @@ const HEX = /^#[0-9a-f]{6}$/;
 export const isHexColor = (v) => typeof v === 'string' && HEX.test(v);
 
 /**
+ * Un color de CSS simple como `#rrggbb`: `#rrggbb`, `white`, `black` o `hsl(h, s%, l%)` (los de las
+ * tarjetas de vista previa). Otra cosa, `null`.
+ * @param {unknown} v
+ * @returns {string | null}
+ */
+export function cssColorHex(v) {
+	const s = typeof v === 'string' ? v.trim().toLowerCase() : '';
+	if (HEX.test(s)) return s;
+	if (s === 'white') return '#ffffff';
+	if (s === 'black') return '#000000';
+	const m = /^hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)$/.exec(s);
+	if (!m) return null;
+	return hslHex({ h: Number(m[1]), s: Number(m[2]) / 100, l: Number(m[3]) / 100 });
+}
+
+/**
  * La lista de colores que vino (del navegador o de la base), limpia: solo `#rrggbb`, sin
  * repetidos, como mucho {@link COLORS_MAX}. Acepta un JSON o una lista. Sin ninguno válido, `null`.
  * @param {unknown} value

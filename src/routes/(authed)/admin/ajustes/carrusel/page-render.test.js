@@ -1,7 +1,6 @@
 /**
  * Ajustes › Carrusel de la portada: «Cómo se ve ahora» dice de dónde salen los colores de cada
- * evento, con el castellano bien armado («del flyer»); lo nuevo va como su vista previa al
- * compartir. Datos inventados.
+ * diapositiva, con el castellano bien armado («del flyer», «de la imagen»). Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
@@ -17,7 +16,6 @@ const slide = (over) => ({
 	estiloDelEvento: null,
 	colors: null,
 	editHref: '/admin/eventos/x/editar#sec-datos',
-	ficha: null,
 	...over
 });
 
@@ -51,18 +49,29 @@ describe('Ajustes › Carrusel de la portada: de dónde salen los colores', () =
 		expect(text).not.toContain('de el flyer');
 	});
 
-	it('lo nuevo va como su vista previa: sin estilo ni colores de la marca', () => {
+	it('lo nuevo sin imagen: la ficha de su tipo y el fondo elegido contra ella', () => {
 		const text = renderPage([
 			slide({
-				path: '/material/x',
-				tipo: 'Material',
+				path: '/wiki/x',
+				tipo: 'Kinkipedia',
+				category: 'wiki',
+				tags: [],
+				featured: null,
 				start: null,
-				editHref: null,
-				ficha: 'Material · Guía descargable'
+				editHref: null
 			})
 		]);
-		expect(text).toContain('Como su vista previa al compartir («Material · Guía descargable»).');
-		expect(text).not.toContain('Estilo:');
-		expect(text).toContain('Ver la página');
+		expect(text).toContain(
+			'Sin imagen: va la ficha de su tipo, y el fondo de la marca elegido para que resalte.'
+		);
+	});
+
+	it('lo nuevo con imagen sin colores: «faltan los colores de la imagen»', () => {
+		const text = renderPage([
+			slide({ path: '/material/x', tipo: 'Material', start: null, editHref: null })
+		]);
+		expect(text).toContain(
+			'Fondo de la marca, rotando: faltan los colores de la imagen (calculalos abajo).'
+		);
 	});
 });

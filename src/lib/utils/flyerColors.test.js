@@ -4,6 +4,7 @@ import {
 	COLORS_MAX,
 	colorsFromImage,
 	contrast,
+	cssColorHex,
 	ensureContrast,
 	extractColors,
 	hexToRgb,
@@ -151,5 +152,16 @@ describe('colorsFromImage', () => {
 				/** @type {any} */ (() => ({ getContext: () => null }))
 			)
 		).toBeNull();
+	});
+});
+
+describe('cssColorHex', () => {
+	it('los colores de las tarjetas de vista previa, como #rrggbb', () => {
+		expect(cssColorHex('#12D3A3')).toBe('#12d3a3');
+		expect(cssColorHex('white')).toBe('#ffffff');
+		expect(cssColorHex('hsl(165, 84%, 45%)')).toBe('#12d3a3');
+		expect(cssColorHex('hsl(50, 100%, 60%)')).toBe('#ffdd33');
+		expect(cssColorHex('var(--1)')).toBeNull();
+		expect(cssColorHex(null)).toBeNull();
 	});
 });
