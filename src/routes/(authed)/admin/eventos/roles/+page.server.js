@@ -16,8 +16,10 @@ import {
 	createFieldAction,
 	deleteFieldAction,
 	updateFieldAction,
-	requirePersonasAdmin
+	requirePersonasAdmin,
+	saveFieldsAction
 } from '$lib/server/personas/admin.js';
+import { formulariosEnabled } from '$lib/server/flags.js';
 import { addRole, listCustomRoles, removeRole } from '$lib/server/personas/roles.js';
 import { listGeneralFields } from '$lib/server/tickets/signupFields.js';
 import { FIXED_ROLES } from '$lib/utils/personas.js';
@@ -26,13 +28,19 @@ import { FIXED_ROLES } from '$lib/utils/personas.js';
 export async function load(event) {
 	const { db } = await requirePersonasAdmin(event);
 	event.setHeaders({ 'cache-control': 'private, no-store' });
-	const [custom, fields] = await Promise.all([listCustomRoles(db), listGeneralFields(db)]);
+	const [custom, fields, formularios] = await Promise.all([
+		listCustomRoles(db),
+		listGeneralFields(db),
+		// Con `formularios` prendido, las generales se editan con el editor compartido.
+		formulariosEnabled(event.platform)
+	]);
 	return {
 		roles: [
 			...FIXED_ROLES.map((name) => ({ name, fixed: true, createdAt: null, createdBy: null })),
 			...custom.map((r) => ({ ...r, fixed: false }))
 		],
-		fields
+		fields,
+		formularios
 	};
 }
 
@@ -86,5 +94,7 @@ export const actions = {
 	},
 	createField: (event) => createFieldAction(event, null),
 	updateField: (event) => updateFieldAction(event, null),
-	deleteField: (event) => deleteFieldAction(event, null)
+	deleteField: (event) => deleteFieldAction(event, null),
+	// El editor compartido (interruptor `formularios`): la lista entera, con su orden.
+	saveFields: (event) => saveFieldsAction(event, null)
 };

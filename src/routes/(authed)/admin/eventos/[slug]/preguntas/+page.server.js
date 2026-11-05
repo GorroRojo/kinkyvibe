@@ -13,8 +13,10 @@ import {
 	deleteFieldAction,
 	eventTicketTypes,
 	requirePersonasAdmin,
+	saveFieldsAction,
 	updateFieldAction
 } from '$lib/server/personas/admin.js';
+import { formulariosEnabled } from '$lib/server/flags.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import {
 	chosenGeneral,
@@ -38,13 +40,15 @@ export async function load(event) {
 	const { db } = await requirePersonasAdmin(event);
 	await requireTicketed(event.params.slug);
 	event.setHeaders({ 'cache-control': 'private, no-store' });
-	const [own, general, chosen, types] = await Promise.all([
+	const [own, general, chosen, types, formularios] = await Promise.all([
 		listOwnFields(db, event.params.slug),
 		listGeneralFields(db),
 		chosenGeneral(db, event.params.slug),
-		eventTicketTypes(event.params.slug)
+		eventTicketTypes(event.params.slug),
+		// Con `formularios` prendido, las preguntas propias se editan con el editor compartido.
+		formulariosEnabled(event.platform)
 	]);
-	return { own, general, chosen, types };
+	return { own, general, chosen, types, formularios };
 }
 
 /** @type {import('./$types').Actions} */
@@ -58,6 +62,11 @@ export const actions = {
 		return updateFieldAction(event, event.params.slug);
 	},
 	deleteField: (event) => deleteFieldAction(event, event.params.slug),
+	// El editor compartido (interruptor `formularios`): la lista entera, con su orden.
+	saveFields: async (event) => {
+		await requireTicketed(event.params.slug);
+		return saveFieldsAction(event, event.params.slug);
+	},
 	setGeneral: async (event) => {
 		const { db } = await requirePersonasAdmin(event);
 		await requireTicketed(event.params.slug);
