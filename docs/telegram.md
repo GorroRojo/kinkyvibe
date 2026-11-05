@@ -299,8 +299,9 @@ funciones que `/calendario`).
   El botón de menú del bot sigue siendo la lista de comandos.
 - **Textos**: en «Textos del bot», sección «Mini App del calendario», con su vista previa
   (aproximada: es una página, no un mensaje). Van sin formato. La página los lee una vez por
-  pedido (`miniAppTexts` en `miniapp.js`); como la página se guarda hasta 5 minutos
-  (`max-age=300`), un cambio puede tardar eso en verse. Los estados de la venta («Agotadas»…) son
+  pedido (`miniAppTexts` en `miniapp.js`); la página no se guarda (`private, no-store`): una
+  copia guardada nombraba los archivos JS de un deploy anterior, que ya no existen, y la Mini App
+  no cargaba («Failed to load», 5/11). Los estados de la venta («Agotadas»…) son
   los del sitio (`ticketCta`).
 - Con `telegram_enriquecido`: «📤 Mandar a un chat» en cada evento y el link directo a un evento
   (abajo, «Mensajes enriquecidos y compartir»).
