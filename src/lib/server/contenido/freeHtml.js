@@ -67,8 +67,12 @@ const HTML_BLOCK_TAGS = new Set(
 
 /** Un ítem de lista: viñeta (`-`, `*`, `+`) o número, y después un espacio o nada. */
 const LIST_ITEM = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
-/** El comienzo de una línea dentro de citas (`> `, `> > `…) y lo que sigue. */
-const QUOTED = /^((?:[ ]{0,3}>[ ]?)*)(.*)$/;
+/**
+ * El comienzo de una línea dentro de citas (`> `, `> > `…) y lo que sigue. `[^]*` y no `.*`: el
+ * punto no toma el separador de línea U+2028 ni U+2029 (vienen pegados del celu) y entonces la
+ * línea no coincidía y la página daba error 500.
+ */
+const QUOTED = /^((?:[ ]{0,3}>[ ]?)*)([^]*)$/;
 
 /**
  * Ajusta el markdown para que micromark (CommonMark) lo lea como lo lee el parser de mdsvex

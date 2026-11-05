@@ -61,6 +61,7 @@ import {
 	withTagEdges
 } from '$lib/server/contenido/etiquetasEdges.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
+import { countByChannel } from '$lib/utils/saleChannel.js';
 import { fondoTipTotalsStatement, readFondoTipTotals } from '$lib/server/propinas/index.js';
 import { tipCategoryLabel } from '$lib/utils/propinas.js';
 import { SALE_AT_SQL } from './saleMonth.js';
@@ -690,7 +691,8 @@ const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
 	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Entrar',
 	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón',
 	[ACCOUNT_EVENT_ACTIONS.venueResubmitted]: 'Lugar para aprobar · Mi rincón',
-	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón'
+	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón',
+	[ACCOUNT_EVENT_ACTIONS.profileEdited]: 'Perfil editado · Mi rincón'
 });
 
 /**
@@ -1913,13 +1915,16 @@ export function agendaItems({
 }
 
 /**
- * @typedef {{ days: { day: string, count: number }[], online: number, door: number }} SalesTrend
+ * `channels`: entradas por canal (la regla única de $lib/utils/saleChannel.js).
+ * @typedef {{ days: { day: string, count: number }[],
+ *   channels: Record<import('$lib/utils/saleChannel.js').SaleChannel, number> }} SalesTrend
  */
 
 /**
  * Ventas de un evento por día (fecha de la compra, hora de Argentina) en los últimos `days` días
- * hasta hoy inclusive, y cuántas entradas se vendieron online y en la puerta. La columna
- * `channel` llega con la migración del modo puerta: sin ella todo cuenta como online.
+ * hasta hoy inclusive, y cuántas entradas salieron por cada canal (online, puerta, cortesía y
+ * cargadas a mano: {@link countByChannel}). La columna `channel` llega con la migración del modo
+ * puerta: sin ella todo lo cobrado cuenta como online.
  * Una sola ida a la base (un batch).
  *
  * @param {D1Database | null | undefined} db
@@ -1956,8 +1961,9 @@ export function eventSalesTrendQuery(slug, now, days = 7) {
 	const byChannel = (db, withChannel) =>
 		db
 			.prepare(
-				`SELECT ${withChannel ? 'channel' : "'online'"} AS channel, SUM(quantity) AS n
-					FROM orders WHERE event_slug = ? AND status = 'approved' GROUP BY 1`
+				`SELECT ${withChannel ? 'channel' : "'online'"} AS channel, payment_method,
+					SUM(quantity) AS quantity
+					FROM orders WHERE event_slug = ? AND status = 'approved' GROUP BY 1, 2`
 			)
 			.bind(slug);
 	/** @param {import('$lib/server/db/batch.js').D1Result[]} res */
@@ -1965,19 +1971,19 @@ export function eventSalesTrendQuery(slug, now, days = 7) {
 		/** @type {Map<number, number>} */
 		const counts = new Map();
 		for (const r of rowsOf(res, 0)) counts.set(Number(r.d), Number(r.n ?? 0));
-		let online = 0;
-		let door = 0;
-		for (const r of rowsOf(res, 1)) {
-			if (r.channel === 'puerta') door += Number(r.n ?? 0);
-			else online += Number(r.n ?? 0);
-		}
+		const channels = countByChannel(
+			rowsOf(res, 1).map((r) => ({
+				channel: r.channel == null ? null : String(r.channel),
+				payment_method: r.payment_method == null ? null : String(r.payment_method),
+				quantity: Number(r.quantity ?? 0)
+			}))
+		);
 		return {
 			days: Array.from({ length: days }, (_, i) => ({
 				day: arDay(from + i * DAY_MS),
 				count: counts.get(i) ?? 0
 			})),
-			online,
-			door
+			channels
 		};
 	};
 	return {

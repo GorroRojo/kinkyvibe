@@ -666,11 +666,14 @@ La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registro
 (`GET /admin/buscar`, `src/lib/server/admin/search.js`).
 
 - **Sin mayúsculas ni tildes, en todo**: «jose» encuentra «José», «nunez» a «Núñez», «muller» a
-  «Müller». Todo compara con `foldText` (`src/lib/server/tickets/orders.js`), la misma función de
-  los eventos, las etiquetas y la búsqueda de la Puerta. SQLite no ignora tildes, así que cada
+  «Müller», y también sin signos sueltos como `´ ^ ¨ ·`. Todo compara con `foldText`
+  (`src/lib/utils/text.js`), la misma función de los eventos, las etiquetas, la búsqueda de la
+  Puerta, las órdenes y el resto del sitio. SQLite no ignora tildes, así que cada
   consulta a la base usa un `LIKE` flojo (`looseLike`: las letras que pueden llevar tilde, como
   a e i o u n c y, valen cualquier carácter) y la comparación de verdad se hace en JS sobre lo que
-  vuelve, con un techo de `MAX_CANDIDATES` filas (las más nuevas). Sin columnas nuevas ni
+  vuelve, con un techo de `MAX_CANDIDATES` filas (las más nuevas). Como el `LIKE` no puede saltear
+  un carácter, los nombres se comparan sin los signos sueltos (`withoutSigns`): «mella» y «Mel·la»
+  traen a «Mel·la». Sin columnas nuevas ni
   migraciones: alcanza para cientos o pocos miles de filas. La referencia `KV-…`, el código de la
   entrada y el DNI se siguen comparando en SQL (el DNI nunca sale de la base).
 - **Qué encuentra y adónde lleva**: eventos (a la ficha; del primero salen atajos a Puerta,

@@ -40,11 +40,16 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
   caché del borde o de un navegador se sigue viendo hasta un día. Las portadas de eventos, material
   y series siguen inmutables (nada cambia para el rendimiento de las tarjetas).
 - **Sin metadatos**: antes de calcular el hash, `storeImage` le saca a un JPEG los segmentos Exif,
-  XMP, IPTC y los comentarios (de Exif deja solo la orientación) y a un PNG los bloques eXIf,
-  tEXt, zTXt, iTXt y tIME (`src/lib/server/media/metadata.js`). Ahí pueden ir el GPS de donde se
-  sacó la foto, la fecha o el modelo del celu. WEBP, GIF y AVIF van tal cual (lo que sube el
-  navegador ya pasó por el canvas, que no copia metadatos). Una imagen subida antes de este cambio
-  y subida de nuevo da otro hash: es otra imagen.
+  XMP, IPTC y los comentarios (de Exif deja solo la orientación), a un PNG los bloques eXIf,
+  tEXt, zTXt, iTXt y tIME, y a un WEBP los bloques EXIF y XMP (de Exif deja solo la orientación,
+  y corrige `VP8X`) (`src/lib/server/media/metadata.js`). En un AVIF pisa en el mismo lugar el
+  contenido de los ítems Exif (queda un Exif válido con solo la orientación: uno vacío hace fallar
+  a libavif) y XMP (espacios): el archivo mide lo mismo y no hay que reescribir sus posiciones; la
+  orientación propia del AVIF (`irot`/`imir`) no se toca. Ahí pueden ir el GPS de donde se sacó la
+  foto, la fecha o el modelo del celu. Un GIF va tal cual. Las pruebas usan fotos de verdad con
+  metadatos inventados (`src/lib/server/media/fixtures/`). WEBP y AVIF, desde el 4/11 (gorrite,
+  Mesa `chica-532-metadatos-webp`): una imagen subida antes de un cambio así y subida de nuevo da
+  otro hash: es otra imagen.
 - **Objeto `imagen`**: `title` (nombre para buscarla), `key`, `mime`, `size`, `width`, `height`,
   `alt` (texto alternativo), `original_name` y, si vino del repo, `source_path`. Quién la subió y
   cuándo: `created_by`/`created_at` (solo les admins lo ven).

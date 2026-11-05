@@ -23,7 +23,8 @@ export const ACCOUNT_EVENT_ACTIONS = Object.freeze({
 	accountCreated: 'account.create',
 	profileCreated: 'profile.create',
 	signupAnswersViewed: 'signup_answers.view',
-	venueResubmitted: 'profile.resubmit'
+	venueResubmitted: 'profile.resubmit',
+	profileEdited: 'profile.account_edit'
 });
 
 const actor = { user: { login: ACCOUNT_EVENT_ACTOR } };
@@ -114,6 +115,32 @@ export function logVenueResubmitted(db, profile, { now = Date.now() } = {}) {
 			targetType: 'profile',
 			targetId: profile.id,
 			summary: `Volvieron a mandar el lugar «${profile.title}» para aprobar`
+		},
+		{ now }
+	);
+}
+
+/**
+ * "Editó su perfil" (quien lo gestiona lo guardó desde Mi rincón): solo de un perfil que une
+ * admin ya aprobó, que sale al toque sin volver a «Para aprobar» (decisión de gorrite, Mesa
+ * chica-532-revision-perfiles). Lo que cambió se ve en el historial del perfil (T31); acá van
+ * solo el nombre y el tipo, como en "perfil creado".
+ *
+ * @param {D1Database} db
+ * @param {{ id: number, title: string, kind: string }} profile
+ * @param {{ now?: number }} [opts]
+ */
+export function logProfileEdited(db, profile, { now = Date.now() } = {}) {
+	const kind = profileKindOf(profile);
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.profileEdited,
+			targetType: 'profile',
+			targetId: profile.id,
+			summary: `«${profile.title}» editó su perfil (${kind})`,
+			detail: { kind }
 		},
 		{ now }
 	);

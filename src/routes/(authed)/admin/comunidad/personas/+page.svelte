@@ -11,6 +11,7 @@
 	import { personHref } from '$lib/admin/links.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { argDate } from '$lib/utils/dates.js';
+	import { foldText } from '$lib/utils/text.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
@@ -25,12 +26,7 @@
 	let serie = $page.url.searchParams.get('serie') ?? '';
 	let kind = $page.url.searchParams.get('tipo') ?? '';
 
-	/** @param {string} s */
-	const fold = (s) =>
-		s
-			.normalize('NFD')
-			.replace(/\p{Diacritic}/gu, '')
-			.toLowerCase();
+	const fold = foldText;
 	$: needle = fold(q.trim());
 	$: filtered = data.people.filter(
 		(p) =>

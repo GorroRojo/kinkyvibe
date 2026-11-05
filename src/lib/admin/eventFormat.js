@@ -4,6 +4,7 @@
  */
 import { parseEventDate } from '$lib/utils/eventDraft.js';
 import { eventDateList, MONTHS_SHORT_ES, WEEKDAYS_SHORT_ES } from '$lib/utils/dates.js';
+import { foldText } from '$lib/utils/text.js';
 
 /**
  * Fecha para el bloque grande de las listas: `{ day: '12', month: 'dic', weekday: 'sáb', year }`.
@@ -76,16 +77,8 @@ export function eventBadges(e) {
 	return out;
 }
 
-/**
- * Texto sin tildes ni mayúsculas, para buscar.
- * @param {string} s
- */
-export function foldSearch(s) {
-	return String(s ?? '')
-		.normalize('NFD')
-		.replace(/[\u0300-\u036f]/g, '')
-		.toLowerCase();
-}
+/** Texto sin tildes ni mayúsculas, para buscar: la receta única ({@link foldText}). */
+export const foldSearch = foldText;
 
 /**
  * "mié 30 sep" (o "30/9" corto) para un día YYYY-MM-DD.

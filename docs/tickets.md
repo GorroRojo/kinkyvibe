@@ -118,6 +118,30 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 
 10. **Cargar entradas a mano** (`/admin/eventos/<slug>/ordenes/cargar`; link en el menú "Opciones" del modo puerta): invitaciones, cortesías o pagos que llegaron por otro lado. Tipo, cantidad, nombre y email (opcional) de quien recibe, nombre de cada entrada, **cómo se pagó** (cortesía / invitación, efectivo, transferencia u otro), **monto por entrada** (0 = sin cargo; la cortesía siempre es 0; se lee con `parseAmount`, igual que en la compra online y en la puerta) y una nota opcional (solo en el panel, `orders.admin_note`). Crea una orden **ya aprobada** con `channel = 'manual'` (`createManualOrder` en `src/lib/server/tickets/manual.js`, con la misma sentencia que la venta en la puerta: `insertApprovedOrder` de `door.js`), no marca el ingreso y, si hay email y se tilda, manda las entradas por mail. Total 0 queda como `gratis`. Queda en el registro (`order.manual`). Límites (se pueden pasar confirmando): cupo, 20 por compra y venta cerrada (por horario, del tipo, agotadas o cancelado); "todavía no abrió" no es un límite. Migración 0010: canal `manual`, medio `otro`, precio 0 en las manuales y `admin_note`.
 
+### Canal de venta: una sola regla
+
+Todo lo que cuenta ventas por canal usa la misma función, `saleChannel` en
+`src/lib/utils/saleChannel.js` (con `countByChannel` para sumar entradas), y cuatro columnas
+(gorrite, Mesa `chica-536-canal-venta`, 4/11):
+
+| Canal                                 | Qué entra                                                                                                  |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Online**                            | la compra de la página (Mercado Pago o transferencia); una orden de antes de la columna `channel`, también |
+| **En la puerta** (`puerta`)           | lo vendido con la pantalla de la puerta (`channel = 'puerta'`), también $ 0 a la gorra                     |
+| **Cortesía / sin cargo** (`cortesia`) | lo que salió $ 0 (`payment_method = 'gratis'`): cortesías, $ 0 en la puerta en un tipo con precio, gratis  |
+| **Cargadas a mano** (`manual`)        | cargadas a mano en el panel y cobradas (efectivo, transferencia u otro)                                    |
+
+En ese orden se evalúa: primero la puerta, después $ 0, después la carga a mano; lo demás es
+online. La usan el termómetro de Ventas de cada evento (`buildSalesChart` en
+`src/lib/admin/salesChart.js`, una banda por canal), la tarjeta de ventas del Inicio
+(`eventSalesTrend` en `src/lib/server/admin/inicio.js`: muestra los canales con entradas cuando
+no es todo online) y la columna `canal` de `ordenes.csv` (`online`, `puerta`, `cortesía` o
+`cargada a mano`). Antes había dos reglas: el termómetro ponía una cargada a mano y cobrada por
+transferencia en «Cortesía», y el Inicio contaba como online todo lo que no era de la pantalla de
+la puerta. Con la regla única cambia en qué columna caen algunas ventas viejas; el total no
+cambia. El aviso «cada venta» del bot sigue mirando solo `channel = 'online'` (las compras de la
+página, también las gratis): no cuenta ventas, dice de dónde vino la orden.
+
 ### Puerta: cómo hacerla
 
 La guía corta para quien está en la puerta. En el modo puerta está en el botón **?** de arriba
@@ -751,6 +775,10 @@ La página de compra (`/calendario/<slug>/entradas`) hace lo mismo: el evento, l
 
 **El porcentaje que se cobra es el que se vio.** Como con los tramos de preventa, el formulario manda el porcentaje que mostró (`fondo_percent`, campo oculto, solo con «Con el descuento del fondo» elegido) **solo para avisar**: si no coincide con el vigente al comprar, `?/buy` no reserva y contesta 409 «El descuento del Fondo cambió: ahora es X %. Revisá el total y volvé a confirmar.». Toda respuesta con error de `?/buy` en un evento con Fondo lleva el porcentaje de ahora (`fondoPercent`) y la página de compra rearma los precios con él (`withFondoPercent` en `src/lib/utils/tickets.js`), así confirmar de nuevo pasa sin recargar. Sin el campo (o vacío: formularios viejos, precio completo o solidarias, eventos sin Fondo) no se frena nada.
 
+#### Precios con el Fondo en el editor
+
+En **Entradas** del editor de eventos (crear y editar), si el evento tiene la etiqueta KinkyVibe y el porcentaje de hoy es mayor que 0, debajo de cada precio (el fijo, el de cada tramo de preventa y el «Precio en puerta», si está) se ve cuánto sale con el Fondo, con el corazón violeta de siempre («💜 -20% = $ 11.200»), y cambia mientras se escribe. Un lector de pantalla lee «Con el descuento del Fondo (20 %): $ 11.200» (el emoji va con `aria-hidden`). El resumen de los tramos también lo dice («Preventa 1 ($ 14.000 · 💜 -20% = $ 11.200, hasta el 7/11) → …») y avisa una vez «El descuento del Fondo hoy es 20 %: puede cambiar.». Al lado, **Copiar precios** copia una línea por tramo para la agenda y los flyers («Preventa 1: $ 14.000 · 💜 -20% = $ 11.200 · hasta el 7/11», y «En la puerta: $ 20.000 · 💜 -20% = $ 16.000» si el tipo tiene precio en puerta propio); sin Fondo, sin la parte del corazón. Si el portapapeles no anda, el texto queda a la vista, seleccionado. Las cuentas son las de la compra (`fondoFor` y `unitPrice`, en `src/lib/utils/fondoPrices.js`). El porcentaje llega del load con `editorFondoPercent` (`src/lib/server/tickets/fondo.js`): el último conocido (`staleOk`, se actualiza en segundo plano) y, si no hay ninguno, espera a la API como mucho 0,8 s; si no llega o falla, el editor no muestra esas líneas. Es solo para mostrar: lo que se cobra lo decide la compra con el porcentaje de ese momento.
+
 ### Reembolsos
 
 En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada orden aprobada tiene **Reembolsar…**, que abre un paso de confirmación con el monto, quién compró y sus entradas:
@@ -964,7 +992,7 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 - **Compras de este navegador:** la cookie httpOnly `kv_orders` (`path=/entradas`, 7 días) guarda las últimas 5 órdenes como `<orden>.<firma>`, separadas por `~`; la firma es `signLink` con la clave `orders_cookie_key` (se crea sola en `ticket_settings`, ver `signedLinks.js`), cortada a 16 caracteres. `rememberedOrders` (`checkout.js`) solo cuenta las entradas con la firma que puso el servidor; las demás se ignoran (las cookies viejas, sin firma, dejan de contar y la página de estado muestra la compra como a cualquiera: sin entradas y con el email enmascarado).
 - **Admin:** cada `load`, cada form action y el CSV llaman a `requireAdmin` en el servidor (las form actions y los `+server.js` no pasan por el layout).
 - **Mocks:** detrás de `dev` de `$app/environment`, que es `false` en el build: el módulo del mock, la sesión falsa y el fixture no llegan al worker de producción.
-- **CSV:** se arma con `toCsv`/`csvResponse` (`$lib/admin/csv.js`), como los demás del panel: celdas que empiezan con `= + - @` se escapan (inyección de fórmulas), un texto con forma de notación científica (un código corto como `234E56`, que Excel y Sheets volverían número) va con `'` adelante, y las fechas (`fecha`, `ingreso`, `reembolsada_el`) van en hora de Argentina, `2026-10-02 22:30`. El `estado` de `ordenes.csv` es el que muestra el panel (una reserva vencida que todavía no se marcó sale `expired`) y, antes de `pago_mp` y `confirmo` (que sigue siendo la última columna fija, antes de las preguntas), van `canal` (online, puerta o manual), `nota` (la de la carga a mano o la puerta), `reembolsada_el` y `reembolsada_por` («Mercado Pago» si llegó por el webhook).
+- **CSV:** se arma con `toCsv`/`csvResponse` (`$lib/admin/csv.js`), como los demás del panel: celdas que empiezan con `= + - @` se escapan (inyección de fórmulas), un texto con forma de notación científica (un código corto como `234E56`, que Excel y Sheets volverían número) va con `'` adelante, y las fechas (`fecha`, `ingreso`, `reembolsada_el`) van en hora de Argentina, `2026-10-02 22:30`. El `estado` de `ordenes.csv` es el que muestra el panel (una reserva vencida que todavía no se marcó sale `expired`) y, antes de `pago_mp` y `confirmo` (que sigue siendo la última columna fija, antes de las preguntas), van `canal` (online, puerta, cortesía o cargada a mano: la regla de [Canal de venta](#canal-de-venta-una-sola-regla)), `nota` (la de la carga a mano o la puerta), `reembolsada_el` y `reembolsada_por` («Mercado Pago» si llegó por el webhook).
 - **Privacidad:** de quien compra, nombre, pronombres, email y DNI; de cada entrada, nombre y pronombres. En el navegador, el borrador del formulario (DNI incluido) vive solo en `sessionStorage` de esa pestaña y se borra al comprar (con Mercado Pago, cuando la página de estado ve la compra aprobada: un pago rechazado vuelve al formulario con los datos cargados); nunca en `localStorage`. El DNI nunca va en mails, logs, URLs ni en la página pública de la entrada (que muestra nombre y pronombres); solo lo ven les admins en las órdenes, el CSV y el control de ingreso. En el control de ingreso, lo que baja al celu (las sugerencias de «Buscar persona», la lista sin conexión, el resultado del escaneo) lleva solo los últimos 3 dígitos; el DNI completo se pide aparte con «ver completo», que queda en el registro de actividad (`order.reveal_dni`). Los datos por entrada viajan en la orden hasta que se emiten las entradas y ahí se borran de la orden.
 - **Códigos:** revalidados en la misma sentencia atómica que el cupo; límite de intentos por cliente y evento, el mismo contador para "Aplicar" y para comprar con un código.
 - **Transferencias:** confirmación solo de admins, idempotente, sin sobreventa al confirmar reservas vencidas.

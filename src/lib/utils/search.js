@@ -7,6 +7,7 @@
  * cambie) y el cliente lo descarga recién al abrir el buscador (ver SearchPalette.svelte).
  */
 import { allowedTypes, arDay, dayInWhen, parseSearch } from './searchSyntax.js';
+import { stripMarks } from './text.js';
 
 /**
  * @typedef {Object} SearchDoc
@@ -47,7 +48,7 @@ function foldChar(c) {
 	let r = foldCache.get(c);
 	if (r === undefined) {
 		const lower = c.toLowerCase();
-		r = lower.normalize('NFD').replace(/\p{M}/gu, '');
+		r = stripMarks(lower);
 		if (r.length !== c.length) r = lower.length === c.length ? lower : c;
 		foldCache.set(c, r);
 	}
@@ -55,9 +56,11 @@ function foldChar(c) {
 }
 
 /**
- * Pasa a minúsculas y saca tildes/diacríticos (á→a, ñ→n, ü→u).
+ * Pasa a minúsculas y saca tildes/diacríticos (á→a, ñ→n, ü→u), letra por letra con la receta
+ * única ({@link stripMarks} de ./text.js).
  * Conserva la longitud del texto (índice a índice) para poder resaltar el
- * texto original a partir de posiciones encontradas en el texto normalizado.
+ * texto original a partir de posiciones encontradas en el texto normalizado: por eso un signo
+ * suelto (´ ^ ¨ ·) queda en su lugar, y es {@link tokenize} el que lo saca de la palabra.
  * @param {string} s
  * @returns {string}
  */
@@ -66,7 +69,18 @@ export function fold(s) {
 	return (s ?? '').toString().replace(/[A-Z]|[^\x00-\x7F]/gu, foldChar);
 }
 
-const WORD_RE = /[\p{L}\p{N}]+/gu;
+/**
+ * Una palabra: letras y números, con signos diacríticos sueltos adentro («mel·la», «cafe´»). Se
+ * buscan sin esos signos ({@link wordOf}): «Mel·la» se encuentra con «mella» y con «Mel·la»
+ * (gorrite, Mesa `chica-567-quitar-tildes`).
+ */
+const WORD_RE = /[\p{L}\p{N}]+(?:[\p{Diacritic}\u0300-\u036f]+[\p{L}\p{N}]+)*/gu;
+
+/**
+ * La palabra para buscar, sin los signos que pueda tener adentro.
+ * @param {string} w una palabra de {@link WORD_RE} ya normalizada con {@link fold}
+ */
+const wordOf = (w) => (/^[\p{L}\p{N}]+$/u.test(w) ? w : stripMarks(w));
 
 /**
  * Parte un texto en palabras normalizadas.
@@ -74,7 +88,7 @@ const WORD_RE = /[\p{L}\p{N}]+/gu;
  * @returns {string[]}
  */
 export function tokenize(s) {
-	return fold(s).match(WORD_RE) ?? [];
+	return (fold(s).match(WORD_RE) ?? []).map(wordOf);
 }
 
 /** Palabras vacías en español que se ignoran en la consulta (si hay otras). */
@@ -683,7 +697,7 @@ export function highlight(text, words) {
 	const folded = fold(text);
 	let last = 0;
 	for (const m of folded.matchAll(WORD_RE)) {
-		if (!words.has(m[0])) continue;
+		if (!words.has(wordOf(m[0]))) continue;
 		const start = /** @type {number} */ (m.index);
 		if (start > last) parts.push({ text: text.slice(last, start), hit: false });
 		parts.push({ text: text.slice(start, start + m[0].length), hit: true });
@@ -732,7 +746,7 @@ export function snippet(doc, words, size = 160) {
 		if (!text) continue;
 		const folded = fold(text);
 		for (const m of folded.matchAll(WORD_RE)) {
-			if (!words.has(m[0])) continue;
+			if (!words.has(wordOf(m[0]))) continue;
 			const pos = /** @type {number} */ (m.index);
 			let start = Math.max(0, pos - Math.floor(size / 3));
 			if (start > 0) {

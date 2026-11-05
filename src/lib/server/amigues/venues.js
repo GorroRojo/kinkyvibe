@@ -6,7 +6,7 @@
  * "Sucede en" es un edge `lugar` (evento → perfil de lugar, `edges.data.privacy` = el nivel propio
  * del evento, o sin `data` si usa el del lugar), escrito SOLO con saveObject() sobre el evento
  * (con su historial). Antes era la tabla `event_venues` (migraciones 0017 y 0027); la 0035 pasó
- * sus filas a edges y nada la usa más (queda en la base: las migraciones solo agregan). Por eso
+ * sus filas a edges y la 0075 la borra. Por eso
  * el evento tiene que estar en la base para tener lugar (docs/amigues.md). Para afuera todo sigue
  * siendo por la dirección del evento (la de su página: la del .md importado o la del objeto), como
  * las listas de posts.
