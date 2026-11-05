@@ -3,7 +3,8 @@
  * «Gastos y reparto»). Funciones puras, las mismas en el servidor y en la página:
  *
  * - lo que entró, de las órdenes del evento (`eventIncome`), con el Fondo calculado orden por
- *   orden (lo que cubrió con su descuento y lo que recibió de las solidarias);
+ *   orden (lo que cubrió con su descuento y lo que recibió de las solidarias) y los extras de la
+ *   compra aparte (`extras_amount` y `order_extras`, migración 0077);
  * - el costo del lugar en sus cuatro formas (`venueCost`);
  * - la cuenta entera (`computeAccount`): ingresos, lugar, contrataciones, otros gastos, ganancia,
  *   el reparto entre las partes (`splitProfit`: cada una con un porcentaje, un monto fijo o «lo
@@ -25,14 +26,25 @@ import { formatARS as fmtARS } from '$lib/utils/money.js';
  * @prop {'preventa' | 'puerta'} part
  * @prop {number} orders
  * @prop {number} tickets
- * @prop {number} amount lo cobrado (el `total` de las órdenes)
+ * @prop {number} amount lo cobrado por las entradas (el `total` de las órdenes, con el recargo)
+ * @prop {number} extras lo cobrado por los extras (`extras_amount`, a precio de lista; sin recargo:
+ *   el recargo de MP de los extras ya está en `total`)
  * @prop {number} mpFee el recargo de Mercado Pago de esas órdenes (se lo queda MP)
+ */
+
+/**
+ * Un extra vendido (de las órdenes aprobadas, solo lo que se cobró: sin las cortesías a $ 0).
+ * @typedef {object} ExtraIncome
+ * @prop {string} id
+ * @prop {string} name
+ * @prop {number} quantity
+ * @prop {number} amount
  */
 
 /**
  * @typedef {object} Income
  * @prop {IncomeRow[]} rows solo las que cobraron algo
- * @prop {number} gross lo cobrado
+ * @prop {number} gross lo cobrado por las entradas (con el recargo de MP de todo, sin los extras)
  * @prop {number} mpFee el recargo de MP (lo pagó quien compró y se lo quedó MP)
  * @prop {number} fondoUsed lo que cubrió el Fondo con su descuento (`fondo_amount`)
  * @prop {number} fondoContributed lo que se pagó de más para el Fondo (`fondo_contribution`)
@@ -40,7 +52,11 @@ import { formatARS as fmtARS } from '$lib/utils/money.js';
  * @prop {number} presale lo que pagó la gente por las entradas antes del evento (online y a mano),
  *   sin el recargo de MP ni los aportes al Fondo
  * @prop {number} door lo mismo, en la puerta
- * @prop {{ orders: number, amount: number }} refunded reembolsadas: no cuentan
+ * @prop {number} extras lo que se pagó por los extras de la compra (online, puerta o a mano), a
+ *   precio de lista: sin el recargo de MP (está en `total`) y sin Fondo ni descuento
+ * @prop {ExtraIncome[]} extrasLines los extras, uno por uno (si se tienen las filas de
+ *   `order_extras`)
+ * @prop {{ orders: number, amount: number }} refunded reembolsadas: no cuentan (con sus extras)
  * @prop {{ orders: number, amount: number }} awaiting transferencias sin confirmar: no cuentan
  */
 
@@ -86,10 +102,16 @@ const int = (x) => {
  * docs/tickets.md, «Meta de venta»). El Fondo, orden por orden: `fondo_amount` (lo que cubrió su
  * descuento) y `fondo_contribution` (el aporte de las solidarias), nunca un promedio.
  *
- * @param {Pick<Order, 'status' | 'quantity' | 'total' | 'payment_method' | 'channel' | 'surcharge_amount' | 'fondo_amount' | 'fondo_contribution'>[]} orders
+ * Los extras (migración 0077) van aparte: `extras_amount` de cada orden aprobada, en su fuente (la
+ * plata entró con el mismo pago) y en `extras`. Su recargo de MP ya está en `total` (y en
+ * `surcharge_amount`), así que no se descuenta dos veces. Con `extrasByOrder` (las filas de
+ * `order_extras` por orden), además el detalle por extra. Lo entregado no importa: cuenta lo pagado.
+ *
+ * @param {(Pick<Order, 'status' | 'quantity' | 'total' | 'payment_method' | 'channel' | 'surcharge_amount' | 'fondo_amount' | 'fondo_contribution'> & { id?: string, extras_amount?: number | null })[]} orders
+ * @param {Map<string, { id: string, name: string, price: number, quantity: number }[]>} [extrasByOrder]
  * @returns {Income}
  */
-export function eventIncome(orders) {
+export function eventIncome(orders, extrasByOrder = new Map()) {
 	/** @type {Map<string, IncomeRow>} */
 	const by = new Map();
 	const out = {
@@ -100,19 +122,23 @@ export function eventIncome(orders) {
 		tickets: 0,
 		presale: 0,
 		door: 0,
+		extras: 0,
 		refunded: { orders: 0, amount: 0 },
 		awaiting: { orders: 0, amount: 0 }
 	};
+	/** @type {Map<string, ExtraIncome>} */
+	const lines = new Map();
 	for (const o of orders) {
 		const total = int(o.total);
+		const extras = Math.max(0, int(o.extras_amount));
 		if (o.status === 'refunded') {
 			out.refunded.orders += 1;
-			out.refunded.amount += total;
+			out.refunded.amount += total + extras;
 			continue;
 		}
 		if (o.status === 'awaiting_transfer') {
 			out.awaiting.orders += 1;
-			out.awaiting.amount += total;
+			out.awaiting.amount += total + extras;
 			continue;
 		}
 		if (o.status !== 'approved') continue;
@@ -126,6 +152,7 @@ export function eventIncome(orders) {
 			orders: 0,
 			tickets: 0,
 			amount: 0,
+			extras: 0,
 			mpFee: 0
 		};
 		const fee = o.payment_method === 'mercadopago' ? int(o.surcharge_amount) : 0;
@@ -134,6 +161,7 @@ export function eventIncome(orders) {
 		row.orders += 1;
 		row.tickets += quantity;
 		row.amount += total;
+		row.extras += extras;
 		row.mpFee += fee;
 		by.set(key, row);
 		out.gross += total;
@@ -143,12 +171,50 @@ export function eventIncome(orders) {
 		out.fondoContributed += contribution;
 		// Lo que pagó por las entradas: sin el recargo (de MP) ni el aporte (del Fondo).
 		out[part === 'puerta' ? 'door' : 'presale'] += total - fee - contribution;
+		out.extras += extras;
+		if (extras > 0 && o.id) {
+			for (const x of extrasByOrder.get(o.id) ?? []) {
+				const amount = int(x.price) * int(x.quantity);
+				// Una cortesía cargada a mano lleva sus extras a $ 0: no es plata que entró.
+				if (amount <= 0) continue;
+				const line = lines.get(x.id) ?? { id: x.id, name: x.name, quantity: 0, amount: 0 };
+				line.quantity += int(x.quantity);
+				line.amount += amount;
+				lines.set(x.id, line);
+			}
+		}
 	}
 	const order = Object.keys(SOURCE_LABELS);
 	const rows = [...by.values()]
-		.filter((r) => r.amount > 0)
+		.filter((r) => r.amount + r.extras > 0)
 		.sort((a, b) => rank(order, a.key) - rank(order, b.key));
-	return { rows, ...out };
+	return { rows, ...out, extrasLines: [...lines.values()] };
+}
+
+/**
+ * Lo que entró, de la foto de una cuenta cerrada: las cerradas antes de los extras no los tienen
+ * (quedan en 0) y siguen dando los mismos números. Sin foto (o sin filas), `null`.
+ *
+ * @param {any} raw
+ * @returns {Income | null}
+ */
+export function cleanIncome(raw) {
+	if (!raw || typeof raw !== 'object' || !Array.isArray(raw.rows)) return null;
+	return {
+		...raw,
+		rows: raw.rows.map((/** @type {any} */ r) => ({ ...r, extras: int(r?.extras) })),
+		extras: int(raw.extras),
+		extrasLines: Array.isArray(raw.extrasLines) ? raw.extrasLines : []
+	};
+}
+
+/**
+ * «2 × Trago $ 4.000» (un extra en Ingresos).
+ * @param {Pick<ExtraIncome, 'name' | 'quantity' | 'amount'>} line
+ * @param {(n: number) => string} [fmt]
+ */
+export function extraIncomeText(line, fmt = fmtARS) {
+	return `${line.quantity} × ${line.name} ${fmt(line.amount)}`;
 }
 
 /** @param {string[]} order @param {string} key */
@@ -215,7 +281,7 @@ export function splitWhole(total, weights) {
 
 /**
  * Cómo cobra el lugar. `fijo`: un monto. `hora`: horas × precio por hora. `porcentaje`: un % de
- * los ingresos por entradas. `porcentaje_minimo`: ese %, pero nunca menos que un mínimo, que es
+ * los ingresos por entradas (y de los extras, si la cuenta lo dice: `venueOnExtras`). `porcentaje_minimo`: ese %, pero nunca menos que un mínimo, que es
  * fijo (`minKind: 'fijo'`, `minAmount`) o por hora (`minKind: 'hora'`, horas × `rate`).
  *
  * @typedef {'fijo' | 'hora' | 'porcentaje' | 'porcentaje_minimo'} VenueKind
@@ -359,6 +425,8 @@ export const USUAL_PRODUCTION_PCT = 30;
  * Todo lo que se carga a mano de la cuenta de un evento (lo que se guarda en `event_accounts`).
  * @typedef {object} AccountData
  * @prop {VenueRule} venue
+ * @prop {boolean} venueOnExtras el porcentaje del lugar también es sobre los extras (si no, solo
+ *   sobre los ingresos por entradas; A CONFIRMAR)
  * @prop {Payment} venuePayment
  * @prop {Fee[]} fees
  * @prop {Expense[]} expenses
@@ -377,6 +445,7 @@ export const USUAL_PRODUCTION_PCT = 30;
 export function emptyAccount(venueDefault = null) {
 	return {
 		venue: { ...(venueDefault ?? DEFAULT_VENUE_RULE) },
+		venueOnExtras: false,
 		venuePayment: { paidBy: '', paidAt: '' },
 		fees: [],
 		expenses: [],
@@ -583,6 +652,7 @@ export function cleanAccount(raw) {
 		: { parts: cleanParts(r.parts), loss: r.loss === 'todes' ? 'todes' : base.loss };
 	return {
 		venue: cleanVenueRule(r.venue) ?? base.venue,
+		venueOnExtras: r.venueOnExtras === true,
 		venuePayment: payment(r.venuePayment),
 		fees: list(r.fees).map((f) => ({
 			id: id(f?.id),
@@ -765,9 +835,13 @@ export function computeAccount(income, data) {
 	// La base del % del lugar: lo que pagó la gente por las entradas más lo que cubrió el Fondo,
 	// sin los aportes al Fondo ni el recargo de MP («IIBB con fondo» de las planillas).
 	const ticketIncome = income.presale + income.door + income.fondoUsed;
+	// Los extras (a precio de lista, sin el recargo): suman a los ingresos y, si la cuenta lo dice,
+	// a la base del % del lugar. Una foto de antes de los extras no los tiene.
+	const extras = int(income.extras);
+	const venueBase = ticketIncome + (data.venueOnExtras ? extras : 0);
 	const otherIncome = data.otherIncome.reduce((s, x) => s + x.amount, 0);
-	const totalIncome = ticketIncome + otherIncome;
-	const venue = venueCost(data.venue, ticketIncome);
+	const totalIncome = ticketIncome + extras + otherIncome;
+	const venue = venueCost(data.venue, venueBase);
 	const fees = data.fees.filter((f) => f.amount > 0);
 	const expenses = data.expenses.filter((x) => x.amount > 0);
 	const feesTotal = fees.reduce((s, f) => s + f.amount, 0);
@@ -835,10 +909,10 @@ export function computeAccount(income, data) {
 			balance: 0
 		});
 	}
-	// La plata cobrada: cada fuente la tiene alguien (sin el recargo de MP: se lo quedó MP). Sin
-	// elegir, la Caja KV.
+	// La plata cobrada: cada fuente la tiene alguien (sin el recargo de MP: se lo quedó MP), con los
+	// extras de esa fuente (entraron con el mismo pago). Sin elegir, la Caja KV.
 	for (const row of income.rows) {
-		party(data.holders[row.key] || CAJA).held += row.amount - row.mpFee;
+		party(data.holders[row.key] || CAJA).held += row.amount + int(row.extras) - row.mpFee;
 	}
 	for (const x of data.otherIncome) if (x.amount > 0) party(x.heldBy || CAJA).held += x.amount;
 	/**
@@ -859,6 +933,8 @@ export function computeAccount(income, data) {
 	return {
 		fondo,
 		ticketIncome,
+		extras,
+		venueBase,
 		otherIncome,
 		totalIncome,
 		venue,
@@ -915,7 +991,8 @@ export function settleUp(parties) {
 
 /**
  * El renglón del resumen que se guarda al cerrar la cuenta (`event_account_closings`), con las
- * columnas de las planillas.
+ * columnas de las planillas. `extras` no es una columna de la tabla (no hizo falta migración): se
+ * lee de la foto (`income.extras`, ver `listClosings`); `income_total` ya los suma.
  *
  * @param {Income} income
  * @param {ReturnType<typeof computeAccount>} result
@@ -926,6 +1003,7 @@ export function closingSummary(income, result) {
 		presale: income.presale,
 		door: income.door,
 		fondo_net: result.fondo,
+		extras: result.extras,
 		other_income: result.otherIncome,
 		income_total: result.totalIncome,
 		venue: result.venue.amount,
@@ -950,6 +1028,7 @@ export function yearSummary(rows) {
 		'presale',
 		'door',
 		'fondo_net',
+		'extras',
 		'other_income',
 		'income_total',
 		'venue',

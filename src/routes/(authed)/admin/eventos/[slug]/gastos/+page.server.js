@@ -9,6 +9,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { eventHref } from '$lib/admin/nav.js';
 import {
 	cleanAccount,
+	cleanIncome,
 	cleanVenueRule,
 	closingSummary,
 	computeAccount,
@@ -33,6 +34,7 @@ import {
 	saveVenueRule
 } from '$lib/server/tickets/cuentas.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
+import { extrasByOrder } from '$lib/server/tickets/extras.js';
 import { listOrders } from '$lib/server/tickets/orders.js';
 import { todayInArgentina } from '$lib/utils/eventDraft.js';
 
@@ -54,6 +56,20 @@ async function venueOf(db, slug) {
 		logDBError('lugar de la cuenta del evento', e);
 		return null;
 	}
+}
+
+/**
+ * Lo que entró con el evento: sus órdenes y, si alguna tiene extras, el detalle de cada extra
+ * (`order_extras`; sin la migración 0077, sin detalle).
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function incomeOf(db, slug) {
+	const orders = await listOrders(db, slug);
+	const lines = orders.some((o) => Number(o.extras_amount ?? 0) > 0)
+		? await extrasByOrder(db, slug)
+		: new Map();
+	return eventIncome(orders, lines);
 }
 
 /**
@@ -81,14 +97,15 @@ export async function load(event) {
 	// Sin la migración 0078 (una base que todavía no la tiene, como una vista previa): la página
 	// muestra lo que entró y un aviso, sin poder guardar, en vez de romperse.
 	const ready = await accountsReady(db);
-	const [orders, venue, saved, closing] = await Promise.all([
-		listOrders(db, slug),
+	const [income, venue, saved, closing] = await Promise.all([
+		incomeOf(db, slug),
 		ready ? venueOf(db, slug) : null,
 		ready ? getAccount(db, slug) : null,
 		ready ? getClosing(db, slug) : null
 	]);
-	const income = eventIncome(orders);
 	const snapshot = /** @type {{ income?: any, data?: any } | null} */ (closing?.snapshot ?? null);
+	// La foto de una cuenta cerrada antes de los extras no los tiene: quedan en 0.
+	const closedIncome = cleanIncome(snapshot?.income);
 	return {
 		missingMigration: ready ? null : MISSING_MIGRATION,
 		income,
@@ -102,12 +119,14 @@ export async function load(event) {
 			? {
 					closedAt: closing.closed_at,
 					closedBy: closing.closed_by,
-					income: snapshot?.income ?? income,
+					income: closedIncome ?? income,
 					account: cleanAccount(snapshot?.data),
-					// Lo que cambió en las ventas desde el cierre (órdenes nuevas o reembolsadas).
+					// Lo que cambió en las ventas desde el cierre (órdenes nuevas o reembolsadas). Los
+					// extras, solo si la foto los tiene (las de antes no los miraban).
 					changed:
 						(snapshot?.income?.gross ?? income.gross) !== income.gross ||
-						(snapshot?.income?.tickets ?? income.tickets) !== income.tickets
+						(snapshot?.income?.tickets ?? income.tickets) !== income.tickets ||
+						(snapshot?.income?.extras ?? income.extras) !== income.extras
 				}
 			: null
 	};
@@ -158,7 +177,8 @@ export const actions = {
 				expenses: data.expenses.length,
 				otherIncome: data.otherIncome.length,
 				parts: data.parts.length,
-				venueKind: data.venue.kind
+				venueKind: data.venue.kind,
+				venueOnExtras: data.venueOnExtras
 			}
 		});
 		return { saved: true, version: r.version };
@@ -177,7 +197,7 @@ export const actions = {
 				error: saved.reason === 'closed' ? 'La cuenta ya estaba cerrada.' : CONFLICT
 			});
 		}
-		const income = eventIncome(await listOrders(db, params.slug));
+		const income = await incomeOf(db, params.slug);
 		const result = computeAccount(income, data);
 		if (result.split.problem) {
 			return fail(400, { error: `Antes de cerrar, arreglá el reparto: ${result.split.problem}` });

@@ -40,6 +40,7 @@ const summary = {
 	presale: 140000,
 	door: 40000,
 	fondo_net: 15000,
+	extras: 0,
 	other_income: 0,
 	income_total: 200000,
 	venue: 60000,
@@ -136,6 +137,43 @@ describe('cuentas', () => {
 		}
 		expect((await listClosings(t.db, 2026)).map((r) => r.event_slug)).toEqual(['b', 'c']);
 		expect(await closingYears(t.db)).toEqual([2026, 2025]);
+	});
+
+	it('los extras de un cierre salen de la foto (sin columna); los cierres de antes dan 0', async () => {
+		await closeAccount(t.db, {
+			slug: 'con-extras',
+			title: 'Con extras',
+			date: '2026-11-01',
+			summary: { ...summary, extras: 6000, income_total: 206000 },
+			snapshot: { income: { extras: 6000, rows: [] }, data: {} },
+			by: 'x'
+		});
+		// Dos cerrados antes de los extras: su foto no los tiene (o ni tiene lo que entró).
+		await closeAccount(t.db, {
+			slug: 'de-antes',
+			title: 'De antes',
+			date: '2026-11-02',
+			summary,
+			snapshot: { income: { rows: [] }, data: {} },
+			by: 'x'
+		});
+		await closeAccount(t.db, {
+			slug: 'sin-ingresos',
+			title: 'Sin ingresos',
+			date: '2026-11-03',
+			summary,
+			snapshot: {},
+			by: 'x'
+		});
+		expect(
+			(await listClosings(t.db, 2026)).map((r) => [r.event_slug, r.extras, r.income_total])
+		).toEqual([
+			['con-extras', 6000, 206000],
+			['de-antes', 0, 200000],
+			['sin-ingresos', 0, 200000]
+		]);
+		expect((await getClosing(t.db, 'con-extras'))?.extras).toBe(6000);
+		expect((await getClosing(t.db, 'de-antes'))?.extras).toBe(0);
 	});
 
 	it('la regla por defecto de un lugar, sin las horas', async () => {

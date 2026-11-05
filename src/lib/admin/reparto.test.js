@@ -4,10 +4,12 @@ import {
 	CAJA,
 	cajaPart,
 	cleanAccount,
+	cleanIncome,
 	closingSummary,
 	computeAccount,
 	emptyAccount,
 	eventIncome,
+	extraIncomeText,
 	fondoLine,
 	fondoNet,
 	newPart,
@@ -671,6 +673,7 @@ describe('computeAccount: un taller de ejemplo', () => {
 			presale: 140000,
 			door: 40000,
 			fondo_net: 15000,
+			extras: 0,
 			other_income: 0,
 			income_total: 200000,
 			venue: 60000,
@@ -769,6 +772,7 @@ describe('yearSummary', () => {
 			presale: 0,
 			door: 0,
 			fondo_net: 0,
+			extras: 0,
 			other_income: 0,
 			income_total: 0,
 			venue: 0,
@@ -785,5 +789,176 @@ describe('yearSummary', () => {
 		]);
 		expect(y.total.profit).toBe(175);
 		expect(y.total.events).toBe(3);
+	});
+});
+
+describe('los extras de la compra (órdenes inventadas)', () => {
+	// Un trago a $ 2.000 y una remera a $ 15.000; las filas de `order_extras` por orden.
+	const trago = (/** @type {number} */ quantity, price = 2000) => ({
+		id: 'trago',
+		name: 'Trago',
+		price,
+		quantity
+	});
+	const remera = (/** @type {number} */ quantity) => ({
+		id: 'remera',
+		name: 'Remera',
+		price: 15000,
+		quantity
+	});
+	const account = (/** @type {Record<string, any>} */ more = {}) =>
+		cleanAccount({ ...emptyAccount(), parts: [cajaPart({ rule: 'resto' })], ...more });
+
+	it('solo entradas: nada cambia', () => {
+		const income = eventIncome([
+			order({ id: 'a', quantity: 2, total: 20000 }),
+			order({ id: 'b', channel: 'puerta', payment_method: 'efectivo', total: 12000 })
+		]);
+		expect(income.extras).toBe(0);
+		expect(income.extrasLines).toEqual([]);
+		expect(income.rows.map((r) => r.extras)).toEqual([0, 0]);
+		const r = computeAccount(income, account());
+		expect(r.extras).toBe(0);
+		expect(r.totalIncome).toBe(32000);
+		expect(r.venue.amount).toBe(9600);
+		expect(closingSummary(income, r)).toMatchObject({ extras: 0, income_total: 32000 });
+	});
+
+	it('entradas y extras online: el recargo de MP de todo se descuenta una sola vez', () => {
+		// Entrada 10.000 + 2 tragos 4.000 = 14.000; recargo 6 % de todo = 840, guardado en `total`.
+		const orders = [
+			order({ id: 'a', total: 10840, surcharge_amount: 840, extras_amount: 4000 }),
+			order({ id: 'b', total: 10000 })
+		];
+		const income = eventIncome(orders, new Map([['a', [trago(2)]]]));
+		expect(income.presale).toBe(20000);
+		expect(income.mpFee).toBe(840);
+		expect(income.gross).toBe(20840);
+		expect(income.extras).toBe(4000);
+		expect(income.rows).toEqual([
+			expect.objectContaining({ key: 'mercadopago', amount: 20840, extras: 4000, mpFee: 840 })
+		]);
+		expect(income.extrasLines).toEqual([{ id: 'trago', name: 'Trago', quantity: 2, amount: 4000 }]);
+		expect(extraIncomeText(income.extrasLines[0], fmt)).toBe('2 × Trago $ 4.000');
+
+		const r = computeAccount(income, account({ holders: { mercadopago: 'mp' } }));
+		expect(r.ticketIncome).toBe(20000);
+		expect(r.totalIncome).toBe(24000);
+		// El lugar (30 %) cobra sobre las entradas, no sobre los extras…
+		expect(r.venueBase).toBe(20000);
+		expect(r.venue.amount).toBe(6000);
+		expect(r.profit).toBe(18000);
+		// …y quien tiene la cuenta de MP tiene lo cobrado menos el recargo: 20.000 + 4.000.
+		expect(r.parties.find((p) => p.name === 'mp')?.held).toBe(24000);
+		expect(r.parties.reduce((t, p) => t + p.balance, 0)).toBe(0);
+		expect(closingSummary(income, r)).toMatchObject({
+			presale: 20000,
+			extras: 4000,
+			income_total: 24000
+		});
+	});
+
+	it('«El lugar también cobra sobre los extras»: la base suma los extras', () => {
+		const income = eventIncome(
+			[order({ id: 'a', total: 10000, extras_amount: 4000 })],
+			new Map([['a', [trago(2)]]])
+		);
+		const r = computeAccount(income, account({ venueOnExtras: true }));
+		expect(r.venueBase).toBe(14000);
+		expect(r.venue.amount).toBe(4200);
+		expect(r.totalIncome).toBe(14000);
+		// Con un monto fijo, el interruptor no cambia nada.
+		const fixed = computeAccount(
+			income,
+			account({ venueOnExtras: true, venue: { kind: 'fijo', amount: 5000 } })
+		);
+		expect(fixed.venue.amount).toBe(5000);
+	});
+
+	it('extras vendidos en la puerta en efectivo (y entregados en la barra): los tiene la caja de la puerta', () => {
+		const income = eventIncome(
+			[
+				order({ id: 'a', total: 10000 }),
+				// Venta en la puerta con 3 tragos y una remera; ya se entregó uno (no importa).
+				order({
+					id: 'p',
+					channel: 'puerta',
+					payment_method: 'efectivo',
+					total: 12000,
+					extras_amount: 21000
+				}),
+				// Solo extras en la puerta, con una entrada a la gorra de $ 0.
+				order({
+					id: 'q',
+					channel: 'puerta',
+					payment_method: 'efectivo',
+					total: 0,
+					extras_amount: 2000
+				})
+			],
+			new Map([
+				['p', [trago(3), remera(1)]],
+				['q', [trago(1)]]
+			])
+		);
+		expect(income.door).toBe(12000);
+		expect(income.extras).toBe(23000);
+		expect(income.extrasLines.map((x) => extraIncomeText(x, fmt))).toEqual([
+			'4 × Trago $ 8.000',
+			'1 × Remera $ 15.000'
+		]);
+		const door = income.rows.find((r) => r.key === 'puerta-efectivo');
+		expect(door).toMatchObject({ amount: 12000, extras: 23000, orders: 2 });
+		const r = computeAccount(income, account({ holders: { 'puerta-efectivo': 'Puerta' } }));
+		expect(r.totalIncome).toBe(10000 + 12000 + 23000);
+		expect(r.venue.amount).toBe(6600);
+		expect(r.parties.find((p) => p.name === 'Puerta')?.held).toBe(35000);
+		expect(r.parties.reduce((t, p) => t + p.balance, 0)).toBe(0);
+	});
+
+	it('reembolsadas y transferencias sin confirmar no cuentan, con sus extras; las cortesías a $ 0 tampoco', () => {
+		const income = eventIncome(
+			[
+				order({ id: 'a', total: 10000, extras_amount: 2000 }),
+				order({ id: 'r', status: 'refunded', total: 10600, extras_amount: 4000 }),
+				order({
+					id: 't',
+					status: 'awaiting_transfer',
+					payment_method: 'transferencia',
+					total: 10000,
+					extras_amount: 15000
+				}),
+				// Una cortesía cargada a mano: entrada y extras sin cargo.
+				order({ id: 'c', channel: 'manual', payment_method: 'gratis', total: 0 })
+			],
+			new Map([
+				['a', [trago(1)]],
+				['r', [trago(2)]],
+				['t', [remera(1)]],
+				['c', [trago(2, 0)]]
+			])
+		);
+		expect(income.extras).toBe(2000);
+		expect(income.extrasLines).toEqual([{ id: 'trago', name: 'Trago', quantity: 1, amount: 2000 }]);
+		expect(income.refunded).toEqual({ orders: 1, amount: 14600 });
+		expect(income.awaiting).toEqual({ orders: 1, amount: 25000 });
+		expect(computeAccount(income, account()).totalIncome).toBe(12000);
+	});
+
+	it('una cuenta cerrada antes de los extras da los mismos números', () => {
+		// La foto de antes: sin `extras`, sin `extrasLines` y filas sin `extras`.
+		const now = eventIncome([order({ id: 'a', quantity: 2, total: 20000 })]);
+		const { extras, extrasLines, ...old } = now;
+		expect([extras, extrasLines]).toEqual([0, []]);
+		const oldSnapshot = JSON.parse(
+			JSON.stringify({ ...old, rows: old.rows.map(({ extras: _x, ...row }) => row) })
+		);
+		const income = cleanIncome(oldSnapshot);
+		expect(income).toEqual(now);
+		const data = cleanAccount({ ...emptyAccount(), venueOnExtras: undefined });
+		expect(data.venueOnExtras).toBe(false);
+		expect(computeAccount(/** @type {any} */ (income), data).totalIncome).toBe(20000);
+		expect(cleanIncome(null)).toBeNull();
+		expect(cleanIncome({ hola: 1 })).toBeNull();
 	});
 });
