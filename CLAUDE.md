@@ -3,6 +3,9 @@
 Public repo. The maintainer is **gorrite** (always lowercase). Most changes come from parallel
 Claude sessions, so small, verified PRs matter more than speed.
 
+Be frugal with tokens (gorrite is on a smaller plan): few subagents at a time, a cheaper model
+for simple tasks, focused test runs, short reports and screenshots only when they're needed.
+
 ## Stack
 
 - SvelteKit 2 + Svelte 5 in **legacy mode** (no runes in components: `export let`, `$:`, stores).
