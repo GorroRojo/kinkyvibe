@@ -285,9 +285,9 @@
 									>
 								{:else if s.featured}
 									<small class="kv-note"
-										>Fondo de la marca, rotando: faltan los colores de {s.start
-											? 'el flyer'
-											: 'la imagen'} (calculalos abajo).</small
+										>Fondo de la marca, rotando: faltan los colores {s.start
+											? 'del flyer'
+											: 'de la imagen'} (calculalos abajo).</small
 									>
 								{:else}
 									<small class="kv-note"
