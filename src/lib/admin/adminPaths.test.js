@@ -192,7 +192,7 @@ const REMOVED_TREES = [
 	'/admin/material', // → /admin/contenido/material
 	'/admin/no-listadas', // → /admin/contenido/no-listadas
 	'/admin/actividad', // → /admin/ajustes/actividad
-	'/admin/propinas' // → /admin/ajustes/propinas
+	'/admin/propinas' // → /admin/estadisticas/propinas
 ];
 
 /**
@@ -201,7 +201,8 @@ const REMOVED_TREES = [
  * redirección, que es el único que puede nombrarla en el código.
  */
 const REDIRECTED = {
-	'/admin/ajustes/mails': 'src/routes/(authed)/admin/ajustes/mails/+server.js' // → /admin/mensajes/configuracion
+	'/admin/ajustes/mails': 'src/routes/(authed)/admin/ajustes/mails/+server.js', // → /admin/mensajes/configuracion
+	'/admin/ajustes/propinas': 'src/routes/(authed)/admin/ajustes/propinas/+server.js' // → /admin/estadisticas/propinas
 };
 
 /**

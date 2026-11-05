@@ -143,7 +143,8 @@ describe('Ventas (/admin/estadisticas/ventas)', () => {
 		);
 		expect(loadPeopleOrders).toHaveBeenCalledTimes(1);
 		expect(loadVisits).not.toHaveBeenCalled();
-		expect(fetchSpy).not.toHaveBeenCalled();
+		// Solo fondo.kinkyvibe.ar (suscripciones de «Fondo y finanzas»), nunca la API de Cloudflare.
+		expect(fetchedHosts().every((h) => h === 'fondo.kinkyvibe.ar')).toBe(true);
 		expect(queries.some((q) => q.sql.includes('analytics_monthly'))).toBe(false);
 		// Una consulta a las órdenes, desde el comienzo del período anterior (para comparar).
 		const ordersQuery = queries.filter((q) => /\bFROM orders\b/.test(q.sql));
@@ -164,7 +165,7 @@ describe('Ventas (/admin/estadisticas/ventas)', () => {
 		expect(q?.sql).not.toContain('created_at >=');
 		expect(q?.args).toEqual([]);
 		expect(all.data.sales.kpis.tickets).toBe(2);
-		expect(fetchSpy).not.toHaveBeenCalled();
+		expect(fetchedHosts().every((h) => h === 'fondo.kinkyvibe.ar')).toBe(true);
 	});
 
 	it('un período inválido vuelve al de por defecto', async () => {

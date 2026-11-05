@@ -648,6 +648,18 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 
+	{
+		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
+		// Era Ajustes › Plata (mudada acá a pedido de gorrite); la dirección vieja redirige.
+		id: 'propinas',
+		href: '/admin/estadisticas/propinas',
+		icon: HandCoins,
+		emoji: '🪙',
+		label: 'Propinas',
+		area: 'estadisticas',
+		soon: false
+	},
+
 	// Ajustes (al pie)
 	{
 		// La portada de Ajustes (decisión 0042): una tarjeta por sección, en sus cuatro subgrupos,
@@ -683,15 +695,15 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
-		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
-		id: 'propinas',
-		href: '/admin/ajustes/propinas',
+		// Cotización, ajuste y retiros de las propinas por PayPal (decisión 0054, docs/propinas.md).
+		id: 'ajustes-paypal',
+		href: '/admin/ajustes/paypal',
 		icon: HandCoins,
-		emoji: '🪙',
-		label: 'Propinas',
+		emoji: '💵',
+		label: 'PayPal',
 		area: 'ajustes',
 		sub: 'plata',
-		desc: 'Las propinas que entraron, por mes y por publicación',
+		desc: 'Cotización del dólar, su ajuste y los retiros de las propinas por PayPal',
 		soon: false
 	},
 	{

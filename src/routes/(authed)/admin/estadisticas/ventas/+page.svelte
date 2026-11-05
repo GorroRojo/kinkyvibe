@@ -30,6 +30,9 @@
 	const PATH = '/admin/estadisticas/ventas';
 	$: period = parsePeriod(data.period, SALES_PERIODS, SALES_DEFAULT_PERIOD);
 	$: s = data.sales;
+	$: tips = data.tips ?? null;
+	$: fm = data.fondoMonth ?? null;
+	$: fondoPct = fm && fm.goal ? Math.floor((fm.collected / fm.goal) * 100) : 0;
 	$: when = periodText(period);
 	$: serieLabel = data.serie
 		? (s?.serieOptions.find((o) => o.value === data.serie)?.label ?? data.serie)
@@ -206,6 +209,32 @@
 							? 'estimada con la tasa de Ajustes › Cobros'
 							: `${formatARS(s.fondo.totals.mpFee - s.fondo.totals.mpFeeEstimated)} cobrada por MP · ${formatARS(s.fondo.totals.mpFeeEstimated)} estimada`}
 				/>
+				{#if fm}
+					<Stat
+						label="Suscripciones al Fondo, este mes"
+						value={formatARS(fm.collected)}
+						sub="{fondoPct} % de la meta ({formatARS(
+							fm.goal
+						)}) · descuento del {fm.percent} %{fm.stale ? ' · sin datos de este mes todavía' : ''}"
+					/>
+				{:else}
+					<Stat
+						label="Suscripciones al Fondo, este mes"
+						value="—"
+						sub="no pudimos leer fondo.kinkyvibe.ar"
+					/>
+				{/if}
+				{#if tips}
+					<Stat
+						label="Propinas recibidas"
+						value={formatARS(tips.totals.total)}
+						sub="{tips.totals.count} aprobadas, {when} · Kinky Vibe {formatARS(
+							tips.totals.kinkyvibe
+						)} · Fondo {formatARS(tips.totals.fondo)}"
+					/>
+				{:else}
+					<Stat label="Propinas recibidas" value="—" sub="no se pudieron leer" />
+				{/if}
 			</div>
 			<div class="kv-grid-2">
 				<div class="sub">
@@ -242,11 +271,33 @@
 						empty="Sin recargos de Mercado Pago en este período."
 					/>
 				</div>
+				{#if tips}
+					<div class="sub">
+						<h3>Propinas por mes</h3>
+						<Chart
+							title="Propinas por mes: a Kinky Vibe y al Fondo"
+							rows={tips.rows}
+							x={{ key: 'label', label: 'mes' }}
+							series={[
+								{ key: 'kinkyvibe', label: 'Kinky Vibe' },
+								{ key: 'fondo', label: 'Fondo' }
+							]}
+							format={formatARS}
+							csv="propinas-por-mes"
+							csvColumns={[col('month', 'clave'), col('count', 'propinas')]}
+							empty="Sin propinas en este período."
+						/>
+					</div>
+				{/if}
 			</div>
 			<p class="kv-note">
 				Por mes del evento, solo aprobadas. La comisión es la que informó Mercado Pago en cada pago;
 				si no la informó, se estima con la tasa de Ajustes › Cobros (el recargo) y se muestra
-				aparte. El Fondo de las suscripciones (fondo.kinkyvibe.ar) no entra acá: está en el Inicio.
+				aparte. Las suscripciones al Fondo (fondo.kinkyvibe.ar) son las del mes en curso, del 5 al
+				4; el historial por mes todavía no está. Las propinas son las de Mercado Pago, por mes de
+				aprobación, de los mismos meses, y no dependen de la serie elegida; detalle en <a
+					href="/admin/estadisticas/propinas">Propinas</a
+				>.
 			</p>
 		</Card>
 
