@@ -160,7 +160,8 @@
 						label: p.key,
 						value: p.n,
 						text: `${p.n}`,
-						href: p.key
+						// Las visitas de esa página sola (?pagina=, la tarjeta de las fichas).
+						href: `/admin/estadisticas/visitas?pagina=${encodeURIComponent(p.key)}`
 					}))}
 				/>
 			</Card>

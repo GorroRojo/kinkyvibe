@@ -234,6 +234,37 @@ describe('Visitas al sitio (/admin/estadisticas/visitas)', () => {
 			expect(data.visits.topDays, path).toBe(30);
 		}
 	});
+
+	it('con ?pagina=: una sola consulta, solo por esa página; sin el resto del sitio', async () => {
+		const { data, queries } = await run(
+			loadVisitas,
+			'/admin/estadisticas/visitas?pagina=%2Fmaterial%2Fcuerdas-falsas'
+		);
+		expect(loadVisits).not.toHaveBeenCalled();
+		expect(queries).toEqual([]);
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+		const sql = String(/** @type {any} */ (fetchSpy.mock.calls[0])[1].body);
+		expect(sql).toContain("blob2 = '/material/cuerdas-falsas'");
+		expect(sql).not.toContain('blob6');
+		expect(data).toMatchObject({
+			pagina: '/material/cuerdas-falsas',
+			visits: null,
+			page: { status: 'ok', path: '/material/cuerdas-falsas', month: 0, funnel: null }
+		});
+	});
+
+	it('con una ?pagina= que no se cuenta (el panel) o rara: no consulta nada', async () => {
+		for (const raw of ['/admin/inicio', "/material/x'or'1", 'material/sin-barra']) {
+			fetchSpy.mockClear();
+			const { data } = await run(
+				loadVisitas,
+				`/admin/estadisticas/visitas?pagina=${encodeURIComponent(raw)}`
+			);
+			expect(fetchSpy, raw).not.toHaveBeenCalled();
+			expect(data.page.status, raw).toBe('nopath');
+			expect(data.visits, raw).toBeNull();
+		}
+	});
 });
 
 describe('/admin/estadisticas redirige a Ventas (307)', () => {
