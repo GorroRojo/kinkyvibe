@@ -58,7 +58,6 @@ const ALLOWED = {
 	'src/lib/components/admin/ChipCombobox.svelte': 1,
 	'src/lib/components/admin/ComboCodes.svelte': 3,
 	'src/lib/components/admin/DayPicker.svelte': 2,
-	'src/lib/components/admin/DoorLinksCard.svelte': 3,
 	'src/lib/components/admin/DuplicateChooser.svelte': 1,
 	'src/lib/components/admin/ImagePicker.svelte': 3,
 	'src/lib/components/admin/LibraryLinkPicker.svelte': 3,
