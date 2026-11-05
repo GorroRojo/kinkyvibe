@@ -178,7 +178,7 @@ export const actions = {
 				otherIncome: data.otherIncome.length,
 				parts: data.parts.length,
 				venueKind: data.venue.kind,
-				venueOnExtras: data.venueOnExtras
+				extrasTo: data.extrasTo
 			}
 		});
 		return { saved: true, version: r.version };

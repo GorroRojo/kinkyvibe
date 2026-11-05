@@ -858,21 +858,85 @@ describe('los extras de la compra (órdenes inventadas)', () => {
 		});
 	});
 
-	it('«El lugar también cobra sobre los extras»: la base suma los extras', () => {
+	it('«El lugar cobra su % también sobre los extras»: la base suma los extras', () => {
 		const income = eventIncome(
 			[order({ id: 'a', total: 10000, extras_amount: 4000 })],
 			new Map([['a', [trago(2)]]])
 		);
-		const r = computeAccount(income, account({ venueOnExtras: true }));
+		const r = computeAccount(income, account({ extrasTo: 'porcentaje' }));
 		expect(r.venueBase).toBe(14000);
 		expect(r.venue.amount).toBe(4200);
+		expect(r.venueTotal).toBe(4200);
 		expect(r.totalIncome).toBe(14000);
-		// Con un monto fijo, el interruptor no cambia nada.
+		// Con un monto fijo, no cambia nada.
 		const fixed = computeAccount(
 			income,
-			account({ venueOnExtras: true, venue: { kind: 'fijo', amount: 5000 } })
+			account({ extrasTo: 'porcentaje', venue: { kind: 'fijo', amount: 5000 } })
 		);
 		expect(fixed.venue.amount).toBe(5000);
+	});
+
+	it('«Todos al lugar»: los extras son un gasto del lugar y quien los tiene se los pasa', () => {
+		// Entradas online por MP (las tiene la Caja KV); extras en la puerta en efectivo (los tiene
+		// Memi). El lugar cobra 30 % de las entradas más todos los extras.
+		const income = eventIncome(
+			[
+				order({ id: 'a', quantity: 2, total: 20000 }),
+				order({
+					id: 'p',
+					channel: 'puerta',
+					payment_method: 'efectivo',
+					total: 10000,
+					extras_amount: 9000
+				})
+			],
+			new Map([['p', [trago(3, 3000)]]])
+		);
+		const data = account({
+			extrasTo: 'lugar',
+			holders: { mercadopago: CAJA, 'puerta-efectivo': 'memi' },
+			parts: [cajaPart({ rule: 'pct', pct: 30 }), newPart({ id: 'memi', name: 'Memi' })]
+		});
+		const r = computeAccount(income, data);
+		expect(r.totalIncome).toBe(39000);
+		expect(r.venueBase).toBe(30000);
+		expect(r.venue.amount).toBe(9000);
+		expect(r.extrasToVenue).toBe(9000);
+		expect(r.venueTotal).toBe(18000);
+		expect(r.allExpenses).toBe(18000);
+		// La ganancia es la misma que sin extras: no llegan al reparto.
+		expect(r.profit).toBe(21000);
+		const noExtras = computeAccount(
+			eventIncome([
+				order({ quantity: 2, total: 20000 }),
+				order({ channel: 'puerta', payment_method: 'efectivo', total: 10000 })
+			]),
+			data
+		);
+		expect(noExtras.profit - noExtras.venue.amount).toBe(r.profit - r.venue.amount);
+		expect(r.parties.find((p) => p.name === 'Lugar')?.share).toBe(18000);
+		expect(r.parties.reduce((t, p) => t + p.balance, 0)).toBe(0);
+		// Memi tiene los 19.000 de la puerta: le toca 14.700, así que pasa 4.300 (al lugar).
+		expect(r.transfers.filter((t) => t.toName === 'Lugar').reduce((t, x) => t + x.amount, 0)).toBe(
+			18000
+		);
+		expect(closingSummary(income, r)).toMatchObject({
+			extras: 9000,
+			income_total: 39000,
+			venue: 18000,
+			expenses_total: 18000,
+			profit: 21000
+		});
+	});
+
+	it('la casilla de antes (`venueOnExtras`) pasa a «porcentaje»; sin nada, «al reparto»', () => {
+		expect(
+			cleanAccount({ ...emptyAccount(), extrasTo: undefined, venueOnExtras: true }).extrasTo
+		).toBe('porcentaje');
+		expect(cleanAccount({ ...emptyAccount(), extrasTo: undefined }).extrasTo).toBe('reparto');
+		expect(cleanAccount({ ...emptyAccount(), extrasTo: 'cualquiera' }).extrasTo).toBe('reparto');
+		expect(cleanAccount({ ...emptyAccount(), extrasTo: 'lugar' }).extrasTo).toBe('lugar');
+		expect(cleanAccount({})).not.toHaveProperty('venueOnExtras');
 	});
 
 	it('extras vendidos en la puerta en efectivo (y entregados en la barra): los tiene la caja de la puerta', () => {
@@ -955,8 +1019,8 @@ describe('los extras de la compra (órdenes inventadas)', () => {
 		);
 		const income = cleanIncome(oldSnapshot);
 		expect(income).toEqual(now);
-		const data = cleanAccount({ ...emptyAccount(), venueOnExtras: undefined });
-		expect(data.venueOnExtras).toBe(false);
+		const data = cleanAccount({ ...emptyAccount(), extrasTo: undefined });
+		expect(data.extrasTo).toBe('reparto');
 		expect(computeAccount(/** @type {any} */ (income), data).totalIncome).toBe(20000);
 		expect(cleanIncome(null)).toBeNull();
 		expect(cleanIncome({ hola: 1 })).toBeNull();

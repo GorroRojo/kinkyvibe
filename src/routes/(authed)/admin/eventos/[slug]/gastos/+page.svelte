@@ -53,6 +53,12 @@
 		{ value: 'fijo', label: 'Monto fijo' },
 		{ value: 'resto', label: 'Lo que sobra' }
 	];
+	// Adónde van los extras de la compra (gorrite, #642).
+	const EXTRAS_OPTIONS = [
+		{ value: 'reparto', label: 'Al reparto' },
+		{ value: 'lugar', label: 'Todos al lugar' },
+		{ value: 'porcentaje', label: 'El lugar cobra su % también sobre los extras' }
+	];
 	const VENUE_OPTIONS = [
 		{ value: 'fijo', label: 'Monto fijo' },
 		{ value: 'hora', label: 'Por hora' },
@@ -259,7 +265,7 @@
 		['Extras', formatARS(result.extras)],
 		['Otros ingresos', formatARS(result.otherIncome)],
 		['Ingresos', formatARS(result.totalIncome)],
-		['Lugar', formatARS(result.venue.amount)],
+		['Lugar', formatARS(result.venueTotal)],
 		['Contrataciones', formatARS(result.feesTotal)],
 		['Otros gastos', formatARS(result.expensesTotal)],
 		['Gastos', formatARS(result.allExpenses)],
@@ -594,14 +600,35 @@
 						/>
 					</label>
 				</div>
-				{#if account.venue.kind === 'porcentaje' || account.venue.kind === 'porcentaje_minimo'}
-					{#if result.extras || account.venueOnExtras}
-						<Checkbox bind:checked={account.venueOnExtras} on:change={touch}
-							>El lugar también cobra sobre los extras</Checkbox
-						>
+				{#if result.extras || account.extrasTo !== 'reparto'}
+					<div class="extras-to" role="radiogroup" aria-labelledby="extras-to-label">
+						<span id="extras-to-label" class="extras-to-label">Los extras van:</span>
+						{#each EXTRAS_OPTIONS as o (o.value)}
+							<label class="radio">
+								<input
+									type="radio"
+									name="extras-to"
+									value={o.value}
+									bind:group={account.extrasTo}
+									on:change={touch}
+								/>
+								{o.label}
+							</label>
+						{/each}
+					</div>
+					{#if account.extrasTo === 'lugar'}
+						<p class="extras-venue">
+							<span>Extras: {formatARS(result.extrasToVenue)}, todo para el lugar</span>
+						</p>
+					{:else if account.extrasTo === 'porcentaje' && account.venue.kind !== 'porcentaje' && account.venue.kind !== 'porcentaje_minimo'}
+						<p class="muted small">
+							El lugar no cobra un porcentaje: los extras quedan para el reparto.
+						</p>
 					{/if}
+				{/if}
+				{#if account.venue.kind === 'porcentaje' || account.venue.kind === 'porcentaje_minimo'}
 					<p class="muted small">
-						{#if account.venueOnExtras}
+						{#if account.extrasTo === 'porcentaje'}
 							El porcentaje es sobre los ingresos por entradas con lo que cubrió el Fondo y sin los
 							aportes al Fondo, más los extras ({formatARS(result.venueBase)}). No cuenta otros
 							ingresos.
@@ -633,7 +660,7 @@
 					{:else}
 						<span></span>
 					{/if}
-					<strong class="num">Lugar: {formatARS(result.venue.amount)}</strong>
+					<strong class="num">Lugar: {formatARS(result.venueTotal)}</strong>
 				</div>
 				{#if venueRuleSaved}<p class="muted small">
 						Listo: los próximos eventos en {data.venue?.title} arrancan con esta regla.
@@ -1139,6 +1166,18 @@
 		border-radius: var(--radius, 0.5rem);
 		background: var(--surface-2, rgba(127, 127, 127, 0.08));
 		font-weight: 600;
+	}
+	.extras-to {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
+		margin-top: var(--space-2xs);
+	}
+	.extras-to-label {
+		font-weight: 600;
+	}
+	.extras-venue {
+		margin: var(--space-3xs) 0 0;
 	}
 	.extras-lines {
 		list-style: none;

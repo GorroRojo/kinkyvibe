@@ -281,8 +281,8 @@ export function splitWhole(total, weights) {
 
 /**
  * Cómo cobra el lugar. `fijo`: un monto. `hora`: horas × precio por hora. `porcentaje`: un % de
- * los ingresos por entradas (y de los extras, si la cuenta lo dice: `venueOnExtras`). `porcentaje_minimo`: ese %, pero nunca menos que un mínimo, que es
- * fijo (`minKind: 'fijo'`, `minAmount`) o por hora (`minKind: 'hora'`, horas × `rate`).
+ * los ingresos por entradas (y de los extras, si la cuenta lo dice: `extrasTo: 'porcentaje'`).
+ * `porcentaje_minimo`: ese %, pero nunca menos que un mínimo, que es fijo (`minKind: 'fijo'`, `minAmount`) o por hora (`minKind: 'hora'`, horas × `rate`).
  *
  * @typedef {'fijo' | 'hora' | 'porcentaje' | 'porcentaje_minimo'} VenueKind
  */
@@ -303,6 +303,15 @@ export const VENUE_KINDS = /** @type {const} */ ([
  * @prop {'fijo' | 'hora'} [minKind]
  * @prop {number} [minAmount] el mínimo fijo
  */
+
+/**
+ * Adónde van los extras de la compra (gorrite, #642: «¿puedo elegir adónde van los extras?»):
+ * `reparto` (lo de siempre: son ingresos como el resto), `lugar` (todo lo de los extras es del
+ * lugar: un gasto más del lugar, no llega a la ganancia) o `porcentaje` (el lugar cobra su %
+ * también sobre los extras).
+ * @typedef {'reparto' | 'lugar' | 'porcentaje'} ExtrasTo
+ */
+export const EXTRAS_TO = /** @type {const} */ (['reparto', 'lugar', 'porcentaje']);
 
 /** La regla de los talleres: 30 % de los ingresos para el lugar. */
 export const DEFAULT_VENUE_RULE = Object.freeze(
@@ -425,8 +434,7 @@ export const USUAL_PRODUCTION_PCT = 30;
  * Todo lo que se carga a mano de la cuenta de un evento (lo que se guarda en `event_accounts`).
  * @typedef {object} AccountData
  * @prop {VenueRule} venue
- * @prop {boolean} venueOnExtras el porcentaje del lugar también es sobre los extras (si no, solo
- *   sobre los ingresos por entradas; A CONFIRMAR)
+ * @prop {ExtrasTo} extrasTo adónde van los extras (por defecto, al reparto)
  * @prop {Payment} venuePayment
  * @prop {Fee[]} fees
  * @prop {Expense[]} expenses
@@ -445,7 +453,7 @@ export const USUAL_PRODUCTION_PCT = 30;
 export function emptyAccount(venueDefault = null) {
 	return {
 		venue: { ...(venueDefault ?? DEFAULT_VENUE_RULE) },
-		venueOnExtras: false,
+		extrasTo: 'reparto',
 		venuePayment: { paidBy: '', paidAt: '' },
 		fees: [],
 		expenses: [],
@@ -652,7 +660,12 @@ export function cleanAccount(raw) {
 		: { parts: cleanParts(r.parts), loss: r.loss === 'todes' ? 'todes' : base.loss };
 	return {
 		venue: cleanVenueRule(r.venue) ?? base.venue,
-		venueOnExtras: r.venueOnExtras === true,
+		// Una cuenta guardada con la casilla de antes (`venueOnExtras`) pasa a `porcentaje`.
+		extrasTo: EXTRAS_TO.includes(r.extrasTo)
+			? r.extrasTo
+			: r.venueOnExtras === true
+				? 'porcentaje'
+				: 'reparto',
 		venuePayment: payment(r.venuePayment),
 		fees: list(r.fees).map((f) => ({
 			id: id(f?.id),
@@ -835,10 +848,12 @@ export function computeAccount(income, data) {
 	// La base del % del lugar: lo que pagó la gente por las entradas más lo que cubrió el Fondo,
 	// sin los aportes al Fondo ni el recargo de MP («IIBB con fondo» de las planillas).
 	const ticketIncome = income.presale + income.door + income.fondoUsed;
-	// Los extras (a precio de lista, sin el recargo): suman a los ingresos y, si la cuenta lo dice,
-	// a la base del % del lugar. Una foto de antes de los extras no los tiene.
+	// Los extras (a precio de lista, sin el recargo) suman a los ingresos. Si van al lugar, todo lo
+	// suyo es un gasto del lugar; con `porcentaje`, entran en la base del % del lugar. Una foto de
+	// antes de los extras no los tiene.
 	const extras = int(income.extras);
-	const venueBase = ticketIncome + (data.venueOnExtras ? extras : 0);
+	const extrasToVenue = data.extrasTo === 'lugar' ? extras : 0;
+	const venueBase = ticketIncome + (data.extrasTo === 'porcentaje' ? extras : 0);
 	const otherIncome = data.otherIncome.reduce((s, x) => s + x.amount, 0);
 	const totalIncome = ticketIncome + extras + otherIncome;
 	const venue = venueCost(data.venue, venueBase);
@@ -846,7 +861,9 @@ export function computeAccount(income, data) {
 	const expenses = data.expenses.filter((x) => x.amount > 0);
 	const feesTotal = fees.reduce((s, f) => s + f.amount, 0);
 	const expensesTotal = expenses.reduce((s, x) => s + x.amount, 0);
-	const allExpenses = venue.amount + feesTotal + expensesTotal;
+	// Lo del lugar: lo que cobra por su regla más los extras, si van todos para el lugar.
+	const venueTotal = venue.amount + extrasToVenue;
+	const allExpenses = venueTotal + feesTotal + expensesTotal;
 	const profit = totalIncome - allExpenses;
 	const split = splitProfit(profit, data.parts, data.loss);
 	// Lo que las contrataciones del equipo dejan en la caja: va a la Caja KV.
@@ -924,6 +941,8 @@ export function computeAccount(income, data) {
 		else party(payee).share += amount;
 	};
 	if (venue.amount > 0) pay(data.venuePayment, venue.amount, 'Lugar');
+	// Los extras que son del lugar: quien tiene esa plata se la pasa al lugar.
+	if (extrasToVenue > 0) party('Lugar').share += extrasToVenue;
 	for (const f of fees) {
 		if (f.team && f.keep === 'caja') continue;
 		pay(f, f.amount, f.concept.trim() || 'Contratación');
@@ -935,9 +954,11 @@ export function computeAccount(income, data) {
 		ticketIncome,
 		extras,
 		venueBase,
+		extrasToVenue,
 		otherIncome,
 		totalIncome,
 		venue,
+		venueTotal,
 		feesTotal,
 		feesToCaja,
 		expensesTotal,
@@ -1006,7 +1027,7 @@ export function closingSummary(income, result) {
 		extras: result.extras,
 		other_income: result.otherIncome,
 		income_total: result.totalIncome,
-		venue: result.venue.amount,
+		venue: result.venueTotal,
 		fees: result.feesTotal,
 		other_expenses: result.expensesTotal,
 		expenses_total: result.allExpenses,

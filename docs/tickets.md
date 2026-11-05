@@ -610,13 +610,24 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   El link de barra solo entrega: no vende, así que no hay extras «vendidos en la barra» aparte.
   `gross` (lo que se compara para avisar si cambiaron las ventas) sigue siendo lo de las entradas;
   los extras se comparan aparte, solo en las fotos que los tienen.
-- **El lugar y los extras:** por defecto el porcentaje del lugar **no** cobra sobre los extras.
-  Con un porcentaje (con o sin mínimo) y un evento con extras, la casilla **«El lugar también
-  cobra sobre los extras»** (de cada evento, `venueOnExtras` en el JSON de la cuenta; no se guarda
-  en la regla del lugar) suma los extras a la base. **A CONFIRMAR** con gorrite (decisión de la
-  sesión para avanzar): que por defecto no cobre, y que sea por evento. **Otros ingresos**
+- **Adónde van los extras** (gorrite, #642: «¿puedo elegir adónde van los extras? Por ejemplo,
+  en Gancho Fácil todos los extras van directo al lugar»): en un evento con extras, en Gastos ›
+  Lugar, **«Los extras van:»** (de cada evento, `extrasTo` en el JSON de la cuenta; no se guarda
+  en la regla del lugar):
+  - **«Al reparto»** (por defecto): son ingresos como el resto y el % del lugar no los toca;
+  - **«Todos al lugar»**: todo lo de los extras es del lugar. Es un gasto más del Lugar («Extras:
+    $ X, todo para el lugar»; «Lugar: $ …» y el `venue` del cierre lo suman), así que no llega a
+    la ganancia. En «Quién le pasa a quién», quien tiene esa plata se la pasa al lugar (aunque lo
+    del lugar por su regla ya esté pagado);
+  - **«El lugar cobra su % también sobre los extras»**: los extras suman a la base del % del lugar
+    (con un monto fijo o por hora no cambia nada, y la página lo dice).
+
+  Las cuentas guardadas con la casilla de antes («El lugar también cobra sobre los extras»,
+  `venueOnExtras: true`) pasan a «El lugar cobra su % también sobre los extras» al leerlas
+  (`cleanAccount`). **Otros ingresos**
   (barra, sponsor, efectivo que no se cargó en la puerta): concepto, monto y quién lo tiene; suman
   a los ingresos pero no a la base del lugar.
+
 - **Lugar**, cuatro formas: monto fijo; por hora (horas × precio); porcentaje de los ingresos por
   entradas; porcentaje con un mínimo (fijo o por hora). Se carga en cada evento; si el lugar
   vinculado («Sucede en») tiene una regla guardada, la cuenta nueva arranca con esa. «Guardar como
