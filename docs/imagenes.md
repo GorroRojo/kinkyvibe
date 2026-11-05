@@ -123,9 +123,10 @@ que `/media` redirija al original.
 
 ## Colores de la imagen (para el carrusel de la portada)
 
-Cada diapositiva del carrusel de la portada toma los colores de su flyer ([estilo.md](estilo.md),
-«Carrusel de la portada»). Los colores **se calculan una sola vez, en el navegador**, y se guardan
-en el objeto `imagen`: la portada nunca mira la imagen.
+El carrusel de la portada usa los colores de cada flyer para elegir cuál de las paletas de la marca
+va detrás y como acento ([estilo.md](estilo.md), «Carrusel de la portada»). Los colores **se
+calculan una sola vez, en el navegador**, y se guardan en el objeto `imagen`: la portada nunca mira
+la imagen.
 
 - **Qué se guarda**: `colors`, una lista de hasta 5 `#rrggbb` (los colores principales, primero
   los que más pesan, con un empujón a los vivos), en los datos del objeto (`data.colors`). Sin
@@ -140,8 +141,8 @@ en el objeto `imagen`: la portada nunca mira la imagen.
   eventos primero), calcula y manda de a 20 (`?/colores` → `saveImageColors`, por saveObject:
   cada una suma una versión al historial de la imagen). Solo completa: nunca pisa colores que ya
   están. Se puede cortar y seguir después.
-- **Sin colores** (una imagen que todavía no pasó, o de otro sitio), la diapositiva usa la paleta
-  de la marca, igual que un evento sin flyer.
+- **Sin colores** (una imagen que todavía no pasó, o de otro sitio), las paletas de la marca rotan,
+  igual que con un evento sin flyer.
 
 ## Documentos y video
 

@@ -16,7 +16,8 @@
 		estiloDeDiapositiva,
 		nombreDelEstilo
 	} from '$lib/utils/carruselEstilos.js';
-	import { colorsFromImage, flyerPalette } from '$lib/utils/flyerColors.js';
+	import { colorsFromImage, parseColors } from '$lib/utils/flyerColors.js';
+	import { paletasDelCarrusel } from '$lib/utils/carruselPaletas.js';
 	import { argDateList, argDateTimeLong } from '$lib/utils/dates.js';
 
 	export let data;
@@ -35,6 +36,10 @@
 		...CARRUSEL_ESTILOS.map((e) => ({ ...e, nombre: `${e.id.toUpperCase()} · ${e.nombre}` }))
 	];
 
+	// Los mismos colores que la portada (carruselPaletas.js), en el mismo orden.
+	$: paletas = paletasDelCarrusel(
+		data.slides.map((s) => ({ hasImage: Boolean(s.featured), colors: s.colors }))
+	);
 	$: shown = data.slides.map((s, i) => ({
 		...s,
 		estilo: estiloDeDiapositiva(
@@ -42,7 +47,8 @@
 			s.estiloDelEvento,
 			i
 		),
-		paleta: s.featured ? flyerPalette(s.colors) : null
+		paleta: paletas[i],
+		segunFlyer: Boolean(s.featured && parseColors(s.colors))
 	}));
 
 	// «Calcular los colores que faltan»: de a una imagen (la copia chica), de a tandas al servidor.
@@ -202,25 +208,32 @@
 								{#if s.estiloDelEvento}<span class="tag">elegido en el evento</span>{/if}
 							</span>
 							<span class="colores">
-								{#if s.paleta}
-									<span class="muestra" style:background={s.paleta.bg} style:color={s.paleta.ink}
-										>Aa</span
+								<span
+									class="muestra"
+									style:background={s.paleta.bg}
+									style:color={s.paleta.tituloInk}>Aa</span
+								>
+								<span
+									class="muestra"
+									style:background={s.paleta.alt}
+									style:color={s.paleta.altTituloInk}>Aa</span
+								>
+								<span
+									class="muestra"
+									style:background={s.paleta.cinta}
+									style:color={s.paleta.cintaInk}>Aa</span
+								>
+								{#if s.segunFlyer}
+									<small class="kv-note">Fondo de la marca elegido para que el flyer resalte.</small
 									>
-									<span
-										class="muestra"
-										style:background={s.paleta.alt}
-										style:color={s.paleta.altInk}>Aa</span
-									>
-									<span class="muestra" style:background={s.paleta.oscuro} style:color="white"
-										>Aa</span
-									>
-									<small class="kv-note">Colores del flyer.</small>
 								{:else if s.featured}
 									<small class="kv-note"
-										>Colores de la marca: faltan los del flyer (calculalos abajo).</small
+										>Fondo de la marca, rotando: faltan los colores del flyer (calculalos abajo).</small
 									>
 								{:else}
-									<small class="kv-note">Colores de la marca: el evento no tiene flyer.</small>
+									<small class="kv-note"
+										>Fondo de la marca, rotando: el evento no tiene flyer.</small
+									>
 								{/if}
 							</span>
 							<a class="kv-link" href={s.editHref}>Cambiar el estilo de este evento</a>
@@ -233,8 +246,9 @@
 
 	<Card title="Colores de los flyers" icon={Palette}>
 		<p class="kv-note">
-			Cada diapositiva toma los colores de su flyer, con los textos ajustados para que se lean bien.
-			Se calculan solos al subir una imagen; las que se subieron antes los necesitan una vez.
+			Los fondos son siempre de la marca: los colores de cada flyer eligen cuál va detrás (el que
+			más lo hace resaltar) y le dan su color a la estrella y a la cinta. Se calculan solos al subir
+			una imagen; las que se subieron antes los necesitan una vez.
 		</p>
 		{#if state === 'running'}
 			<p role="status">Calculando… {done} de {total}.</p>

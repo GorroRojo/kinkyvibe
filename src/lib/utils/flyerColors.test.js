@@ -6,7 +6,6 @@ import {
 	contrast,
 	ensureContrast,
 	extractColors,
-	flyerPalette,
 	hexToRgb,
 	isHexColor,
 	parseColors,
@@ -33,19 +32,6 @@ function rng(seed) {
 		return s / 4294967296;
 	};
 }
-
-/** Los pares de texto y fondo de una paleta. @param {import('./flyerColors.js').FlyerPalette} p */
-const textPairs = (p) => [
-	[p.ink, p.bg],
-	[p.altInk, p.alt],
-	[p.cintaInk, p.cinta],
-	[p.claroInk, p.claro],
-	[p.acento, p.claro],
-	['#ffffff', p.acento],
-	['#ffffff', p.oscuro],
-	[p.oscuro, '#ffffff'],
-	[p.flyerInk, p.flyer]
-];
 
 describe('contraste (WCAG)', () => {
 	it('negro sobre blanco es 21:1 y un color consigo mismo 1:1', () => {
@@ -132,50 +118,6 @@ describe('extractColors', () => {
 			Array.from({ length: 12 }, (_, i) => /** @type {any} */ ([[i * 20, 255 - i * 20, i * 7], 5]))
 		);
 		expect(extractColors(rainbow, { max: 3 })).toHaveLength(3);
-	});
-});
-
-describe('flyerPalette', () => {
-	it('sin colores válidos, null (la diapositiva usa la marca)', () => {
-		expect(flyerPalette(null)).toBeNull();
-		expect(flyerPalette([])).toBeNull();
-		expect(flyerPalette(['rojo'])).toBeNull();
-	});
-
-	it('el fondo es el primer color vivo; el segundo, el siguiente de otro tono', () => {
-		const p = /** @type {import('./flyerColors.js').FlyerPalette} */ (
-			flyerPalette(['#f5f5f5', '#e6148c', '#e01e8f', '#1e9be0'])
-		);
-		expect(p.bg).toBe('#e6148c');
-		expect(p.alt).toBe('#1e9be0');
-	});
-
-	it('un flyer de un solo color: el segundo es el complementario', () => {
-		const p = /** @type {import('./flyerColors.js').FlyerPalette} */ (flyerPalette(['#2a9d8f']));
-		expect(p.bg).toBe('#2a9d8f');
-		expect(p.alt).not.toBe(p.bg);
-	});
-
-	it('cada texto pasa AA sobre su fondo, con cualquier flyer', () => {
-		const next = rng(42);
-		const color = () => rgbToHex({ r: next() * 255, g: next() * 255, b: next() * 255 });
-		for (let i = 0; i < 300; i++) {
-			const colors = Array.from({ length: 1 + Math.floor(next() * 5) }, color);
-			const p = /** @type {import('./flyerColors.js').FlyerPalette} */ (flyerPalette(colors));
-			for (const [fg, bg] of textPairs(p)) {
-				expect(contrast(fg, bg), `${fg} sobre ${bg} (${colors.join(' ')})`).toBeGreaterThanOrEqual(
-					AA
-				);
-			}
-			for (const v of Object.values(p)) expect(isHexColor(v)).toBe(true);
-		}
-	});
-
-	it('flyers en blanco y negro también se leen', () => {
-		for (const colors of [['#000000'], ['#ffffff'], ['#ffffff', '#000000'], ['#808080']]) {
-			const p = /** @type {import('./flyerColors.js').FlyerPalette} */ (flyerPalette(colors));
-			for (const [fg, bg] of textPairs(p)) expect(contrast(fg, bg)).toBeGreaterThanOrEqual(AA);
-		}
 	});
 });
 

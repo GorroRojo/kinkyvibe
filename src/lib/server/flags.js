@@ -209,12 +209,12 @@ export const FLAGS = Object.freeze({
 		label: 'Carrusel en la portada',
 		description:
 			'Arriba de la portada, un carrusel con los próximos eventos de Kinky Vibe (hasta 5, por ' +
-			'fecha), cada uno con los colores de su flyer: pasa solo cada unos segundos, se puede pausar ' +
+			'fecha), con los colores de la marca elegidos para que cada flyer resalte: pasa solo cada unos segundos, se puede pausar ' +
 			'y se mueve con las flechas o deslizando en el celu. El estilo se elige en Ajustes › ' +
 			'Carrusel de la portada. Sin eventos así, no aparece. Apagado, la portada se ve como siempre.',
 		tech:
 			'src/lib/components/Carrousel.svelte, la regla en src/lib/utils/carrusel.js, los estilos en ' +
-			'src/lib/utils/carruselEstilos.js y los colores en src/lib/utils/flyerColors.js ' +
+			'src/lib/utils/carruselEstilos.js y los colores en src/lib/utils/carruselPaletas.js ' +
 			'(docs/estilo.md, «Carrusel de la portada»). `?carrousel` lo muestra apagado solo en ' +
 			'`npm run dev`. Sin migración.',
 		envVar: 'CARRUSEL_PORTADA_ENABLED'

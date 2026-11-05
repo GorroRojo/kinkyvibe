@@ -363,15 +363,22 @@ sin guardarlo).
   Cada evento puede elegir el suyo en Editar → Datos, «Estilo en el carrusel de la portada»
   (`carrusel_estilo`, en `extra`), y ese manda. Los controles de abajo (flechas y puntos; en C,
   los stickers) toman el estilo y los colores de la diapositiva que se ve.
-- **Colores**: cada diapositiva usa los colores de su flyer (`flyerPalette` en
-  `$lib/utils/flyerColors.js`, a partir de los `colors` guardados en la imagen al subirla;
-  [imagenes.md](imagenes.md), «Colores de la imagen»). El fondo es el primer color vivo del flyer y
-  el segundo color, el siguiente de otro tono (o el complementario). **Cada texto se corre de luz
-  hasta pasar WCAG AA (4.5:1) sobre su fondo**, con el mismo tono; lo prueban
-  `flyerColors.test.js` con cientos de flyers al azar. Sin flyer, o con un flyer que todavía no
-  tiene sus colores, las tres paletas de la marca, de a una por diapositiva. Los colores
-  `carrousel_background` y `carrousel_color` de un evento (hex) siguen mandando sobre el fondo y su
-  texto (el texto, corrido hasta que se lea).
+- **Colores** (`$lib/utils/carruselPaletas.js`; gorrite, 5/11, al ver la v3: pintar la
+  diapositiva con los colores del flyer lo hacía perderse contra el fondo y apagaba todo):
+  - **Fondos y bloques, siempre de la marca**: cinco paletas con los colores saturados del sitio
+    (rosa, verde, violeta, amarillo y fucsia; las tres primeras son las del prototipo v2).
+  - **El flyer elige la paleta**: con los `colors` guardados en su imagen
+    ([imagenes.md](imagenes.md), «Colores de la imagen»), va detrás la paleta que más se distingue
+    de su color principal (tono y contraste), así resalta; dos diapositivas seguidas evitan
+    repetir si hay otra casi igual de buena. El color más vivo del flyer, avivado, va de **acento**
+    en lo chico: la estrella con la fecha, la cinta adhesiva de A y la franja de la fecha (si se ve
+    contra el fondo; si no, el de la paleta).
+  - **Textos**: blanco si se lee, si no la tinta oscura de la marca. Los títulos son texto grande
+    (31 px o más): les alcanza **3:1** (WCAG AA texto grande); el resto, **4.5:1**. Lo prueban
+    `carruselPaletas.test.js` con cientos de flyers al azar.
+  - Sin flyer, o con un flyer que todavía no tiene sus colores: las tres paletas del prototipo,
+    rotando. Los colores `carrousel_background` y `carrousel_color` de un evento (hex) siguen
+    mandando sobre el fondo y su texto (el texto, corrido hasta que se lea).
 - **Qué muestra**: la imagen (sin imagen, un flyer hecho con el título), el título, la fecha corta
   de las tarjetas (`argDateList`), el lugar (`placeShort`, como el lugar vinculado de la portada),
   el resumen (en A y C, no en el celu) y la venta de entradas de las listas (`ticketCta`:

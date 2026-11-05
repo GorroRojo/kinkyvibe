@@ -7,7 +7,8 @@
  *   una vez cada {@link CARRUSEL_CACHE_MS} por isolate (como los interruptores).
  * - **Las diapositivas**: los eventos de `carruselPosts`, cada uno con su estilo
  *   (`estilosDelCarrusel`) y los colores guardados de su flyer (`colors` del objeto `imagen`;
- *   $lib/utils/flyerColors.js). Una consulta para los colores de las 5 imágenes, nada más: los
+ *   $lib/utils/flyerColors.js; con ellos el componente elige la paleta de la marca:
+ *   $lib/utils/carruselPaletas.js). Una consulta para los colores de las 5 imágenes, nada más: los
  *   colores se calcularon al subir la imagen, no acá.
  *
  * Sin imports de SvelteKit (vitest).
@@ -140,7 +141,7 @@ export async function colorsByFeatured(db, featured) {
 
 /**
  * Las diapositivas del carrusel: los eventos que entran (`carruselPosts`), cada uno con su estilo
- * y los colores de su flyer (o `null`: la paleta de la marca).
+ * y los colores de su flyer (o `null`: las paletas de la marca rotan).
  *
  * @template {{ path: string, meta: Record<string, any> }} P
  * @param {App.Platform | undefined} platform

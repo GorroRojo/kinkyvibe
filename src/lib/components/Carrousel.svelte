@@ -15,9 +15,10 @@
 	// - Cinco estilos (A pila de flyers, B franja cruzada, C mesa de stickers, D diagonal, E mesa de
 	//   zines): cada diapositiva trae el suyo (`estilo`, de Ajustes o del evento:
 	//   $lib/utils/carruselEstilos.js). Los controles de abajo toman el de la que se ve.
-	// - Los colores de cada diapositiva salen de su flyer (`colors`, guardados al subir la imagen;
-	//   $lib/utils/flyerColors.js), con los textos ajustados para que se lean (AA). Sin flyer o sin
-	//   colores guardados, las paletas de la marca.
+	// - Los fondos y los bloques son siempre de la marca; los colores del flyer (`colors`, guardados
+	//   al subir la imagen) eligen cuál paleta va detrás (la que más se le distingue) y dan el acento
+	//   (la estrella, la cinta). Textos: blanco si se lee, si no la tinta (títulos 3:1, el resto
+	//   4.5:1). $lib/utils/carruselPaletas.js.
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { ChevronLeft, ChevronRight, Pause, Play } from '@lucide/svelte';
 	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
@@ -25,7 +26,7 @@
 	import { posterSrcset } from '$lib/utils/mediaCopies.js';
 	import { ticketCta } from '$lib/utils/ticketCta.js';
 	import { ROTAR, estiloDeDiapositiva, isCarruselEstilo } from '$lib/utils/carruselEstilos.js';
-	import { ensureContrast, flyerPalette, readableInk } from '$lib/utils/flyerColors.js';
+	import { conFondoPropio, paletasDelCarrusel } from '$lib/utils/carruselPaletas.js';
 
 	/** Los eventos, ya elegidos y en orden (`carruselSlides`, src/lib/server/carrusel.js), con el
 	 * estilo de cada uno (sin estilo, rotan) y los colores de su flyer (sin colores, la marca).
@@ -37,61 +38,6 @@
 	/** Cada cuánto pasa sola (ms). */
 	export let interval = 7000;
 
-	// Colores planos de la marca, de a uno por diapositiva, para las que no tienen flyer (o todavía
-	// no tienen sus colores). `bg`/`ink`: la franja y su texto; `flyer`/`flyerInk`: el flyer hecho
-	// con el título (distinto de la franja, para que se vea); `alt`/`altInk`: la otra mitad en D;
-	// `cinta`/`cintaInk`: las franjas con texto; `garabato`: los dibujitos de fondo; `claro`/
-	// `claroInk`/`acento`: la mesa de C, su texto y su título; `oscuro`: el velo y las tiras de E y
-	// el texto de «Comprar» (con blanco); `medio`: el fondo de E; `papel`: el primer papel de A;
-	// `selloBorde`: el borde de la estrella. Todos los pares de texto pasan 4.5:1. Las mismas
-	// claves que `flyerPalette` ($lib/utils/flyerColors.js).
-	const MARCA = {
-		claro: 'var(--2-tint, hsl(262, 100%, 95%))',
-		claroInk: 'var(--kv-tinta)',
-		acento: 'var(--2-dark)',
-		oscuro: 'var(--2-dark)',
-		medio: 'var(--2-light)',
-		papel: 'var(--4-light)',
-		selloBorde: 'var(--1)'
-	};
-	const PALETAS = [
-		{
-			...MARCA,
-			bg: 'var(--1)',
-			ink: 'var(--kv-tinta)',
-			flyer: 'var(--2-dark)',
-			flyerInk: 'var(--4-light)',
-			alt: 'var(--2-dark)',
-			altInk: 'white',
-			cinta: 'var(--2-dark)',
-			cintaInk: 'white',
-			garabato: 'var(--2-dark)'
-		},
-		{
-			...MARCA,
-			bg: 'var(--3)',
-			ink: 'var(--kv-tinta)',
-			flyer: 'var(--1-dark)',
-			flyerInk: 'white',
-			alt: 'var(--1-dark)',
-			altInk: 'white',
-			cinta: 'var(--2-dark)',
-			cintaInk: 'white',
-			garabato: 'var(--4-light)'
-		},
-		{
-			...MARCA,
-			bg: 'var(--2-dark)',
-			ink: 'white',
-			flyer: 'var(--4-light)',
-			flyerInk: 'var(--2-dark)',
-			alt: 'var(--3)',
-			altInk: 'var(--kv-tinta)',
-			cinta: 'var(--4-light)',
-			cintaInk: 'var(--kv-tinta)',
-			garabato: 'var(--1-light)'
-		}
-	];
 	const LOGO = '/android-chrome-192x192.png';
 	/**
 	 * Un color escrito a mano en el evento (`carrousel_background`, `carrousel_color`), como
@@ -105,27 +51,6 @@
 		return null;
 	};
 
-	/**
-	 * La paleta de una diapositiva: la de su flyer si tiene colores guardados, si no una de la
-	 * marca; los colores escritos a mano en el evento mandan sobre el fondo y su texto (el texto,
-	 * corrido hasta que se lea).
-	 * @param {Record<string, any>} meta
-	 * @param {boolean} hasImage
-	 * @param {string[] | null | undefined} colors
-	 * @param {number} i
-	 */
-	function paletteOf(meta, hasImage, colors, i) {
-		const flyer = hasImage ? flyerPalette(colors) : null;
-		/** @type {Record<string, string>} */
-		const paleta = flyer ? { ...flyer, papel: flyer.claro } : { ...PALETAS[i % PALETAS.length] };
-		const bg = hex6(meta.carrousel_background);
-		const ink = hex6(meta.carrousel_color);
-		if (bg) {
-			paleta.bg = bg;
-			paleta.ink = ink ? ensureContrast(ink, bg) : readableInk(bg);
-		}
-		return paleta;
-	}
 	/** E: dónde caen las copias del flyer en la mesa (x %, y %, giro, ancho rem). */
 	const MESA = [
 		[-4, -18, -9, 17],
@@ -157,12 +82,20 @@
 	$: rotating = canRotate && playing && !hovered && !focused;
 	$: schedule(rotating, index);
 
+	/** @param {Record<string, any>} meta */
+	const hasImageOf = (meta) => Boolean(meta.featured) && meta.featured !== 'undefined';
+	$: paletas = paletasDelCarrusel(
+		posts.map((p) => ({ hasImage: hasImageOf(p.meta), colors: p.colors }))
+	);
 	$: slides = posts.map((post, i) => {
 		const meta = post.meta;
 		const start = parseSiteDate(meta.start ?? '');
 		const [day, time] = argDateList(meta.start ?? '').split(' · ');
-		const hasImage = Boolean(meta.featured) && meta.featured !== 'undefined';
-		const paleta = paletteOf(meta, hasImage, post.colors, i);
+		const hasImage = hasImageOf(meta);
+		const propio = hex6(meta.carrousel_background);
+		const paleta = propio
+			? conFondoPropio(paletas[i], propio, hex6(meta.carrousel_color))
+			: paletas[i];
 		return {
 			post,
 			estilo: isCarruselEstilo(post.estilo) ? post.estilo : estiloDeDiapositiva(ROTAR, null, i),
@@ -313,6 +246,9 @@
 				tabindex="-1"
 				style:--slide-bg={slide.background}
 				style:--ink={slide.ink}
+				style:--titulo-ink={slide.paleta.tituloInk}
+				style:--alt-titulo-ink={slide.paleta.altTituloInk}
+				style:--cinta-adhesiva={slide.paleta.cintaAdhesiva}
 				style:--flyer={slide.paleta.flyer}
 				style:--flyer-ink={slide.paleta.flyerInk}
 				style:--alt={slide.paleta.alt}
@@ -326,7 +262,7 @@
 				style:--oscuro={slide.paleta.oscuro}
 				style:--medio={slide.paleta.medio}
 				style:--papel={slide.paleta.papel}
-				style:--sello-borde={slide.paleta.selloBorde}
+				style:--sello-borde={slide.paleta.sello}
 				style:--tilt="{slide.tilt}deg"
 			>
 				<!-- El fondo, de borde a borde: dibujitos (A, B, C), dos mitades (D) o la mesa (E). -->
@@ -586,8 +522,10 @@
 		align-items: flex-start;
 		gap: var(--space-2xs);
 	}
+	/* Los títulos son texto grande (≥ 31 px): con 3:1 alcanza (`tituloInk`, carruselPaletas.js). */
 	h3 {
 		margin: 0;
+		color: var(--titulo-ink);
 		font-family: var(--gorda);
 		font-weight: 400;
 		font-size: clamp(2.2rem, 4.2vw, 3.6rem);
@@ -881,7 +819,7 @@
 		left: 30%;
 		width: 40%;
 		height: 1.7rem;
-		background: color-mix(in srgb, var(--4-tint) 80%, transparent);
+		background: color-mix(in srgb, var(--cinta-adhesiva) 80%, transparent);
 		transform: rotate(-5deg);
 		z-index: 2;
 	}
@@ -1130,6 +1068,7 @@
 		font-size: var(--text-lg);
 	}
 	.v-d h3 {
+		color: var(--alt-titulo-ink);
 		font-family: var(--redonda);
 		font-weight: 600;
 		font-size: clamp(2.2rem, 4vw, 3.5rem);
