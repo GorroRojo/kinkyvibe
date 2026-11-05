@@ -1128,8 +1128,12 @@ export function upcomingEvents({
  *   resend?: { orderId: string },
  *   group?: ReviewGroupKind,
  *   name?: string,
- *   retryReminders?: { slug: string }
+ *   retryReminders?: { slug: string },
+ *   altFix?: { profileId: number, index: number, src: string, thumb: string },
+ *   shrink?: { ownerId: number, imageId: number, url: string, title: string, alt: string, size: number }
  * }} ReviewItem
+ *   `altFix`: «Fotos sin descripción» (un campo para escribir qué se ve, contentReview.js);
+ *   `shrink`: «Portadas pesadas» (el botón «Achicar»).
  */
 
 /**

@@ -39,11 +39,11 @@
 					>{f.label}
 					{#if f.required}<span class="req">*</span>{/if}</span
 				>
-				{#if f.type === 'textarea'}
+				{#if f.type === 'textarea' || f.type === 'longtext'}
 					<textarea
 						id={idFor(f.key)}
 						bind:value={values[f.key]}
-						rows="3"
+						rows={f.type === 'longtext' ? 10 : 3}
 						placeholder={f.placeholder}></textarea>
 				{:else if f.type === 'select'}
 					<select id={idFor(f.key)} bind:value={values[f.key]}>

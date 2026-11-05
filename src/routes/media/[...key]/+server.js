@@ -12,7 +12,7 @@
  *
  * - Siempre: el tipo correcto y `X-Content-Type-Options: nosniff` (el navegador no adivina otro).
  * - PDF y video: `Content-Disposition: inline` con un nombre seguro (se abren en el navegador);
- *   ODT, ODS y ODP: `attachment` (se descargan).
+ *   ODT, ODS, ODP y los subtítulos VTT: `attachment` (se descargan; un `<track>` los lee igual).
  * - Pedidos de una parte (`Range`), para adelantar un video: 206 con `Content-Range`, 416 si el
  *   rango está fuera del archivo; `Accept-Ranges: bytes` en todas las respuestas.
  * - Las copias chicas de las tarjetas (`img/<hash>-360.webp`, `-720.webp`; $lib/utils/mediaCopies.js):
