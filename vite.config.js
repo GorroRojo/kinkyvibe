@@ -64,9 +64,6 @@ export default defineConfig({
 			}
 		]
 	},
-	optimizeDeps: {
-		exclude: ['svelte-codemirror-editor', 'codemirror', '@codemirror/lang-markdown']
-	},
 	ssr: {
 		optimizeDeps: {
 			// Dev only. Svelte libraries are not externalized for SSR, so without this every icon

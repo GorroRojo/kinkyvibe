@@ -802,6 +802,16 @@ sección (`import()`), no con el resto del panel. Mientras llega se ve el texto 
 mismo tamaño con «Cargando el editor…»; si no se puede bajar, queda un campo de texto común. Si
 agregás otro editor pesado, cargalo igual.
 
+El editor se arma directo con CodeMirror en `event-form/markdownEditor.js` (sin envoltorio de
+Svelte). Lo que se escribe llega al formulario en la misma transacción; un texto que viene de
+afuera (recuperar un borrador) entra como un cambio chico y solo si es distinto del que tiene
+(`markdownEditorSync.js`), sin rearmar el editor. Si CodeMirror tira errores seguidos, queda el
+campo de texto común con el mismo texto. Su scroll interno va con `scroll-behavior: auto` (el
+sitio pone `smooth` en todo): CodeMirror mueve ese scroll por código y lee la posición enseguida;
+con scroll suave dibuja las líneas equivocadas. No le pongas `overflow: hidden`, `transform` ni
+`scroll-behavior: smooth` a lo que lo rodea. La prueba con un texto largo está en
+`tests/tickets/editor-texto.spec.js` (corre con `npx playwright test -c playwright.tickets.config.js`).
+
 **Avisos para lectores de pantalla** (`src/lib/admin/announce.js`). Un `<p role="status">` que
 aparece junto con su texto (por ejemplo dentro de `{#if form?.x}`) no siempre se lee. Para eso hay
 dos regiones vivas fijas en el `body`: `announce(texto)` (cortés) y `announceNow(texto)`
