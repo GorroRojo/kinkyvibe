@@ -372,7 +372,7 @@ sin guardarlo).
     al compartir ([compartir.md](compartir.md), «Objetos sin imagen»; gorrite, 5/11: la vista
     previa como inspiración para la miniatura, no para rediseñar la diapositiva): el color y el
     símbolo del tipo (verde con el ícono del material —libro, descarga, carrito…—, amarillo con el
-    corazón de Amigues, blanca con el globo violeta de la Kinkipedia) y el título abajo
+    corazón de Amigues, blanca con el globo violeta de la Kinkipedia), sin el título (ya está al lado)
     (`categoryTileLook` y `objectTileLook` en `$lib/utils/ogObjeto.js`, los mismos del dibujo de
     la vista previa). Es cuadrada como un flyer, así entra igual en la pila (A), el marco (B, que
     no la recorta en círculo), el sticker (C, también en los stickers chiquitos de abajo), la

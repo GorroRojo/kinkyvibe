@@ -18,7 +18,7 @@
 	// - Lo que no es un evento (material, perfiles, la Kinkipedia) va en los mismos estilos, con su
 	//   tipo en lugar de la fecha y «Ver». Sin imagen, en el lugar del flyer va su ficha: el color y
 	//   el símbolo de su tipo, los mismos de su vista previa al compartir (`categoryTileLook`,
-	//   $lib/utils/ogObjeto.js), con el título.
+	//   $lib/utils/ogObjeto.js), sin el título (ya está al lado).
 	// - Los fondos y los bloques son siempre de la marca; los colores del flyer (`colors`, guardados
 	//   al subir la imagen) eligen cuál paleta va detrás (la que más se le distingue) y dan el acento
 	//   (la estrella, la cinta). Textos: blanco si se lee, si no la tinta (títulos 3:1, el resto
@@ -357,7 +357,6 @@
 									aria-hidden="true"
 								>
 									<img class="ficha-icono" src={slide.tile.icon} alt="" />
-									<span class="ficha-titulo">{meta.title}</span>
 								</span>
 							{:else}
 								<!-- Sin imagen: un flyer hecho con el título, en la letra de los flyers. -->
@@ -762,35 +761,20 @@
 	}
 
 	/* Sin imagen, lo que no es un evento: su ficha (el color y el símbolo de su tipo, los de su vista
-	   previa al compartir, $lib/utils/ogObjeto.js) con el título abajo. Cuadrada, como un flyer:
+	   previa al compartir, $lib/utils/ogObjeto.js), solo el símbolo: el título ya está al lado
+	   (gorrite, 5/11). Cuadrada, como un flyer:
 	   entra igual en la pila (A), el marco blanco (B), el sticker (C), la mitad (D) y la mesa (E). */
 	.ficha {
 		position: absolute;
 		inset: 0;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 4%;
-		padding: 10%;
-		container-type: inline-size;
+		display: grid;
+		place-items: center;
 		overflow: hidden;
-		text-align: center;
 	}
+	/* el símbolo, como en la ficha de la vista previa (200 de 330 px: 60 %) */
 	.ficha-icono {
-		width: 46%;
+		width: 58%;
 		height: auto;
-	}
-	.ficha-titulo {
-		font-family: var(--gorda);
-		font-size: 10cqi;
-		line-height: 1.02;
-		overflow-wrap: anywhere;
-		display: -webkit-box;
-		-webkit-line-clamp: 3;
-		line-clamp: 3;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
 	}
 	/* en la mesa de E, las copias de la ficha */
 	.ficha-copia {

@@ -179,7 +179,9 @@ describe('components render frontmatter as text', () => {
 				expect(body, `${category} ${estilo}`).toContain('class="ficha');
 				expect(body).toContain(`background: ${bg}`);
 				expect(body).toContain('src="data:image/svg+xml;base64,');
-				expect(body).toContain('Sin &lt;img');
+				// el título va una sola vez, al lado (no adentro de la ficha)
+				expect(body.split('Sin &lt;img').length - 1).toBe(1);
+				expect(body).not.toContain('ficha-titulo');
 				// no el flyer improvisado de antes
 				expect(body).not.toContain('class="flyer ');
 				// en E, la mesa con copias de la ficha
