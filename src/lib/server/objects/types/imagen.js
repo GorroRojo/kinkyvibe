@@ -48,7 +48,11 @@ const imagen = {
 		source_path: { kind: 'text', label: 'Archivo del repo', max: 300 },
 		// Sus colores principales (`#rrggbb`, primero los que más pesan), sacados en el navegador al
 		// subirla: la paleta del carrusel de la portada (../../../utils/flyerColors.js).
-		colors: { kind: 'list', label: 'Colores', max: COLORS_MAX }
+		colors: { kind: 'list', label: 'Colores', max: COLORS_MAX },
+		// «Dejarla así» en «Portadas pesadas» (Para revisar): une admin vio que pesa más de 300 KB y
+		// la aceptó (`{ by, at }`: quién y cuándo). Ya no aparece en la lista. Es de esta imagen: una
+		// portada nueva es otra imagen y se revisa de nuevo.
+		heavy_ok: { kind: 'json', label: 'Peso aceptado', max: 500 }
 	},
 	edges: {},
 	check(data) {

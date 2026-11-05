@@ -231,19 +231,32 @@ video o si ya tienen algo escrito):
 Una portada (edge `portada` de un evento o un material, o la imagen vieja del repo si no tiene
 edge) que pesa **más de 300 KB** (`HEAVY_COVER_BYTES` en `$lib/utils/imageResize.js`) aparece en
 «Portadas pesadas», en «Para revisar» del Inicio ([panel.md](panel.md)). Pasaba con las que se
-subieron antes del achique del navegador.
+subieron antes del achique del navegador, y con las que se subieron antes de que la subida usara
+el mismo tope de 300 KB (abajo).
 
 - **«Achicar»** hace en el navegador lo mismo que una subida: baja la original
-  (`/media/img/…`), la pasa por `prepareImage` (lado largo 2000 px, WEBP 0,85) con `targetBytes`
-  (si todavía pesa más de 300 KB, prueba 1600 px a 0,8, 1280 px a 0,78 y 1080 px a 0,75:
-  `SHRINK_STEPS`; nunca menos de 1080, que una portada se ve a lo sumo a unos 768 px) y la sube con
-  `POST /imagenes` (con sus copias chicas, el mismo nombre y el mismo texto alternativo; si la
-  original no tiene, lo pide antes). Después cambia la portada (`swapCover`, en
-  `src/lib/server/admin/contentReview.js`), con su versión en el historial y en Actividad.
+  (`/media/img/…`), la pasa por `prepareImage` (lado largo 2000 px, WEBP 0,85) con `targetBytes`.
+  Si todavía pesa más de 300 KB, prueba los pasos de `SHRINK_STEPS` en orden y para apenas
+  alcanza: 1600 px a 0,8, 1280 px a 0,78 y 1080 px a 0,75; después baja la calidad a 1080 px
+  (0,7, 0,62, 0,55); después el lado (960, 840 y 720 px a 0,55) y por último 720 px a 0,5. **Piso:
+  nunca menos de 720 px de lado largo (`MIN_SHRINK_SIDE`) ni de calidad 0,5
+  (`MIN_SHRINK_QUALITY`)**; una portada se ve a lo sumo a unos 768 px y las tarjetas usan sus
+  copias chicas. Si ni así alcanza, queda la más liviana.
+- **Solo si vale la pena** (`muchLighter`: la copia pesa como mucho 300 KB, o al menos un 15 % menos
+  que la original) la sube con `POST /imagenes` (con sus copias chicas, el mismo nombre y el mismo
+  texto alternativo; si la original no tiene, lo pide antes) y cambia la portada (`swapCover`, en
+  `src/lib/server/admin/contentReview.js`, que vuelve a mirar la misma regla), con su versión en el
+  historial y en Actividad. Si no vale la pena, no sube nada ni cambia la portada, y lo dice («No se
+  pudo bajar de 300 KB sin que se vea mal (queda en 381 KB)…»). Los pesos van con un decimal (o dos)
+  cuando «antes» y «ahora» se verían iguales (`kbText`).
+- **«Dejarla así»**: si la portada se ve bien como está, la saca de la lista. Guarda en los datos
+  de esa imagen de la biblioteca `heavy_ok: { by, at }` (quién y cuándo; campo del tipo `imagen`),
+  con saveObject(), su versión en el historial y Actividad (`content.cover.accept`); el aviso trae
+  «Deshacer». Es de esa imagen: si la portada cambia por otra imagen pesada, aparece de nuevo.
 - **La original queda en la biblioteca**: es otra imagen (otro hash), no se borra ni se pisa. Para
   volver atrás, se elige la original en el selector del editor.
-- Si la copia no pesa menos que la original (el navegador no sabe hacer WEBP, por ejemplo), no
-  cambia nada y lo dice. Un GIF no se achica (puede ser animado).
+- Si el navegador no sabe hacer WEBP, no cambia nada y lo dice. Un GIF no se achica (puede ser
+  animado).
 
 ## El selector (ImagePicker)
 
@@ -255,8 +268,10 @@ recorrer toda la biblioteca está Contenido → Biblioteca (abajo). Pestañas:
 
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
-  largo 2000 px) y la pasa a WEBP, hace sus dos copias chicas para las tarjetas y saca sus colores
-  (arriba). Si el
+  largo 2000 px) y la pasa a WEBP; si así pesa más de 300 KB, la achica un poco más con los mismos
+  pasos y el mismo piso que «Achicar» (`targetBytes: HEAVY_COVER_BYTES`, arriba; una imagen que ya
+  pesa menos sale igual que antes). También hace sus dos copias chicas para las tarjetas y saca sus
+  colores (arriba). Si el
   navegador no sabe hacer WEBP (Safari), una foto JPEG la pasa a JPEG, y un PNG, WEBP o AVIF lo
   sube como está (puede tener transparencias, que en JPEG saldrían negras); si no puede dibujarla
   (o un GIF, que puede ser animado), sube el original, y el servidor le saca los metadatos (arriba).
@@ -284,7 +299,8 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
   (o el nombre del archivo original), el tipo y el peso, **dónde se usa** (con enlace a la ficha del
   evento, al editor del material, a la ficha del perfil o a Series; `libraryUses`) y «Abrir».
 - **Subir** imágenes y archivos con el mismo `POST /imagenes` y los mismos límites (imágenes 10 MB,
-  achicadas en el navegador; documentos y videos 25 MB).
+  achicadas en el navegador con el mismo tope de 300 KB que el selector; documentos y videos
+  25 MB).
 - **Sacar** pide confirmación en la página (dice dónde se usa) y usa `DELETE /imagenes/<id>` (el
   borrado suave de abajo). El aviso trae **Deshacer** (la acción `recuperar` de la página).
 - **Recuperar en Actividad**: todo lo que una persona admin saca de la biblioteca (desde esta
