@@ -84,6 +84,7 @@ import {
 	CalendarPlus,
 	CalendarRange,
 	ChartLine,
+	ClipboardList,
 	Database,
 	Eye,
 	EyeOff,
@@ -444,6 +445,19 @@ export const NAV = Object.freeze([
 		label: 'Cuentas',
 		area: 'comunidad',
 		soon: false
+	},
+	{
+		// Formularios propios, la encuesta de cada evento y plantillas (docs/formularios.md,
+		// decisión 0056). Con el interruptor apagado las páginas dan 404.
+		id: 'formularios',
+		href: '/admin/comunidad/formularios',
+		icon: ClipboardList,
+		emoji: '📋',
+		label: 'Formularios',
+		area: 'comunidad',
+		soon: false,
+		flag: 'formularios',
+		hiddenWhenOff: true
 	},
 	{
 		// Personas que la organización no admite en los eventos de Kinky Vibe (decisión 0053). Solo
@@ -810,7 +824,10 @@ export const EVENT_TABS = Object.freeze(
 			emoji: '✉️',
 			views: [
 				{ id: 'mail', suffix: '/mail', label: 'Mandar un aviso' },
-				{ id: 'mails', suffix: '/mails', label: 'Plantillas' }
+				{ id: 'mails', suffix: '/mails', label: 'Plantillas' },
+				// La encuesta de después del evento (interruptor `formularios`, docs/formularios.md):
+				// la ficha la muestra solo con el interruptor prendido.
+				{ id: 'encuesta', suffix: '/encuesta', label: 'Encuesta' }
 			]
 		},
 		// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
