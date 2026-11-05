@@ -6,6 +6,7 @@
  * TICKETS_MP_FEE_PERCENT, EMAIL_ALLOWLIST (obligatoria para mandar
  * mails desde un preview; ver emailGuard.js). Solo en dev: MP_MOCK, TICKETS_DEV_FIXTURE.
  */
+import { orderExtras } from './extras.js';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { siteOriginFrom } from '$lib/utils/site.js';
@@ -566,15 +567,17 @@ export async function sendOrderEmail(input) {
  */
 export async function sendOrderEmailResult({
 	db,
-	order,
+	order: plainOrder,
 	tickets,
 	origin,
 	fetch: fetchFn,
 	idempotent = true,
-	idempotencyKey = idempotent ? `tickets-${order.id}` : undefined
+	idempotencyKey = idempotent ? `tickets-${plainOrder.id}` : undefined
 }) {
 	/** @type {string | null} */
 	let claimedLink = null;
+	// Con extras (decisión 0056), el mail los lista: se leen una vez acá.
+	const order = await withOrderExtras(db, plainOrder);
 	try {
 		// Un dominio que seguro no recibe correo (un tipeo como gmail.con): no se le pide a Resend
 		// un envío que rebota seguro, y la orden queda marcada como rebotada, como si hubiera
@@ -869,7 +872,8 @@ export const TRANSFER_RETRY_DELAY_MS = 2000;
  * }} input
  * @returns {Promise<boolean>} si se envió
  */
-export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
+export async function sendTransferEmail({ db, order: plainOrder, origin, fetch: fetchFn }) {
+	const order = await withOrderExtras(db, plainOrder);
 	try {
 		const info = await transferInfo(db);
 		if (!info) throw new Error('no hay datos para transferir configurados');
@@ -938,7 +942,8 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
  *
  * @param {{ db: import('@cloudflare/workers-types').D1Database, order: import('./orders.js').Order, fetch: typeof fetch }} input
  */
-export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
+export async function sendRefundEmail({ db, order: plainOrder, fetch: fetchFn }) {
+	const order = await withOrderExtras(db, plainOrder);
 	// Una venta en la puerta puede no tener email.
 	if (!order.buyer_email) return false;
 	try {
@@ -1247,4 +1252,18 @@ export async function inBackground(task, platform) {
 	const ctx = platform?.ctx;
 	if (ctx?.waitUntil) ctx.waitUntil(task);
 	else await task;
+}
+
+/**
+ * La orden con sus extras (`extras`, para el desglose de los mails: `priceLines` en email.js), si
+ * tiene (decisión 0056). Sin extras, la misma orden, sin leer nada.
+ *
+ * @template {{ id: string, extras_amount?: number | null }} T
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ * @param {T} order
+ * @returns {Promise<T & { extras?: { name: string, quantity: number, price: number }[] }>}
+ */
+export async function withOrderExtras(db, order) {
+	if (!db || !(Number(order.extras_amount ?? 0) > 0)) return order;
+	return { ...order, extras: await orderExtras(db, order.id) };
 }

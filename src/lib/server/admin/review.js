@@ -39,6 +39,11 @@ import { resendQuotaItem, resendQuotaQuery } from '$lib/server/tickets/resendQuo
 import { webhookHealthItem, webhookHealthQuery } from '$lib/server/telegram/webhookHealth.js';
 import { failedFormSendsStatement, readFailedFormSends } from '$lib/server/formularios/store.js';
 import {
+	contentReviewQuery,
+	contentReviewRows,
+	legacyCoverRefs
+} from '$lib/server/admin/contentReview.js';
+import {
 	arDay,
 	cancelledLeftoversQuery,
 	claimReviewItems,
@@ -157,6 +162,9 @@ export function reviewQueries(now, { login = '' } = {}) {
 		resendQuota: resendQuotaQuery(now),
 		// El último chequeo del webhook del bot, si encontró un problema (webhookHealth.js).
 		webhookHealth: webhookHealthQuery(now),
+		// Arreglos de contenido: fotos sin descripción, portadas pesadas, videos sin transcripción
+		// (contentReview.js). null si falla.
+		content: contentReviewQuery(),
 		// Links personales de formularios que fallaron todos sus intentos ([] sin la 0079).
 		formsFailed: failedFormSendsQuery()
 	};
@@ -231,16 +239,22 @@ export function reviewEventQueries({
 
 /**
  * Lo que no sale de las tandas: cuánto se usa cada etiqueta en las publicaciones (lo que lee
- * Etiquetas; las publicaciones las recuerda el isolate mientras la base no cambie). Nunca falla.
+ * Etiquetas) y las portadas viejas del repo de los eventos y el material (para «Portadas
+ * pesadas»); las publicaciones las recuerda el isolate mientras la base no cambie. Nunca falla.
  *
- * @returns {Promise<{ tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null }>}
+ * @returns {Promise<{ tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null,
+ *   legacyCovers: import('./contentReview.js').CoverRef[] }>}
  */
 export async function reviewTagUsage() {
-	const tagUsage = await tagUsageAndWiki().catch((e) => {
-		console.error('[admin] «Para revisar»: no se pudo leer el uso de las etiquetas', e);
-		return null;
-	});
-	return { tagUsage };
+	const [tagUsage, legacyCovers] = await Promise.all([
+		tagUsageAndWiki().catch((e) => {
+			console.error('[admin] «Para revisar»: no se pudo leer el uso de las etiquetas', e);
+			return null;
+		}),
+		// Las portadas viejas del repo (para «Portadas pesadas»; nunca falla).
+		legacyCoverRefs()
+	]);
+	return { tagUsage, legacyCovers };
 }
 
 /**
@@ -297,6 +311,8 @@ export function tagReviewItem(tags) {
  *   cancelled?: import('./inicio.js').CancelledLeftovers[],
  *   pauses?: { tickets: string | null, mails: string | null },
  *   formsFailed?: ReturnType<typeof readFailedFormSends>,
+ *   content?: import('./contentReview.js').ContentFacts | null,
+ *   legacyCovers?: import('./contentReview.js').CoverRef[],
  *   now: number
  * }} facts `pauses`: las pausas de emergencia (por defecto, las variables del Worker); van
  *   primero, en rojo
@@ -350,6 +366,9 @@ export function reviewRows(facts) {
 	// El chequeo nocturno de los datos, en una sola fila que se despliega (solo si encontró algo).
 	const integrityRow = integrityReviewRow(facts.integrity, { formatWhen });
 	if (integrityRow) rows.push(integrityRow);
+	// Los arreglos de contenido (se resuelven ahí mismo, desde el Inicio): al final, son lo menos
+	// urgente.
+	rows.push(...contentReviewRows(facts.content, facts.legacyCovers ?? []));
 	return rows;
 }
 

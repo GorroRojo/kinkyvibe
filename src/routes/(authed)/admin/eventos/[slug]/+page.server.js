@@ -33,6 +33,7 @@ import {
 } from '$lib/server/tickets/doorLinks.js';
 import { toArgentinaLocalInput } from '$lib/utils/tickets.js';
 import { siteOrigin } from '$lib/server/tickets/index.js';
+import { isFlagOn } from '$lib/server/flags.js';
 
 /**
  * Los links de puerta vivos del evento y el vencimiento por defecto para el formulario. `null` si
@@ -48,20 +49,23 @@ async function doorLinksFor(db, slug, config) {
 	const now = Date.now();
 	const expiry = defaultDoorLinkExpiry(config, now);
 	const defaultExpires = expiry >= now + DOOR_LINK_MIN_MS ? toArgentinaLocalInput(expiry) : '';
-	if (!db) return { links: null, defaultExpires };
+	// «Link de barra» (decisión 0056): con el interruptor `extras` y un evento con extras.
+	const bar = config.extras.length > 0 && (await isFlagOn(db, 'extras'));
+	if (!db) return { links: null, defaultExpires, bar };
 	try {
 		const links = (await listDoorLinks(db, slug, now)).map((l) => ({
 			id: l.id,
+			scope: l.scope ?? 'puerta',
 			label: l.label,
 			createdBy: l.created_by,
 			createdAt: Number(l.created_at),
 			expiresAt: Number(l.expires_at),
 			lastUsedAt: l.last_used_at === null ? null : Number(l.last_used_at)
 		}));
-		return { links, defaultExpires };
+		return { links, defaultExpires, bar };
 	} catch (e) {
 		logDBError('links de puerta en la ficha', e);
-		return { links: null, defaultExpires };
+		return { links: null, defaultExpires, bar };
 	}
 }
 
@@ -280,6 +284,11 @@ export const actions = {
 		if (!config) return bad(400, 'Este evento no vende entradas: no tiene puerta.');
 		if (config.online) return bad(400, 'Es un evento online: no tiene control de ingreso.');
 		const form = await request.formData();
+		// «Link de barra» (decisión 0056): solo ver y entregar extras. Con el interruptor `extras` y
+		// un evento con extras.
+		const scope = form.get('scope') === 'barra' ? 'barra' : 'puerta';
+		if (scope === 'barra' && !(config.extras.length && (await isFlagOn(db, 'extras'))))
+			return bad(400, 'Este evento no tiene extras: no hace falta un link de barra.');
 		const parsed = parseDoorLinkForm(
 			{ label: form.get('label'), expires: form.get('expires') },
 			config
@@ -289,21 +298,28 @@ export const actions = {
 			eventSlug: params.slug,
 			label: parsed.label,
 			createdBy: admin.login,
-			expiresAt: parsed.expiresAt
+			expiresAt: parsed.expiresAt,
+			...(scope === 'barra' ? { scope } : {})
 		});
 		if (!r.ok) return bad(409, 'Este evento ya tiene muchos links de puerta vivos: revocá alguno.');
+		const what = scope === 'barra' ? 'link de barra' : 'link de puerta';
 		await logAdminAction(db, locals, {
 			action: 'door_link.create',
 			targetType: 'event',
 			targetId: params.slug,
-			summary: `Creó un link de puerta${parsed.label ? ` («${parsed.label}»)` : ''}`,
-			detail: { doorLink: r.link.id, label: parsed.label, expiresAt: parsed.expiresAt }
+			summary: `Creó un ${what}${parsed.label ? ` («${parsed.label}»)` : ''}`,
+			detail: {
+				doorLink: r.link.id,
+				label: parsed.label,
+				expiresAt: parsed.expiresAt,
+				...(scope === 'barra' ? { scope } : {})
+			}
 		});
 		return {
 			doorLink: {
 				ok: true,
 				message: 'Link creado. Copialo ahora: después no se puede volver a ver.',
-				url: doorLinkUrl(siteOrigin(url), r.token),
+				url: doorLinkUrl(siteOrigin(url), r.token, scope),
 				label: parsed.label,
 				expiresAt: parsed.expiresAt
 			}

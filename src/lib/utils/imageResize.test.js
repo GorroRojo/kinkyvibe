@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
 	MAX_PICK_BYTES,
+	MAX_SIDE,
 	appendCopies,
 	keepConverted,
 	pickProblem,
 	prepareImage,
+	HEAVY_COVER_BYTES,
+	SHRINK_STEPS,
 	targetSize,
 	webpName
 } from './imageResize.js';
@@ -107,6 +110,38 @@ describe('prepareImage', () => {
 		const form = new FormData();
 		appendCopies(form, r);
 		expect(form.has('copy360')).toBe(false);
+	});
+	it('con targetBytes, prueba los pasos más chicos hasta que alcanza', async () => {
+		const file = new File([new Uint8Array(900_000)], 'portada.jpg', { type: 'image/jpeg' });
+		/** @type {number[]} */
+		const sides = [];
+		const r = await prepareImage(
+			file,
+			{
+				createImageBitmap: /** @type {any} */ (
+					async () => ({ width: 2000, height: 1500, close() {} })
+				),
+				makeCanvas: /** @type {any} */ (
+					(/** @type {number} */ w) => ({
+						getContext: () => ({ drawImage() {} }),
+						// pesa según el lado largo: 2000 → 500 KB, 1600 → 400 KB, 1280 → 250 KB
+						convertToBlob: async () => {
+							sides.push(w);
+							return new Blob([new Uint8Array(w * 200)], { type: 'image/webp' });
+						}
+					})
+				)
+			},
+			{ targetBytes: HEAVY_COVER_BYTES }
+		);
+		expect(r).toMatchObject({ converted: true, width: 1280, height: 960 });
+		expect(r.blob.size).toBeLessThanOrEqual(HEAVY_COVER_BYTES);
+		// 2000, 1600 y 1280 (alcanzó: no prueba 1080); después, las dos copias chicas
+		expect(sides.slice(0, 3)).toEqual([2000, 1600, 1280]);
+		expect(sides).toHaveLength(5);
+	});
+	it('los pasos nunca bajan de 1080 px ni llegan al tamaño de siempre', () => {
+		expect(SHRINK_STEPS.every((s) => s.side >= 1080 && s.side < MAX_SIDE)).toBe(true);
 	});
 	it('un GIF (puede ser animado) va tal cual', async () => {
 		const file = new File([new Uint8Array(50)], 'anim.gif', { type: 'image/gif' });

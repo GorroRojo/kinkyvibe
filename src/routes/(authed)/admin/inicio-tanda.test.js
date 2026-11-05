@@ -925,16 +925,18 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await load(fakeEvent(page.platform));
 		expect(page.trips()).toBe(2);
 		expect(page.stats.batches).toBe(2);
-		// Las sentencias de este escenario (no crecen sin que se note): 22 en la primera tanda (con
+		// Las sentencias de este escenario (no crecen sin que se note): 26 en la primera tanda (con
 		// la de los eventos «Online» con lugar, las 2 de las etiquetas, la de los mails de la lista
-		// de espera que no salieron, la del aviso de cupo de Resend y la de la salud del webhook del bot, de «Para revisar»; la de la última revisión del importador se
-		// fue con él, decisión 0032) y 19 en la segunda (totales, ingresos, links, 3 de envíos
+		// de espera que no salieron, la del aviso de cupo de Resend, la de la salud del webhook del
+		// bot y las 4 de los arreglos de contenido —fotos sin descripción, imágenes pesadas, portadas
+		// pesadas y videos sin transcripción, contentReview.js—, de «Para revisar»; la de la última
+		// revisión del importador se fue con él, decisión 0032) y 19 en la segunda (totales, ingresos, links, 3 de envíos
 		// fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita, 2 por
 		// evento de hoy para el gráfico, 1 de lo que queda por devolver de los eventos cancelados,
 		// porque el escenario tiene uno, y 1 de los lugares vinculados de los próximos, que mandan
 		// sobre el «Dónde» en texto libre). Más 1 en la primera: los links de formularios que no
 		// salieron (docs/formularios.md).
-		expect(page.stats.prepared).toBe(23 + 21);
+		expect(page.stats.prepared).toBe(27 + 21);
 
 		// El de antes, con las mismas funciones: una ida por consulta (acá sin las de la lista de
 		// eventos, que son de mentira).
@@ -948,13 +950,13 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await menuCounts(layout.platform);
 		expect(layout.trips()).toBe(2);
 		expect(layout.stats.batches).toBe(2);
-		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 13 de
+		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 17 de
 		// «Para revisar» que no dependen de los eventos (con la de los eventos «Online» con lugar, que
-		// es también su contador, la de los mails de la lista de espera que no salieron y la del aviso
-		// de cupo de Resend y la de la salud del webhook del bot). Segunda: totales, links, 3 de envíos fallidos, 4 recordatorios
+		// es también su contador, la de los mails de la lista de espera que no salieron, la del aviso
+		// de cupo de Resend, la de la salud del webhook del bot y las 4 de los arreglos de contenido). Segunda: totales, links, 3 de envíos fallidos, 4 recordatorios
 		// vencidos y lo que queda por devolver del evento cancelado.
 		// Más 1 en la primera: los links de formularios que no salieron (docs/formularios.md).
-		expect(layout.stats.prepared).toBe(5 + 14 + 10);
+		expect(layout.stats.prepared).toBe(5 + 18 + 10);
 
 		// Sin eventos que vienen con entradas, la segunda tanda no tiene nada: una sola ida.
 		fake.ticketed = [];

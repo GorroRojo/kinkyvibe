@@ -162,6 +162,20 @@ export const FLAGS = Object.freeze({
 			'GET /api/fondo/cotizacion y el cron diario de la cotización andan igual (no se ven).',
 		envVar: 'PAYPAL_ENABLED'
 	},
+	extras: {
+		label: 'Extras en la compra (prototipo)',
+		description:
+			'Prototipo. En la sección Entradas del editor de eventos aparece «Extras»: cosas que se ' +
+			'suman a la compra (tragos, una remera…) con su precio y, si querés, un tope. Quien compra ' +
+			'los elige después de las entradas y los paga juntos; el Fondo y los códigos de descuento ' +
+			'son solo para las entradas. En la puerta y con un «Link de barra» se entregan de a uno. ' +
+			'Apagado, nada de esto se ve ni se cobra.',
+		tech:
+			'docs/tickets.md («Extras»), decisión 0056. Necesita la migración 0077 (orders.extras_amount, ' +
+			'tabla order_extras y door_links.scope). Clave `extras` del evento. Rutas /barra y ' +
+			'/barra/<evento>; apagado dan 404.',
+		envVar: 'EXTRAS_ENABLED'
+	},
 	conector_claude: {
 		label: 'Conector de Claude (solo lectura)',
 		description:
@@ -405,6 +419,15 @@ export function comboCodigosEnabled(platform) {
  */
 export function paypalEnabled(platform) {
 	return isFlagOn(getDB(platform), 'paypal');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los extras de la compra? (docs/tickets.md, «Extras»).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function extrasEnabled(platform) {
+	return isFlagOn(getDB(platform), 'extras');
 }
 
 /**

@@ -13,6 +13,7 @@ import { ARGENTINA_TIME_NOTE } from '$lib/utils/expiry.js';
 import { TRANSFER_HOLD_AFTER, transferHoldText } from '$lib/utils/transferDeadline.js';
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
+import { orderPaid } from '$lib/utils/extras.js';
 import { salePlaceText } from '$lib/utils/eventPlace.js';
 import {
 	WHY_BOUGHT,
@@ -213,7 +214,7 @@ export function templateVars(order, event, typeName) {
 		tipo: typeName,
 		cantidad: order.quantity,
 		entradas: order.quantity === 1 ? 'una entrada' : `${order.quantity} entradas`,
-		total: formatARS(order.total),
+		total: formatARS(orderPaid(order)),
 		referencia: orderReference(order.id)
 	};
 }
@@ -235,9 +236,12 @@ function policyBlocks(contactEmail) {
 }
 
 /**
- * Líneas del desglose de precio de una orden (fondo, descuento, recargo, total).
+ * Líneas del desglose de precio de una orden (fondo, descuento, extras, recargo, total).
  *
- * @param {import('./orders.js').Order} order
+ * Extras (decisión 0056): si quien manda el mail los leyó (`order.extras`, `withOrderExtras` en
+ * index.js), una línea por extra («2 × Trago: $ 6.000»); el total es lo que se pagó (`orderPaid`).
+ *
+ * @param {import('./orders.js').Order & { extras?: { name: string, quantity: number, price: number }[] }} order
  * @param {string} typeName
  */
 export function priceLines(order, typeName) {
@@ -255,10 +259,13 @@ export function priceLines(order, typeName) {
 	if (order.discount_amount) {
 		lines.push(`Código ${order.discount_code}: −${formatARS(order.discount_amount)}`);
 	}
+	for (const e of order.extras ?? []) {
+		lines.push(`${e.quantity} × ${e.name}: ${formatARS(e.price * e.quantity)}`);
+	}
 	if (order.surcharge_amount) {
 		lines.push(`Recargo Mercado Pago: +${formatARS(order.surcharge_amount)}`);
 	}
-	lines.push(`Total: ${formatARS(order.total)}`);
+	lines.push(`Total: ${formatARS(orderPaid(order))}`);
 	return lines;
 }
 
@@ -889,7 +896,7 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
 	const subject = custom.subject ?? `Reembolso de tu compra · ${event.title}`;
 	// «Sin cargo» solo si no se cobró nada: una carga a mano con medio «otro» y monto sí se cobró.
-	const how = !order.total
+	const how = !orderPaid(order)
 		? 'Era una compra sin cargo: no hay dinero para devolver.'
 		: order.payment_method === 'mercadopago'
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
@@ -898,7 +905,7 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
 				: order.payment_method === 'efectivo'
 					? 'Te devolvimos el dinero en efectivo.'
 					: 'Te devolvimos el dinero.';
-	const amount = order.total ? ` de ${formatARS(order.total)}` : '';
+	const amount = orderPaid(order) ? ` de ${formatARS(orderPaid(order))}` : '';
 	const html = mailLayout({
 		origin,
 		label: custom.label ?? 'Reembolso',
@@ -976,7 +983,7 @@ export function buildTransferEmail({
 	const holdHtml = `<p style="background:#fff3c4;border-radius:12px;padding:12px 16px;margin:0 0 16px">Te guardamos el lugar hasta el <strong>${escapeHtml(deadline)}</strong> (${ARGENTINA_TIME_NOTE}). ${escapeHtml(TRANSFER_HOLD_AFTER)}</p>`;
 	const intro =
 		custom.bodyHtml ??
-		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmar tus entradas transferí <strong>${formatARS(order.total)}</strong>.</p>`;
+		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmar tus entradas transferí <strong>${formatARS(orderPaid(order))}</strong>.</p>`;
 	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventWhen(event.start, event.end))}</p>${parts.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="${MAIL_STYLES.box};white-space:pre-line">${escapeHtml(transferInfo)}</div>
@@ -1000,7 +1007,7 @@ export function buildTransferEmail({
 	const text = [
 		custom.headingText ?? 'Reservamos tus entradas',
 		'',
-		custom.bodyText ?? `Para confirmar tus entradas transferí ${formatARS(order.total)}.`,
+		custom.bodyText ?? `Para confirmar tus entradas transferí ${formatARS(orderPaid(order))}.`,
 		'',
 		holdText,
 		...(custom.helpText !== null ? ['', custom.helpText] : []),

@@ -14,6 +14,7 @@
 	import Agenda from '$lib/components/admin/inicio/Agenda.svelte';
 	import SalesCard from '$lib/components/admin/inicio/SalesCard.svelte';
 	import TodayThumb from '$lib/components/admin/inicio/TodayThumb.svelte';
+	import ContentFix from '$lib/components/admin/inicio/ContentFix.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -47,7 +48,10 @@
 		Inbox,
 		Sparkles,
 		Tag,
-		TriangleAlert
+		TriangleAlert,
+		Video,
+		ImageDown,
+		ScanText
 	} from '@lucide/svelte';
 
 	export let data;
@@ -64,7 +68,10 @@
 		profile: IdCard,
 		place: MapPin,
 		tag: Tag,
-		import: DatabaseZap
+		import: DatabaseZap,
+		video: Video,
+		alt: ScanText,
+		cover: ImageDown
 	});
 
 	$: user = data.user;
@@ -298,6 +305,10 @@
 						{#if form?.resend}
 							<p class="flash" class:bad={!form.resend.ok} role="status">{form.resend.message}</p>
 						{/if}
+						{#if form?.contentFix?.ok}
+							<!-- Un arreglo de contenido que salió bien: su fila ya no está (ContentFix). -->
+							<p class="flash" role="status">{form.contentFix.message}</p>
+						{/if}
 						{#if data.todo.length}
 							<ul class="todo">
 								{#each data.todo as t (t.id)}
@@ -323,9 +334,13 @@
 												<ul class="sub">
 													{#each t.items as i (i.id)}
 														<li>
-															<span class="grow"><b>{i.name ?? i.title}</b></span>
-															{#if i.href}<a class="kv-btn ghost sm" href={i.href}>{i.action}</a
-																>{/if}
+															{#if i.altFix || i.shrink}
+																<ContentFix item={i} {form} />
+															{:else}
+																<span class="grow"><b>{i.name ?? i.title}</b></span>
+																{#if i.href}<a class="kv-btn ghost sm" href={i.href}>{i.action}</a
+																	>{/if}
+															{/if}
 														</li>
 													{/each}
 												</ul>

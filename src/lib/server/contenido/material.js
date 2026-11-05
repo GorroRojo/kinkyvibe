@@ -34,7 +34,11 @@ const TEXT_KEYS = /** @type {const} */ ([
 	'published_date',
 	'updated_date',
 	'original_published_date',
-	'access_date'
+	'access_date',
+	// El video del texto: transcripción y subtítulos (.vtt de la biblioteca), ver
+	// $lib/utils/videoExtras.js.
+	'transcript',
+	'subtitles'
 ]);
 
 const MAPPED_KEYS = new Set([

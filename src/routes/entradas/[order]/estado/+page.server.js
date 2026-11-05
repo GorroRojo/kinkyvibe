@@ -3,6 +3,8 @@
  * orden sigue sin aprobar se vuelve a consultar el pago a la API de MP, igual que el webhook:
  * los parámetros de la URL solo dicen QUÉ pago consultar, nunca su estado.
  */
+import { orderPaid } from '$lib/utils/extras.js';
+import { orderExtras } from '$lib/server/tickets/extras.js';
 import { error } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
@@ -71,7 +73,7 @@ export async function load({ params, url, platform, fetch, cookies, depends }) {
 	// ficha del evento (si es online).
 	const configP = getEventTickets(current.event_slug);
 	const mineP = rememberedOrders(db, cookies).then((ids) => ids.includes(current.id));
-	const [config, mine, tickets, parts, transfer] = await Promise.all([
+	const [config, mine, tickets, parts, transfer, extras] = await Promise.all([
 		configP,
 		mineP,
 		mineP.then(async (mine) =>
@@ -94,7 +96,9 @@ export async function load({ params, url, platform, fetch, cookies, depends }) {
 					info,
 					replyTo
 				}))
-			: null
+			: null,
+		// Extras de la compra (decisión 0056): solo si la orden tiene (sin leer la tabla si no).
+		Number(current.extras_amount ?? 0) > 0 ? orderExtras(db, current.id) : []
 	]);
 	const online = Boolean(config?.online);
 	return {
@@ -110,7 +114,9 @@ export async function load({ params, url, platform, fetch, cookies, depends }) {
 			discountCode: current.discount_code,
 			discountAmount: current.discount_amount,
 			surcharge: current.surcharge_amount,
-			total: current.total,
+			// Lo que se paga en total: las entradas y los extras (`orderPaid`).
+			total: orderPaid(current),
+			extras: extras.map((e) => ({ name: e.name, quantity: e.quantity, price: e.price })),
 			method: current.payment_method,
 			reference: orderReference(current.id),
 			typeName:
