@@ -6,7 +6,14 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { page } from '$app/stores';
-	import { ArrowRightLeft, Calculator, Ticket, TicketPercent, TriangleAlert } from '@lucide/svelte';
+	import {
+		ArrowRightLeft,
+		Calculator,
+		ReceiptText,
+		Ticket,
+		TicketPercent,
+		TriangleAlert
+	} from '@lucide/svelte';
 	import { eventPanelLink } from '$lib/admin/nav.js';
 	import { fmtDate } from '$lib/admin/format.js';
 	import { csvFilename } from '$lib/admin/csv.js';
@@ -56,6 +63,10 @@
 		<a class="kv-btn ghost" href="/admin/ventas/transferencias">
 			<ArrowRightLeft size={16} aria-hidden="true" /> Transferencias
 			{#if transfers}<Badge tone="warn">{transfers}</Badge>{/if}
+		</a>
+		<a class="kv-btn ghost" href="/admin/ventas/facturar">
+			<ReceiptText size={16} aria-hidden="true" /> Para facturar
+			{#if data.toInvoice}<Badge tone="warn">{data.toInvoice}</Badge>{/if}
 		</a>
 		<a class="kv-btn ghost" href="/admin/ventas/codigos">
 			<TicketPercent size={16} aria-hidden="true" /> Códigos

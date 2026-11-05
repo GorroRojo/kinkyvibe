@@ -96,7 +96,7 @@ const BUYER_FIELDS = new Set(['name', 'pronouns', 'email', 'dni']);
  * @returns {number}
  */
 export function stepOfField(name) {
-	if (TICKETS_FIELDS.has(name)) return STEP_TICKETS;
+	if (TICKETS_FIELDS.has(name) || name.startsWith('extra_')) return STEP_TICKETS;
 	if (BUYER_FIELDS.has(name) || name.startsWith('holder_') || name.startsWith('campo_')) {
 		return STEP_BUYER;
 	}
@@ -274,8 +274,11 @@ export function payStepErrors({ method, methods, free, accept }) {
  *   discountCode: string | null,
  *   free: boolean,
  *   feeBasisPoints: number,
- *   methods: readonly string[]
- * }} input
+ *   methods: readonly string[],
+ *   extras?: { id: string, name: string, price: number, quantity: number }[]
+ * }} input `extras` (decisión 0056): una línea por extra elegido, después del código (el código y
+ *   el Fondo son solo de las entradas) y antes del recargo, que es de todo; el total es lo que se
+ *   paga (`prices.paid`)
  * @returns {PurchaseSummary}
  */
 export function purchaseSummary({
@@ -287,7 +290,8 @@ export function purchaseSummary({
 	discountCode,
 	free,
 	feeBasisPoints,
-	methods
+	methods,
+	extras = []
 }) {
 	/** @type {SummaryLine[]} */
 	const lines = [];
@@ -318,6 +322,14 @@ export function purchaseSummary({
 				amount: `−${formatARS(prices.discount)}`
 			});
 		}
+		for (const e of extras) {
+			if (e.quantity > 0)
+				lines.push({
+					id: `extra-${e.id}`,
+					label: `${e.name} (${e.quantity} × ${formatARS(e.price)})`,
+					amount: formatARS(e.price * e.quantity)
+				});
+		}
 		if (prices.surcharge) {
 			lines.push({
 				id: 'recargo',
@@ -328,7 +340,7 @@ export function purchaseSummary({
 	}
 	const surchargePlaceholder =
 		type && !prices.surcharge && feeBasisPoints && methods.includes('mercadopago') && !free
-			? `+${formatARS(mpSurcharge(prices.total, feeBasisPoints))}`
+			? `+${formatARS(mpSurcharge(prices.paid ?? prices.total, feeBasisPoints))}`
 			: null;
 	return {
 		item: type ? { name: type.name, tier: type.tier?.name ?? null } : null,
@@ -336,6 +348,6 @@ export function purchaseSummary({
 		option: type && showOption && !gorra ? fondoOptionLabel(prices.option) : null,
 		lines,
 		surchargePlaceholder,
-		total: formatARS(type ? prices.total : 0)
+		total: formatARS(type ? (prices.paid ?? prices.total) : 0)
 	};
 }

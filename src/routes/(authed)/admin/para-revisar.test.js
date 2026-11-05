@@ -10,6 +10,7 @@ import { ADMINS } from '$lib/server/auth';
 import { insertOrder } from '$lib/server/admin/testRows.js';
 import { panelCounts } from '$lib/server/admin/panelCounts.js';
 import { createProfile } from '$lib/server/cuentas/perfiles.js';
+import { makeProfile } from '$lib/server/amigues/testing.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { recordIntegrityRun } from '$lib/server/objects/integrity.js';
 import { saveObject } from '$lib/server/objects/save.js';
@@ -340,6 +341,25 @@ const CASES = [
 			await noteResendQuota(t.db, { code: 'daily_quota_exceeded', now: NOW - HOUR });
 		},
 		1
+	],
+	[
+		'tres fotos sin descripción en dos perfiles y un video sin transcripción: dos filas',
+		async () => {
+			const img = '<img alt="" src="/media/img/foto-inventada.webp">';
+			await makeProfile(t.db, { title: 'Perfil Uno', data: { body: `${img}\n\n${img}` } });
+			await makeProfile(t.db, { title: 'Perfil Dos', data: { body: img } });
+			await saveObject(
+				t.db,
+				{
+					type: 'material',
+					slug: 'material-inventado',
+					title: 'Material Inventado',
+					data: { body: '<video src="/media/file/inventado.mp4" controls></video>' }
+				},
+				{ actor: 'admin-de-prueba' }
+			);
+		},
+		2
 	]
 ];
 

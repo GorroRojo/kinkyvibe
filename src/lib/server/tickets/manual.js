@@ -15,6 +15,7 @@ import { MAX_TICKETS_PER_FORM, computePrice, remainingOf } from '$lib/utils/tick
 import { salesState, typeAvailability, typeOpen } from './config.js';
 import { ORDER_NOTE_MAX, insertApprovedOrder } from './door.js';
 import { getCounts, getTaken } from './orders.js';
+import { extrasAmount } from '$lib/utils/extras.js';
 import { capacityLimit, closedLimit, maxPerPurchaseLimit, notActiveLimit } from './overrides.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -90,11 +91,14 @@ export async function manualOrderLimits(
  *   amount: number,
  *   note?: string,
  *   override?: boolean,
+ *   extras?: (import('$lib/utils/extras.js').ExtraLine & { capacity: number | null })[],
  *   by: string,
  *   now?: number
- * }} input
+ * }} input `extras` (interruptor `extras`): a precio de lista; en una cortesía van sin cargo
+ *   (precio 0), como las entradas
  * @returns {Promise<{ ok: true, order: import('./orders.js').Order,
  *     tickets: import('./orders.js').Ticket[] }
+ *   | { ok: false, reason: 'extras' }
  *   | { ok: false, reason: 'soldout', available: number | null }>}
  */
 export async function createManualOrder(db, input) {
@@ -102,17 +106,22 @@ export async function createManualOrder(db, input) {
 	if (!isManualMethod(input.method)) throw new Error('Medio de pago inválido');
 	const amount = input.method === 'cortesia' ? 0 : input.amount;
 	if (!Number.isSafeInteger(amount) || amount < 0) throw new Error('Monto inválido');
+	// En una cortesía, los extras también van sin cargo.
+	const extras = (input.extras ?? []).map((l) =>
+		input.method === 'cortesia' ? { ...l, price: 0 } : l
+	);
 	const prices = computePrice({
 		price: amount,
 		fondo: 0,
 		option: type.gorra ? 'gorra' : 'completo',
 		quantity,
 		discount: null,
-		method: input.method
+		method: input.method,
+		extras: extrasAmount(extras)
 	});
 	// La cortesía siempre da 0: queda como `gratis`.
 	/** @type {import('./orders.js').OrderPaymentMethod} */
-	const method = prices.total === 0 ? 'gratis' : /** @type {any} */ (input.method);
+	const method = prices.paid === 0 ? 'gratis' : /** @type {any} */ (input.method);
 	const r = await insertApprovedOrder(db, {
 		eventSlug,
 		type,
@@ -127,9 +136,11 @@ export async function createManualOrder(db, input) {
 		note: (input.note ?? '').trim().slice(0, MANUAL_NOTE_MAX),
 		checkIn: false,
 		override: input.override,
+		extras,
 		by,
 		now
 	});
+	if (!r.ok && r.reason === 'extras') return { ok: false, reason: 'extras' };
 	if (!r.ok) {
 		const c = (await getCounts(db, eventSlug, now)).get(type.id);
 		return { ok: false, reason: 'soldout', available: remainingOf(type, c) };

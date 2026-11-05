@@ -21,6 +21,8 @@
  *   `{ alcance, todes_a_la_vez }` (los tiempos de reserva son los de Ajustes). Como la meta, solo se escribe con la venta prendida
  *   y solo si cambió (una que no se entiende queda como está). Con gente anotada no se puede
  *   apagar, cambiar el alcance ni sacar el tipo (o su cupo) de una lista por tipo.
+ * - `extras` (decisión 0056; la sección se ve solo con el interruptor `extras`): lo que se suma a la
+ *   compra, ver ./extrasEditor.js. Como la lista de espera, solo se escribe si cambió.
  * Los horarios se editan como `datetime-local` en hora de Argentina y se guardan con zona
  * (`2026-10-02T20:00-03:00`).
  * Nada del Fondo: es automático (solo en eventos con la etiqueta KinkyVibe).
@@ -50,6 +52,8 @@ import {
 	storedSalesGoal
 } from './salesGoal.js';
 import { WAITLIST_KEY, parseEventWaitlist } from './waitlistHold.js';
+import { EXTRAS_KEY } from './extras.js';
+import { describeExtras, extrasFormErrors, formExtras, readExtrasForm } from './extrasEditor.js';
 
 /** Id de la etiqueta que marca los eventos de KinkyVibe (src/lib/utils/hardcodedTags.js). */
 export const KINKYVIBE_TAG = 'KinkyVibe';
@@ -67,7 +71,8 @@ export const TICKET_KEYS = [
 	'recordatorios',
 	'mp_fee_percent',
 	'puerta',
-	'puerta_precio'
+	'puerta_precio',
+	'extras'
 ];
 
 /** Largo máximo de la nota sobre la puerta (`puerta_precio`, texto libre). Igual que en config.js. */
@@ -158,6 +163,8 @@ export { isOnlineEvent };
  * @prop {string} goalValue pesos o cantidad de entradas
  * @prop {'' | 'evento' | 'tipo'} waitlistScope lista de espera (`lista_espera`): '' = sin lista
  * @prop {boolean} waitlistAll «Avisar a todes a la vez desde el principio» (`todes_a_la_vez`)
+ * @prop {import('./extrasEditor.js').ExtraForm[]} [extras] extras de la compra (`extras`); sin el
+ *   campo (borradores viejos), ninguno
  */
 
 /*
@@ -387,7 +394,8 @@ export function readTicketsForm(meta) {
 		doorSet: typeof meta?.puerta === 'boolean',
 		doorPrice: str(meta?.puerta_precio),
 		...goalFields(meta?.[GOAL_KEY]),
-		...waitlistFields(meta?.[WAITLIST_KEY])
+		...waitlistFields(meta?.[WAITLIST_KEY]),
+		extras: readExtrasForm(meta?.[EXTRAS_KEY])
 	};
 }
 
@@ -521,11 +529,13 @@ const salesOf = (sales, id) => {
  * existentes y avisa de lo que no las cambia.
  *
  * @param {TicketsForm} form
- * @param {{ sales?: SalesByType, waitlistLive?: Record<string, number> }} [opts] `waitlistLive`:
- *   las anotaciones vivas de la lista de espera por alcance (ver {@link waitlistLiveErrors})
+ * @param {{ sales?: SalesByType, waitlistLive?: Record<string, number>,
+ *   extrasSales?: Record<string, number> }} [opts] `waitlistLive`: las anotaciones vivas de la
+ *   lista de espera por alcance (ver {@link waitlistLiveErrors}); `extrasSales`: vendidos y
+ *   reservados por extra (un extra que vendió no se puede borrar, como un tipo)
  * @returns {{ errors: string[], warnings: string[] }}
  */
-export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
+export function validateTicketsForm(form, { sales, waitlistLive, extrasSales } = {}) {
 	/** @type {string[]} */
 	const errors = [];
 	/** @type {string[]} */
@@ -667,6 +677,7 @@ export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
 	if (goal.error) errors.push(goal.error);
 	validateWaitlist(form, types, warnings);
 	errors.push(...waitlistLiveErrors(form, waitlistLive));
+	errors.push(...extrasFormErrors(form.extras), ...extrasSoldErrors(form, extrasSales));
 	return { errors, warnings };
 }
 
@@ -890,7 +901,8 @@ function normalized(f) {
 		doorPrice: f.enabled && f.door ? f.doorPrice.trim() : '',
 		// Con la venta apagada, la meta no se escribe (ni se borra).
 		goal: f.enabled ? formGoal(f) : '',
-		waitlist: f.enabled ? formWaitlist(f) : null
+		waitlist: f.enabled ? formWaitlist(f) : null,
+		extras: f.enabled ? formExtras(f.extras) : []
 	});
 }
 
@@ -1067,6 +1079,12 @@ export function applyTicketsForm(frontmatter, form, initial, opts) {
 			doc.set(WAITLIST_KEY, node);
 		}
 	}
+	/* Extras: solo si cambiaron (sin extras = sin la clave). */
+	const extras = formExtras(form.extras);
+	if (JSON.stringify(extras) !== JSON.stringify(formExtras(initial.extras))) {
+		if (!extras.length) doc.delete(EXTRAS_KEY);
+		else doc.set(EXTRAS_KEY, doc.createNode(extras));
+	}
 	return serializeFrontmatter(doc);
 }
 
@@ -1172,6 +1190,26 @@ export function describeTicketsForm(form, formatARS) {
 			.join(' · ') +
 		door +
 		goalText +
-		waitlistText
+		waitlistText +
+		describeExtras(form.extras, formatARS)
 	);
+}
+
+/**
+ * Un extra que ya vendió (o tiene reservas vigentes) no se puede borrar, como un tipo de entrada:
+ * para dejar de venderlo, el tope en 0 (decisión 0056).
+ *
+ * @param {TicketsForm} form
+ * @param {Record<string, number> | undefined} extrasSales vendidos y reservados por id de extra
+ * @returns {string[]}
+ */
+export function extrasSoldErrors(form, extrasSales) {
+	if (!extrasSales) return [];
+	const kept = new Set((form.extras ?? []).map((x) => x.origId).filter(Boolean));
+	return Object.entries(extrasSales)
+		.filter(([id, n]) => n > 0 && !kept.has(id))
+		.map(
+			([id, n]) =>
+				`No se puede borrar el extra «${id}»: ya tiene ${n} ${n === 1 ? 'vendido o reservado' : 'vendidos o reservados'}. Para dejar de venderlo, poné el tope en 0.`
+		);
 }

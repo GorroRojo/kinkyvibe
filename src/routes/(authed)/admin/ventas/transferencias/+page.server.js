@@ -18,6 +18,7 @@ import { getEventTickets, isValidEventSlug } from '$lib/server/tickets/events.js
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { readOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { orderPaid } from '$lib/utils/extras.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
@@ -57,7 +58,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 			name: o.buyer_name,
 			pronouns: o.buyer_pronouns ?? '',
 			email: o.buyer_email,
-			total: o.total,
+			// Lo que tiene que llegar: las entradas y los extras (decisión 0056).
+			total: orderPaid(o),
 			discountCode: o.discount_code,
 			createdAt: o.created_at,
 			expiresAt: o.expires_at,

@@ -151,14 +151,38 @@ function sniffOpenDocument(b) {
 }
 
 /**
- * Un documento o un video que se acepta en la biblioteca (PDF, MP4, WebM, ODT, ODS, ODP), por
+ * Unos subtítulos WebVTT: texto UTF-8 válido, sin bytes nulos, que empieza con `WEBVTT` (con o
+ * sin la marca BOM) seguido de un espacio, un tab o un salto de línea (o nada más). Es lo que pide
+ * la norma; un HTML o un script no empieza así. Igual se sirve como `text/vtt`, con `nosniff`,
+ * para descargar y con `sandbox` (src/routes/media/[...key]/+server.js).
+ * @param {Uint8Array} b
+ */
+function isWebVtt(b) {
+	const start = b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf ? 3 : 0;
+	if (!ascii(b, start, 'WEBVTT')) return false;
+	const next = b[start + 6];
+	if (next !== undefined && next !== 0x20 && next !== 0x09 && next !== 0x0a && next !== 0x0d)
+		return false;
+	if (b.includes(0)) return false;
+	try {
+		new TextDecoder('utf-8', { fatal: true }).decode(b);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Un documento o un video que se acepta en la biblioteca (PDF, MP4, WebM, ODT, ODS, ODP, VTT), por
  * sus bytes; `null` si no es ninguno. HTML, SVG, scripts y zips que no son OpenDocument, no.
  *
  * @param {Uint8Array} b
  * @returns {SniffedFile | null}
  */
 export function sniffDocument(b) {
-	if (!(b instanceof Uint8Array) || b.length < 12) return null;
+	if (!(b instanceof Uint8Array)) return null;
+	if (isWebVtt(b)) return { kind: 'documento', mime: 'text/vtt', ext: 'vtt' };
+	if (b.length < 12) return null;
 	if (ascii(b, 0, '%PDF-')) return { kind: 'documento', mime: 'application/pdf', ext: 'pdf' };
 	if (ascii(b, 4, 'ftyp')) {
 		const brand = String.fromCharCode(b[8], b[9], b[10], b[11]);

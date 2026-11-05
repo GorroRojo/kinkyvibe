@@ -1,7 +1,8 @@
 /**
  * Ficha del evento, pestaña Ventas › Órdenes: todas las órdenes con sus entradas, reenviar el mail
  * (o corregir la dirección y reenviar, `email`), reembolsar (en dos pasos) y marcar como revisadas
- * las que quedaron para revisar a mano.
+ * las que quedaron para revisar a mano. La casilla «Facturada» (`invoiced`; ver
+ * $lib/server/admin/invoiced.js) en cada compra con plata.
  *
  * DNI: la página solo trae los últimos 3 dígitos de cada orden. El completo sale de a uno con la
  * acción `dni` («Mostrar», queda en el registro de actividad) y el buscador encuentra órdenes por
@@ -49,6 +50,7 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 
 export const actions = pickActions(
 	'reviewed',
+	'invoiced',
 	'resend',
 	'email',
 	'refund',
