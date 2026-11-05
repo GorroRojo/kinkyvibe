@@ -43,8 +43,11 @@ In a git worktree without `node_modules`, run `npm ci` there yourself.
 - `node scripts/svelte-check-ratchet.js` must pass: CI fails if svelte-check reports more errors
   than `scripts/svelte-check-baseline.json`. If you fixed some, lower the number in the same PR.
   Never raise it to get green.
-- **Never skip, delete or weaken a test** (`.skip`, removed assertions, looser expectations,
-  `continue-on-error`) to make CI green. If a test is wrong, say so in the PR and fix it openly.
+- **Don't skip, delete or weaken a test just to make CI green** (`.skip`, removed assertions,
+  looser expectations, `continue-on-error`). gorrite (5/11) allows cutting, moving (to a nightly or
+  main-only run) or making tests conditional when it's a smart trade-off for CI time, as long as
+  each one is listed with its reason in the PR description and in `docs/pruebas-y-ci.md`. Never do
+  it to hide a real failure: if a test is wrong, say so in the PR and fix it openly.
 - Identifiers in English. Comments may be in English or Spanish; match the file.
 
 ## IDs, secrets and config
