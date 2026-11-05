@@ -21,6 +21,14 @@ export function readDurations(file = DURATIONS_FILE) {
 	}
 }
 
+/**
+ * Lo mínimo que cuenta un archivo, en segundos: aunque sus pruebas tarden 0,0 s, levantar su
+ * worker e importar sus módulos cuesta. Sin este piso, todos los archivos con tiempo 0 iban a la
+ * misma parte (sumar 0 no cambia cuál suma menos) y esa parte terminaba última: ~90 archivos más
+ * que las otras y más de un minuto de diferencia en la CI.
+ */
+export const MIN_FILE_SECONDS = 0.3;
+
 /** @param {number[]} values */
 function median(values) {
 	if (!values.length) return 1;
@@ -31,7 +39,8 @@ function median(values) {
 
 /**
  * Reparte los archivos en `count` partes parejas en tiempo: del más lento al más rápido, cada uno
- * va a la parte que menos suma hasta ahí (empate: la de número más bajo). Determinista.
+ * va a la parte que menos suma hasta ahí (empate: la de número más bajo). Cada archivo cuenta por
+ * lo menos MIN_FILE_SECONDS. Determinista.
  *
  * @param {string[]} files rutas relativas a la raíz, con `/`
  * @param {Record<string, number>} durations
@@ -40,7 +49,7 @@ function median(values) {
  */
 export function splitByDuration(files, durations, count) {
 	const fallback = median(Object.values(durations));
-	const time = (/** @type {string} */ f) => durations[f] ?? fallback;
+	const time = (/** @type {string} */ f) => Math.max(durations[f] ?? fallback, MIN_FILE_SECONDS);
 	const ordered = [...files].sort((a, b) => time(b) - time(a) || (a < b ? -1 : a > b ? 1 : 0));
 	/** @type {string[][]} */
 	const parts = Array.from({ length: count }, () => []);

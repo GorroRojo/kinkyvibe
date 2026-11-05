@@ -30,6 +30,15 @@ describe('splitByDuration', () => {
 		expect(splitByDuration(shuffled, durations, 3)).toEqual(splitByDuration(files, durations, 3));
 	});
 
+	it('los archivos de 0 s no se juntan todos en la misma parte', () => {
+		/** @type {Record<string, number>} */
+		const durations = { 'a.test.js': 10, 'b.test.js': 10, 'c.test.js': 10 };
+		const quick = Array.from({ length: 30 }, (_, i) => `q${i}.test.js`);
+		for (const f of quick) durations[f] = 0;
+		const parts = splitByDuration(Object.keys(durations), durations, 3);
+		expect(parts.map((p) => p.length)).toEqual([11, 11, 11]);
+	});
+
 	it('sin tiempos, reparte la misma cantidad en cada parte', () => {
 		const files = Array.from({ length: 7 }, (_, i) => `f${i}.test.js`);
 		expect(splitByDuration(files, {}, 3).map((p) => p.length)).toEqual([3, 2, 2]);

@@ -1,6 +1,7 @@
 /**
  * Achicar una imagen en el navegador antes de subirla a la biblioteca (docs/imagenes.md): el lado
- * más largo queda en {@link MAX_SIDE} px como mucho y se pasa a WEBP. Así se sube poco y el sitio
+ * más largo queda en {@link MAX_SIDE} px como mucho y se pasa a WEBP. Si así pesa más de
+ * {@link HEAVY_COVER_BYTES}, se achica un poco más ({@link SHRINK_STEPS}). Así se sube poco y el sitio
  * carga rápido. Si el navegador no sabe hacer WEBP (Safari), una foto JPEG se pasa a JPEG: dibujada
  * de nuevo, ya no lleva sus datos ocultos (GPS, fecha); un PNG, WEBP o AVIF va como está (puede
  * tener transparencias, que en JPEG saldrían negras). Si no puede dibujarla, o si el resultado pesa
@@ -34,16 +35,64 @@ const CONVERTED_TYPES = ['image/webp', 'image/jpeg'];
  */
 export const HEAVY_COVER_BYTES = 300 * 1024;
 
+/** Lo más chico que puede quedar el lado largo al achicar con tope de peso. */
+export const MIN_SHRINK_SIDE = 720;
+
+/** La calidad más baja del WEBP al achicar con tope de peso. */
+export const MIN_SHRINK_QUALITY = 0.5;
+
 /**
  * Si con {@link MAX_SIDE} y {@link WEBP_QUALITY} todavía pesa más que lo pedido (`targetBytes`),
- * se prueban estos pasos en orden, hasta que alcance. Ninguno baja de 1080 px de lado largo: una
- * portada se ve a lo sumo a unos 768 px (24rem en 2×) y las tarjetas usan sus copias chicas.
+ * se prueban estos pasos en orden, hasta que alcance. Primero baja el lado hasta 1080 px; después,
+ * la calidad (0,7, 0,62, 0,55); recién después, el lado otra vez (960, 840, 720). Nunca bajan de
+ * {@link MIN_SHRINK_SIDE} px de lado largo ni de {@link MIN_SHRINK_QUALITY} de calidad: una portada
+ * se ve a lo sumo a unos 768 px (24rem en 2×) y las tarjetas usan sus copias chicas. Si ni así
+ * alcanza, queda el más liviano (y quien lo pidió decide si sirve: {@link muchLighter}).
  */
 export const SHRINK_STEPS = Object.freeze([
 	{ side: 1600, quality: 0.8 },
 	{ side: 1280, quality: 0.78 },
-	{ side: 1080, quality: 0.75 }
+	{ side: 1080, quality: 0.75 },
+	{ side: 1080, quality: 0.7 },
+	{ side: 1080, quality: 0.62 },
+	{ side: 1080, quality: 0.55 },
+	{ side: 960, quality: 0.55 },
+	{ side: 840, quality: 0.55 },
+	{ side: MIN_SHRINK_SIDE, quality: 0.55 },
+	{ side: MIN_SHRINK_SIDE, quality: MIN_SHRINK_QUALITY }
 ]);
+
+/** Cuánto más liviana tiene que quedar una copia (si no baja de {@link HEAVY_COVER_BYTES}). */
+export const MIN_SAVING = 0.15;
+
+/**
+ * ¿La copia vale la pena? Sí si pesa como mucho {@link HEAVY_COVER_BYTES}, o al menos un
+ * {@link MIN_SAVING} (15 %) menos que la original. «Achicar» (en el navegador) y swapCover (en el
+ * servidor) usan esta misma regla: si no, no se cambia la portada.
+ * @param {number} before bytes de la original
+ * @param {number} after bytes de la copia
+ */
+export function muchLighter(before, after) {
+	if (!(after > 0) || !(before > 0) || after >= before) return false;
+	return after <= HEAVY_COVER_BYTES || after <= before * (1 - MIN_SAVING);
+}
+
+/**
+ * Un peso en KB para la persona («381 KB»). Con `other` (el otro peso que se muestra al lado,
+ * «antes» y «ahora»), suma decimales hasta que no se vean iguales si no lo son: «380,6 KB» y
+ * «381,2 KB». Con coma decimal.
+ * @param {number} bytes
+ * @param {number} [other]
+ */
+export function kbText(bytes, other) {
+	const k = bytes / 1024;
+	let digits = 0;
+	if (other !== undefined && other !== bytes) {
+		const o = other / 1024;
+		while (digits < 2 && k.toFixed(digits) === o.toFixed(digits)) digits++;
+	}
+	return `${k.toFixed(digits).replace('.', ',')} KB`;
+}
 
 /** Peso máximo del archivo que se elige (antes de achicar). El servidor tiene el mismo tope. */
 export const MAX_PICK_BYTES = 10 * 1024 * 1024;
@@ -137,8 +186,9 @@ export function appendCopies(form, prepared) {
  * Achica y pasa a WEBP (en el navegador), y hace las copias chicas. Si algo falla, devuelve el
  * original tal cual (sin copias).
  *
- * Con `targetBytes` (para «Achicar» una portada pesada): si lo que sale pesa más que eso, prueba
- * los pasos de {@link SHRINK_STEPS} hasta que alcance (o queda el más liviano).
+ * Con `targetBytes` (las subidas y «Achicar» una portada pesada usan {@link HEAVY_COVER_BYTES}): si
+ * lo que sale pesa más que eso, prueba los pasos de {@link SHRINK_STEPS} hasta que alcance (o queda
+ * el más liviano). Si ya alcanza con el tamaño de siempre, no prueba nada más.
  *
  * @param {File} file
  * @param {{ createImageBitmap?: typeof globalThis.createImageBitmap,

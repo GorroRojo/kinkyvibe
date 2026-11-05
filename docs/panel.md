@@ -145,10 +145,10 @@ junta lo que eran tres pestañas y **Mails** lo que eran dos: cada parte es una 
 pestaña (`views`), con su URL de siempre, y la ficha las muestra como botones (`.kv-segmented`)
 debajo de las pestañas:
 
-| Pestaña | Vistas (URL)                                                                                                                |
-| ------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo) |
-| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`)                                              |
+| Pestaña | Vistas (URL)                                                                                                                                                                                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo), Gastos y reparto (`/gastos`, con el interruptor `gastos_reparto`; las cuentas cerradas, en Ventas › Cuentas del año, ver [tickets.md](tickets.md)) |
+| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`), Encuesta (`/encuesta`, interruptor `formularios`)                                                                                                                                               |
 
 Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
@@ -178,7 +178,7 @@ sección (Etiquetas), que usan la URL del área.
 | Puerta       | Puerta (`/admin/checkin`)                                                                                                                                                                                                                                                                                                                                 | elegir el evento y abrir su modo puerta (`/admin/eventos/<slug>/ingreso`)                                                                                                                                                                                                                                                         |
 | Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`, fuera del menú: botón en Eventos), Agenda (`/agenda`, + Importar planilla en `/importar` y Agenda impresa en `/agenda-impresa`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                      | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
 | Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                                                   | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                                      |
-| Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                                                           | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                                    |
+| Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`), Formularios (`/formularios`, interruptor `formularios`: [formularios.md](formularios.md))                                | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                                    |
 | Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`), Lo que sigo (`/lo-que-sigo`) · próximamente: Bandeja (`/admin/mensajes`, fase 5)                                                                                                                                                                                             | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas, el estado de «Lo que sigo» en números ([lo-que-sigo.md](lo-que-sigo.md#en-el-panel))                                                                                                                                                |
 | Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`), Enlaces que faltan (`/falta`, con un botón por nombre para crear la página, [enlaces.md](enlaces.md))                                                                                                                                                                       | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                                                                                                             |
 | Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                                                                                                                                                     | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                                                                                                                              |
@@ -335,6 +335,9 @@ revisar" del Inicio.
   `broken`, `listTicketedEvents` (`src/lib/server/tickets/events.js`) los anota y «Para revisar»
   suma una fila por evento («… no puede vender entradas: su configuración tiene un error», con el
   error de validación y «Editar»).
+- **Links de formularios que no salieron** ([formularios.md](formularios.md)): una fila por
+  formulario o encuesta con links personales que fallaron todos sus intentos («La encuesta no le
+  llegó a todes: …»), con «Reintentar» (`?/retryFormSends`), como los recordatorios que fallaron.
 - **Cuando la base falla, el Inicio lo dice** (auditoría de confiabilidad, O18): cada consulta que
   cae a su respaldo por un error queda anotada (el parámetro `failed` de `runQuery` y `runQueries`
   en `src/lib/server/db/batch.js`, que pasa también por `combineQueries` y `mapQuery`) y el load
@@ -385,14 +388,25 @@ revisar" del Inicio.
     (alguien editó mientras tanto), no guarda y avisa. Nadie escribe descripciones por su cuenta: ni
     el código ni Claude (gorrite).
   - **Portadas pesadas**: cada evento o material cuya portada (edge `portada`, o la vieja del repo
-    si no tiene edge) pesa más de 300 KB (`HEAVY_COVER_BYTES`). «Achicar» baja la original de la
-    biblioteca, la pasa por el mismo achique de la subida (en el navegador, `prepareImage` con
-    `targetBytes`: si con 2000 px todavía pesa más, prueba 1600, 1280 y 1080 px), la sube como
-    imagen nueva (`POST /imagenes`, con sus copias chicas y el mismo nombre y texto alternativo;
-    si la original no tiene, lo pide) y cambia la portada (`?/portada`, `swapCover`: solo si la
-    portada sigue siendo esa y la copia pesa menos; saca la vieja del repo, `featured`, como el
-    selector; historial y Actividad `content.cover.shrink`). **La original queda en la
-    biblioteca** ([imagenes.md](imagenes.md#portadas-pesadas)).
+    si no tiene edge) pesa más de 300 KB (`HEAVY_COVER_BYTES`) y nadie dejó así. «Achicar» baja la
+    original de la biblioteca, la pasa por el mismo achique de la subida (en el navegador,
+    `prepareImage` con `targetBytes`: si con 2000 px todavía pesa más, baja el lado hasta 1080 px,
+    después la calidad hasta 0,55 y después el lado hasta 720 px, con piso en 720 px y calidad 0,5;
+    `SHRINK_STEPS`). Solo si la copia vale la pena (`muchLighter`: pesa como mucho 300 KB, o al
+    menos un 15 % menos que la original) la sube como imagen nueva (`POST /imagenes`, con sus
+    copias chicas y el mismo nombre y texto alternativo; si la original no tiene, lo pide) y cambia
+    la portada (`?/portada`, `swapCover`: solo si la portada sigue siendo esa y con la misma regla
+    del 15 %; saca la vieja del repo, `featured`, como el selector; historial y Actividad
+    `content.cover.shrink`). Si no vale la pena, no sube nada y lo dice: «No se pudo bajar de
+    300 KB sin que se vea mal (queda en 381 KB). Si se ve bien así, tocá «Dejarla así».». Los pesos
+    van con decimales cuando «antes» y «ahora» se verían iguales (`kbText`). **La original queda
+    en la biblioteca** ([imagenes.md](imagenes.md#portadas-pesadas)).
+    «Dejarla así» (`?/portadaAsi`, `setHeavyOk`) marca esa imagen como aceptada
+    (`heavy_ok: { by, at }` en los datos de la imagen, con saveObject(), su versión en el historial
+    y Actividad `content.cover.accept`) y la saca de la lista; el aviso trae «Deshacer» (`?/portadaAsiDeshacer`,
+    Actividad `content.cover.unaccept`). La marca es de la imagen: una portada nueva es otra imagen
+    y se revisa de nuevo. Las fotos sin descripción y los videos sin transcripción no tienen «Dejar
+    así»: lo que falta ahí es un texto que alguien tiene que escribir.
   - **Videos sin transcripción**: el material con un video en el texto (`<video>` o un enlace a un
     MP4/WebM de la biblioteca) y sin «Transcripción». Cada uno lleva a la sección «Video» de su
     editor (`#sec-video`), donde alguien que conoce el audio la escribe

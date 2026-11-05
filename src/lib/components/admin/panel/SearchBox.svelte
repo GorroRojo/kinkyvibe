@@ -109,6 +109,8 @@
 	export let pinnedPlaces = [];
 	/** Los Recientes que muestra la barra lateral. @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
 	export let recentPlaces = [];
+	/** Los interruptores del menú: lo que esconde uno apagado no aparece. @type {Record<string, boolean>} */
+	export let flags = {};
 
 	/** @type {import('svelte').EventDispatcher<{ theme: null, hidesoon: null, pin: { href: string, label: string, context?: string }, unpin: string }>} */
 	const dispatch = createEventDispatcher();
@@ -186,7 +188,7 @@
 	 */
 	/** @typedef {{ id: string, label: string, rows: Row[] }} Section */
 
-	$: commands = paletteCommands({ today, hideSoon });
+	$: commands = paletteCommands({ today, hideSoon, flags });
 	// Lo escrito, con sus operadores (#etiqueta, @persona, hoy…).
 	$: pq = parseSearchQuery(q);
 	$: onlyActions = Boolean(pq.kinds?.length) && pq.kinds?.every((k) => k === 'actions');

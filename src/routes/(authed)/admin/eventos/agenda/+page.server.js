@@ -44,7 +44,7 @@ export async function load({ locals, url, setHeaders, platform }) {
 	const from = `${shiftMonth(today.slice(0, 7), -1)}-01`;
 	const db = getDB(platform);
 	return {
-		rows: await agendaRows({ today: from }),
+		rows: await agendaRows({ today: from, db }),
 		// «¿Querés duplicar un evento que ya existe?» (de los eventos del deploy, sin pedir nada a GitHub).
 		duplicables: await duplicableEvents(),
 		notes: await listDayNotes(db, { from }),

@@ -8,6 +8,7 @@
 	import { page } from '$app/stores';
 	import {
 		ArrowRightLeft,
+		Calculator,
 		ReceiptText,
 		Ticket,
 		TicketPercent,
@@ -70,6 +71,11 @@
 		<a class="kv-btn ghost" href="/admin/ventas/codigos">
 			<TicketPercent size={16} aria-hidden="true" /> Códigos
 		</a>
+		{#if data.accountsLink}
+			<a class="kv-btn ghost" href="/admin/ventas/cuentas">
+				<Calculator size={16} aria-hidden="true" /> Cuentas del año
+			</a>
+		{/if}
 		<CsvButton rows={csvRows} {columns} filename={csvFilename('ventas')} />
 	</svelte:fragment>
 </PageHeader>
