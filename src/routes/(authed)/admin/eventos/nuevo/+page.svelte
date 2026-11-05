@@ -793,6 +793,7 @@
 						hasVenue={venue.venueId != null}
 						transferReady={data.transferReady}
 						extrasEnabled={data.extrasEnabled ?? false}
+						fondoPercent={data.fondoPercent ?? null}
 						errors={ticketsCheck.errors}
 						showErrors={showProblems}
 						warnings={ticketsCheck.warnings}

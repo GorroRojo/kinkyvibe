@@ -123,6 +123,7 @@ CI) va en la fase 0.
 ### Panel
 
 - `agenda-impresa` · fase 0 · hecho · panel · Agenda impresa: volantes A4 (4 A6, 2 A5 o 1 A4) para repartir con los próximos eventos, con el diseño de gorrite; ícono y subtítulo de la serie, lugar con su privacidad y precio, todo editable en la página sin guardar nada · #370, [panel.md](panel.md#agenda-impresa)
+- `precios-con-fondo-editor` · fase 0 · en curso · panel · Entradas del editor de eventos: debajo de cada precio (fijo, de cada tramo y en puerta) cuánto sale con el descuento del Fondo de hoy, el resumen de los tramos con esos precios y «Copiar precios» (una línea por tramo) para la agenda y los flyers (pedido de una admin) · [tickets.md](tickets.md#precios-con-el-fondo-en-el-editor)
 - `nav-c-puerta-hoy` · fase 0 · hecho · panel · La Puerta abre directo en el evento de hoy si hay uno solo · #314, [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)
 - `nav-c-ir-a-recientes` · fase 0 · hecho · panel · «Ir a…» (⌘K) vacío muestra Fijados y Recientes · #314
 - `ajustes-4-grupos` · fase 0 · hecho · panel · Ajustes como portada con 4 grupos de tarjetas (Plata, Comunicación, Equipo, Sistema) en vez de pestañas · #317, [0042](decisiones/0042-ajustes-portada-con-grupos.md)
