@@ -123,6 +123,9 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   puerta y la carga a mano se devuelven a mano (26/10)
 - [0053](0053-avisos-de-puerta.md): Avisos de puerta para personas que la organización no admite:
   avisan y nunca frenan, solo en eventos de Kinky Vibe, vencen siempre (27/10)
+- [0056](0056-extras-en-la-compra.md): Extras en la compra: el Fondo y los códigos solo para las
+  entradas, el recargo de MP sobre todo; canje de a uno en la puerta o con un «Link de barra»
+  (4/11)
 
 ### Propinas
 

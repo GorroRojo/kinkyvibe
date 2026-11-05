@@ -106,6 +106,14 @@ import {
 } from '$lib/server/tickets/partCheckins.js';
 import { DOOR_AUTO_PARAM } from '$lib/utils/doorEvents.js';
 import { NO_STORE, cachedPrior, doorContext, doorSeriesLabel } from './doorContext.js';
+import { deliverExtra, extrasAvailability, orderExtras } from './extras.js';
+import {
+	EXTRA_HARD_MAX,
+	extrasShortText,
+	orderPaid,
+	readExtrasChoice,
+	validateExtrasChoice
+} from '$lib/utils/extras.js';
 
 /** @typedef {import('./doorLinks.js').DoorActor} DoorActor */
 
@@ -218,12 +226,15 @@ export function doorBase(actor, slug) {
 export async function doorLoad(event, actor) {
 	event.setHeaders(NO_STORE);
 	const { db, config, ticketSlug, part } = await doorContext(event, { fondo: true });
-	const [counts, sales, series, waitlist] = await Promise.all([
+	const [counts, sales, series, waitlist, extrasOn] = await Promise.all([
 		countsFor(db, { ticketSlug, part }),
 		getCounts(db, ticketSlug),
 		doorSeriesLabel(ticketSlug, event.platform),
 		// La nota de la lista de espera en «Vender en puerta» (no frena la venta).
-		isFlagOn(db, 'lista_espera').then((enabled) => safeWaitlistSummary(db, ticketSlug, { enabled }))
+		isFlagOn(db, 'lista_espera').then((enabled) =>
+			safeWaitlistSummary(db, ticketSlug, { enabled })
+		),
+		!part && config.extras.length ? isFlagOn(db, 'extras') : false
 	]);
 	return {
 		bare: true,
@@ -245,6 +256,15 @@ export async function doorLoad(event, actor) {
 		counts,
 		waitlist,
 		fondoEnabled: config.fondoEnabled,
+		// Extras para «Vender en puerta» (interruptor `extras`, decisión 0056; solo con conexión).
+		extras: extrasOn
+			? config.extras.map((e) => ({
+					id: e.id,
+					name: e.name,
+					price: e.price,
+					max: Math.min(e.perOrder ?? EXTRA_HARD_MAX, EXTRA_HARD_MAX)
+				}))
+			: [],
 		// Para la cuenta a la vista cuando se cambia el precio (el Fondo con el mismo porcentaje).
 		fondoPercent: config.fondoPercent,
 		// Largo máximo de la nota de la venta (como la de la carga a mano).
@@ -327,7 +347,7 @@ async function checkinAction(event, actor) {
 	}
 	// La entrada con quien compró, la primera vez en la serie, los avisos de puerta (también con un
 	// link: es la tarjeta de un escaneo, decisión 0053) y los contadores, juntos.
-	const [full, prior, notices, counts] = await Promise.all([
+	const [full, prior, notices, counts, extras] = await Promise.all([
 		r.ticket
 			? ticketWithBuyer(db, { id: r.ticket.id }).then(async (found) =>
 					found && part
@@ -343,16 +363,24 @@ async function checkinAction(event, actor) {
 			: null,
 		cachedPrior(db, slug, event.platform),
 		noticesFor(db, actor, config, { scanCard: true }),
-		countsFor(db, { ticketSlug, part })
+		countsFor(db, { ticketSlug, part }),
+		// Extras de la compra (interruptor `extras`, decisión 0056): «2 × Trago · 0 entregados» con
+		// «Entregar 1». Solo en una compra aprobada y no en una parte de un taller.
+		r.ticket && !part && config.extras.length
+			? isFlagOn(db, 'extras').then((on) =>
+					on && r.ticket ? orderExtras(db, r.ticket.order_id) : null
+				)
+			: null
 	]);
 	const card = full
 		? await doorCard(actor, full, { typeNames, prior, notices, scanCard: true })
 		: null;
+	const shown = card ? hideLogins(actor, [card], 'by')[0] : null;
 	return {
 		checkin: {
 			result: r.result,
 			stamp,
-			card: card ? hideLogins(actor, [card], 'by')[0] : null,
+			card: shown && extras?.length && r.result !== 'void' ? { ...shown, extras } : shown,
 			otherEvent: null
 		},
 		counts
@@ -395,6 +423,18 @@ export function doorActions(getActor) {
 				});
 			}
 			return { undo: { ok, ticketId }, counts: await countsFor(db, { ticketSlug, part }) };
+		},
+
+		/**
+		 * «Entregar 1» de un extra (decisión 0056): `ticket` (una entrada de este evento) y `extra`.
+		 * Nunca más que lo comprado (un único UPDATE condicional) y queda en Actividad.
+		 * @param {any} event
+		 */
+		entregar: async (event) => {
+			const actor = await getActor(event);
+			const { db, ticketSlug, part } = await doorContext(event);
+			if (part || !(await isFlagOn(db, 'extras'))) error(404, 'No hay extras para entregar acá.');
+			return deliverAction(event, db, actor, ticketSlug);
 		},
 
 		/** @param {any} event */
@@ -553,6 +593,10 @@ export function doorActions(getActor) {
 			const limitsFor = () => doorSaleLimits(db, { eventSlug: slug, config, type, quantity });
 			const check = checkOverride(await limitsFor(), actor.link ? '' : readOverride(form));
 			if (!check.ok) return needsConfirmation(check.needsConfirmation);
+			// Extras (interruptor `extras`, decisión 0056): a precio de lista, con su tope y su máximo
+			// por compra (solo con conexión: una venta sin conexión no lleva extras).
+			const extras = await doorExtrasChoice(db, config, slug, form);
+			if (!extras.ok) return bad(extras.message);
 			// Tope de entradas por hora de cada link.
 			if (actor.link && !(await takeDoorLinkTickets(db, actor.link, quantity))) {
 				return fail(429, { sale: { ok: false, message: DOOR_LINK_TICKETS_MESSAGE, tickets: [] } });
@@ -571,9 +615,14 @@ export function doorActions(getActor) {
 				unitPrice,
 				note,
 				fondoPercent: config.fondoPercent,
+				...(extras.lines.length ? { extras: extras.lines } : {}),
 				by: actor.by
 			});
 			if (!r.ok && r.reason === 'free-door') return bad(FREE_DOOR_MESSAGE);
+			if (!r.ok && r.reason === 'extras')
+				return fail(409, {
+					sale: { ok: false, message: 'Se agotó un extra: revisá los extras.', tickets: [] }
+				});
 			if (!r.ok) {
 				// Algo cambió entre el control y la venta (otra venta al mismo tiempo): se vuelve a
 				// preguntar con los límites de ahora.
@@ -594,6 +643,9 @@ export function doorActions(getActor) {
 					quantity,
 					method: r.order.payment_method,
 					total: r.order.total,
+					...(extras.lines.length
+						? { extras: extras.lines.map((l) => ({ id: l.id, quantity: l.quantity })) }
+						: {}),
 					...doorSaleAuditExtra(r.order),
 					...(check.limits.length ? { overrides: check.limits } : {}),
 					...linkDetail(actor)
@@ -631,8 +683,8 @@ export function doorActions(getActor) {
 			return {
 				sale: {
 					ok: true,
-					message: `Listo: ${quantity} × ${type.name} (${orderRef(r.order.id)}), ya adentro.${mailSkipped ? ' No se mandó el mail: este link llegó al tope de mails por hora.' : ''}`,
-					total: r.order.total,
+					message: `Listo: ${quantity} × ${type.name}${extras.lines.length ? ` ${extrasShortText(extras.lines)}` : ''} (${orderRef(r.order.id)}), ya adentro.${mailSkipped ? ' No se mandó el mail: este link llegó al tope de mails por hora.' : ''}`,
+					total: orderPaid(r.order),
 					method: r.order.payment_method,
 					// Para el resultado de la venta: la nota es interna del panel (con un link, no va).
 					...(actor.link ? {} : { note: r.order.admin_note ?? '' }),
@@ -762,4 +814,80 @@ export async function doorList(event, actor) {
 				},
 		{ headers: NO_STORE }
 	);
+}
+
+/**
+ * Entrega uno de un extra (la puerta y la barra, con el actor ya verificado en este pedido) y lo
+ * anota en Actividad (`extras.deliver`, con el link si es un link).
+ *
+ * @param {any} event
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {DoorActor} actor
+ * @param {string} eventSlug
+ */
+export async function deliverAction(event, db, actor, eventSlug) {
+	const form = await event.request.formData();
+	const ticketId = String(form.get('ticket') ?? '').slice(0, 64);
+	const extraId = String(form.get('extra') ?? '').slice(0, 64);
+	const r = await deliverExtra(db, { eventSlug, ticketId, extraId });
+	if (!r.ok) {
+		return fail(r.reason === 'none-left' ? 409 : 404, {
+			deliver: {
+				ok: false,
+				ticketId,
+				message:
+					r.reason === 'none-left'
+						? 'Ya se entregaron todos.'
+						: 'No se encontró ese extra en esta entrada.'
+			}
+		});
+	}
+	await logAdminAction(db, actor.audit, {
+		action: 'extras.deliver',
+		targetType: 'order',
+		targetId: r.orderId,
+		summary: `Entregó 1 × ${r.extra.name} de ${orderRef(r.orderId)} (${r.extra.delivered} de ${r.extra.quantity})${actor.link ? (actor.link.scope === 'barra' ? ' con un link de barra' : ' con un link de puerta') : ''}`,
+		detail: {
+			event: eventSlug,
+			ticket: ticketId,
+			extra: r.extra.id,
+			delivered: r.extra.delivered,
+			quantity: r.extra.quantity,
+			...linkDetail(actor)
+		}
+	});
+	return {
+		deliver: {
+			ok: true,
+			ticketId,
+			extras: await orderExtras(db, r.orderId)
+		}
+	};
+}
+
+/**
+ * Los extras de una venta en la puerta o una carga a mano (`extra_<id>` del formulario; interruptor
+ * `extras`, decisión 0056): contra el máximo por compra y lo que queda. Sin el interruptor o sin
+ * extras en el evento, ninguno (lo que llegue se ignora).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {import('./config.js').EventTickets} config
+ * @param {string} slug
+ * @param {FormData} form
+ * @returns {Promise<{ ok: true, lines: (import('$lib/utils/extras.js').ExtraLine & { capacity: number | null })[] }
+ *   | { ok: false, message: string }>}
+ */
+export async function doorExtrasChoice(db, config, slug, form) {
+	if (!config.extras.length || !(await isFlagOn(db, 'extras'))) return { ok: true, lines: [] };
+	const choice = readExtrasChoice(config.extras, (k) => form.get(k));
+	const available = await extrasAvailability(db, slug, config.extras);
+	const check = validateExtrasChoice(config.extras, choice, { available });
+	if (!check.ok) return { ok: false, message: Object.values(check.errors).join(' ') };
+	return {
+		ok: true,
+		lines: check.lines.map((l) => ({
+			...l,
+			capacity: config.extras.find((e) => e.id === l.id)?.capacity ?? null
+		}))
+	};
 }

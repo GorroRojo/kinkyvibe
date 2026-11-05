@@ -31,6 +31,23 @@ export const JPEG_QUALITY = 0.85;
 /** Lo que puede salir del canvas y se sube en lugar del original. */
 const CONVERTED_TYPES = ['image/webp', 'image/jpeg'];
 
+/**
+ * «Portadas pesadas» (Para revisar, docs/imagenes.md): una portada que pesa más que esto se puede
+ * «Achicar». Es el mismo número que usó la auditoría de UX.
+ */
+export const HEAVY_COVER_BYTES = 300 * 1024;
+
+/**
+ * Si con {@link MAX_SIDE} y {@link WEBP_QUALITY} todavía pesa más que lo pedido (`targetBytes`),
+ * se prueban estos pasos en orden, hasta que alcance. Ninguno baja de 1080 px de lado largo: una
+ * portada se ve a lo sumo a unos 768 px (24rem en 2×) y las tarjetas usan sus copias chicas.
+ */
+export const SHRINK_STEPS = Object.freeze([
+	{ side: 1600, quality: 0.8 },
+	{ side: 1280, quality: 0.78 },
+	{ side: 1080, quality: 0.75 }
+]);
+
 /** Peso máximo del archivo que se elige (antes de achicar). El servidor tiene el mismo tope. */
 export const MAX_PICK_BYTES = 10 * 1024 * 1024;
 
@@ -125,12 +142,16 @@ export function appendCopies(form, prepared) {
  * Achica y pasa a WEBP (en el navegador), y hace las copias chicas. Si algo falla, devuelve el
  * original tal cual (sin copias).
  *
+ * Con `targetBytes` (para «Achicar» una portada pesada): si lo que sale pesa más que eso, prueba
+ * los pasos de {@link SHRINK_STEPS} hasta que alcance (o queda el más liviano).
+ *
  * @param {File} file
  * @param {{ createImageBitmap?: typeof globalThis.createImageBitmap,
  *   makeCanvas?: (w: number, h: number) => HTMLCanvasElement | OffscreenCanvas }} [env]
+ * @param {{ targetBytes?: number }} [opts]
  * @returns {Promise<PreparedImage>}
  */
-export async function prepareImage(file, env = {}) {
+export async function prepareImage(file, env = {}, { targetBytes } = {}) {
 	const original = { blob: file, name: file.name, width: null, height: null, converted: false };
 	const decode = env.createImageBitmap ?? globalThis.createImageBitmap;
 	if (!RESIZABLE_TYPES.includes(file.type) || typeof decode !== 'function') return original;
@@ -138,18 +159,19 @@ export async function prepareImage(file, env = {}) {
 	let bitmap;
 	try {
 		bitmap = await decode(file, { imageOrientation: 'from-image' });
-		const size = targetSize(bitmap.width, bitmap.height);
-		const canvas = (env.makeCanvas ?? defaultCanvas)(size.width, size.height);
-		const ctx = /** @type {CanvasRenderingContext2D | null} */ (canvas.getContext('2d'));
-		if (!ctx) return { ...original, width: bitmap.width, height: bitmap.height };
-		ctx.imageSmoothingQuality = 'high';
-		ctx.drawImage(bitmap, 0, 0, size.width, size.height);
-		let blob = await toWebp(canvas, WEBP_QUALITY);
-		// Safari no hace WEBP desde un canvas (devuelve PNG): una foto JPEG sale JPEG, en lugar del
-		// original tal cual. Un PNG, WEBP o AVIF no: puede tener partes transparentes, que en JPEG
-		// saldrían negras; va el original (el servidor le saca igual los metadatos).
-		if (blob && blob.type !== 'image/webp') {
-			blob = file.type === 'image/jpeg' ? await toBlob(canvas, 'image/jpeg', JPEG_QUALITY) : null;
+		const makeCanvas = env.makeCanvas ?? defaultCanvas;
+		let size = targetSize(bitmap.width, bitmap.height);
+		let blob = await drawConverted(bitmap, size, WEBP_QUALITY, makeCanvas, file.type);
+		if (blob === undefined) return { ...original, width: bitmap.width, height: bitmap.height };
+		for (const step of targetBytes ? SHRINK_STEPS : []) {
+			if (!blob || blob.size <= /** @type {number} */ (targetBytes)) break;
+			const smaller = targetSize(bitmap.width, bitmap.height, step.side);
+			const next = await drawConverted(bitmap, smaller, step.quality, makeCanvas, file.type);
+			if (!next || !CONVERTED_TYPES.includes(next.type) || next.size === 0) break;
+			if (next.size < blob.size) {
+				blob = next;
+				size = smaller;
+			}
 		}
 		const converted = keepConverted(file, blob, size.scaled);
 		// Las copias se miden contra lo que se sube (el WEBP achicado o el original).
@@ -202,6 +224,36 @@ async function makeCopies(bitmap, up, makeCanvas) {
 	} catch {
 		return [];
 	}
+}
+
+/**
+ * Dibuja la imagen con esas medidas y la pasa a WEBP. Safari no hace WEBP desde un canvas
+ * (devuelve PNG): una foto JPEG sale JPEG, en lugar del original tal cual. Un PNG, WEBP o AVIF no:
+ * puede tener partes transparentes, que en JPEG saldrían negras; da `null` y va el original (al
+ * PNG el servidor le saca igual los metadatos). `undefined` si no hay contexto 2D.
+ * @param {ImageBitmap} bitmap
+ * @param {{ width: number, height: number }} size
+ * @param {number} quality
+ * @param {(w: number, h: number) => HTMLCanvasElement | OffscreenCanvas} makeCanvas
+ * @param {string} fileType
+ * @returns {Promise<Blob | null | undefined>}
+ */
+async function drawConverted(bitmap, size, quality, makeCanvas, fileType) {
+	const canvas = makeCanvas(size.width, size.height);
+	const ctx = /** @type {CanvasRenderingContext2D | null} */ (canvas.getContext('2d'));
+	if (!ctx) return undefined;
+	ctx.imageSmoothingQuality = 'high';
+	ctx.drawImage(bitmap, 0, 0, size.width, size.height);
+	const blob = await toWebp(canvas, quality);
+	// Safari no hace WEBP desde un canvas (devuelve PNG): una foto JPEG sale JPEG, en lugar del
+	// original tal cual. Un PNG, WEBP o AVIF no: puede tener partes transparentes, que en JPEG
+	// saldrían negras; va el original (el servidor le saca igual los metadatos).
+	if (blob && blob.type !== 'image/webp') {
+		return fileType === 'image/jpeg'
+			? toBlob(canvas, 'image/jpeg', quality === WEBP_QUALITY ? JPEG_QUALITY : quality)
+			: null;
+	}
+	return blob;
 }
 
 /** @param {number} w @param {number} h */

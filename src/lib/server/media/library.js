@@ -122,7 +122,8 @@ const FILE_LABELS = /** @type {Record<string, string>} */ ({
 	'video/webm': 'Video WebM',
 	'application/vnd.oasis.opendocument.text': 'Documento ODT',
 	'application/vnd.oasis.opendocument.spreadsheet': 'Planilla ODS',
-	'application/vnd.oasis.opendocument.presentation': 'Presentación ODP'
+	'application/vnd.oasis.opendocument.presentation': 'Presentación ODP',
+	'text/vtt': 'Subtítulos VTT'
 });
 
 /**

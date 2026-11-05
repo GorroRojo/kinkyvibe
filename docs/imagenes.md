@@ -20,7 +20,7 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 | Servir                   | `src/routes/media/[...key]/+server.js` → `/media/img/…`, `/media/file/…`; rangos en `media/range.js`      |
 | Selector de los editores | `src/lib/components/admin/ImagePicker.svelte`                                                             |
 | Enlazar un archivo       | `src/lib/components/admin/LibraryLinkPicker.svelte`, `src/lib/utils/libraryFiles.js` (editor de material) |
-| Achicar en el navegador  | `src/lib/utils/imageResize.js`                                                                            |
+| Achicar en el navegador  | `src/lib/utils/imageResize.js` (también «Achicar» de «Portadas pesadas», ver abajo)                       |
 | Colores (carrusel)       | `src/lib/utils/flyerColors.js`; las de antes, en Ajustes › Carrusel de la portada (ver «Colores»)         |
 | Copias chicas (tarjetas) | `src/lib/utils/mediaCopies.js`; la pasada por las viejas: `scripts/copias-chicas.js` + `media/copias.js`  |
 | Copia nocturna y bloqueo | `src/lib/server/backup/media.js` (binding `MEDIA_COPIA`, solo producción); ver «Copia de la biblioteca»   |
@@ -155,8 +155,9 @@ están ahí, y los textos que los enlazan, reescritos («Los PDF y el video del 
 | MP4 (`video/mp4`)            | caja `ftyp` con marca de video (`isom`, `mp41`, `mp42`, `avc1`…)    | `inline`, con rangos (206)         |
 | WebM (`video/webm`)          | cabecera EBML con DocType `webm`                                    | `inline`, con rangos (206)         |
 | ODT, ODS, ODP (OpenDocument) | zip cuya primera entrada es `mimetype`, sin comprimir, con ese tipo | `attachment` (se descarga)         |
+| Subtítulos VTT (`text/vtt`)  | empieza con `WEBVTT` (y un espacio o salto), UTF-8 sin bytes nulos  | `attachment` y `sandbox`           |
 
-- **Se rechaza** todo lo demás: HTML, SVG, scripts, texto, un zip que no es OpenDocument (un
+- **Se rechaza** todo lo demás: HTML, SVG, scripts, otro texto, un zip que no es OpenDocument (un
   `.docx`, un `.zip` cualquiera), un `mimetype` comprimido o de otro tipo, un `ftyp` de imagen.
   Las imágenes siguen siendo solo JPG, PNG, WEBP, GIF y AVIF.
 - **Solo les admins** suben documentos y video. Una cuenta del público (Mi rincón) sigue subiendo
@@ -202,6 +203,47 @@ están ahí, y los textos que los enlazan, reescritos («Los PDF y el video del 
   antes del edge); cada objeto, una vez. Los edges `adjunto` hacia un archivo borrado quedan (como
   todo edge al borrar suave, para poder deshacer) y el próximo guardado de ese material los saca
   (como una etiqueta borrada: solo hay edge hacia lo vivo); el enlace del texto queda y da 404.
+
+## Video: transcripción y subtítulos
+
+Para quien no puede escuchar el audio (auditoría de UX: el video de «Con la soga al cuello» no
+tenía ni una cosa ni la otra). El material tiene dos campos para **el video de su texto** (el
+primero, si tiene varios), en la sección **«Video»** de su editor (aparece si el texto tiene un
+video o si ya tienen algo escrito):
+
+- **Transcripción** (`transcript`, texto largo con sus saltos de línea; en el .md descargado,
+  `transcript:`). La página la muestra debajo del video, en un desplegable **«Ver
+  transcripción»** (`<details>`). Es texto plano: se escapa siempre, nunca es HTML. Sin `<video>`
+  en el texto (por ejemplo, solo un enlace al .mp4), va al final del texto.
+- **Subtítulos** (`subtitles`, opcional): un archivo **.vtt de la biblioteca**
+  (`/media/file/<hash>.vtt`; se sube en Contenido → Biblioteca y se pega su dirección). Va como
+  `<track kind="subtitles" srclang="es" default>` del video. Una dirección que no es un .vtt de la
+  biblioteca no se guarda (el editor y el tipo lo dicen). El material tiene edge `adjunto` hacia
+  el .vtt, como hacia lo que enlaza su texto.
+- Lo arma `addVideoExtras` (`$lib/utils/videoExtras.js`) sobre el HTML ya limpio, en
+  `renderContentBody` (`src/lib/server/contenido/render.js`).
+- **Nadie la inventa**: la escribe alguien que conoce el audio. «Videos sin transcripción», en
+  «Para revisar» del Inicio, lista el material con video y sin transcripción
+  ([panel.md](panel.md)).
+
+## Portadas pesadas
+
+Una portada (edge `portada` de un evento o un material, o la imagen vieja del repo si no tiene
+edge) que pesa **más de 300 KB** (`HEAVY_COVER_BYTES` en `$lib/utils/imageResize.js`) aparece en
+«Portadas pesadas», en «Para revisar» del Inicio ([panel.md](panel.md)). Pasaba con las que se
+subieron antes del achique del navegador.
+
+- **«Achicar»** hace en el navegador lo mismo que una subida: baja la original
+  (`/media/img/…`), la pasa por `prepareImage` (lado largo 2000 px, WEBP 0,85) con `targetBytes`
+  (si todavía pesa más de 300 KB, prueba 1600 px a 0,8, 1280 px a 0,78 y 1080 px a 0,75:
+  `SHRINK_STEPS`; nunca menos de 1080, que una portada se ve a lo sumo a unos 768 px) y la sube con
+  `POST /imagenes` (con sus copias chicas, el mismo nombre y el mismo texto alternativo; si la
+  original no tiene, lo pide antes). Después cambia la portada (`swapCover`, en
+  `src/lib/server/admin/contentReview.js`), con su versión en el historial y en Actividad.
+- **La original queda en la biblioteca**: es otra imagen (otro hash), no se borra ni se pisa. Para
+  volver atrás, se elige la original en el selector del editor.
+- Si la copia no pesa menos que la original (el navegador no sabe hacer WEBP, por ejemplo), no
+  cambia nada y lo dice. Un GIF no se achica (puede ser animado).
 
 ## El selector (ImagePicker)
 

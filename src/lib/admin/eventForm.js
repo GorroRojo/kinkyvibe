@@ -12,7 +12,7 @@ import { changedKeys } from './draft.js';
  * Qué ícono lleva cada sección en el índice: SectionIndex lo traduce a un ícono de Lucide (los
  * emoji quedan para el contenido y las etiquetas, ver docs/estilo.md).
  * @typedef {'cuando' | 'datos' | 'personas' | 'lugar' | 'direccion' | 'etiquetas' | 'entradas'
- *   | 'imagen' | 'texto' | 'lista' | 'partes'} SectionIcon
+ *   | 'imagen' | 'texto' | 'video' | 'lista' | 'partes'} SectionIcon
  */
 
 /**
@@ -37,6 +37,7 @@ export const SECTION_LABELS = {
 	entradas: 'Entradas',
 	imagen: 'Imagen',
 	texto: 'Texto',
+	video: 'Video',
 	lista: 'En la lista',
 	partes: 'Partes'
 };
@@ -64,6 +65,8 @@ function section(key, id) {
  *   personas (no los perfiles de amigues)
  * @param {boolean} [o.hasPartes] editar un evento: la sección «Partes» (talleres en varias partes)
  * @param {boolean} [o.parseError] editar: el archivo se edita como texto (sin secciones)
+ * @param {boolean} [o.hasVideo] en el panel (material): la sección «Video» (transcripción y
+ *   subtítulos del video del texto)
  * @returns {FormSection[]}
  */
 export function formSections({
@@ -73,7 +76,8 @@ export function formSections({
 	hasImage = false,
 	hasPersonas = mode === 'nuevo',
 	hasPartes = false,
-	parseError = false
+	parseError = false,
+	hasVideo = false
 }) {
 	const tickets = section('entradas', `${idPrefix}-tickets`);
 	const cuando = section('cuando', 'sec-cuando');
@@ -103,6 +107,7 @@ export function formSections({
 				section('imagen', 'sec-imagen'),
 				section('etiquetas', 'sec-etiquetas'),
 				section('texto', 'sec-texto'),
+				hasVideo && section('video', 'sec-video'),
 				section('lista', 'sec-lista')
 			].filter(Boolean)
 		);

@@ -19,7 +19,8 @@ import { CARRUSEL_ESTILOS, EVENTO_ESTILO_KEY } from '$lib/utils/carruselEstilos.
  * @typedef {object} Field
  * @prop {string} key
  * @prop {string} label
- * @prop {'text'|'textarea'|'url'|'email'|'tel'|'date'|'datetime'|'checkbox'|'select'} type
+ * @prop {'text'|'textarea'|'longtext'|'url'|'email'|'tel'|'date'|'datetime'|'checkbox'|'select'} type
+ *   (`longtext`: un texto largo con sus saltos de línea, ver $lib/utils/contentPosts.js)
  * @prop {string} [placeholder]
  * @prop {string} [help]
  * @prop {boolean} [required]

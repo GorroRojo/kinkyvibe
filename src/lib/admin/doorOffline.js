@@ -37,8 +37,10 @@ import { foldText as fold } from '$lib/utils/text.js';
  * @typedef {{
  *   ticketId: string, orderId: string, orderRef: string, holder: string, pronouns: string,
  *   type: string, buyer: string, email: string, dniTail: string, code: string,
- *   at: number | null, by: string | null, firstTime: boolean | null, notice?: boolean
- * }} DoorCard
+ *   at: number | null, by: string | null, firstTime: boolean | null, notice?: boolean,
+ *   extras?: { id: string, name: string, quantity: number, delivered: number }[]
+ * }} DoorCard `extras`: los extras de la compra (interruptor `extras`, decisión 0056), solo en un
+ *   escaneo con conexión
  */
 /**
  * Un resultado del modo puerta (escaneo, venta o error).

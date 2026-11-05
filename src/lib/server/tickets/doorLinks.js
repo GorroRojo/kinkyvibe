@@ -17,6 +17,13 @@
  * - Topes: entrar con un link (por IP, anónima), los pedidos de cada link, las entradas que vende
  *   cada link por hora (con y sin conexión) y los mails de compra que manda cada link por hora.
  * - Nunca se loguea el token: los errores y el registro de actividad llevan el `id` del link.
+ *
+ * **Links de barra** (`scope: 'barra'`, migración 0077; interruptor `extras`, decisión 0056): el
+ * mismo modelo (token al azar en el fragmento, solo el hash en la base, vencimiento, revocar, cada
+ * pedido mirado de nuevo) con otro alcance: abren **solo** `/barra/<evento>` (ver y entregar
+ * extras), con su propia cookie (`BAR_LINK_COOKIE`, solo para `/barra`). Un link de barra no abre
+ * la puerta y uno de puerta no abre la barra: el hash del token lleva un prefijo por alcance (el
+ * código de antes de los links de barra ni siquiera encuentra uno) y además se compara `scope`.
  */
 import { error } from '@sveltejs/kit';
 import { sha256Hex } from '$lib/server/hash.js';
@@ -37,9 +44,11 @@ import { toTime } from '$lib/server/tickets/config.js';
  *   expires_at: number,
  *   revoked_at: number | null,
  *   revoked_by: string | null,
- *   last_used_at: number | null
+ *   last_used_at: number | null,
+ *   scope?: LinkScope
  * }} DoorLink
  */
+/** @typedef {'puerta' | 'barra'} LinkScope */
 
 /**
  * Quién hace una acción del modo puerta: une admin (con su login de GitHub) o un link de puerta.
@@ -58,6 +67,22 @@ import { toTime } from '$lib/server/tickets/config.js';
 
 /** Cookie del link de puerta (el token; solo para `/puerta`). */
 export const DOOR_LINK_COOKIE = 'kv_puerta';
+
+/** Cookie del link de barra (el token; solo para `/barra`). */
+export const BAR_LINK_COOKIE = 'kv_barra';
+
+/** Dónde se abre un link de barra. */
+export const BAR_LINK_PATH = '/barra';
+
+/**
+ * La cookie y la dirección de cada alcance.
+ * @param {LinkScope} scope
+ */
+export function linkPlace(scope) {
+	return scope === 'barra'
+		? { cookie: BAR_LINK_COOKIE, path: BAR_LINK_PATH }
+		: { cookie: DOOR_LINK_COOKIE, path: DOOR_LINK_PATH };
+}
 /** Dónde vive la puerta con link. */
 export const DOOR_LINK_PATH = '/puerta';
 
@@ -118,12 +143,14 @@ export function isDoorTokenShape(token) {
 }
 
 /**
- * SHA-256 del token (con un prefijo propio, así no coincide con el hash de otra cosa).
+ * SHA-256 del token (con un prefijo propio, así no coincide con el hash de otra cosa). Los de
+ * barra llevan otro prefijo: un token de barra nunca da el hash de un link de puerta.
  *
  * @param {string} token
+ * @param {LinkScope} [scope]
  */
-export function hashDoorToken(token) {
-	return sha256Hex(`door-link:${token}`);
+export function hashDoorToken(token, scope = 'puerta') {
+	return sha256Hex(`${scope === 'barra' ? 'bar-link' : 'door-link'}:${token}`);
 }
 
 /**
@@ -131,9 +158,10 @@ export function hashDoorToken(token) {
  *
  * @param {string} origin
  * @param {string} token
+ * @param {LinkScope} [scope]
  */
-export function doorLinkUrl(origin, token) {
-	return `${origin}${DOOR_LINK_PATH}#${token}`;
+export function doorLinkUrl(origin, token, scope = 'puerta') {
+	return `${origin}${linkPlace(scope).path}#${token}`;
 }
 
 /**
@@ -205,12 +233,14 @@ export function parseDoorLinkForm(input, config, now = Date.now()) {
  * Crea un link de puerta. Devuelve el token (para mostrarlo **una sola vez**) y el link guardado.
  *
  * @param {D1Database} db
- * @param {{ eventSlug: string, label: string, createdBy: string, expiresAt: number, now?: number }} input
+ * @param {{ eventSlug: string, label: string, createdBy: string, expiresAt: number, now?: number,
+ *   scope?: LinkScope }} input `scope: 'barra'`: un link de barra (solo con la migración 0077; uno
+ *   de puerta no nombra la columna)
  * @returns {Promise<{ ok: true, token: string, link: DoorLink } | { ok: false, reason: 'too-many' }>}
  */
 export async function createDoorLink(
 	db,
-	{ eventSlug, label, createdBy, expiresAt, now = Date.now() }
+	{ eventSlug, label, createdBy, expiresAt, now = Date.now(), scope = 'puerta' }
 ) {
 	const active = await db
 		.prepare(
@@ -230,20 +260,36 @@ export async function createDoorLink(
 		expires_at: expiresAt,
 		revoked_at: null,
 		revoked_by: null,
-		last_used_at: null
+		last_used_at: null,
+		scope
 	};
+	const bar = scope === 'barra';
 	await db
 		.prepare(
-			`INSERT INTO door_links (id, event_slug, token_hash, label, created_by, created_at, expires_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+			`INSERT INTO door_links (id, event_slug, token_hash, label, created_by, created_at, expires_at${bar ? ', scope' : ''})
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7${bar ? ", 'barra'" : ''})`
 		)
-		.bind(link.id, eventSlug, await hashDoorToken(token), label, createdBy, now, expiresAt)
+		.bind(link.id, eventSlug, await hashDoorToken(token, scope), label, createdBy, now, expiresAt)
 		.run();
 	return { ok: true, token, link };
 }
 
 const LINK_COLUMNS =
 	'id, event_slug, label, created_by, created_at, expires_at, revoked_at, revoked_by, last_used_at';
+
+/**
+ * Una fila de `door_links` leída con `SELECT *` (así anda con y sin la columna `scope` de la
+ * migración 0077), sin el hash del token.
+ *
+ * @param {Record<string, unknown> | null} row
+ * @returns {DoorLink | null}
+ */
+function toLink(row) {
+	if (!row) return null;
+	const rest = { ...row };
+	delete rest.token_hash;
+	return /** @type {DoorLink} */ ({ ...rest, scope: rest.scope === 'barra' ? 'barra' : 'puerta' });
+}
 
 /**
  * Los links vivos de un evento (sin vencer ni revocar), del más nuevo al más viejo. Nunca el hash.
@@ -256,13 +302,13 @@ const LINK_COLUMNS =
 export async function listDoorLinks(db, eventSlug, now = Date.now()) {
 	const { results } = await db
 		.prepare(
-			`SELECT ${LINK_COLUMNS} FROM door_links
+			`SELECT * FROM door_links
 			WHERE event_slug = ?1 AND revoked_at IS NULL AND expires_at > ?2
 			ORDER BY created_at DESC LIMIT ${DOOR_LINK_MAX_ACTIVE}`
 		)
 		.bind(eventSlug, now)
 		.all();
-	return /** @type {DoorLink[]} */ (results);
+	return /** @type {DoorLink[]} */ (results.map(toLink));
 }
 
 /**
@@ -292,18 +338,19 @@ export async function revokeDoorLink(db, { id, eventSlug, by, now = Date.now() }
  * @param {D1Database} db
  * @param {unknown} token
  * @param {number} [now]
+ * @param {LinkScope} [scope] qué se quiere abrir: un link de otro alcance es `unknown`
  * @returns {Promise<{ ok: true, link: DoorLink }
  *   | { ok: false, reason: 'malformed' | 'unknown' | 'revoked' | 'expired' }>}
  */
-export async function findDoorLink(db, token, now = Date.now()) {
+export async function findDoorLink(db, token, now = Date.now(), scope = 'puerta') {
 	if (!isDoorTokenShape(token)) return { ok: false, reason: 'malformed' };
-	const row = /** @type {DoorLink | null} */ (
+	const row = toLink(
 		await db
-			.prepare(`SELECT ${LINK_COLUMNS} FROM door_links WHERE token_hash = ?1`)
-			.bind(await hashDoorToken(token))
+			.prepare('SELECT * FROM door_links WHERE token_hash = ?1')
+			.bind(await hashDoorToken(token, scope))
 			.first()
 	);
-	if (!row) return { ok: false, reason: 'unknown' };
+	if (!row || row.scope !== scope) return { ok: false, reason: 'unknown' };
 	if (row.revoked_at !== null && row.revoked_at !== undefined)
 		return { ok: false, reason: 'revoked' };
 	if (!(Number(row.expires_at) > now)) return { ok: false, reason: 'expired' };
@@ -325,10 +372,10 @@ export async function touchDoorLink(db, id, now = Date.now()) {
  * Lo que queda en `checked_in_by` / `confirmed_by` con un link: «puerta: <etiqueta>» (o el id si
  * no tiene etiqueta).
  *
- * @param {Pick<DoorLink, 'id' | 'label'>} link
+ * @param {Pick<DoorLink, 'id' | 'label' | 'scope'>} link
  */
 export function doorLinkBy(link) {
-	return `puerta: ${link.label || link.id}`;
+	return `${link.scope === 'barra' ? 'barra' : 'puerta'}: ${link.label || link.id}`;
 }
 
 /**
@@ -341,7 +388,7 @@ export function linkActor(link) {
 	return {
 		kind: 'link',
 		by: doorLinkBy(link),
-		audit: { user: { login: `puerta:${link.id}` } },
+		audit: { user: { login: `${link.scope === 'barra' ? 'barra' : 'puerta'}:${link.id}` } },
 		link
 	};
 }
@@ -352,10 +399,11 @@ export function linkActor(link) {
  * @param {URL} url
  * @param {number} expiresAt
  * @param {number} [now]
+ * @param {LinkScope} [scope] la de barra, solo para `/barra`
  */
-export function doorCookieOptions(url, expiresAt, now = Date.now()) {
+export function doorCookieOptions(url, expiresAt, now = Date.now(), scope = 'puerta') {
 	return {
-		path: DOOR_LINK_PATH,
+		path: linkPlace(scope).path,
 		httpOnly: true,
 		secure: !(url.hostname === 'localhost' && url.protocol === 'http:'),
 		sameSite: /** @type {const} */ ('strict'),
@@ -369,25 +417,28 @@ export function doorCookieOptions(url, expiresAt, now = Date.now()) {
  *
  * @param {{ cookies: import('@sveltejs/kit').Cookies, params: { slug?: string }, platform?: App.Platform, url: URL }} event
  * @param {D1Database | null | undefined} db
- * @param {{ now?: number }} [opts]
+ * @param {{ now?: number, scope?: LinkScope }} [opts] `scope: 'barra'`: la barra con link
+ *   (`/barra/<slug>`, su cookie)
  * @returns {Promise<DoorActor>}
  */
-export async function requireDoorLink(event, db, { now = Date.now() } = {}) {
+export async function requireDoorLink(event, db, { now = Date.now(), scope = 'puerta' } = {}) {
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const token = event.cookies.get(DOOR_LINK_COOKIE);
-	const found = await findDoorLink(db, token, now);
+	const place = linkPlace(scope);
+	const what = scope === 'barra' ? 'link de barra' : 'link de puerta';
+	const token = event.cookies.get(place.cookie);
+	const found = await findDoorLink(db, token, now, scope);
 	if (!found.ok) {
 		// Una cookie que ya no sirve (vencida, revocada, cambiada) se borra.
-		if (token !== undefined) event.cookies.delete(DOOR_LINK_COOKIE, { path: DOOR_LINK_PATH });
+		if (token !== undefined) event.cookies.delete(place.cookie, { path: place.path });
 		error(
 			403,
 			found.reason === 'expired'
-				? 'Este link de puerta ya venció.'
-				: 'Este link de puerta no sirve (venció o lo revocaron). Pedile uno nuevo a une organizadore.'
+				? `Este ${what} ya venció.`
+				: `Este ${what} no sirve (venció o lo revocaron). Pedile uno nuevo a une organizadore.`
 		);
 	}
 	if (found.link.event_slug !== event.params.slug) {
-		error(403, 'Este link de puerta es para otro evento.');
+		error(403, `Este ${what} es para otro evento.`);
 	}
 	const rate = await hitRateLimit(db, `puerta:link:${found.link.id}`, DOOR_LINK_REQUEST_LIMIT, now);
 	if (!rate.allowed) error(429, 'Demasiados pedidos con este link: esperá un rato.');

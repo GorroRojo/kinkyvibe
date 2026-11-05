@@ -26,6 +26,7 @@ export const NO_FRAME_PREFIXES = [
 	'/mi-rincon',
 	// La puerta con link (escanear, vender): nadie la tiene que poder meter en un iframe.
 	'/puerta',
+	'/barra',
 	'/mcp'
 ];
 

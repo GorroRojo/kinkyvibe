@@ -32,6 +32,8 @@ const tagsOf = (meta) => (Array.isArray(meta.tags) ? meta.tags : []);
  *   ($ 12.000). Con la cookie `kv-dev-hoy=<slug>` en el pedido, ese evento empieza hoy a las 23
  *   (hora de Argentina): para probar la Puerta que entra directo al único evento de hoy sin
  *   cambiar las demás pruebas (tests/tickets/menu.spec.js).
+ *   Con `TICKETS_DEV_FIXTURE_EXTRAS=1`, además dos extras (Trago $ 3.000 con tope 50 y máximo 4 por
+ *   compra; Remera $ 15.000), para probar los extras (interruptor `extras`, decisión 0056).
  * - `TICKETS_DEV_FIXTURE_GORRA=slug`: evento online SIN la etiqueta KinkyVibe (se le saca si la
  *   tiene: sin Fondo), "a la gorra" (mínimo $ 1.000, sugerido $ 5.000; y "Libre" con mínimo $ 0,
  *   sugerido $ 3.000) y "Precio fijo" ($ 6.000), Mercado Pago y transferencia.
@@ -79,7 +81,22 @@ function devFixture(slug, meta) {
 		tickets: [
 			{ id: 'general', name: 'General', price: 10000 },
 			{ id: 'anticipada', name: 'Anticipada', price: 8000, capacity: 3 }
-		]
+		],
+		...(env.TICKETS_DEV_FIXTURE_EXTRAS === '1'
+			? {
+					extras: [
+						{
+							id: 'trago',
+							name: 'Trago',
+							price: 3000,
+							description: 'Con o sin alcohol, en la barra',
+							capacity: 50,
+							per_order: 4
+						},
+						{ id: 'remera', name: 'Remera', price: 15000, description: 'Talle único' }
+					]
+				}
+			: {})
 	};
 }
 
