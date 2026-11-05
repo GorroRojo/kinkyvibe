@@ -8,6 +8,7 @@
 	import { formatSaleTime, leftText, unitPrice } from '$lib/utils/tickets.js';
 	import { gorraAmountError } from '$lib/utils/purchaseSteps.js';
 	import { waitlistPick } from './waitlistPick.js';
+	import ExtrasPicker from './ExtrasPicker.svelte';
 
 	/** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 	export let tickets;
@@ -19,6 +20,8 @@
 	export let amount = '';
 	export let quantity = 1;
 	export let code = '';
+	/** Extras elegidos (id → cantidad; interruptor `extras`, decisión 0056). @type {Record<string, number>} */
+	export let extrasChoice = {};
 
 	/** @type {import('$lib/server/tickets/checkout.js').TicketsView['types'][number] | undefined} */
 	export let selected = undefined;
@@ -305,6 +308,10 @@
 			<span class="applied" role="status">✓ {applied.message}</span>
 		{/if}
 	</div>
+{/if}
+
+{#if tickets.extras?.length}
+	<ExtrasPicker extras={tickets.extras} bind:choice={extrasChoice} {errors} />
 {/if}
 
 <style>

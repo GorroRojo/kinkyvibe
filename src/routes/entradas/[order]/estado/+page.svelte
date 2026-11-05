@@ -181,7 +181,7 @@
 			<dt>A la gorra</dt>
 			<dd>{formatARS(order.unitPrice)} por entrada</dd>
 		{/if}
-		{#if order.fondo || order.contribution || order.discountAmount || order.surcharge}
+		{#if order.fondo || order.contribution || order.discountAmount || order.surcharge || order.extras?.length}
 			<dt>Precio</dt>
 			<dd>{formatARS(order.list)}</dd>
 		{/if}
@@ -197,6 +197,10 @@
 			<dt>Descuento</dt>
 			<dd>−{formatARS(order.discountAmount)} (código {order.discountCode})</dd>
 		{/if}
+		{#each order.extras ?? [] as e}
+			<dt>{e.name}</dt>
+			<dd>{e.quantity} × {formatARS(e.price)}</dd>
+		{/each}
 		{#if order.surcharge}
 			<dt>Recargo Mercado Pago</dt>
 			<dd>+{formatARS(order.surcharge)}</dd>

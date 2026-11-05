@@ -223,7 +223,10 @@ describe('computePrice (fondo → descuento → recargo)', () => {
 			subtotal: 16000,
 			discount: 0,
 			surcharge: 0,
-			total: 16000
+			total: 16000,
+			// Sin extras (decisión 0056): se paga el total.
+			extras: 0,
+			paid: 16000
 		});
 	});
 
@@ -255,7 +258,10 @@ describe('computePrice (fondo → descuento → recargo)', () => {
 			subtotal: 16000,
 			discount: 3200,
 			surcharge: 1073,
-			total: 13873
+			total: 13873,
+			// Sin extras (decisión 0056): se paga el total.
+			extras: 0,
+			paid: 13873
 		});
 	});
 
@@ -321,7 +327,10 @@ describe('opciones del fondo: "¿Cómo querés pagar tu entrada?"', () => {
 			subtotal,
 			discount: 0,
 			surcharge: 0,
-			total: subtotal
+			total: subtotal,
+			// Sin extras (decisión 0056): se paga el total.
+			extras: 0,
+			paid: subtotal
 		});
 	});
 
@@ -360,7 +369,10 @@ describe('opciones del fondo: "¿Cómo querés pagar tu entrada?"', () => {
 			subtotal: 22000,
 			discount: 4400,
 			surcharge: 1475,
-			total: 19075
+			total: 19075,
+			// Sin extras (decisión 0056): se paga el total.
+			extras: 0,
+			paid: 19075
 		});
 		// Sugar sin fondo con código fijo de $ 1.500 por compra, transferencia: 7.500 − 1.500.
 		expect(
@@ -455,7 +467,10 @@ describe('a la gorra: precio', () => {
 			subtotal: 14000,
 			discount: 0,
 			surcharge: 1173,
-			total: 15173
+			total: 15173,
+			// Sin extras (decisión 0056): se paga el total.
+			extras: 0,
+			paid: 15173
 		});
 		expect(
 			computePrice({ price: 7000, option: 'gorra', quantity: 2, method: 'transferencia' }).total

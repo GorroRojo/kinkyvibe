@@ -9,6 +9,7 @@ import { dniTail, offlineReviewSummary, orderPriceChangeText } from '$lib/server
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 import { countsForInvoicing } from '$lib/server/admin/invoiced.js';
+import { extrasByOrder } from '$lib/server/tickets/extras.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -28,6 +29,11 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		// Respuestas a las preguntas de inscripción (datos de quien compra; les organizadores ven una parte en Mi rincón).
 		answersByOrder(db, slug)
 	]);
+	// Extras de la compra (decisión 0056): solo se leen si alguna orden tiene (sin la migración o
+	// sin extras, ni la consulta).
+	const extras = orders.some((o) => Number(o.extras_amount ?? 0) > 0)
+		? await extrasByOrder(db, slug)
+		: new Map();
 	const names = Object.fromEntries(config.types.map((t) => [t.id, t.name]));
 	/** @type {Map<string, { name: string, pronouns: string, checkedIn: boolean }[]>} */
 	const holdersByOrder = new Map();
@@ -60,6 +66,9 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		discountCode: o.discount_code,
 		discountAmount: o.discount_amount,
 		total: o.total,
+		// Extras (lo que suman va aparte de `total`, que es lo de las entradas).
+		extras: extras.get(o.id) ?? [],
+		extrasAmount: Number(o.extras_amount ?? 0),
 		// Reembolso parcial hecho desde el panel de MP (la orden sigue aprobada; migración 0069) y la
 		// comisión que informó MP (null = no la informó: se estima con el recargo).
 		refundedAmount: o.status === 'approved' ? (o.refunded_amount ?? 0) : 0,

@@ -48,7 +48,12 @@ import {
 	emptyTier,
 	readTicketsForm
 } from '$lib/utils/ticketsEditor.js';
-import { salesByType, ticketsFileErrors, waitlistLiveFor } from '$lib/server/tickets/editor.js';
+import {
+	extrasSalesFor,
+	salesByType,
+	ticketsFileErrors,
+	waitlistLiveFor
+} from '$lib/server/tickets/editor.js';
 import { eventVenueChoice, venueOptions } from '$lib/server/amigues/eventFormVenue.js';
 import { VENUE_FORM_FIELDS } from '$lib/utils/venueChoice.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
@@ -579,13 +584,14 @@ export async function planEventChange(
  * @param {{ tagsChanged?: boolean }} [opts]
  */
 export async function checkEventContent(ctx, slug, state, content, { tagsChanged = true } = {}) {
-	const [sales, waitlistLive, roles] = await Promise.all([
+	const [sales, waitlistLive, roles, extrasSales] = await Promise.all([
 		salesByType(ctx.db, slug),
 		waitlistLiveFor(ctx.db, slug),
-		activeRoles(ctx.platform).catch(() => null)
+		activeRoles(ctx.platform).catch(() => null),
+		extrasSalesFor(ctx.db, slug)
 	]);
 	await eventMailGuard(state.meta, content, waitlistLive);
-	const opts = { sales, waitlistLive };
+	const opts = { sales, waitlistLive, extrasSales };
 	const before = ticketsFileErrors(state.raw, opts);
 	const added = ticketsFileErrors(content, opts).filter((e) => !before.includes(e));
 	if (added.length) throw new EventChangeError(added.join(' '));
