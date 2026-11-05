@@ -293,12 +293,7 @@ export function inlineCard(doc, extra, event, ctx) {
 	/** @type {Button[][]} */
 	const keyboard = [];
 	if (isHttps(ctx.origin)) {
-		/** @type {Button[]} */
-		const row = [{ text: botText('sitio.boton_ver'), url }];
-		if (event?.ticket?.kind === 'buy') {
-			row.push({ text: botText('sitio.boton_entradas'), url: `${ctx.origin}${event.ticket.href}` });
-		}
-		keyboard.push(row);
+		keyboard.push([{ text: botText('sitio.boton_ver'), url }]);
 	} else {
 		// Sin https Telegram no acepta botones con link: el link va en el texto.
 		lines.push(`<a href="${escapeHtml(url)}">${escapeHtml(botText('sitio.boton_ver'))}</a>`);

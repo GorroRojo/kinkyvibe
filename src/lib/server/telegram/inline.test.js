@@ -378,13 +378,7 @@ describe('planInlineQuery', () => {
 		);
 		expect(buy.input_message_content.message_text).toContain('<tg-time unix=');
 		expect(buy.reply_markup.inline_keyboard).toEqual([
-			[
-				{ text: renderBotText('sitio.boton_ver'), url: `${PROD}/calendario/con-entradas` },
-				{
-					text: renderBotText('sitio.boton_entradas'),
-					url: `${PROD}/calendario/con-entradas/entradas`
-				}
-			]
+			[{ text: renderBotText('sitio.boton_ver'), url: `${PROD}/calendario/con-entradas` }]
 		]);
 		expect(soldout.input_message_content.message_text).toContain('🎟 Agotadas');
 		expect(soldout.reply_markup.inline_keyboard[0]).toHaveLength(1);

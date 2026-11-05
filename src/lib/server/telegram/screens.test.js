@@ -151,7 +151,7 @@ describe('eventScreen', () => {
 	const list = events(7);
 	const ev = list[1];
 
-	it('con foto, lugar, fecha, comprar (verde), calendario, cómo llegar y navegación', () => {
+	it('con foto, lugar, fecha, abrir el evento (no las entradas), calendario, cómo llegar y navegación', () => {
 		const s = eventScreen(
 			ev,
 			{
@@ -170,11 +170,7 @@ describe('eventScreen', () => {
 		expect(s.text).toContain('📍 Lugar de Prueba · Calle Falsa 123');
 		expect(s.text.length).toBeLessThanOrEqual(CAPTION_MAX);
 		expect(s.keyboard[0]).toEqual([
-			{
-				text: '🎟 Comprar en el sitio',
-				url: `${ORIGIN}/calendario/${ev.slug}/entradas`,
-				style: 'success'
-			}
+			{ text: 'Abrir en el sitio', url: `${ORIGIN}/calendario/${ev.slug}` }
 		]);
 		expect(s.keyboard[1].map((b) => b.text)).toEqual(['📅 Agregar al calendario', '🗺 Cómo llegar']);
 		expect(s.keyboard.at(-2)).toEqual([

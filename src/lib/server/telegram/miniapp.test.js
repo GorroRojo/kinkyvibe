@@ -59,7 +59,7 @@ describe('groupByDay', () => {
 		expect(day.events[0]).toMatchObject({
 			place: 'Lugar de Prueba',
 			image: `${ORIGIN}/media/afiche.jpg`,
-			ticket: { text: 'Comprar en el sitio', href: `${ORIGIN}/calendario/x/entradas` }
+			ticket: { text: 'Comprar en el sitio', href: `${ORIGIN}/calendario/x` }
 		});
 	});
 
@@ -116,7 +116,7 @@ describe('los textos de la página («Textos del bot»)', () => {
 		);
 		expect(day.events[0].ticket).toEqual({
 			text: 'Sacá tu entrada',
-			href: `${ORIGIN}/calendario/x/entradas`
+			href: `${ORIGIN}/calendario/x`
 		});
 	});
 });

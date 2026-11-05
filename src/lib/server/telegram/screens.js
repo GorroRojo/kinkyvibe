@@ -460,15 +460,8 @@ export function eventScreen(
 	const rows = [];
 	if (https) {
 		const ticket = info.ticket;
-		if (ticket?.kind === 'buy') {
-			rows.push([
-				{
-					text: botText('eventos.boton_comprar'),
-					url: `${ctx.origin}${ticket.href}`,
-					style: 'success'
-				}
-			]);
-		} else if (ticket?.kind === 'note') {
+		// Comprar se hace desde la página del evento: el botón lleva ahí, no a las entradas.
+		if (ticket?.kind === 'note') {
 			rows.push([{ text: `🎟 ${ticket.text}`, disabled: {} }]);
 		} else {
 			rows.push([{ text: botText('eventos.boton_abrir'), url }]);

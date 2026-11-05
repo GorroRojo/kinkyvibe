@@ -102,7 +102,7 @@ export function groupByDay(
 			href: `${origin}/calendario/${encodeURIComponent(slug)}`,
 			ticket:
 				cta?.kind === 'buy'
-					? { text: buyText, href: `${origin}${cta.href}` }
+					? { text: buyText, href: `${origin}/calendario/${encodeURIComponent(slug)}` }
 					: cta?.kind === 'note'
 						? { text: cta.text, href: null }
 						: null,

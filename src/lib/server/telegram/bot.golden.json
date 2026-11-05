@@ -992,9 +992,8 @@
 		"keyboard": [
 			[
 				{
-					"text": "🎟 Comprar en el sitio",
-					"url": "https://ejemplo.test/calendario/taller-de-cuerdas/entradas",
-					"style": "success"
+					"text": "Abrir en el sitio",
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 				}
 			],
 			[
@@ -2191,10 +2190,6 @@
 				{
 					"text": "Ver en el sitio",
 					"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
-				},
-				{
-					"text": "🎟 Entradas",
-					"url": "https://ejemplo.test/calendario/taller-de-cuerdas/entradas"
 				}
 			]
 		]
@@ -3088,9 +3083,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -3130,9 +3124,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -3178,9 +3171,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -4134,9 +4126,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -4199,9 +4190,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -5705,9 +5695,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -5750,9 +5739,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[

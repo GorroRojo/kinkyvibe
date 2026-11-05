@@ -409,8 +409,8 @@ sin guardarlo).
     mandando sobre el fondo y su texto (el texto, corrido hasta que se lea).
 - **Qué muestra**: la imagen (sin imagen, un flyer hecho con el título), el título, la fecha corta
   de las tarjetas (`argDateList`), el lugar (`placeShort`, como el lugar vinculado de la portada),
-  el resumen (en A y C, no en el celu) y la venta de entradas de las listas (`ticketCta`:
-  «Comprar entradas», «Agotadas»…) más «Saber más». El precio no: tampoco está en las tarjetas.
+  el resumen (en A y C, no en el celu) y el estado de la venta cuando no se puede
+  comprar (`ticketCta`: «Agotadas»…) más «Saber más» (que lleva a la página del evento, donde se compra). El precio no: tampoco está en las tarjetas.
 - **Accesible** (patrón de carrusel de WAI-ARIA): grupo con nombre, diapositivas «N de M», pausa
   primero en el orden del foco, «Evento anterior» / «Evento siguiente» y un punto por evento (una
   sola parada del Tab; entre ellos, con las flechas). Las flechas ← → también andan con el foco en

@@ -383,17 +383,10 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'Ver todo en el sitio'
 		),
 		f(
-			'eventos.boton_comprar',
-			'eventos',
-			'button',
-			'Tarjeta: comprar entradas (verde)',
-			'🎟 Comprar en el sitio'
-		),
-		f(
 			'eventos.boton_abrir',
 			'eventos',
 			'button',
-			'Tarjeta: abrir en el sitio (sin entradas acá)',
+			'Tarjeta: abrir el evento en el sitio (la compra se hace desde ahí)',
 			'Abrir en el sitio'
 		),
 		f(
@@ -1678,13 +1671,6 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'Tarjeta compacta y modo inline: abrir la página en el sitio',
 			'Ver en el sitio',
 			{ help: 'Sin https (en local) va como link en el texto del mensaje.' }
-		),
-		f(
-			'sitio.boton_entradas',
-			'sitio',
-			'button',
-			'Modo inline: la tarjeta de un evento que vende entradas acá',
-			'🎟 Entradas'
 		),
 		f(
 			'sitio.inline_sin_resultados',
