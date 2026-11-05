@@ -34,9 +34,19 @@
 	let keyState = 'checking';
 	let token = '';
 	let anonymous = Boolean(form?.typed?.anonymous);
+	/*
+	 * Lo que alguien marcó o escribió antes de que cargue el JavaScript (en un celu lento pasa)
+	 * no se pisa al hidratar: los campos llevan `checked` y `value` solo si hay algo que devolver
+	 * (después de un error), y al montar se lee la casilla como quedó.
+	 */
+	/** @type {HTMLInputElement | undefined} */
+	let anonInput;
+	/** @param {unknown} v */
+	const valueOf = (v) => (v ? { value: String(v) } : {});
 	let sending = false;
 
 	onMount(async () => {
+		if (anonInput) anonymous = anonInput.checked;
 		if (!ticket) return;
 		token = decodeURIComponent(location.hash.slice(1));
 		if (!token) {
@@ -108,8 +118,9 @@
 	{:else}
 		<h1 id="form-title">{heading}</h1>
 		{#if data.intro}<p class="lead">{data.intro}</p>{/if}
+		<!-- La encuesta ya dice en su texto de arriba que es anónima: no se repite. -->
 		<p class="privacy">
-			{#if data.privacy === 'anonymous'}
+			{#if data.privacy === 'anonymous' && !survey}
 				Es anónimo: no guardamos quién respondió.
 			{:else if data.privacy === 'choose'}
 				Podés responder con tu nombre o anónimamente.
@@ -122,6 +133,7 @@
 		{#if form?.error}<Notice tone="error" role="alert">{form.error}</Notice>{/if}
 		<form
 			method="POST"
+			action="?/send"
 			use:enhance={() => {
 				sending = true;
 				return async ({ result }) => {
@@ -145,7 +157,13 @@
 			{/if}
 			{#if data.privacy === 'choose'}
 				<label class="check anon">
-					<input type="checkbox" name={ANONYMOUS_FIELD} bind:checked={anonymous} />
+					<input
+						bind:this={anonInput}
+						type="checkbox"
+						name={ANONYMOUS_FIELD}
+						{...anonymous ? { checked: true } : {}}
+						on:change={(e) => (anonymous = e.currentTarget.checked)}
+					/>
 					<span
 						>Responder anónimamente <small
 							>Si la marcás, no guardamos tu nombre, tu mail ni tu cuenta.</small
@@ -161,7 +179,7 @@
 							name="nombre"
 							autocomplete="name"
 							maxlength={NAME_MAX}
-							value={typed.name ?? ''}
+							{...valueOf(typed.name)}
 							aria-invalid={errors.nombre ? 'true' : undefined}
 						/>
 						{#if errors.nombre}<span class="field-error">{errors.nombre}</span>{/if}
@@ -173,7 +191,7 @@
 							type="email"
 							autocomplete="email"
 							maxlength={EMAIL_MAX}
-							value={typed.email ?? data.memberEmail ?? ''}
+							{...valueOf(typed.email ?? data.memberEmail)}
 							aria-invalid={errors.mail ? 'true' : undefined}
 						/>
 						{#if errors.mail}<span class="field-error">{errors.mail}</span>{/if}
@@ -182,7 +200,7 @@
 			{:else if data.access === 'account' && data.privacy !== 'anonymous' && !anonymous}
 				<label class="field">
 					<span>Tu nombre <small>(opcional)</small></span>
-					<input name="nombre" autocomplete="name" maxlength={NAME_MAX} value={typed.name ?? ''} />
+					<input name="nombre" autocomplete="name" maxlength={NAME_MAX} {...valueOf(typed.name)} />
 				</label>
 			{/if}
 			<FormQuestions questions={data.questions} {values} {errors} idPrefix="formulario" />

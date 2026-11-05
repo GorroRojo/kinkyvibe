@@ -113,7 +113,7 @@ async function openForm(over = {}) {
 
 /** @param {any} form @param {Record<string, string>} values @param {any} [o] */
 const submit = (form, values, o = {}) =>
-	page.actions.default(
+	page.actions.send(
 		fakeEvent({
 			path: `/formularios/${form.slug}`,
 			params: { slug: form.slug },
@@ -141,6 +141,14 @@ async function thrown(fn) {
 		return e;
 	}
 }
+
+describe('acciones', () => {
+	it('todas con nombre (SvelteKit no deja mezclar `default` con acciones con nombre)', () => {
+		for (const actions of [page.actions, survey.actions]) {
+			expect(Object.keys(actions).sort()).toEqual(['check', 'send']);
+		}
+	});
+});
 
 describe('formulario abierto a cualquiera', () => {
 	it('con el interruptor apagado, 404', async () => {
@@ -274,7 +282,7 @@ describe('encuesta del evento con link personal', () => {
 	const path = `/calendario/${SLUG}/encuesta`;
 	/** @param {Record<string, string>} values */
 	const send = (values) =>
-		survey.actions.default(fakeEvent({ path, params: { event: SLUG }, form: values }));
+		survey.actions.send(fakeEvent({ path, params: { event: SLUG }, form: values }));
 	/** @param {string} clave */
 	const check = async (clave) =>
 		/** @type {any} */ (
