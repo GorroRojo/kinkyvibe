@@ -6,6 +6,9 @@
 	 * `status` ('ok' | 'warn' | 'bad' | 'info' | 'error', opcional: borde de color a la izquierda;
 	 * solo cuando la tarjeta tiene un estado), `filled` (tarjeta llena del color de `status`, para
 	 * destacar; sin `status`, rosa). Sin nada de eso, blanca lisa.
+	 * `surface`: 'panel' (default, los tokens del panel) | 'sitio' (fuera del panel, con los del
+	 * sitio: texto `--ink`, radio `--radius-l`, bordes de estado `--3-ink`, `--4-ink`, `--error`,
+	 * `--2-dark` y llenas sobre los `-tint`).
 	 * Slots: default; `actions` (a la derecha del título, ej. un CsvButton).
 	 */
 	/** @type {string} */
@@ -18,9 +21,17 @@
 	/** @type {'' | 'ok' | 'warn' | 'bad' | 'info' | 'error'} */
 	export let status = '';
 	export let filled = false;
+	/** @type {'panel' | 'sitio'} */
+	export let surface = 'panel';
 </script>
 
-<svelte:element this={tag} class="card {status ? `st-${status}` : ''}" class:padded class:filled>
+<svelte:element
+	this={tag}
+	class="card {status ? `st-${status}` : ''}"
+	class:padded
+	class:filled
+	class:sitio={surface === 'sitio'}
+>
 	{#if title || $$slots.actions}
 		<header>
 			{#if title}<h2>
@@ -113,5 +124,35 @@
 		display: flex;
 		gap: var(--space-2xs);
 		flex-wrap: wrap;
+	}
+	/* Sitio: los tokens del sitio (el panel tiene --text, --card-round, --accent y sus tonos;
+	   el sitio no). Los bordes de estado en el tono oscuro de cada color (3:1 o más contra el
+	   blanco), las llenas sobre su `-tint` con el texto en `--ink`. */
+	.sitio {
+		color: var(--ink);
+		border-radius: var(--radius-l);
+	}
+	.sitio h2 :global(svg) {
+		color: var(--1);
+	}
+	.sitio.st-ok {
+		--st: var(--3-ink);
+		--st-bg: var(--3-tint);
+	}
+	.sitio.st-warn {
+		--st: var(--4-ink);
+		--st-bg: var(--4-tint);
+	}
+	.sitio.st-bad,
+	.sitio.st-error {
+		--st: var(--error);
+		--st-bg: var(--error-bg);
+	}
+	.sitio.st-info {
+		--st: var(--2-dark);
+		--st-bg: var(--2-tint);
+	}
+	.sitio.filled {
+		background: var(--st-bg, var(--1-tint));
 	}
 </style>
