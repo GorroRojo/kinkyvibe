@@ -609,9 +609,39 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   resto, nada. Una línea con el neto: «Fondo: cubrió $ X en descuentos − recibió $ Y en aportes =
   el Fondo le pasa $ Z al evento» (o «el evento le pasa $ Z al Fondo»).
 - **Ingresos por entradas** = preventa + puerta + lo que cubrió el Fondo. Es la base del
-  porcentaje del lugar («IIBB con fondo» de las planillas); la página lo dice. **Otros ingresos**
+  porcentaje del lugar («IIBB con fondo» de las planillas); la página lo dice.
+- **Extras** (gorrite, 5/11: «gastos y reparto tiene que considerar extras ahora»; ver
+  [Extras](#extras)): lo que se pagó por los extras de las órdenes aprobadas (`extras_amount`:
+  online, vendidos en la puerta, con el link de puerta o cargados a mano), a precio de lista. Es un
+  renglón propio de Ingresos («Extras», con el detalle por extra de `order_extras`: «2 × Trago
+  $ 4.000»; las cortesías a $ 0 no suman) y entran en «Ingresos». **No se cuentan dos veces:**
+  `total` es lo de las entradas con el recargo de MP de **todo** (entradas y extras), así que
+  preventa y puerta siguen siendo `total − recargo − aporte`, y los extras se suman aparte, sin
+  recargo. La plata de los extras entró con el mismo pago: la tiene quien tiene esa fuente (la
+  cuenta de MP, la caja de la puerta…); la tabla de Ingresos la suma en «Cobrado» y la página dice
+  cuánto de cada fuente es de extras. Lo entregado (en la puerta o en la barra) no cambia nada:
+  cuenta lo pagado. Las reembolsadas y las transferencias sin confirmar no cuentan, con sus extras.
+  El link de barra solo entrega: no vende, así que no hay extras «vendidos en la barra» aparte.
+  `gross` (lo que se compara para avisar si cambiaron las ventas) sigue siendo lo de las entradas;
+  los extras se comparan aparte, solo en las fotos que los tienen.
+- **Adónde van los extras** (gorrite, #642: «¿puedo elegir adónde van los extras? Por ejemplo,
+  en Gancho Fácil todos los extras van directo al lugar»): en un evento con extras, en Gastos ›
+  Lugar, **«Los extras van:»** (de cada evento, `extrasTo` en el JSON de la cuenta; no se guarda
+  en la regla del lugar):
+  - **«Al reparto»** (por defecto): son ingresos como el resto y el % del lugar no los toca;
+  - **«Todos al lugar»**: todo lo de los extras es del lugar. Es un gasto más del Lugar («Extras:
+    $ X, todo para el lugar»; «Lugar: $ …» y el `venue` del cierre lo suman), así que no llega a
+    la ganancia. En «Quién le pasa a quién», quien tiene esa plata se la pasa al lugar (aunque lo
+    del lugar por su regla ya esté pagado);
+  - **«El lugar cobra su % también sobre los extras»**: los extras suman a la base del % del lugar
+    (con un monto fijo o por hora no cambia nada, y la página lo dice).
+
+  Las cuentas guardadas con la casilla de antes («El lugar también cobra sobre los extras»,
+  `venueOnExtras: true`) pasan a «El lugar cobra su % también sobre los extras» al leerlas
+  (`cleanAccount`). **Otros ingresos**
   (barra, sponsor, efectivo que no se cargó en la puerta): concepto, monto y quién lo tiene; suman
   a los ingresos pero no a la base del lugar.
+
 - **Lugar**, cuatro formas: monto fijo; por hora (horas × precio); porcentaje de los ingresos por
   entradas; porcentaje con un mínimo (fijo o por hora). Se carga en cada evento; si el lugar
   vinculado («Sucede en») tiene una regla guardada, la cuenta nueva arranca con esa. «Guardar como
@@ -663,6 +693,9 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   guardó en el medio, no se pisa y avisa). **Cerrar la cuenta** guarda, congela los números y
   escribe el resumen en `event_account_closings` (entradas, preventa, puerta, Fondo neto, otros
   ingresos, lugar, contrataciones, otros gastos, gastos, Caja KV, ganancia, y la foto de la cuenta).
+  Los **extras** no tienen columna (no hizo falta migración): van en la foto (`income.extras`) y
+  `listClosings`/`getClosing` los leen de ahí (`json_extract`); «Ingresos» ya los suma. Las
+  cuentas cerradas antes de los extras se ven igual que antes, con «Extras $ 0» (`cleanIncome`).
   El resumen no tiene una columna de facilitadores (las planillas no la tenían y con partes libres
   no siempre hay): «Caja KV» es todo lo que termina en la Caja (su parte, la de las partes del
   equipo, los pesos del redondeo y las contrataciones que se dejaron en la caja); lo de cada parte
@@ -671,7 +704,7 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   borra el cierre. Todo queda en Actividad (`event_account.save`, `.close`, `.reopen`,
   `venue.cost_rule`).
 - **Cuentas del año:** los cierres de un año por el mes del evento, con el renglón del año y la
-  lista de eventos.
+  lista de eventos. La columna «Extras» va después de «Fondo neto».
 - **La página** (gorrite, Mesa 5/11: más compacta): arriba, ingresos, gastos, ganancia o pérdida y
   Caja KV; abajo, cuatro tarjetas: **Ingresos** (lo que entró y otros ingresos), **Gastos** (lugar,
   contrataciones y otros gastos), **Reparto** (cada parte: nombre y lo suyo; su regla; sus marcas,
@@ -679,7 +712,7 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   columnas (ingresos y reparto a la izquierda, gastos y quién le pasa a quién a la derecha); en el
   celu, una, en ese orden. Cada renglón de gasto va en una línea si entra.
 - **Cada total dice qué suma** (gorrite, Mesa 5/11), igual en la página, en el resumen de la cuenta
-  cerrada y en Cuentas del año: «Otros ingresos: $ …», «Ingresos», «Lugar: $ …», «Contrataciones:
+  cerrada y en Cuentas del año: «Extras», «Otros ingresos: $ …», «Ingresos», «Lugar: $ …», «Contrataciones:
   $ …», «Otros gastos: $ …», «Gastos» y «Ganancia» o «Pérdida» (sin signo; en la tabla del año,
   «Ganancia o pérdida» con signo). Nunca un «Total» a secas.
 
