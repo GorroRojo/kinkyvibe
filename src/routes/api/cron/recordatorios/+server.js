@@ -9,7 +9,9 @@
  * $lib/server/tickets/reconcile.js),
  * el reintento del mail con las entradas de las órdenes aprobadas cuyo envío falló (ver
  * $lib/server/tickets/unsentOrders.js),
- * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), una vez por hora la salud
+ * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), la encuesta de después
+ * de cada evento y los links de formularios (interruptor `formularios`, ver
+ * $lib/server/formularios/send.js), una vez por hora la salud
  * del webhook del bot (ver $lib/server/telegram/webhookHealth.js), el resumen diario de
  * ventas para admins por Telegram (ver $lib/server/telegram/adminNotify.js) y el registro automático
  * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js) y borra las filas
@@ -45,6 +47,7 @@ import { mailBudgetLeft } from '$lib/server/tickets/mailQueue.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
+import { runFormsCron } from '$lib/server/formularios/send.js';
 import { isFlagOn, listaEsperaEnabled } from '$lib/server/flags.js';
 import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
@@ -142,8 +145,9 @@ export async function POST({ request, platform, url, fetch }) {
 		// Con MAILS_PAUSED, ni las series ni «Lo que sigo» (sus avisos quedan para después).
 		let series = null;
 		let sigo = null;
+		let forms = null;
 		if (mailsOff) {
-			logMailsPaused('los avisos de series ni los de «Lo que sigo»');
+			logMailsPaused('los avisos de series, los de «Lo que sigo» ni los links de formularios');
 		} else {
 			// Series y «Lo que sigo» salen con lo que sobró de la tanda («de a cuántos»): la corrida
 			// entera no la pasa y las entradas y los recordatorios van primero. Con la tanda gastada
@@ -161,6 +165,14 @@ export async function POST({ request, platform, url, fetch }) {
 				sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch, limit: left });
 			} catch (error) {
 				logDBError('cron lo que sigo', error);
+			}
+			if (sigo) left = Math.max(0, left - sigo.sent - sigo.failed);
+			// La encuesta de después de cada evento y los links de formularios (interruptor
+			// `formularios`, docs/formularios.md), también aparte.
+			try {
+				forms = await runFormsCron({ db, platform, origin: siteOrigin(url), fetch, limit: left });
+			} catch (error) {
+				logDBError('cron formularios', error);
 			}
 		}
 		// Los avisos de admins por Telegram (decisión 0041): el resumen diario desde las 9 (hora
@@ -251,6 +263,7 @@ export async function POST({ request, platform, url, fetch }) {
 				...(unsentOrders ? { unsentOrders } : {}),
 				...(series ? { series } : {}),
 				...(sigo ? { sigo } : {}),
+				...(forms ? { forms } : {}),
 				...(telegramAdmin ? { telegramAdmin } : {}),
 				...(telegramAdminDia ? { telegramAdminDia } : {}),
 				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),

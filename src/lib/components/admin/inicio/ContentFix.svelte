@@ -9,7 +9,9 @@
 	 * - `item.shrink` («Portadas pesadas»): «Achicar» baja la imagen original de la biblioteca, la
 	 *   pasa por el mismo achique de la subida (`prepareImage`, con tope de peso), la sube como imagen
 	 *   nueva (`POST /imagenes`, con sus copias chicas) y cambia la portada con `?/portada`. La
-	 *   original queda en la biblioteca.
+	 *   original queda en la biblioteca. Solo si la copia pesa bastante menos (`muchLighter`: como
+	 *   mucho 300 KB, o un 15 % menos); si no, no sube nada y lo dice. «Dejarla así»
+	 *   (`?/portadaAsi`) la saca de la lista sin tocarla; el Inicio ofrece «Deshacer».
 	 *
 	 * Los campos y botones son las piezas del panel (`Field`, `Button`; formControls.test.js).
 	 *
@@ -22,7 +24,13 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import ImageViewer from '$lib/components/admin/panel/ImageViewer.svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { HEAVY_COVER_BYTES, appendCopies, prepareImage } from '$lib/utils/imageResize.js';
+	import {
+		HEAVY_COVER_BYTES,
+		appendCopies,
+		kbText,
+		muchLighter,
+		prepareImage
+	} from '$lib/utils/imageResize.js';
 	import { ALT_MAX } from '$lib/utils/imageAlt.js';
 
 	/** @type {import('$lib/server/admin/inicio.js').ReviewItem} */
@@ -46,9 +54,6 @@
 	$: inputId = `fix-${item.id}`;
 	$: photoName = item.altFix ? `foto ${item.altFix.index + 1} de ${item.title}` : '';
 
-	/** @param {number} bytes */
-	const kb = (bytes) => `${Math.round(bytes / 1024)} KB`;
-
 	async function shrink() {
 		const s = item.shrink;
 		if (!s || busy) return;
@@ -67,8 +72,14 @@
 			const file = new File([blob], s.title || 'portada', { type: blob.type });
 			busy = 'Achicando…';
 			const prepared = await prepareImage(file, {}, { targetBytes: HEAVY_COVER_BYTES });
-			if (!prepared.converted || prepared.blob.size >= s.size) {
+			if (!prepared.converted) {
 				error = 'No se pudo hacer una copia más liviana en este navegador. Probá desde otro.';
+				return;
+			}
+			if (!muchLighter(s.size, prepared.blob.size)) {
+				// Ni con el lado más chico y la calidad más baja que permitimos alcanza: no se sube.
+				const best = Math.min(prepared.blob.size, s.size);
+				error = `No se pudo bajar de ${kbText(HEAVY_COVER_BYTES)} sin que se vea mal (queda en ${kbText(best, best === s.size ? undefined : s.size)}). Si se ve bien así, tocá «Dejarla así».`;
 				return;
 			}
 			busy = 'Subiendo la copia…';
@@ -175,7 +186,7 @@
 		/>
 		<div class="grow">
 			<span class="head"
-				><b>{item.title}</b> · <span class="size">{kb(item.shrink.size)}</span>
+				><b>{item.title}</b> · <span class="size">{kbText(item.shrink.size)}</span>
 				{#if item.href}<a href={item.href}>{item.action}</a>{/if}</span
 			>
 			<div class="row">
@@ -192,6 +203,23 @@
 				<Button variant="secondary" busy={Boolean(busy)} disabled={Boolean(busy)} on:click={shrink}
 					>Achicar</Button
 				>
+				<form
+					method="POST"
+					action="?/portadaAsi"
+					use:enhance={() => {
+						error = '';
+						busy = 'Guardando…';
+						return async ({ update }) => {
+							await update({ reset: false });
+							busy = '';
+						};
+					}}
+				>
+					<input type="hidden" name="item" value={item.id} />
+					<input type="hidden" name="image" value={item.shrink.imageId} />
+					<input type="hidden" name="owner" value={item.shrink.ownerId} />
+					<Button type="submit" variant="secondary" disabled={Boolean(busy)}>Dejarla así</Button>
+				</form>
 			</div>
 			{#if error}<p class="kv-flash bad" role="alert">
 					{error}

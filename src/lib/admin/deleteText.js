@@ -25,6 +25,8 @@ const TEMPLATE_ROW = /^plantilla:[^:]+:[a-z_]+$/;
 const FIELD_ROW = /^pregunta:[1-9]\d*$/;
 const ROLE_ROW = /^rol:.+$/;
 const NOTE_ROW = /^nota:[1-9]\d*$/;
+/** Un formulario o la encuesta de un evento (ver `formDeletionPath`). */
+const FORM_ROW = /^formulario:([1-9]\d*)$/;
 /** El `slug` de una nota: el id corto de la persona, o `cuenta:<id>` (una cuenta borrada). */
 const NOTE_PERSON = /^[0-9a-f]{16}$/;
 const NOTE_ACCOUNT = /^cuenta:(.+)$/;
@@ -52,6 +54,7 @@ export function deletionLabel({ kind, path = '' }) {
 	if (FIELD_ROW.test(path)) return { label: 'Pregunta de inscripción', library: false };
 	if (ROLE_ROW.test(path)) return { label: 'Rol', library: false };
 	if (NOTE_ROW.test(path)) return { label: 'Nota interna', library: false };
+	if (FORM_ROW.test(path)) return { label: 'Formulario', library: false };
 	return { label: KIND_LABELS[kind] ?? kind, library: false };
 }
 
@@ -68,6 +71,10 @@ export function deletionLink({ path = '', slug = '' }) {
 			? { href: `/admin/eventos/${encodeURIComponent(slug)}/preguntas`, text: slug }
 			: { href: '/admin/eventos/roles', text: 'pregunta general' };
 	if (ROLE_ROW.test(path)) return { href: '/admin/eventos/roles', text: 'Roles y preguntas' };
+	if (FORM_ROW.test(path))
+		return slug
+			? { href: `/admin/eventos/${encodeURIComponent(slug)}/encuesta`, text: slug }
+			: { href: '/admin/comunidad/formularios', text: 'Formularios' };
 	if (NOTE_ROW.test(path)) {
 		if (NOTE_PERSON.test(slug))
 			return { href: `/admin/comunidad/personas/${slug}`, text: 'ver la ficha' };

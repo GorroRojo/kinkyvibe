@@ -692,6 +692,7 @@ const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
 	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón',
 	[ACCOUNT_EVENT_ACTIONS.venueResubmitted]: 'Lugar para aprobar · Mi rincón',
 	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón',
+	[ACCOUNT_EVENT_ACTIONS.formResponsesViewed]: 'Respuestas de formularios · Mi rincón',
 	[ACCOUNT_EVENT_ACTIONS.profileEdited]: 'Perfil editado · Mi rincón'
 });
 
@@ -1129,6 +1130,7 @@ export function upcomingEvents({
  *   group?: ReviewGroupKind,
  *   name?: string,
  *   retryReminders?: { slug: string },
+ *   retryFormSends?: { formId: number },
  *   altFix?: { profileId: number, index: number, src: string, thumb: string },
  *   shrink?: { ownerId: number, imageId: number, url: string, title: string, alt: string, size: number }
  * }} ReviewItem

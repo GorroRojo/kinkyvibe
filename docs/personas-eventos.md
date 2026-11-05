@@ -155,6 +155,16 @@ Topes: 10 preguntas propias por evento, 30 generales, 12 opciones por pregunta, 
 pregunta y 500 por respuesta. En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
 solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de siempre.
 
+**Editor compartido** (gorrite, 5/11: siempre, sin interruptor). Las preguntas propias de un
+evento y las generales se editan con el mismo editor que los formularios
+([formularios.md](formularios.md)): una tarjeta por pregunta, ↑ ↓ (y arrastrar en la compu),
+«Duplicar», «Sacar» y vista previa, y un solo «Guardar preguntas» (`?/saveFields`). Los datos son
+los de siempre (`signup_fields`); el orden va en `position` y las que ya había quedan en el que
+tenían. Sacar una pide confirmar y es el mismo borrado suave (se recupera desde Actividad). El CSV
+de las preguntas está arriba de cada lista. El editor de antes (una pregunta por vez) se borró.
+Al duplicar un evento, la copia lleva sus preguntas propias (en su orden) y la elección de
+generales (`copyEventSignupFields`).
+
 ### Respuestas para les organizadores
 
 Decisión de gorrite: además de les admins, ven las respuestas quienes **gestionan** (dueñes o
@@ -187,20 +197,20 @@ en el `personas:` de ese evento. Solo las de sus eventos.
 
 ## Dónde está el código
 
-| Qué                              | Dónde                                                                                                                                                                    |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Reglas puras de roles            | `src/lib/utils/personas.js`                                                                                                                                              |
-| Quién se muestra, editor, perfil | `src/lib/server/personas/index.js`                                                                                                                                       |
-| Lista de roles                   | `src/lib/server/personas/roles.js`                                                                                                                                       |
-| Respuestas para organizadores    | `src/lib/server/personas/organiza.js`, `src/routes/(content)/mi-rincon/perfiles/[slug]/respuestas/`                                                                      |
-| Entrada y acciones del panel     | `src/lib/server/personas/admin.js`                                                                                                                                       |
-| Reglas puras de preguntas        | `src/lib/utils/signupFields.js`                                                                                                                                          |
-| Preguntas y respuestas en D1     | `src/lib/server/tickets/signupFields.js`                                                                                                                                 |
-| Componentes públicos             | `PersonasConRol.svelte`, `ParticipacionesPorRol.svelte`, `SignupFieldInputs.svelte`                                                                                      |
-| Lista única (md ⇄ base)          | `src/lib/utils/personasList.js` (y `personasPicker.js`, el formulario)                                                                                                   |
-| Componentes del panel            | `admin/event-form/PersonasSection.svelte`, `PersonasField.svelte`, `SignupFieldForm.svelte`, `SignupFieldList.svelte`, `OrderAnswers.svelte`, `GeneralFieldScope.svelte` |
-| Migración                        | `migrations/0018_personas_eventos.sql`, `migrations/0026_preguntas_alcance.sql`                                                                                          |
-| Datos de demo (solo preview)     | `scripts/demo/n3-personas.sql`                                                                                                                                           |
+| Qué                              | Dónde                                                                                                                                                      |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reglas puras de roles            | `src/lib/utils/personas.js`                                                                                                                                |
+| Quién se muestra, editor, perfil | `src/lib/server/personas/index.js`                                                                                                                         |
+| Lista de roles                   | `src/lib/server/personas/roles.js`                                                                                                                         |
+| Respuestas para organizadores    | `src/lib/server/personas/organiza.js`, `src/routes/(content)/mi-rincon/perfiles/[slug]/respuestas/`                                                        |
+| Entrada y acciones del panel     | `src/lib/server/personas/admin.js`                                                                                                                         |
+| Reglas puras de preguntas        | `src/lib/utils/signupFields.js`                                                                                                                            |
+| Preguntas y respuestas en D1     | `src/lib/server/tickets/signupFields.js`                                                                                                                   |
+| Componentes públicos             | `PersonasConRol.svelte`, `ParticipacionesPorRol.svelte`, `SignupFieldInputs.svelte`                                                                        |
+| Lista única (md ⇄ base)          | `src/lib/utils/personasList.js` (y `personasPicker.js`, el formulario)                                                                                     |
+| Componentes del panel            | `admin/event-form/PersonasSection.svelte`, `PersonasField.svelte`, `forms/SignupQuestionsEditor.svelte`, `OrderAnswers.svelte`, `GeneralFieldScope.svelte` |
+| Migración                        | `migrations/0018_personas_eventos.sql`, `migrations/0026_preguntas_alcance.sql`                                                                            |
+| Datos de demo (solo preview)     | `scripts/demo/n3-personas.sql`                                                                                                                             |
 
 ## Cómo probarlo
 
