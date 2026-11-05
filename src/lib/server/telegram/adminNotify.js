@@ -474,7 +474,7 @@ export async function pruneSentNotices(db, now) {
  *   recipients: { telegramUserId: string, githubId: number }[] }} input
  * @returns {Promise<{ sent: number, failed: number, skipped: number }>}
  */
-async function deliverOnce({ db, send, key, message, now, recipients }) {
+export async function deliverOnce({ db, send, key, message, now, recipients }) {
 	const out = { sent: 0, failed: 0, skipped: 0 };
 	for (const r of recipients) {
 		if (!(await claimNotice(db, r.githubId, key, now))) {
