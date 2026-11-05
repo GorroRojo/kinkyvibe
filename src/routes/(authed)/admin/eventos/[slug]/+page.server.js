@@ -211,6 +211,8 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 			});
 		}
 	}
+	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
+	const venue = await venueP;
 	// Borrador del panel (`borrador: true` y no listado): «Confirmar», con lo que le falta.
 	const draft = Boolean(event.draft && event.unlisted);
 	const missing = draft
@@ -223,11 +225,10 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 				authors: event.authors,
 				link: event.link,
 				tickets: Boolean(event.sellsTickets),
-				status: event.status
+				status: event.status,
+				hasVenue: Boolean(venue)
 			})
 		: [];
-	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
-	const venue = await venueP;
 	// Formularios de este evento (interruptor `formularios`, docs/formularios.md): la encuesta y los
 	// que lo eligieron, con links. `null` apagado (la tarjeta no se ve).
 	const forms = await formsFor(db, platform, params.slug);
