@@ -2,7 +2,7 @@
 	import { argDateLog } from '$lib/utils/dates.js';
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { enhance } from '$app/forms';
-	import { Check, Send, X } from '@lucide/svelte';
+	import { Check, ClipboardList, Send, X } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import DoorLinksCard from '$lib/components/admin/DoorLinksCard.svelte';
 	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
@@ -210,6 +210,44 @@
 		</section>
 	{/if}
 
+	{#if data.forms}
+		<!-- Formularios de este evento (interruptor `formularios`, docs/formularios.md). -->
+		<Card title="Formularios de este evento">
+			{#if data.forms.length}
+				<ul class="forms">
+					{#each data.forms as f (f.id)}
+						<li>
+							<a href="/admin/comunidad/formularios/{f.id}"
+								>{f.kind === 'survey' ? 'Encuesta de después del evento' : f.title}</a
+							>
+							<Badge tone={f.open ? 'ok' : 'neutral'}
+								>{f.kind === 'survey'
+									? f.open
+										? 'Se manda'
+										: 'Apagada'
+									: f.open
+										? 'Abierto'
+										: 'Cerrado'}</Badge
+							>
+							<a class="small-link" href="/admin/comunidad/formularios/{f.id}/respuestas"
+								>{f.responses === 1 ? '1 respuesta' : `${f.responses} respuestas`}</a
+							>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="muted small">Todavía no tiene formularios.</p>
+			{/if}
+			<p class="forms-links">
+				{#if e.sellsTickets}<a href={eventHref(e.slug, 'encuesta')}>Encuesta (Mails › Encuesta)</a
+					>{/if}
+				<a href="/admin/comunidad/formularios"
+					><ClipboardList size={14} aria-hidden="true" /> Todos los formularios</a
+				>
+			</p>
+		</Card>
+	{/if}
+
 	{#if data.doorLinks}
 		<!-- Links de puerta (docs/tickets.md, «Link de puerta»): presenciales con entradas. -->
 		<DoorLinksCard doorLinks={data.doorLinks} result={form?.doorLink ?? null} />
@@ -219,6 +257,31 @@
 <DeleteLink kind="calendario" slug={e.slug} label="Borrar evento…" />
 
 <style>
+	.forms {
+		list-style: none;
+		margin: 0 0 var(--space-2xs);
+		padding: 0;
+		display: grid;
+		gap: var(--space-3xs);
+	}
+	.forms li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3xs) var(--space-2xs);
+	}
+	.forms-links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-3xs) var(--space-s);
+		margin: 0;
+		font-size: var(--text-sm);
+	}
+	.forms-links a {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
 	.waitlist-chip {
 		margin: 0 0 var(--space-xs);
 	}

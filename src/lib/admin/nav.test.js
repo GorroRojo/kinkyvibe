@@ -205,7 +205,13 @@ describe('NAV', () => {
 			'entradas-codigos',
 			'tienda'
 		]);
-		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas', 'avisos-puerta']);
+		expect(ids('comunidad')).toEqual([
+			'personas',
+			'amigues',
+			'cuentas',
+			'formularios',
+			'avisos-puerta'
+		]);
 		expect(ids('mensajes')).toEqual([
 			'ajustes-plantillas',
 			'ajustes-mails',
@@ -364,7 +370,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas', 'estadisticas-bot']]
 		]);
 		expect(blocks('comunidad')).toEqual([
-			['', ['personas', 'amigues', 'cuentas', 'avisos-puerta']],
+			['', ['personas', 'amigues', 'cuentas', 'formularios', 'avisos-puerta']],
 			['Mensajes', ['ajustes-plantillas', 'ajustes-mails', 'lo-que-sigo', 'bandeja']]
 		]);
 		expect(blocks('contenido')).toEqual([
@@ -381,7 +387,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		expect(
 			navGroupSections('comunidad', { hideSoon: true }).map((s) => [s.label, s.items.length])
 		).toEqual([
-			['', 4],
+			['', 5],
 			['Mensajes', 3]
 		]);
 	});
@@ -457,6 +463,7 @@ describe('sectionTabs (pestañas de sección)', () => {
 			'Personas',
 			'Perfiles',
 			'Cuentas',
+			'Formularios',
 			'Avisos de puerta',
 			'Plantillas',
 			'Configuración',
@@ -612,7 +619,7 @@ describe('navLink y navState', () => {
 		}
 	});
 	it('navFlagKeys: los interruptores que usa el menú, sin repetir', () => {
-		expect(navFlagKeys().sort()).toEqual([]);
+		expect(navFlagKeys().sort()).toEqual(['formularios']);
 	});
 	it('areaCount suma los contadores de las secciones del área', () => {
 		expect(areaCount('ventas', { transfers: 3 })).toBe(3);
@@ -710,8 +717,14 @@ describe('links a la ficha del evento', () => {
 		}
 		const views = (/** @type {string} */ id) =>
 			EVENT_TABS.find((t) => t.id === id)?.views?.map((v) => v.suffix);
-		expect(views('ventas')).toEqual(['/ventas', '/ordenes', '/transferencias', '/lista-espera']);
-		expect(views('mails')).toEqual(['/mail', '/mails']);
+		expect(views('ventas')).toEqual([
+			'/ventas',
+			'/ordenes',
+			'/transferencias',
+			'/lista-espera',
+			'/gastos'
+		]);
+		expect(views('mails')).toEqual(['/mail', '/mails', '/encuesta']);
 	});
 	it('eventTabOf: la pestaña y la vista de cada dirección (y de sus subpáginas)', () => {
 		const of = (/** @type {string} */ path) => {

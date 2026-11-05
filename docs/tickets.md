@@ -571,6 +571,104 @@ Código: `src/lib/utils/salesGoal.js` (leer, formulario, lo neto, `goalProgress`
 `ticketTotals` y `upcomingEvents` (`admin/inicio.js`), `goal`/`revenue`/`mpFee` en las filas de
 Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y `SalesGoalField.svelte`.
 
+### Gastos y reparto
+
+Pedido de gorrite (27/10: «gastos y reparto de la plata en el sitio para la mayoría de los
+eventos»; ítem `gastos-reparto` del [plan](plan.md)). El prototipo (#549) se rehízo con lo que
+decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_reparto`** (apagado;
+[interruptores.md](interruptores.md)), solo admins. Migración `0078_gastos_reparto.sql`
+([datos.md](datos.md)).
+
+- **Para qué eventos:** solo los que venden entradas por el sitio. Las cuentas del Club de Hosts
+  (fichines, barra) son otro caso, para más adelante (`club-hosts-cuentas` en el plan). IIBB y
+  facturas, todavía no (esperan a quien lleva la facturación).
+- **Dónde:** la ficha del evento › Ventas › **Gastos y reparto** (`/admin/eventos/<slug>/gastos`)
+  y **Ventas › Cuentas del año** (`/admin/ventas/cuentas`, el botón está en Ventas). Con el
+  interruptor apagado no se ven y las dos direcciones dan 404.
+- **Lo que entró** sale de las órdenes del evento (`eventIncome` en `src/lib/admin/reparto.js`):
+  solo las aprobadas, por fuente (MP online, transferencias online, la puerta por medio de pago, lo
+  cargado a mano), con **preventa** (online y a mano) y **puerta** sin el recargo de MP (lo pagó
+  quien compró y se lo quedó MP) ni los aportes al Fondo. Las reembolsadas y las transferencias sin
+  confirmar no cuentan (se dice cuántas son).
+- **El Fondo**, sin casillas, orden por orden: con el descuento del Fondo, el Fondo pone lo que
+  cubrió (`fondo_amount`); con una solidaria, el aporte es del Fondo (`fondo_contribution`); el
+  resto, nada. Una línea con el neto: «Fondo: cubrió $ X en descuentos − recibió $ Y en aportes =
+  el Fondo le pasa $ Z al evento» (o «el evento le pasa $ Z al Fondo»).
+- **Ingresos por entradas** = preventa + puerta + lo que cubrió el Fondo. Es la base del
+  porcentaje del lugar («IIBB con fondo» de las planillas); la página lo dice. **Otros ingresos**
+  (barra, sponsor, efectivo que no se cargó en la puerta): concepto, monto y quién lo tiene; suman
+  a los ingresos pero no a la base del lugar.
+- **Lugar**, cuatro formas: monto fijo; por hora (horas × precio); porcentaje de los ingresos por
+  entradas; porcentaje con un mínimo (fijo o por hora). Se carga en cada evento; si el lugar
+  vinculado («Sucede en») tiene una regla guardada, la cuenta nueva arranca con esa. «Guardar como
+  regla de <lugar>» la guarda en `venue_cost_rules` (aparte de los datos del perfil, que se ven en
+  su página y los edita quien lo gestiona; las horas no se guardan). Sin regla: 30 % (talleres).
+- **Contrataciones** (quien cobra un monto fijo: Monitorea, Anfitrione, Fotografía, Técnica, con
+  atajos; gorrite, Mesa 5/11): concepto, monto, «Es del equipo de KV» y, si lo es, «Cobra» o «Lo
+  deja en la caja» (entonces va a la Caja KV). **Otros gastos**: concepto
+  y monto, con atajos. Cada gasto, el lugar y cada contratación: quién pagó (Caja KV, une
+  facilitadore o «Falta pagarlo») y «pagado el». Nunca alias ni CBU.
+- **Reparto** (gorrite, 5/11: «que el reparto sea más flexible… que se pueda hacer cualquier
+  cosa»): ganancia = ingresos − lugar − contrataciones − otros gastos, y se reparte entre una lista
+  libre de **partes** (una persona, la producción, la Caja KV, otra organización), que se suman,
+  sacan y reordenan. Cada parte tiene nombre, «Es del equipo de KV» (lo suyo va a la Caja KV) y una
+  regla: **Porcentaje** (de la ganancia), **Monto fijo** o **Lo que sobra** (las de «lo que sobra»
+  se reparten en partes iguales lo que queda después de los porcentajes y los montos fijos). Cada
+  parte se redondea para abajo; la Caja KV se queda con los pesos del redondeo, y con todo si no
+  hay partes. La parte «Caja KV» (id `caja`) es la de la Caja misma. Avisos (y entonces no reparte
+  ni deja cerrar): porcentajes que pasan de 100 %, montos fijos (o fijos más porcentajes) que pasan
+  de la ganancia, y «Sin repartir: $ X» si sobra plata y ninguna parte se lleva lo que sobra.
+  Atajos: **Lo de siempre** (la regla de talleres: 30 % para la producción, entre la Caja KV y
+  quienes co-producen en partes iguales, y lo que sobra entre les facilitadores; si ya hay partes,
+  pregunta), «+ Facilitadore» (lo que sobra), «+ Co-produce» (un porcentaje), «+ Caja KV» y «+ Otra
+  parte». «Facilita» y «Co-produce» son solo marcas de la parte (para los atajos y el nombre que se
+  ve si no tiene: «Facilitadore 1», «Co-productore 1», «Parte 1»); no cambian la cuenta. Ejemplo
+  con lo de siempre: Mel (equipo) + Memi → Memi 35 %, Caja KV 65 %. **Con pérdida** («Si hay
+  pérdida, la ponen»): **Solo las marcadas** («Pone si hay pérdida»; lo de siempre marca la Caja
+  KV y quienes co-producen, como decidió gorrite en la Mesa 4/11) o **Todas las partes**, cada una
+  según su parte: su porcentaje; las de «lo que sobra» se reparten el porcentaje que queda; un
+  monto fijo no pone (lo que se paga igual va en Contrataciones); si ninguna elegida tiene parte,
+  en partes iguales; sin ninguna marcada, la pone la Caja KV. Se ve como «pone $ …» en el reparto y
+  en «Quién le pasa a quién»; la Caja KV pone los pesos del redondeo y lo de las partes del equipo.
+- **Cuentas guardadas antes de las partes** (con `split`, `people` y `coproducers`):
+  `cleanAccount` las pasa a partes al leerlas (`legacyParts`; el JSON de `event_accounts` no
+  cambia de tabla, no hizo falta migración) y dan los mismos números: la Caja KV con
+  `productionPct` × lo que le quedaba de la producción, cada co-productore con `productionPct` × su
+  parte, cada facilitadore con «lo que sobra» (partes iguales) o `(100 − productionPct)` × su
+  porcentaje; sin facilitadores, la Caja KV se lleva lo que sobra y cada co-productore su parte del
+  total. «Quienes producen» pasa a «Solo las marcadas» (Caja KV y co-productores marcades) y
+  «Todes, como la ganancia» a «Todas las partes». Lo que antes era un error (porcentajes de
+  facilitadores que no sumaban 100, co-productores de más de 100 %) sigue avisando. En casos de
+  redondeo raros (ganancias que no dan pesos enteros) una parte puede variar en un peso a favor o
+  en contra de la Caja KV. Al guardar, ya se guarda con partes.
+- **Quién le pasa a quién:** cada fuente de plata y cada otro ingreso lo tiene alguien (sin
+  elegir, la Caja KV). Saldo = lo que le toca + lo que puso − la plata del evento que tiene; el
+  Fondo, el lugar sin pagar y cada gasto o contratación sin pagar entran como una parte más. El
+  que más debe le paga al que más le deben (a lo sumo una transferencia menos que las partes).
+- **Guardar** guarda todo en `event_accounts` (un JSON por evento, con versión: si otre admin
+  guardó en el medio, no se pisa y avisa). **Cerrar la cuenta** guarda, congela los números y
+  escribe el resumen en `event_account_closings` (entradas, preventa, puerta, Fondo neto, otros
+  ingresos, lugar, contrataciones, otros gastos, gastos, Caja KV, ganancia, y la foto de la cuenta).
+  El resumen no tiene una columna de facilitadores (las planillas no la tenían y con partes libres
+  no siempre hay): «Caja KV» es todo lo que termina en la Caja (su parte, la de las partes del
+  equipo, los pesos del redondeo y las contrataciones que se dejaron en la caja); lo de cada parte
+  queda en la foto.
+  Cerrada, la página muestra la foto y avisa si después cambiaron las ventas; **Reabrir la cuenta**
+  borra el cierre. Todo queda en Actividad (`event_account.save`, `.close`, `.reopen`,
+  `venue.cost_rule`).
+- **Cuentas del año:** los cierres de un año por el mes del evento, con el renglón del año y la
+  lista de eventos.
+- **La página** (gorrite, Mesa 5/11: más compacta): arriba, ingresos, gastos, ganancia o pérdida y
+  Caja KV; abajo, cuatro tarjetas: **Ingresos** (lo que entró y otros ingresos), **Gastos** (lugar,
+  contrataciones y otros gastos), **Reparto** (cada parte: nombre y lo suyo; su regla; sus marcas,
+  y subir, bajar o sacar) y **Quién le pasa a quién**. En la compu van en dos
+  columnas (ingresos y reparto a la izquierda, gastos y quién le pasa a quién a la derecha); en el
+  celu, una, en ese orden. Cada renglón de gasto va en una línea si entra.
+- **Cada total dice qué suma** (gorrite, Mesa 5/11), igual en la página, en el resumen de la cuenta
+  cerrada y en Cuentas del año: «Otros ingresos: $ …», «Ingresos», «Lugar: $ …», «Contrataciones:
+  $ …», «Otros gastos: $ …», «Gastos» y «Ganancia» o «Pérdida» (sin signo; en la tabla del año,
+  «Ganancia o pérdida» con signo). Nunca un «Total» a secas.
+
 ### Lista de espera (en construcción)
 
 Cuando un evento (o un tipo de entrada) se agota, la gente se anota en una lista; si se libera un
@@ -910,6 +1008,31 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
   Código: `paymentAmounts` y `recordPaymentAmounts` en `src/lib/server/tickets/orders.js`.
 - **«Reembolsar todas» (evento cancelado, decisión [0051](decisiones/0051-reembolsar-todas-evento-cancelado.md)):** en la pestaña Órdenes de un evento con `status: cancelado`, arriba, un bloque con cuántas órdenes de Mercado Pago quedan sin reembolsar y por cuánto en total (`refundAllPreview` en `src/lib/server/admin/refunds.js`: aprobadas, `payment_method = 'mercadopago'`, con número de pago y compradas online). El total, cada orden del resumen y la Actividad usan **lo que queda por devolver** de cada orden: su total menos el reembolso parcial ya hecho en MP (`refunded_amount`, `orderRevenue` / `REVENUE_SQL`); una orden a la que no le queda nada no se cuenta ni se le pide a MP. El pedido a MP sigue siendo el reembolso total (body vacío): MP no deja que lo reembolsado de un pago pase lo pagado, así que nunca devuelve de más. Lo mismo en «Reembolsar…» de una orden: el monto que muestra es lo que queda. Solo admins. «Reembolsar todas…» abre la confirmación en la misma página: hay que escribir **REEMBOLSAR**, y el servidor rechaza si el evento no está cancelado o si la cantidad o el total que vio le admin ya no son los de ahora. La acción `refundAll` (`eventActions.js`) las reembolsa **de a 10 por pedido** (`REFUND_ALL_BATCH`), una después de otra y en orden de compra, cada una con **el mismo paso que «Reembolsar…»** (`refundFromPanel`: MP con `refund-<orden>` y después `refundOrder`; `afterRefund`: Actividad `order.refund`, el mismo mail «Reembolsamos tu compra» y la lista de espera). Si quedan más, «Seguir con las N que faltan» continúa después de la última vista. Nunca reembolsa dos veces (lo reembolsado no se vuelve a pedir; dos pedidos a la vez mandan la misma clave a MP y marcan la orden una vez). Si `refundPayment` da error (o se corta), se consulta el pago (`getPayment`): si MP ya lo tiene reembolsado, la orden se marca con el mismo `refundOrder` y cuenta como hecha; si no, se vuelve a leer la orden (si el webhook la marcó mientras tanto, «ya estaba»). Esto vale también para «Reembolsar…» de una orden. Lo que MP rechaza queda aprobado y el resumen pide revisar el pago en Mercado Pago antes de devolverlo a mano (para no pagarlo dos veces). Un error en una orden no corta la tanda (queda «not-marked», para revisar), y el resumen y la Actividad se anotan igual. Un «Seguir» con una orden que no es de este evento se rechaza (400) en vez de volver a empezar sin el control de cantidad y total; cada tanda queda en Actividad (`event.refund_all`) y en el log. Las aprobadas que no son de MP online (puerta, carga a mano, transferencia) se listan aparte como **«Para devolver a mano»** y no se tocan; las sin cargo solo se cuentan.
 
+### Compras para facturar
+
+Una casilla **«Facturada»** por compra, para que quien factura (una de les admins) sepa cuáles le
+faltan. Solo admins: ni les organizadores ni la página pública la ven. Código:
+`src/lib/server/admin/invoiced.js`; migración 0076 (`orders.invoiced_at`, `orders.invoiced_by`).
+
+- **Qué compra es para facturar** (`TO_INVOICE_SQL` / `countsForInvoicing`): aprobada
+  (`status = 'approved'`), con `total > 0` y que no se devolvió entera (lo cobrado menos los
+  reembolsos parciales de MP, `REVENUE_SQL`, mayor que 0). Cualquier canal y medio: online, puerta
+  y cargada a mano cobrada. No entran las cortesías ni lo que salió $ 0 a la gorra (el canal
+  `cortesia` de la [regla de canales](#canal-de-venta-una-sola-regla)), las reservas sin pagar ni
+  las reembolsadas.
+- **Ventas › Órdenes** de cada evento: cada compra para facturar tiene la casilla; se guarda apenas
+  se toca (acción `invoiced`, también sin JavaScript con «Guardar») y marcada dice «Facturada el
+  2/11/26 13:43 por gorrite». Se puede desmarcar. «Mostrar» tiene «Sin facturar».
+- **Ventas › Compras para facturar** (`/admin/ventas/facturar`, botón «Para facturar» con el número
+  en Ventas): las que faltan de todos los eventos, de la más vieja a la más nueva y agrupadas por
+  **mes de compra** (hora de Argentina; no el mes del evento), con la misma casilla. Cada mes puede
+  mostrar también sus facturadas (`?mes=AAAA-MM`); los meses al día van abajo. Muestra las 500 más
+  viejas como mucho.
+- Cada cambio queda en Actividad (`order.invoiced` / `order.uninvoiced`, «Marcó como facturada la
+  orden KV-…» / «Desmarcó como facturada la orden KV-…»). Marcar no toca `updated_at` (que el
+  panel y el bot usan como el momento de la venta).
+- El CSV de órdenes trae la columna `facturada` (la fecha, o vacía).
+
 ### Mails y recordatorios
 
 - **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en **Mensajes → Configuración** (donde también se editan los textos de cada mail: ver [mails.md](mails.md)); si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
@@ -1105,7 +1228,7 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 - **Compras de este navegador:** la cookie httpOnly `kv_orders` (`path=/entradas`, 7 días) guarda las últimas 5 órdenes como `<orden>.<firma>`, separadas por `~`; la firma es `signLink` con la clave `orders_cookie_key` (se crea sola en `ticket_settings`, ver `signedLinks.js`), cortada a 16 caracteres. `rememberedOrders` (`checkout.js`) solo cuenta las entradas con la firma que puso el servidor; las demás se ignoran (las cookies viejas, sin firma, dejan de contar y la página de estado muestra la compra como a cualquiera: sin entradas y con el email enmascarado).
 - **Admin:** cada `load`, cada form action y el CSV llaman a `requireAdmin` en el servidor (las form actions y los `+server.js` no pasan por el layout).
 - **Mocks:** detrás de `dev` de `$app/environment`, que es `false` en el build: el módulo del mock, la sesión falsa y el fixture no llegan al worker de producción.
-- **CSV:** se arma con `toCsv`/`csvResponse` (`$lib/admin/csv.js`), como los demás del panel: celdas que empiezan con `= + - @` se escapan (inyección de fórmulas), un texto con forma de notación científica (un código corto como `234E56`, que Excel y Sheets volverían número) va con `'` adelante, y las fechas (`fecha`, `ingreso`, `reembolsada_el`) van en hora de Argentina, `2026-10-02 22:30`. El `estado` de `ordenes.csv` es el que muestra el panel (una reserva vencida que todavía no se marcó sale `expired`) y, antes de `pago_mp` y `confirmo` (que sigue siendo la última columna fija, antes de las preguntas), van `canal` (online, puerta, cortesía o cargada a mano: la regla de [Canal de venta](#canal-de-venta-una-sola-regla)), `nota` (la de la carga a mano o la puerta), `reembolsada_el` y `reembolsada_por` («Mercado Pago» si llegó por el webhook).
+- **CSV:** se arma con `toCsv`/`csvResponse` (`$lib/admin/csv.js`), como los demás del panel: celdas que empiezan con `= + - @` se escapan (inyección de fórmulas), un texto con forma de notación científica (un código corto como `234E56`, que Excel y Sheets volverían número) va con `'` adelante, y las fechas (`fecha`, `ingreso`, `reembolsada_el`, `facturada`) van en hora de Argentina, `2026-10-02 22:30`. El `estado` de `ordenes.csv` es el que muestra el panel (una reserva vencida que todavía no se marcó sale `expired`) y, antes de `pago_mp` y `confirmo` (que sigue siendo la última columna fija, antes de las preguntas), van `canal` (online, puerta, cortesía o cargada a mano: la regla de [Canal de venta](#canal-de-venta-una-sola-regla)), `nota` (la de la carga a mano o la puerta), `reembolsada_el`, `reembolsada_por` («Mercado Pago» si llegó por el webhook) y `facturada` (cuándo se marcó «Facturada», o vacía; [Compras para facturar](#compras-para-facturar)).
 - **Privacidad:** de quien compra, nombre, pronombres, email y DNI; de cada entrada, nombre y pronombres. En el navegador, el borrador del formulario (DNI incluido) vive solo en `sessionStorage` de esa pestaña y se borra al comprar (con Mercado Pago, cuando la página de estado ve la compra aprobada: un pago rechazado vuelve al formulario con los datos cargados); nunca en `localStorage`. El DNI nunca va en mails, logs, URLs ni en la página pública de la entrada (que muestra nombre y pronombres); solo lo ven les admins en las órdenes, el CSV y el control de ingreso. En el control de ingreso, lo que baja al celu (las sugerencias de «Buscar persona», la lista sin conexión, el resultado del escaneo) lleva solo los últimos 3 dígitos; el DNI completo se pide aparte con «ver completo», que queda en el registro de actividad (`order.reveal_dni`). Los datos por entrada viajan en la orden hasta que se emiten las entradas y ahí se borran de la orden.
 - **Códigos:** revalidados en la misma sentencia atómica que el cupo; límite de intentos por cliente y evento, el mismo contador para "Aplicar" y para comprar con un código.
 - **Transferencias:** confirmación solo de admins, idempotente, sin sobreventa al confirmar reservas vencidas.

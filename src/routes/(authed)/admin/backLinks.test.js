@@ -27,6 +27,10 @@ const DYNAMIC_BACKS = {
 	'src/routes/(authed)/admin/eventos/[slug]/ordenes/cargar/+page.svelte': ['ordersHref'],
 	// Comunidad › Perfiles (`contentAdminHref('amigues')`).
 	'src/routes/(authed)/admin/comunidad/cuentas/perfiles/[id]/+page.svelte': ['PROFILES_HREF'],
+	// Las respuestas de un formulario vuelven a su editor (`/admin/comunidad/formularios/<id>`).
+	'src/routes/(authed)/admin/comunidad/formularios/[id]/respuestas/+page.svelte': [
+		'`/admin/comunidad/formularios/${f.id'
+	],
 	// La lista de lo que se borra (`deletionRoutes.js`, `info.list`): el `back` y «Volver a la lista».
 	'src/routes/(authed)/admin/borrar/[kind]/[slug]/+page.svelte': [
 		'data.info.list',
