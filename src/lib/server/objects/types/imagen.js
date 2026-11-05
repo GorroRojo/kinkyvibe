@@ -14,6 +14,8 @@
  * Solo usa imports relativos.
  */
 
+import { COLORS_MAX, isHexColor } from '../../../utils/flyerColors.js';
+
 /** Tipos de archivo que se guardan (lo que manda el navegador después de achicar). */
 export const IMAGE_MIMES = /** @type {const} */ ([
 	'image/webp',
@@ -43,7 +45,10 @@ const imagen = {
 		original_name: { kind: 'text', label: 'Nombre del archivo original', max: 200 },
 		// De dónde salió una imagen importada del repo (`src/lib/posts/…/media/…/1.webp` o
 		// `src/lib/assets/…`): así la importación no la duplica y se sabe qué reemplaza.
-		source_path: { kind: 'text', label: 'Archivo del repo', max: 300 }
+		source_path: { kind: 'text', label: 'Archivo del repo', max: 300 },
+		// Sus colores principales (`#rrggbb`, primero los que más pesan), sacados en el navegador al
+		// subirla: la paleta del carrusel de la portada (../../../utils/flyerColors.js).
+		colors: { kind: 'list', label: 'Colores', max: COLORS_MAX }
 	},
 	edges: {},
 	check(data) {
@@ -51,6 +56,9 @@ const imagen = {
 		const errors = [];
 		if (data.key !== undefined && !MEDIA_KEY.test(String(data.key))) {
 			errors.push({ path: 'key', message: 'Archivo: clave de imagen inválida' });
+		}
+		if (Array.isArray(data.colors) && !data.colors.every(isHexColor)) {
+			errors.push({ path: 'colors', message: 'Colores: cada uno tiene que ser #rrggbb' });
 		}
 		return errors;
 	},

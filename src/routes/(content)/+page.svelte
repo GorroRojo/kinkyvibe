@@ -12,7 +12,6 @@
 	import { userConfig } from '$lib/utils/stores';
 	import { pastPostsLoader } from '$lib/utils/allPosts';
 	import { organizationSchema, websiteSchema } from '$lib/utils/jsonLd.js';
-	import { carruselPosts } from '$lib/utils/carrusel.js';
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
 	const loadPast = pastPostsLoader((posts) => (allPosts = posts));
@@ -24,10 +23,9 @@
 			p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
 	);
 
-	// El carrusel de arriba: con el interruptor `carrusel_portada` o, para revisarlo en un preview,
-	// con `?carrousel` en la dirección. Qué eventos entran: $lib/utils/carrusel.js.
-	$: carrusel =
-		data.carrusel || $page.url.searchParams.has('carrousel') ? carruselPosts(data.posts) : [];
+	// El carrusel de arriba (interruptor `carrusel_portada`): las diapositivas ya vienen del
+	// servidor, con su estilo y sus colores (src/lib/server/carrusel.js); apagado, ninguna.
+	$: carrusel = data.carrusel ?? [];
 
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
 	$: previewTexts = linkPreviewOf($page.data).texts;

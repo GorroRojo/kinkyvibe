@@ -28,6 +28,7 @@ import { readSalesSettings, salesSettingsStatement } from '$lib/server/tickets/s
 import { BOT_TEXTS_SETTING } from '$lib/server/telegram/texts.js';
 import { cleanBotTextOverrides } from '$lib/utils/botTexts.js';
 import { previewTextOverrides } from '$lib/utils/previewTexts.js';
+import { ROTAR, carruselModo, nombreDelEstilo } from '$lib/utils/carruselEstilos.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -45,6 +46,8 @@ const FONDO_LAST_KEY = 'fondo_percent_last';
 /** Desde cuándo el último porcentaje del Fondo muestra de cuándo es. */
 const FONDO_STALE_MS = 24 * 60 * 60 * 1000;
 const PREVIEW_TEXTS_KEY = 'link_preview_texts';
+/** El modo del carrusel de la portada (`CARRUSEL_SETTING` en src/lib/server/carrusel.js). */
+const CARRUSEL_KEY = 'carrusel_estilo';
 
 /**
  * Lo que la portada lee de la base, ya armado.
@@ -160,6 +163,10 @@ export function buildAjustesStatus({
 		const previews = Object.keys(previewTextOverrides(jsonRow(settings, PREVIEW_TEXTS_KEY))).length;
 		out['ajustes-vistas-previas'] = {
 			text: previews ? plural(previews, 'texto cambiado', 'textos cambiados') : 'Los originales'
+		};
+		const modo = carruselModo(settings.find((r) => r.key === CARRUSEL_KEY)?.value);
+		out['ajustes-carrusel'] = {
+			text: modo === ROTAR ? 'Rotan los 5 estilos' : `Siempre ${nombreDelEstilo(modo)}`
 		};
 	}
 

@@ -9,12 +9,15 @@
  *
  * Del mismo dibujo salen también las dos copias chicas para las tarjetas (WEBP, lado más corto de
  * 360 y 720 px; $lib/utils/mediaCopies.js), que viajan con la subida. Si no salen, se sube igual
- * (la tarjeta usa el original hasta la pasada de scripts/copias-chicas.js).
+ * (la tarjeta usa el original hasta la pasada de scripts/copias-chicas.js). Y sus colores
+ * principales (`colors`, $lib/utils/flyerColors.js: la paleta del carrusel de la portada); si no
+ * salen, se sube sin colores.
  *
  * Las cuentas (medidas, qué hacer) son funciones puras y se prueban en vitest; lo que usa el
  * canvas recibe las funciones del navegador como parámetro.
  */
 import { COPY_QUALITY, COPY_SIDES, copySize } from './mediaCopies.js';
+import { colorsFromImage } from './flyerColors.js';
 
 /** Lado más largo, en píxeles. */
 export const MAX_SIDE = 2000;
@@ -104,16 +107,18 @@ export function keepConverted(original, converted, scaled) {
  * @typedef {{ side: number, blob: Blob }} ImageCopy una copia chica (`side`: su lado más corto
  *   pedido, 360 o 720)
  * @typedef {{ blob: Blob, name: string, width: number | null, height: number | null,
- *   converted: boolean, copies?: ImageCopy[] }} PreparedImage
+ *   converted: boolean, copies?: ImageCopy[], colors?: string[] | null }} PreparedImage
  */
 
 /**
- * Suma las copias chicas a lo que se sube (`copy360`, `copy720`), si las hay.
+ * Suma las copias chicas a lo que se sube (`copy360`, `copy720`), si las hay, y los colores
+ * (`colors`, en JSON).
  * @param {FormData} form
  * @param {PreparedImage} prepared
  */
 export function appendCopies(form, prepared) {
 	for (const c of prepared.copies ?? []) form.set(`copy${c.side}`, c.blob, `copia-${c.side}.webp`);
+	if (prepared.colors?.length) form.set('colors', JSON.stringify(prepared.colors));
 }
 
 /**
@@ -150,8 +155,9 @@ export async function prepareImage(file, env = {}) {
 		// Las copias se miden contra lo que se sube (el WEBP achicado o el original).
 		const up = converted ? size : { width: bitmap.width, height: bitmap.height };
 		const copies = await makeCopies(bitmap, up, env.makeCanvas ?? defaultCanvas);
+		const colors = colorsFromImage(bitmap, env.makeCanvas ?? defaultCanvas);
 		if (!converted) {
-			return { ...original, width: bitmap.width, height: bitmap.height, copies };
+			return { ...original, width: bitmap.width, height: bitmap.height, copies, colors };
 		}
 		return {
 			blob: /** @type {Blob} */ (blob),
@@ -159,7 +165,8 @@ export async function prepareImage(file, env = {}) {
 			width: size.width,
 			height: size.height,
 			converted: true,
-			copies
+			copies,
+			colors
 		};
 	} catch {
 		return original;

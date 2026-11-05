@@ -89,6 +89,7 @@ import {
 	EyeOff,
 	FileSpreadsheet,
 	FileText,
+	GalleryHorizontal,
 	CircleUser,
 	DoorClosed,
 	HandCoins,
@@ -690,6 +691,19 @@ export const NAV = Object.freeze([
 		area: 'ajustes',
 		sub: 'comunicacion',
 		desc: 'Cómo se ve un link del sitio en WhatsApp, Telegram o X',
+		soon: false
+	},
+	{
+		// El carrusel de la portada (docs/estilo.md, «Carrusel de la portada»): el estilo de las
+		// diapositivas y los colores de los flyers.
+		id: 'ajustes-carrusel',
+		href: '/admin/ajustes/carrusel',
+		icon: GalleryHorizontal,
+		emoji: '🎠',
+		label: 'Carrusel de la portada',
+		area: 'ajustes',
+		sub: 'comunicacion',
+		desc: 'El estilo de cada evento arriba de la portada y los colores de los flyers',
 		soon: false
 	},
 	{

@@ -342,18 +342,40 @@ Lo controlan `src/lib/components/PostList.test.js`, `TagSearch.test.js`,
 
 ### Carrusel de la portada
 
-Detrás del interruptor `carrusel_portada` ([interruptores.md](interruptores.md); con `?carrousel`
-en la dirección se ve aunque esté apagado, para revisarlo en un preview). Lo pidió gorrite (#15);
-el diseño está para que lo revise.
+Detrás del interruptor `carrusel_portada` ([interruptores.md](interruptores.md)). Lo pidió gorrite
+(#15); el diseño está para que lo revise. Para mirarlo en un preview, se prende el interruptor de
+ese preview: `?carrousel` en la dirección ya no lo muestra en producción ni en los previews, solo
+en `npm run dev` (ahí `?carrousel` lo muestra apagado y `?carrousel=a…e|rotar` prueba un estilo
+sin guardarlo).
 
 - **Qué eventos** (`carruselPosts` en `$lib/utils/carrusel.js`): los del calendario que todavía
-  no empezaron, con la etiqueta `KinkyVibe`, con imagen y sin cancelar, por fecha, hasta 5. Sin
-  ninguno, no hay carrusel. Los colores `carrousel_background` y `carrousel_color` de un evento
-  (hex) mandan sobre los de la paleta.
-- **Qué muestra**: la imagen, el título, la fecha corta de las tarjetas (`argDateList`), el lugar
-  (`placeShort`, como el lugar vinculado de la portada), el resumen (no en el celu) y la venta de
-  entradas de las listas (`ticketCta`: «Comprar entradas», «Agotadas»…) más «Saber más». El precio
-  no: tampoco está en las tarjetas.
+  no empezaron, con la etiqueta `KinkyVibe` y sin cancelar, por fecha, hasta 5, con o sin imagen.
+  Sin ninguno, no hay carrusel.
+- **Cinco estilos** (`$lib/utils/carruselEstilos.js`), los cinco del prototipo que eligió
+  gorrite: **A** Pila de flyers (el flyer impreso y torcido sobre papeles de colores), **B** Franja
+  cruzada (título grande, la fecha en una estrella y una franja de lado a lado), **C** Mesa de
+  stickers (fondo claro, el flyer como sticker y los eventos como stickers chiquitos abajo), **D**
+  Diagonal (dos colores cortados en diagonal) y **E** Mesa de zines (copias del flyer tiradas de
+  fondo y el título en tiras). Todos de borde a borde, con pocos contornos.
+- **Qué estilo le toca a cada diapositiva**: en Ajustes › Comunicación › Carrusel de la portada,
+  **«Rotar»** (por defecto: A, B, C, D, E y de vuelta, por el lugar de la diapositiva) o uno fijo
+  para todo el carrusel (`ticket_settings`, fila `carrusel_estilo`; src/lib/server/carrusel.js).
+  Cada evento puede elegir el suyo en Editar → Datos, «Estilo en el carrusel de la portada»
+  (`carrusel_estilo`, en `extra`), y ese manda. Los controles de abajo (flechas y puntos; en C,
+  los stickers) toman el estilo y los colores de la diapositiva que se ve.
+- **Colores**: cada diapositiva usa los colores de su flyer (`flyerPalette` en
+  `$lib/utils/flyerColors.js`, a partir de los `colors` guardados en la imagen al subirla;
+  [imagenes.md](imagenes.md), «Colores de la imagen»). El fondo es el primer color vivo del flyer y
+  el segundo color, el siguiente de otro tono (o el complementario). **Cada texto se corre de luz
+  hasta pasar WCAG AA (4.5:1) sobre su fondo**, con el mismo tono; lo prueban
+  `flyerColors.test.js` con cientos de flyers al azar. Sin flyer, o con un flyer que todavía no
+  tiene sus colores, las tres paletas de la marca, de a una por diapositiva. Los colores
+  `carrousel_background` y `carrousel_color` de un evento (hex) siguen mandando sobre el fondo y su
+  texto (el texto, corrido hasta que se lea).
+- **Qué muestra**: la imagen (sin imagen, un flyer hecho con el título), el título, la fecha corta
+  de las tarjetas (`argDateList`), el lugar (`placeShort`, como el lugar vinculado de la portada),
+  el resumen (en A y C, no en el celu) y la venta de entradas de las listas (`ticketCta`:
+  «Comprar entradas», «Agotadas»…) más «Saber más». El precio no: tampoco está en las tarjetas.
 - **Accesible** (patrón de carrusel de WAI-ARIA): grupo con nombre, diapositivas «N de M», pausa
   primero en el orden del foco, «Evento anterior» / «Evento siguiente» y un punto por evento (una
   sola parada del Tab; entre ellos, con las flechas). Las flechas ← → también andan con el foco en
@@ -365,6 +387,9 @@ el diseño está para que lo revise.
   es el de la más alta desde el HTML del servidor, y la imagen tiene su cuadrado reservado. La
   imagen de la primera va `eager` con `fetchpriority="high"`; las demás, recién después de
   hidratar, de a una por delante de la que se ve, y `lazy`. Con `posterSrcset` (copias chicas).
+- **Lo que cuesta**: la portada lee el modo una vez cada 30 s por isolate y los colores de las
+  hasta 5 imágenes en una consulta, solo con el carrusel prendido. Nada de mirar imágenes en cada
+  visita.
 
 ## Componentes
 

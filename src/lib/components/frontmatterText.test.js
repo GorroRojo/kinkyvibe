@@ -86,14 +86,18 @@ describe('components render frontmatter as text', () => {
 	});
 
 	it('Carrousel: online o el lugar con la regla de la página (eventPlace.js)', () => {
-		/** @param {Record<string, unknown>} meta */
-		const heading = (meta) => {
+		/**
+		 * @param {Record<string, unknown>} meta
+		 * @param {string} [estilo] el estilo de la diapositiva (sin estilo, la primera rota: A)
+		 */
+		const heading = (meta, estilo) => {
 			const { body } = render(Carrousel, {
 				props: {
 					posts: /** @type {any[]} */ ([
 						{
 							path: '/calendario/x',
-							meta: { title: 'Evento', start: '2099-12-01T20:00-03:00', summary: 'R', ...meta }
+							meta: { title: 'Evento', start: '2099-12-01T20:00-03:00', summary: 'R', ...meta },
+							estilo
 						}
 					])
 				}
@@ -106,14 +110,23 @@ describe('components render frontmatter as text', () => {
 				.join('')
 				.trim();
 		};
-		expect(heading({ tags: ['Online'] })).toMatch(/ · Online$/);
-		expect(heading({ modalidad: 'online', tags: [] })).toMatch(/ · Online$/);
-		// Solo la dirección (antes: «Online», porque no tenía nombre).
-		expect(heading({ location: 'Calle Falsa 123', tags: [] })).toMatch(/ · Calle Falsa 123$/);
-		// Sin nada: solo la fecha (antes: «- Online»).
-		const bare = heading({ tags: ['AMBA'] });
-		expect(bare).not.toContain('Online');
-		// (la fecha ya trae su « · » antes de la hora: termina en la hora, sin lugar)
-		expect(bare).toMatch(/ · 20:00$/);
+		for (const estilo of ['a', 'b', 'c', 'd', 'e']) {
+			expect(heading({ tags: ['Online'] }, estilo)).toMatch(/ · Online$/);
+			expect(heading({ modalidad: 'online', tags: [] }, estilo)).toMatch(/ · Online$/);
+			// Solo la dirección (antes: «Online», porque no tenía nombre).
+			expect(heading({ location: 'Calle Falsa 123', tags: [] }, estilo)).toMatch(
+				/ · Calle Falsa 123$/
+			);
+			// Sin nada: solo la fecha (antes: «- Online»).
+			expect(heading({ tags: ['AMBA'] }, estilo)).not.toContain('Online');
+		}
+		// B y D llevan la fecha entera en esa línea (la fecha ya trae su « · » antes de la hora:
+		// termina en la hora, sin lugar).
+		expect(heading({ tags: ['AMBA'] }, 'b')).toMatch(/ · 20:00$/);
+		expect(heading({ tags: ['AMBA'] }, 'd')).toMatch(/ · 20:00$/);
+		// A, C y E muestran el día aparte (en la franja de la fecha): en esa línea, solo la hora.
+		for (const estilo of ['a', 'c', 'e', undefined]) {
+			expect(heading({ tags: ['AMBA'] }, estilo)).toBe('20:00');
+		}
 	});
 });

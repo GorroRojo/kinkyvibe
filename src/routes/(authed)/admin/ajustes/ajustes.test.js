@@ -85,7 +85,7 @@ describe('/admin/ajustes (portada)', () => {
 		expect(navItem('ajustes')).toMatchObject({ href: '/admin/ajustes', area: 'ajustes' });
 		const groups = navAreaSections('ajustes');
 		expect(groups.map((g) => g.id)).toEqual(AJUSTES_SUBGROUPS.map((g) => g.id));
-		expect(groups.flatMap((g) => g.items).length).toBe(9);
+		expect(groups.flatMap((g) => g.items).length).toBe(10);
 	});
 
 	it('con la base vacía: los originales, nada en el registro, todo apagado', async () => {

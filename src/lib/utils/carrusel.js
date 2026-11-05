@@ -4,7 +4,7 @@
  *
  * - del calendario y que todavía no empezaron (como la fila «Talleres y eventos»);
  * - de Kinky Vibe (la etiqueta `KinkyVibe`, la misma que marca las tarjetas): lo propio va arriba;
- * - con imagen (el carrusel es la imagen grande; un evento sin imagen sigue en las filas);
+ * - con o sin imagen (sin imagen, la diapositiva sale con los colores de la marca);
  * - sin cancelar;
  * - por fecha, el más próximo primero, y como mucho {@link CARRUSEL_MAX}.
  *
@@ -16,9 +16,6 @@ import { parseSiteDate } from './dates.js';
 export const CARRUSEL_MAX = 5;
 
 /** @typedef {{ path: string, meta: Record<string, any> }} CarruselPost */
-
-/** @param {Record<string, any>} meta */
-const hasImage = (meta) => Boolean(meta?.featured) && meta.featured !== 'undefined';
 
 /**
  * Los eventos del carrusel, en orden.
@@ -35,7 +32,6 @@ export function carruselPosts(posts, { now = Date.now(), limit = CARRUSEL_MAX } 
 				p.meta?.category == 'calendario' &&
 				Array.isArray(p.meta.tags) &&
 				p.meta.tags.includes('KinkyVibe') &&
-				hasImage(p.meta) &&
 				p.meta.status !== 'cancelado' &&
 				parseSiteDate(p.meta.start).getTime() > now
 		)
