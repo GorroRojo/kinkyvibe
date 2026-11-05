@@ -1,7 +1,8 @@
 /**
  * Ficha del evento, pestaña Resumen: datos, checklist (imagen, link de la transmisión,
  * recordatorios, venta abierta), el link de la transmisión de los eventos online y los links de
- * puerta de los presenciales (docs/tickets.md, «Link de puerta»).
+ * puerta de los presenciales (docs/tickets.md, «Link de puerta») y la tarjeta «Visitas» de su
+ * página (docs/analiticas.md, «Visitas de una página»; va como promesa, no demora la ficha).
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -34,6 +35,7 @@ import {
 import { toArgentinaLocalInput } from '$lib/utils/tickets.js';
 import { siteOrigin } from '$lib/server/tickets/index.js';
 import { isFlagOn } from '$lib/server/flags.js';
+import { objectPageVisits } from '$lib/server/admin/pageVisits.js';
 
 /**
  * Los links de puerta vivos del evento y el vencimiento por defecto para el formulario. `null` si
@@ -240,6 +242,12 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		{ hasVenue: Boolean(venue) }
 	);
 	return {
+		// Sin esperar: SvelteKit la manda cuando llega y la tarjeta se llena sola.
+		visits: objectPageVisits(platform, {
+			kind: 'evento',
+			slug: params.slug,
+			tickets: Boolean(config)
+		}),
 		forms,
 		checklist,
 		stream,

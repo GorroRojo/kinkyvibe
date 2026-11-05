@@ -3,7 +3,8 @@
 - Fecha: 2026-10-12
 - Estado: Aceptada (gorrite, por chat, 12/10). Adelanta para admins la parte «Organizadores (más
   adelante)» de [0029](0029-bot-de-telegram.md) y usa el vínculo de admins de
-  [0037](0037-puerta-por-telegram.md).
+  [0037](0037-puerta-por-telegram.md). Cambiada en parte por
+  [0058](0058-detalle-de-cada-venta.md): el aviso «Cada venta» lleva el detalle de la compra.
 
 ## Contexto
 

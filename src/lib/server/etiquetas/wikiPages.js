@@ -36,13 +36,16 @@ export const WIKI_FIELDS = Object.freeze([
  *   tags: string[],
  *   body: string,
  *   bodyHtml: 'libre' | 'corta',
- *   updatedAt?: number
+ *   updatedAt?: number,
+ *   createdAt?: number
  * }} WikiEntry
  *   `slug`: la dirección de la página (`tagSlug(key)`: espacios → guiones, como los nombres de los
  *   .md de la wiki). `bodyHtml`: sin valor guardado, `corta` (la lista corta; el HTML libre tiene que
  *   estar guardado: lo importado lo guarda el importador y la migración 0059 lo puso en las páginas
  *   que ya estaban). `updatedAt`: el último guardado de la etiqueta (ms), si se sabe: el
- *   `dateModified` de la página en los datos estructurados.
+ *   `dateModified` de la página en los datos estructurados. `createdAt`: cuándo se creó la etiqueta
+ *   (ms), si se sabe: la página no tiene fecha de publicación propia, y el carrusel de la portada
+ *   la cuenta como nueva desde ahí.
  */
 
 /**
@@ -61,9 +64,10 @@ export function hasWikiPage(data) {
  * @param {string} title el título de la etiqueta (si la página no tiene uno propio)
  * @param {Record<string, unknown>} data
  * @param {number} [updatedAt] el último guardado de la etiqueta (ms)
+ * @param {number} [createdAt] cuándo se creó la etiqueta (ms)
  * @returns {WikiEntry}
  */
-export function wikiEntryOf(key, title, data, updatedAt) {
+export function wikiEntryOf(key, title, data, updatedAt, createdAt) {
 	return {
 		key,
 		slug: tagSlug(key),
@@ -73,20 +77,21 @@ export function wikiEntryOf(key, title, data, updatedAt) {
 		tags: strList(data.wiki_tags),
 		body: String(data.body ?? '').trimEnd(),
 		bodyHtml: data.wiki_body_html === 'libre' ? 'libre' : 'corta',
-		...(updatedAt ? { updatedAt } : {})
+		...(updatedAt ? { updatedAt } : {}),
+		...(createdAt ? { createdAt } : {})
 	};
 }
 
 /**
  * Las páginas de la wiki de las etiquetas leídas (los alias no tienen), por dirección.
  *
- * @param {readonly { key: string, title: string, data: Record<string, unknown>, aliasOf?: string | null, updatedAt?: number }[]} records
+ * @param {readonly { key: string, title: string, data: Record<string, unknown>, aliasOf?: string | null, updatedAt?: number, createdAt?: number }[]} records
  * @returns {WikiEntry[]}
  */
 export function wikiEntriesOf(records) {
 	return records
 		.filter((r) => !r.aliasOf && hasWikiPage(r.data))
-		.map((r) => wikiEntryOf(r.key, r.title, r.data, r.updatedAt))
+		.map((r) => wikiEntryOf(r.key, r.title, r.data, r.updatedAt, r.createdAt))
 		.sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
 }
 

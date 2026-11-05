@@ -233,6 +233,21 @@ export const FLAGS = Object.freeze({
 			'src/lib/utils/activitypub.js.',
 		envVar: 'FEDIVERSO_ENABLED'
 	},
+	carrusel_portada: {
+		label: 'Carrusel en la portada',
+		description:
+			'Arriba de la portada, un carrusel con los próximos eventos de Kinky Vibe y lo nuevo de ' +
+			'Material, Amigues y la Kinkipedia (hasta 8, primero los eventos por ' +
+			'fecha), con los colores de la marca elegidos para que cada flyer resalte: pasa solo cada unos segundos, se puede pausar ' +
+			'y se mueve con las flechas o deslizando en el celu. El estilo se elige en Ajustes › ' +
+			'Carrusel de la portada. Sin nada que entre, no aparece. Apagado, la portada se ve como siempre.',
+		tech:
+			'src/lib/components/Carrousel.svelte, la regla en src/lib/utils/carrusel.js, los estilos en ' +
+			'src/lib/utils/carruselEstilos.js y los colores en src/lib/utils/carruselPaletas.js ' +
+			'(docs/estilo.md, «Carrusel de la portada»). `?carrousel` lo muestra apagado solo en ' +
+			'`npm run dev`. Sin migración.',
+		envVar: 'CARRUSEL_PORTADA_ENABLED'
+	},
 	formularios: {
 		label: 'Formularios',
 		description:
@@ -470,6 +485,15 @@ export function gastosRepartoEnabled(platform) {
  */
 export function fediversoEnabled(platform) {
 	return isFlagOn(getDB(platform), 'fediverso');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el carrusel de la portada? (docs/estilo.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function carruselPortadaEnabled(platform) {
+	return isFlagOn(getDB(platform), 'carrusel_portada');
 }
 
 /**

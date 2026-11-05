@@ -99,6 +99,8 @@ export async function editorPageData(platform, urlSlug, locals) {
 			id: object.id,
 			title: object.title,
 			urlSlug: urlSlugOf(object, legacySlug),
+			// La dirección del objeto (puede ser otra que la de la página: la vieja de la ficha).
+			slug: object.slug,
 			kind: profileKindOf(object.data),
 			visibility: object.visibility,
 			version: object.version,

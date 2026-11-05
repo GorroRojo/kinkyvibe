@@ -240,6 +240,7 @@ describe('NAV', () => {
 			'ajustes-fondo',
 			'ajustes-paypal',
 			'ajustes-vistas-previas',
+			'ajustes-carrusel',
 			'ajustes-textos-bot',
 			'ajustes-admins',
 			'ajustes-interruptores',
@@ -423,7 +424,7 @@ describe('sectionTabs (pestañas de sección)', () => {
 		// La portada: las mismas secciones que antes eran pestañas, en sus cuatro subgrupos.
 		expect(navAreaSections('ajustes').map((s) => [s.label, s.items.map((i) => i.label)])).toEqual([
 			['Plata', ['Cobros', 'Fondo', 'PayPal']],
-			['Comunicación', ['Vistas previas al compartir', 'Textos del bot']],
+			['Comunicación', ['Vistas previas al compartir', 'Carrusel de la portada', 'Textos del bot']],
 			['Equipo', ['Admins']],
 			['Sistema', ['Interruptores', 'Automatizaciones', 'Actividad']]
 		]);

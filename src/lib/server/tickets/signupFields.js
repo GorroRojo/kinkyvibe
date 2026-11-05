@@ -432,6 +432,27 @@ export async function answersByOrder(db, slug) {
 }
 
 /**
+ * Las respuestas de una orden (el aviso «Cada venta» por Telegram). Sin la migración, sin
+ * respuestas o con un error, ninguna.
+ *
+ * @param {D1Database} db
+ * @param {string} orderId
+ * @returns {Promise<Answer[]>}
+ */
+export async function orderAnswers(db, orderId) {
+	try {
+		const row = await db
+			.prepare('SELECT answers FROM order_answers WHERE order_id = ?1')
+			.bind(orderId)
+			.first();
+		return row ? parseStoredAnswers(row.answers) : [];
+	} catch (error) {
+		logDBError('respuestas de una orden', error);
+		return [];
+	}
+}
+
+/**
  * Guarda el orden de las preguntas (de ese evento, o generales con `eventSlug` null): cada id en
  * su lugar de la lista (`position` 0, 1, 2…). Los ids que no son de ahí no cambian nada.
  *

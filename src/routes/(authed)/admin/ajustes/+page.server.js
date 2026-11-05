@@ -14,12 +14,15 @@ export async function load({ locals, url, platform, setHeaders }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
+	const ctx = platform?.ctx;
 	return {
 		status: await loadAjustesStatus({
 			db,
 			env,
 			// Como el checkout: Mercado Pago se ofrece con su token (o con el de prueba, en `vite dev`).
-			mpReady: Boolean(env.MP_ACCESS_TOKEN) || isMpMock()
+			mpReady: Boolean(env.MP_ACCESS_TOKEN) || isMpMock(),
+			// Si todavía no llegó el porcentaje del Fondo, se busca en segundo plano (nunca se espera).
+			waitUntil: ctx?.waitUntil ? (task) => ctx.waitUntil(task) : undefined
 		})
 	};
 }

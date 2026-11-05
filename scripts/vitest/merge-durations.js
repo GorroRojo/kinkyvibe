@@ -1,4 +1,4 @@
-// Junta los tiempos de las partes de la CI (artifacts `vitest-durations-1`, `-2` y `-3` de una
+// Junta los tiempos de las partes de la CI (artifacts `vitest-durations-1` a `-4` de una
 // corrida reciente de `main`) en scripts/vitest/durations.json:
 //
 //   gh run download <id de la corrida> -p 'vitest-durations-*' -D /tmp/tiempos

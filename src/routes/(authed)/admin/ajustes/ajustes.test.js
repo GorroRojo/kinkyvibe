@@ -85,7 +85,7 @@ describe('/admin/ajustes (portada)', () => {
 		expect(navItem('ajustes')).toMatchObject({ href: '/admin/ajustes', area: 'ajustes' });
 		const groups = navAreaSections('ajustes');
 		expect(groups.map((g) => g.id)).toEqual(AJUSTES_SUBGROUPS.map((g) => g.id));
-		expect(groups.flatMap((g) => g.items).length).toBe(9);
+		expect(groups.flatMap((g) => g.items).length).toBe(10);
 	});
 
 	it('con la base vacía: los originales, nada en el registro, todo apagado', async () => {
@@ -97,8 +97,11 @@ describe('/admin/ajustes (portada)', () => {
 		expect(status['ajustes-admins']).toEqual({
 			text: `${ADMINS.length} ${ADMINS.length === 1 ? 'admin' : 'admins'}`
 		});
-		// Sin Fondo guardado (ni a mano ni el último automático): sin línea, no se adivina.
-		expect(status['ajustes-fondo']).toBeUndefined();
+		// Sin Fondo guardado (ni a mano ni el último automático): dice que es automático y que
+		// todavía no llegó (ajustes-fondo-linea); no inventa un porcentaje.
+		expect(status['ajustes-fondo']).toEqual({
+			text: 'Automático (todavía no llegó el porcentaje)'
+		});
 		// Cada línea que hay es de una sección de Ajustes.
 		const ids = new Set(navAreaSections('ajustes').flatMap((g) => g.items.map((i) => i.id)));
 		for (const id of Object.keys(status)) expect(ids.has(id), id).toBe(true);
@@ -217,6 +220,6 @@ describe('buildAjustesStatus (Fondo)', () => {
 		});
 		expect(fondo([last], 20)).toEqual({ text: '20 % de cada entrada' });
 		expect(fondo([last], null)).toEqual({ text: '12 % de cada entrada' });
-		expect(fondo([], null)).toBeUndefined();
+		expect(fondo([], null)).toEqual({ text: 'Automático (todavía no llegó el porcentaje)' });
 	});
 });

@@ -21,6 +21,7 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 | Selector de los editores | `src/lib/components/admin/ImagePicker.svelte`                                                             |
 | Enlazar un archivo       | `src/lib/components/admin/LibraryLinkPicker.svelte`, `src/lib/utils/libraryFiles.js` (editor de material) |
 | Achicar en el navegador  | `src/lib/utils/imageResize.js` (también «Achicar» de «Portadas pesadas», ver abajo)                       |
+| Colores (carrusel)       | `src/lib/utils/flyerColors.js`; las de antes, en Ajustes › Carrusel de la portada (ver «Colores»)         |
 | Copias chicas (tarjetas) | `src/lib/utils/mediaCopies.js`; la pasada por las viejas: `scripts/copias-chicas.js` + `media/copias.js`  |
 | Copia nocturna y bloqueo | `src/lib/server/backup/media.js` (binding `MEDIA_COPIA`, solo producción); ver «Copia de la biblioteca»   |
 | Imágenes viejas del repo | `src/lib/utils/legacyMedia.js` (mapa fijo a su copia en la biblioteca)                                    |
@@ -119,6 +120,29 @@ hace solo lo que faltó.
 sin usar, no molestan). Si hiciera falta borrarlas, son exactamente las claves que terminan en
 `-360.webp` o `-720.webp` dentro de `img/` (los originales nunca tienen guion); borrarlas solo hace
 que `/media` redirija al original.
+
+## Colores de la imagen (para el carrusel de la portada)
+
+El carrusel de la portada usa los colores de cada flyer para elegir cuál de las paletas de la marca
+va detrás y como acento ([estilo.md](estilo.md), «Carrusel de la portada»). Los colores **se
+calculan una sola vez, en el navegador**, y se guardan en el objeto `imagen`: la portada nunca mira
+la imagen.
+
+- **Qué se guarda**: `colors`, una lista de hasta 5 `#rrggbb` (los colores principales, primero
+  los que más pesan, con un empujón a los vivos), en los datos del objeto (`data.colors`). Sin
+  tabla ni columna nueva, sin migración: los datos de un objeto son JSON (migración 0012) y el tipo
+  `imagen` valida cada color (`types/imagen.js`).
+- **Al subir** (`prepareImage` en `imageResize.js`): del mismo dibujo, uno de 64 × 64 px y
+  `extractColors` ($lib/utils/flyerColors.js); viajan como `colors` (JSON) y `storeImage` guarda
+  solo los válidos. A una imagen que ya estaba sin colores se le suman; con colores, no se pisan.
+  Si el navegador no puede (un GIF, un canvas que no deja leer), se sube igual, sin colores.
+- **Las de antes**: Ajustes › Carrusel de la portada › «Calcular los colores que faltan». El
+  navegador de le admin abre la copia de 360 px de cada imagen sin colores (las portadas de
+  eventos primero), calcula y manda de a 20 (`?/colores` → `saveImageColors`, por saveObject:
+  cada una suma una versión al historial de la imagen). Solo completa: nunca pisa colores que ya
+  están. Se puede cortar y seguir después.
+- **Sin colores** (una imagen que todavía no pasó, o de otro sitio), las paletas de la marca rotan,
+  igual que con un evento sin flyer.
 
 ## Documentos y video
 
@@ -246,7 +270,8 @@ recorrer toda la biblioteca está Contenido → Biblioteca (abajo). Pestañas:
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
   largo 2000 px) y la pasa a WEBP; si así pesa más de 300 KB, la achica un poco más con los mismos
   pasos y el mismo piso que «Achicar» (`targetBytes: HEAVY_COVER_BYTES`, arriba; una imagen que ya
-  pesa menos sale igual que antes). También hace sus dos copias chicas para las tarjetas (arriba). Si el
+  pesa menos sale igual que antes). También hace sus dos copias chicas para las tarjetas y saca sus
+  colores (arriba). Si el
   navegador no sabe hacer WEBP (Safari), una foto JPEG la pasa a JPEG, y un PNG, WEBP o AVIF lo
   sube como está (puede tener transparencias, que en JPEG saldrían negras); si no puede dibujarla
   (o un GIF, que puede ser animado), sube el original, y el servidor le saca los metadatos (arriba).

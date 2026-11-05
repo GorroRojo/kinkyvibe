@@ -67,7 +67,7 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 - **Cantidad:** un stepper compacto **− n +** al lado de la etiqueta (botones de 42 px, cómodos para el dedo; también se puede tipear), de 1 a `min(disponibles, 20)`: cada entrada lleva su bloque de datos y con más el formulario se vuelve inmanejable en el celu. El servidor rechaza más de 20. Cada entrada tiene su propio QR y su código corto.
 - `transferencia` solo aparece si además hay datos para transferir (en **Ajustes de venta** o, si ahí está vacío, en `TICKETS_TRANSFER_INFO`); `mercadopago`, si hay `MP_ACCESS_TOKEN` (o el mock en dev). Para que no pase en silencio, si un evento tiene tildada «Transferencia» y no hay datos, el editor de eventos (sección Entradas) y el **Inicio** del panel (en «Para revisar», para los eventos que vienen y no están cancelados) avisan «Activaste transferencia pero faltan los datos en Ajustes → Cobros: por ahora no se ofrece», con link a `/admin/ajustes/cobros`. Solo reciben sí/no (`transferReady` / `transferReadyFromSettings` en `src/lib/server/tickets/index.js`), nunca los datos.
 - En la página del evento, un evento sin `tickets` muestra el `link` después del texto con el mismo botón grande que «Comprar entradas» (`BotonCompra.svelte`); si es un link web, se abre en otra pestaña y dice «Se abre en <sitio>».
-- En la página del evento, un evento con `tickets` no muestra el botón de inscripción del `link` (sigue al final del texto si tiene `link_text`): **después del texto** («De qué se trata»: el texto se lee antes de comprar, maqueta final de gorrite) hay un botón grande **Comprar entradas** (`src/lib/components/evento/Compra.svelte`) con el precio "desde" (con el fondo aplicado; "a la gorra" si hay tipos a la gorra) y cuántas quedan si son pocas, que lleva a la página de compra.
+- En la página del evento, un evento con `tickets` no muestra el botón de inscripción del `link` (sigue al final del texto si tiene `link_text`): **después del texto** («De qué se trata»: el texto se lee antes de comprar, maqueta final de gorrite) hay un botón grande **Comprar entradas** (`src/lib/components/evento/Compra.svelte`) con el precio "desde" (con el fondo aplicado; "a la gorra" si hay tipos a la gorra) y cuántas quedan si son pocas, que lleva a la página de compra. Debajo, mientras se puede comprar (o anotarse en la lista de espera, o la venta todavía no abrió), la línea fija «Solo para personas mayores de 18 años. Puede pedirse documento en la puerta.» (`adultsOnlyText`; online, sin la puerta). La pone el código: el texto del evento no la puede sacar. El mail de las entradas lleva la misma línea, también fuera de la plantilla editable.
 - **Cuántas quedan, en público:** solo se muestra un número cuando un tipo **con cupo** tiene **menos de 10** disponibles ("Quedan 7", "¡Últimas 3!", "¡Última!"; `publicLeft`/`leftText` en `src/lib/utils/tickets.js`); si no, no se muestra ni el cupo ni lo vendido. En el botón de la página del evento, solo si todos los tipos a la venta tienen cupo y entre todos quedan menos de 10. Agotado sigue diciendo "Agotada". La página de compra recibe por tipo `available` acotado a 20 (lo que se puede comprar de una vez), no el cupo real.
 - **Sin cupo** (sin `capacity`): el tipo no se agota nunca. La reserva online, la venta en la puerta y la confirmación de transferencias vencidas no controlan cupo para ese tipo (`?N IS NULL OR …` en la misma sentencia); un pago aprobado tarde no queda "para revisar" por cupo; el admin muestra "vendidas (sin cupo)". `capacity: 0` sí es un cupo (agotado).
 - **Entradas en la puerta** (`puerta` / `puerta_precio`, eventos presenciales; en los online se ignora), tres estados (`parseDoor` en `config.js`, `doorText` en `src/lib/utils/tickets.js`, `doorSalesOpen` en `door.js`):
@@ -80,14 +80,14 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 ## Cómo funciona
 
 1. **Compra** (página propia: **`/calendario/<slug>/entradas`**, separada de la del evento para que el formulario no empuje hacia abajo el texto del evento; arriba, un encabezado compacto con título, fecha, lugar e imagen). Si el evento no vende por el sitio (se inscribe en otro lado o todavía no abrió la venta), la página redirige (302) a la del evento, que tiene el link real:
-   - **Tres pasos: Entradas → Tus datos → Pagar.** **Entradas**: tipo (preventas/tandas), cómo pagarla (opciones del Fondo) o cuánto (a la gorra), cantidad y código de descuento. **Tus datos**: quien compra, cada entrada y las preguntas de inscripción. **Pagar**: medio de pago, condiciones, la casilla de +18 y el botón. Arriba, un **indicador de pasos** (`StepIndicator.svelte`, el actual con `aria-current="step"`; los pasos ya hechos son botones para volver). Al cambiar de paso el foco va al título del paso.
+   - **Tres pasos: Entradas → Tus datos → Pagar.** **Entradas**: tipo (preventas/tandas), cómo pagarla (opciones del Fondo) o cuánto (a la gorra), cantidad y código de descuento. **Tus datos**: quien compra, cada entrada y las preguntas de inscripción. **Pagar**: medio de pago, condiciones, la casilla de +18 y el botón. La casilla cubre a todas las personas de las entradas, no solo a quien compra (`acceptLabel`: «La persona de esta entrada tiene…» con una, «Todas las personas de estas entradas tienen…» con varias); sigue obligatoria en el navegador y en el servidor. Arriba, un **indicador de pasos** (`StepIndicator.svelte`, el actual con `aria-current="step"`; los pasos ya hechos son botones para volver). Al cambiar de paso el foco va al título del paso.
    - **Mails mal escritos.** Al salir del campo de mail (en «Tus datos» y en la lista de espera), si el dominio parece mal escrito (`gmai.com`, `hotmial.com`, `gmail.con`…) aparece «¿Quisiste decir …@gmail.com?» con «Sí, corregilo» (`EmailTypoHint.svelte`, `src/lib/utils/emailTypos.js`: dominios válidos que nunca se tocan, un mapa exacto de errores, TLD imposibles a `.com` y una letra de distancia de los dominios grandes). Solo sugiere, en el navegador: no bloquea la compra y el servidor no rechaza nada por esto (rechazar es una decisión de gorrite). En «Pagar», antes del botón: «Te mandamos las entradas a <mail>. Revisá que esté bien.» con «Cambiarlo», que vuelve a «Tus datos».
    - **Resumen siempre a la vista** (`PurchaseSummary.svelte`): tipo, opción, cada línea del precio y el total. En pantallas anchas es una columna al costado (fija al bajar); en el celu, una barra arriba del formulario con el total y un botón **Ver detalle**. Es un solo bloque que cambia con CSS (container queries sobre el bloque de compra), así el total aparece una sola vez. Las líneas salen de `computePrice` vía `purchaseSummary` (`src/lib/utils/purchaseSteps.js`): no hay otra cuenta.
    - **Un solo formulario**: los pasos que no se ven quedan en la página con `hidden`, así ir y volver no pierde nada y se manda todo junto, igual que antes (las form actions `?/discount` y `?/buy` no cambiaron). **Sin JavaScript** se ven los tres pasos juntos (un `<noscript>` saca el `hidden` y esconde los botones de paso) y funciona como un formulario común.
    - **Validación por paso:** «Continuar» (o saltar adelante con el indicador) valida el paso con **las mismas funciones que el servidor** (`validateBuyer`, `validateHolders` en `src/lib/utils/ticketBuyer.js`, que `validatePurchase` re-exporta, y `validateAnswers`): si hay errores no avanza, los marca al lado de cada campo y lleva el foco al primero; mientras se corrige, los errores se actualizan. Con JavaScript el formulario va con `novalidate` (los avisos son los nuestros, en voseo). Al enviar se revisan los tres pasos; si el servidor devuelve errores, se abre el primer paso que los tiene (`firstStepWithErrors`).
    - **Quien compra** (uno por compra): nombre, **pronombres (obligatorios**, se guardan en la orden, `buyer_pronouns`), email (ahí van todas las entradas) y **DNI** (7 a 9 dígitos, se aceptan puntos; se guarda solo con dígitos).
    - **Con cuenta**: estos datos arrancan completados con lo guardado y el mail de la cuenta, y aparecen las casillas «Guardar mis datos para la próxima» y «Recordar mi DNI» (aparte, sin marcar). Ver [cuentas.md](cuentas.md), «Datos guardados para la compra». Sin cuenta, nada cambia.
-   - **Cada entrada** (datos para el evento): nombre (como le conocen, no el del documento) y **pronombres (obligatorios**, hasta 40 letras; el servidor también lo exige). Al lado de "Pronombres" hay un **?** chiquito y gris (está por las dudas) que abre <https://pronombr.es> en **otra pestaña** (`target="_blank" rel="noopener"`), para no perder lo escrito. La entrada 1 copia el nombre y los pronombres de quien compra hasta que se editen ahí (sin JavaScript, si quedan vacíos se usan los de quien compra).
+   - **Cada entrada** (datos para el evento): nombre (como le conocen, no el del documento; «Tu nombre», el de quien compra, también lo aclara) y **pronombres (obligatorios**, hasta 40 letras; el servidor también lo exige). Al lado de "Pronombres" hay un **?** chiquito y gris (está por las dudas) que abre <https://pronombr.es> en **otra pestaña** (`target="_blank" rel="noopener"`), para no perder lo escrito. La entrada 1 copia el nombre y los pronombres de quien compra hasta que se editen ahí (sin JavaScript, si quedan vacíos se usan los de quien compra).
    - Tipo, **¿Cómo querés pagar tu entrada?** (ver [Precio](#precio-fondo-código-y-recargo)) o, en un tipo a la gorra, **¿Cuánto querés pagar por entrada?**, cantidad, código de descuento opcional (botón **Aplicar**, que valida en el servidor y muestra el total en el resumen; no aparece con un tipo a la gorra), medio de pago y la casilla de +18/condiciones.
    - **Medio de pago:** dos tarjetas del mismo alto, una al lado de la otra (en el celu, una debajo de la otra), y la explicación de cada medio debajo, en un lugar reservado (las dos explicaciones ocupan la misma celda y solo se ve la elegida): elegir uno no mueve nada (la línea del recargo también reserva su lugar). Hay un test E2E que mide que no cambie ninguna posición.
    - **Condiciones:** una sola lista con el mismo formato (`purchaseConditions` en `src/lib/utils/tickets.js`): +18, una entrada por persona, cuándo llegan las entradas, cuánto se reserva el lugar y la política de devoluciones.
@@ -358,7 +358,8 @@ uno (`src/lib/server/tickets/extras.js`).
 - el mail de la compra y el de la transferencia: una línea por extra en el desglose
   («2 × Trago: $ 6.000») y el total pagado (`withOrderExtras` en `index.js`, `priceLines`);
 - la página de estado de la compra y la de cada entrada («Extras de la compra: + 2 × Trago»);
-- Ventas › Órdenes: «Extras: 2 × Trago · 0 entregados · +$ 6.000 (pagó $ 14.000 en total)»;
+- Ventas › Órdenes: suman a «Pagó $ 14.000» y van en el desglose de abajo («2 × Trago
+  $ 6.000»; ver [La plata de cada orden en Órdenes](#la-plata-de-cada-orden-en-órdenes));
 - `ordenes.csv`: dos columnas después de `total`, `extras` («2 × Trago (1 entregado)») y
   `monto_extras` (solo en la fila de la entrada 1, como los demás montos);
 - Ventas › Totales: «Extras» aparte de «Recaudado» (que sigue siendo lo de las entradas), con
@@ -510,6 +511,19 @@ El formulario muestra "Entradas (n × $X) · 💜 Ya descontado: el Fondo cubre 
 
 La orden guarda `unit_price` (precio completo), `fondo_option`, `fondo_amount` (fondo usado, ≥ 0, solo con `fondo`), `fondo_contribution` (aporte, ≥ 0, solo con las solidarias), `subtotal`, `discount_code`, `discount_amount`, `surcharge_amount` y `total` (con `CHECK` en la base que obligan a que cierren las cuentas: `migrations/0002_tickets.sql`). `/admin/ventas` muestra por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo** = aportes − fondo usado (solo órdenes aprobadas; con signo: verde "+" si entró más de lo que cubrió el fondo, rojo "−" si el fondo puso más); la página de cada evento, las tres columnas por tipo y en el total; el CSV, `opcion_fondo`, `fondo` y `aporte_fondo`. Si una compra solidaria usa además un código, el aporte guardado es el nominal (el código lo pone la organización: lo tomamos como un costo de la organización, no del fondo; decisión [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)). Con fondo, aporte, código o recargo, la preferencia de MP lleva un solo ítem por el total (MP no acepta ítems negativos) y el webhook compara lo pagado con `total`.
 
+#### La plata de cada orden en Órdenes
+
+En Ventas › Órdenes cada orden muestra la plata en dos líneas (opción A de gorrite;
+`orderMoneyLines` en `src/lib/admin/orderFormat.js`):
+
+- arriba, «1 × General · Pagó $ 13.776 · te quedan $ 13.528», y después el medio de pago y quiénes
+  ingresaron. «Pagó» es `total` más los extras; «te quedan» es eso menos la comisión que informó
+  MP (`mp_fee_amount`), y no aparece si MP no la informó (o no es MP). Una orden sin cobrar
+  (pendiente, vencida, rechazada, cancelada) dice «Total» en lugar de «Pagó»;
+- abajo, chico y gris, solo lo que corresponde: «$ 1.500 del Fondo · recargo MP $ 276 · MP se quedó
+  $ 248», más la gorra, el aporte al Fondo, el código de descuento y cada extra («2 × Trago
+  $ 4.000»). Lo entregado de cada extra se ve en la puerta y en la barra.
+
 ### Meta de venta
 
 El panel mostraba el avance de cada evento contra **vender todas las entradas** (el cupo), algo
@@ -595,9 +609,39 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   resto, nada. Una línea con el neto: «Fondo: cubrió $ X en descuentos − recibió $ Y en aportes =
   el Fondo le pasa $ Z al evento» (o «el evento le pasa $ Z al Fondo»).
 - **Ingresos por entradas** = preventa + puerta + lo que cubrió el Fondo. Es la base del
-  porcentaje del lugar («IIBB con fondo» de las planillas); la página lo dice. **Otros ingresos**
+  porcentaje del lugar («IIBB con fondo» de las planillas); la página lo dice.
+- **Extras** (gorrite, 5/11: «gastos y reparto tiene que considerar extras ahora»; ver
+  [Extras](#extras)): lo que se pagó por los extras de las órdenes aprobadas (`extras_amount`:
+  online, vendidos en la puerta, con el link de puerta o cargados a mano), a precio de lista. Es un
+  renglón propio de Ingresos («Extras», con el detalle por extra de `order_extras`: «2 × Trago
+  $ 4.000»; las cortesías a $ 0 no suman) y entran en «Ingresos». **No se cuentan dos veces:**
+  `total` es lo de las entradas con el recargo de MP de **todo** (entradas y extras), así que
+  preventa y puerta siguen siendo `total − recargo − aporte`, y los extras se suman aparte, sin
+  recargo. La plata de los extras entró con el mismo pago: la tiene quien tiene esa fuente (la
+  cuenta de MP, la caja de la puerta…); la tabla de Ingresos la suma en «Cobrado» y la página dice
+  cuánto de cada fuente es de extras. Lo entregado (en la puerta o en la barra) no cambia nada:
+  cuenta lo pagado. Las reembolsadas y las transferencias sin confirmar no cuentan, con sus extras.
+  El link de barra solo entrega: no vende, así que no hay extras «vendidos en la barra» aparte.
+  `gross` (lo que se compara para avisar si cambiaron las ventas) sigue siendo lo de las entradas;
+  los extras se comparan aparte, solo en las fotos que los tienen.
+- **Adónde van los extras** (gorrite, #642: «¿puedo elegir adónde van los extras? Por ejemplo,
+  en Gancho Fácil todos los extras van directo al lugar»): en un evento con extras, en Gastos ›
+  Lugar, **«Los extras van:»** (de cada evento, `extrasTo` en el JSON de la cuenta; no se guarda
+  en la regla del lugar):
+  - **«Al reparto»** (por defecto): son ingresos como el resto y el % del lugar no los toca;
+  - **«Todos al lugar»**: todo lo de los extras es del lugar. Es un gasto más del Lugar («Extras:
+    $ X, todo para el lugar»; «Lugar: $ …» y el `venue` del cierre lo suman), así que no llega a
+    la ganancia. En «Quién le pasa a quién», quien tiene esa plata se la pasa al lugar (aunque lo
+    del lugar por su regla ya esté pagado);
+  - **«El lugar cobra su % también sobre los extras»**: los extras suman a la base del % del lugar
+    (con un monto fijo o por hora no cambia nada, y la página lo dice).
+
+  Las cuentas guardadas con la casilla de antes («El lugar también cobra sobre los extras»,
+  `venueOnExtras: true`) pasan a «El lugar cobra su % también sobre los extras» al leerlas
+  (`cleanAccount`). **Otros ingresos**
   (barra, sponsor, efectivo que no se cargó en la puerta): concepto, monto y quién lo tiene; suman
   a los ingresos pero no a la base del lugar.
+
 - **Lugar**, cuatro formas: monto fijo; por hora (horas × precio); porcentaje de los ingresos por
   entradas; porcentaje con un mínimo (fijo o por hora). Se carga en cada evento; si el lugar
   vinculado («Sucede en») tiene una regla guardada, la cuenta nueva arranca con esa. «Guardar como
@@ -649,6 +693,9 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   guardó en el medio, no se pisa y avisa). **Cerrar la cuenta** guarda, congela los números y
   escribe el resumen en `event_account_closings` (entradas, preventa, puerta, Fondo neto, otros
   ingresos, lugar, contrataciones, otros gastos, gastos, Caja KV, ganancia, y la foto de la cuenta).
+  Los **extras** no tienen columna (no hizo falta migración): van en la foto (`income.extras`) y
+  `listClosings`/`getClosing` los leen de ahí (`json_extract`); «Ingresos» ya los suma. Las
+  cuentas cerradas antes de los extras se ven igual que antes, con «Extras $ 0» (`cleanIncome`).
   El resumen no tiene una columna de facilitadores (las planillas no la tenían y con partes libres
   no siempre hay): «Caja KV» es todo lo que termina en la Caja (su parte, la de las partes del
   equipo, los pesos del redondeo y las contrataciones que se dejaron en la caja); lo de cada parte
@@ -657,7 +704,7 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   borra el cierre. Todo queda en Actividad (`event_account.save`, `.close`, `.reopen`,
   `venue.cost_rule`).
 - **Cuentas del año:** los cierres de un año por el mes del evento, con el renglón del año y la
-  lista de eventos.
+  lista de eventos. La columna «Extras» va después de «Fondo neto».
 - **La página** (gorrite, Mesa 5/11: más compacta): arriba, ingresos, gastos, ganancia o pérdida y
   Caja KV; abajo, cuatro tarjetas: **Ingresos** (lo que entró y otros ingresos), **Gastos** (lugar,
   contrataciones y otros gastos), **Reparto** (cada parte: nombre y lo suyo; su regla; sus marcas,
@@ -665,7 +712,7 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   columnas (ingresos y reparto a la izquierda, gastos y quién le pasa a quién a la derecha); en el
   celu, una, en ese orden. Cada renglón de gasto va en una línea si entra.
 - **Cada total dice qué suma** (gorrite, Mesa 5/11), igual en la página, en el resumen de la cuenta
-  cerrada y en Cuentas del año: «Otros ingresos: $ …», «Ingresos», «Lugar: $ …», «Contrataciones:
+  cerrada y en Cuentas del año: «Extras», «Otros ingresos: $ …», «Ingresos», «Lugar: $ …», «Contrataciones:
   $ …», «Otros gastos: $ …», «Gastos» y «Ganancia» o «Pérdida» (sin signo; en la tabla del año,
   «Ganancia o pérdida» con signo). Nunca un «Total» a secas.
 
@@ -1002,8 +1049,8 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
   (`transaction_amount_refunded`), el aviso lo **anota solo** en la orden (`refunded_amount`,
   migración 0069; el acumulado, idempotente) sin cambiar nada más: la orden sigue aprobada, las
   entradas siguen valiendo y no se manda ningún mail. En la pestaña Órdenes la orden dice
-  «Reembolso parcial en Mercado Pago: $ X (quedan $ Y)» (y, si MP la informó, «comisión de MP
-  $ Z»); el CSV de órdenes todavía no lo trae, y se resta de «Recaudado», de lo neto y de los totales del panel y de Estadísticas
+  «Reembolso parcial en Mercado Pago: $ X (quedan $ Y)» (y, si MP la informó, «MP se quedó
+  $ Z» en el desglose); el CSV de órdenes todavía no lo trae, y se resta de «Recaudado», de lo neto y de los totales del panel y de Estadísticas
   (`REVENUE_SQL`). Un reembolso total sigue pasando la orden a `refunded`, como siempre.
   Código: `paymentAmounts` y `recordPaymentAmounts` en `src/lib/server/tickets/orders.js`.
 - **«Reembolsar todas» (evento cancelado, decisión [0051](decisiones/0051-reembolsar-todas-evento-cancelado.md)):** en la pestaña Órdenes de un evento con `status: cancelado`, arriba, un bloque con cuántas órdenes de Mercado Pago quedan sin reembolsar y por cuánto en total (`refundAllPreview` en `src/lib/server/admin/refunds.js`: aprobadas, `payment_method = 'mercadopago'`, con número de pago y compradas online). El total, cada orden del resumen y la Actividad usan **lo que queda por devolver** de cada orden: su total menos el reembolso parcial ya hecho en MP (`refunded_amount`, `orderRevenue` / `REVENUE_SQL`); una orden a la que no le queda nada no se cuenta ni se le pide a MP. El pedido a MP sigue siendo el reembolso total (body vacío): MP no deja que lo reembolsado de un pago pase lo pagado, así que nunca devuelve de más. Lo mismo en «Reembolsar…» de una orden: el monto que muestra es lo que queda. Solo admins. «Reembolsar todas…» abre la confirmación en la misma página: hay que escribir **REEMBOLSAR**, y el servidor rechaza si el evento no está cancelado o si la cantidad o el total que vio le admin ya no son los de ahora. La acción `refundAll` (`eventActions.js`) las reembolsa **de a 10 por pedido** (`REFUND_ALL_BATCH`), una después de otra y en orden de compra, cada una con **el mismo paso que «Reembolsar…»** (`refundFromPanel`: MP con `refund-<orden>` y después `refundOrder`; `afterRefund`: Actividad `order.refund`, el mismo mail «Reembolsamos tu compra» y la lista de espera). Si quedan más, «Seguir con las N que faltan» continúa después de la última vista. Nunca reembolsa dos veces (lo reembolsado no se vuelve a pedir; dos pedidos a la vez mandan la misma clave a MP y marcan la orden una vez). Si `refundPayment` da error (o se corta), se consulta el pago (`getPayment`): si MP ya lo tiene reembolsado, la orden se marca con el mismo `refundOrder` y cuenta como hecha; si no, se vuelve a leer la orden (si el webhook la marcó mientras tanto, «ya estaba»). Esto vale también para «Reembolsar…» de una orden. Lo que MP rechaza queda aprobado y el resumen pide revisar el pago en Mercado Pago antes de devolverlo a mano (para no pagarlo dos veces). Un error en una orden no corta la tanda (queda «not-marked», para revisar), y el resumen y la Actividad se anotan igual. Un «Seguir» con una orden que no es de este evento se rechaza (400) en vez de volver a empezar sin el control de cantidad y total; cada tanda queda en Actividad (`event.refund_all`) y en el log. Las aprobadas que no son de MP online (puerta, carga a mano, transferencia) se listan aparte como **«Para devolver a mano»** y no se tocan; las sin cargo solo se cuentan.

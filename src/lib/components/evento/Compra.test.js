@@ -50,3 +50,27 @@ describe('Compra: agotadas y lista de espera', () => {
 		expect(html({ ...open, waitlist: true })).toBe(html(open));
 	});
 });
+
+describe('Compra: la línea fija de +18 (gorrite, 26/10)', () => {
+	const ADULTS = 'Solo para personas mayores de 18 años. Puede pedirse documento en la puerta.';
+	const open = { ...soldOut, open: true, reason: null };
+
+	it('con la venta abierta, debajo del botón; online, sin «documento en la puerta»', () => {
+		expect(textOf(html(open))).toContain(ADULTS);
+		const online = textOf(html({ ...open, online: true }));
+		expect(online).toContain('Solo para personas mayores de 18 años.');
+		expect(online).not.toContain('documento');
+	});
+
+	it('también con lista de espera y antes de que abra la venta', () => {
+		expect(textOf(html({ ...soldOut, waitlist: true }))).toContain(ADULTS);
+		expect(
+			textOf(html({ ...soldOut, reason: 'notyet', opensAt: Date.now() + 86400000 }))
+		).toContain(ADULTS);
+	});
+
+	it('sin nada para comprar (agotadas sin lista, cancelado), no', () => {
+		expect(textOf(html(soldOut))).not.toContain('18 años');
+		expect(textOf(html({ ...soldOut, reason: 'cancelled' }))).not.toContain('18 años');
+	});
+});
