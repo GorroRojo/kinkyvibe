@@ -1,5 +1,7 @@
 /** Textos de las órdenes en el panel (pestañas Órdenes y Transferencias de la ficha). */
 import { argDateLog } from '$lib/utils/dates.js';
+import { formatARS } from '$lib/utils/money.js';
+import { fondoOptionLabel } from '$lib/utils/tickets.js';
 export const ORDER_STATUS = /** @type {Record<string, string>} */ ({
 	pending: 'Pendiente',
 	awaiting_transfer: 'Esperando transferencia',
@@ -117,4 +119,56 @@ export function orderFilterFor(current, status) {
 	if (current === 'pending' && (status === 'pending' || status === 'awaiting_transfer'))
 		return current;
 	return 'all';
+}
+
+/**
+ * La plata de una orden en Ventas › Órdenes, en dos líneas (opción A de gorrite):
+ *
+ * - `main`: «1 × General · Pagó $ 13.776 · te quedan $ 13.528». Lo pagado es lo de las entradas
+ *   (`total`, con el recargo de MP) más los extras; lo que queda es eso menos la comisión que
+ *   informó MP. Sin comisión informada (transferencia, efectivo, o MP todavía no la mandó), sin
+ *   «te quedan». Una orden sin cobrar (pendiente, vencida, rechazada…) dice «Total» y no «Pagó».
+ * - `detail`: chica y gris, solo lo que corresponde: «$ 1.500 del Fondo · recargo MP $ 276 · MP
+ *   se quedó $ 248», más la gorra, el aporte al Fondo, el código de descuento y los extras
+ *   («2 × Trago $ 4.000»). Vacía si no hay nada.
+ *
+ * @param {{
+ *   quantity: number,
+ *   type: string,
+ *   status: string,
+ *   total: number,
+ *   gorra?: number | null,
+ *   fondo?: number | null,
+ *   fondoOption?: string | null,
+ *   contribution?: number | null,
+ *   discountCode?: string | null,
+ *   discountAmount?: number | null,
+ *   surcharge?: number | null,
+ *   mpFee?: number | null,
+ *   extras?: { name: string, quantity: number, price: number }[],
+ *   extrasAmount?: number | null
+ * }} o
+ * @returns {{ main: string, detail: string }}
+ */
+export function orderMoneyLines(o) {
+	const paid = Number(o.total) + Number(o.extrasAmount ?? 0);
+	const charged = o.status === 'approved' || o.status === 'refunded';
+	const main = [
+		`${o.quantity} × ${o.type}`,
+		`${charged ? 'Pagó' : 'Total'} ${formatARS(paid)}`,
+		...(charged && o.mpFee != null ? [`te quedan ${formatARS(paid - o.mpFee)}`] : [])
+	].join(' · ');
+	const detail = [
+		o.gorra != null && `a la gorra, ${formatARS(o.gorra)} c/u`,
+		o.fondo && `${formatARS(o.fondo)} del Fondo`,
+		o.contribution &&
+			`aporte al Fondo ${formatARS(o.contribution)} (${fondoOptionLabel(o.fondoOption ?? '')})`,
+		o.discountAmount && `código ${o.discountCode} −${formatARS(o.discountAmount)}`,
+		...(o.extras ?? []).map((x) => `${x.quantity} × ${x.name} ${formatARS(x.quantity * x.price)}`),
+		o.surcharge && `recargo MP ${formatARS(o.surcharge)}`,
+		o.mpFee != null && `MP se quedó ${formatARS(o.mpFee)}`
+	]
+		.filter(Boolean)
+		.join(' · ');
+	return { main, detail };
 }
