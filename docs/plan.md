@@ -374,7 +374,7 @@ CI) va en la fase 0.
 ### Cuentas y perfiles
 
 - `lo-que-sigo-fichas` · fase 2 · hecho · panel · «N cuentas lo siguen» en la ficha de una etiqueta y de un perfil del panel (solo admins; quiénes, en Mensajes › Lo que sigo) (depende de: lo-que-sigo-panel) · #571, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md)
-- `lo-que-sigo-avisos-fallidos` · fase 2 · en curso · panel · Contar los avisos de «Lo que sigo» que fallaron (hoy se borra su fila para reintentar: necesita migración; gorrite: sí, contalos, 12/10) (depende de: lo-que-sigo-panel) · #347
+- `lo-que-sigo-avisos-fallidos` · fase 2 · en curso · panel · Contar los avisos de «Lo que sigo» que fallaron (gorrite: sí, contalos, 12/10): un contador por día, canal y motivo sin datos de personas y «Avisos que fallaron» en Mensajes › Lo que sigo; migración 0081, solo agrega una tabla y se aplica antes del merge (rehecho de #347, que quedó sin rama) (depende de: lo-que-sigo-panel) · [lo-que-sigo.md](lo-que-sigo.md#avisos-que-fallaron-migrations0081_sigo_avisos_fallidossql), [0028](decisiones/0028-migraciones-antes-del-merge.md)
 - `admins-cuenta-normal` · fase 2 · sigue · cuentas · Admins con la cuenta del sitio en vez de GitHub: ser admin como permiso de la cuenta, la lista de admins a la base, migrar lo que guarda ids de GitHub; con decisión propia y por partes, con GitHub de respaldo (gorrite, 11/10)
 - `passkeys` · fase 2 · sigue · cuentas · Passkeys para las cuentas · [cuentas.md](cuentas.md#pendiente-partes-siguientes)
 - `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida entrar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
