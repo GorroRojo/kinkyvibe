@@ -17,6 +17,7 @@ import {
 import { confirmLimits, reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
+import { invoicedFromPanel } from '$lib/server/admin/invoiced.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 import {
 	cancelTransfer,
@@ -123,6 +124,23 @@ export async function afterRefund({
  */
 export const eventTicketActions = {
 	/** Une admin ya revisó una orden marcada: se saca la marca. */
+	/**
+	 * La casilla «Facturada» (invoiced.js): marcar o desmarcar una orden de este evento. Queda en
+	 * Actividad (`order.invoiced` / `order.uninvoiced`).
+	 */
+	invoiced: async ({ locals, url, params, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { invoiced: { ok: false, message: 'Sin base de datos.' } });
+		const form = await request.formData();
+		const r = await invoicedFromPanel(db, locals, {
+			orderId: String(form.get('order') ?? ''),
+			invoiced: form.get('invoiced') === '1',
+			by: admin.login,
+			eventSlug: params.slug
+		});
+		return r.ok ? r.body : fail(r.status, r.body);
+	},
 	reviewed: async ({ locals, url, params, platform, request }) => {
 		requireAdmin(locals, url);
 		const db = getDB(platform);
