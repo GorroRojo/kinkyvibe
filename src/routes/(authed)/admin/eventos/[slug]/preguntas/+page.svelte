@@ -8,6 +8,8 @@
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { FIELD_KIND_LABELS } from '$lib/utils/signupFields.js';
 	import GeneralFieldScope from '$lib/components/admin/GeneralFieldScope.svelte';
+	import SignupQuestionsEditor from '$lib/components/admin/forms/SignupQuestionsEditor.svelte';
+	import { MAX_EVENT_FIELDS } from '$lib/utils/signupFields.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -20,7 +22,7 @@
 
 <svelte:head><title>Preguntas · {e.title} · Panel</title></svelte:head>
 
-<div class="kv-stack preguntas">
+<div class="kv-stack preguntas" class:wide={data.formularios}>
 	<p class="kv-note">
 		Se preguntan al comprar o inscribirse, después de los datos de siempre. Las respuestas son datos
 		de quien compra: se ven solo en <a href="/admin/eventos/{encodeURIComponent(e.slug)}/ordenes"
@@ -67,25 +69,42 @@
 	</Card>
 
 	<Card title="Preguntas de este evento">
-		{#if form?.field?.message}
-			<p class="kv-flash" class:bad={!form.field.ok} role="status">{form.field.message}</p>
+		{#if data.formularios}
+			<p class="kv-note">
+				Cambiá el orden con las flechas (o arrastrando, en la compu) y guardá. Así se preguntan al
+				comprar, después de las generales.
+			</p>
+			<SignupQuestionsEditor
+				fields={data.own}
+				types={data.types}
+				{form}
+				idPrefix="evento"
+				max={MAX_EVENT_FIELDS}
+			/>
+		{:else}
+			{#if form?.field?.message}
+				<p class="kv-flash" class:bad={!form.field.ok} role="status">{form.field.message}</p>
+			{/if}
+			<SignupFieldList
+				fields={data.own}
+				csvName={csvFilename(e.slug, 'preguntas')}
+				empty="Este evento no tiene preguntas propias."
+				{form}
+				types={data.types}
+				idPrefix="evento"
+			/>
+			<h3>Agregar una pregunta</h3>
+			<SignupFieldForm {form} types={data.types} idPrefix="evento" />
 		{/if}
-		<SignupFieldList
-			fields={data.own}
-			csvName={csvFilename(e.slug, 'preguntas')}
-			empty="Este evento no tiene preguntas propias."
-			{form}
-			types={data.types}
-			idPrefix="evento"
-		/>
-		<h3>Agregar una pregunta</h3>
-		<SignupFieldForm {form} types={data.types} idPrefix="evento" />
 	</Card>
 </div>
 
 <style>
 	.preguntas {
 		max-width: 48rem;
+	}
+	.preguntas.wide {
+		max-width: 80rem;
 	}
 	.general {
 		list-style: none;

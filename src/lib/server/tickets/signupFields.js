@@ -430,3 +430,25 @@ export async function answersByOrder(db, slug) {
 	}
 	return out;
 }
+
+/**
+ * Guarda el orden de las preguntas (de ese evento, o generales con `eventSlug` null): cada id en
+ * su lugar de la lista (`position` 0, 1, 2…). Los ids que no son de ahí no cambian nada.
+ *
+ * @param {D1Database} db
+ * @param {string | null} eventSlug
+ * @param {readonly number[]} ids
+ */
+export async function setFieldPositions(db, eventSlug, ids) {
+	if (!ids.length) return;
+	await db.batch(
+		ids.map((id, position) =>
+			db
+				.prepare(
+					`UPDATE signup_fields SET position = ?3
+					WHERE id = ?1 AND event_slug IS ?2 AND deleted_at IS NULL`
+				)
+				.bind(id, eventSlug, position)
+		)
+	);
+}

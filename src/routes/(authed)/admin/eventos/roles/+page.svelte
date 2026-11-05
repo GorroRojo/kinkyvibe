@@ -9,6 +9,8 @@
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import SignupFieldForm from '$lib/components/admin/SignupFieldForm.svelte';
 	import SignupFieldList from '$lib/components/admin/SignupFieldList.svelte';
+	import SignupQuestionsEditor from '$lib/components/admin/forms/SignupQuestionsEditor.svelte';
+	import { MAX_GENERAL_FIELDS } from '$lib/utils/signupFields.js';
 	import { ROLE_MAX } from '$lib/utils/personas.js';
 
 	/** @type {import('./$types').PageData} */
@@ -30,7 +32,7 @@
 	subtitle="Roles de las personas en eventos y preguntas extra al comprar o inscribirse."
 />
 
-<div class="kv-stack settings">
+<div class="kv-stack settings" class:wide={data.formularios}>
 	<Card title="Roles">
 		<svelte:fragment slot="actions">
 			<CsvButton rows={data.roles} columns={roleColumns} filename="roles.csv" />
@@ -93,24 +95,36 @@
 			Se definen una vez y cada evento elige cuáles usa (pestaña Preguntas de su ficha). Las
 			respuestas son datos de quien compra: se ven solo en Órdenes y en su CSV.
 		</p>
-		{#if form?.field?.message}
-			<p class="kv-flash" class:bad={!form.field.ok} role="status">{form.field.message}</p>
+		{#if data.formularios}
+			<SignupQuestionsEditor
+				fields={data.fields}
+				{form}
+				idPrefix="general"
+				max={MAX_GENERAL_FIELDS}
+			/>
+		{:else}
+			{#if form?.field?.message}
+				<p class="kv-flash" class:bad={!form.field.ok} role="status">{form.field.message}</p>
+			{/if}
+			<SignupFieldList
+				fields={data.fields}
+				csvName="preguntas-generales.csv"
+				empty="Todavía no hay preguntas generales."
+				{form}
+				idPrefix="general"
+			/>
+			<h3>Agregar una pregunta general</h3>
+			<SignupFieldForm {form} idPrefix="general" />
 		{/if}
-		<SignupFieldList
-			fields={data.fields}
-			csvName="preguntas-generales.csv"
-			empty="Todavía no hay preguntas generales."
-			{form}
-			idPrefix="general"
-		/>
-		<h3>Agregar una pregunta general</h3>
-		<SignupFieldForm {form} idPrefix="general" />
 	</Card>
 </div>
 
 <style>
 	.settings {
 		max-width: 48rem;
+	}
+	.settings.wide {
+		max-width: 80rem;
 	}
 	.roles {
 		list-style: none;
