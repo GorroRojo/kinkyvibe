@@ -268,9 +268,11 @@ export const xml = (s) =>
 /**
  * @typedef {{ poster: string, medium: string, signage: string, arimo: string, arimoBold: string,
  *   arimoBoldItalic: string, fredoka: string, pattern: string, logo: string,
- *   images: Record<string, string> }} SlideAssets
+ *   wordmark?: string, images: Record<string, string> }} SlideAssets
  *   las letras, el dibujo de fondo, el logo (ya en violeta) y las imágenes de los eventos (por
  *   slug) como `data:` URLs: una imagen SVG dibujada en un canvas no puede cargar nada de afuera.
+ *   `wordmark` (opcional) es el dibujo original de «agenda kinky» exportado del .ai: si está, va
+ *   en lugar de las letras (ver `WORDMARK_BOX`).
  * @typedef {{ kind: 'cover', month: string, text: string, weeks: (number | null)[][],
  *     ours: number[], friends: number[] }
  *   | { kind: 'events', rows: readonly SlideRow[], first: number, footer: string }
@@ -308,6 +310,22 @@ const BASE = { poster: 0.3, medium: 0.3, signage: 0.229, arimo: 0.3465, fredoka:
  * @param {keyof typeof BASE} font @param {number} size @param {number} baseline
  */
 const topFor = (font, size, baseline) => +(baseline - BASE[font] * size).toFixed(2);
+
+/**
+ * Las tres manchas detrás del logo del Fondo (amarilla, menta y rosa, en ese orden de abajo
+ * arriba): formas redondeadas desparejas, medidas sobre la placa de octubre. Asoman arriba a la
+ * izquierda (menta), a la derecha (amarilla) y abajo a la izquierda (rosa).
+ */
+const BLOBS = [
+	[870, 570, 165, 140, '35% 55% 60% 45% / 40% 45% 65% 55%', C.yellow],
+	[800, 560, 185, 175, '50% 50% 45% 55% / 45% 55% 50% 50%', C.mint],
+	[795, 668, 165, 137, '55% 45% 50% 50% / 50% 50% 55% 45%', C.pink]
+]
+	.map(
+		([left, top, w, h, radius, color]) =>
+			`<i class="blob" style="left:${left}px;top:${top}px;width:${w}px;height:${h}px;border-radius:${radius};background:${color}"></i>`
+	)
+	.join('');
 
 const PIN = `<svg xmlns="http://www.w3.org/2000/svg" class="pin" viewBox="0 0 24 30"><path fill="${C.mint}" d="M12 0C5.4 0 0 5.2 0 11.6 0 19.8 12 30 12 30s12-10.2 12-18.4C24 5.2 18.6 0 12 0Zm0 16.4a4.9 4.9 0 1 1 0-9.8 4.9 4.9 0 0 1 0 9.8Z"/></svg>`;
 
@@ -353,7 +371,7 @@ p { margin: 0; }
 .foot { position: absolute; left: 0; right: 0; bottom: 0; height: 68px; background: ${C.purple}; color: #fff; font-size: 35px;
   line-height: 0; padding-top: ${(1332 - 1282 - BASE.signage * 35).toFixed(2)}px; text-align: center; white-space: nowrap; }
 .logo { display: block; border-radius: 50%; }
-.cover-logo { position: absolute; z-index: 2; top: 69.8px; left: 484.7px; width: 111px; height: 111px; border: 1px solid ${C.ink}; }
+.cover-logo { position: absolute; z-index: 2; top: 69.8px; left: 484.7px; width: 111px; height: 111px; }
 .sub { position: absolute; z-index: 3; top: 483.4px; left: 440px; width: 300px; font-weight: 700; font-style: italic; font-size: 55px; line-height: 50px;
   -webkit-text-stroke: 3px #fff; paint-order: stroke fill; }
 .cal { position: absolute; left: 166.2px; top: 717px; width: 748px; border: 2.4px solid ${C.ink}; border-radius: 51px 51px 60px 60px;
@@ -405,7 +423,7 @@ p { margin: 0; }
 .fondo-name .l0 { -webkit-text-stroke: 2.4px ${C.ink}; }
 .fondo-name .l0.de { -webkit-text-stroke: 0; }
 .y { color: ${C.yellow}; } .p { color: ${C.pink}; } .m { color: ${C.mint}; } .v { color: ${C.purple}; }
-.blob { position: absolute; border-radius: 50%; }
+.blob { position: absolute; }
 .fondo-logo { position: absolute; left: 803.7px; top: 586.6px; width: 206.1px; height: 206.1px; border: 2px solid ${C.ink}; }
 .bar { position: absolute; top: 829.4px; left: 45.6px; width: 975px; height: 69px; border-radius: 15px; background: ${C.bar}; overflow: hidden; }
 .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: ${C.pink}; border-radius: 15px; }
@@ -455,17 +473,59 @@ p { margin: 0; }
 `;
 
 /**
+ * Dónde va el dibujo original de «agenda kinky» (`SlideAssets.wordmark`), en unidades del óvalo
+ * chico (188.9 × 112.2): la caja de tinta de las dos palabras con su contorno y su sombra (medida
+ * sobre las letras de Fredoka; con el archivo de verdad, medirla de nuevo). El archivo tiene que
+ * estar recortado justo a esa tinta.
+ */
+export const WORDMARK_BOX = { left: 8.9, top: 6.4, width: 153.8, height: 96.2 };
+
+/**
+ * El contorno de las letras de «agenda kinky» como sombras alrededor (y otra vez corrido abajo a
+ * la izquierda, la sombra del .ai). No va con `-webkit-text-stroke`: Fredoka tiene contornos que
+ * se pisan adentro de cada letra y el trazo los dibujaba, y las letras se veían rotas.
+ * @param {number} b el grosor del contorno @param {number} d el corrimiento de la sombra
+ * @param {number} sx la escala horizontal de las letras (las sombras se escalan con ellas)
+ */
+function outlineShadow(b, d, sx) {
+	const r = (/** @type {number} */ n) => +n.toFixed(2);
+	/** @type {string[]} */
+	const out = [];
+	for (const [ox, oy] of [
+		[0, 0],
+		[-d, d]
+	]) {
+		for (let i = 0; i < 16; i++) {
+			const t = (i * Math.PI) / 8;
+			out.push(`${r((ox + b * Math.cos(t)) / sx)}px ${r(oy + b * Math.sin(t))}px 0 ${C.ink}`);
+		}
+	}
+	return out.join(',');
+}
+
+/**
  * «agenda kinky» en su óvalo amarillo, como en el .ai: el chico de arriba de las placas (escala 1),
  * el grande de las placas con título y el de la portada son el mismo dibujo a otra escala.
  * @param {number} x @param {number} y la esquina del óvalo (sin el borde)
  * @param {number} k la escala
+ * @param {string} [wordmark] el dibujo original de las dos palabras (ver `WORDMARK_BOX`)
  */
-function tagHtml(x, y, k) {
+function tagHtml(x, y, k, wordmark) {
 	const w = 188.9 * k;
 	const h = 112.2 * k;
 	const b = 1.1 * k;
 	const size = 53.8 * k;
 	const r = (/** @type {number} */ n) => +n.toFixed(2);
+	const oval = `<div class="tag" style="left:${r(x - b / 2)}px;top:${r(y - b / 2)}px;width:${r(w + b)}px;height:${r(
+		h + b
+	)}px;border-width:${r(b)}px"></div>`;
+	if (wordmark) {
+		const m = WORDMARK_BOX;
+		return `${oval}<img class="tag-word" src="${xml(wordmark)}" alt="" style="left:${r(x + m.left * k)}px;top:${r(
+			y + m.top * k
+		)}px;width:${r(m.width * k)}px;height:${r(m.height * k)}px"/>`;
+	}
+	const shadow = outlineShadow(b, 1.6 * k, 0.805);
 	const word = (
 		/** @type {string} */ text,
 		/** @type {number} */ inkLeft,
@@ -474,12 +534,8 @@ function tagHtml(x, y, k) {
 	) =>
 		`<span class="tag-word round" style="left:${r(x + inkLeft * k - bearing * size * 0.805)}px;top:${r(
 			y + topFor('fredoka', size, baseline * k)
-		)}px;font-size:${r(size)}px;transform:scaleX(0.805);-webkit-text-stroke:${r(b)}px ${C.ink};text-shadow:${r(
-			-1.6 * k
-		)}px ${r(1.6 * k)}px 0 ${C.ink}">${text}</span>`;
-	return `<div class="tag" style="left:${r(x - b / 2)}px;top:${r(y - b / 2)}px;width:${r(w + b)}px;height:${r(
-		h + b
-	)}px;border-width:${r(b)}px"></div>${word('agenda', 11.25, 0.02, 45.6)}${word('kinky', 63.45, 0.04, 87.8)}`;
+		)}px;font-size:${r(size)}px;transform:scaleX(0.805);text-shadow:${shadow}">${text}</span>`;
+	return `${oval}${word('agenda', 11.25, 0.02, 45.6)}${word('kinky', 63.45, 0.04, 87.8)}`;
 }
 
 /**
@@ -594,17 +650,20 @@ const PRICE_LONG = 36;
 const eventsColumn = (items) =>
 	`<div class="events"><div class="edge"></div>${items.join('<div class="gap"></div>')}<div class="edge end"></div></div>`;
 
-const TOP = `<div class="pat" style="top:0;height:102px"></div><div class="band"></div>${tagHtml(445.55, 69.7, 1)}`;
+/** La cabecera de las placas: el dibujo de fondo, la banda rosa y «agenda kinky». @param {SlideAssets} a */
+const top = (a) =>
+	`<div class="pat" style="top:0;height:102px"></div><div class="band"></div>${tagHtml(445.55, 69.7, 1, a.wordmark)}`;
 
 /**
  * La cabecera de las placas con título (la lista y los amigos solos): la banda ancha con el título
  * y «agenda kinky» más grande a la derecha.
  * @param {string} title
+ * @param {SlideAssets} a
  */
-const titledTop = (title) =>
+const titledTop = (title, a) =>
 	`<div class="pat" style="top:0;bottom:0"></div><div class="band big"></div><p class="l0 poster head-title">${xml(
 		title
-	)}</p>${tagHtml(748, 31, 251.6 / 188.9)}`;
+	)}</p>${tagHtml(748, 31, 251.6 / 188.9, a.wordmark)}`;
 
 /**
  * La placa como imagen SVG (1080 × 1350) con el diseño en XHTML adentro (`foreignObject`), lista
@@ -627,13 +686,13 @@ export function slideSvg(slide, assets) {
 		const rows = slide.weeks.map((w) => `<tr>${w.map(cell).join('')}</tr>`).join('');
 		const head = ['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((d) => `<th>${d}</th>`).join('');
 		inner = `<div class="pat" style="top:0;bottom:0"></div><div class="band"></div>${logo('cover-logo')}
-${tagHtml(288.2, 240, 502.4 / 188.9)}
+${tagHtml(288.2, 240, 502.4 / 188.9, assets.wordmark)}
 ${slide.text ? `<p class="sub arial">${xml(slide.text)}</p>` : ''}
 <div class="cal arial${slide.weeks.length > 5 ? ' six' : ''}"><div class="cal-head">${xml(slide.month)}</div><div class="cal-body"><table><tr>${head}</tr>${rows}</table></div>
 <div class="cal-foot">Deslizá para ver los eventos que se vienen &gt; &gt; &gt;</div></div>`;
 	} else if (slide.kind === 'events') {
 		const evs = slide.rows.map((r, i) => eventHtml(r, slide.first + i, assets));
-		inner = `${TOP}${eventsColumn(evs)}
+		inner = `${top(assets)}${eventsColumn(evs)}
 ${slide.footer ? `<div class="foot signage">${xml(slide.footer)}</div>` : ''}`;
 	} else if (slide.kind === 'fondo') {
 		const p = Math.max(0, Math.min(100, Math.round(slide.percent)));
@@ -656,7 +715,7 @@ ${slide.footer ? `<div class="foot signage">${xml(slide.footer)}</div>` : ''}`;
 					? `;transform:rotate(${deg}deg);transform-origin:0 ${+(BASE.poster * size).toFixed(2)}px`
 					: ''
 			}">${text}</span>`;
-		inner = `${TOP}<div class="pat" style="top:1292px;bottom:0;background-position:0 -500px"></div>
+		inner = `${top(assets)}<div class="pat" style="top:1292px;bottom:0;background-position:0 -500px"></div>
 <div class="fondo-top medium"><p>este mes</p><p class="hot">el ${p}% del precio</p><p class="hot">de las entradas</p><p>a eventos y talleres</p><p>está cubierto por el</p></div>
 <div class="fondo-name">${word('Fondo', 'y', 95.7, 134.59, 732.7)}${word('educativo', 'p', 337.4, 110.4, 647.3, -4.4)}${word(
 			'cultural',
@@ -666,27 +725,28 @@ ${slide.footer ? `<div class="foot signage">${xml(slide.footer)}</div>` : ''}`;
 			723.8,
 			1.35
 		)}${word('comunitario', 'm', 335.5, 90.13, 789.5, -1.09)}${word('de', 'v de', 660.7, 153.4, 730.1)}</div>
-<i class="blob" style="left:820.9px;top:573.2px;width:213.5px;height:200.3px;background:${C.yellow}"></i><i class="blob" style="left:762.6px;top:586.3px;width:240.9px;height:230.2px;background:${C.pink}"></i><i class="blob" style="left:794.5px;top:561.5px;width:200.3px;height:207.3px;background:${C.mint}"></i>${logo('fondo-logo')}
+${BLOBS}${logo('fondo-logo')}
 <div class="bar"><div class="fill" style="width:${p}%"></div>${ticks}</div>
 <div class="pct poster" style="left:${tagLeft}px">${p}%</div>
 <div class="mecenas medium"><p>Volvete nuestre mecenas para</p><p>ayudarnos a que todo sea gratis</p></div>
 <p class="btn poster" style="text-transform:none">${FONDO_HOST}</p>`;
 	} else if (slide.kind === 'list') {
 		inner = `<div class="pat" style="top:0;bottom:0"></div><div class="white"></div>${titledTop(
-			`Actividades de ${slide.month}`
+			`Actividades de ${slide.month}`,
+			assets
 		).replace('<div class="pat" style="top:0;bottom:0"></div>', '')}
 <div class="list">${slide.rows.map((r) => listHtml(r, assets)).join('')}</div>`;
 	} else if (slide.row) {
 		// El evento arriba (con su alto) y el bloque gris de los amigos ocupa lo que queda hasta el
 		// pie, con las filas desde arriba, como en el .ai.
-		inner = `${TOP}<div class="stack"><div class="solo">${eventHtml(slide.row, slide.index, assets)}</div>
+		inner = `${top(assets)}<div class="stack"><div class="solo">${eventHtml(slide.row, slide.index, assets)}</div>
 <div class="friends-wrap"><h2 class="poster">Otros eventos amigos:</h2><div class="rule"></div><div class="rows">${slide.friends
 			.map((r) => friendHtml(r, assets))
 			.join('')}</div></div></div>
 ${slide.footer ? `<div class="foot signage">${xml(slide.footer)}</div>` : ''}`;
 	} else {
 		// Solo amigos: el título va en la banda ancha, sin pie (como en el .ai).
-		inner = `${titledTop('Otros eventos amigos')}<div class="stack only"><div class="friends-wrap"><div class="rows">${slide.friends
+		inner = `${titledTop('Otros eventos amigos', assets)}<div class="stack only"><div class="friends-wrap"><div class="rows">${slide.friends
 			.map((r) => friendHtml(r, assets))
 			.join('')}</div></div></div>`;
 	}

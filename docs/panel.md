@@ -714,10 +714,15 @@ el mismo orden, las mismas tildes y los mismos cambios a mano (cambiar de pesta�
   espaciado −50 del .ai); la portada, que en el .ai va en Arial, usa Arimo (Google Fonts, SIL OFL
   1.1, mismas medidas que Arial; en `static/fonts/agenda-instagram/` con su `OFL.txt`), angostada
   para la Arial Narrow de los números. «agenda kinky» está en curvas en el .ai: va en Fredoka
-  angostada, la del sitio. Todas se declaran en un solo lugar (el CSS de las placas en
-  `agendaInstagram.js`) y se cargan solo en esta pestaña. El dibujo de fondo es el de los volantes
-  (`static/agenda-impresa/fondo.svg`) al doble de tamaño y en el lila del .ai, y el logo, el del
-  sitio pasado a violeta.
+  angostada, la del sitio, con el contorno hecho con sombras (con `-webkit-text-stroke` se veían
+  los contornos que Fredoka pisa adentro de cada letra y las letras parecían rotas). Cuando haya
+  un export del dibujo original, se pone su ruta en `WORDMARK_URL` (`InstagramPosts.svelte`) y va
+  en lugar de las letras, en la caja `WORDMARK_BOX`. Todas se declaran en un solo lugar (el CSS de
+  las placas en `agendaInstagram.js`) y se cargan solo en esta pestaña. El dibujo de fondo es el de
+  los volantes (`static/agenda-impresa/fondo.svg`) al doble de tamaño y en el gris lila de los
+  posts, y el logo, el del sitio (`src/routes/logo.png`) recortado al círculo y con el rosa
+  cambiado por el violeta exacto de las placas. Detrás del logo del Fondo van tres manchas
+  desparejas (amarilla, menta y rosa), no círculos.
 
 ## El buscador
 

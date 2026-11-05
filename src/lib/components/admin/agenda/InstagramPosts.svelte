@@ -74,7 +74,7 @@
 	async function patternUrl(url) {
 		const res = await fetch(url);
 		if (!res.ok) throw new Error(`${url}: ${res.status}`);
-		const svg = (await res.text()).replaceAll('#55439b', '#8e8ed7');
+		const svg = (await res.text()).replaceAll('#55439b', '#9898bf');
 		return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 	}
 
@@ -105,45 +105,82 @@
 		return canvas.toDataURL('image/jpeg', 0.88);
 	}
 
-	/** El logo del sitio (rosa) en el violeta de los posts: los píxeles de color pasan a violeta. */
+	/**
+	 * El logo del sitio (círculo rosa con letras blancas) en el violeta de los posts: recortado al
+	 * círculo (el PNG no es cuadrado y se estiraba) y con el rosa cambiado por el violeta exacto de
+	 * las placas (#6511f8). Cada píxel es una mezcla de blanco y rosa (#ff48c4): por el verde se sabe
+	 * cuánto rosa tiene y se pone esa misma cantidad de violeta, así los bordes quedan suaves.
+	 */
 	async function purpleLogo() {
 		const res = await fetch(logoUrl);
 		const bmp = await createImageBitmap(await res.blob());
+		const src = document.createElement('canvas');
+		src.width = bmp.width;
+		src.height = bmp.height;
+		const sctx = /** @type {CanvasRenderingContext2D} */ (src.getContext('2d'));
+		sctx.drawImage(bmp, 0, 0);
+		const all = sctx.getImageData(0, 0, src.width, src.height).data;
+		// La caja de lo que no es transparente: el círculo.
+		let [x0, y0, x1, y1] = [src.width, src.height, -1, -1];
+		for (let y = 0; y < src.height; y++)
+			for (let x = 0; x < src.width; x++)
+				if (all[(y * src.width + x) * 4 + 3] > 8) {
+					x0 = Math.min(x0, x);
+					y0 = Math.min(y0, y);
+					x1 = Math.max(x1, x);
+					y1 = Math.max(y1, y);
+				}
+		const side = Math.max(x1 - x0, y1 - y0) + 1;
 		const canvas = document.createElement('canvas');
-		canvas.width = bmp.width;
-		canvas.height = bmp.height;
+		canvas.width = canvas.height = side;
 		const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
-		ctx.drawImage(bmp, 0, 0);
-		const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		ctx.drawImage(src, x0, y0, side, side, 0, 0, side, side);
+		const img = ctx.getImageData(0, 0, side, side);
 		const d = img.data;
 		for (let i = 0; i < d.length; i += 4) {
-			const max = Math.max(d[i], d[i + 1], d[i + 2]);
-			const min = Math.min(d[i], d[i + 1], d[i + 2]);
-			// Cuánto «color» tiene (0 = blanco o gris): mezcla hacia el violeta del .ai (#6511f8).
-			const t = max ? (max - min) / max : 0;
-			d[i] = Math.round(d[i] * (1 - t) + 101 * t);
-			d[i + 1] = Math.round(d[i + 1] * (1 - t) + 17 * t);
-			d[i + 2] = Math.round(d[i + 2] * (1 - t) + 248 * t);
+			const t = Math.max(0, Math.min(1, (255 - d[i + 1]) / (255 - 72)));
+			d[i] = Math.round(255 - (255 - 101) * t);
+			d[i + 1] = Math.round(255 - (255 - 17) * t);
+			d[i + 2] = Math.round(255 - (255 - 248) * t);
 		}
 		ctx.putImageData(img, 0, 0);
 		return canvas.toDataURL('image/png');
 	}
 
+	/**
+	 * El dibujo original de «agenda kinky» exportado del .ai (SVG o PNG en static/), recortado a la
+	 * tinta de las dos palabras. Mientras esté vacío, las placas lo escriben con Fredoka.
+	 * TODO: cuando gorrite pase el archivo, poner acá su ruta (p. ej. '/instagram/agenda-kinky.svg')
+	 * y medir `WORDMARK_BOX` en agendaInstagram.js.
+	 */
+	const WORDMARK_URL = '';
+
 	onMount(async () => {
 		try {
 			// Las letras se cargan solo acá (ver el CSS de las placas en agendaInstagram.js).
-			const [poster, medium, signage, arimo, arimoBold, arimoBoldItalic, fredoka, pattern, logo] =
-				await Promise.all([
-					fontUrl('/fonts/1797/1797-poster.woff2'),
-					fontUrl('/fonts/1797/1797-medium.woff2'),
-					fontUrl('/fonts/1797/1797-signage.woff2'),
-					fontUrl('/fonts/agenda-instagram/arimo-latin-400-normal.woff2'),
-					fontUrl('/fonts/agenda-instagram/arimo-latin-700-normal.woff2'),
-					fontUrl('/fonts/agenda-instagram/arimo-latin-700-italic.woff2'),
-					fontUrl('/fonts/share/fredoka-latin-variable.woff2'),
-					patternUrl('/agenda-impresa/fondo.svg'),
-					purpleLogo()
-				]);
+			const [
+				poster,
+				medium,
+				signage,
+				arimo,
+				arimoBold,
+				arimoBoldItalic,
+				fredoka,
+				pattern,
+				logo,
+				wordmark
+			] = await Promise.all([
+				fontUrl('/fonts/1797/1797-poster.woff2'),
+				fontUrl('/fonts/1797/1797-medium.woff2'),
+				fontUrl('/fonts/1797/1797-signage.woff2'),
+				fontUrl('/fonts/agenda-instagram/arimo-latin-400-normal.woff2'),
+				fontUrl('/fonts/agenda-instagram/arimo-latin-700-normal.woff2'),
+				fontUrl('/fonts/agenda-instagram/arimo-latin-700-italic.woff2'),
+				fontUrl('/fonts/share/fredoka-latin-variable.woff2'),
+				patternUrl('/agenda-impresa/fondo.svg'),
+				purpleLogo(),
+				WORDMARK_URL ? dataUrl(WORDMARK_URL) : Promise.resolve('')
+			]);
 			base = {
 				poster,
 				medium,
@@ -153,7 +190,8 @@
 				arimoBoldItalic,
 				fredoka,
 				pattern,
-				logo
+				logo,
+				wordmark: wordmark || undefined
 			};
 		} catch (e) {
 			loadError = e instanceof Error ? e.message : String(e);
