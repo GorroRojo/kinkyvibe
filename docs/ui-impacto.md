@@ -47,12 +47,16 @@ Opciones:
 | `--ahora <fecha>`    | el «hoy» simulado, en ISO (por defecto, hoy a las 12:00 de Argentina)           |
 | `--umbral <n>`       | cuántos píxeles distintos se toleran antes de decir «cambió» (por defecto 0)    |
 | `--conservar`        | no borra las copias temporales (para investigar un error)                       |
+| `--en-serie`         | captura un lado y después el otro (por defecto, los dos a la vez)               |
 
 `PW_CHROMIUM_PATH` usa un Chromium ya instalado, como en las pruebas E2E.
 
-Tarda unos **10 minutos** en una compu de 4 núcleos: ~3 para armar la base local (importar el
-contenido de los `.md` es lo más lento), ~3 por lado para levantar `vite dev`, visitar cada página
-una vez y sacar las 44 capturas. Si los dos lados tienen los mismos datos (mismas migraciones,
+En la CI (4 núcleos) tardaba 10-13 minutos: ~2 para armar la base local y ~5 por lado, uno
+después del otro, para levantar `vite dev`, visitar cada página una vez y sacar las capturas. Desde
+noviembre de 2026 los dos lados se capturan **a la vez** (cada uno con su `vite dev`, contextos
+del mismo Chromium), así que la parte de las capturas tarda más o menos lo de un lado. Si tu compu
+tiene pocos núcleos o una captura sale distinta con la máquina cargada, `--en-serie` vuelve a lo
+de antes. Si los dos lados tienen los mismos datos (mismas migraciones,
 posts, `src/lib/server` y `scripts`: lo normal en un cambio de diseño), la base se arma una sola
 vez y se copia. Con `--solo` las capturas tardan bastante menos (la base, no).
 
@@ -77,7 +81,8 @@ Las capturas son de página completa, cortadas a 8000 px de alto.
 
 El job `ui-impacto` de `.github/workflows/ci.yml` corre en cada pull request, pero solo hace algo
 si el PR cambia `src/**/*.svelte`, `src/**/*.scss`, `src/**/*.css`, `src/lib/styles/**` o
-`src/lib/components/**` (si no, termina enseguida y lo dice en el resumen). Compara el merge del PR
+`src/lib/components/**`, o la herramienta misma (`scripts/ui-impacto/**`); si no, termina
+enseguida y lo dice en el resumen. Compara el merge del PR
 contra su base (`--base HEAD^1`: el primer padre del merge que arma GitHub). Después:
 
 - en la página de la corrida (Summary) queda el resumen: cuántas capturas cambiaron y una tabla
