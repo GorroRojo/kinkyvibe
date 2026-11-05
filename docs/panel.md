@@ -30,6 +30,12 @@ y etiquetas (y cada sección por sus palabras: «pie de mail», «alias», «ree
 - **Los datos de amigues (mail, teléfono, cumpleaños) son públicos a propósito** (0010): no es un
   problema a arreglar.
 - El modo demo y el admin falso de dev no existen en producción ([demo.md](demo.md)).
+- **Los campos y botones van con las piezas del panel** (gorrite, 5/11): `<Field>` y `<Button>`
+  (`$lib/components/ui/`), o un `<select>` propio en el slot de `Field`, `.kv-field` / `.kv-check`
+  (`$lib/admin/panel-forms.scss`) o `.kv-input`. Nunca un `<input>`, `<textarea>` o `<select>`
+  suelto con CSS propio. Lo controla `src/routes/(authed)/admin/formControls.test.js`, con la lista
+  de los que ya estaban (no le sumes archivos; si pasás uno a las piezas, bajá su cuenta).
+  Para ver una imagen grande, `ImageViewer` (`$lib/components/admin/panel/`).
 
 ## Secciones
 
@@ -369,7 +375,8 @@ revisar" del Inicio.
   en el botón. Cada fila muestra hasta 30 cosas (`CONTENT_REVIEW_SHOWN`) y «y N más».
   - **Fotos sin descripción**: cada imagen del texto de un perfil de amigues sin `alt` (las dos
     formas de las fichas: `<img alt="" src=…>` y `![](…)`; lo comentado no cuenta;
-    `$lib/utils/imageAlt.js`), con su miniatura, el perfil y un campo «Qué se ve en la foto».
+    `$lib/utils/imageAlt.js`), con su miniatura grande (tocándola se ve entera, en `ImageViewer`;
+    Escape la cierra), el perfil y un campo «Qué se ve en la foto».
     «Guardar» (`?/fotoAlt`) escribe ese `alt` en el texto del perfil y nada más
     (`saveProfileImageAlt`: saveObject() con su versión en el historial, Actividad
     `profile.update` «Describió una foto del perfil…»). Si la foto cambió o ya tiene descripción
