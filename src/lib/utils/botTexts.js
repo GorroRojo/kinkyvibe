@@ -1024,7 +1024,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 					}
 				],
 				required: ['entradas', 'evento'],
-				help: 'Solo cantidades: nunca dice quién compró.'
+				help: 'El resumen que se ve primero; el detalle de la compra va abajo, en un bloque que se despliega.'
 			}
 		),
 		f(
@@ -1048,7 +1048,239 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 					}
 				],
 				required: ['entradas', 'evento'],
-				help: 'Solo cantidades: nunca dice quién compró.'
+				help: 'El resumen que se ve primero; el detalle de la compra va abajo, en un bloque que se despliega.'
+			}
+		),
+		// El detalle de «Cada venta» (decisión 0058): en un bloque desplegable abajo del resumen.
+		f(
+			'admin.venta_comprador',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: quién compró',
+			'👤 {nombre}{pronombres}',
+			{
+				vars: [
+					{ name: 'nombre', label: 'el nombre de quien compró', sample: 'Persona Inventada' },
+					{
+						name: 'pronombres',
+						label:
+							'sus pronombres entre paréntesis, con un espacio adelante (vacío si no los puso)',
+						sample: ' (elle)'
+					}
+				],
+				required: ['nombre'],
+				help: 'El detalle de «Cada venta» (abajo del resumen, en un bloque que se despliega). Solo les llega a admins que prendieron «Cada venta».'
+			}
+		),
+		f('admin.venta_mail', 'admin', 'line', 'Detalle de «Cada venta»: el mail', '✉️ {mail}', {
+			vars: [{ name: 'mail', label: 'el mail de quien compró', sample: 'persona@example.com' }],
+			required: ['mail']
+		}),
+		f(
+			'admin.venta_orden',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: la orden y cuándo',
+			'🧾 Orden {orden} · {fecha}',
+			{
+				vars: [
+					{ name: 'orden', label: 'la referencia de la orden', sample: 'KV-1A2B3C4D' },
+					{
+						name: 'fecha',
+						label: 'la fecha y hora de la compra (Argentina)',
+						sample: '8/1/31 15:00'
+					}
+				],
+				required: ['orden']
+			}
+		),
+		f(
+			'admin.venta_entradas',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: las entradas',
+			'🎟 {entradas} · {precio} c/u',
+			{
+				vars: [
+					{
+						name: 'entradas',
+						label: 'cuántas, el tipo y el tramo',
+						sample: '2 × General (Preventa 1)'
+					},
+					{
+						name: 'precio',
+						label: 'el precio de cada una (en una a la gorra, lo que eligió)',
+						sample: '$ 8.000'
+					}
+				],
+				required: ['entradas']
+			}
+		),
+		f(
+			'admin.venta_extras',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: los extras (si hay)',
+			'➕ Extras: {extras} · +{monto}',
+			{
+				vars: [
+					{ name: 'extras', label: 'cuántos de cada extra', sample: '2 × Trago, 1 × Remera' },
+					{ name: 'monto', label: 'lo que suman los extras', sample: '$ 9.000' }
+				],
+				required: ['extras']
+			}
+		),
+		f(
+			'admin.venta_codigo',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: el código de descuento (si usó uno)',
+			'🏷 Código {codigo}: −{monto}',
+			{
+				vars: [
+					{ name: 'codigo', label: 'el código', sample: 'AMIGUES10' },
+					{ name: 'monto', label: 'lo que descontó', sample: '$ 1.600' }
+				],
+				required: ['codigo']
+			}
+		),
+		f(
+			'admin.venta_fondo',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: lo que cubrió el Fondo (si cubrió algo)',
+			'💗 Fondo: −{monto}',
+			{
+				vars: [{ name: 'monto', label: 'lo que cubrió el Fondo', sample: '$ 800' }],
+				required: ['monto']
+			}
+		),
+		f(
+			'admin.venta_aporte',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: el aporte al Fondo (si pagó de más)',
+			'💗 {opcion}: aporte al fondo +{monto}',
+			{
+				vars: [
+					{ name: 'opcion', label: 'la opción que eligió', sample: 'Entrada solidaria (+10 %)' },
+					{ name: 'monto', label: 'lo que aportó al Fondo', sample: '$ 1.600' }
+				],
+				required: ['monto']
+			}
+		),
+		f(
+			'admin.venta_pago',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: lo que pagó y cómo',
+			'💳 Pagó **{total}** · {medio}',
+			{
+				vars: [
+					{
+						name: 'total',
+						label: 'lo que pagó en total (entradas, extras y recargo de MP)',
+						sample: '$ 25.270'
+					},
+					{ name: 'medio', label: 'el medio de pago', sample: 'Mercado Pago' }
+				],
+				required: ['total']
+			}
+		),
+		f(
+			'admin.venta_recargo',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: el recargo de Mercado Pago',
+			'Recargo MP: +{monto}',
+			{
+				vars: [{ name: 'monto', label: 'el recargo que pagó', sample: '$ 470' }],
+				required: ['monto']
+			}
+		),
+		f(
+			'admin.venta_comision',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: la comisión que cobró Mercado Pago',
+			'Comisión de MP: {monto}',
+			{
+				vars: [{ name: 'monto', label: 'la comisión que informó MP', sample: '$ 1.250' }],
+				required: ['monto']
+			}
+		),
+		f(
+			'admin.venta_comision_estimada',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: la comisión de MP, si MP todavía no la informó',
+			'Comisión de MP (estimada): {monto}',
+			{
+				vars: [
+					{
+						name: 'monto',
+						label: 'la comisión calculada con la tasa de Ajustes › Cobros',
+						sample: '$ 470'
+					}
+				],
+				required: ['monto']
+			}
+		),
+		f(
+			'admin.venta_neto',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: lo neto',
+			'Neto: **{monto}**',
+			{
+				vars: [{ name: 'monto', label: 'lo que pagó menos la comisión de MP', sample: '$ 24.020' }],
+				required: ['monto']
+			}
+		),
+		f(
+			'admin.venta_neto_estimado',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: lo neto, con la comisión estimada',
+			'Neto estimado: **{monto}**',
+			{
+				vars: [
+					{
+						name: 'monto',
+						label: 'lo que pagó menos la comisión estimada de MP',
+						sample: '$ 24.800'
+					}
+				],
+				required: ['monto']
+			}
+		),
+		f(
+			'admin.venta_respuestas',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: antes de las respuestas a las preguntas',
+			'📝 Respuestas:'
+		),
+		f(
+			'admin.venta_respuesta',
+			'admin',
+			'line',
+			'Detalle de «Cada venta»: cada respuesta',
+			'• {pregunta}: {respuesta}',
+			{
+				vars: [
+					{
+						name: 'pregunta',
+						label: 'la pregunta (con «Entrada 2 ·» adelante si es una por entrada)',
+						sample: '¿Alguna restricción alimentaria?'
+					},
+					{
+						name: 'respuesta',
+						label: 'la respuesta (si no entra en el mensaje, cortada con «…»)',
+						sample: 'Vegana'
+					}
+				],
+				required: ['respuesta']
 			}
 		),
 		f(

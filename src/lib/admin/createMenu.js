@@ -16,6 +16,7 @@
 import {
 	BookOpen,
 	CalendarPlus,
+	ClipboardList,
 	FileSpreadsheet,
 	IdCard,
 	Library,
@@ -96,6 +97,16 @@ export const CREATE_ITEMS = Object.freeze([
 		section: 'entradas-codigos',
 		icon: TicketPercent,
 		keywords: 'nuevo crear codigo descuento cupon'
+	},
+	{
+		// Formularios (interruptor `formularios`; apagado, no aparece: su sección está oculta).
+		id: 'formulario',
+		label: 'Formulario',
+		hint: 'Comunidad › Formularios',
+		href: '/admin/comunidad/formularios#nuevo',
+		section: 'formularios',
+		icon: ClipboardList,
+		keywords: 'nuevo crear formulario encuesta preguntas beca propuesta'
 	},
 	{
 		id: 'perfil',

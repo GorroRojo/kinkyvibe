@@ -11,6 +11,7 @@
 //   --ahora <fecha>   el «hoy» simulado, ISO (por defecto hoy a las 12:00 de Argentina)
 //   --umbral <n>      píxeles distintos que se toleran antes de decir «cambió» (por defecto 0)
 //   --conservar       no borra las copias temporales (para investigar)
+//   --en-serie        captura un lado y después el otro (por defecto, los dos a la vez)
 //
 // Cada lado corre en su propia copia temporal (git worktree) con su propio `npm ci` y su propia
 // base D1 local (nunca la de `npm run dev`, nunca una remota): migraciones + contenido de los .md
@@ -384,8 +385,18 @@ async function main() {
 		/** @type {Record<'base' | 'nuevo', import('./shoot.js').RawShot[]>} */
 		const raw = { base: [], nuevo: [] };
 		try {
-			raw.base = await shootSide(base, browser);
-			raw.nuevo = await shootSide(nuevo, browser);
+			// Los dos lados a la vez (cada uno con su `vite dev` y sus contextos del mismo navegador):
+			// en serie eran ~5 minutos por lado. Con --en-serie, uno después del otro (para una compu
+			// con pocos núcleos, o para investigar una captura que cambia con la carga).
+			if (args['en-serie']) {
+				raw.base = await shootSide(base, browser);
+				raw.nuevo = await shootSide(nuevo, browser);
+			} else {
+				[raw.base, raw.nuevo] = await Promise.all([
+					shootSide(base, browser),
+					shootSide(nuevo, browser)
+				]);
+			}
 		} finally {
 			await browser.close();
 		}

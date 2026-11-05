@@ -29,6 +29,12 @@ describe('eventMissing', () => {
 		expect(missingOf()).toEqual([]);
 	});
 
+	it('con un lugar vinculado no le falta «Dónde», aunque el texto libre esté vacío', () => {
+		const input = missingInputFromMeta({ ...FULL, location: '', location_name: '' });
+		expect(eventMissing(input).map((m) => m.id)).toEqual(['donde']);
+		expect(eventMissing({ ...input, hasVenue: true }).map((m) => m.id)).toEqual([]);
+	});
+
 	it('lista lo que falta, en orden', () => {
 		expect(
 			missingOf({

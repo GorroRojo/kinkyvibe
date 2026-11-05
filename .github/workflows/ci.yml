@@ -9,9 +9,11 @@ on:
   push:
     branches: [main]
 
+# En un PR, un push nuevo (o editar la descripción) cancela la corrida anterior. En `main` no: cada
+# corrida de main termina, porque guarda las cachés que leen los PRs (vitest, la base sembrada).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -21,10 +23,12 @@ jobs:
   # el chequeo de formato (job `docs`). En `main` (push) corre todo siempre. «Solo documentación» =
   # cada archivo cambiado está en docs/, es un .md de la raíz o está en .claude/ (skills, notas).
   # Nada de eso lo importa el sitio ni lo leen los tests.
+  # Y `e2e`: false si el PR no puede cambiar lo que recorre Playwright (ver el paso «¿Hace falta E2E?»).
   changes:
     runs-on: ubuntu-latest
     outputs:
       docs_only: ${{ steps.check.outputs.docs_only }}
+      e2e: ${{ steps.e2e.outputs.e2e }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,6 +49,26 @@ jobs:
             echo "Solo documentación: corre el chequeo de formato y se saltean tests, build y E2E." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # E2E (build + Worker + Playwright) se saltea si TODOS los archivos del PR son de los que el
+      # sitio construido no usa: documentación, pruebas unitarias (*.test.js, no tests/ de
+      # Playwright) y herramientas de la CI que no entran al build (sequencer de vitest, hooks de
+      # agentes, ui-impacto). Todo lo demás (src/, migrations/, scripts/ en general, tests/,
+      # package*.json, wrangler.toml, worker/, workflows...) corre E2E. En `main`, siempre.
+      - name: ¿Hace falta E2E?
+        id: e2e
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only HEAD^1 HEAD)
+          if [ -n "$files" ] && ! echo "$files" | grep -qvE '^docs/|^[^/]+\.md$|^\.claude/|^(src|scripts)/.*\.test\.js$|^scripts/vitest/|^scripts/hooks/|^scripts/ui-impacto/'; then
+            echo "e2e=false" >> "$GITHUB_OUTPUT"
+            echo "El PR no toca nada que use el sitio construido: se saltea E2E." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
           fi
 
   # Para los PRs de solo documentación: el mismo chequeo de formato que `unit`, nada más.
@@ -90,8 +114,8 @@ jobs:
       - name: Prettier
         run: npm run format:check
 
-  # Las pruebas de vitest, repartidas en 3 máquinas en paralelo (eran ~7 de los ~8 minutos de CI).
-  # Cada una corre un tercio de los archivos (`--shard`); juntas, todas.
+  # Las pruebas de vitest, repartidas en 4 máquinas en paralelo (con 3, la parte más lenta era el
+  # camino crítico de `ci-ok`). Cada una corre un cuarto de los archivos (`--shard`); juntas, todas.
   tests:
     needs: changes
     if: needs.changes.outputs.docs_only != 'true'
@@ -100,8 +124,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
-    name: tests (${{ matrix.shard }}/3)
+        shard: [1, 2, 3, 4]
+    name: tests (${{ matrix.shard }}/4)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -116,8 +140,10 @@ jobs:
       # node_modules/.vite/vitest guarda cuánto tardó cada archivo la última vez (los lentos
       # arrancan primero) y node_modules/.vitest-cache los módulos ya transformados
       # (`--fsModuleCache`; vitest la vacía sola si cambia package-lock.json). Una por parte: cada
-      # parte corre siempre más o menos los mismos archivos. Los PRs leen la de main.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # parte corre siempre más o menos los mismos archivos. Los PRs leen la de main; solo main la
+      # guarda (si cada PR guardara la suya, llenarían los 10 GB de caché del repo y GitHub borraría
+      # las de npm y Chromium).
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             node_modules/.vite
@@ -125,27 +151,38 @@ jobs:
           key: vitest-${{ runner.os }}-${{ matrix.shard }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
           restore-keys: vitest-${{ runner.os }}-${{ matrix.shard }}-${{ hashFiles('package-lock.json') }}-
 
-      # El reparto entre las 3 partes es por tiempo (scripts/vitest/sequencer.js, con los tiempos de
+      # El reparto entre las 4 partes es por tiempo (scripts/vitest/sequencer.js, con los tiempos de
       # scripts/vitest/durations.json), no por cantidad de archivos. Cada parte guarda cuánto tardó
       # cada archivo y lo sube como artifact `vitest-durations-N`, para actualizar durations.json
       # (scripts/vitest/merge-durations.js).
       - name: Unit + content tests
-        run: npx vitest run --shard=${{ matrix.shard }}/3 --fsModuleCache --reporter=default --reporter=./scripts/vitest/durations-reporter.js
+        run: npx vitest run --shard=${{ matrix.shard }}/4 --fsModuleCache --reporter=default --reporter=./scripts/vitest/durations-reporter.js
         env:
           VITEST_DURATIONS_OUT: ${{ runner.temp }}/vitest-durations.json
 
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: github.event_name == 'push'
+        with:
+          path: |
+            node_modules/.vite
+            node_modules/.vitest-cache
+          key: vitest-${{ runner.os }}-${{ matrix.shard }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+
+      # Los tiempos sirven de una corrida de main (scripts/vitest/merge-durations.js).
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: github.event_name == 'push'
         with:
           name: vitest-durations-${{ matrix.shard }}
           path: ${{ runner.temp }}/vitest-durations.json
           retention-days: 30
 
-  # Build, Worker empaquetado y pruebas de humo de Playwright. Lo más lento es cargar la semilla en
-  # una base local nueva (~1 minuto): corre al mismo tiempo que el build y que la instalación de
-  # Chromium, que no dependen de ella.
+  # Build, Worker empaquetado y pruebas de humo de Playwright. Lo más lento era cargar la semilla en
+  # una base local nueva (~1,5 minutos): ahora la base sembrada se guarda en caché (ver abajo) y, si
+  # no está, se siembra al mismo tiempo que el build y que la instalación de Chromium.
+  # Se saltea en los PRs que no tocan nada del sitio construido (job `changes`, output `e2e`).
   e2e:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.docs_only != 'true' && needs.changes.outputs.e2e != 'false'
     # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -170,26 +207,44 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
 
-      # En paralelo: la semilla (scripts/semilla.js: migraciones + contenido público en
-      # .wrangler/state; Playwright la vuelve a correr antes de servir, pero sobre una base ya
-      # cargada tarda segundos), Chromium (o, si está en caché, solo sus librerías del sistema) y
-      # el build. Si algo falla, muestra su log.
+      # La base local ya sembrada (.wrangler/state), por lo que la arma: migraciones, la semilla y
+      # el código que la carga (scripts/semilla.js importa de src/lib/server y src/lib/utils), sin
+      # las pruebas. Clave exacta, sin restore-keys: una base de otra versión no sirve. Se guarda
+      # apenas se siembra (abajo), antes de que las pruebas escriban en ella.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: seed-cache
+        with:
+          path: .wrangler/state
+          key: semilla-${{ runner.os }}-${{ hashFiles('migrations/**', 'src/lib/server/**/*.js', 'src/lib/server/semilla/*.json', 'src/lib/utils/**/*.js', 'src/lib/*.js', '!**/*.test.js', 'scripts/semilla.js', 'scripts/local-d1.js', 'wrangler.toml', 'package-lock.json') }}
+
+      # En paralelo: la semilla si no vino de la caché (scripts/semilla.js: migraciones + contenido
+      # público en .wrangler/state; Playwright la vuelve a correr antes de servir, sobre la base ya
+      # cargada, y tarda segundos), Chromium (scripts/chromium-ci.sh: sus librerías del sistema
+      # solo si falta alguna) y el build. Si algo falla, muestra su log.
       - name: Build + seed + Chromium
         env:
-          PW_CACHE_HIT: ${{ steps.pw-cache.outputs.cache-hit }}
+          SEED_CACHE_HIT: ${{ steps.seed-cache.outputs.cache-hit }}
         run: |
-          node scripts/semilla.js --quiet > "$RUNNER_TEMP/semilla.log" 2>&1 &
-          seed=$!
-          if [ "$PW_CACHE_HIT" = 'true' ]; then
-            npx playwright install-deps chromium > "$RUNNER_TEMP/chromium.log" 2>&1 &
+          if [ "$SEED_CACHE_HIT" = 'true' ]; then
+            echo "Base sembrada de la caché." > "$RUNNER_TEMP/semilla.log"
+            seed=''
           else
-            npx playwright install --with-deps chromium > "$RUNNER_TEMP/chromium.log" 2>&1 &
+            node scripts/semilla.js --quiet > "$RUNNER_TEMP/semilla.log" 2>&1 &
+            seed=$!
           fi
+          bash scripts/chromium-ci.sh > "$RUNNER_TEMP/chromium.log" 2>&1 &
           chromium=$!
           npm run build
           if ! wait "$chromium"; then cat "$RUNNER_TEMP/chromium.log"; exit 1; fi
-          if ! wait "$seed"; then cat "$RUNNER_TEMP/semilla.log"; exit 1; fi
+          tail -n 3 "$RUNNER_TEMP/chromium.log"
+          if [ -n "$seed" ] && ! wait "$seed"; then cat "$RUNNER_TEMP/semilla.log"; exit 1; fi
           cat "$RUNNER_TEMP/semilla.log"
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.seed-cache.outputs.cache-hit != 'true'
+        with:
+          path: .wrangler/state
+          key: ${{ steps.seed-cache.outputs.cache-primary-key }}
 
       # Empaqueta el Worker (worker/index.js + el build) como lo haría el deploy, sin subir nada
       # ni necesitar cuenta de Cloudflare.
@@ -237,7 +292,8 @@ jobs:
   # del PR y en el PR, comparadas. Es SOLO INFORMATIVO: no está en los `needs` de ci-ok y lleva
   # `continue-on-error: true` (la única excepción a la regla de nunca usarlo: no es una prueba, es
   # un informe para mirar antes de aprobar un cambio de diseño). Corre solo si el PR toca estilos o
-  # componentes; el informe queda como artifact `ui-impacto` y el resumen en la página de la corrida.
+  # componentes (o la herramienta misma, scripts/ui-impacto/); el informe queda como artifact
+  # `ui-impacto` y el resumen en la página de la corrida.
   ui-impacto:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
@@ -254,7 +310,7 @@ jobs:
         run: |
           files=$(git diff --name-only HEAD^1 HEAD)
           echo "$files"
-          if echo "$files" | grep -qE '^src/.*\.(svelte|scss|css)$|^src/lib/styles/|^src/lib/components/'; then
+          if echo "$files" | grep -qE '^src/.*\.(svelte|scss|css)$|^src/lib/styles/|^src/lib/components/|^scripts/ui-impacto/'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -282,13 +338,10 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
 
-      - name: Install Chromium for Playwright
-        if: steps.changes.outputs.run == 'true' && steps.pw-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-
-      - name: Install Chromium's system libraries
-        if: steps.changes.outputs.run == 'true' && steps.pw-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+      # Sus librerías del sistema solo si falta alguna (apt a veces tarda más de 9 minutos).
+      - name: Chromium
+        if: steps.changes.outputs.run == 'true'
+        run: bash scripts/chromium-ci.sh
 
       - name: Impacto visual
         if: steps.changes.outputs.run == 'true'

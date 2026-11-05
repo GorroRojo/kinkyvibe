@@ -113,6 +113,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-automatizaciones':
 		'ajustes automatizaciones crons cron tareas programadas backup recordatorios mails automaticos bot telegram reglas',
 	cuentas: 'cuentas usuaries publico registradas contraseña entrar sesiones',
+	formularios: 'formulario formularios encuesta encuestas preguntas respuestas beca propuesta',
 	'avisos-puerta':
 		'avisos de puerta no admitides no entra derecho de admision moderacion cuidados ingreso',
 	amigues:
@@ -170,6 +171,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-automatizaciones': 'history',
 	cuentas: 'person',
 	'avisos-puerta': 'person',
+	formularios: 'mail',
 	actividad: 'history',
 	// Próximamente (no están en la paleta hasta que existan, pero ya tienen ícono).
 	tienda: 'wallet',

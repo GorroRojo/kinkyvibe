@@ -18,6 +18,7 @@ describe('«+ Crear ▾» (createMenu.js)', () => {
 			'importar',
 			'rol',
 			'codigo',
+			'formulario',
 			'perfil',
 			'material',
 			'kinkipedia'
