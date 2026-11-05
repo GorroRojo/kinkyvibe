@@ -493,8 +493,13 @@ export function shuffled(list, random = Math.random) {
  * están en respuestas viejas): promedio y distribución de un puntaje, cuántas veces se eligió cada
  * opción (y cuántas se marcó una casilla), y la lista de textos.
  *
+ * @typedef {{ id: string, label: string, kind: QuestionKind, answered: number,
+ *   average?: number | null, distribution?: number[],
+ *   counts?: { option: string, count: number }[], texts?: string[] }} SummaryItem
+ *
  * @param {readonly Question[]} questions
  * @param {readonly ResponseRow[]} responses
+ * @returns {SummaryItem[]}
  */
 export function summarize(questions, responses) {
 	/** @type {Map<string, { id: string, label: string, kind: QuestionKind, options: string[] }>} */

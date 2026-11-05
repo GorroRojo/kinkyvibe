@@ -139,7 +139,7 @@ export async function load({ locals, url, params, platform }) {
 	const db = getDB(platform);
 	// Ya con el evento y su venta: lo demás no depende entre sí, a la par (con las tandas
 	// automáticas, en una ida). Cada parte con su manejo de errores de siempre.
-	const [tabCounts, dateChange, waitlist, workshop, venue] = await Promise.all([
+	const [tabCounts, dateChange, waitlist, workshop, venue, surveyOn] = await Promise.all([
 		db && config ? orderCounts(db, params.slug) : { orders: 0, transfers: 0, review: 0 },
 		// «Cambiaste la fecha»: el aviso de arriba de todas las pestañas (dateChange.js), con
 		// «Avisar a les compradores». Solo si hay a quién avisar.
@@ -152,7 +152,9 @@ export async function load({ locals, url, params, platform }) {
 		workshopChip(db, params.slug),
 		// El lugar vinculado («Sucede en»): manda sobre el «Dónde» en texto libre en el encabezado,
 		// como en la página pública. `null` sin lugar o si la base falla (queda el texto libre).
-		panelVenueRow(db, params.slug)
+		panelVenueRow(db, params.slug),
+		// La encuesta de después del evento (Mails › Encuesta): solo con el interruptor `formularios`.
+		config ? isFlagOn(db, 'formularios') : false
 	]);
 	const counts = { ...tabCounts, waitlist: waitlist ? waitlist[1] : 0 };
 	const waitlistTab = config
@@ -167,6 +169,7 @@ export async function load({ locals, url, params, platform }) {
 		dbAvailable: Boolean(db),
 		// Pestaña Preguntas (preguntas de inscripción).
 		signupFieldsTab: Boolean(db && config),
-		waitlistTab
+		waitlistTab,
+		surveyTab: Boolean(db && surveyOn)
 	};
 }
