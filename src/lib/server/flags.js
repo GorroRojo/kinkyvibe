@@ -204,6 +204,22 @@ export const FLAGS = Object.freeze({
 			'/ap/eventos/<evento>; el inbox responde 202 sin procesar nada. Sin claves ni migración. ' +
 			'src/lib/utils/activitypub.js.',
 		envVar: 'FEDIVERSO_ENABLED'
+	},
+	formularios: {
+		label: 'Formularios',
+		description:
+			'Comunidad › Formularios en el panel: formularios propios (con las preguntas en el mismo ' +
+			'editor que las preguntas de inscripción), en kinkyvibe.ar/formularios/<nombre>, y la ' +
+			'encuesta de después de cada evento: un día después, les llega a quienes tenían entrada un ' +
+			'link personal (anónima por defecto; cada evento la puede apagar). Cada formulario elige ' +
+			'quién responde, si es con nombre, anónimo o que cada persona elija, y quién ve las ' +
+			'respuestas. Prendido, las preguntas de inscripción también se editan con el editor nuevo ' +
+			'(con orden). Apagado, nada de esto se ve y las páginas públicas dan 404.',
+		tech:
+			'docs/formularios.md, decisión 0056. Antes de prenderlo: migración 0079 (forms, ' +
+			'form_responses, form_sends). La encuesta sale con el cron de cada 15 minutos ' +
+			'(src/lib/server/formularios/send.js).',
+		envVar: 'FORMULARIOS_ENABLED'
 	}
 });
 
@@ -405,6 +421,15 @@ export function conectorClaudeEnabled(platform) {
  */
 export function fediversoEnabled(platform) {
 	return isFlagOn(getDB(platform), 'fediverso');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los formularios? (docs/formularios.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function formulariosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'formularios');
 }
 
 /**
