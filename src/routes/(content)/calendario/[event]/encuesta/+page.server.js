@@ -37,7 +37,7 @@ export async function load({ params, platform, locals, setHeaders, url }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	default: async (event) => {
+	send: async (event) => {
 		const db = await requireFormsPublic(event.platform);
 		return submitPublicForm(event, await getEventSurvey(db, event.params.event));
 	},

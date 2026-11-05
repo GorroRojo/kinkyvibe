@@ -84,7 +84,7 @@
 					{id}
 					type="checkbox"
 					name={nameOf(q.id)}
-					checked={values[q.id] === 'on'}
+					{...values[q.id] === 'on' ? { checked: true } : {}}
 					aria-invalid={err ? 'true' : undefined}
 					aria-describedby={err ? `${id}-error` : q.help ? `${id}-help` : undefined}
 				/>
