@@ -232,14 +232,14 @@ de merge (`scripts/hooks/check-merge.js`) espera a que termine todo chequeo, y t
 minutos en cada PR de diseño. Dos veces, además, `playwright install-deps` (apt) tardó más de 9
 minutos.
 
-| Qué                               | Antes (15 corridas)         | Después (PR `ci-mas-rapida`)         |
-| --------------------------------- | --------------------------- | ------------------------------------ |
-| `ci-ok` verde, sin cola           | 170-200 s (mediana ~193 s)  | 182 s sin cachés, 167 s con cachés   |
-| Parte de vitest más lenta (job)   | 146-185 s (3 partes)        | 132-147 s (4 partes)                 |
-| `e2e`                             | 118-163 s (una vez 635 s)   | 91 s con la base en caché, 161 s sin |
-| Librerías de Chromium (apt)       | 16-557 s                    | 0 s (no hacían falta)                |
-| `ui-impacto` (job)                | 610-1302 s (mediana ~780 s) | 337-488 s                            |
-| Corrida entera de un PR de diseño | 622-1305 s (mediana ~790 s) | 340-491 s                            |
+| Qué                               | Antes (15 corridas)         | Después (PR `ci-mas-rapida`)             |
+| --------------------------------- | --------------------------- | ---------------------------------------- |
+| `ci-ok` verde, sin cola           | 170-200 s (mediana ~193 s)  | 144-182 s (182 s sin cachés)             |
+| Parte de vitest más lenta (job)   | 146-185 s (3 partes)        | 123-147 s (4 partes)                     |
+| `e2e`                             | 118-163 s (una vez 635 s)   | 91-125 s con la base en caché, 161 s sin |
+| Librerías de Chromium (apt)       | 16-557 s                    | 0 s (no hacían falta)                    |
+| `ui-impacto` (job)                | 610-1302 s (mediana ~780 s) | 337-488 s                                |
+| Corrida entera de un PR de diseño | 622-1305 s (mediana ~790 s) | 340-491 s                                |
 
 Qué se hizo, y por qué:
 
