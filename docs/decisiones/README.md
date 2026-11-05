@@ -16,6 +16,11 @@ No hay decisiones legales acá: eso queda para abogades.
   cambia lo decidido.
 - Las decisiones las toma gorrite (o les superadmins). Si una no está clara, preguntá antes de
   inventar.
+- **Lo que decide una sesión sin la confirmación de gorrite** (porque había que elegir algo para
+  avanzar) no es una decisión de acá: va en el doc del área marcado **A CONFIRMAR**, en mayúsculas
+  (así lo encuentra `grep -r "A CONFIRMAR" docs`), y su lugar se suma a la línea de
+  `docs-a-confirmar` en [plan.md](../plan.md). Cuando gorrite lo confirma, se saca la marca (y, si
+  hace falta, se escribe la decisión).
 - Nada privado: sin datos de personas de la comunidad, secretos ni detalles de vulnerabilidades.
   El repo es público.
 
@@ -77,6 +82,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   sesión de la cuenta se preguntan en Mi rincón («¿Son tuyas?») (25/10)
 - [0050](0050-entrar-no-ingresar.md): «Entrar», no «Ingresar», en los textos de la cuenta; la
   dirección `/ingresar` no cambia (26/10)
+- [0052](0052-link-de-puerta.md): Link de puerta por evento: solo la puerta de ese evento, sin
+  cuenta, con vencimiento y revocable (26/10)
 
 ### Contenido, objetos y etiquetas
 
@@ -114,11 +121,20 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0051](0051-reembolsar-todas-evento-cancelado.md): «Reembolsar todas» para un evento cancelado:
   solo admins, con confirmación escrita, de a tandas y por el mismo paso que «Reembolsar…»; la
   puerta y la carga a mano se devuelven a mano (26/10)
+- [0053](0053-avisos-de-puerta.md): Avisos de puerta para personas que la organización no admite:
+  avisan y nunca frenan, solo en eventos de Kinky Vibe, vencen siempre (27/10)
+- [0056](0056-extras-en-la-compra.md): Extras en la compra: el Fondo y los códigos solo para las
+  entradas, el recargo de MP sobre todo; canje de a uno en la puerta o con un «Link de barra»
+  (4/11)
 
 ### Propinas
 
 - [0017](0017-destino-de-la-propina.md): La persona elige el destino de su propina (1/10)
 - [0018](0018-propinas-al-fondo.md): Las propinas al Fondo suman al total del Fondo (1/10)
+- [0054](0054-paypal-en-las-propinas.md): PayPal en las propinas: una app compartida con el Fondo,
+  en dólares netos, con una cotización propia (MEP «compra» + un ajuste de gorrite) y retiros para
+  comparar (2/11)
+- [0055](0055-cotizacion-sin-interruptor.md): la cotización para kv-fondo anda aunque el interruptor `paypal` esté apagado.
 
 ### Comunidad y suscripciones
 

@@ -16,7 +16,7 @@ export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 /** Lo que ofrece el selector de archivos del navegador. */
 export const DOCUMENT_ACCEPT =
-	'application/pdf,video/mp4,video/webm,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.spreadsheet,application/vnd.oasis.opendocument.presentation,.pdf,.mp4,.webm,.odt,.ods,.odp';
+	'application/pdf,video/mp4,video/webm,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.spreadsheet,application/vnd.oasis.opendocument.presentation,text/vtt,.pdf,.mp4,.webm,.odt,.ods,.odp,.vtt';
 
 /** Los filtros por tipo de la biblioteca (`?tipo=`). */
 export const LIBRARY_KINDS = Object.freeze([
@@ -31,7 +31,7 @@ export function libraryKind(v) {
 	return v === 'todo' || v === 'imagen' || v === 'documento' || v === 'video' ? v : null;
 }
 
-const EXTENSIONS = /\.(pdf|mp4|webm|odt|ods|odp)$/i;
+const EXTENSIONS = /\.(pdf|mp4|webm|odt|ods|odp|vtt)$/i;
 
 /** @param {number} n */
 const mb = (n) => (n / 1024 / 1024).toFixed(1).replace('.', ',');
@@ -54,7 +54,8 @@ export function documentPickProblem(file) {
 	if (!file.size) return 'El archivo está vacío.';
 	const okType =
 		EXTENSIONS.test(file.name) || DOCUMENT_ACCEPT.split(',').includes(String(file.type ?? ''));
-	if (!okType) return 'Elegí un PDF, un video MP4 o WebM, o un documento ODT, ODS u ODP.';
+	if (!okType)
+		return 'Elegí un PDF, un video MP4 o WebM, unos subtítulos VTT o un documento ODT, ODS u ODP.';
 	return fileSizeProblem(file.size);
 }
 

@@ -9,6 +9,7 @@ import {
 	queryTerms,
 	prepareIndex,
 	search,
+	find,
 	groupHits,
 	highlight,
 	snippet,
@@ -32,6 +33,16 @@ describe('fold / tokenize', () => {
 			'cuerdas'
 		]);
 		expect(tokenize('Gorro_Rojo')).toEqual(['gorro', 'rojo']);
+	});
+	// La receta amplia (Mesa chica-567-quitar-tildes): un signo suelto no corta la palabra.
+	it('un signo diacrítico suelto (· ´ ^ ¨) queda adentro de la palabra y se busca sin él', () => {
+		expect(tokenize('Taller de Mel·la')).toEqual(['taller', 'de', 'mella']);
+		expect(tokenize('MEL·LA')).toEqual(['mella']);
+		expect(tokenize('mel·la')).toEqual(tokenize('mella'));
+		// Texto ya descompuesto (NFD): la tilde no parte la palabra.
+		expect(tokenize('cafe\u0301 rico')).toEqual(['cafe', 'rico']);
+		// fold sigue conservando la longitud: el signo queda en su lugar.
+		expect(fold('Mel·la')).toBe('mel·la');
 	});
 	it('ignora palabras vacías salvo que no quede otra cosa', () => {
 		expect(queryTerms('taller de cuerdas')).toEqual(['taller', 'cuerdas']);
@@ -119,6 +130,62 @@ const raw = {
 	]
 };
 
+describe('find: exclusiones (docs/buscar.md, «Cómo se lee lo que se escribe»)', () => {
+	const index = prepareIndex({
+		v: 1,
+		tags: { latex: [] },
+		docs: [
+			{
+				c: 'calendario',
+				h: '/calendario/fiesta-latex',
+				t: 'Fiesta latex',
+				d: '2099-01-01T20:00:00Z'
+			},
+			{
+				c: 'calendario',
+				h: '/calendario/fiesta-cuero',
+				t: 'Fiesta de cuero',
+				d: '2099-02-01T20:00:00Z'
+			},
+			{ c: 'material', h: '/material/fiesta-latex', t: 'Cuidar el latex en la fiesta' },
+			{ c: 'amigues', h: '/amigues/fiesta-latex', t: 'Fiesta Latex (colectivo)' },
+			{ c: 'wiki', h: '/wiki/bondage', t: 'Bondage', s: 'Atar a alguien' }
+		]
+	});
+	/** @param {string} q */
+	const hrefs = (q) =>
+		find(index, q)
+			.map((h) => h.doc.h)
+			.sort();
+
+	it('solo exclusiones: muestra todo lo demás', () => {
+		expect(hrefs('-bondage')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/calendario/fiesta-latex',
+			'/material/fiesta-latex'
+		]);
+		expect(hrefs('-latex -bondage')).toEqual(['/calendario/fiesta-cuero']);
+	});
+
+	it('-evento:latex saca solo los eventos con «latex»; lo demás sigue', () => {
+		expect(hrefs('fiesta -evento:latex')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/material/fiesta-latex'
+		]);
+		// Solo, también muestra todo lo demás.
+		expect(hrefs('-evento:latex')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/material/fiesta-latex',
+			'/wiki/bondage'
+		]);
+		// Sin valor, saca todos los eventos.
+		expect(hrefs('fiesta -evento:')).toEqual(['/amigues/fiesta-latex', '/material/fiesta-latex']);
+	});
+});
+
 describe('search', () => {
 	const index = prepareIndex(raw);
 	const hrefs = (/** @type {string} */ q) => search(index, q).map((h) => h.doc.h);
@@ -152,6 +219,30 @@ describe('search', () => {
 		const groups = groupHits(search(index, 'shibari'), new Date('2025-01-01').getTime());
 		expect(groups.map((g) => g.key)).toEqual(['proximos', 'material', 'wiki', 'pasados']);
 		expect(groups[0].hits[0].doc.h).toBe('/calendario/nuevo');
+	});
+});
+
+describe('Mel·la: se encuentra con «mella» y con «Mel·la»', () => {
+	const index = prepareIndex({
+		v: 1,
+		tags: {},
+		docs: [
+			{ c: 'amigues', h: '/amigues/mel-la', t: 'Mel·la', s: 'Cuerdas en Mel·la, Catalunya' },
+			{ c: 'material', h: '/material/otro', t: 'Otro texto', b: 'Nada que ver.' }
+		]
+	});
+	it('las dos formas dan el mismo resultado', () => {
+		for (const q of ['mella', 'Mel·la', 'MEL·LA', 'Méllá']) {
+			expect(search(index, q).map((h) => h.doc.h)).toEqual(['/amigues/mel-la']);
+		}
+	});
+	it('resalta la palabra entera, con su signo', () => {
+		const words = new Set(['mella']);
+		expect(highlight('En Mel·la hay cuerdas', words)).toEqual([
+			{ text: 'En ', hit: false },
+			{ text: 'Mel·la', hit: true },
+			{ text: ' hay cuerdas', hit: false }
+		]);
 	});
 });
 

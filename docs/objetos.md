@@ -126,6 +126,12 @@ pura (recibe filas, devuelve problemas) y se prueba sin base. Encuentra:
 | `too_many_edges`       | más relaciones de las permitidas (por ejemplo, dos lugares)                      |
 | `orphan`               | un objeto vivo sin una relación obligatoria                                      |
 | `fts_out_of_sync`      | el índice de búsqueda no coincide con los objetos                                |
+| `media_missing`        | una imagen o un archivo vivo cuyo archivo no está en R2 (bucket `MEDIA`)         |
+
+`media_missing` lista las claves de `img/` y `file/` del bucket (un pedido por cada mil archivos,
+más barato que un `head` por objeto) y las compara con las imágenes y archivos sin borrar. Sin el
+binding `MEDIA` (o si listar falla, que queda en el log) ese chequeo se saltea. No borra nada: un
+archivo que falta se vuelve a subir desde la biblioteca.
 
 **El chequeo nunca hace fallar el cron** (el backup queda como bueno igual). Guarda cada corrida
 en `integrity_runs` (las últimas 30; de cada una, el total y los primeros 50 problemas: código,
@@ -240,8 +246,14 @@ Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
 Los eventos de calendario (paso 5 de 0026), con los mismos nombres de campo que el frontmatter de
 los `.md` (`summary`, `status`, `start`, `end`, `link`, `tags`, `authors`, `featured`,
 `location`…; `force_unlisted` → `unlisted`, `force_unpublished` → visibilidad `hidden`). Lo que el
-tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos núcleo). Columnas
-generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. La
+tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos núcleo). `start` y
+`end` (clase `datetime`) se guardan siempre en hora de Argentina (`2026-10-02T20:00-03:00`): una
+fecha con `Z` u otra zona se reescribe al validar (`fields.js`; sin zona, se rechaza). Columnas
+generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. Hoy
+se leen `start_at` (el mes del evento en las ventas, `admin/saleMonth.js`) y `unlisted`; `end_at`,
+`event_status` y los índices `objects_evento_start` y `objects_evento_status` no los usa ninguna
+consulta todavía (auditoría de plata, D31): quedan para cuando se ordene o filtre en SQL, sin
+`DROP` (son virtuales: no se guardan, y una migración más no vale la pena). La
 importación, la lectura (solo la base) y el historial (`object_revisions`):
 [contenido.md](contenido.md) («En la base»).
 
@@ -259,7 +271,7 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
 - **`lugar`**: «sucede en». `setEventVenue`/`removeEventVenue` guardan el evento con
   `saveObject()` (versión nueva, revisión `source = 'lugar'`) sin tocar `data`; si el evento se
   importó de un `.md` y no estaba editado, sigue sin estarlo (`content_sources.imported_version`).
-  El evento tiene que estar en la base. La tabla vieja `event_venues` queda sin uso.
+  El evento tiene que estar en la base. La tabla vieja `event_venues` la borra la migración 0075.
 - **`persona`**: los perfiles de la lista de personas. `at[i]` es el lugar de `roles[i]` en la
   lista única (`src/lib/utils/personasList.js`), así leer arma la misma lista en el mismo orden.
   En `data.personas` quedan los nombres sin perfil y las direcciones que no son de ningún perfil
@@ -338,6 +350,18 @@ suben. Archivo: `src/lib/server/objects/types/archivo.js`; detalle en [imagenes.
   hay edge hacia lo vivo). Sin migración: el tipo de edge vive en el código y hasta este cambio
   ningún material enlazaba archivos de la biblioteca.
 
+### Edge `enlaza` (los enlaces del cuerpo)
+
+Evento, material, perfil y etiqueta tienen el edge calculado `enlaza` (`derived`, hacia material,
+evento, perfil o etiqueta): lo que su `data.body` nombra con `[[…]]`, `![[…]]`, `@` y `#`, resuelto
+a objetos vivos (`src/lib/server/objects/enlaces.js`). Como `adjunto`, `saveObject()` lo recalcula
+en cada guardado (`deriveEdges` recibe además `{ id }` del objeto que se guarda, para no enlazarse
+a sí mismo), en la misma tanda, y quien guarda no lo manda. Uno por objeto, en el orden del texto,
+sin `data`. Sin migración: `edges.kind` acepta cualquier nombre en minúsculas y el tipo de edge
+vive en el código. Lo que no se resuelve no se guarda. Cómo se resuelve cada nombre, la regla de
+visibilidad para quien lo lea y el script para lo ya guardado (`scripts/enlaces-backfill.js`, solo
+local): [enlaces.md](enlaces.md) («Al guardar»).
+
 ### `etiqueta`
 
 Las etiquetas del sitio (paso 3 de 0026), con su texto de la wiki como cuerpo y relaciones
@@ -384,11 +408,45 @@ con `getObject`, `searchObjects`, `getEdges` o `visibleWhere(viewer, alias)` en 
 
 ## Pendiente (fase 2, en sus propios pasos)
 
-- Historial de revisiones (decisión P6.8: todo, para siempre) y registro en `admin_audit`, dentro
-  de la tanda de `saveObject()`.
-- Redirecciones 301 al cambiar un slug (P6.4).
-- Purga definitiva de lo borrado.
-- Campos extra y tipos simples desde el panel (`object_types.origin = 'panel'`).
-- Migrar los eventos desde los `.md` (P6.2: eventos primero).
-- Borrar la tabla `event_venues` cuando todos los eventos estén en la base (hoy la lee solo la
-  importación de un evento nuevo, `legacyVenueEdge`).
+Repaso del 28/10 (ítem `objetos-pendientes` del plan), mirado en el código:
+
+- ~~Migrar los eventos desde los `.md` (P6.2: eventos primero).~~ Hecho: todo el contenido vive
+  en la base ([0032](decisiones/0032-borrar-los-md.md)). La importación de `.md`
+  (`contenido/importer.js`, `runImport`) ya solo la usa la semilla local y de E2E.
+- **Historial dentro de `saveObject()`**: sigue pendiente (ítem `objetos-historial-todos`). Hoy
+  el historial (`object_revisions`, migración 0031) lo escribe **quien llama**, con
+  `revisionStatement()` (`contenido/revisions.js`) en la opción `also`, en la misma tanda. Así lo
+  tienen los eventos y el material (panel, importar, deshacer, lugar, partes, demo), las fichas
+  (`contenido/fichas.js`), el texto de la wiki de una etiqueta (`wikiEditor.js`) y borrar o
+  deshacer el borrado de un perfil desde el panel (`admin/deletions.js`). **No** lo tienen: los
+  perfiles (`cuentas/perfiles.js`, `amigues/editor.js`, `amigues/importer.js`,
+  `amigues/venueImport.js`, `admin/cuentas.js`), las imágenes y los archivos
+  (`media/library.js`), las etiquetas (`etiquetas/editor.js`, `etiquetas/importer.js` con
+  `saveObjects()`, deshacer el borrado de una etiqueta en `deletions.js`) y los scripts de demo.
+  No se hizo en este repaso porque no es solo mover código:
+  - **Perfiles: decisión de privacidad.** Al borrar una cuenta, sus perfiles de persona se vacían
+    ([cuentas.md](cuentas.md), `releaseAccountProfiles()`); con historial, las versiones viejas
+    con la presentación, los links y la imagen quedarían en `object_revisions`, que «nunca se
+    edita ni se borra». Antes hay que decidir (gorrite) si los perfiles llevan historial y, si
+    sí, si vaciar un perfil borra o vacía también sus revisiones.
+  - **Plan cuando esté decidido** (sin migración: la tabla ya existe): `SaveContext` suma
+    `source` (uno de `REVISION_SOURCES`, con los que falten: `perfil`, `imagen`, `etiqueta`…);
+    `planSave()` agrega `revisionStatement()` al final de la tanda (después de `also`, así lee la
+    fila escrita), también en `saveObjects()`; se sacan las `revisionStatement()` de los que
+    llaman (si no, quedan dos filas por versión y choca `UNIQUE (object_id, version)`); el modo
+    demo deja de chequear si la tabla existe (`seedEvents.js`); y `writePath.test.js` o una prueba
+    de `save.js` controla que todo guardado deja su revisión. Choca con cualquier PR abierto que
+    toque `planSave()` (por ejemplo los edges del cuerpo, #564): va después, en su propio PR.
+  - **`admin_audit` dentro de la tanda**: hoy lo escribe cada acción del panel aparte
+    (`admin/audit.js`), después de guardar. Pasarlo adentro necesitaría saber la acción y le
+    admin en `saveObject()` (los guardados de cuentas no son de admins): queda para después del
+    historial, si hace falta.
+- Redirecciones 301 al cambiar un slug (P6.4): sigue pendiente (ítem `url-cambiar`, necesita
+  migración).
+- Purga definitiva de lo borrado: sigue pendiente (ítem `borrar-para-siempre`).
+- Campos extra y tipos simples desde el panel (`object_types.origin = 'panel'`): sigue pendiente
+  (ítem `campos-propios-tipos`, falta diseño).
+- **Borrar la tabla `event_venues`** (ítem `event-venues-borrar`): hecho. El código que la usaba
+  salió en #625 y la migración 0075 se aplicó en producción y en preview el 4/11, después del merge,
+  con un marcador de time travel antes y el chequeo que trae escrito (0 eventos sin su edge
+  `lugar`).

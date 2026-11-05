@@ -2,15 +2,10 @@
  * Pure helpers for the PostList search (tag picker + free text).
  * Kept free of Svelte/SvelteKit imports so they can be unit tested.
  */
+import { foldText as normalizeText } from './text.js';
 
-/**
- * Lowercases and strips diacritics so "Córdoba" matches "cordoba".
- * @param {*} s
- * @returns {string}
- */
-export function normalizeText(s) {
-	return (s ?? '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-}
+/** Lowercases and strips diacritics so "Córdoba" matches "cordoba" (foldText in text.js). */
+export { normalizeText };
 
 /**
  * Resolves an alias (or unknown id) to its canonical tag id.
@@ -112,6 +107,23 @@ function buildHaystack(tm, meta = {}) {
 			...(meta.tags ?? []).map((/**@type string*/ t) => tm.get(t)?.visible_name ?? t)
 		].join(' ')
 	);
+}
+
+/**
+ * How many of `posts` each tag (canonical id) would keep if it were added to the filter: the post
+ * has it or one of its descendants, as `filterPosts` filters. A tag kept by every post wouldn't
+ * change the results.
+ * @param {Array<{meta: {tags?: string[]}}>} posts
+ * @param {TagManager} tm
+ * @returns {Map<string, number>}
+ */
+export function tagCoverage(posts, tm) {
+	/** @type {Map<string, number>} */
+	const res = new Map();
+	for (const post of posts) {
+		for (const t of postTags(tm, post)) res.set(t, (res.get(t) ?? 0) + 1);
+	}
+	return res;
 }
 
 /**

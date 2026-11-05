@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import {
+	IMMUTABLE_CACHE,
 	ImageError,
 	MAX_FILE_BYTES,
 	MAX_UPLOAD_BYTES,
@@ -136,7 +137,10 @@ describe('storeImage: copias chicas para las tarjetas', () => {
 		const stored = await bucket().get(`${base}-720.webp`);
 		expect(stored?.httpMetadata?.contentType).toBe('image/webp');
 		expect(stored?.httpMetadata?.cacheControl).toContain('immutable');
-		expect(await servableCopy(t.db, `${base}-720.webp`)).toEqual({ original: image.key });
+		expect(await servableCopy(t.db, `${base}-720.webp`)).toEqual({
+			original: image.key,
+			cacheControl: IMMUTABLE_CACHE
+		});
 	});
 
 	it('ignora las copias que no corresponden, sin frenar la subida', async () => {
@@ -205,7 +209,10 @@ describe('storeImage: copias chicas para las tarjetas', () => {
 			{ actor: 'admin-prueba' }
 		);
 		const copy = image.key.replace(/\.webp$/, '-360.webp');
-		expect(await servableCopy(t.db, copy)).toEqual({ original: image.key });
+		expect(await servableCopy(t.db, copy)).toEqual({
+			original: image.key,
+			cacheControl: IMMUTABLE_CACHE
+		});
 		expect(await deleteImage(t.db, image.id, { actor: 'admin-prueba' })).toBe(true);
 		expect(await servableCopy(t.db, copy)).toBeNull();
 		expect(await servableCopy(t.db, image.key)).toBeNull();

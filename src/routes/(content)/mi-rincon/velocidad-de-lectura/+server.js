@@ -9,6 +9,7 @@
  */
 import { error, json } from '@sveltejs/kit';
 import { getDB, logDBError } from '$lib/server/db';
+import { readJsonCapped } from '$lib/server/http/body.js';
 import { setReadingSpeed } from '$lib/server/cuentas/accounts.js';
 
 /** @type {import('./$types').RequestHandler} */
@@ -18,13 +19,11 @@ export async function POST({ locals, request, platform }) {
 	if (!request.headers.get('content-type')?.startsWith('application/json')) error(415, 'Solo JSON');
 	const db = getDB(platform);
 	if (!db) error(503, 'Sin base');
-	/** @type {unknown} */
-	let body;
-	try {
-		body = await request.json();
-	} catch {
-		error(400, 'JSON inválido');
-	}
+	// Un número y poco más: 4 KB alcanzan (también sin content-length).
+	const read = await readJsonCapped(request, 4096);
+	if (!read.ok && read.reason === 'too-large') error(413, 'Demasiado grande');
+	if (!read.ok) error(400, 'JSON inválido');
+	const body = read.value;
 	const wpm = body && typeof body === 'object' && 'wpm' in body ? body.wpm : undefined;
 	if (wpm !== null && typeof wpm !== 'number') error(400, 'Falta wpm');
 	try {

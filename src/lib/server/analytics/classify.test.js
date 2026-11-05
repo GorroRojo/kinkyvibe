@@ -118,6 +118,8 @@ describe('isTrackedPath', () => {
 		'/lista-de-espera/volver/token-falso',
 		'/mails/no-fui-yo/token-falso',
 		'/propinas/id-falso',
+		'/puerta',
+		'/puerta/una-fiesta',
 		'/mi-rincon',
 		'/ingresar',
 		'/login',

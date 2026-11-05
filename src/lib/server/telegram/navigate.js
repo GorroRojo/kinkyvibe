@@ -14,6 +14,7 @@ import {
 	helpScreen,
 	homeScreen,
 	listScreen,
+	searchHelpScreen,
 	searchScreen
 } from './screens.js';
 import { botText } from './texts.js';
@@ -90,6 +91,8 @@ export async function navigate(state, ctx, deps, opts = {}) {
 			return { screen: helpScreen(ctx, { accounts: Boolean(opts.accounts) }) };
 		case 'search':
 			return { screen: searchScreen(ctx) };
+		case 'search_help':
+			return { screen: searchHelpScreen() };
 		case 'fondo':
 			return { screen: fondoScreen(deps.fondo ? await deps.fondo() : null, ctx) };
 		case 'list': {

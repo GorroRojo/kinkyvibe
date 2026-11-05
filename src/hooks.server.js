@@ -12,20 +12,34 @@ import { setContentDB } from '$lib/server/contenido/repo.js';
 import { resolveAsPanelAuthor } from '$lib/server/contenido/author.js';
 import { startRequest } from '$lib/server/adelantarPedido.js';
 import { withPreload } from '$lib/server/preload.js';
-import { wwwRedirectResponse } from '$lib/server/canonicalHost.js';
+import { withoutBeacon } from '$lib/server/analyticsBeacon.js';
+import { offSiteRedirectResponse, wwwRedirectResponse } from '$lib/server/canonicalHost.js';
+import { countServerErrors } from '$lib/server/vigilancia/avisos.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
 // trusted; delete them if a browser still has them.
 const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
+/**
+ * Cada respuesta 5xx (también las de un error tirado) se cuenta y, si en la última hora hay
+ * muchas, les admins que prendieron «Fallas del sitio» reciben un aviso por Telegram. En segundo
+ * plano: nunca cambia la respuesta. Ver src/lib/server/vigilancia/avisos.js.
+ */
+export const handle = countServerErrors(siteHandle);
+
 /** @type {import('@sveltejs/kit').Handle} */
-export async function handle({ event, resolve: resolvePage }) {
+async function siteHandle({ event, resolve: resolvePage }) {
 	// www.kinkyvibe.ar → kinkyvibe.ar (301, mismo camino y query; docs/seo.md). Antes que nada: no
 	// lee la base ni la sesión.
 	const toApex = wwwRedirectResponse(event.request, event.url);
 	if (toApex) return toApex;
+	// En producción, otro host (una dirección *.workers.dev de una versión) → 308 a kinkyvibe.ar.
+	const offSite = offSiteRedirectResponse(event.url, __DEPLOY_BRANCH__);
+	if (offSite) return offSite;
 	// Precarga, además del JS y el CSS, las dos Lato latin ($lib/server/preload.js).
-	const resolve = withPreload(resolvePage);
+	// En la puerta con link, sin el beacon de analytics (el token va en el fragmento;
+	// $lib/server/analyticsBeacon.js).
+	const resolve = withoutBeacon(withPreload(resolvePage));
 	// La base donde el cliente del repo lee y guarda los eventos y el material (es la misma para
 	// todo el isolate, como la del modo demo).
 	setContentDB(getDB(event.platform));

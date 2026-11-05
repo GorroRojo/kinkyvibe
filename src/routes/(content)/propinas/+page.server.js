@@ -13,6 +13,7 @@ import { env } from '$env/dynamic/private';
 import { fail, redirect } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
 import { readTipForm, startTip } from '$lib/server/propinas/checkout.js';
+import { markFailure } from '$lib/server/errorLog.js';
 import { findTipPost } from '$lib/server/propinas/posts.js';
 import { getGateway, siteOrigin } from '$lib/server/tickets/index.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
@@ -59,6 +60,8 @@ export const actions = {
 			fondoEnabled: values.source === TIP_SOURCE_FONDO && (await propinasFondoEnabled(platform))
 		});
 		if (!result.ok) {
+			// Un 5xx cuenta para el aviso «Fallas del sitio» (con JavaScript, el `fail` llega como 200).
+			markFailure(event, result.status);
 			return fail(result.status, { values, error: result.error, errors: result.errors });
 		}
 		redirect(303, result.checkoutUrl);

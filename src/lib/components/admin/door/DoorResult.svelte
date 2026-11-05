@@ -3,16 +3,22 @@
 	 * Resultado grande del modo puerta: verde "Adelante", amarillo "Ya ingresó", rosa "Anulada",
 	 * "De otro evento" o "QR inválido". Tocar el bloque (o "Ver compra") abre la compra completa.
 	 *
-	 * Eventos: `undo`, `details`, `reveal` (DNI completo), `discard` (descartar una venta sin
-	 * conexión que todavía no se mandó).
+	 * Eventos: `undo`, `details`, `reveal` (DNI completo, solo con `canReveal`), `discard`
+	 * (descartar una venta sin conexión que todavía no se mandó).
 	 *
 	 * Después de una venta (UX V12): si ya está en el servidor, «¿Te equivocaste? Ver la orden»
 	 * lleva a la orden en el panel (el reembolso se hace ahí, con su confirmación); si todavía está
-	 * en la cola del celu, se puede descartar.
+	 * en la cola del celu, se puede descartar. Con un link de puerta no va ninguna de las dos.
+	 *
+	 * Aviso de puerta (decisión 0053): si la entrada coincide (`card.notice`), un cartel con solo
+	 * `DOOR_NOTICE_TEXT`, sin motivo ni detalles. No cambia el resultado: decide quien está en la
+	 * puerta. Con un link, el servidor lo manda solo en la tarjeta de un escaneo (doorScreen.js).
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { invalidTitle } from '$lib/admin/doorOffline.js';
 	import { argTime } from '$lib/utils/dates.js';
+	import { DOOR_NOTICE_TEXT } from '$lib/utils/doorNotices.js';
+	import ExtrasDelivery from './ExtrasDelivery.svelte';
 	import {
 		ChevronRight,
 		CircleCheck,
@@ -33,11 +39,15 @@
 	/** @type {string | null} */
 	export let dni = null;
 	export let canUndo = false;
+	/** Tocar el DNI parcial pide el completo (solo admins; con un link de puerta, no). */
+	export let canReveal = true;
 	/** Link a la orden en el panel (Ventas › Órdenes); `null` si todavía no está en el servidor. */
 	/** @type {string | null} */
 	export let orderHref = null;
 	/** La venta sin conexión todavía está en la cola del celu: se puede descartar. */
 	export let canDiscard = false;
+	/** Entregando un extra (apaga «Entregar 1» mientras tanto). */
+	export let delivering = false;
 
 	const dispatch = createEventDispatcher();
 
@@ -74,7 +84,7 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions (con teclado: el botón "Ver compra") -->
+<!-- svelte-ignore a11y-click-events-have-key-events (con teclado: el botón "Ver compra") -->
 <div
 	class="result {tone}"
 	class:clickable={Boolean(card)}
@@ -97,6 +107,12 @@
 	</div>
 
 	{#if card}
+		{#if card.notice}
+			<p class="notice" role="alert">
+				<TriangleAlert size={20} strokeWidth={2.5} />
+				{DOOR_NOTICE_TEXT}
+			</p>
+		{/if}
 		<p class="who">
 			<strong>{card.holder}</strong>{#if card.pronouns}&nbsp;({card.pronouns}){/if} · {card.type}
 		</p>
@@ -106,6 +122,15 @@
 			</p>
 		{:else if scan.result === 'void'}
 			<p class="when">La compra fue reembolsada o cancelada.</p>
+		{/if}
+		{#if card.extras?.length}
+			<!-- Extras de la compra (decisión 0056): «Entregar 1» (evento `deliver`). -->
+			<ExtrasDelivery
+				extras={card.extras}
+				busy={delivering}
+				disabled={scan.offline}
+				on:deliver={(e) => dispatch('deliver', { card, extra: e.detail })}
+			/>
 		{/if}
 		{#if card.firstTime && series && tone === 'ok'}
 			<p class="first"><Sparkles size={16} /> Primera vez en {series}</p>
@@ -129,6 +154,8 @@
 			{#if card.dniTail}
 				{#if dni}
 					<span class="mono">DNI {dotted(dni)}</span>
+				{:else if !canReveal}
+					<span class="mono">DNI •••.{card.dniTail}</span>
 				{:else}
 					<button
 						type="button"
@@ -209,6 +236,19 @@
 	}
 	p {
 		margin: 0;
+	}
+	.notice {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+		background: #fff1c2;
+		color: #2e2600;
+		border: 3px solid #2e2600;
+		border-radius: var(--radius-m, 10px);
+		padding: var(--space-2xs) var(--space-xs);
+		font-weight: 800;
+		font-size: var(--text-l, 1.15rem);
+		line-height: 1.25;
 	}
 	.head {
 		display: flex;

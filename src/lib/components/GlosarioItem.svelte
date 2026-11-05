@@ -13,6 +13,8 @@
 	export let item = 'root';
 	export let single = false;
 	export let title = false;
+	/** @type {TagID[]} las madres de esta rama (ver GlosarioTree) */
+	export let path = [];
 	// Desplegado o no (lo abre el botón «N más...»; buscando en la Kinkipedia, todo abierto).
 	const open = writable(false);
 	query.subscribe((q) => {
@@ -42,9 +44,13 @@
 	let isVisible = isVisibleFn(item);
 	/**
 	 * @param {TagID} tagID
+	 * @param {Set<TagID>} [seen] las ya vistas
 	 * @returns {boolean}
 	 */
-	function isVisibleFn(tagID) {
+	function isVisibleFn(tagID, seen = new Set()) {
+		// Cada etiqueta una vez: un ciclo de madres en los datos no la cuelga.
+		if (seen.has(tagID)) return false;
+		seen.add(tagID);
 		let t = $wikiTagManager.get(tagID);
 		if (
 			(t.description && t.description != '') ||
@@ -55,7 +61,7 @@
 		} else {
 			let children = t.getAllChildren();
 			if (children.length > 0) {
-				return children.some((s) => isVisibleFn(s));
+				return children.some((s) => isVisibleFn(s, seen));
 			} else {
 				return false;
 			}
@@ -163,7 +169,7 @@
 					</button>
 					{#if $open}
 						<dl data-state="open">
-							<GlosarioTree root={item} />
+							<GlosarioTree root={item} {path} />
 						</dl>
 					{/if}
 				{/if}

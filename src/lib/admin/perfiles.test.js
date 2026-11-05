@@ -111,7 +111,8 @@ describe('CSV', () => {
 					visibility: 'public',
 					approved: false,
 					rejected: true,
-					createdAt: Date.UTC(2026, 9, 1),
+					// 22:30 en Argentina: el día es el de Argentina (en UTC ya es 2/10).
+					createdAt: Date.parse('2026-10-01T22:30:00-03:00'),
 					deletedAt: null,
 					managers: [
 						{ email: 'alguien@example.com', role: 'owner' },

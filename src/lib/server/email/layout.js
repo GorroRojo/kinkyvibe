@@ -234,7 +234,9 @@ export function mailLayout({
 	const logo = `${siteOrigin(origin)}${MAIL_LOGO_PATH}`;
 	const contact = contactEmail || defaultMailContact();
 	const c = MAIL_COLORS;
-	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only"></head>
+	// <title>: el nombre del documento para los lectores de pantalla (y la pestaña si se abre en el
+	// navegador); los clientes de mail no lo muestran.
+	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(label)} · Kinky Vibe</title><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only"></head>
 <body style="margin:0;padding:0;background:${c.page};">
 ${preheader ? `${mailPreheader(preheader)}\n` : ''}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.page};" ${MAIL_LAYOUT_MARK}><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:${FONT};color:${c.text};">

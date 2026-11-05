@@ -15,7 +15,12 @@ import { combineQueries, mapQuery, rowsOf, runQuery } from '$lib/server/db/batch
 import { orderReference } from '$lib/utils/tickets.js';
 import { argDateList } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
-import { MP_FEE_SQL, goalProgress } from '$lib/utils/salesGoal.js';
+import {
+	MP_FEE_ESTIMATED_SQL,
+	MP_FEE_SQL,
+	REVENUE_SQL,
+	goalProgress
+} from '$lib/utils/salesGoal.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	DUE_REMINDER_WHERE,
@@ -46,6 +51,8 @@ import {
 } from '$lib/admin/links.js';
 import { onlineReviewTest } from '$lib/admin/eventList.js';
 import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
+import { panelVenueText } from '$lib/admin/eventFormat.js';
+import { panelEventVenuesFrom, panelEventVenuesStatement } from '$lib/server/amigues/venues.js';
 import { parseEventDate, todayInArgentina } from '$lib/utils/eventDraft.js';
 import {
 	TAG_EDGE,
@@ -54,6 +61,7 @@ import {
 	withTagEdges
 } from '$lib/server/contenido/etiquetasEdges.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
+import { countByChannel } from '$lib/utils/saleChannel.js';
 import { fondoTipTotalsStatement, readFondoTipTotals } from '$lib/server/propinas/index.js';
 import { tipCategoryLabel } from '$lib/utils/propinas.js';
 import { SALE_AT_SQL } from './saleMonth.js';
@@ -125,8 +133,27 @@ function query(what, fallback, statements, read) {
 const placeholders = (slugs) => slugs.map(() => '?').join(', ');
 
 /**
+ * El lugar vinculado («Sucede en») de cada evento de `slugs`, en una sentencia para todos: en el
+ * Inicio manda sobre el «Dónde» en texto libre, como en la página del evento. Vacío sin eventos,
+ * sin base o si falla (queda el texto libre).
+ * @param {string[]} slugs
+ * @returns {BatchQuery<Map<string, import('$lib/admin/eventFormat.js').PanelVenue>>}
+ */
+export function eventVenuesQuery(slugs) {
+	return query(
+		'lugares de los eventos',
+		new Map(),
+		(db) => {
+			const statement = panelEventVenuesStatement(db, slugs);
+			return statement ? [statement] : [];
+		},
+		(results) => panelEventVenuesFrom(rowsOf(results))
+	);
+}
+
+/**
  * @typedef {{ sold: number, held: number, revenue: number, fondo: number, contribution: number,
- *   mpFee?: number }} TypeTotals
+ *   mpFee?: number, mpFeeEstimated?: number }} TypeTotals
  *
  * `mpFee`: la comisión de Mercado Pago de las órdenes aprobadas (MP_FEE_SQL en
  * $lib/utils/salesGoal.js), para lo neto de la meta de venta.
@@ -162,10 +189,11 @@ export function ticketTotalsQuery(slugs, now) {
 					SUM(CASE WHEN status = 'approved' THEN quantity ELSE 0 END) AS sold,
 					SUM(CASE WHEN status IN ('pending', 'rejected', 'awaiting_transfer') AND expires_at > ?
 						THEN quantity ELSE 0 END) AS held,
-					SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS revenue,
+					SUM(CASE WHEN status = 'approved' THEN ${REVENUE_SQL} ELSE 0 END) AS revenue,
 					SUM(CASE WHEN status = 'approved' THEN fondo_amount ELSE 0 END) AS fondo,
 					SUM(CASE WHEN status = 'approved' THEN fondo_contribution ELSE 0 END) AS contribution,
-					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee
+					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee,
+					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_ESTIMATED_SQL} ELSE 0 END) AS mp_fee_estimated
 				FROM orders WHERE event_slug IN (${placeholders(slugs)})
 				GROUP BY event_slug, ticket_type`
 							)
@@ -184,7 +212,8 @@ export function ticketTotalsQuery(slugs, now) {
 					revenue: Number(r.revenue ?? 0),
 					fondo: Number(r.fondo ?? 0),
 					contribution: Number(r.contribution ?? 0),
-					mpFee: Number(r.mp_fee ?? 0)
+					mpFee: Number(r.mp_fee ?? 0),
+					mpFeeEstimated: Number(r.mp_fee_estimated ?? 0)
 				});
 			}
 			return out;
@@ -301,7 +330,7 @@ export function cancelledLeftoversQuery(slugs, now) {
 							.prepare(
 								`SELECT event_slug,
 					SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
-					SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS approved_total,
+					SUM(CASE WHEN status = 'approved' THEN ${REVENUE_SQL} ELSE 0 END) AS approved_total,
 					SUM(CASE WHEN status = 'awaiting_transfer' THEN 1 ELSE 0 END) AS transfers
 				FROM orders WHERE event_slug IN (${placeholders(slugs)})
 					AND (status = 'approved' OR (status = 'awaiting_transfer' AND expires_at > ?))
@@ -333,7 +362,8 @@ export const EMAIL_PROBLEM_VISIBLE_MS = 14 * 24 * 60 * 60 * 1000;
 
 /**
  * Órdenes aprobadas cuyo mail con las entradas no salió (`email_sent_at` vacío), más viejas que
- * {@link EMAIL_GRACE_MS}, y las que salió pero Resend avisó que rebotó o lo marcaron como spam
+ * {@link EMAIL_GRACE_MS} (sin las que no tienen mail, como una venta en la puerta sin mail: no hay a
+ * quién mandárselo, igual que en el reintento de unsentOrders.js), y las que salió pero Resend avisó que rebotó o lo marcaron como spam
  * (`problem`, de los últimos {@link EMAIL_PROBLEM_VISIBLE_MS}).
  *
  * @param {D1Database | null | undefined} db
@@ -357,6 +387,7 @@ export function unsentEmailsQuery(now) {
 				.prepare(
 					`SELECT id, event_slug, buyer_name, updated_at AS at, NULL AS email_problem FROM orders
 				WHERE status = 'approved' AND email_sent_at IS NULL AND updated_at < ?1
+					AND TRIM(buyer_email) != ''
 				UNION ALL
 				SELECT id, event_slug, buyer_name, email_problem_at AS at, email_problem FROM orders
 				WHERE email_problem IS NOT NULL AND email_problem_at > ?2 AND status = 'approved'
@@ -380,17 +411,22 @@ export function unsentEmailsQuery(now) {
 /**
  * Órdenes marcadas para revisar a mano: pago tardío o duplicado (`needs_review`) o una venta en la
  * puerta hecha sin conexión que pasó un límite al sincronizarse (`offline_review`, migración 0051;
- * `reason` = 'door_offline'). Dos consultas unidas, cada una por su índice parcial.
+ * `reason` = 'door_offline'). Dos consultas unidas, cada una por su índice parcial. `total` y
+ * `detail` (en un pago duplicado, el número del otro pago) dicen cuánto se cobró de más: el monto
+ * de un pago tiene que ser el total de la orden (applyPayment).
+ *
+ * @typedef {{ id: string, ref: string, slug: string, reason: string, buyerName: string,
+ *   total: number, detail: string | null }} ReviewOrder
  *
  * @param {D1Database | null | undefined} db
- * @returns {Promise<{ id: string, ref: string, slug: string, reason: string, buyerName: string }[]>}
+ * @returns {Promise<ReviewOrder[]>}
  */
 export function reviewOrders(db) {
 	return runQuery(db, reviewOrdersQuery());
 }
 
 /**
- * @returns {BatchQuery<{ id: string, ref: string, slug: string, reason: string, buyerName: string }[]>}
+ * @returns {BatchQuery<ReviewOrder[]>}
  */
 export function reviewOrdersQuery() {
 	return query(
@@ -398,10 +434,10 @@ export function reviewOrdersQuery() {
 		[],
 		(db) => [
 			db.prepare(
-				`SELECT id, event_slug, needs_review, buyer_name, updated_at FROM orders
-				WHERE needs_review IS NOT NULL
+				`SELECT id, event_slug, needs_review, buyer_name, updated_at, total, review_detail
+				FROM orders WHERE needs_review IS NOT NULL
 				UNION ALL
-				SELECT id, event_slug, 'door_offline', buyer_name, updated_at FROM orders
+				SELECT id, event_slug, 'door_offline', buyer_name, updated_at, total, NULL FROM orders
 				WHERE offline_review IS NOT NULL AND needs_review IS NULL
 				ORDER BY updated_at DESC LIMIT 50`
 			)
@@ -412,7 +448,10 @@ export function reviewOrdersQuery() {
 				ref: orderReference(String(r.id)),
 				slug: String(r.event_slug),
 				reason: String(r.needs_review),
-				buyerName: String(r.buyer_name)
+				buyerName: String(r.buyer_name),
+				total: Number(r.total ?? 0),
+				detail:
+					r.review_detail === null || r.review_detail === undefined ? null : String(r.review_detail)
 			}))
 	);
 }
@@ -573,7 +612,11 @@ export function monthMoney(db, now) {
 }
 
 /**
- * @typedef {{ start: number, total: number, orders: number, tickets: number, fondoNet: number, fondoTips: number }} MonthMoney
+ * `total`: lo recaudado (sin los reembolsos parciales hechos en MP). `mpFee`: la comisión de MP
+ * (la que cobró o, si no la informó, la estimada) y `mpFeeEstimated`, la parte estimada; lo neto
+ * es `total − mpFee` ($lib/utils/salesGoal.js).
+ * @typedef {{ start: number, total: number, orders: number, tickets: number, fondoNet: number,
+ *   fondoTips: number, mpFee: number, mpFeeEstimated: number }} MonthMoney
  */
 
 /**
@@ -594,7 +637,9 @@ export function monthMoneyQuery(now) {
 					db
 						.prepare(
 							`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
-					COALESCE(SUM(total), 0) AS total,
+					COALESCE(SUM(${REVENUE_SQL}), 0) AS total,
+					COALESCE(SUM(${MP_FEE_SQL}), 0) AS mp_fee,
+					COALESCE(SUM(${MP_FEE_ESTIMATED_SQL}), 0) AS mp_fee_estimated,
 					COALESCE(SUM(fondo_contribution - fondo_amount), 0) AS fondo_net
 				FROM orders o WHERE status = 'approved' AND ${SALE_AT_SQL} >= ?1 AND ${SALE_AT_SQL} < ?2`
 						)
@@ -617,7 +662,9 @@ export function monthMoneyQuery(now) {
 						orders: Number(row.orders ?? 0),
 						tickets: Number(row.tickets ?? 0),
 						fondoNet: Number(row.fondo_net ?? 0) + tips.total,
-						fondoTips: tips.total
+						fondoTips: tips.total,
+						mpFee: Number(row.mp_fee ?? 0),
+						mpFeeEstimated: Number(row.mp_fee_estimated ?? 0)
 					}
 				: null
 	);
@@ -644,7 +691,8 @@ const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
 	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Entrar',
 	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón',
 	[ACCOUNT_EVENT_ACTIONS.venueResubmitted]: 'Lugar para aprobar · Mi rincón',
-	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón'
+	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón',
+	[ACCOUNT_EVENT_ACTIONS.profileEdited]: 'Perfil editado · Mi rincón'
 });
 
 /**
@@ -748,11 +796,13 @@ export function recentActivityRowsQuery({ limit = 12, since = 0 } = {}) {
 					GROUP BY event_slug, CAST(checked_in_at / ?3 AS INTEGER) ORDER BY last DESC LIMIT ?2`,
 				[since, limit, CHECKIN_BUCKET_MS]
 			),
-			// Sin la migración 0019 (propinas) la consulta falla y da [].
+			// Sin la migración 0019 (propinas) la consulta falla y da []. Solo las de Mercado Pago
+			// (en pesos): las de PayPal (0071) son en dólares.
 			part(
 				'actividad: propinas',
 				`SELECT id, amount, post_category, post_slug, approved_at FROM tips
-					WHERE status = 'approved' AND approved_at > ? ORDER BY approved_at DESC LIMIT ?`,
+					WHERE status = 'approved' AND provider = 'mp' AND approved_at > ?
+					ORDER BY approved_at DESC LIMIT ?`,
 				[since, limit]
 			)
 		],
@@ -882,7 +932,7 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
 							FROM (
 								SELECT
 									COALESCE(SUM(CASE WHEN status = 'approved' AND updated_at > ?1 THEN 1 ELSE 0 END), 0) AS orders,
-									COALESCE(SUM(CASE WHEN status = 'approved' AND updated_at > ?1 THEN total ELSE 0 END), 0) AS money,
+									COALESCE(SUM(CASE WHEN status = 'approved' AND updated_at > ?1 THEN ${REVENUE_SQL} ELSE 0 END), 0) AS money,
 									COALESCE(SUM(CASE WHEN status = 'awaiting_transfer' AND created_at > ?1 THEN 1 ELSE 0 END), 0) AS transfers
 								FROM orders WHERE status IN ('approved', 'awaiting_transfer')
 							) o`
@@ -955,9 +1005,11 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
  *   streamLinks?: Set<string>,
  *   reminders?: Map<string, number>,
  *   stuck?: { reminders: Map<string, number>, streamLinks: Map<string, number> },
+ *   venues?: Map<string, import('$lib/admin/eventFormat.js').PanelVenue>,
  *   now: number,
  *   skip?: (slug: string) => boolean
- * }} input
+ * }} input `venues`: el lugar vinculado de cada evento ({@link eventVenuesQuery}); manda sobre
+ *   el «Dónde» en texto libre en `location`.
  * @returns {UpcomingEvent[]}
  */
 export function upcomingEvents({
@@ -970,6 +1022,7 @@ export function upcomingEvents({
 	streamLinks = new Set(),
 	reminders = new Map(),
 	stuck = { reminders: new Map(), streamLinks: new Map() },
+	venues = new Map(),
 	now,
 	skip = () => false
 }) {
@@ -993,6 +1046,7 @@ export function upcomingEvents({
 		let held = 0;
 		let revenue = 0;
 		let mpFee = 0;
+		let mpFeeEstimated = 0;
 		let fondoNet = 0;
 		/** @type {UpcomingEvent['oversold']} */
 		const oversold = [];
@@ -1009,6 +1063,7 @@ export function upcomingEvents({
 		for (const c of byType.values()) {
 			revenue += c.revenue;
 			mpFee += c.mpFee ?? 0;
+			mpFeeEstimated += c.mpFeeEstimated ?? 0;
 			fondoNet += c.contribution - c.fondo;
 		}
 		const ci = checkins.get(e.slug);
@@ -1017,7 +1072,12 @@ export function upcomingEvents({
 			title: e.title,
 			start: e.start,
 			day,
-			location: e.location,
+			// Un lugar vinculado manda sobre el «Dónde» en texto libre (como en la página).
+			location: venues.has(e.slug)
+				? panelVenueText(
+						/** @type {import('$lib/admin/eventFormat.js').PanelVenue} */ (venues.get(e.slug))
+					) || e.location
+				: e.location,
 			status: config?.status ?? e.status,
 			// Borrador = la marca de la agenda (`borrador: true`), que espera «Confirmar». Un evento no
 			// listado a propósito no es un borrador: no se destaca ni se pide revisarlo (una sola
@@ -1041,7 +1101,7 @@ export function upcomingEvents({
 			oversold,
 			// Avance contra la meta de venta (`meta_venta`; la de plata, neta de la comisión de MP);
 			// sin meta, null (se muestra el cupo).
-			progress: config ? goalProgress(config.goal, { sold, revenue, mpFee }) : null,
+			progress: config ? goalProgress(config.goal, { sold, revenue, mpFee, mpFeeEstimated }) : null,
 			transfers: transferBy.get(e.slug) ?? 0,
 			review: reviewBy.get(e.slug) ?? 0,
 			missingStream: Boolean(config?.online && sold > 0 && !streamLinks.has(e.slug)),
@@ -1068,8 +1128,12 @@ export function upcomingEvents({
  *   resend?: { orderId: string },
  *   group?: ReviewGroupKind,
  *   name?: string,
- *   retryReminders?: { slug: string }
+ *   retryReminders?: { slug: string },
+ *   altFix?: { profileId: number, index: number, src: string, thumb: string },
+ *   shrink?: { ownerId: number, imageId: number, url: string, title: string, alt: string, size: number }
  * }} ReviewItem
+ *   `altFix`: «Fotos sin descripción» (un campo para escribir qué se ve, contentReview.js);
+ *   `shrink`: «Portadas pesadas» (el botón «Achicar»).
  */
 
 /**
@@ -1133,7 +1197,8 @@ export function claimReviewItems(claims, { formatWhen } = {}) {
  *   transfers: { slug: string, count: number, oldestExpiry: number }[],
  *   unsent: { id: string, ref: string, slug: string, buyerName: string,
  *     problem?: UnsentEmail['problem'] }[],
- *   review: { id: string, ref: string, slug: string, reason: string, buyerName: string }[],
+ *   review: { id: string, ref: string, slug: string, reason: string, buyerName: string,
+ *     total?: number, detail?: string | null }[],
  *   titles: Map<string, string>,
  *   links: {
  *     transfers: (slug: string) => string,
@@ -1175,7 +1240,11 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 					: o.reason === 'door_offline'
 						? `Venta sin conexión de ${o.buyerName} para revisar`
 						: `Pago tardío de ${o.buyerName} (la reserva había vencido)`,
-			text: `${o.ref} · ${title(o.slug)}`,
+			// Un pago duplicado es del mismo monto que la orden: cuánto se cobró de más y con qué pago.
+			text:
+				o.reason === 'duplicate_payment' && o.total
+					? `${o.ref} · ${title(o.slug)} · otro cobro de ${formatARS(o.total)}${o.detail ? ` (Mercado Pago n.° ${o.detail})` : ''}`
+					: `${o.ref} · ${title(o.slug)}`,
 			action: 'Ver orden',
 			href: links.order(o.slug, o.id)
 		});
@@ -1846,13 +1915,16 @@ export function agendaItems({
 }
 
 /**
- * @typedef {{ days: { day: string, count: number }[], online: number, door: number }} SalesTrend
+ * `channels`: entradas por canal (la regla única de $lib/utils/saleChannel.js).
+ * @typedef {{ days: { day: string, count: number }[],
+ *   channels: Record<import('$lib/utils/saleChannel.js').SaleChannel, number> }} SalesTrend
  */
 
 /**
  * Ventas de un evento por día (fecha de la compra, hora de Argentina) en los últimos `days` días
- * hasta hoy inclusive, y cuántas entradas se vendieron online y en la puerta. La columna
- * `channel` llega con la migración del modo puerta: sin ella todo cuenta como online.
+ * hasta hoy inclusive, y cuántas entradas salieron por cada canal (online, puerta, cortesía y
+ * cargadas a mano: {@link countByChannel}). La columna `channel` llega con la migración del modo
+ * puerta: sin ella todo lo cobrado cuenta como online.
  * Una sola ida a la base (un batch).
  *
  * @param {D1Database | null | undefined} db
@@ -1889,8 +1961,9 @@ export function eventSalesTrendQuery(slug, now, days = 7) {
 	const byChannel = (db, withChannel) =>
 		db
 			.prepare(
-				`SELECT ${withChannel ? 'channel' : "'online'"} AS channel, SUM(quantity) AS n
-					FROM orders WHERE event_slug = ? AND status = 'approved' GROUP BY 1`
+				`SELECT ${withChannel ? 'channel' : "'online'"} AS channel, payment_method,
+					SUM(quantity) AS quantity
+					FROM orders WHERE event_slug = ? AND status = 'approved' GROUP BY 1, 2`
 			)
 			.bind(slug);
 	/** @param {import('$lib/server/db/batch.js').D1Result[]} res */
@@ -1898,19 +1971,19 @@ export function eventSalesTrendQuery(slug, now, days = 7) {
 		/** @type {Map<number, number>} */
 		const counts = new Map();
 		for (const r of rowsOf(res, 0)) counts.set(Number(r.d), Number(r.n ?? 0));
-		let online = 0;
-		let door = 0;
-		for (const r of rowsOf(res, 1)) {
-			if (r.channel === 'puerta') door += Number(r.n ?? 0);
-			else online += Number(r.n ?? 0);
-		}
+		const channels = countByChannel(
+			rowsOf(res, 1).map((r) => ({
+				channel: r.channel == null ? null : String(r.channel),
+				payment_method: r.payment_method == null ? null : String(r.payment_method),
+				quantity: Number(r.quantity ?? 0)
+			}))
+		);
 		return {
 			days: Array.from({ length: days }, (_, i) => ({
 				day: arDay(from + i * DAY_MS),
 				count: counts.get(i) ?? 0
 			})),
-			online,
-			door
+			channels
 		};
 	};
 	return {

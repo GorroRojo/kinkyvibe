@@ -69,7 +69,7 @@ export async function revokeToken(token, { clientId, clientSecret }, fetchFn = f
 		);
 		return res.status === 204;
 	} catch (e) {
-		console.log('Could not revoke GitHub token: ' + e);
+		console.warn('[auth] no se pudo revocar el token de GitHub: ' + e);
 		return false;
 	}
 }
@@ -128,6 +128,9 @@ export function safeRedirect(target, origin, fallback = '/') {
 		}
 	}
 	if (parsed.origin !== origin) return fallback;
+	// The normalized path itself must not start with "//" or "/\": browsers read a Location like
+	// that as another host, whatever the input looked like before normalization.
+	if (/^\/[/\\]/.test(parsed.pathname)) return fallback;
 	return parsed.pathname + parsed.search + parsed.hash;
 }
 

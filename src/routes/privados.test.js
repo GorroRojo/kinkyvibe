@@ -1011,8 +1011,10 @@ async function attempt(fn) {
 	try {
 		return { status: 200, body: await fn() };
 	} catch (e) {
-		const status = /** @type {any} */ (e)?.status;
-		if (typeof status === 'number') return { status, body: text(/** @type {any} */ (e).body) };
+		const err = /** @type {any} */ (e);
+		const status = err?.status;
+		// Una redirección no trae cuerpo: se revisa adónde lleva.
+		if (typeof status === 'number') return { status, body: text(err.body ?? err.location ?? '') };
 		throw e;
 	}
 }

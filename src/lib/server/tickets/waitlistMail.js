@@ -16,6 +16,7 @@
  */
 import { signLink, verifyLink } from '$lib/server/signedLinks.js';
 import { deliverEmail } from './index.js';
+import { AVISOS_FROM_EMAIL } from './settings.js';
 import { claimSend, finishSend } from './sendState.js';
 import { resendBackoff } from './email.js';
 
@@ -100,8 +101,9 @@ export async function checkWaitlistLinkToken(db, use, token) {
 }
 
 /**
- * Manda los mails de la lista por el camino de siempre (`deliverEmail`: Resend, el filtro
- * `routeEmail` de los previews con EMAIL_ALLOWLIST y el remitente de los ajustes).
+ * Manda los mails de la lista por el camino de siempre (`deliverEmail`: Resend y el filtro
+ * `routeEmail` de los previews con EMAIL_ALLOWLIST), desde el remitente de los avisos
+ * (`AVISOS_FROM_EMAIL`, avisos@) y con la respuesta de los ajustes.
  *
  * `batch`: lo usa una tanda (`sendBatch` en sendState.js): un «ahora no» de Resend (cupo, tasa,
  * 5xx; `resendBackoff`) sigue de largo como error, así la tanda no gasta el intento y se corta.
@@ -116,7 +118,16 @@ export function waitlistSender(db, fetchFn, { batch = false } = {}) {
 	return async (to, message, idempotencyKey) => {
 		try {
 			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
-			return await deliverEmail({ db, fetch: fetchFn, to, message, idempotencyKey, optOut: true });
+			return await deliverEmail({
+				db,
+				fetch: fetchFn,
+				to,
+				message,
+				idempotencyKey,
+				from: AVISOS_FROM_EMAIL,
+				optOut: true,
+				kind: 'lista-espera'
+			});
 		} catch (e) {
 			if (batch && resendBackoff(e)) throw e;
 			console.error('[lista de espera] no se pudo mandar el mail:', e);

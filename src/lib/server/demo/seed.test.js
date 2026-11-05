@@ -336,7 +336,6 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		'signup_fields',
 		'event_signup_general',
 		'order_answers',
-		'event_venues',
 		'profile_claims',
 		'series_subscriptions',
 		'objects',

@@ -13,6 +13,7 @@ import { periodRange } from '$lib/admin/statsPeriod.js';
 import { normalizeEmail, seriesLabel } from './people.js';
 import { computeStats, monthKey } from './stats.js';
 import { saleAt } from './saleMonth.js';
+import { orderRevenue } from '$lib/utils/salesGoal.js';
 import { attendanceReturn, fondoByMonth, salesByDay, salesEvents } from './charts.js';
 
 /** @typedef {import('./people.js').PersonOrder} PersonOrder */
@@ -40,11 +41,12 @@ function monthsBetween(a, b) {
 export function salesKpis(orders) {
 	const ok = orders.filter((o) => o.status === 'approved');
 	const tickets = ok.reduce((s, o) => s + o.quantity, 0);
-	const revenue = ok.reduce((s, o) => s + o.total, 0);
+	const revenue = ok.reduce((s, o) => s + orderRevenue(o), 0);
 	return {
 		tickets,
 		revenue,
-		people: new Set(ok.map((o) => normalizeEmail(o.buyer_email))).size,
+		// Sin las ventas sin mail (en la puerta es opcional): no son una persona.
+		people: new Set(ok.map((o) => normalizeEmail(o.buyer_email)).filter(Boolean)).size,
 		avgTicket: tickets ? Math.round(revenue / tickets) : 0
 	};
 }

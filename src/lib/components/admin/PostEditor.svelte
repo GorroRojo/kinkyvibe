@@ -236,7 +236,8 @@
 		isEvent && !parseError
 			? validateTicketsForm(tickets, {
 					sales: data.sales ?? undefined,
-					waitlistLive: data.waitlistLive ?? undefined
+					waitlistLive: data.waitlistLive ?? undefined,
+					extrasSales: data.extrasSales ?? undefined
 				})
 			: { errors: [], warnings: [] };
 	// Lo que el archivo ya tenía mal (por ejemplo, cargado a mano) se muestra pero no bloquea
@@ -245,7 +246,8 @@
 		isEvent && !parseError
 			? validateTicketsForm(initialTickets, {
 					sales: data.sales ?? undefined,
-					waitlistLive: data.waitlistLive ?? undefined
+					waitlistLive: data.waitlistLive ?? undefined,
+					extrasSales: data.extrasSales ?? undefined
 				}).errors
 			: [];
 	$: newTicketErrors = ticketsCheck.errors.filter((e) => !initialTicketErrors.includes(e));
@@ -415,7 +417,7 @@
 </script>
 
 <svelte:head>
-	<title>Editar · {meta.title ?? postID} · {embedded ? 'Panel' : 'KV Admin'}</title>
+	<title>Editar · {meta.title ?? postID} · Panel</title>
 </svelte:head>
 
 <svelte:element this={embedded ? 'div' : 'main'} class="edit kv-admin" class:embedded>
@@ -549,8 +551,11 @@
 					sales={data.sales}
 					salesUnavailable={data.salesUnavailable}
 					transferReady={data.transferReady ?? null}
+					fondoPercent={data.fondoPercent ?? null}
 					waitlistEnabled={data.waitlistEnabled ?? null}
 					waitlistLive={data.waitlistLive ?? null}
+					extrasEnabled={data.extrasEnabled ?? false}
+					extrasSales={data.extrasSales ?? null}
 					errors={ticketsCheck.errors}
 					bind:touched={ticketsTouched}
 					warnings={ticketsCheck.warnings}
@@ -610,6 +615,10 @@
 					></small
 				>{/if}
 			<SaveStatus {saving} message={savedMessage} />
+			{#if !changed && !saving && !problems.length && !savedMessage}
+				<!-- Por qué «Guardar» está apagado: en el celu el `title` no se ve al tocar. -->
+				<small class="idle">No hay cambios para guardar</small>
+			{/if}
 			<SaveButton
 				id="save"
 				{saving}
@@ -636,5 +645,9 @@
 	.blocked {
 		flex: 1 1 12em;
 		color: var(--bad, #b00020);
+	}
+	.idle {
+		flex: 1 1 12em;
+		color: var(--muted);
 	}
 </style>

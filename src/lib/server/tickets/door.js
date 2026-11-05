@@ -50,6 +50,8 @@ import {
 import { parseDoorPrice } from './config.js';
 import { getCounts, isValidToken, issueTicketsStatements } from './orders.js';
 import { isFirstTime } from './series.js';
+import { extrasStatements, isExtrasStockError } from './extras.js';
+import { extrasAmount } from '$lib/utils/extras.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./orders.js').Order} Order */
@@ -102,8 +104,10 @@ export async function doorCounts(db, slug) {
 /**
  * @typedef {Ticket & {
  *   order_status: import('./orders.js').OrderStatus, buyer_name: string,
- *   buyer_email: string, buyer_dni: string | null, buyer_pronouns: string | null
- * }} TicketWithBuyer
+ *   buyer_email: string, buyer_dni: string | null, buyer_pronouns: string | null,
+ *   buyer_account_id?: string | null
+ * }} TicketWithBuyer `buyer_account_id`: la cuenta de la orden, solo para los avisos de puerta
+ *   (doorNotices.js); nunca va a la pantalla.
  */
 
 /**
@@ -118,7 +122,7 @@ export async function ticketWithBuyer(db, { token, id }) {
 		await db
 			.prepare(
 				`SELECT t.*, o.status AS order_status, o.buyer_name, o.buyer_email, o.buyer_dni,
-					o.buyer_pronouns
+					o.buyer_pronouns, o.account_id AS buyer_account_id
 				FROM tickets t JOIN orders o ON o.id = t.order_id
 				WHERE ${token !== undefined ? 't.token = ?1' : 't.id = ?1'}`
 			)
@@ -128,12 +132,14 @@ export async function ticketWithBuyer(db, { token, id }) {
 }
 
 /**
- * Lo que muestra la pantalla para una entrada (sin el DNI completo).
+ * Lo que muestra la pantalla para una entrada (sin el DNI completo). `notice`: la entrada coincide
+ * con un aviso de puerta vigente (doorNotices.js); la pantalla muestra solo `DOOR_NOTICE_TEXT`,
+ * nunca el motivo ni nada más del aviso, y el ingreso no se frena.
  *
  * @param {TicketWithBuyer} t
- * @param {{ typeNames: Record<string, string>, prior: PriorAttendance | null }} ctx
+ * @param {{ typeNames: Record<string, string>, prior: PriorAttendance | null, notice?: boolean }} ctx
  */
-export function ticketCard(t, { typeNames, prior }) {
+export function ticketCard(t, { typeNames, prior, notice = false }) {
 	return {
 		ticketId: t.id,
 		orderId: t.order_id,
@@ -148,6 +154,7 @@ export function ticketCard(t, { typeNames, prior }) {
 		code: t.code ?? '',
 		at: t.checked_in_at,
 		by: t.checked_in_by,
+		notice: notice === true,
 		firstTime: prior
 			? isFirstTime(
 					{ holder: t.holder_name, buyerName: t.buyer_name, buyerEmail: t.buyer_email },
@@ -163,10 +170,14 @@ export function ticketCard(t, { typeNames, prior }) {
  * Detalle completo de la compra de una entrada del evento (hoja "Ver compra"). Sin el DNI
  * completo (se pide aparte con `revealDni`).
  *
+ * Con `forLink` (la puerta con un link, sin cuenta): sin la nota interna, quién confirmó la orden,
+ * el código de descuento ni el reembolso, y sin los logins de admins en quién marcó cada ingreso
+ * (`linkSafeBy`). Une admin ve todo.
+ *
  * @param {D1Database} db
- * @param {{ slug: string, ticketId: string, typeNames: Record<string, string> }} input
+ * @param {{ slug: string, ticketId: string, typeNames: Record<string, string>, forLink?: boolean }} input
  */
-export async function purchaseDetails(db, { slug, ticketId, typeNames }) {
+export async function purchaseDetails(db, { slug, ticketId, typeNames, forLink = false }) {
 	const t = await db
 		.prepare('SELECT order_id FROM tickets WHERE id = ?1 AND event_slug = ?2')
 		.bind(ticketId, slug)
@@ -181,7 +192,7 @@ export async function purchaseDetails(db, { slug, ticketId, typeNames }) {
 		.bind(order.id)
 		.all();
 	const tickets = /** @type {Ticket[]} */ (results);
-	return {
+	const details = {
 		id: order.id,
 		ref: orderRef(order.id),
 		status: order.status,
@@ -207,7 +218,7 @@ export async function purchaseDetails(db, { slug, ticketId, typeNames }) {
 		paidAt: order.status === 'approved' || order.status === 'refunded' ? order.updated_at : null,
 		confirmedBy: order.confirmed_by,
 		refundedAt: order.refunded_at ?? null,
-		// Solo admins (el modo puerta lo es): la nota y si se cobró otro precio en la puerta.
+		// La nota interna (solo admins: con un link no va, ver abajo) y si se cobró otro precio.
 		note: order.admin_note ?? '',
 		priceChange: orderPriceChangeText(order),
 		tickets: tickets.map((x) => ({
@@ -216,9 +227,38 @@ export async function purchaseDetails(db, { slug, ticketId, typeNames }) {
 			pronouns: x.holder_pronouns ?? '',
 			code: x.code ?? '',
 			at: x.checked_in_at,
-			by: x.checked_in_by
+			by: forLink ? linkSafeBy(x.checked_in_by) : x.checked_in_by
 		}))
 	};
+	if (!forLink) return details;
+	// Con un link: nada de lo interno del panel.
+	/** @type {Partial<typeof details>} */
+	const shown = { ...details };
+	for (const k of LINK_HIDDEN_PURCHASE_FIELDS) delete shown[k];
+	return /** @type {Omit<typeof details, (typeof LINK_HIDDEN_PURCHASE_FIELDS)[number]>} */ (shown);
+}
+
+/**
+ * Lo que la hoja «Ver compra» no manda a la puerta con un link: la nota interna, quién confirmó la
+ * orden, el código de descuento y el reembolso.
+ */
+export const LINK_HIDDEN_PURCHASE_FIELDS = /** @type {const} */ ([
+	'note',
+	'confirmedBy',
+	'discountCode',
+	'refundedAt'
+]);
+
+/**
+ * Quién marcó un ingreso, para la puerta con un link: lo que marcó un link («puerta: …») se ve
+ * igual; lo que marcó une admin dice «une admin», sin su login de GitHub.
+ *
+ * @param {string | null | undefined} by
+ * @returns {string | null}
+ */
+export function linkSafeBy(by) {
+	if (by === null || by === undefined || by === '') return by ?? null;
+	return String(by).startsWith('puerta:') ? String(by) : 'une admin';
 }
 
 /**
@@ -253,16 +293,18 @@ export async function revealDni(db, locals, { slug, ticketId }) {
  * Lista para validar sin conexión: una fila por entrada emitida del evento (también las
  * anuladas, para decir "Anulada" sin conexión). Solo lo mínimo para validar y mostrar: hash del
  * token (no el token), código, persona, tipo, estado, ingreso, quién compró, email, últimos 3 del
- * DNI y si es su primera vez en la serie.
+ * DNI, si es su primera vez en la serie y si coincide con un aviso de puerta (`notice`: solo sí o
+ * no, con el matcher de `doorNoticeMatcher`; sin él, nunca).
  *
  * @param {D1Database} db
- * @param {{ slug: string, typeNames: Record<string, string>, prior: PriorAttendance | null }} input
+ * @param {{ slug: string, typeNames: Record<string, string>, prior: PriorAttendance | null,
+ *   notices?: import('./doorNotices.js').DoorNoticeMatcher }} input
  */
-export async function offlineList(db, { slug, typeNames, prior }) {
+export async function offlineList(db, { slug, typeNames, prior, notices }) {
 	const { results } = await db
 		.prepare(
 			`SELECT t.*, o.status AS order_status, o.buyer_name, o.buyer_email, o.buyer_dni,
-				o.buyer_pronouns
+				o.buyer_pronouns, o.account_id AS buyer_account_id
 			FROM tickets t JOIN orders o ON o.id = t.order_id WHERE t.event_slug = ?1
 			ORDER BY t.rowid`
 		)
@@ -271,7 +313,8 @@ export async function offlineList(db, { slug, typeNames, prior }) {
 	const rows = /** @type {TicketWithBuyer[]} */ (results);
 	return Promise.all(
 		rows.map(async (t) => {
-			const card = ticketCard(t, { typeNames, prior });
+			const notice = notices ? await notices(t) : false;
+			const card = ticketCard(t, { typeNames, prior, notice });
 			return {
 				...card,
 				hash: await sha256Hex(t.token),
@@ -462,6 +505,47 @@ export async function doorSaleLimits(db, { eventSlug, config, type, quantity, no
 }
 
 /**
+ * Con un link de puerta se vende al precio de la puerta: `null` si el precio de la venta sirve, o
+ * el mensaje si no. Un tipo a la gorra pasa (el monto ya se controló contra su mínimo en
+ * `parseDoorSale`); en un tipo con precio, otro precio por entrada (también $ 0, sin cargo) lo
+ * carga une admin. Sin `unitPrice` se cobra el de la puerta.
+ *
+ * @param {import('./config.js').TicketType} type
+ * @param {number | undefined} unitPrice
+ * @returns {string | null}
+ */
+export function linkSalePriceProblem(type, unitPrice) {
+	if (type.gorra) return null;
+	const atDoor = doorPrice(type);
+	if (!atDoor || unitPrice === undefined || unitPrice === null || unitPrice === atDoor.price) {
+		return null;
+	}
+	return unitPrice === 0
+		? 'Con un link de puerta no se vende sin cargo: lo carga une admin.'
+		: `Con un link de puerta se cobra el precio de la puerta ($ ${atDoor.price.toLocaleString('es-AR')}): otro precio lo carga une admin.`;
+}
+
+/**
+ * Por qué una venta con un link de puerta no se registra (o `null`): con un link no se pasan los
+ * límites que decide une admin, tampoco en una venta hecha sin conexión. Más de `MAX_DOOR_SALE`
+ * entradas, un evento sin venta en la puerta (`puerta: false`) o cancelado, u otro precio que el de
+ * la puerta (`linkSalePriceProblem`). El cupo no está acá: una venta sin conexión que lo pasa se
+ * guarda y queda en «Para revisar» (decisión 0035).
+ *
+ * @param {{ door?: { on: boolean } | null, status?: string }} config
+ * @param {{ type: import('./config.js').TicketType, quantity: number, unitPrice?: number }} sale
+ * @returns {string | null}
+ */
+export function linkSaleRefusal(config, sale) {
+	if (!doorSalesOpen(config)) return 'Este evento no vende entradas en la puerta.';
+	if (config.status === 'cancelado') return 'El evento está cancelado: no se vende.';
+	if (sale.quantity > MAX_DOOR_SALE) {
+		return `Con un link de puerta se venden hasta ${MAX_DOOR_SALE} entradas por venta: más, lo carga une admin.`;
+	}
+	return linkSalePriceProblem(sale.type, sale.unitPrice);
+}
+
+/**
  * Lo que se guarda de una venta hecha sin conexión: el id que le puso el celu (único: un reintento
  * no crea otra orden) y los límites que pasó al sincronizarse (van a «Para revisar»).
  *
@@ -495,11 +579,16 @@ export async function doorSaleLimits(db, { eventSlug, config, type, quantity, no
  *   checkIn?: boolean,
  *   override?: boolean,
  *   offline?: OfflineSaleMark | null,
+ *   extras?: (import('$lib/utils/extras.js').ExtraLine & { capacity: number | null })[],
  *   by: string,
  *   now: number
  * }} input `offline`: venta hecha sin conexión (ver `applyQueuedSales`); `listPrice`: el precio
- *   de siempre cuando en la puerta se cobró otro (`door_list_price`)
- * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] } | { ok: false }>}
+ *   de siempre cuando en la puerta se cobró otro (`door_list_price`); `extras` (interruptor
+ *   `extras`): los extras de la venta, en la misma tanda y con su tope (sin tope con `override`;
+ *   `prices.extras` tiene que ser su suma). Si un extra no alcanza: `reason: 'extras'`, sin crear
+ *   nada.
+ * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] }
+ *   | { ok: false, reason?: 'extras' }>}
  */
 export async function insertApprovedOrder(db, input) {
 	const { eventSlug, type, quantity, holders, buyer, prices, by, now } = input;
@@ -521,13 +610,18 @@ export async function insertApprovedOrder(db, input) {
 	if (input.listPrice !== undefined && input.listPrice !== null) {
 		extra.push(['door_list_price', input.listPrice]);
 	}
+	const extraLines = (input.extras ?? []).filter((l) => l.quantity > 0);
+	if (extraLines.length) extra.push(['extras_amount', prices.extras ?? 0]);
 	const extraCols = extra.map(([col]) => `, ${col}`).join('');
 	const extraVals = extra.map((_, i) => `, ?${24 + i}`).join('');
 	const id = crypto.randomUUID();
-	const [inserted] = await db.batch([
-		db
-			.prepare(
-				`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
+	/** @type {import('@cloudflare/workers-types').D1Result[]} */
+	let batch;
+	try {
+		batch = await db.batch([
+			db
+				.prepare(
+					`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
 					discount_amount, total, payment_method, buyer_name, buyer_email, holders, status,
 					created_at, updated_at, expires_at, fondo_amount, surcharge_amount, buyer_dni,
 					fondo_option, fondo_contribution, buyer_pronouns, fondo_percent, confirmed_by,
@@ -540,51 +634,63 @@ export async function insertApprovedOrder(db, input) {
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?12))
 				) + ?4 <= ?20
 				RETURNING *`
-			)
-			.bind(
-				id,
+				)
+				.bind(
+					id,
+					eventSlug,
+					type.id,
+					quantity,
+					input.unitPrice,
+					prices.subtotal,
+					prices.total,
+					input.method,
+					buyer.name,
+					(buyer.email ?? '').trim().toLowerCase(),
+					JSON.stringify(holders),
+					now,
+					prices.fondo,
+					buyer.dni || null,
+					prices.option,
+					prices.contribution,
+					buyer.pronouns || null,
+					input.fondoPercent ?? null,
+					by,
+					type.capacity,
+					input.channel,
+					input.note || null,
+					input.override ? 1 : 0,
+					...extra.map(([, value]) => value)
+				),
+			...extrasStatements(db, {
+				orderId: id,
 				eventSlug,
-				type.id,
-				quantity,
-				input.unitPrice,
-				prices.subtotal,
-				prices.total,
-				input.method,
-				buyer.name,
-				(buyer.email ?? '').trim().toLowerCase(),
-				JSON.stringify(holders),
+				lines: extraLines,
 				now,
-				prices.fondo,
-				buyer.dni || null,
-				prices.option,
-				prices.contribution,
-				buyer.pronouns || null,
-				input.fondoPercent ?? null,
-				by,
-				type.capacity,
-				input.channel,
-				input.note || null,
-				input.override ? 1 : 0,
-				...extra.map(([, value]) => value)
-			),
-		...issueTicketsStatements(db, {
-			id,
-			holders: JSON.stringify(holders),
-			buyer_name: buyer.name,
-			quantity
-		}),
-		...(input.checkIn
-			? [
-					db
-						.prepare(
-							`UPDATE tickets SET checked_in_at = ?2, checked_in_by = ?3
+				override: Boolean(input.override)
+			}),
+			...issueTicketsStatements(db, {
+				id,
+				holders: JSON.stringify(holders),
+				buyer_name: buyer.name,
+				quantity
+			}),
+			...(input.checkIn
+				? [
+						db
+							.prepare(
+								`UPDATE tickets SET checked_in_at = ?2, checked_in_by = ?3
 							WHERE order_id = ?1 AND checked_in_at IS NULL`
-						)
-						.bind(id, now, by)
-				]
-			: [])
-	]);
-	const order = /** @type {Order | undefined} */ (inserted.results[0]);
+							)
+							.bind(id, now, by)
+					]
+				: [])
+		]);
+	} catch (error) {
+		// Un extra no alcanzó: la tanda entera (con la orden) se deshizo.
+		if (isExtrasStockError(error)) return { ok: false, reason: 'extras' };
+		throw error;
+	}
+	const order = /** @type {Order | undefined} */ (batch[0].results[0]);
 	if (!order) return { ok: false };
 	const { results } = await db
 		.prepare('SELECT * FROM tickets WHERE order_id = ?1 ORDER BY rowid')
@@ -649,10 +755,13 @@ export async function insertApprovedOrder(db, input) {
  *   fondoPercent?: number | null,
  *   override?: boolean,
  *   offline?: OfflineSaleMark | null,
+ *   extras?: (import('$lib/utils/extras.js').ExtraLine & { capacity: number | null })[],
  *   by: string,
  *   now?: number
- * }} input `unitPrice`: el monto a la gorra o, en un tipo con precio, otro precio por entrada
+ * }} input `unitPrice`: el monto a la gorra o, en un tipo con precio, otro precio por entrada;
+ *   `extras` (interruptor `extras`): a precio de lista, se suman a lo cobrado
  * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] }
+ *   | { ok: false, reason: 'extras' }
  *   | { ok: false, reason: 'soldout', available: number | null }
  *   | { ok: false, reason: 'no-door' }
  *   | { ok: false, reason: 'free-door' }>}
@@ -710,10 +819,11 @@ export async function sellAtDoor(db, input) {
 		option,
 		quantity,
 		discount: null,
-		method: input.method
+		method: input.method,
+		extras: extrasAmount(input.extras ?? [])
 	});
-	// Un total 0 (a la gorra con mínimo 0) queda "sin cargo", como en la compra online.
-	const method = prices.total === 0 ? 'gratis' : input.method;
+	// Un total 0 (a la gorra con mínimo 0, sin extras) queda "sin cargo", como en la compra online.
+	const method = prices.paid === 0 ? 'gratis' : input.method;
 	const r = await insertApprovedOrder(db, {
 		eventSlug,
 		type,
@@ -733,9 +843,11 @@ export async function sellAtDoor(db, input) {
 		checkIn: true,
 		override: input.override,
 		offline: input.offline ?? null,
+		extras: input.extras,
 		by,
 		now
 	});
+	if (!r.ok && r.reason === 'extras') return { ok: false, reason: 'extras' };
 	if (!r.ok) {
 		const c = (await getCounts(db, eventSlug, now)).get(type.id);
 		return { ok: false, reason: 'soldout', available: remainingOf(type, c) };
@@ -917,15 +1029,20 @@ export function parseSaleQueue(raw) {
 }
 
 /**
- * La orden que ya se creó para una venta sin conexión, si existe.
+ * La orden que ya se creó para una venta sin conexión, si existe, **de este evento**: una venta de
+ * otro evento con el mismo id no se muestra (con un link de puerta, ni su nombre ni su orden).
  *
  * @param {D1Database} db
  * @param {string} clientSaleId
+ * @param {string} eventSlug
  * @returns {Promise<Order | null>}
  */
-async function orderByClientSaleId(db, clientSaleId) {
+async function orderByClientSaleId(db, clientSaleId, eventSlug) {
 	return /** @type {Order | null} */ (
-		await db.prepare('SELECT * FROM orders WHERE client_sale_id = ?1').bind(clientSaleId).first()
+		await db
+			.prepare('SELECT * FROM orders WHERE client_sale_id = ?1 AND event_slug = ?2')
+			.bind(clientSaleId, eventSlug)
+			.first()
 	);
 }
 
@@ -970,13 +1087,17 @@ export function offlineReviewSummary(json) {
  *   igual (decide quien organiza, decisión 0035) y esos límites quedan en `offline_review`: la
  *   orden sale en «Para revisar» y el celu muestra un aviso.
  * - Solo da `rejected` si los datos no sirven para crear una orden (un tipo que ya no existe, un
- *   monto inválido): el celu la deja a la vista, no la borra.
+ *   monto inválido) o si `refuse` dice que no: el celu la deja a la vista, no la borra.
+ * - Con un link de puerta (`doorLink`, su id), `refuse` frena lo que el link no puede pasar
+ *   (`linkSaleRefusal` y el tope de entradas por hora del link): solo el cupo queda para revisar.
+ *   El registro dice «con un link de puerta» y lleva `doorLink`.
  *
  * La hora de la venta (y del ingreso) es la del celu, acotada como la de los ingresos sin conexión
  * (últimos `QUEUE_MAX_AGE_MS`, nunca en el futuro).
  *
  * @param {D1Database} db
- * @param {App.Locals} locals para el registro de actividad
+ * @param {Parameters<typeof logAdminAction>[1]} locals para el registro de actividad (une admin o
+ *   un link de puerta, `DoorActor.audit` en doorLinks.js)
  * @param {{
  *   eventSlug: string,
  *   config: { types: import('./config.js').TicketType[], door?: { on: boolean } | null, status?: string },
@@ -984,12 +1105,16 @@ export function offlineReviewSummary(json) {
  *   by: string,
  *   items: QueuedSale[],
  *   now?: number,
+ *   doorLink?: string | null,
+ *   refuse?: (sale: DoorSaleInput) => Promise<string | null> | string | null,
  *   onSold?: (r: { order: Order, tickets: Ticket[], sale: DoorSaleInput }) => Promise<void> | void
- * }} input `onSold`: después de cada venta nueva (para mandar el mail)
+ * }} input `onSold`: después de cada venta nueva (para mandar el mail); `refuse`: el motivo para
+ *   no registrar una venta (o `null`); `doorLink`: el id del link de puerta, si es con un link
  * @returns {Promise<SaleSyncResult[]>}
  */
 export async function applyQueuedSales(db, locals, input) {
 	const { eventSlug, config, by, items, now = Date.now() } = input;
+	const doorLink = input.doorLink ?? null;
 	/** @type {SaleSyncResult[]} */
 	const out = [];
 	/** @param {string} id @param {Order} o */
@@ -1005,7 +1130,7 @@ export async function applyQueuedSales(db, locals, input) {
 		review: offlineReviewMessages(/** @type {any} */ (o).offline_review)
 	});
 	for (const item of items) {
-		const existing = await orderByClientSaleId(db, item.id);
+		const existing = await orderByClientSaleId(db, item.id, eventSlug);
 		if (existing) {
 			out.push(duplicate(item.id, existing));
 			continue;
@@ -1016,6 +1141,11 @@ export async function applyQueuedSales(db, locals, input) {
 			continue;
 		}
 		const { sale } = parsed;
+		const refused = input.refuse ? await input.refuse(sale) : null;
+		if (refused) {
+			out.push({ id: item.id, result: 'rejected', message: refused });
+			continue;
+		}
 		const soldAt = Math.min(now, Math.max(now - QUEUE_MAX_AGE_MS, Math.round(item.at)));
 		const limits = await doorSaleLimits(db, {
 			eventSlug,
@@ -1047,13 +1177,15 @@ export async function applyQueuedSales(db, locals, input) {
 			});
 		} catch (e) {
 			// El índice único de `client_sale_id`: otro pedido con la misma venta llegó primero.
-			const again = await orderByClientSaleId(db, item.id);
+			const again = await orderByClientSaleId(db, item.id, eventSlug);
+			const text = e instanceof Error ? e.message : '';
 			if (again) out.push(duplicate(item.id, again));
 			else
 				out.push({
 					id: item.id,
 					result: 'rejected',
-					message: e instanceof Error && e.message ? e.message : 'No se pudo registrar.'
+					// El error de la base por un id que ya usa otro evento no se muestra tal cual.
+					message: text && !text.includes('client_sale_id') ? text : 'No se pudo registrar.'
 				});
 			continue;
 		}
@@ -1085,7 +1217,7 @@ export async function applyQueuedSales(db, locals, input) {
 			action: 'order.door_sale',
 			targetType: 'order',
 			targetId: r.order.id,
-			summary: `Vendió en la puerta sin conexión ${sale.quantity} × ${sale.type.name} (${orderRef(r.order.id)}, ${r.order.payment_method}${doorSaleAuditSuffix(r.order)})`,
+			summary: `Vendió en la puerta sin conexión ${sale.quantity} × ${sale.type.name} (${orderRef(r.order.id)}, ${r.order.payment_method}${doorSaleAuditSuffix(r.order)})${doorLink ? ' con un link de puerta' : ''}`,
 			detail: {
 				event: eventSlug,
 				type: sale.type.id,
@@ -1099,7 +1231,8 @@ export async function applyQueuedSales(db, locals, input) {
 					? { transferSeen: item.fields.transfer_seen === 'on' }
 					: {}),
 				...(limits.length ? { overrides: limits } : {}),
-				...(review.length > limits.length ? { charged } : {})
+				...(review.length > limits.length ? { charged } : {}),
+				...(doorLink ? { doorLink } : {})
 			}
 		});
 		await logOverride(db, locals, {

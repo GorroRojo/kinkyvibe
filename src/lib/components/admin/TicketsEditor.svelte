@@ -4,7 +4,8 @@
 	encadenados), la meta de venta (SalesGoalField), medios de pago, cierre, modalidad, entradas en
 	la puerta y recordatorios (ver
 	$lib/utils/ticketsEditor.js, que lee y escribe el frontmatter). Los tramos se editan en
-	TicketTiersEditor. Nada del Fondo: es automático, solo avisa si aplica.
+	TicketTiersEditor. Nada del Fondo: es automático, solo avisa si aplica y, con el porcentaje de
+	hoy (`fondoPercent`), muestra debajo de cada precio cuánto sale con el Fondo (fondoPrices.js).
 
 	Diseño: primero el celu (una columna); en pantallas anchas los campos de cada tipo se acomodan
 	en una grilla según el ancho del editor (container queries), no de la ventana.
@@ -14,6 +15,7 @@
 	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { X } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
+	import { fondoPriceLine, fondoPriceSpoken, shownFondoPercent } from '$lib/utils/fondoPrices.js';
 	import { LOW_STOCK, formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
 	import {
 		DOOR_PRICE_MAX,
@@ -27,6 +29,8 @@
 	import TicketTiersEditor from './TicketTiersEditor.svelte';
 	import SalesGoalField from './SalesGoalField.svelte';
 	import WaitlistField from './WaitlistField.svelte';
+	import { EXTRAS_MAX, EXTRA_DESCRIPTION_MAX, EXTRA_NAME_MAX } from '$lib/utils/extras.js';
+	import { emptyExtra } from '$lib/utils/extrasEditor.js';
 
 	/** @type {import('$lib/utils/ticketsEditor.js').TicketsForm} */
 	export let state;
@@ -80,6 +84,34 @@
 	export let waitlistEnabled = null;
 	/** @type {Record<string, number> | null} */
 	export let waitlistLive = null;
+	/** «Extras» (interruptor `extras`, decisión 0056): apagado, la sección no se ve. */
+	export let extrasEnabled = false;
+	/**
+	 * Vendidos y reservados por extra (al editar; `null` = evento nuevo o sin datos). Un extra que ya
+	 * vendió no se puede sacar, como un tipo de entrada (se deja de vender con el tope en 0).
+	 * @type {Record<string, number> | null}
+	 */
+	export let extrasSales = null;
+	/** Por qué no se puede sacar un extra que ya vendió (en el botón y a la vista). */
+	const KEEP_EXTRA =
+		'Tiene vendidos o reservados: no se puede sacar; para dejar de venderlo, poné el tope en 0.';
+	/** @param {string | null} id */
+	const extraTaken = (id) => (id && extrasSales ? (extrasSales[id] ?? 0) : 0);
+	function addExtra() {
+		state.extras = [...(state.extras ?? []), emptyExtra()];
+	}
+	/** @param {number} i */
+	function removeExtra(i) {
+		state.extras = (state.extras ?? []).filter((_, j) => j !== i);
+	}
+	// Borradores de antes de los extras: sin el campo.
+	$: if (extrasEnabled && !state.extras) state.extras = [];
+	/**
+	 * Porcentaje del Fondo de hoy (`resolveFondoPercent`), para mostrar los precios con el Fondo en
+	 * los eventos KinkyVibe. `null` (no se sabe) o 0: no se muestran.
+	 * @type {number | null}
+	 */
+	export let fondoPercent = null;
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
@@ -90,6 +122,8 @@
 		{ id: 'gorra', label: 'A la gorra' }
 	]);
 	$: fondo = isKinkyVibeEvent({ tags });
+	/** El porcentaje para mostrar los precios con el Fondo (`null`: sin Fondo, 0 o no se sabe). */
+	$: shownPercent = fondo ? shownFondoPercent(fondoPercent) : null;
 	// La regla de la página (`eventMode` de eventPlace.js): con lugar elegido, presencial; si no,
 	// la modalidad elegida; si no, el «Dónde» y la etiqueta Online.
 	$: place = { tags, location, location_name: locationName };
@@ -305,6 +339,8 @@
 									<TicketTiersEditor
 										bind:tiers={t.tiers}
 										taken={s?.tiers ?? {}}
+										doorPrice={t.doorPrice}
+										fondoPercent={shownPercent}
 										idPrefix="{idPrefix}-tier-{i}"
 									/>
 								</div>
@@ -323,6 +359,13 @@
 											: 'Pesos, sin centavos.'}{#if fondo}{' '}Es el precio completo: el descuento
 											del Fondo se calcula solo.{/if}</small
 									>
+									{#if fondoPriceLine(t.price, shownPercent)}
+										<small class="fondo-price" id="{idPrefix}-ticket-price-fondo-{i}"
+											><span aria-hidden="true">{fondoPriceLine(t.price, shownPercent)}</span><span
+												class="visually-hidden">{fondoPriceSpoken(t.price, shownPercent)}</span
+											></small
+										>
+									{/if}
 								</label>
 							{/if}
 							{#if t.mode !== 'gorra'}
@@ -341,6 +384,14 @@
 										se cargan a mano. Vale para la venta en la puerta y la carga a mano.
 										<span aria-live="polite">{doorPricePreview(t)}</span></small
 									>
+									{#if fondoPriceLine(t.doorPrice, shownPercent)}
+										<small class="fondo-price" id="{idPrefix}-ticket-door-fondo-{i}"
+											><span aria-hidden="true">{fondoPriceLine(t.doorPrice, shownPercent)}</span
+											><span class="visually-hidden"
+												>{fondoPriceSpoken(t.doorPrice, shownPercent)}</span
+											></small
+										>
+									{/if}
 								</label>
 							{/if}
 							<label class="field f-cap">
@@ -414,6 +465,103 @@
 				live={waitlistLive}
 				{idPrefix}
 			/>
+
+			{#if extrasEnabled && state.extras}
+				<!-- «Extras» (decisión 0056): lo que se suma a la compra; mismas tarjetas que los tipos. -->
+				<fieldset class="group" id="{idPrefix}-extras">
+					<legend>Extras</legend>
+					<small
+						>Se suman a la compra después de las entradas (tragos, una remera…). Se pagan juntos; el
+						Fondo y los códigos de descuento son solo para las entradas. Se entregan en la puerta o
+						con un link de barra.</small
+					>
+					{#if state.extras.length}
+						<ol class="types">
+							{#each state.extras as x, i (x.key)}
+								{@const xTaken = extraTaken(x.origId)}
+								<li class="type">
+									<div class="type-head">
+										<strong>Extra {i + 1}</strong>
+										{#if x.origId}<small class="id">id: <code>{x.origId}</code></small>{/if}
+										<span class="type-actions">
+											<button
+												type="button"
+												class="icon"
+												on:click={() => removeExtra(i)}
+												disabled={xTaken > 0}
+												title={xTaken > 0 ? KEEP_EXTRA : undefined}
+												aria-describedby={xTaken > 0 ? `${idPrefix}-extra-keep-${i}` : undefined}
+												aria-label="Sacar el extra «{x.name || i + 1}»">×</button
+											>
+										</span>
+									</div>
+									{#if xTaken > 0}
+										<small class="keep" id="{idPrefix}-extra-keep-{i}">{KEEP_EXTRA}</small>
+										<p class="sold">Vendidos o reservados: <strong>{xTaken}</strong></p>
+									{/if}
+									<div class="type-fields mode-extra">
+										<label class="field f-name">
+											<span>Nombre <span class="req">*</span></span>
+											<input
+												id="{idPrefix}-extra-{i}-name"
+												bind:value={x.name}
+												maxlength={EXTRA_NAME_MAX}
+												placeholder="Ej.: Trago"
+											/>
+										</label>
+										<label class="field f-price">
+											<span>Precio ($) <span class="req">*</span></span>
+											<input
+												id="{idPrefix}-extra-{i}-price"
+												bind:value={x.price}
+												inputmode="numeric"
+												placeholder="Ej.: 3000"
+											/>
+											<small>{money(x.price) ? `${money(x.price)}.` : 'Pesos, sin centavos.'}</small
+											>
+										</label>
+										<label class="field f-desc">
+											<span>Descripción corta <small>(opcional)</small></span>
+											<input
+												id="{idPrefix}-extra-{i}-description"
+												bind:value={x.description}
+												maxlength={EXTRA_DESCRIPTION_MAX}
+												placeholder="Ej.: con o sin alcohol, en la barra"
+											/>
+										</label>
+										<label class="field f-cap">
+											<span>Tope <small>(opcional)</small></span>
+											<input
+												id="{idPrefix}-extra-{i}-capacity"
+												bind:value={x.capacity}
+												inputmode="numeric"
+												placeholder="Sin tope"
+											/>
+										</label>
+										<label class="field f-per">
+											<span>Máximo por compra <small>(opcional)</small></span>
+											<input
+												id="{idPrefix}-extra-{i}-per-order"
+												bind:value={x.perOrder}
+												inputmode="numeric"
+												placeholder="Sin máximo"
+											/>
+										</label>
+									</div>
+								</li>
+							{/each}
+						</ol>
+					{/if}
+					{#if state.extras.length < EXTRAS_MAX}
+						<button
+							type="button"
+							class="button secondary add"
+							id="{idPrefix}-extra-add"
+							on:click={addExtra}>+ Agregar extra</button
+						>
+					{/if}
+				</fieldset>
+			{/if}
 
 			<fieldset class="group">
 				<legend>Medios de pago <span class="req">*</span></legend>
@@ -628,6 +776,9 @@
 		opacity: 0.4;
 		cursor: not-allowed;
 	}
+	.fondo-price {
+		color: var(--2-dark);
+	}
 	.keep {
 		margin-top: -0.3em;
 		color: var(--2-dark);
@@ -716,6 +867,26 @@
 	.f-after {
 		grid-area: after;
 		max-width: 34em;
+	}
+	/* Extras: nombre y precio; descripción; tope y máximo por compra. */
+	.type-fields.mode-extra {
+		grid-template-areas: 'name' 'price' 'desc' 'cap' 'per';
+	}
+	@container (min-width: 30em) {
+		.type-fields.mode-extra {
+			grid-template-areas: 'name price' 'desc desc' 'cap per';
+		}
+	}
+	@container (min-width: 48em) {
+		.type-fields.mode-extra {
+			grid-template-areas: 'name name price price' 'desc desc cap per';
+		}
+	}
+	.f-desc {
+		grid-area: desc;
+	}
+	.f-per {
+		grid-area: per;
 	}
 	.type-fields .field {
 		min-width: 0;

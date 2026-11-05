@@ -91,7 +91,8 @@
 							<a href="mailto:{o.email}">{o.email}</a>
 						</div>
 						<div class="what">
-							{o.quantity} × {o.type} · <strong>{formatARS(o.total)}</strong>
+							{o.quantity} × {o.type} ·
+							<strong>{formatARS(o.total + (o.extrasAmount ?? 0))}</strong>
 							{#if o.discountCode}· código {o.discountCode}{/if}
 						</div>
 						<div class="meta">
@@ -126,11 +127,18 @@
 											cancelLabel: 'Volver',
 											tone: 'danger'
 										});
-										if (!ok) cancel();
+										if (!ok) return cancel();
+										busy = o.id;
+										return async ({ update }) => {
+											await update();
+											busy = null;
+										};
 									}}
 								>
 									<input type="hidden" name="order" value={o.id} />
-									<button type="submit" class="kv-btn ghost cancel">Cancelar</button>
+									<button type="submit" class="kv-btn ghost cancel" disabled={busy === o.id}
+										>Cancelar</button
+									>
 								</form>
 							</div>{/if}
 					</li>
@@ -146,7 +154,7 @@
 			{#each data.resolved as o (o.id)}
 				<li>
 					<span class="ref">{o.reference}</span>
-					{o.name} · {formatARS(o.total)}
+					{o.name} · {formatARS(o.total + (o.extrasAmount ?? 0))}
 					<Badge tone={o.status === 'approved' ? 'ok' : 'neutral'}>{ORDER_STATUS[o.status]}</Badge>
 					<span class="muted">por {o.confirmedBy}</span>
 					{#if o.status === 'cancelled'}

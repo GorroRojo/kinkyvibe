@@ -20,6 +20,6 @@ export async function POST({ request, platform, url, fetch }) {
 		secret: env.FONDO_MAIL_SECRET,
 		db,
 		origin: siteOrigin(url),
-		send: ({ to, message, from }) => deliverEmail({ db, fetch, to, message, from })
+		send: ({ to, message, from }) => deliverEmail({ db, fetch, to, message, from, kind: 'fondo' })
 	});
 }

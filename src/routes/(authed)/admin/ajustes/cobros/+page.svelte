@@ -100,7 +100,7 @@
 		<details class="tech">
 			<summary>Para técnicos</summary>
 			<p class="kv-note">
-				La de cada evento es <code>mp_fee_percent</code> en su frontmatter. Vacío: la variable
+				La de cada evento es <code>mp_fee_percent</code> en los datos del evento. Vacío: la variable
 				<code>TICKETS_MP_FEE_PERCENT</code> o, si no está, 2 %.
 			</p>
 		</details>

@@ -39,13 +39,17 @@ describe('días', () => {
 });
 
 describe('channelOf', () => {
-	it('separa online, puerta y cortesía', () => {
+	// La regla única (saleChannel.js, Mesa chica-536-canal-venta): antes una cargada a mano y
+	// cobrada por transferencia caía en «Cortesía», y una en efectivo sin canal, en «puerta».
+	it('separa online, puerta, cortesía y cargadas a mano', () => {
 		expect(channelOf({ payment_method: 'mercadopago' })).toBe('online');
 		expect(channelOf({ payment_method: 'transferencia' })).toBe('online');
-		expect(channelOf({ payment_method: 'efectivo' })).toBe('puerta');
+		expect(channelOf({ payment_method: 'efectivo', channel: 'puerta' })).toBe('puerta');
 		expect(channelOf({ payment_method: 'transferencia', channel: 'puerta' })).toBe('puerta');
 		expect(channelOf({ payment_method: 'gratis' })).toBe('cortesia');
-		expect(channelOf({ payment_method: 'transferencia', channel: 'manual' })).toBe('cortesia');
+		expect(channelOf({ payment_method: 'gratis', channel: 'manual' })).toBe('cortesia');
+		expect(channelOf({ payment_method: 'transferencia', channel: 'manual' })).toBe('manual');
+		expect(channelOf({ payment_method: 'efectivo', channel: 'manual' })).toBe('manual');
 	});
 });
 
@@ -55,16 +59,17 @@ describe('cumulativeSeries', () => {
 		const s = cumulativeSeries(
 			[
 				order('2026-10-01', 2),
-				order('2026-10-03', 1, { payment_method: 'efectivo' }),
+				order('2026-10-03', 1, { payment_method: 'efectivo', channel: 'puerta' }),
 				order('2026-10-03', 3, { payment_method: 'gratis' }),
+				order('2026-10-03', 2, { payment_method: 'transferencia', channel: 'manual' }),
 				order('2026-10-02', 5, { status: 'pending' }),
 				order('2026-10-02', 4, { status: 'refunded' })
 			],
 			{ from, to: from + 3 }
 		);
-		expect(s.map((p) => p.total)).toEqual([2, 2, 6, 6]);
-		expect(s.map((p) => p.added)).toEqual([2, 0, 4, 0]);
-		expect(s[3]).toMatchObject({ online: 2, puerta: 1, cortesia: 3, day: from + 3 });
+		expect(s.map((p) => p.total)).toEqual([2, 2, 8, 8]);
+		expect(s.map((p) => p.added)).toEqual([2, 0, 6, 0]);
+		expect(s[3]).toMatchObject({ online: 2, puerta: 1, cortesia: 3, manual: 2, day: from + 3 });
 	});
 
 	it('lo vendido antes del rango entra en el primer día; lo de después, no', () => {
@@ -79,7 +84,15 @@ describe('cumulativeSeries', () => {
 
 describe('recentPace', () => {
 	const series = (/** @type {number[]} */ totals) =>
-		totals.map((total, i) => ({ day: i, total, online: total, puerta: 0, cortesia: 0, added: 0 }));
+		totals.map((total, i) => ({
+			day: i,
+			total,
+			online: total,
+			puerta: 0,
+			cortesia: 0,
+			manual: 0,
+			added: 0
+		}));
 
 	it('promedia los últimos 7 días', () => {
 		// Los 7 días que terminan hoy: de 4 (antes de la ventana) a 18 → 2 por día.

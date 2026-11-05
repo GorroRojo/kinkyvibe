@@ -5,7 +5,7 @@
  * tope por persona. Datos inventados.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { groupHits, prepareIndex, search } from '$lib/utils/search';
+import { find, groupHits, prepareIndex } from '$lib/utils/search';
 import {
 	EMPTY_MATERIAL,
 	INLINE_CACHE_SECONDS,
@@ -132,10 +132,12 @@ describe('selectInline', () => {
 		expect(hrefs.length).toBe(2 + EMPTY_MATERIAL);
 	});
 
-	it('con texto: el mismo orden que la búsqueda del sitio (search + groupHits)', () => {
+	it('con texto: el mismo orden que la búsqueda del sitio (find + groupHits)', () => {
 		const prepared = prepareIndex({ v: 1, docs, tags: {} });
 		for (const q of ['cuerdas', 'evento', 'material nota', 'persona']) {
-			const site = groupHits(search(prepared, q), NOW).flatMap((g) => g.hits.map((h) => h.doc.h));
+			const site = groupHits(find(prepared, q, { now: NOW }), NOW).flatMap((g) =>
+				g.hits.map((h) => h.doc.h)
+			);
 			expect(
 				selectInline(source, { types: null, text: q }, NOW).map((d) => d.h),
 				q
@@ -152,6 +154,43 @@ describe('selectInline', () => {
 		expect(new Set(kinds('wiki:'))).toEqual(new Set(['wiki', 'serie']));
 		expect(kinds('amigues:')).toEqual(['amigues']);
 		expect(kinds('amigues: cuerdas')).toEqual([]);
+	});
+});
+
+describe('selectInline: exclusiones (como el sitio)', () => {
+	const docs = [
+		eventDoc('fiesta-latex', '2031-02-01T20:00:00-03:00', { t: 'Fiesta latex' }),
+		eventDoc('fiesta-cuero', '2031-03-01T20:00:00-03:00', { t: 'Fiesta de cuero' }),
+		materialDoc('latex', { t: 'Cuidar el latex en la fiesta' }),
+		{ c: /** @type {const} */ ('amigues'), h: '/amigues/fiesta-latex', t: 'Fiesta Latex' },
+		{ c: /** @type {const} */ ('wiki'), h: '/wiki/bondage', t: 'Bondage' }
+	];
+	const source = sourceOf(docs);
+	/** @param {string} q (lo escrito en el modo inline o en «/buscar») */
+	const hrefs = (q) =>
+		selectInline(source, parseInlineQuery(q), NOW)
+			.map((d) => d.h)
+			.sort();
+
+	it('solo exclusiones: todo lo demás', () => {
+		expect(hrefs('-bondage')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/calendario/fiesta-latex',
+			'/material/latex'
+		]);
+	});
+
+	it('-evento:latex saca solo los eventos con «latex»', () => {
+		expect(parseInlineQuery('fiesta -evento:latex')).toEqual({
+			types: null,
+			text: 'fiesta -evento:latex'
+		});
+		expect(hrefs('fiesta -evento:latex')).toEqual([
+			'/amigues/fiesta-latex',
+			'/calendario/fiesta-cuero',
+			'/material/latex'
+		]);
 	});
 });
 

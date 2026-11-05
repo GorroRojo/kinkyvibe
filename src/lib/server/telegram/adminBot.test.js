@@ -113,20 +113,26 @@ describe('adminNav: los botones de admins', () => {
 		}
 	});
 
-	it('los tipos de aviso: los cinco de las partes 2 a 4, en orden', () => {
+	it('los tipos de aviso: los cinco de las partes 2 a 4, el del conector de Claude, las fallas en compras y las del sitio, en orden', () => {
 		expect(NOTICE_KINDS).toEqual([
 			'resumen_diario',
 			'cada_venta',
 			'transferencia',
 			'dia_evento',
-			'recordatorios'
+			'recordatorios',
+			'conector_claude',
+			'fallas_compra',
+			'fallas_sitio'
 		]);
 		expect(NOTICE_KINDS.map(noticeLabel)).toEqual([
 			'Resumen diario',
 			'Cada venta',
 			'Cada transferencia',
 			'Día del evento',
-			'Recordatorios'
+			'Recordatorios',
+			'Cambios de Claude',
+			'Fallas en compras',
+			'Fallas del sitio'
 		]);
 	});
 });
@@ -143,7 +149,7 @@ describe('adminEventChoices', () => {
 				ev('lejos', 30 * 86_400_000),
 				ev('paso', -3 * 86_400_000),
 				ev('hoy', 2 * 3_600_000),
-				ev('cancelado', 86_400_000, { status: 'cancelled' }),
+				ev('cancelado', 86_400_000, { status: 'cancelado' }),
 				{ slug: 'sin-fecha', config: { title: 'x' } }
 			],
 			NOW
@@ -225,7 +231,7 @@ describe('las pantallas', () => {
 		expect(s.text).not.toContain('Total');
 		expect(s.text).toContain('✅ Sin reservas sin pagar ni nada para revisar.');
 		expect(s.text).not.toContain('lista de espera');
-		expect(s.text).toContain('Solo cantidades');
+		expect(s.text).not.toContain('Solo cantidades');
 		// Sin https, sin el link al panel (Telegram no acepta links locales).
 		expect(buttons(s).some((b) => 'url' in b)).toBe(false);
 	});

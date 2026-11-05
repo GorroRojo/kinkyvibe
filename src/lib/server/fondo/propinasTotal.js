@@ -11,22 +11,27 @@
  *    cuentan (su estado ya no es `approved`), así que el total de un mes cerrado puede bajar. Si la
  *    base falla: 503.
  *
- * Cuentan todas las propinas al Fondo: las del pie de las publicaciones y las «Una vez» que llegan
- * desde fondo.kinkyvibe.ar (`source = 'fondo'`). La respuesta no tiene nombres, mails, mensajes ni
- * ids de pago: solo `{ total, count, month, updatedAt }`. `Cache-Control: private, max-age=300`
- * (nunca en un caché compartido).
+ * Cuentan todas las propinas al Fondo de Mercado Pago: las del pie de las publicaciones y las «Una
+ * vez» que llegan desde fondo.kinkyvibe.ar (`source = 'fondo'`). La respuesta no tiene nombres,
+ * mails, mensajes ni ids de pago: solo `{ total, count, month, updatedAt }`.
+ * `Cache-Control: private, max-age=300` (nunca en un caché compartido).
+ *
+ * Con el interruptor `paypal` prendido se suma `paypal: { usd, ars, count }`: las propinas al Fondo
+ * con PayPal aprobadas en ese mes, en dólares netos y en pesos estimados con el ajuste de ahora
+ * ($lib/server/paypal/index.js). `total` y `count` siguen siendo solo de Mercado Pago: el Fondo
+ * suma `paypal.ars` aparte. Apagado, la respuesta es la de siempre, sin `paypal`.
  */
 import { logDBError } from '$lib/server/db';
 import { fondoTipTotals } from '$lib/server/propinas/index.js';
+import { getAdjustment, paypalTipTotals } from '$lib/server/paypal/index.js';
 import { isValidFondoSecret } from './miLink.js';
+import { arMidnight } from '$lib/utils/dates.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 /** `AAAA-MM`, con el mes entre 01 y 12. */
 export const FONDO_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-/** Hora de Argentina: UTC−3, sin horario de verano. */
-const AR_OFFSET_HOURS = 3;
 /** El mes Fondo empieza el día 5. */
 const FONDO_MONTH_START_DAY = 5;
 
@@ -42,9 +47,9 @@ export function fondoMonthRange(mes) {
 	if (typeof mes !== 'string' || !FONDO_MONTH_RE.test(mes)) return null;
 	const year = Number(mes.slice(0, 4));
 	const month = Number(mes.slice(5, 7)); // 1 a 12
-	// Date.UTC pasa diciembre + 1 a enero del año siguiente solo.
-	const from = Date.UTC(year, month - 1, FONDO_MONTH_START_DAY, AR_OFFSET_HOURS);
-	const to = Date.UTC(year, month, FONDO_MONTH_START_DAY, AR_OFFSET_HOURS);
+	// arMidnight (como Date.UTC) pasa diciembre + 1 a enero del año siguiente solo.
+	const from = arMidnight(year, month - 1, FONDO_MONTH_START_DAY);
+	const to = arMidnight(year, month, FONDO_MONTH_START_DAY);
 	return { from, to };
 }
 
@@ -64,11 +69,19 @@ function bare(status) {
  *   url: URL,
  *   secret: string | undefined,
  *   db: D1Database | null | undefined,
- *   now?: number
- * }} input
+ *   now?: number,
+ *   paypal?: boolean | (() => Promise<boolean>)
+ * }} input `paypal`: si se suma lo de PayPal (el interruptor; se lee recién después del secreto).
  * @returns {Promise<Response>}
  */
-export async function handlePropinasTotal({ request, url, secret, db, now = Date.now() }) {
+export async function handlePropinasTotal({
+	request,
+	url,
+	secret,
+	db,
+	now = Date.now(),
+	paypal = false
+}) {
 	if (!(await isValidFondoSecret(request.headers.get('x-fondo-secret'), secret))) {
 		return bare(401);
 	}
@@ -77,8 +90,14 @@ export async function handlePropinasTotal({ request, url, secret, db, now = Date
 	if (!range) return bare(400);
 	if (!db) return bare(503);
 	let totals;
+	/** @type {{ usd: number, ars: number, count: number } | null} */
+	let paypalTotals = null;
 	try {
 		totals = await fondoTipTotals(db, range);
+		if (typeof paypal === 'function' ? await paypal() : paypal) {
+			const { pct } = await getAdjustment(db);
+			paypalTotals = await paypalTipTotals(db, range, pct);
+		}
 	} catch (error) {
 		logDBError('fondo propinas-total', error);
 		return bare(503);
@@ -88,7 +107,8 @@ export async function handlePropinasTotal({ request, url, secret, db, now = Date
 			total: totals.total,
 			count: totals.count,
 			month: mes,
-			updatedAt: new Date(now).toISOString()
+			updatedAt: new Date(now).toISOString(),
+			...(paypalTotals ? { paypal: paypalTotals } : {})
 		},
 		{ headers: { 'cache-control': 'private, max-age=300' } }
 	);

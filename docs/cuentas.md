@@ -7,7 +7,8 @@ Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"
 En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de antes de tener cuenta),
 sus datos guardados para comprar (ver "Datos guardados para la compra"), su velocidad de lectura
 (ver "Velocidad de lectura"), pone, cambia o saca la
-contraseña, cierra sesión (en ese navegador o en todos lados) o borra la
+contraseña, ve dónde tiene la sesión abierta y cierra cada una (ver "Sesiones"), cierra sesión
+(en ese navegador o en todos lados) o borra la
 cuenta. Tocar la contraseña y borrar la
 cuenta piden además un código fresco por mail (ver "Acciones delicadas").
 
@@ -69,7 +70,8 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
   - sus **perfiles de persona** (también los que ya había borrado) **se vacían**: sin
     presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
     sin los proyectos de los que eran parte, sin su fila de gestión, sus bloqueos ni sus invitaciones
-    de proyectos pendientes, y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
+    de proyectos pendientes, sin las versiones que guardó desde Mi rincón (`object_revisions` con
+    `source = 'cuenta'`, abajo), y con `created_by` y `updated_by` = `cuenta:borrada` (el mismo para
     todas las cuentas borradas, así nada los vincula entre sí). La fila queda, borrada (borrado
     suave), solo para que la dirección no la use otra persona;
   - cada **proyecto** pasa a quien lo gestiona hace más tiempo, con sus datos (son del proyecto), o se
@@ -85,7 +87,10 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 - **Las compras se ven solo con el mail verificado** (P7.5): una orden aparece si tiene el
   `account_id` de la cuenta o si su `buyer_email` (sin importar mayúsculas) es el mail verificado.
   Solo lectura: no se modifica ninguna orden. Se muestran las aprobadas, las que esperan la
-  transferencia y las reembolsadas.
+  transferencia y las reembolsadas. En un taller de varias partes con una sola entrada, la fecha
+  es la de la parte que toca: la primera que no pasó o, si pasaron todas, la última (la misma
+  regla que «Mis entradas» del bot, `ticketDate` en `src/lib/utils/partes.js`;
+  [talleres-partes.md](talleres-partes.md)).
 - **Las entradas gratis pedidas sin la sesión de la cuenta se preguntan** (decisión
   [0048](decisiones/0048-entradas-gratis-sin-sesion-se-preguntan.md), «No fui yo» parte 2 en
   [mails.md](mails.md#no-fui-yo)): cualquiera puede escribir un mail ajeno en el formulario de
@@ -111,13 +116,14 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 | Tabla               | Qué guarda                                                                                                                                    |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `accounts`          | id (UUID al azar), mail normalizado y único, cuándo se verificó, hash de la contraseña (opcional), preferencias (JSON), fechas y `deleted_at` |
-| `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista                                    |
+| `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista; después, el navegador (0066)      |
 | `login_codes`       | hash del mail, para qué es (`purpose`), hash del código, intentos, vencimiento y uso                                                          |
 | `feature_flags`     | los interruptores del panel (`cuentas` fue el primero; quedó fijo)                                                                            |
 | `orders.account_id` | columna nueva, para la compra con cuenta que viene; `ON DELETE SET NULL`                                                                      |
 
 Después: `free_order_choices` (migración 0061), lo que eligió cada cuenta sobre una orden gratis
-que le llegó por el mail («¿Son tuyas?», arriba).
+que le llegó por el mail («¿Son tuyas?», arriba), y `account_sessions.device` (migración 0066), el
+nombre corto del navegador de cada sesión (ver "Sesiones").
 
 Sin "nombre para mostrar" (P7.3): los nombres van a ir en los perfiles. Las **passkeys** van a
 ir en una tabla propia (`account_passkeys`, apuntando a `accounts.id`); no hace falta cambiar
@@ -153,13 +159,19 @@ nada de estas tablas para sumarlas.
 
 | Qué                           | Límite                                      |
 | ----------------------------- | ------------------------------------------- |
-| Pedir código, por mail        | 3 cada 15 minutos y 10 por día              |
-| Pedir código, mail + conexión | 4 por día                                   |
+| Pedir código, por mail        | 5 cada 15 minutos y 10 por día              |
+| Pedir código, mail + conexión | 3 cada 15 minutos y 4 por día               |
 | Pedir código, por conexión    | 10 cada 15 minutos                          |
 | Escribir código, por conexión | 20 cada 15 minutos (además de 5 por código) |
 | Contraseña, por mail          | 10 cada 15 minutos                          |
 | Contraseña, por conexión      | 20 cada 15 minutos                          |
 | Mails de cuentas, en total    | 300 por hora (códigos y avisos)             |
+
+Los topes de mail + conexión son más bajos que los del mail solo: desde una sola conexión nadie
+gasta todo el cupo de un mail ajeno (quien pide sus propios códigos ve lo mismo de siempre: 3
+seguidos).
+
+"Por día" es en las últimas 24 horas (ventana móvil, por hora), no desde la medianoche.
 
 "Conexión" es el `clientHash` de las entradas: la IP con una sal que cambia cada día, hasheada.
 Una IPv6 cuenta por su red /64 entera (`clientNetwork` en `src/lib/server/tickets/safeguards.js`):
@@ -168,8 +180,9 @@ dejaría saltar los límites. Las IPv4 cuentan igual que antes.
 
 El **tope global** (`src/lib/server/cuentas/mailCap.js`) suma todos los mails de cuentas que
 salen (códigos para entrar, códigos para confirmar y avisos de invitación), de cualquier conexión
-y a cualquier mail: estos mails usan la misma cuenta de Resend que los de las entradas, y así
-nunca se comen ese cupo. Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
+y a cualquier mail. Estos mails usan la misma cuenta de Resend que los de las entradas: el tope
+acota cuánto gastan, pero es por hora y no garantiza que no se coman el cupo (ver «Límites
+conocidos»). Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
 un código responde "Estamos mandando muchos mails en este momento. Probá en un rato." (el mismo
 texto para cualquier mail, así no dice nada de la dirección) y los avisos de invitación no salen
 (la invitación se crea igual y aparece en Mi rincón).
@@ -207,8 +220,25 @@ el código por mail sigue andando.
   solo se van filas que nunca más se usan. Si falla, lo escribe en el log y la corrida sigue; en el
   log va solo cuántas borró.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
-  cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
-  saca acceso.
+  cuenta, también la de ese navegador, desvincula el Telegram (`unlinkAccount`: el chat y los
+  códigos pendientes) y anula el link del calendario personal (`revokeFeeds`; para volver a usarlo
+  se crea uno nuevo), y vuelve a `/ingresar` con un aviso. No pide código: solo saca acceso.
+- **«Dónde tenés la sesión abierta»** (Mi rincón, `#sesiones`): la lista de las sesiones de la
+  cuenta (`listSessions`, hasta 50), la de ese navegador primero con la marca «esta». De cada una:
+  el navegador («Firefox en Android»), cuándo y cómo se entró (código o contraseña) y la última vez,
+  aproximada al día («hoy», «ayer», «el 12 de octubre»), porque `last_seen_at` se anota como mucho
+  una vez por día. Cada una tiene «Cerrar esta» (`?/cerrarSesion`); en la de ese navegador es
+  salir (vuelve al inicio con «Saliste de tu cuenta»). «Cerrar todas las demás» (`?/cerrarOtras`)
+  deja solo la de ese navegador. Tampoco piden código: solo sacan acceso.
+  - **Qué se guarda:** solo un nombre corto del navegador y el sistema, sacado del user agent al
+    entrar (`deviceLabel()` en `src/lib/utils/userAgent.js`, columna `device`, migración 0066, de
+    hasta 60 caracteres). Nunca el user agent entero, ni la IP, ni un lugar. Las sesiones de antes
+    de la migración dicen «Navegador sin identificar».
+  - **Solo la dueña ve y cierra las suyas:** la página no recibe el token ni su hash; cada sesión
+    va con un id que sale del hash (`SHA-256("sesion:<hash>")`, 32 caracteres). `endSessionById`
+    busca ese id solo entre las sesiones de la cuenta de la sesión actual: con el id de una sesión
+    de otra cuenta no pasa nada (404). Cerrar borra la fila, así que esa cookie deja de abrir nada
+    en el pedido siguiente (`getSessionAccount` busca la fila siempre).
 - `hooks.server.js` carga `locals.member` (`{ id, email, readingSpeed, canHaveProfiles }`) solo
   si hay cookie (y base). La velocidad de lectura y el permiso de perfiles vienen en la misma
   consulta que la sesión (`getSessionAccount`), así el layout y Mi rincón no vuelven a leer la
@@ -308,6 +338,44 @@ Con qué velocidad se calcula el «X min de lectura» de los materiales y la Kin
 Por ahora solo el hook: `eventRequiresAccount(meta)` en `src/lib/server/cuentas/index.js` lee
 `requiere_cuenta: true` del frontmatter del evento. La compra todavía no lo usa.
 
+### Suspender una cuenta
+
+Para frenar a una cuenta concreta (por ejemplo, una que acosa con perfiles, invitaciones o «Es mi
+perfil»), une admin la suspende desde su ficha (Comunidad › Cuentas › la cuenta → «Suspensión»,
+o la misma ficha desde Personas). Solo admins (`requireAdmin` en cada action). Código:
+`src/lib/server/cuentas/suspension.js`; las actions `?/suspender` y `?/levantarSuspension` en
+`src/lib/server/admin/fichaRoutes.js`; migración `0065_cuentas_suspendidas.sql`
+(`accounts.suspended_at`, `suspended_by`, `suspended_reason`).
+
+- **Suspender** pide confirmación en la misma página (el diálogo del panel) y acepta un motivo
+  opcional. En una tanda: marca la cuenta, **borra todas sus sesiones** y desvincula su Telegram
+  (`telegram_chats` y los códigos de vincular). Además `getSessionAccount` no acepta ninguna
+  sesión de una cuenta suspendida, así una que se cruzara con la suspensión tampoco vale.
+- **No puede entrar por ningún camino**: con código por mail (`verifyCode`) ni con contraseña
+  (`passwordLogin`) se abre una sesión, y el bot no la reconoce (`chatAccount`) ni la deja
+  vincular de nuevo (`consumeLinkCode`). En `/ingresar` ve «Tu cuenta está suspendida. Si creés
+  que es un error, escribinos a <contacto>» (`contactEmail()` de las entradas, que cae en
+  `DEFAULT_CONTACT_EMAIL`), **recién después** de un código o una contraseña correctos: antes, la
+  respuesta es la de siempre, así nadie se entera de que un mail tiene una cuenta suspendida.
+- **El motivo es privado**: queda en `accounts.suspended_reason` y se ve solo en la ficha (para
+  admins). Nunca va a la persona, a Actividad ni a una página pública
+  (`src/lib/server/cuentas/suspension.test.js` falla si otro archivo lo lee). Al borrar la cuenta
+  se borra.
+- **Actividad**: `account.suspend` («Suspendió una cuenta», con cuántas sesiones se cerraron y si
+  tenía Telegram) y `account.unsuspend`, con quién y cuándo; sin el mail ni el motivo.
+- **Levantar la suspensión** (con confirmación) la deja entrar de nuevo y borra el motivo. Las
+  sesiones y el Telegram no vuelven: la persona entra otra vez y, si quiere, vuelve a conectar el
+  bot.
+- **Lo que no toca**: sus **perfiles públicos no se ocultan solos** (moderarlos es aparte: ocultar
+  o borrar desde Perfiles; la ficha lo dice), ni el permiso de perfiles, ni las compras: comprar
+  con un mail sin entrar sigue andando como para cualquiera (no es una acción de la cuenta). El
+  link del calendario personal y los avisos por mail de «Lo que sigo» siguen como estaban.
+- **Admins**: entran con GitHub (`ADMINS` en `src/lib/server/auth.js`), aparte de las cuentas del
+  sitio, así que suspender una cuenta nunca saca a nadie del panel (tampoco a la última admin).
+  Igual, no se puede suspender la cuenta con la que une admin está en ese mismo navegador.
+- En **Cuentas** la cuenta lleva la marca «Suspendida» y arriba se cuentan las suspendidas; en la
+  ficha, la marca, cuándo y quién.
+
 ## Perfiles
 
 Parte 2 del bloque (decisiones A2, E1 y B3 de gorrite). Una cuenta puede tener **varios
@@ -348,6 +416,8 @@ Sin el permiso, la cuenta **no ve nada de perfiles**:
 - además, en `perfiles.js`: `listMyProfiles` y `getManagedProfile` (que usan casi todas las
   acciones) piden el permiso en la misma consulta, `createProfile` y `answerInvite` lo chequean
   antes, y `myInvites`, `listMyMemberInvites` y `listMyMemberships` no devuelven nada;
+- `/imagenes` (subir, buscar y borrar imágenes de la biblioteca para un perfil) da **404**, aunque
+  la cuenta siga anotada como gestora de un perfil (`imageAccess` de `src/lib/server/media/access.js`);
 - las **invitaciones** (a gestionar un proyecto o a ser integrante) no se le muestran ni las puede
   aceptar o rechazar, y el aviso por mail no sale (`sendInviteNotice`, que corre después de
   responder). **Quien invita recibe exactamente la misma respuesta de siempre** y ve la
@@ -358,6 +428,18 @@ Lo único de perfiles que sí ve una cuenta sin el permiso es **«¿Es tu perfil
 pública de un perfil (y en Mi rincón, la tarjeta «¿Ya estás en Amigues?» que lo explica): pide
 hacerse cargo de un perfil que ya existe y une admin lo revisa; para aprobarlo, le da el permiso
 antes ([amigues.md](amigues.md)). No hay ningún texto para pedir el permiso en sí.
+
+**Tus pedidos de perfiles** (Mi rincón, con o sin el permiso): la tarjeta sale solo si la cuenta
+pidió alguno, y lista **sus** pedidos «¿Es tu perfil?» (`myClaims` de
+`src/lib/server/amigues/claims.js`, hasta 50, del más nuevo al más viejo, sin los de perfiles
+borrados) con su estado: **Pendiente**, **Aprobado** o **No aprobado**, y cuándo se pidió y se
+resolvió. Nada de quién lo resolvió ni de otros pedidos. El nombre lleva a la página del perfil
+si no está oculto. En la página del perfil, si el último pedido de la cuenta no se aprobó, dice
+«no aprobado» en vez de volver a ofrecer «¿Es tu perfil?» (`claimStatusOf`); si se aprobó y la
+cuenta ya no lo gestiona, se puede volver a pedir. El servidor también lo frena: después de un
+«no aprobado», `createClaim` contesta 409 («Pediste este perfil: no aprobado…») a un pedido nuevo
+de esa cuenta para ese perfil, aunque llegue a mano. El aviso por mail al resolverse queda
+pendiente (`rincon-pedidos-mail` en el plan).
 
 Sacar el permiso **no borra nada**: los perfiles quedan y vuelven a verse si se prende de nuevo.
 Les admins los siguen viendo en el panel. Si une dueñe de un proyecto pierde el permiso, sigue
@@ -372,8 +454,9 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
 
 - **Cuentas** (`/admin/comunidad/cuentas`): todas las cuentas, con mail (les admins lo ven), cuándo se
   crearon, si verificaron el mail, si tienen contraseña, cuántos perfiles vivos gestionan, si
-  pueden tener perfiles y si están borradas; búsqueda por mail. La ficha (`/admin/comunidad/cuentas/[id]`)
-  muestra sus perfiles y el botón del permiso.
+  pueden tener perfiles, si están suspendidas y si están borradas; búsqueda por mail. La ficha
+  (`/admin/comunidad/cuentas/[id]`) muestra sus perfiles, el botón del permiso y «Suspensión» (ver
+  "Suspender una cuenta").
 - **Perfiles** (`/admin/comunidad/perfiles`, Comunidad › Perfiles; decisión de gorrite del 1/10: es la
   única lista de perfiles del panel, antes estaban "Amigues" y "Cuentas → Perfiles"): todos los
   perfiles, también ocultos y borrados (nombre, dirección, tipo, origen, visibilidad, creado,
@@ -390,6 +473,11 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
   actividad y en "Desde tu última visita". Se anotan donde pasan (`upsertVerifiedAccount` cuando
   la cuenta es nueva, `createProfile`) en `admin_audit`, con el autor `cuentas (sitio)`
   (`src/lib/server/admin/accountEvents.js`), sin mails ni ids de cuenta en el texto.
+- **Editar un perfil ya aprobado** desde Mi rincón: el cambio sale al toque (no vuelve a «Para
+  aprobar», decisión [0022](decisiones/0022-lugares-desde-cuentas.md)) y deja ««…» editó su perfil
+  (persona/proyecto/lugar)» en la actividad (`profile.account_edit`, `logProfileEdited`), con link
+  al perfil; qué cambió se ve en su historial. Un perfil sin aprobar no deja aviso: ya está en
+  «Para aprobar» (gorrite, Mesa `chica-532-revision-perfiles`).
 - **Para revisar:** cada perfil creado por una cuenta queda en "Para revisar" del Inicio (y en el
   contador del menú, en Perfiles) hasta que une admin lo marca como revisado, lo oculta o lo
   borra. No hay columna nueva: la marca es la entrada de Actividad de esa acción
@@ -446,6 +534,12 @@ aprobar").
 
   Un perfil de persona tiene una sola fila (su dueñe). La fila de le dueñe se crea en la misma
   tanda que el perfil (opción `also` de `saveObject()`): o entran los dos o ninguno.
+
+- **Historial**: crear o editar un perfil desde Mi rincón guarda, en la misma tanda, la versión
+  que quedó en `object_revisions` con `source = 'cuenta'` (`revisionStatement`,
+  `src/lib/server/contenido/revisions.js`). Si alguien escribe algo en un perfil y después lo
+  borra, les admins pueden ver qué decía. Por ahora no hay pantalla: se mira en la base. Al borrar
+  la cuenta, las versiones `'cuenta'` de sus perfiles de persona se borran (abajo).
 
 - **Invitaciones a gestionar** en `profile_invites`: solo el hash del mail (el mismo de
   `login_codes`), vencen a los 14 días. `invited_by` pasa a `NULL` si se borra de verdad la
@@ -590,15 +684,21 @@ actualizá esta lista.
 - **Límites por conexión.** Alguien con muchas IPv4 distintas puede repartir pedidos entre ellas.
   El tope global de 300 mails por hora es el respaldo, pero también se puede llenar a propósito:
   mientras dure (como mucho una hora) nadie recibe códigos nuevos. Las sesiones abiertas no se
-  ven afectadas.
+  ven afectadas. Además, como es por hora, en un día deja pasar muchos más mails que el cupo
+  diario de algunos planes de Resend: un abuso sostenido podría agotar ese cupo y dejar sin mail
+  las entradas hasta que se renueve. Cuánto margen hay depende del plan de Resend (lo decide
+  gorrite); un tope diario atado al plan sería el arreglo.
 - **Turnstile** (o una regla de rate limiting de Cloudflare en `/ingresar`) queda como opción para
   más adelante: necesita claves y configuración en el panel de Cloudflare.
 - **Contraseña bloqueada por otres.** Diez contraseñas mal escritas para un mail, desde cualquier
   conexión, no dejan entrar con contraseña a ese mail por hasta 15 minutos. Entrar con
   código sigue andando.
-- **Ventana diaria fija (UTC).** Los topes por día se reinician a medianoche UTC: alrededor de esa
-  hora se pueden pedir hasta el doble de códigos para un mail. Con 5 intentos por código, adivinar
-  uno sigue siendo muy improbable.
+- **Topes por día con ventana móvil.** Los topes «por día» suman las últimas 24 horas, por hora
+  (`hitRateLimit` en `src/lib/server/db/rateLimit.js`), así que la medianoche ya no los reinicia.
+  Un pedido rechazado no se anota (si no, seguir probando estiraría el bloqueo para siempre).
+  Queda un borde: la sal de la «conexión» cambia a las 00:00 UTC, y los topes de mail + conexión
+  vuelven a empezar con la sal nueva. Los topes por mail solo (10 por día) siguen contando, así
+  que un mail recibe como mucho eso por día.
 - **PBKDF2 con 100.000 iteraciones**, el máximo de Workers (OWASP pide 600.000). Ver "Contraseña".
 - **Hash del mail sin secreto.** En `login_codes`, `rate_limits` y `profile_invites` se guarda
   `SHA-256` del mail con un prefijo fijo: con acceso a la base, se puede confirmar si un mail

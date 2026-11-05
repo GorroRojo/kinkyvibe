@@ -6,7 +6,7 @@
  * "Sucede en" es un edge `lugar` (evento → perfil de lugar, `edges.data.privacy` = el nivel propio
  * del evento, o sin `data` si usa el del lugar), escrito SOLO con saveObject() sobre el evento
  * (con su historial). Antes era la tabla `event_venues` (migraciones 0017 y 0027); la 0035 pasó
- * sus filas a edges y nada la usa más (queda en la base: las migraciones solo agregan). Por eso
+ * sus filas a edges y la 0075 la borra. Por eso
  * el evento tiene que estar en la base para tener lugar (docs/amigues.md). Para afuera todo sigue
  * siendo por la dirección del evento (la de su página: la del .md importado o la del objeto), como
  * las listas de posts.
@@ -29,7 +29,7 @@ import { venuePlaceMeta, stripMdPlace } from '$lib/utils/eventPlace.js';
 import { ANON, canSee, getObject } from '$lib/server/objects/index.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
 import { saveObject } from '$lib/server/objects/save.js';
-import { revisionStatement } from '$lib/server/contenido/revisions.js';
+import { panelRevisionStatement } from '$lib/server/contenido/author.js';
 import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
@@ -594,6 +594,49 @@ export async function listEventVenues(db) {
 }
 
 /**
+ * El lugar vinculado de cada evento de `slugs` (los mismos que encuentra {@link eventVenue}: el
+ * lugar existe, no está borrado y es un lugar) con su nombre, barrio y ciudad, para mostrar el
+ * «Dónde» en las listas del panel (solo admins: va el nombre aunque la página lo oculte). Una sola
+ * sentencia para todos (no una por evento), para ir en tanda; leer sus filas con
+ * {@link panelEventVenuesFrom}. `null` si no hay ningún evento que buscar.
+ *
+ * @param {D1Database} db
+ * @param {Iterable<string>} slugs
+ * @returns {import('@cloudflare/workers-types').D1PreparedStatement | null}
+ */
+export function panelEventVenuesStatement(db, slugs) {
+	const want = [...new Set(slugs)].filter(isEventSlug);
+	if (!want.length) return null;
+	return db
+		.prepare(
+			`SELECT l.event_slug, o.title, json_extract(o.data, '$.area') AS area,
+				json_extract(o.data, '$.city') AS city
+			FROM (${lugarLinksSql(`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`)}) l
+			JOIN objects o ON o.id = l.venue_id
+			WHERE o.type = ?2 AND o.deleted_at IS NULL AND json_extract(o.data, '$.kind') = 'lugar'
+			ORDER BY l.event_slug`
+		)
+		.bind(JSON.stringify(want), PROFILE_TYPE);
+}
+
+/**
+ * Las filas de {@link panelEventVenuesStatement}: dirección del evento → su lugar.
+ *
+ * @param {Record<string, unknown>[]} rows
+ * @returns {Map<string, import('$lib/admin/eventFormat.js').PanelVenue>}
+ */
+export function panelEventVenuesFrom(rows) {
+	/** @type {Map<string, import('$lib/admin/eventFormat.js').PanelVenue>} */
+	const out = new Map();
+	for (const r of rows) {
+		const slug = String(r.event_slug);
+		if (out.has(slug)) continue;
+		out.set(slug, { title: String(r.title ?? ''), area: s(r.area), city: s(r.city) });
+	}
+	return out;
+}
+
+/**
  * Los perfiles de lugar (también ocultos), para el panel.
  *
  * @param {D1Database} db
@@ -694,7 +737,7 @@ async function writeVenueEdge(db, eventSlug, lugar, { by, now }) {
 								WHERE object_id = ?1 AND imported_version = ?2`
 							)
 							.bind(event.id, event.version, event.version + 1),
-						revisionStatement(db, self, 'lugar')
+						panelRevisionStatement(db, self, 'lugar')
 					]
 				}
 			);
