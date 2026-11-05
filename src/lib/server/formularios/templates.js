@@ -114,7 +114,7 @@ export const FORM_TEMPLATES = Object.freeze([
 	{
 		slug: 'plantilla-comentarios',
 		title: 'Contanos qué te parece',
-		intro: 'Es corto y podés responder anónimamente.',
+		intro: 'Es corto.',
 		access: 'link',
 		privacy: 'choose',
 		audience: 'admins',
