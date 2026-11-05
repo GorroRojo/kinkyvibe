@@ -386,14 +386,25 @@ revisar" del Inicio.
     (alguien editó mientras tanto), no guarda y avisa. Nadie escribe descripciones por su cuenta: ni
     el código ni Claude (gorrite).
   - **Portadas pesadas**: cada evento o material cuya portada (edge `portada`, o la vieja del repo
-    si no tiene edge) pesa más de 300 KB (`HEAVY_COVER_BYTES`). «Achicar» baja la original de la
-    biblioteca, la pasa por el mismo achique de la subida (en el navegador, `prepareImage` con
-    `targetBytes`: si con 2000 px todavía pesa más, prueba 1600, 1280 y 1080 px), la sube como
-    imagen nueva (`POST /imagenes`, con sus copias chicas y el mismo nombre y texto alternativo;
-    si la original no tiene, lo pide) y cambia la portada (`?/portada`, `swapCover`: solo si la
-    portada sigue siendo esa y la copia pesa menos; saca la vieja del repo, `featured`, como el
-    selector; historial y Actividad `content.cover.shrink`). **La original queda en la
-    biblioteca** ([imagenes.md](imagenes.md#portadas-pesadas)).
+    si no tiene edge) pesa más de 300 KB (`HEAVY_COVER_BYTES`) y nadie dejó así. «Achicar» baja la
+    original de la biblioteca, la pasa por el mismo achique de la subida (en el navegador,
+    `prepareImage` con `targetBytes`: si con 2000 px todavía pesa más, baja el lado hasta 1080 px,
+    después la calidad hasta 0,55 y después el lado hasta 720 px, con piso en 720 px y calidad 0,5;
+    `SHRINK_STEPS`). Solo si la copia vale la pena (`muchLighter`: pesa como mucho 300 KB, o al
+    menos un 15 % menos que la original) la sube como imagen nueva (`POST /imagenes`, con sus
+    copias chicas y el mismo nombre y texto alternativo; si la original no tiene, lo pide) y cambia
+    la portada (`?/portada`, `swapCover`: solo si la portada sigue siendo esa y con la misma regla
+    del 15 %; saca la vieja del repo, `featured`, como el selector; historial y Actividad
+    `content.cover.shrink`). Si no vale la pena, no sube nada y lo dice: «No se pudo bajar de
+    300 KB sin que se vea mal (queda en 381 KB). Si se ve bien así, tocá «Dejarla así».». Los pesos
+    van con decimales cuando «antes» y «ahora» se verían iguales (`kbText`). **La original queda
+    en la biblioteca** ([imagenes.md](imagenes.md#portadas-pesadas)).
+    «Dejarla así» (`?/portadaAsi`, `setHeavyOk`) marca esa imagen como aceptada
+    (`heavy_ok: { by, at }` en los datos de la imagen, con saveObject(), su versión en el historial
+    y Actividad `content.cover.accept`) y la saca de la lista; el aviso trae «Deshacer» (`?/portadaAsiDeshacer`,
+    Actividad `content.cover.unaccept`). La marca es de la imagen: una portada nueva es otra imagen
+    y se revisa de nuevo. Las fotos sin descripción y los videos sin transcripción no tienen «Dejar
+    así»: lo que falta ahí es un texto que alguien tiene que escribir.
   - **Videos sin transcripción**: el material con un video en el texto (`<video>` o un enlace a un
     MP4/WebM de la biblioteca) y sin «Transcripción». Cada uno lleva a la sección «Video» de su
     editor (`#sec-video`), donde alguien que conoce el audio la escribe

@@ -43,7 +43,11 @@ const imagen = {
 		original_name: { kind: 'text', label: 'Nombre del archivo original', max: 200 },
 		// De dónde salió una imagen importada del repo (`src/lib/posts/…/media/…/1.webp` o
 		// `src/lib/assets/…`): así la importación no la duplica y se sabe qué reemplaza.
-		source_path: { kind: 'text', label: 'Archivo del repo', max: 300 }
+		source_path: { kind: 'text', label: 'Archivo del repo', max: 300 },
+		// «Dejarla así» en «Portadas pesadas» (Para revisar): une admin vio que pesa más de 300 KB y
+		// la aceptó (`{ by, at }`: quién y cuándo). Ya no aparece en la lista. Es de esta imagen: una
+		// portada nueva es otra imagen y se revisa de nuevo.
+		heavy_ok: { kind: 'json', label: 'Peso aceptado', max: 500 }
 	},
 	edges: {},
 	check(data) {
