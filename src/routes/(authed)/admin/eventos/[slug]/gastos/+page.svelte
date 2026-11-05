@@ -8,7 +8,7 @@
 	 */
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { Lock, LockOpen, Plus, Save, Trash2 } from '@lucide/svelte';
+	import { ArrowDown, ArrowUp, Lock, LockOpen, Plus, Save, Sparkles, Trash2 } from '@lucide/svelte';
 	import {
 		Button,
 		Card,
@@ -20,7 +20,17 @@
 		askConfirm
 	} from '$lib/components/ui';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
-	import { CAJA, CAJA_LABEL, computeAccount, fondoLine } from '$lib/admin/reparto.js';
+	import {
+		CAJA,
+		CAJA_LABEL,
+		cajaPart,
+		computeAccount,
+		fondoLine,
+		newPart,
+		partNames,
+		usualParts,
+		USUAL_PRODUCTION_PCT
+	} from '$lib/admin/reparto.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 
@@ -33,12 +43,14 @@
 	// Los roles que se contratan con un pago fijo (gorrite, Mesa 5/11): suman una contratación.
 	const FEE_PRESETS = ['Monitorea', 'Anfitrione', 'Fotografía', 'Técnica'];
 	const LOSS_OPTIONS = [
-		{ value: 'produccion', label: 'Quienes producen' },
-		{ value: 'todes', label: 'Todes, como la ganancia' }
+		{ value: 'marcadas', label: 'Solo las marcadas' },
+		{ value: 'todes', label: 'Todas las partes' }
 	];
-	const MODES = [
-		{ value: 'iguales', label: 'Partes iguales' },
-		{ value: 'porcentajes', label: 'Porcentajes' }
+	// Cómo se lleva lo suyo cada parte del reparto.
+	const RULES = [
+		{ value: 'pct', label: 'Porcentaje' },
+		{ value: 'fijo', label: 'Monto fijo' },
+		{ value: 'resto', label: 'Lo que sobra' }
 	];
 	const VENUE_OPTIONS = [
 		{ value: 'fijo', label: 'Monto fijo' },
@@ -72,21 +84,14 @@
 	$: income = closing ? closing.income : data.income;
 	$: result = computeAccount(income, account);
 	$: hasFondo = data.fondoEnabled || income.fondoUsed > 0 || income.fondoContributed > 0;
+	$: names = partNames(account.parts);
 	$: who = [
 		{ value: CAJA, label: CAJA_LABEL },
-		...account.people.map((p, i) => ({
-			value: p.id,
-			label: p.name.trim() || `Facilitadore ${i + 1}`
-		})),
-		...account.coproducers.map((c, i) => ({
-			value: c.id,
-			label: c.name.trim() || `Co-productore ${i + 1}`
-		}))
+		...account.parts
+			.map((p, i) => ({ value: p.id, label: names[i] }))
+			.filter((w) => w.value !== CAJA)
 	];
-	$: cajaProductionShare = Math.max(
-		0,
-		100 - account.coproducers.reduce((t, c) => t + (Number(c.share) || 0), 0)
-	);
+	$: hasCaja = account.parts.some((p) => p.id === CAJA);
 
 	/** Al cambiar algo, el «Guardado» de antes ya no vale. */
 	function touch() {
@@ -95,22 +100,49 @@
 
 	const newId = () => Math.random().toString(36).slice(2, 10);
 
-	function addPerson() {
-		account.people = [...account.people, { id: newId(), name: '', team: false, pct: null }];
+	/**
+	 * Una parte nueva al final: une facilitadore (lo que sobra), quien co-produce (un porcentaje,
+	 * pone si hay pérdida) u otra.
+	 * @param {import('$lib/admin/reparto.js').PartRole} role
+	 */
+	function addPart(role) {
+		const part =
+			role === 'produce'
+				? newPart({ id: newId(), role, rule: 'pct', coversLoss: true })
+				: newPart({ id: newId(), role, rule: 'resto' });
+		account.parts = [...account.parts, part];
+		touch();
+	}
+	function addCaja() {
+		account.parts = [cajaPart({ coversLoss: true }), ...account.parts];
 		touch();
 	}
 	/** @param {string} id */
-	function removePerson(id) {
-		account.people = account.people.filter((p) => p.id !== id);
+	function removePart(id) {
+		account.parts = account.parts.filter((p) => p.id !== id);
 		touch();
 	}
-	function addCoproducer() {
-		account.coproducers = [...account.coproducers, { id: newId(), name: '', share: 50 }];
+	/** @param {number} i @param {-1 | 1} by */
+	function movePart(i, by) {
+		const parts = [...account.parts];
+		const j = i + by;
+		if (j < 0 || j >= parts.length) return;
+		[parts[i], parts[j]] = [parts[j], parts[i]];
+		account.parts = parts;
 		touch();
 	}
-	/** @param {string} id */
-	function removeCoproducer(id) {
-		account.coproducers = account.coproducers.filter((c) => c.id !== id);
+	/** «Lo de siempre»: si ya hay partes, cambia sus reglas; mejor preguntar. */
+	async function applyUsual() {
+		if (account.parts.length) {
+			const ok = await askConfirm({
+				title: '¿Usar lo de siempre?',
+				text: `La Caja KV y quienes co-producen se reparten el ${USUAL_PRODUCTION_PCT} % en partes iguales y les facilitadores se llevan lo que sobra. Las otras partes quedan como están.`,
+				confirmLabel: 'Usar lo de siempre'
+			});
+			if (!ok) return;
+		}
+		account.parts = usualParts(account.parts, newId);
+		account.loss = 'marcadas';
 		touch();
 	}
 	/** @param {string} concept */
@@ -193,9 +225,6 @@
 				[
 					...result.split.shares
 						.filter((x) => !x.team && x.amount < 0)
-						.map((x) => `${x.name} pone ${formatARS(-x.amount)}`),
-					...result.split.coproducers
-						.filter((x) => x.amount < 0)
 						.map((x) => `${x.name} pone ${formatARS(-x.amount)}`),
 					...(result.split.caja < 0
 						? [`la ${CAJA_LABEL} pone ${formatARS(-result.split.caja)}`]
@@ -728,166 +757,161 @@
 					<strong class="num">{profitAmount}</strong>
 				</p>
 				<p class="muted small">
-					Ingresos − lugar − contrataciones − otros gastos. De la ganancia, un porcentaje va a la
-					producción (la {CAJA_LABEL} y quien co-produzca); el resto se reparte entre les facilitadores.
-					La parte de quien es del equipo de KV va a la {CAJA_LABEL}, y la {CAJA_LABEL} se queda con los
-					pesos que sobran al redondear.
+					Ingresos − lugar − contrataciones − otros gastos. La ganancia se reparte entre las partes:
+					cada una se lleva un porcentaje, un monto fijo o lo que sobra (si son varias, en partes
+					iguales). Lo de las partes del equipo de KV va a la {CAJA_LABEL}, que también se queda con
+					los pesos que sobran al redondear.
 				</p>
-				<div class="split-row">
-					<label class="kv-field prod">
-						<span>Para la producción</span>
-						<span class="affix"
-							><input
-								class="kv-input"
-								type="number"
-								min="0"
-								max="100"
-								step="1"
-								bind:value={account.split.productionPct}
-								on:input={touch}
-							/><span aria-hidden="true">%</span></span
+				{#if !closed}
+					<div class="presets" role="group" aria-label="Armar el reparto">
+						<Button variant="secondary" size="small" icon={Sparkles} on:click={applyUsual}
+							>Lo de siempre</Button
 						>
-					</label>
-					<div class="kv-field loss-by">
-						<span>Si hay pérdida, la ponen</span>
-						<Segmented
-							options={LOSS_OPTIONS}
-							bind:value={account.split.lossBy}
-							label="Si hay pérdida, la ponen"
-						/>
+						<Chip pressable icon={Plus} on:click={() => addPart('facilita')}>Facilitadore</Chip>
+						<Chip pressable icon={Plus} on:click={() => addPart('produce')}>Co-produce</Chip>
+						{#if !hasCaja}
+							<Chip pressable icon={Plus} on:click={addCaja}>{CAJA_LABEL}</Chip>
+						{/if}
+						<Chip pressable icon={Plus} on:click={() => addPart('')}>Otra parte</Chip>
 					</div>
-				</div>
-				<h3 class="sub">Producción</h3>
-				<p class="muted small">
-					Produce la {CAJA_LABEL}. Si alguien más co-produce (otra organización o persona), sumalo
-					con su parte de la producción; la {CAJA_LABEL} tiene el resto ({cajaProductionShare} %).
-				</p>
-				{#if account.coproducers.length}
-					<ul class="lines">
-						{#each account.coproducers as c, i (c.id)}
-							{@const cop = result.split.coproducers[i]}
-							<li class="person">
+					<p class="muted small">
+						«Lo de siempre»: {USUAL_PRODUCTION_PCT} % para la producción (la {CAJA_LABEL} y quien co-produzca,
+						en partes iguales) y lo que sobra entre les facilitadores.
+					</p>
+				{/if}
+				<ul class="lines">
+					{#each account.parts as p, i (p.id)}
+						{@const share = result.split.shares[i]}
+						<li class="part">
+							{#if p.id === CAJA}
+								<strong class="name caja-name">{CAJA_LABEL}</strong>
+							{:else}
 								<label class="kv-field name">
-									<span class="visually-hidden">Quién co-produce {i + 1}</span>
+									<span class="visually-hidden">Nombre de la parte {i + 1}</span>
 									<input
 										class="kv-input"
-										bind:value={c.name}
+										bind:value={p.name}
 										on:input={touch}
-										placeholder="Co-productore {i + 1}"
+										placeholder={names[i]}
 									/>
 								</label>
-								<label class="kv-field value">
-									<span class="visually-hidden"
-										>Parte de la producción de {c.name || `co-productore ${i + 1}`}</span
-									>
-									<span class="affix"
-										><input
-											class="kv-input"
-											type="number"
-											min="0"
-											max="100"
-											step="1"
-											bind:value={c.share}
-											on:input={touch}
-										/><span aria-hidden="true">%</span></span
-									>
-								</label>
-								<span class="share num">{money(cop?.amount ?? 0)}</span>
+							{/if}
+							<span class="share num">
+								{money(share?.amount ?? 0)}
+								{#if share?.team && p.id !== CAJA}<span class="muted small to-caja"
+										>→ {CAJA_LABEL}</span
+									>{/if}
+							</span>
+							<span class="tools">
+								<Button
+									variant="secondary"
+									size="small"
+									iconOnly
+									icon={ArrowUp}
+									label="Subir {names[i]}"
+									disabled={i === 0}
+									on:click={() => movePart(i, -1)}
+								/>
+								<Button
+									variant="secondary"
+									size="small"
+									iconOnly
+									icon={ArrowDown}
+									label="Bajar {names[i]}"
+									disabled={i === account.parts.length - 1}
+									on:click={() => movePart(i, 1)}
+								/>
 								<Button
 									variant="danger"
 									size="small"
 									iconOnly
 									icon={Trash2}
-									label="Sacar a {c.name || `co-productore ${i + 1}`}"
-									on:click={() => removeCoproducer(c.id)}
+									label="Sacar {names[i]}"
+									on:click={() => removePart(p.id)}
 								/>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-				<div class="row">
-					<Button variant="secondary" size="small" icon={Plus} on:click={addCoproducer}
-						>Sumar quien co-produce</Button
-					>
-				</div>
-				<div class="row sub-row">
-					<h3 class="sub">Facilitadores</h3>
-					<Segmented
-						options={MODES}
-						bind:value={account.split.mode}
-						label="Cómo se reparte entre les facilitadores"
-					/>
-				</div>
-				<p class="muted small">
-					Quienes facilitan el taller (en el evento, «Facilita» o «Enseña»).
-				</p>
-				<ul class="lines">
-					{#each account.people as p, i (p.id)}
-						{@const share = result.split.shares[i]}
-						<li class="person">
-							<label class="kv-field name">
-								<span class="visually-hidden">Nombre de le facilitadore {i + 1}</span>
-								<input
-									class="kv-input"
-									bind:value={p.name}
-									on:input={touch}
-									placeholder="Facilitadore {i + 1}"
-								/>
-							</label>
-							{#if account.split.mode === 'porcentajes'}
-								<label class="kv-field value">
-									<span class="visually-hidden"
-										>Porcentaje de {p.name || `le facilitadore ${i + 1}`}</span
-									>
-									<span class="affix"
-										><input
-											class="kv-input"
-											type="number"
-											min="0"
-											max="100"
-											step="0.5"
-											bind:value={p.pct}
-											on:input={touch}
-										/><span aria-hidden="true">%</span></span
-									>
-								</label>
-							{/if}
-							<span class="team"
-								><Checkbox bind:checked={p.team} on:change={touch}>Es del equipo de KV</Checkbox
-								></span
-							>
-							<span class="share num">
-								{money(share?.amount ?? 0)}
-								{#if share?.team}<span class="muted small to-caja">→ {CAJA_LABEL}</span>{/if}
 							</span>
-							<Button
-								variant="danger"
-								size="small"
-								iconOnly
-								icon={Trash2}
-								label="Sacar a {p.name || `le facilitadore ${i + 1}`}"
-								on:click={() => removePerson(p.id)}
-							/>
+							<span class="rule">
+								<Segmented options={RULES} bind:value={p.rule} label="Qué se lleva {names[i]}" />
+								{#if p.rule === 'pct'}
+									<label class="kv-field value">
+										<span class="visually-hidden">Porcentaje de {names[i]}</span>
+										<span class="affix"
+											><input
+												class="kv-input"
+												type="number"
+												inputmode="decimal"
+												min="0"
+												max="100"
+												step="0.5"
+												bind:value={p.pct}
+												on:input={touch}
+											/><span aria-hidden="true">%</span></span
+										>
+									</label>
+								{:else if p.rule === 'fijo'}
+									<label class="kv-field value">
+										<span class="visually-hidden">Monto de {names[i]}</span>
+										<span class="affix"
+											><span aria-hidden="true">$</span><input
+												class="kv-input"
+												type="number"
+												inputmode="numeric"
+												min="0"
+												step="1"
+												bind:value={p.amount}
+												on:input={touch}
+											/></span
+										>
+									</label>
+								{/if}
+							</span>
+							<span class="flags">
+								{#if p.role}<span class="muted small role"
+										>{p.role === 'facilita' ? 'Facilita' : 'Co-produce'}</span
+									>{/if}
+								{#if p.id !== CAJA}
+									<Checkbox bind:checked={p.team} on:change={touch}>Es del equipo de KV</Checkbox>
+								{/if}
+								{#if account.loss === 'marcadas'}
+									<Checkbox bind:checked={p.coversLoss} on:change={touch}
+										>Pone si hay pérdida</Checkbox
+									>
+								{/if}
+							</span>
+						</li>
+					{:else}
+						<li class="muted small">
+							Sin partes, la ganancia queda en la {CAJA_LABEL}. Tocá «Lo de siempre» o sumá las
+							partes.
 						</li>
 					{/each}
 				</ul>
 				{#if result.split.problem}<Notice tone="warn" compact>{result.split.problem}</Notice>{/if}
+				<div class="kv-field loss-by">
+					<span>Si hay pérdida, la ponen</span>
+					<Segmented
+						options={LOSS_OPTIONS}
+						bind:value={account.loss}
+						label="Si hay pérdida, la ponen"
+					/>
+				</div>
+				<p class="muted small">
+					Cada una según su parte: su porcentaje; las de «lo que sobra» se reparten el porcentaje
+					que queda; un monto fijo no pone (lo que se paga igual va en Contrataciones). La {CAJA_LABEL}
+					pone los pesos del redondeo{#if account.loss === 'marcadas'}, y todo si no hay ninguna
+						marcada{/if}.
+				</p>
 				{#if result.profit < 0}
 					<Notice tone="warn" compact
-						>{#if account.split.lossBy === 'todes'}Hubo pérdida: la ponen todes, con el mismo
-							reparto que la ganancia (la parte de quien es del equipo la pone la {CAJA_LABEL}).{:else}Hubo
-							pérdida: la ponen quienes producen.{/if}</Notice
+						>Hubo pérdida: la ponen {account.loss === 'todes'
+							? 'todas las partes'
+							: 'las marcadas'}, según su parte (lo de las del equipo de KV lo pone la {CAJA_LABEL}).</Notice
 					>
 				{/if}
 				<p class="total-line">
 					<span>{CAJA_LABEL}{cajaNote}</span>
 					<strong class="num">{money(result.caja)}</strong>
 				</p>
-				<div class="row">
-					<Button variant="secondary" size="small" icon={Plus} on:click={addPerson}
-						>Otre facilitadore</Button
-					>
-				</div>
 			</Card>
 		</div>
 		<div class="area quien">
@@ -1170,36 +1194,66 @@
 	.team select {
 		width: auto;
 	}
-	.person {
+	/* Cada parte del reparto, angosta: nombre y lo suyo; cómo se lo lleva; las marcas y mover o
+	   sacar. Con lugar, mover y sacar suben al primer renglón. */
+	.part {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto auto;
-		grid-template-areas: 'name name del' 'value team share';
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas: 'name share' 'rule rule' 'flags tools';
 		align-items: center;
-		gap: var(--space-3xs);
-		padding-bottom: var(--space-3xs);
+		gap: var(--space-3xs) var(--space-2xs);
+		padding-bottom: var(--space-2xs);
 		border-bottom: 1px solid var(--line);
 	}
 	@container (min-width: 30rem) {
-		.person {
-			grid-template-columns: minmax(0, 1fr) auto auto auto auto;
-			grid-template-areas: 'name value team share del';
+		.part {
+			grid-template-columns: minmax(0, 1fr) auto auto;
+			grid-template-areas: 'name share tools' 'rule rule rule' 'flags flags flags';
 		}
 	}
-	.person .name {
+	.part .name {
 		grid-area: name;
 	}
-	.person .value {
-		grid-area: value;
-		max-width: 6.5rem;
+	.caja-name {
+		padding-inline: var(--space-3xs);
 	}
-	.person .team {
-		grid-area: team;
-	}
-	.person .share {
+	.part .share {
 		grid-area: share;
 	}
-	.person > :global(:last-child) {
-		grid-area: del;
+	.part .tools {
+		grid-area: tools;
+		display: flex;
+		gap: var(--space-3xs);
+		justify-content: flex-end;
+	}
+	.part .rule {
+		grid-area: rule;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3xs) var(--space-2xs);
+	}
+	.part .value {
+		max-width: 9rem;
+	}
+	/* Las tres reglas en un renglón también en el celu. */
+	.part .rule :global(.kv-segmented) {
+		flex-wrap: nowrap;
+		font-size: var(--text-sm);
+	}
+	.part .rule :global(.kv-segmented > button) {
+		padding-inline: 0.75em;
+		white-space: nowrap;
+	}
+	.part .flags {
+		grid-area: flags;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3xs) var(--space-s);
+	}
+	.role {
+		font-weight: 600;
 	}
 	.kv-field input,
 	.kv-field select {
@@ -1219,15 +1273,8 @@
 		display: block;
 		font-weight: 400;
 	}
-	/* Para la producción y quién pone la pérdida, en un renglón si entran. */
-	.split-row {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: end;
-		gap: var(--space-2xs) var(--space-xs);
-	}
-	.prod .affix input {
-		width: 5.5rem;
+	.loss-by {
+		margin-top: var(--space-2xs);
 	}
 	.venue-kinds {
 		display: flex;
@@ -1270,16 +1317,6 @@
 		margin-top: 0;
 		padding-top: 0;
 		border-top: 0;
-	}
-	.sub-row .sub {
-		margin: 0;
-		padding: 0;
-		border: 0;
-	}
-	.sub-row {
-		margin-top: var(--space-2xs);
-		padding-top: var(--space-2xs);
-		border-top: 1px solid var(--line);
 	}
 	.loss {
 		margin: 0;

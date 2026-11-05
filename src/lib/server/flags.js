@@ -196,8 +196,8 @@ export const FLAGS = Object.freeze({
 		description:
 			'En la ficha de cada evento que vende entradas, Ventas → «Gastos y reparto»: lo que entró ' +
 			'(con el Fondo calculado orden por orden), el lugar, las contrataciones, los otros gastos y ' +
-			'otros ingresos, y el reparto de la ganancia entre la Caja KV y les facilitadores, con ' +
-			'«quién le pasa a quién». Se guarda en la base y «Cerrar la cuenta» congela los números ' +
+			'otros ingresos, y el reparto de la ganancia entre las partes que elijas (la Caja KV, les ' +
+			'facilitadores, quien co-produce…), con «quién le pasa a quién». Se guarda en la base y «Cerrar la cuenta» congela los números ' +
 			'para Ventas → Cuentas del año. Solo admins. Apagado, no se ve.',
 		tech:
 			'docs/tickets.md, «Gastos y reparto». Migración 0078 (event_accounts, ' +

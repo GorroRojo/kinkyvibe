@@ -1,7 +1,7 @@
 /**
  * Ficha del evento, Ventas › Gastos y reparto (interruptor `gastos_reparto`; docs/tickets.md,
  * «Gastos y reparto»). Lo que entró sale de las órdenes del evento; lo cargado a mano (lugar,
- * contrataciones, gastos, otros ingresos, facilitadores y regla del reparto) se guarda en la base
+ * contrataciones, gastos, otros ingresos y las partes del reparto) se guarda en la base
  * (`event_accounts`, migración 0078). «Cerrar la cuenta» congela los números y guarda el resumen
  * (`event_account_closings`). Solo admins; cada cambio queda en Actividad.
  */
@@ -157,7 +157,7 @@ export const actions = {
 				fees: data.fees.length,
 				expenses: data.expenses.length,
 				otherIncome: data.otherIncome.length,
-				people: data.people.length,
+				parts: data.parts.length,
 				venueKind: data.venue.kind
 			}
 		});

@@ -496,20 +496,39 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   deja en la caja» (entonces va a la Caja KV). **Otros gastos**: concepto
   y monto, con atajos. Cada gasto, el lugar y cada contratación: quién pagó (Caja KV, une
   facilitadore o «Falta pagarlo») y «pagado el». Nunca alias ni CBU.
-- **Reparto** (regla de talleres, editable por evento): ganancia = ingresos − lugar −
-  contrataciones − otros gastos; de la ganancia, 30 % a la **Caja KV** por producir y el resto
-  entre les facilitadores, quienes facilitan el taller (en el evento, rol «Facilita»; «Enseña»
-  cuenta igual; gorrite, Mesa 5/11), en partes iguales o porcentajes que suman 100. La parte de quien tiene
-  «Es del equipo de KV» va a la Caja KV. Ejemplo: Mel (equipo) + Memi → Memi 35 %, Caja KV 65 %.
-  La Caja KV es la plata de Kinky Vibe (no es el Fondo) y se queda con lo que sobra, también los
-  pesos del redondeo (cada parte se redondea para abajo). **Producción:** la Caja KV produce; si
-  alguien más co-produce (otra organización o persona), se suma con su parte de la producción
-  («Sumar quien co-produce») y la Caja KV tiene el resto. La parte de la ganancia para la
-  producción se reparte entre quienes producen según esas partes. **Con pérdida** (gorrite, Mesa
-  4/11), por defecto la ponen solo quienes producen, según su parte (sin co-productores, toda la
-  Caja KV); les facilitadores no ponen nada. Por evento se puede elegir «Todes, como la ganancia»:
-  cada facilitadore pone su parte y la del equipo la pone la Caja KV. Se ve como «pone $ …» en el
-  reparto y en «Quién le pasa a quién»; la Caja KV pone los pesos del redondeo.
+- **Reparto** (gorrite, 5/11: «que el reparto sea más flexible… que se pueda hacer cualquier
+  cosa»): ganancia = ingresos − lugar − contrataciones − otros gastos, y se reparte entre una lista
+  libre de **partes** (una persona, la producción, la Caja KV, otra organización), que se suman,
+  sacan y reordenan. Cada parte tiene nombre, «Es del equipo de KV» (lo suyo va a la Caja KV) y una
+  regla: **Porcentaje** (de la ganancia), **Monto fijo** o **Lo que sobra** (las de «lo que sobra»
+  se reparten en partes iguales lo que queda después de los porcentajes y los montos fijos). Cada
+  parte se redondea para abajo; la Caja KV se queda con los pesos del redondeo, y con todo si no
+  hay partes. La parte «Caja KV» (id `caja`) es la de la Caja misma. Avisos (y entonces no reparte
+  ni deja cerrar): porcentajes que pasan de 100 %, montos fijos (o fijos más porcentajes) que pasan
+  de la ganancia, y «Sin repartir: $ X» si sobra plata y ninguna parte se lleva lo que sobra.
+  Atajos: **Lo de siempre** (la regla de talleres: 30 % para la producción, entre la Caja KV y
+  quienes co-producen en partes iguales, y lo que sobra entre les facilitadores; si ya hay partes,
+  pregunta), «+ Facilitadore» (lo que sobra), «+ Co-produce» (un porcentaje), «+ Caja KV» y «+ Otra
+  parte». «Facilita» y «Co-produce» son solo marcas de la parte (para los atajos y el nombre que se
+  ve si no tiene: «Facilitadore 1», «Co-productore 1», «Parte 1»); no cambian la cuenta. Ejemplo
+  con lo de siempre: Mel (equipo) + Memi → Memi 35 %, Caja KV 65 %. **Con pérdida** («Si hay
+  pérdida, la ponen»): **Solo las marcadas** («Pone si hay pérdida»; lo de siempre marca la Caja
+  KV y quienes co-producen, como decidió gorrite en la Mesa 4/11) o **Todas las partes**, cada una
+  según su parte: su porcentaje; las de «lo que sobra» se reparten el porcentaje que queda; un
+  monto fijo no pone (lo que se paga igual va en Contrataciones); si ninguna elegida tiene parte,
+  en partes iguales; sin ninguna marcada, la pone la Caja KV. Se ve como «pone $ …» en el reparto y
+  en «Quién le pasa a quién»; la Caja KV pone los pesos del redondeo y lo de las partes del equipo.
+- **Cuentas guardadas antes de las partes** (con `split`, `people` y `coproducers`):
+  `cleanAccount` las pasa a partes al leerlas (`legacyParts`; el JSON de `event_accounts` no
+  cambia de tabla, no hizo falta migración) y dan los mismos números: la Caja KV con
+  `productionPct` × lo que le quedaba de la producción, cada co-productore con `productionPct` × su
+  parte, cada facilitadore con «lo que sobra» (partes iguales) o `(100 − productionPct)` × su
+  porcentaje; sin facilitadores, la Caja KV se lleva lo que sobra y cada co-productore su parte del
+  total. «Quienes producen» pasa a «Solo las marcadas» (Caja KV y co-productores marcades) y
+  «Todes, como la ganancia» a «Todas las partes». Lo que antes era un error (porcentajes de
+  facilitadores que no sumaban 100, co-productores de más de 100 %) sigue avisando. En casos de
+  redondeo raros (ganancias que no dan pesos enteros) una parte puede variar en un peso a favor o
+  en contra de la Caja KV. Al guardar, ya se guarda con partes.
 - **Quién le pasa a quién:** cada fuente de plata y cada otro ingreso lo tiene alguien (sin
   elegir, la Caja KV). Saldo = lo que le toca + lo que puso − la plata del evento que tiene; el
   Fondo, el lugar sin pagar y cada gasto o contratación sin pagar entran como una parte más. El
@@ -518,6 +537,10 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   guardó en el medio, no se pisa y avisa). **Cerrar la cuenta** guarda, congela los números y
   escribe el resumen en `event_account_closings` (entradas, preventa, puerta, Fondo neto, otros
   ingresos, lugar, contrataciones, otros gastos, gastos, Caja KV, ganancia, y la foto de la cuenta).
+  El resumen no tiene una columna de facilitadores (las planillas no la tenían y con partes libres
+  no siempre hay): «Caja KV» es todo lo que termina en la Caja (su parte, la de las partes del
+  equipo, los pesos del redondeo y las contrataciones que se dejaron en la caja); lo de cada parte
+  queda en la foto.
   Cerrada, la página muestra la foto y avisa si después cambiaron las ventas; **Reabrir la cuenta**
   borra el cierre. Todo queda en Actividad (`event_account.save`, `.close`, `.reopen`,
   `venue.cost_rule`).
@@ -525,7 +548,8 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   lista de eventos.
 - **La página** (gorrite, Mesa 5/11: más compacta): arriba, ingresos, gastos, ganancia o pérdida y
   Caja KV; abajo, cuatro tarjetas: **Ingresos** (lo que entró y otros ingresos), **Gastos** (lugar,
-  contrataciones y otros gastos), **Reparto** y **Quién le pasa a quién**. En la compu van en dos
+  contrataciones y otros gastos), **Reparto** (cada parte: nombre y lo suyo; su regla; sus marcas,
+  y subir, bajar o sacar) y **Quién le pasa a quién**. En la compu van en dos
   columnas (ingresos y reparto a la izquierda, gastos y quién le pasa a quién a la derecha); en el
   celu, una, en ese orden. Cada renglón de gasto va en una línea si entra.
 - **Cada total dice qué suma** (gorrite, Mesa 5/11), igual en la página, en el resumen de la cuenta

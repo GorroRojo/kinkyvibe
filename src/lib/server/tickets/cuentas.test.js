@@ -6,7 +6,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
-import { emptyAccount } from '$lib/admin/reparto.js';
+import { emptyAccount, newPart } from '$lib/admin/reparto.js';
 import {
 	ACCOUNT_TABLES,
 	accountsReady,
@@ -53,7 +53,10 @@ const summary = {
 describe('cuentas', () => {
 	it('guarda, y no pisa lo que guardó otre admin', async () => {
 		expect(await getAccount(t.db, SLUG)).toBeNull();
-		const data = { ...emptyAccount(), people: [{ id: 'a', name: 'Facilitadore A', team: false }] };
+		const data = {
+			...emptyAccount(),
+			parts: [newPart({ id: 'a', name: 'Facilitadore A', role: 'facilita' })]
+		};
 		expect(await saveAccount(t.db, { slug: SLUG, data, version: 0, by: 'admin-a' })).toEqual({
 			ok: true,
 			version: 1
@@ -70,7 +73,33 @@ describe('cuentas', () => {
 		const saved = await getAccount(t.db, SLUG);
 		expect(saved?.version).toBe(2);
 		expect(saved?.updatedBy).toBe('admin-b');
-		expect(saved?.data.people[0].name).toBe('Facilitadore A');
+		expect(saved?.data.parts[0].name).toBe('Facilitadore A');
+	});
+
+	it('una cuenta guardada con el reparto de antes se lee como partes', async () => {
+		// Como quedó guardada antes de que el reparto fuera una lista de partes.
+		const old = {
+			...emptyAccount(),
+			parts: undefined,
+			loss: undefined,
+			people: [{ id: 'a', name: 'Facilitadore A', team: false, pct: null }],
+			coproducers: [],
+			split: { productionPct: 30, mode: 'iguales', lossBy: 'todes' }
+		};
+		await t.db
+			.prepare(
+				`INSERT INTO event_accounts (event_slug, data, version, created_at, created_by, updated_at, updated_by)
+				VALUES (?1, ?2, 1, 0, 'x', 0, 'x')`
+			)
+			.bind(SLUG, JSON.stringify(old))
+			.run();
+		const saved = await getAccount(t.db, SLUG);
+		expect(saved?.data.loss).toBe('todes');
+		expect(saved?.data.parts.map((p) => [p.id, p.rule, p.pct])).toEqual([
+			['caja', 'pct', 30],
+			['a', 'resto', 0]
+		]);
+		expect(saved?.data).not.toHaveProperty('people');
 	});
 
 	it('cerrada no se guarda; reabierta sí', async () => {
