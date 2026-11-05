@@ -22,6 +22,8 @@ import { getDB, logDBError } from '$lib/server/db';
 import { getPanelEvent } from '$lib/server/eventos/panel.js';
 import { gastosRepartoEnabled } from '$lib/server/flags.js';
 import {
+	MISSING_MIGRATION,
+	accountsReady,
 	closeAccount,
 	getAccount,
 	getClosing,
@@ -55,33 +57,40 @@ async function venueOf(db, slug) {
 }
 
 /**
- * Lo común de la página y de las acciones: admin, interruptor, que venda entradas y base.
+ * Lo común de la página y de las acciones: admin, interruptor, que venda entradas y base (con
+ * las tablas de la migración 0078, salvo `needTables` en false).
  * @param {import('./$types').RequestEvent | Parameters<import('./$types').PageServerLoad>[0]} event
  */
-async function guard({ locals, url, params, platform }) {
+async function guard({ locals, url, params, platform }, needTables = true) {
 	const admin = requireAdmin(locals, url);
 	if (!(await gastosRepartoEnabled(platform))) error(404, 'No encontramos esta página.');
 	const config = await getEventTickets(params.slug);
 	if (!config) redirect(303, eventHref(params.slug));
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
+	// Las acciones necesitan las tablas; la página, en cambio, avisa (ver `load`).
+	if (needTables && !(await accountsReady(db))) error(503, MISSING_MIGRATION);
 	return { db, config, admin };
 }
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store' });
-	const { db, config } = await guard(event);
+	const { db, config } = await guard(event, false);
 	const slug = event.params.slug;
+	// Sin la migración 0078 (una base que todavía no la tiene, como una vista previa): la página
+	// muestra lo que entró y un aviso, sin poder guardar, en vez de romperse.
+	const ready = await accountsReady(db);
 	const [orders, venue, saved, closing] = await Promise.all([
 		listOrders(db, slug),
-		venueOf(db, slug),
-		getAccount(db, slug),
-		getClosing(db, slug)
+		ready ? venueOf(db, slug) : null,
+		ready ? getAccount(db, slug) : null,
+		ready ? getClosing(db, slug) : null
 	]);
 	const income = eventIncome(orders);
 	const snapshot = /** @type {{ income?: any, data?: any } | null} */ (closing?.snapshot ?? null);
 	return {
+		missingMigration: ready ? null : MISSING_MIGRATION,
 		income,
 		account: saved?.data ?? emptyAccount(venue?.rule ?? null),
 		version: saved?.version ?? 0,

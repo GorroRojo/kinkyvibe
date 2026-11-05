@@ -5,7 +5,7 @@
 	 */
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
-	import { Card, EmptyState } from '$lib/components/ui';
+	import { Card, EmptyState, Notice } from '$lib/components/ui';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 
@@ -63,6 +63,8 @@
 	title="Cuentas del año"
 	subtitle="Con las cuentas cerradas de cada evento (Gastos y reparto, en su ficha), por el mes del evento."
 />
+
+{#if data.missingMigration}<Notice tone="error">{data.missingMigration}</Notice>{/if}
 
 <nav class="years" aria-label="Año">
 	{#each data.years as y (y)}

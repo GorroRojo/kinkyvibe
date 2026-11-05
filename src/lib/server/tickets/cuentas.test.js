@@ -8,6 +8,8 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { emptyAccount } from '$lib/admin/reparto.js';
 import {
+	ACCOUNT_TABLES,
+	accountsReady,
 	closeAccount,
 	closingYears,
 	getAccount,
@@ -126,5 +128,18 @@ describe('cuentas', () => {
 			hours: 0,
 			rate: 10000
 		});
+	});
+});
+
+describe('accountsReady', () => {
+	it('con la migración 0078 aplicada, sí', async () => {
+		expect(await accountsReady(t.db)).toBe(true);
+	});
+
+	it('si falta una de sus tablas (una base sin la migración), no', async () => {
+		const missing = {
+			prepare: () => ({ bind: () => ({ first: async () => ({ n: ACCOUNT_TABLES.length - 1 }) }) })
+		};
+		expect(await accountsReady(/** @type {any} */ (missing))).toBe(false);
 	});
 });

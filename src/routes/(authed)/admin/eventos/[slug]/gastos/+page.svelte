@@ -255,6 +255,7 @@
 		</dl>
 	</Card>
 {/if}
+{#if data.missingMigration}<Notice tone="error">{data.missingMigration}</Notice>{/if}
 {#if errorText}<Notice tone="error">{errorText}</Notice>{/if}
 <p class="year-link muted small"><a href="/admin/ventas/cuentas">Ver las cuentas del año</a></p>
 
@@ -273,7 +274,7 @@
 	<Stat label={CAJA_LABEL} value={money(result.caja)} sub="la plata de Kinky Vibe" />
 </div>
 
-<fieldset class="sheet" disabled={closed}>
+<fieldset class="sheet" disabled={closed || Boolean(data.missingMigration)}>
 	<div class="cols">
 		<div class="area ing">
 			<Card title="Ingresos">
@@ -947,7 +948,7 @@
 	</div>
 </fieldset>
 
-{#if !closed}
+{#if !closed && !data.missingMigration}
 	<div class="save-bar">
 		<SaveStatus {status} error={errorText} />
 		{#if dirty && status !== 'saving'}<span class="muted small">Hay cambios sin guardar.</span>{/if}

@@ -24,6 +24,28 @@ function parse(s) {
 	}
 }
 
+/** Las tablas de la migración 0078; sin ellas, las páginas avisan en vez de romperse. */
+export const ACCOUNT_TABLES = ['event_accounts', 'event_account_closings', 'venue_cost_rules'];
+
+/** El aviso cuando la base todavía no tiene la migración 0078 (por ejemplo, una vista previa). */
+export const MISSING_MIGRATION =
+	'A esta base le falta la migración 0078 (Gastos y reparto). Avisale a gorrite para que la aplique.';
+
+/**
+ * ¿Está aplicada la migración 0078 en esta base? `false` si falta alguna de sus tablas.
+ *
+ * @param {D1Database} db
+ */
+export async function accountsReady(db) {
+	const r = await db
+		.prepare(
+			`SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name IN (${ACCOUNT_TABLES.map((_, i) => `?${i + 1}`).join(', ')})`
+		)
+		.bind(...ACCOUNT_TABLES)
+		.first();
+	return Number(r?.n ?? 0) === ACCOUNT_TABLES.length;
+}
+
 /**
  * Lo guardado de la cuenta de un evento, o `null` si todavía no se guardó nada.
  *

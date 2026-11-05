@@ -8,7 +8,12 @@ import { yearSummary } from '$lib/admin/reparto.js';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { gastosRepartoEnabled } from '$lib/server/flags.js';
-import { closingYears, listClosings } from '$lib/server/tickets/cuentas.js';
+import {
+	MISSING_MIGRATION,
+	accountsReady,
+	closingYears,
+	listClosings
+} from '$lib/server/tickets/cuentas.js';
 import { todayInArgentina } from '$lib/utils/eventDraft.js';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -21,8 +26,13 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const thisYear = Number(todayInArgentina().slice(0, 4));
 	const asked = Number(url.searchParams.get('anio'));
 	const year = Number.isInteger(asked) && asked > 2000 && asked < 3000 ? asked : thisYear;
-	const [rows, years] = await Promise.all([listClosings(db, year), closingYears(db)]);
+	// Sin la migración 0078 (por ejemplo, una vista previa): la página avisa en vez de romperse.
+	const ready = await accountsReady(db);
+	const [rows, years] = ready
+		? await Promise.all([listClosings(db, year), closingYears(db)])
+		: [[], []];
 	return {
+		missingMigration: ready ? null : MISSING_MIGRATION,
 		year,
 		years: [...new Set([thisYear, year, ...years])].sort((a, b) => b - a),
 		events: rows,
