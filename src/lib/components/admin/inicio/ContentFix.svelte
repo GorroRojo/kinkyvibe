@@ -3,17 +3,24 @@
 	 * Un arreglo de contenido de «Para revisar» que se resuelve ahí mismo (docs/panel.md,
 	 * «Arreglos de contenido»; las filas las arma src/lib/server/admin/contentReview.js):
 	 *
-	 * - `item.altFix` («Fotos sin descripción»): la miniatura, el perfil y un campo para escribir qué
-	 *   se ve. Se guarda con `?/fotoAlt` (el texto del perfil, con su historial y Actividad).
+	 * - `item.altFix` («Fotos sin descripción»): la miniatura (grande; tocándola se ve entera, en
+	 *   ImageViewer), el perfil y un campo para escribir qué se ve. Se guarda con `?/fotoAlt` (el
+	 *   texto del perfil, con su historial y Actividad).
 	 * - `item.shrink` («Portadas pesadas»): «Achicar» baja la imagen original de la biblioteca, la
 	 *   pasa por el mismo achique de la subida (`prepareImage`, con tope de peso), la sube como imagen
 	 *   nueva (`POST /imagenes`, con sus copias chicas) y cambia la portada con `?/portada`. La
 	 *   original queda en la biblioteca.
 	 *
+	 * Los campos y botones son las piezas del panel (`Field`, `Button`; formControls.test.js).
+	 *
 	 * Nunca escribe una descripción sola: si la imagen no tiene texto alternativo, lo pide antes de
 	 * subir la copia.
 	 */
 	import { applyAction, deserialize, enhance } from '$app/forms';
+	import { Maximize2 } from '@lucide/svelte';
+	import Field from '$lib/components/ui/Field.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import ImageViewer from '$lib/components/admin/panel/ImageViewer.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { HEAVY_COVER_BYTES, appendCopies, prepareImage } from '$lib/utils/imageResize.js';
 	import { ALT_MAX } from '$lib/utils/imageAlt.js';
@@ -27,12 +34,17 @@
 	let alt = '';
 	let busy = '';
 	let error = '';
+	/** Falta el texto alternativo de la copia (va debajo de su campo). */
+	let altError = '';
 	/** El texto alternativo de la copia, si la original no tiene. */
 	let coverAlt = '';
+	/** La imagen abierta en grande (ImageViewer). */
+	let viewing = false;
 
 	// Lo que salió bien lo dice la tarjeta (la fila se va); acá, solo lo que salió mal.
 	$: result = form?.contentFix?.id === item.id && !form.contentFix.ok ? form.contentFix : null;
 	$: inputId = `fix-${item.id}`;
+	$: photoName = item.altFix ? `foto ${item.altFix.index + 1} de ${item.title}` : '';
 
 	/** @param {number} bytes */
 	const kb = (bytes) => `${Math.round(bytes / 1024)} KB`;
@@ -42,9 +54,10 @@
 		if (!s || busy) return;
 		const description = (s.alt || coverAlt).trim();
 		if (!description) {
-			error = 'Escribí qué se ve en la imagen: lo leen quienes usan lector de pantalla.';
+			altError = 'Escribí qué se ve en la imagen: lo leen quienes usan lector de pantalla.';
 			return;
 		}
+		altError = '';
 		error = '';
 		busy = 'Bajando la original…';
 		try {
@@ -109,33 +122,38 @@
 		}}
 	>
 		{#if item.altFix.thumb}
-			<a href={item.altFix.thumb} target="_blank" rel="noreferrer" class="thumb"
+			<button
+				type="button"
+				class="thumb big"
+				aria-haspopup="dialog"
+				on:click={() => (viewing = true)}
 				><img src={item.altFix.thumb} alt="" loading="lazy" decoding="async" /><span
-					class="visually-hidden"
-					>Abrir la foto {item.altFix.index + 1} de {item.title} en otra pestaña</span
-				></a
+					class="zoom"
+					aria-hidden="true"><Maximize2 size={16} /></span
+				><span class="visually-hidden">Ver grande la {photoName}</span></button
 			>
+			<ImageViewer bind:open={viewing} src={item.altFix.thumb} title={photoName} />
 		{/if}
 		<div class="grow">
-			<label for={inputId}
+			<span class="head"
 				><b>{item.title}</b> · foto {item.altFix.index + 1}
-				{#if item.href}<a href={item.href}>{item.action}</a>{/if}</label
+				{#if item.href}<a href={item.href}>{item.action}</a>{/if}</span
 			>
 			<div class="row">
-				<input
-					id={inputId}
+				<Field
+					label="Qué se ve en la foto"
 					name="alt"
+					id={inputId}
 					bind:value={alt}
 					maxlength={ALT_MAX}
 					required
-					placeholder="Qué se ve en la foto"
 					autocomplete="off"
+					error={result && !result.ok ? result.message : ''}
 				/>
-				<button class="kv-btn sm" disabled={Boolean(busy) || !alt.trim()}
-					>{busy || 'Guardar'}</button
+				<Button type="submit" busy={Boolean(busy)} disabled={Boolean(busy) || !alt.trim()}
+					>{busy || 'Guardar'}</Button
 				>
 			</div>
-			{#if result}<small class:bad={!result.ok} role="status">{result.message}</small>{/if}
 		</div>
 		<input type="hidden" name="item" value={item.id} />
 		<input type="hidden" name="profile" value={item.altFix.profileId} />
@@ -144,62 +162,92 @@
 	</form>
 {:else if item.shrink}
 	<div class="fix">
-		<a href={item.shrink.url} target="_blank" rel="noreferrer" class="thumb"
-			><img
-				src={item.shrink.url}
-				alt={item.shrink.alt}
-				loading="lazy"
-				decoding="async"
-			/>{#if !item.shrink.alt}<span class="visually-hidden"
-					>Abrir la portada de {item.title} en otra pestaña</span
-				>{/if}</a
+		<button type="button" class="thumb" aria-haspopup="dialog" on:click={() => (viewing = true)}
+			><img src={item.shrink.url} alt="" loading="lazy" decoding="async" /><span
+				class="visually-hidden">Ver grande la portada de {item.title}</span
+			></button
 		>
+		<ImageViewer
+			bind:open={viewing}
+			src={item.shrink.url}
+			title="Portada de {item.title}"
+			alt={item.shrink.alt}
+		/>
 		<div class="grow">
-			<span
-				><b>{item.title}</b> · {kb(item.shrink.size)}
+			<span class="head"
+				><b>{item.title}</b> · <span class="size">{kb(item.shrink.size)}</span>
 				{#if item.href}<a href={item.href}>{item.action}</a>{/if}</span
 			>
-			{#if !item.shrink.alt}
-				<label class="row">
-					<span class="visually-hidden">Qué se ve en la imagen</span>
-					<input
+			<div class="row">
+				{#if !item.shrink.alt}
+					<Field
+						label="Qué se ve en la imagen (para la copia)"
 						bind:value={coverAlt}
+						id={inputId}
 						maxlength={ALT_MAX}
-						placeholder="Qué se ve en la imagen (para la copia)"
 						autocomplete="off"
+						error={altError}
 					/>
-				</label>
-			{/if}
-			{#if error}<small class="bad" role="alert">{error}</small>
-			{:else if busy}<small role="status">{busy}</small>
-			{:else if result}<small class:bad={!result.ok} role="status">{result.message}</small>{/if}
+				{/if}
+				<Button variant="secondary" busy={Boolean(busy)} disabled={Boolean(busy)} on:click={shrink}
+					>Achicar</Button
+				>
+			</div>
+			{#if error}<p class="kv-flash bad" role="alert">
+					{error}
+				</p>
+			{:else if busy}<p class="kv-note" role="status">{busy}</p>
+			{:else if result}<p class="kv-flash" class:bad={!result.ok} role="status">
+					{result.message}
+				</p>{/if}
 		</div>
-		<button type="button" class="kv-btn ghost sm" disabled={Boolean(busy)} on:click={shrink}
-			>Achicar</button
-		>
 	</div>
 {/if}
 
 <style lang="scss">
 	.fix {
 		display: flex;
-		gap: var(--space-2xs);
-		align-items: center;
+		gap: var(--space-xs);
+		align-items: flex-start;
 		flex: 1;
 		min-width: 0;
 	}
 	.thumb {
+		position: relative;
 		flex: none;
-		width: 3.2rem;
-		height: 3.2rem;
-		border-radius: var(--radius-s, 0.4rem);
+		width: 4.5rem;
+		height: 4.5rem;
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-s);
 		overflow: hidden;
 		background: var(--line);
+		cursor: zoom-in;
+		&.big {
+			width: 8rem;
+			height: 8rem;
+		}
 		img {
 			width: 100%;
 			height: 100%;
 			object-fit: cover;
 			display: block;
+		}
+		.zoom {
+			position: absolute;
+			right: 0.3rem;
+			bottom: 0.3rem;
+			display: grid;
+			place-items: center;
+			width: 1.75rem;
+			height: 1.75rem;
+			border-radius: 50%;
+			background: color-mix(in srgb, var(--surface) 88%, transparent);
+			color: var(--text);
+		}
+		&:focus-visible {
+			outline: 2px solid var(--focus-field);
+			outline-offset: 2px;
 		}
 	}
 	.grow {
@@ -207,24 +255,37 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-2xs);
 		b {
 			overflow-wrap: anywhere;
 		}
-		a {
+		.size {
+			white-space: nowrap;
+		}
+		.head a {
 			margin-left: 0.3rem;
 			font-size: 0.9em;
 		}
 	}
 	.row {
 		display: flex;
-		gap: var(--space-3xs);
-		input {
-			flex: 1;
-			min-width: 0;
+		flex-wrap: wrap;
+		gap: var(--space-2xs);
+		align-items: flex-end;
+		> :global(.kv-field) {
+			flex: 1 1 14rem;
 		}
 	}
-	small.bad {
-		color: var(--bad);
+	// En el celu la miniatura va arriba, a todo el ancho de la fila, y el campo debajo.
+	@media (max-width: 559.98px) {
+		.fix:has(.thumb.big) {
+			flex-direction: column;
+			align-items: stretch;
+		}
+		.thumb.big {
+			width: 100%;
+			height: auto;
+			aspect-ratio: 4 / 3;
+		}
 	}
 </style>
