@@ -11,8 +11,9 @@
 	 * `imageInfo` no trae), `type` (`website`, `article`, `event`, `profile`), `canonical`
 	 * (relativa o entera; por defecto, la dirección de la página sin `?…`), `ogUrl` (la dirección
 	 * para `og:url` si no es la canónica: una lista filtrada guarda sus filtros) y `noindex`
-	 * (no listado). Sin imagen propia, la tarjeta por defecto que manda el servidor
-	 * (`linkPreview` en los datos de la página; si no, la de `static/`).
+	 * (no listado). Sin imagen propia, `card` (la tarjeta dibujada del objeto, `/og/objeto/…`, con
+	 * sus medidas y su texto alternativo) o, sin `card`, la tarjeta por defecto que manda el
+	 * servidor (`linkPreview` en los datos de la página; si no, la de `static/`).
 	 */
 	import { page } from '$app/stores';
 	import {
@@ -39,6 +40,8 @@
 	/** @type {string | null | undefined} */
 	export let ogUrl = undefined;
 	export let noindex = false;
+	/** @type {Readonly<Required<import('$lib/utils/seo.js').PreviewImage>> | null | undefined} */
+	export let card = undefined;
 
 	$: url = absoluteUrl(canonical, $page.url.origin) || canonicalUrl($page.url);
 	$: tags = seoTags({
@@ -50,7 +53,7 @@
 			$page.url.origin,
 			imageInfo,
 			imageAlt,
-			cardImage('default', linkPreviewOf($page.data))
+			card ?? cardImage('default', linkPreviewOf($page.data))
 		),
 		type,
 		noindex

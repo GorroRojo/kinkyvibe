@@ -10,12 +10,13 @@ import { getDB } from '$lib/server/db';
 import { contactEmail, mailFooter, replyToAddress, siteOrigin } from '$lib/server/tickets/index.js';
 import { previewEmail } from '$lib/server/tickets/templatePreview.js';
 import { mergeTemplates, validateTemplate } from '$lib/utils/emailTemplates.js';
-import { eventMailOr404, generalTemplate } from '../context.server.js';
+import { eventMailOr404, generalTemplate, workshopPreview } from '../context.server.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ locals, url, params, platform, request }) {
 	requireAdmin(locals, url);
-	const { def, previewEvent } = await eventMailOr404(params.slug, params.id);
+	const mail = await eventMailOr404(params.slug, params.id);
+	const { def } = mail;
 	/** @type {Record<string, unknown>} */
 	let raw = {};
 	try {
@@ -25,13 +26,17 @@ export async function POST({ locals, url, params, platform, request }) {
 	}
 	const valid = validateTemplate(def.id, templateInput(raw), { optional: true });
 	const db = getDB(platform);
-	const { general } = await generalTemplate(db, def);
+	const [{ general }, { event }] = await Promise.all([
+		generalTemplate(db, def),
+		// `?parte=`: la parte elegida para el recordatorio de un taller.
+		workshopPreview(db, params.slug, mail, url.searchParams.get('parte'))
+	]);
 	const message = previewEmail(def.id, mergeTemplates(valid.value, general), {
 		origin: siteOrigin(url),
 		contactEmail: contactEmail(),
 		replyTo: await replyToAddress(db),
 		footer: await mailFooter(db),
-		event: previewEvent
+		event
 	});
 	return json(
 		{ ...message, errors: valid.ok ? {} : valid.errors },

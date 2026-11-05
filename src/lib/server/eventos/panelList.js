@@ -9,7 +9,14 @@ import { listPanelEventsWithMeta } from './panel.js';
 import { listEventVenues } from '$lib/server/amigues/venues.js';
 import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 import { totalCapacity } from '$lib/admin/eventFormat.js';
-import { GOAL_KEY, MP_FEE_SQL, parseSalesGoal, storedSalesGoal } from '$lib/utils/salesGoal.js';
+import {
+	GOAL_KEY,
+	MP_FEE_ESTIMATED_SQL,
+	MP_FEE_SQL,
+	REVENUE_SQL,
+	parseSalesGoal,
+	storedSalesGoal
+} from '$lib/utils/salesGoal.js';
 import {
 	FILTERS,
 	OLDER_PAGE,
@@ -27,20 +34,20 @@ import {
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 /**
- * Los eventos que tienen un lugar vinculado (edge `lugar` hacia un lugar sin borrar), en una
- * consulta para todos. Sin base o con un error, ninguno (el filtro «Online con lugar» mira solo
- * el texto libre).
+ * Los eventos que tienen un lugar vinculado (edge `lugar` hacia un lugar sin borrar), con el
+ * nombre del lugar, en una consulta para todos. Sin base o con un error, ninguno (el filtro
+ * «Online con lugar» mira solo el texto libre y la lista muestra el «Dónde» en texto libre).
  * @param {D1Database | null | undefined} db
- * @returns {Promise<Set<string>>}
+ * @returns {Promise<Map<string, string>>} dirección del evento → nombre del lugar
  */
 async function eventsWithVenue(db) {
-	if (!db) return new Set();
+	if (!db) return new Map();
 	try {
 		const links = await listEventVenues(db);
-		return new Set(links.filter((l) => !l.venueDeleted).map((l) => l.eventSlug));
+		return new Map(links.filter((l) => !l.venueDeleted).map((l) => [l.eventSlug, l.venueTitle]));
 	} catch (error) {
 		logDBError('lugares de los eventos para la lista del panel', error);
-		return new Set();
+		return new Map();
 	}
 }
 
@@ -74,6 +81,8 @@ export async function panelEventRows(db) {
 			status: e.status,
 			locationName: e.locationName,
 			location: e.location,
+			// El lugar vinculado manda sobre el texto libre al mostrar el «Dónde» (como la página).
+			venueName: withVenue.get(e.slug) ?? '',
 			place: e.place,
 			unlisted: e.unlisted,
 			unpublished: e.unpublished,
@@ -88,6 +97,7 @@ export async function panelEventRows(db) {
 			sold: 0,
 			revenue: 0,
 			mpFee: 0,
+			mpFeeEstimated: 0,
 			transfers: 0,
 			i
 		};
@@ -106,7 +116,7 @@ export async function panelEventRows(db) {
  */
 export async function withSales(db, rows, now) {
 	if (!db || !rows.length) return rows;
-	/** @type {Map<string, { sold: number, revenue: number, mpFee: number, transfers: number }>} */
+	/** @type {Map<string, { sold: number, revenue: number, mpFee: number, mpFeeEstimated: number, transfers: number }>} */
 	const sales = new Map();
 	try {
 		// Las direcciones van como una lista JSON (un solo parámetro: D1 acepta pocos por consulta).
@@ -114,8 +124,9 @@ export async function withSales(db, rows, now) {
 			.prepare(
 				`SELECT event_slug,
 					SUM(CASE WHEN status = 'approved' THEN quantity ELSE 0 END) AS sold,
-					SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS revenue,
+					SUM(CASE WHEN status = 'approved' THEN ${REVENUE_SQL} ELSE 0 END) AS revenue,
 					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee,
+					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_ESTIMATED_SQL} ELSE 0 END) AS mp_fee_estimated,
 					SUM(CASE WHEN status = 'awaiting_transfer' AND expires_at > ?1 THEN 1 ELSE 0 END) AS transfers
 				FROM orders WHERE event_slug IN (SELECT value FROM json_each(?2)) GROUP BY event_slug`
 			)
@@ -126,6 +137,7 @@ export async function withSales(db, rows, now) {
 				sold: Number(r.sold ?? 0),
 				revenue: Number(r.revenue ?? 0),
 				mpFee: Number(r.mp_fee ?? 0),
+				mpFeeEstimated: Number(r.mp_fee_estimated ?? 0),
 				transfers: Number(r.transfers ?? 0)
 			});
 		}
@@ -137,6 +149,7 @@ export async function withSales(db, rows, now) {
 		sold: sales.get(r.slug)?.sold ?? 0,
 		revenue: sales.get(r.slug)?.revenue ?? 0,
 		mpFee: sales.get(r.slug)?.mpFee ?? 0,
+		mpFeeEstimated: sales.get(r.slug)?.mpFeeEstimated ?? 0,
 		transfers: sales.get(r.slug)?.transfers ?? 0
 	}));
 }

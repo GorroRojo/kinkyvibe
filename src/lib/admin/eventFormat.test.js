@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eventBadges, totalCapacity } from './eventFormat.js';
+import { eventBadges, panelPlaceText, panelVenueText, totalCapacity } from './eventFormat.js';
 
 describe('totalCapacity', () => {
 	it('suma los cupos; con un tipo sin cupo, el evento no tiene cupo total', () => {
@@ -17,5 +17,34 @@ describe('eventBadges: Borrador y No listado', () => {
 		expect(eventBadges({ unlisted: true, draft: true })[0].label).toBe('Borrador');
 		expect(eventBadges({ unlisted: true })[0].label).toBe('No listado');
 		expect(eventBadges({ unlisted: false, draft: true })).toEqual([]);
+	});
+});
+
+describe('panelPlaceText: el lugar vinculado manda sobre el texto libre (como la página)', () => {
+	const leftover = { locationName: 'Zona Inventada, CABA', location: 'Calle Falsa 123' };
+
+	it('con lugar vinculado, el lugar y su barrio (o su ciudad), nunca el texto que quedó', () => {
+		const venue = { title: 'Sala Inventada', area: 'Barrio Ficticio', city: 'CABA' };
+		expect(panelPlaceText(leftover, venue)).toBe('Sala Inventada, Barrio Ficticio');
+		expect(panelPlaceText(leftover, { title: 'Sala Inventada', city: 'CABA' })).toBe(
+			'Sala Inventada, CABA'
+		);
+		expect(panelPlaceText({}, { title: 'Sala Inventada' })).toBe('Sala Inventada');
+	});
+
+	it('sin lugar, el texto libre como antes: «Nombre, Dirección», sin repetir', () => {
+		expect(panelPlaceText(leftover)).toBe('Zona Inventada, CABA, Calle Falsa 123');
+		expect(panelPlaceText(leftover, null)).toBe('Zona Inventada, CABA, Calle Falsa 123');
+		expect(panelPlaceText({ locationName: 'Sala X', location: 'Sala X' })).toBe('Sala X');
+		expect(panelPlaceText({ location: 'Calle Falsa 123' })).toBe('Calle Falsa 123');
+		expect(panelPlaceText({})).toBe('');
+	});
+
+	it('un lugar sin nombre no borra el texto libre', () => {
+		expect(panelPlaceText(leftover, { title: '' })).toBe('Zona Inventada, CABA, Calle Falsa 123');
+	});
+
+	it('panelVenueText no repite el barrio si es igual al nombre', () => {
+		expect(panelVenueText({ title: 'San Telmo', area: 'san telmo' })).toBe('San Telmo');
 	});
 });

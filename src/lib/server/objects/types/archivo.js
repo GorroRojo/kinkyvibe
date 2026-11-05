@@ -1,6 +1,6 @@
 /**
- * Tipo núcleo `archivo`: un documento (PDF, ODT, ODS, ODP) o un video (MP4, WebM) de la
- * biblioteca, guardado en R2 (bucket `MEDIA`) como las imágenes. Ver docs/imagenes.md.
+ * Tipo núcleo `archivo`: un documento (PDF, ODT, ODS, ODP), un video (MP4, WebM) o los
+ * subtítulos de un video (WebVTT) de la biblioteca, guardado en R2 (bucket `MEDIA`) como las imágenes. Ver docs/imagenes.md.
  *
  * Es un tipo hermano de `imagen` (y no un `imagen` con otro `mime`) para que ningún uso de una
  * imagen (portada, avatar, imagen de una serie) pueda apuntar a un PDF o a un video: los edges
@@ -27,18 +27,20 @@ export const FILE_MIMES = /** @type {const} */ ([
 	'video/webm',
 	'application/vnd.oasis.opendocument.text',
 	'application/vnd.oasis.opendocument.spreadsheet',
-	'application/vnd.oasis.opendocument.presentation'
+	'application/vnd.oasis.opendocument.presentation',
+	// Subtítulos de un video (WebVTT), para el `<track>` del material ($lib/utils/videoExtras.js).
+	'text/vtt'
 ]);
 
 /** Clave en R2: `file/<sha-256 en hex>.<ext>`. */
-export const FILE_KEY = /^file\/[0-9a-f]{64}\.(?:pdf|mp4|webm|odt|ods|odp)$/;
+export const FILE_KEY = /^file\/[0-9a-f]{64}\.(?:pdf|mp4|webm|odt|ods|odp|vtt)$/;
 
 /**
  * Un enlace a un archivo de la biblioteca dentro de un texto: `/media/file/<sha-256>.<ext>` (con o
  * sin el dominio adelante). Lo de después de la extensión no puede seguir la palabra (así
  * `….pdfx` no cuenta).
  */
-const FILE_URL = /\/media\/(file\/[0-9a-f]{64}\.(?:pdf|mp4|webm|odt|ods|odp))(?![0-9A-Za-z_])/g;
+const FILE_URL = /\/media\/(file\/[0-9a-f]{64}\.(?:pdf|mp4|webm|odt|ods|odp|vtt))(?![0-9A-Za-z_])/g;
 
 /**
  * Pura: las claves (`file/<hash>.<ext>`) de los archivos que estos textos enlazan, sin repetir y en

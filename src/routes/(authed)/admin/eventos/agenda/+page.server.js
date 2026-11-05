@@ -1,7 +1,7 @@
 /**
  * Agenda: los eventos en un calendario (mes, semana, lista) y en una tabla editable como la
  * planilla de planificación. Se guarda por el mismo camino que el editor de eventos
- * (`getRepoClient()`: GitHub, el mock de `npm run dev:admin` o la capa demo de los previews):
+ * (`getRepoClient()`, que guarda en la base):
  * - action `save`: una fila (Enter en la planilla), un commit;
  * - action `saveMany`: varias filas en un commit ("Guardar N filas" de la planilla y "Guardar
  *   cambios" de los eventos movidos en el calendario), con la misma validación fila por fila.

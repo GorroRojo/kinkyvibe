@@ -27,7 +27,7 @@ import { stripMdPlace } from '$lib/utils/eventPlace.js';
 import { purchaseAccount } from '$lib/server/cuentas/savedBuyer.js';
 import { readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug } from '$lib/utils/partes.js';
-import { listaEsperaEnabled } from '$lib/server/flags.js';
+import { extrasEnabled, listaEsperaEnabled } from '$lib/server/flags.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { contactEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
@@ -59,10 +59,12 @@ export async function load({ params, platform, fetch, locals, setHeaders, url })
 	// La base está lejos: lo que no depende de otra cosa se lee a la par. Primero el evento (el
 	// encabezado sale del evento de la base; si no lo tiene, 404), si es una parte de un taller y
 	// el interruptor de la lista de espera.
-	const [found, host, waitlistOn] = await Promise.all([
+	const [found, host, waitlistOn, extrasOn] = await Promise.all([
 		siteEvent(platform, params.event, { viewer: viewerFor(locals), shallow: true, html: false }),
 		workshopTickets(platform, params.event),
-		db ? listaEsperaEnabled(platform) : false
+		db ? listaEsperaEnabled(platform) : false,
+		// Extras de la compra (interruptor `extras`, decisión 0056).
+		db ? extrasEnabled(platform) : false
 	]);
 	// En este orden: una parte que no se ve da 404 sin contar de qué taller es.
 	if (!found) error(404, 'Ese evento no existe.');
@@ -79,13 +81,16 @@ export async function load({ params, platform, fetch, locals, setHeaders, url })
 	const [tickets, venue, accountRead] = await Promise.all([
 		getTicketsView(db, params.event, fetch, {
 			waitlist: waitlistOn,
+			extras: extrasOn,
 			offerId: offer?.state === 'valid' ? offer.id : null
 		}),
 		// Como en la página del evento: si tiene lugar, manda sobre el «Dónde» del evento.
 		eventPageVenue(db, params.event, locals),
 		locals.member ? purchaseAccount(db, locals.member) : null
 	]);
-	if (!tickets) error(404, 'Este evento no vende entradas por acá.');
+	// Un evento que no vende por acá (se inscribe en otro sitio, o todavía no abrió la venta): a la
+	// página del evento, que tiene el link real. 302: puede empezar a vender más adelante.
+	if (!tickets) redirect(302, found.path);
 	const event = { meta: venue ? stripMdPlace(found.meta) : found.meta, path: found.path };
 	// Con cuenta: nombre, pronombres, DNI guardados y el mail de la cuenta, para completar «Tus
 	// datos», solo con la venta abierta. Es de esta persona: la página no se guarda en ningún caché.

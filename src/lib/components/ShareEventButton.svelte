@@ -19,6 +19,8 @@
 	let copied = false;
 	/** @type {HTMLDivElement} */
 	let root;
+	/** @type {HTMLButtonElement} */
+	let trigger;
 
 	const canShare = () => typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
@@ -52,7 +54,12 @@
 	}
 	/** @param {KeyboardEvent} e */
 	function onKey(e) {
-		if (open && e.key === 'Escape') open = false;
+		if (open && e.key === 'Escape') {
+			// Si el foco estaba adentro, vuelve al botón (si no, caía en el body).
+			const inside = root?.contains(document.activeElement);
+			open = false;
+			if (inside) trigger?.focus();
+		}
 	}
 </script>
 
@@ -62,19 +69,21 @@
 	<button
 		type="button"
 		class="trigger"
+		bind:this={trigger}
 		on:click={() => (open = !open)}
-		aria-haspopup="menu"
 		aria-expanded={open}
+		aria-controls="compartir-opciones"
 	>
 		<Share2 size="20" /> Compartir
 	</button>
 	{#if open}
-		<div class="menu" role="menu" transition:fly={{ duration: 150, y: -8 }}>
-			<button type="button" role="menuitem" on:click={shareLink}>
+		<!-- Un desplegable común (aria-expanded), no un role="menu": un menú promete flechas. -->
+		<div class="menu" id="compartir-opciones" transition:fly={{ duration: 150, y: -8 }}>
+			<button type="button" on:click={shareLink}>
 				{#if copied}<Check size="18" /> ¡Link copiado!{:else}<Link size="18" />
 					{canShare() ? 'Compartir link' : 'Copiar link'}{/if}
 			</button>
-			<a role="menuitem" href={imagesHref} data-sveltekit-preload-data="off">
+			<a href={imagesHref} data-sveltekit-preload-data="off">
 				<ImageIcon size="18" /> Compartir como imagen
 			</a>
 		</div>

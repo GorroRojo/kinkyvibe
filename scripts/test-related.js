@@ -11,7 +11,8 @@
 // también cambió). Si cambió algo que vitest no ve como import pero afecta a todas las pruebas
 // (la configuración, las dependencias, las migraciones, el setup de las pruebas), corre todas.
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
@@ -43,6 +44,43 @@ export function planRelated(changed, exists = existsSync) {
 	const global = files.find((f) => RUN_ALL.some((re) => re.test(f)));
 	if (global) return { mode: 'all', reason: global };
 	return { mode: 'related', files: files.sort() };
+}
+
+const TEST_RE = /\.(test|spec)\.[jt]s$/;
+const SOURCE_RE = /^(src|scripts)\/.*\.(js|svelte)$/;
+
+/**
+ * De los archivos cambiados, el código (en src/ o scripts/, .js o .svelte, sin contar las pruebas
+ * ni los tipos) que no tiene ninguna prueba al lado: ni `algo.test.js` (o `.dom.test.js`) ni otra
+ * prueba de la misma carpeta que lo nombre. Es un aviso, no una regla: `vitest related` igual corre
+ * las pruebas que lo importan desde otra carpeta.
+ * @param {string[]} files rutas cambiadas que existen
+ * @param {{ list?: (dir: string) => string[], read?: (file: string) => string }} [fs]
+ * @returns {string[]}
+ */
+export function untestedCandidates(files, fs = {}) {
+	const list = fs.list ?? ((/** @type {string} */ dir) => readdirSync(dir));
+	const read = fs.read ?? ((/** @type {string} */ file) => readFileSync(file, 'utf8'));
+	return files.filter((file) => {
+		if (!SOURCE_RE.test(file) || TEST_RE.test(file) || file.endsWith('.d.js')) return false;
+		const dir = dirname(file);
+		const name = basename(file);
+		const stem = name.replace(/\.(js|svelte)$/, '');
+		let tests;
+		try {
+			tests = list(dir).filter((f) => TEST_RE.test(f));
+		} catch {
+			return true;
+		}
+		if (tests.some((t) => t.startsWith(`${stem}.`))) return false;
+		return !tests.some((t) => {
+			try {
+				return read(join(dir, t)).includes(name);
+			} catch {
+				return false;
+			}
+		});
+	});
 }
 
 /** @param {string[]} args */
@@ -94,7 +132,16 @@ function main() {
 	console.log(
 		`Pruebas relacionadas con ${plan.files.length} archivo(s) cambiado(s) desde ${base}.`
 	);
-	return vitest(['related', '--run', '--passWithNoTests', ...extra, ...plan.files]);
+	const status = vitest(['related', '--run', '--passWithNoTests', ...extra, ...plan.files]);
+	const untested = untestedCandidates(plan.files);
+	if (untested.length) {
+		console.log(
+			`\nSin pruebas al lado (${untested.length}): fijate si alguna prueba de otra carpeta las ` +
+				'cubre o si hace falta probarlas a mano.'
+		);
+		for (const f of untested) console.log(`  - ${f}`);
+	}
+	return status;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) process.exitCode = main();

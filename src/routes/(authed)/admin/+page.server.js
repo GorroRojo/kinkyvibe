@@ -11,6 +11,7 @@ import {
 	arDayStart,
 	checkinTotalsQuery,
 	eventSalesTrendQuery,
+	eventVenuesQuery,
 	expiringTransfersQuery,
 	monthMoneyQuery,
 	recentActivityRowsQuery,
@@ -30,6 +31,8 @@ import {
 	skipReviewEvent
 } from '$lib/server/admin/review.js';
 import { markSeen, touchLastSeenQuery } from '$lib/server/admin/lastSeen.js';
+import { kb, saveProfileImageAlt, swapCover } from '$lib/server/admin/contentReview.js';
+import { cleanAlt } from '$lib/utils/imageAlt.js';
 import { listEvents } from '$lib/server/eventos/index.js';
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
@@ -49,17 +52,25 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	const now = Date.now();
 
 	const agendaUntil = arDayStart(now) + AGENDA_DAYS * 24 * 60 * 60 * 1000;
+	// Las consultas que fallaron y cayeron a su respaldo (sus `what`): la página lo dice en vez de
+	// mostrar «Todo al día» con datos que no pudo leer.
+	/** @type {string[]} */
+	const failed = [];
 	// Dos idas a la base (dos tandas, ver $lib/server/db/batch.js) en vez de una por consulta.
 	// Primera: todo lo que no depende de la lista de eventos, a la par de leerla. Lo de «Para
 	// revisar» sale de review.js: las mismas consultas que cuenta el botón del menú.
-	const first = runQueries(db, {
-		...reviewQueries(now, { login: user.login }),
-		money: monthMoneyQuery(now),
-		seen: touchLastSeenQuery(user.id, now),
-		expiring: expiringTransfersQuery(now, agendaUntil),
-		// Las filas: los títulos de los eventos se ponen después, con la lista de eventos.
-		activity: recentActivityRowsQuery({ limit: 10 })
-	});
+	const first = runQueries(
+		db,
+		{
+			...reviewQueries(now, { login: user.login }),
+			money: monthMoneyQuery(now),
+			seen: touchLastSeenQuery(user.id, now),
+			expiring: expiringTransfersQuery(now, agendaUntil),
+			// Las filas: los títulos de los eventos se ponen después, con la lista de eventos.
+			activity: recentActivityRowsQuery({ limit: 10 })
+		},
+		{ failed }
+	);
 	const others = Promise.all([
 		resolveFondoMonth({ db, fetch, now }),
 		// El uso de las etiquetas (para lo que Etiquetas tiene para revisar).
@@ -69,7 +80,12 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	first.catch(() => {});
 	others.catch(() => {});
 
-	const [events, ticketedList] = await Promise.all([listEvents(), listTicketedEvents()]);
+	/** @type {import('$lib/server/tickets/events.js').BrokenTicketConfig[]} */
+	const brokenTickets = [];
+	const [events, ticketedList] = await Promise.all([
+		listEvents(),
+		listTicketedEvents({ broken: brokenTickets, now })
+	]);
 	// Los eventos de prueba del repo solo existen en `vite dev`.
 	const skip = skipReviewEvent;
 	const { ticketed, titles, today, soonTicketed, reminderEvents, cancelledSlugs } =
@@ -81,32 +97,39 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		});
 	// El bloque de ventas elige su evento con los totales, pero los que puede elegir se saben ya:
 	// su tendencia va en la segunda tanda, con los totales.
-	const focusSlugs = salesFocusSlugs(upcomingEvents({ events, ticketed, now, skip }));
+	const upcomingList = upcomingEvents({ events, ticketed, now, skip });
+	const focusSlugs = salesFocusSlugs(upcomingList);
 
 	// fondo.kinkyvibe.ar y el uso de las etiquetas no frenan la segunda tanda: se esperan al final.
 	const s1 = await first;
 	const reminderList = s1.settings ? parseReminders(s1.settings.reminders) : [];
 	// Segunda: lo que depende de la lista de eventos o de la primera tanda (la última visita, los
 	// ajustes de los recordatorios).
-	const s2 = await runQueries(db, {
-		...reviewEventQueries({
-			soonTicketed,
-			reminderEvents,
-			settings: s1.settings,
-			cancelledSlugs,
-			now
-		}),
-		checkins: checkinTotalsQuery(
-			soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
-		),
-		since: s1.seen
-			? sinceLastVisitQuery({ since: s1.seen.since, login: user.login, titles })
-			: noQuery(null),
-		...Object.fromEntries(
-			focusSlugs.map((slug) => [`trend:${slug}`, eventSalesTrendQuery(slug, now)])
-		)
-	});
-	const { totals, checkins, streamLinks, stuck, reminders, since, cancelled } = s2;
+	const s2 = await runQueries(
+		db,
+		{
+			...reviewEventQueries({
+				soonTicketed,
+				reminderEvents,
+				settings: s1.settings,
+				cancelledSlugs,
+				now
+			}),
+			checkins: checkinTotalsQuery(
+				soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
+			),
+			// El lugar vinculado de los próximos: manda sobre el «Dónde» en texto libre.
+			venues: eventVenuesQuery(upcomingList.map((e) => e.slug)),
+			since: s1.seen
+				? sinceLastVisitQuery({ since: s1.seen.since, login: user.login, titles })
+				: noQuery(null),
+			...Object.fromEntries(
+				focusSlugs.map((slug) => [`trend:${slug}`, eventSalesTrendQuery(slug, now)])
+			)
+		},
+		{ failed }
+	);
+	const { totals, checkins, streamLinks, stuck, reminders, since, cancelled, venues } = s2;
 	const { transfers, review, money, seen, expiring } = s1;
 	const [fondo, outside] = await others;
 
@@ -120,11 +143,21 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		streamLinks,
 		reminders,
 		stuck,
+		venues,
 		now,
 		skip
 	});
 	// «Para revisar»: las mismas filas que cuenta el botón del menú (panelCounts.js).
-	const todo = reviewRows({ ...s1, ...outside, upcoming, ticketed, titles, cancelled, now });
+	const todo = reviewRows({
+		...s1,
+		...outside,
+		upcoming,
+		ticketed,
+		titles,
+		cancelled,
+		brokenTickets,
+		now
+	});
 
 	// Los recordatorios se configuran en Mensajes → Configuración.
 	const remindersItem = navItem('ajustes-mails');
@@ -157,6 +190,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		sales,
 		now,
 		dbAvailable: Boolean(db),
+		// Solo los nombres de lo que no se pudo leer (sin SQL ni mensajes de error), sin repetir.
+		unreadable: [...new Set(failed.map((what) => what.replace(/^inicio: /, '')))],
 		upcoming,
 		// Lo de hoy que se destaca arriba: nunca un borrador (todavía no está confirmado).
 		todayEvents: upcoming.filter((e) => e.today && !e.draft),
@@ -232,6 +267,72 @@ export const actions = {
 				message: n
 					? `Listo: ${n === 1 ? 'el recordatorio sale' : `los ${n} recordatorios salen`} en la próxima vuelta del cron (cada 15 minutos).`
 					: 'No había recordatorios fallidos para reintentar.'
+			}
+		};
+	},
+
+	// «Fotos sin descripción» (Para revisar): escribir qué se ve en una foto del texto de un perfil.
+	fotoAlt: async ({ locals, url, platform, request }) => {
+		const user = requireAdmin(locals, url);
+		const db = getDB(platform);
+		const form = await request.formData();
+		const id = String(form.get('item') ?? '');
+		if (!db) return fail(503, { contentFix: { id, ok: false, message: 'Sin base de datos.' } });
+		const profileId = Number(form.get('profile'));
+		const index = Number(form.get('index'));
+		const src = String(form.get('src') ?? '');
+		const alt = cleanAlt(form.get('alt'));
+		if (!Number.isSafeInteger(profileId) || !Number.isSafeInteger(index) || index < 0) {
+			return fail(400, { contentFix: { id, ok: false, message: 'Foto inválida.' } });
+		}
+		if (!alt) {
+			return fail(400, {
+				contentFix: { id, ok: false, message: 'Escribí qué se ve en la foto.' }
+			});
+		}
+		const r = await saveProfileImageAlt(db, { profileId, index, src, alt }, { actor: user.login });
+		if (!r.ok) return fail(r.status, { contentFix: { id, ok: false, message: r.message } });
+		await logAdminAction(db, locals, {
+			action: 'profile.update',
+			targetType: 'profile',
+			targetId: r.id,
+			summary: `Describió una foto del perfil «${r.title}»`,
+			detail: { from: 'inicio', image: index + 1 }
+		});
+		return {
+			contentFix: { id, ok: true, message: `Listo: la foto de «${r.title}» ya tiene descripción.` }
+		};
+	},
+
+	// «Portadas pesadas» (Para revisar): la portada pasa a ser la copia achicada que ya subió el
+	// navegador (la original queda en la biblioteca).
+	portada: async ({ locals, url, platform, request }) => {
+		const user = requireAdmin(locals, url);
+		const db = getDB(platform);
+		const form = await request.formData();
+		const id = String(form.get('item') ?? '');
+		if (!db) return fail(503, { contentFix: { id, ok: false, message: 'Sin base de datos.' } });
+		const ownerId = Number(form.get('owner'));
+		const oldImageId = Number(form.get('old'));
+		const newImageId = Number(form.get('new'));
+		if (![ownerId, oldImageId, newImageId].every((n) => Number.isSafeInteger(n) && n > 0)) {
+			return fail(400, { contentFix: { id, ok: false, message: 'Portada inválida.' } });
+		}
+		const r = await swapCover(db, { ownerId, oldImageId, newImageId }, { actor: user.login });
+		if (!r.ok) return fail(r.status, { contentFix: { id, ok: false, message: r.message } });
+		const sizes = `${kb(r.before ?? 0)} → ${kb(r.after ?? 0)}`;
+		await logAdminAction(db, locals, {
+			action: 'content.cover.shrink',
+			targetType: 'object',
+			targetId: r.id,
+			summary: `Achicó la portada de «${r.title}» (${sizes})`,
+			detail: { from: 'inicio', before: oldImageId, after: newImageId }
+		});
+		return {
+			contentFix: {
+				id,
+				ok: true,
+				message: `Listo: la portada de «${r.title}» ahora pesa ${kb(r.after ?? 0)} (antes ${kb(r.before ?? 0)}). La original sigue en la biblioteca.`
 			}
 		};
 	},

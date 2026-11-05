@@ -51,7 +51,17 @@
 	}
 	// Mismo criterio que el servidor: un monto que no se entiende no muestra total.
 	$: unit = method === 'cortesia' ? 0 : (parseAmount(String(amount)) ?? NaN);
-	$: total = Number.isFinite(unit) && quantity > 0 ? unit * quantity : null;
+	/** Extras (id → cantidad; interruptor `extras`, decisión 0056). @type {Record<string, number>} */
+	let extras = Object.fromEntries((data.extras ?? []).map((x) => [x.id, 0]));
+	// En una cortesía, los extras también van sin cargo.
+	$: extrasAmount =
+		method === 'cortesia'
+			? 0
+			: (data.extras ?? []).reduce(
+					(s, x) => s + x.price * Math.max(0, Math.trunc(Number(extras[x.id])) || 0),
+					0
+				);
+	$: total = Number.isFinite(unit) && quantity > 0 ? unit * quantity + extrasAmount : null;
 	$: count = Math.max(1, Math.min(data.maxOrder, Number(quantity) || 1));
 
 	// Avisos antes de enviar (el servidor es el que decide y pide confirmar).
@@ -178,6 +188,30 @@
 					<span>Monto por entrada (0 si no pagó nada)</span>
 					<input class="kv-input" name="amount" inputmode="numeric" bind:value={amount} required />
 				</label>
+			{/if}
+			{#if data.extras?.length}
+				<fieldset class="extras">
+					<legend>Extras</legend>
+					{#each data.extras as x (x.id)}
+						<label class="field">
+							<span
+								>{x.name}
+								<small class="muted"
+									>({method === 'cortesia' ? 'sin cargo' : `${formatARS(x.price)} c/u`})</small
+								></span
+							>
+							<input
+								class="kv-input"
+								type="number"
+								name="extra_{x.id}"
+								min="0"
+								max={x.max}
+								step="1"
+								bind:value={extras[x.id]}
+							/>
+						</label>
+					{/each}
+				</fieldset>
 			{/if}
 			<p class="total">
 				Total: <strong class="num"

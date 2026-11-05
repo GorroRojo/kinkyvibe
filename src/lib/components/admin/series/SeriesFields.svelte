@@ -16,6 +16,11 @@
 	 */
 	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
 	import { eventImageRef } from '$lib/utils/series.js';
+	import {
+		SERIES_DESCRIPTION_MAX,
+		SERIES_ICON_MAX,
+		SERIES_TITLE_MAX
+	} from '$lib/utils/seriesAdmin.js';
 
 	/** @type {'create' | 'edit'} */
 	export let mode = 'create';
@@ -68,7 +73,7 @@
 		<input
 			id="{id}-icon"
 			name="icon"
-			maxlength="16"
+			maxlength={SERIES_ICON_MAX}
 			value={values.icon ?? ''}
 			placeholder="Ej.: 🎭"
 		/>
@@ -89,7 +94,7 @@
 		<input
 			id="{id}-visible"
 			name="visible_name"
-			maxlength="100"
+			maxlength={SERIES_TITLE_MAX}
 			value={values.visible_name ?? ''}
 			placeholder="Igual que la etiqueta"
 		/>
@@ -99,7 +104,7 @@
 		<input
 			id="{id}-icon"
 			name="icon"
-			maxlength="16"
+			maxlength={SERIES_ICON_MAX}
 			value={values.icon ?? ''}
 			placeholder="Ej.: 🎭"
 		/>
@@ -123,7 +128,7 @@
 {/if}
 <label class="kv-field" for="{id}-description">
 	<span>Descripción (opcional)</span>
-	<textarea id="{id}-description" name="description" rows="3" maxlength="2000"
+	<textarea id="{id}-description" name="description" rows="3" maxlength={SERIES_DESCRIPTION_MAX}
 		>{values.description ?? ''}</textarea
 	>
 	<small class="muted">Se ve en la página de la serie y en la Kinkipedia.</small>

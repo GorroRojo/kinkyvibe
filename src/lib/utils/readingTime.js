@@ -78,6 +78,23 @@ export function pageReadingMinutes(body) {
 	return minutesAtSpeed(pageReadingWords(body), WORDS_PER_MINUTE);
 }
 
+/**
+ * Desde cuántos minutos (los de {@link pageReadingMinutes}, a la velocidad de siempre) un texto es
+ * «largo» y lleva la barra de progreso de lectura (ReadingProgress.svelte). Unas 600 palabras:
+ * varias pantallas, también en la compu. Con la velocidad de siempre y no la elegida, así la
+ * barra está o no está igual para todes y el servidor ya la dibuja (nada se mueve al hidratar).
+ */
+export const MIN_MINUTES_FOR_PROGRESS = 3;
+
+/**
+ * Si el texto es lo bastante largo para la barra de progreso de lectura.
+ * @param {unknown} minutes los de {@link pageReadingMinutes}
+ */
+export function showsReadingProgress(minutes) {
+	const n = Number(minutes);
+	return Number.isFinite(n) && n >= MIN_MINUTES_FOR_PROGRESS;
+}
+
 /** La velocidad más lenta y la más rápida que se puede elegir («Otro»). */
 export const READING_SPEED_MIN = 80;
 export const READING_SPEED_MAX = 600;

@@ -12,12 +12,14 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [pruebas-y-ci.md](pruebas-y-ci.md)             | Los jobs de la CI (`unit`, `e2e`, `plan`, `ci-ok`…), cómo correr cada prueba y qué hacer si da rojo                 |
 | [interruptores.md](interruptores.md)           | Cada interruptor de funciones nuevas: qué prende, de qué depende y cómo prender los que pasan datos a la base       |
 | [panel.md](panel.md)                           | El panel de admin (`/admin`): áreas y URLs, Agenda, permisos, registro de actividad                                 |
+| [conector-claude.md](conector-claude.md)       | El conector de Claude (MCP) para admins: cómo sumarlo, qué lee, qué cambia (con vista previa) y cómo se corta       |
 | [buscar.md](buscar.md)                         | Cómo se escribe una búsqueda en el sitio, el bot y el panel: sintaxis, cómo se lee, qué código lo hace              |
 | [enlaces.md](enlaces.md)                       | Cómo se escribe el cuerpo de un objeto: enlaces, incrustados, etiquetas, componentes y lo que enlaza acá            |
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |
 | [tickets.md](tickets.md)                       | Venta de entradas: referencia completa (precios, Fondo, Mercado Pago, variables, pendientes)                        |
 | [propinas.md](propinas.md)                     | Propinas con Mercado Pago al pie de las publicaciones de KinkyVibe (en lugar del cafecito)                          |
 | [contenido.md](contenido.md)                   | Eventos, material, amigues y wiki: todo en la base (D1), cómo se editan, la semilla local y «Descargar todo»        |
+| [imagenes.md](imagenes.md)                     | La biblioteca en R2: imágenes, documentos y video, cómo se suben y cómo se sirven                                   |
 | [publicar-contenido.md](publicar-contenido.md) | Cómo se publica lo que se guarda en el panel: en la base, al momento (antes, un PR por cambio)                      |
 | [mails.md](mails.md)                           | Qué mails manda el sitio, con Resend, plantillas editables, recordatorios y el filtro de los previews               |
 | [datos.md](datos.md)                           | La base D1: tablas, migraciones, cómo agregar una, base de preview y base de producción                             |
@@ -26,6 +28,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [cuentas.md](cuentas.md)                       | Cuentas del público ("Entrar" / "Mi rincón"): código por mail, contraseña, sesiones                                 |
 | [lo-que-sigo.md](lo-que-sigo.md)               | «Lo que sigo»: seguir etiquetas, series, perfiles y lugares (calendario y mails), interruptor `lo_que_sigo`         |
 | [amigues.md](amigues.md)                       | Amigues como perfiles (persona, proyecto, lugar), "Es mi perfil", lugares y la privacidad de sus direcciones        |
+| [moderacion.md](moderacion.md)                 | Moderación: qué hacer cuando alguien pide desaparecer del sitio (perfil, foto, nombre, buscadores)                  |
 | [talleres-partes.md](talleres-partes.md)       | Talleres en varias partes: partes como edges, una entrada para todas, ingreso y avisos por parte                    |
 | [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción                                                  |
 | [analiticas.md](analiticas.md)                 | Visitas anónimas y embudo de compra con Workers Analytics Engine: qué se guarda, puesta en marcha y cómo apagarlo   |
@@ -36,8 +39,9 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [ui-impacto.md](ui-impacto.md)                 | Informe de impacto visual: capturas de las páginas principales antes y después de un cambio, comparadas             |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
+| [operacion.md](operacion.md)                   | Manual de operación: qué corre dónde, accesos, avisos, qué hacer si algo se rompe y antes de una venta grande       |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |
-| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0041, cada una con su línea en su índice): leelo antes de cambiar un área |
+| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0051, cada una con su línea en su índice): leelo antes de cambiar un área |
 
 Otras guías sueltas:
 

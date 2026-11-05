@@ -292,7 +292,7 @@
 					Cambio sin guardar: se aplica al tocar «Guardar».
 				</p>{/if}
 			{#if shown}
-				<button type="button" class="kv-link" on:click={remove}>Quitar la imagen</button>
+				<button type="button" class="kv-link" on:click={remove}>Sacar la imagen</button>
 			{/if}
 		</div>
 	</div>

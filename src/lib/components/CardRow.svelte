@@ -2,6 +2,7 @@
 	//@ts-nocheck
 	import Card from './Card.svelte';
 	import { fly } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
 	export let title = '';
 	export let items = [];
 	export let id = undefined;
@@ -22,12 +23,14 @@
 	// Without an index the old offset evaluated to NaN (i.e. no vertical movement); keep that
 	// explicitly, since Svelte 5's Web Animations based transitions warn about NaN keyframes.
 	$: flyY = index === undefined ? 0 : ((index % 2) - 0.5) * 2 * 200;
+	// Con «reducir movimiento» la fila aparece sin desplazarse (las transiciones de Svelte no
+	// respetan el CSS de prefers-reduced-motion: van por Web Animations).
 </script>
 
 <div
 	{id}
-	in:fly={{ y: flyY, duration: 300, delay: 300 }}
-	out:fly={{ y: -flyY, duration: 300 }}
+	in:fly={{ y: prefersReducedMotion.current ? 0 : flyY, duration: 300, delay: 300 }}
+	out:fly={{ y: prefersReducedMotion.current ? 0 : -flyY, duration: 300 }}
 	class="cardrowcontainer"
 >
 	{#if title}
@@ -47,7 +50,10 @@
 			</li>
 		{/each}
 	</ul>
-	{#if href}<a class="btn-more" {href} tabindex="0">...ver más</a>{/if}
+	<!-- Un link ya es enfocable (sin tabindex); con nombre propio, porque en la portada hay tres. -->
+	{#if href}<a class="btn-more" {href} aria-label={title ? `Ver más de ${title}` : undefined}
+			>...ver más</a
+		>{/if}
 </div>
 
 <style lang="scss">

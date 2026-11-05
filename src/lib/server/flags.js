@@ -134,6 +134,90 @@ export const FLAGS = Object.freeze({
 			'ticket_combos y columnas buyer_email y source_order_id de discount_codes). ' +
 			'src/lib/server/tickets/combos.js.',
 		envVar: 'COMBO_CODIGOS_ENABLED'
+	},
+	lo_que_enlaza: {
+		label: 'Lo que enlaza acá',
+		description:
+			'Al pie de cada evento, material, perfil y entrada de la Kinkipedia, la lista de las ' +
+			'páginas cuyo texto la enlaza (con [[…]], @ o #). Cada persona ve solo lo que puede ver: ' +
+			'nada oculto, «solo con cuenta» o sin aprobar a quien no le corresponde. Apagado, no se ' +
+			've nada de esto.',
+		tech:
+			'docs/enlaces.md («Lo que enlaza acá»). Lee los edges `enlaza` que se guardan al guardar ' +
+			'cada cuerpo: lo guardado antes de eso aparece recién cuando se vuelve a guardar (o con ' +
+			'scripts/enlaces-backfill.js). Sin migración.',
+		envVar: 'LO_QUE_ENLAZA_ENABLED'
+	},
+	paypal: {
+		label: 'PayPal en las propinas',
+		description:
+			'En construcción. Por ahora prende la parte de PayPal de Ajustes → Propinas: la cotización ' +
+			'del dólar con la que se estiman en pesos las propinas en dólares, el ajuste en % de esa ' +
+			'cotización, los retiros y el reparto por mes del Fondo, y le pasa a fondo.kinkyvibe.ar ' +
+			'lo de PayPal. Todavía no se puede pagar con PayPal. Apagado, nada de esto se ve (la ' +
+			'cotización le llega igual a fondo.kinkyvibe.ar).',
+		tech:
+			'docs/propinas.md («PayPal: cotización, ajuste y retiros»), decisión 0054. Necesita la ' +
+			'migración 0071. Apagado, GET /api/fondo/propinas-total no trae `paypal`. ' +
+			'GET /api/fondo/cotizacion y el cron diario de la cotización andan igual (no se ven).',
+		envVar: 'PAYPAL_ENABLED'
+	},
+	extras: {
+		label: 'Extras en la compra (prototipo)',
+		description:
+			'Prototipo. En la sección Entradas del editor de eventos aparece «Extras»: cosas que se ' +
+			'suman a la compra (tragos, una remera…) con su precio y, si querés, un tope. Quien compra ' +
+			'los elige después de las entradas y los paga juntos; el Fondo y los códigos de descuento ' +
+			'son solo para las entradas. En la puerta y con un «Link de barra» se entregan de a uno. ' +
+			'Apagado, nada de esto se ve ni se cobra.',
+		tech:
+			'docs/tickets.md («Extras»), decisión 0056. Necesita la migración 0077 (orders.extras_amount, ' +
+			'tabla order_extras y door_links.scope). Clave `extras` del evento. Rutas /barra y ' +
+			'/barra/<evento>; apagado dan 404.',
+		envVar: 'EXTRAS_ENABLED'
+	},
+	conector_claude: {
+		label: 'Conector de Claude (solo lectura)',
+		description:
+			'Les admins pueden sumar el sitio como conector en claude.ai y pedirle a Claude que busque ' +
+			'y lea eventos, material, perfiles y etiquetas, que muestre las ventas de un evento y los ' +
+			'próximos eventos. Solo lee: no cambia nada. Cada admin entra con su cuenta y cada pedido ' +
+			'queda en Actividad a su nombre. Apagado, el conector no contesta.',
+		tech:
+			'docs/conector-claude.md. Servidor MCP en /mcp con OAuth propio (/mcp/autorizar, /mcp/token, ' +
+			'/mcp/registro y los /.well-known/oauth-*). Sin migraciones. Apagado, todo eso da 404.',
+		envVar: 'CONECTOR_CLAUDE_ENABLED'
+	},
+	conector_claude_edicion: {
+		label: 'Conector de Claude: cambios',
+		description:
+			'Con el conector de Claude prendido, Claude además puede cambiar lo que edita el panel, ' +
+			'siempre en dos pasos: primero muestra exactamente qué va a cambiar y después, con el OK, lo ' +
+			'guarda como el panel (con historial). Edita eventos, material, perfiles, lugares, etiquetas ' +
+			'y la Kinkipedia, crea borradores sin publicar y códigos de descuento, y puede deshacer ' +
+			'cualquier cambio (volver a una versión anterior). Nada de plata ni mails: cancelar un ' +
+			'evento, las ventas y los reembolsos se hacen desde el panel. Cada cambio ' +
+			'queda en Actividad, con quién lo confirmó; si hay muchos en una hora, les admins que lo ' +
+			'prendieron en «Mis avisos» reciben un aviso por Telegram. Apagado, Claude solo lee.',
+		tech:
+			'docs/conector-claude.md («Cambios»). Herramientas vista_previa y aplicar en /mcp; necesita ' +
+			'también conector_claude y la migración 0072 (llaves para rutinas y confirmado por). Sin ' +
+			'tope: aviso «Cambios de Claude» por Telegram desde 20 cambios en una hora (mcp/avisoCambios.js).',
+		envVar: 'CONECTOR_CLAUDE_EDICION_ENABLED'
+	},
+	fediverso: {
+		label: 'Agenda en el fediverso (prototipo)',
+		description:
+			'Prototipo para mirar: la cuenta agenda@kinkyvibe.ar se puede buscar desde Mastodon y ' +
+			'otros servidores del fediverso, y muestra los próximos eventos públicos (lo mismo que el ' +
+			'calendario .ics). Solo lectura: nadie la puede seguir todavía y no manda nada. Apagado, ' +
+			'esas direcciones dan 404 y la búsqueda del dominio sigue yendo a Bridgy Fed como siempre.',
+		tech:
+			'docs/investigaciones/indieweb-activitypub.md. /.well-known/webfinger (solo para ' +
+			'acct:agenda@kinkyvibe.ar; el resto, a fed.brid.gy), /ap/agenda, /ap/agenda/outbox, ' +
+			'/ap/eventos/<evento>; el inbox responde 202 sin procesar nada. Sin claves ni migración. ' +
+			'src/lib/utils/activitypub.js.',
+		envVar: 'FEDIVERSO_ENABLED'
 	}
 });
 
@@ -307,6 +391,43 @@ export function listaEsperaEnabled(platform) {
  */
 export function comboCodigosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'combo_codigos');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido PayPal en las propinas? (docs/propinas.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function paypalEnabled(platform) {
+	return isFlagOn(getDB(platform), 'paypal');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los extras de la compra? (docs/tickets.md, «Extras»).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function extrasEnabled(platform) {
+	return isFlagOn(getDB(platform), 'extras');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el conector de Claude? (docs/conector-claude.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function conectorClaudeEnabled(platform) {
+	return isFlagOn(getDB(platform), 'conector_claude');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el prototipo de la agenda en el fediverso?
+ * (docs/investigaciones/indieweb-activitypub.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function fediversoEnabled(platform) {
+	return isFlagOn(getDB(platform), 'fediverso');
 }
 
 /**

@@ -790,3 +790,57 @@ describe('textos del panel e imágenes dibujadas (linkPreview del layout)', () =
 		expectDefaultImage(meta, '/og/calendario/fedcba9876543210.jpg');
 	});
 });
+
+describe('objetos sin imagen: su tarjeta dibujada (ogCard, /og/objeto/…)', () => {
+	/** @param {string} url @param {string} alt */
+	const card = (url, alt) => ({ url, width: 1200, height: 630, alt });
+
+	/** @param {Record<string, string>} meta @param {string} path @param {string} alt */
+	function expectCard(meta, path, alt) {
+		const image = new URL(meta['og:image']);
+		expect(image.origin).toBe(ORIGIN);
+		expect(image.pathname).toBe(path);
+		expect(meta['og:image:width']).toBe('1200');
+		expect(meta['og:image:height']).toBe('630');
+		expect(meta['og:image:alt']).toBe(alt);
+		expect(meta['twitter:image']).toBe(meta['og:image']);
+		expect(meta['twitter:card']).toBe('summary_large_image');
+	}
+
+	it('un evento sin portada: su tarjeta, entera, con medidas y lo que se lee', async () => {
+		const path = '/og/objeto/evento/taller-inventado/0123456789abcdef.jpg';
+		const alt = 'Taller Inventado · Evento (kinkyvibe.ar)';
+		const meta = single(
+			await eventHead({ featured: undefined }, { cover: null, ogCard: card(path, alt) })
+		);
+		expectCard(meta, path, alt);
+	});
+
+	it('con portada, la portada (aunque llegue una tarjeta)', async () => {
+		const meta = single(
+			await eventHead({}, { ogCard: card('/og/objeto/evento/x/0123456789abcdef.jpg', 'x') })
+		);
+		expect(new URL(meta['og:image']).pathname).toBe(COVER);
+	});
+
+	it('un perfil sin imagen: su tarjeta; fuera de los buscadores, la del sitio', async () => {
+		const path = '/og/objeto/perfil/Perfil_Inventado/0123456789abcdef.jpg';
+		const alt = 'Perfil Inventado · Amigues · Persona (kinkyvibe.ar)';
+		const meta = single(await profileHead({ image: undefined }, { ogCard: card(path, alt) }));
+		expectCard(meta, path, alt);
+		const hidden = single(
+			await profileHead({ image: undefined }, { noindex: true, ogCard: card(path, alt) })
+		);
+		expectDefaultImage(hidden);
+	});
+
+	it('una entrada de la Kinkipedia: su tarjeta en vez de la de la Kinkipedia', async () => {
+		const path = '/og/objeto/wiki/termino-inventado/0123456789abcdef.jpg';
+		const alt = 'Término Inventado · Kinkipedia (kinkyvibe.ar)';
+		const head = await wikiHead('/wiki/termino-inventado', {
+			meta: { title: 'Término Inventado', wiki: 'Término Inventado', summary: 'Qué es.' },
+			ogCard: card(path, alt)
+		});
+		expectCard(single(head), path, alt);
+	});
+});

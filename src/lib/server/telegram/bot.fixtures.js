@@ -53,6 +53,7 @@ import {
 	followScreen,
 	fondoScreen,
 	helpScreen,
+	searchHelpScreen,
 	homeScreen,
 	listScreen,
 	noticeScreen,
@@ -548,6 +549,7 @@ export function botCases() {
 	);
 	add('ayuda', () => helpScreen(ctx('private')));
 	add('ayuda con cuentas', () => helpScreen(ctx('private'), { accounts: true }));
+	add('cómo buscar', () => searchHelpScreen());
 	add('aviso', () => noticeScreen(UNAVAILABLE_TEXT));
 	add('solo privado con link', () => privateOnlyScreen('https://t.me/BotDePrueba?start=sigo'));
 	add('solo privado sin link', () => privateOnlyScreen(null));
@@ -749,6 +751,7 @@ export function routerCases() {
 	add('botón roto', cb('zzz'));
 	add('botón buscar grupo', cb('s', GROUP), deps({ media: true }));
 	add('botón ayuda grupo', cb('a', GROUP), deps({ media: true }));
+	add('botón cómo buscar', cb('sa'));
 	add('botón seguir', cb('f:fiesta-inventada'), deps({ follows: fakeFollows() }));
 	add('botón seguir sin cuentas', cb('f:fiesta-inventada'));
 	for (const r of ['created', 'created_telegram', 'already', 'too_many', 'full', 'gone']) {

@@ -130,7 +130,9 @@ export async function run({ github, context, core, now = new Date() }) {
 			repo,
 			title: ISSUE_TITLE,
 			body: ISSUE_BODY,
-			labels: [LABEL]
+			labels: [LABEL],
+			// Asignado al dueño del repo, así le llega la notificación (nunca un usuario tipeado).
+			assignees: [owner]
 		});
 		core.notice(`Abrí el issue #${data.number}: ${ISSUE_TITLE}`);
 	} else if (decision.action === 'close') {

@@ -90,6 +90,7 @@ import {
 	FileSpreadsheet,
 	FileText,
 	CircleUser,
+	DoorClosed,
 	HandCoins,
 	HandHeart,
 	House,
@@ -118,6 +119,7 @@ import {
 	ToggleRight,
 	Users,
 	Video,
+	Unlink,
 	UserCheck,
 	Workflow
 } from '@lucide/svelte';
@@ -443,6 +445,17 @@ export const NAV = Object.freeze([
 		area: 'comunidad',
 		soon: false
 	},
+	{
+		// Personas que la organización no admite en los eventos de Kinky Vibe (decisión 0053). Solo
+		// admins; el motivo se ve solo ahí.
+		id: 'avisos-puerta',
+		href: '/admin/comunidad/avisos-de-puerta',
+		icon: DoorClosed,
+		emoji: '🚫',
+		label: 'Avisos de puerta',
+		area: 'comunidad',
+		soon: false
+	},
 
 	// Mensajes
 	{
@@ -497,6 +510,17 @@ export const NAV = Object.freeze([
 		icon: Tags,
 		emoji: '🔖',
 		label: 'Árbol de etiquetas',
+		area: 'etiquetas',
+		soon: false
+	},
+	{
+		// Lo que los textos enlazan con `[[…]]`, `@` o `#` y no existe (docs/enlaces.md); cada nombre
+		// tiene su botón para crear la página. Al menú por pedido de gorrite (3/11/2026).
+		id: 'etiquetas-falta',
+		href: '/admin/etiquetas/falta',
+		icon: Unlink,
+		emoji: '🔗',
+		label: 'Enlaces que faltan',
 		area: 'etiquetas',
 		soon: false
 	},

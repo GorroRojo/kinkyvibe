@@ -60,7 +60,7 @@ export async function getVerifiedUser(token, fetchUser, now = Date.now()) {
 		ghUser = await fetchUser(token);
 	} catch (e) {
 		// Network trouble, not a verdict on the token: don't remember it.
-		console.log('Error verifying GitHub token: ' + e);
+		console.warn('[auth] no se pudo verificar el token de GitHub: ' + e);
 		return undefined;
 	}
 	if (

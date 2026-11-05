@@ -27,6 +27,8 @@ import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/ov
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { MAX_TICKETS_PER_FORM, parseAmount, remainingOf } from '$lib/utils/tickets.js';
 import { doorPrice } from '$lib/utils/ticketTiers.js';
+import { doorExtrasChoice } from '$lib/server/tickets/doorScreen.js';
+import { EXTRA_HARD_MAX, extrasShortText, orderPaid } from '$lib/utils/extras.js';
 
 const METHOD_TEXT = /** @type {Record<string, string>} */ ({
 	efectivo: 'efectivo',
@@ -54,8 +56,18 @@ export async function load(event) {
 	const now = Date.now();
 	const counts = await getCounts(db, event.params.slug, now);
 	const state = salesState(config, now);
+	// Extras (interruptor `extras`, decisión 0056): se pueden sumar a la carga.
+	const extrasOn = config.extras.length > 0 && (await isFlagOn(db, 'extras'));
 	return {
 		slug: event.params.slug,
+		extras: extrasOn
+			? config.extras.map((e) => ({
+					id: e.id,
+					name: e.name,
+					price: e.price,
+					max: Math.min(e.perOrder ?? EXTRA_HARD_MAX, EXTRA_HARD_MAX)
+				}))
+			: [],
 		// La nota de la lista de espera (no frena la carga).
 		waitlist: await safeWaitlistSummary(db, event.params.slug, {
 			enabled: await isFlagOn(db, 'lista_espera'),
@@ -136,6 +148,10 @@ export const actions = {
 			pronouns: text(`pronouns_${i}`, 40)
 		}));
 
+		// Extras (interruptor `extras`): con su tope y su máximo por compra; en una cortesía van sin cargo.
+		const extras = await doorExtrasChoice(db, config, slug, form);
+		if (!extras.ok) return bad(extras.message);
+
 		const limitsFor = () => manualOrderLimits(db, { eventSlug: slug, config, type, quantity });
 		const check = checkOverride(await limitsFor(), readOverride(form));
 		if (!check.ok) {
@@ -152,8 +168,10 @@ export const actions = {
 			amount,
 			note: values.note,
 			override: check.override,
+			...(extras.lines.length ? { extras: extras.lines } : {}),
 			by: admin.login
 		});
+		if (!r.ok && r.reason === 'extras') return bad('Se agotó un extra: revisá los extras.');
 		if (!r.ok) {
 			// Otra venta entró entre el control y la carga: se vuelve a preguntar.
 			const again = checkOverride(await limitsFor(), '');
@@ -168,13 +186,16 @@ export const actions = {
 			action: 'order.manual',
 			targetType: 'order',
 			targetId: r.order.id,
-			summary: `Cargó a mano ${quantity} × ${type.name} (${ref}, ${METHOD_TEXT[method]}, total $ ${r.order.total})`,
+			summary: `Cargó a mano ${quantity} × ${type.name}${extras.lines.length ? ` ${extrasShortText(extras.lines)}` : ''} (${ref}, ${METHOD_TEXT[method]}, total $ ${orderPaid(r.order)})`,
 			detail: {
 				event: slug,
 				type: type.id,
 				quantity,
 				method,
 				total: r.order.total,
+				...(extras.lines.length
+					? { extras: extras.lines.map((l) => ({ id: l.id, quantity: l.quantity })) }
+					: {}),
 				withNote: Boolean(values.note),
 				...(check.limits.length ? { overrides: check.limits } : {})
 			}
@@ -202,7 +223,7 @@ export const actions = {
 		return {
 			ok: true,
 			message: `Listo: ${quantity} × ${type.name} (${ref})${mailed ? ', mandamos las entradas por mail' : ''}.`,
-			order: { id: r.order.id, ref, total: r.order.total, method: r.order.payment_method },
+			order: { id: r.order.id, ref, total: orderPaid(r.order), method: r.order.payment_method },
 			tickets: r.tickets.map((t) => ({ holder: t.holder_name, code: t.code ?? '' })),
 			overrides: check.limits.length
 		};

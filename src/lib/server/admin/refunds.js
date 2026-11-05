@@ -13,9 +13,15 @@
  * Mercado Pago compradas online y con número de pago ({@link isMpRefundable}); de a
  * {@link REFUND_ALL_BATCH} por pedido, una después de otra, en orden de compra. Las demás
  * aprobadas (puerta, carga a mano, transferencia) se listan «para devolver a mano» y no se tocan.
+ *
+ * Cada monto es lo que queda por devolver de la orden: su `total` menos el reembolso parcial ya
+ * hecho desde MP (`refunded_amount`, `orderRevenue` / `REVENUE_SQL` de $lib/utils/salesGoal.js).
+ * El pedido a MP es el de siempre (reembolso TOTAL, body vacío; MP no deja que lo reembolsado de
+ * un pago pase lo pagado); una orden a la que ya no le queda nada no se cuenta ni se pide.
  */
 
 import { getOrder, isValidOrderId, refundOrder } from '$lib/server/tickets/orders.js';
+import { REVENUE_SQL, orderRevenue } from '$lib/utils/salesGoal.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/tickets/orders.js').Order} Order */
@@ -132,10 +138,15 @@ export function isMpRefundable(o) {
 const MP_REFUNDABLE_SQL = `o.status = 'approved' AND o.payment_method = 'mercadopago'
 	AND o.mp_payment_id IS NOT NULL AND o.mp_payment_id != '' AND COALESCE(o.channel, 'online') = 'online'`;
 
+/** Las de {@link MP_REFUNDABLE_SQL} a las que les queda algo por devolver (las de «Reembolsar todas»). */
+const MP_REFUND_ALL_SQL = `${MP_REFUNDABLE_SQL} AND ${REVENUE_SQL} > 0`;
+
 /**
  * Lo que mostraría «Reembolsar todas» de un evento: las órdenes que se devuelven por MP (cuántas y
- * el total exacto) y las aprobadas que hay que devolver a mano (con cuánto); las sin cargo, solo
- * cuántas (no hay plata que devolver, se anulan una por una si hace falta).
+ * el total exacto de lo que queda por devolver, descontando los reembolsos parciales ya hechos en
+ * MP) y las aprobadas que hay que devolver a mano (con cuánto); las sin cargo, solo cuántas (no hay
+ * plata que devolver, se anulan una por una si hace falta). Una orden de MP a la que ya no le queda
+ * nada por devolver no cuenta.
  *
  * @param {D1Database} db
  * @param {string} eventSlug
@@ -149,18 +160,18 @@ export async function refundAllPreview(db, eventSlug) {
 		.bind(eventSlug)
 		.all();
 	const orders = /** @type {(Order & { channel?: string | null })[]} */ (results);
-	const mp = orders.filter(isMpRefundable);
+	const mp = orders.filter((o) => isMpRefundable(o) && orderRevenue(o) > 0);
 	const rest = orders.filter((o) => !isMpRefundable(o));
 	return {
-		mp: { count: mp.length, total: mp.reduce((s, o) => s + o.total, 0) },
+		mp: { count: mp.length, total: mp.reduce((s, o) => s + orderRevenue(o), 0) },
 		manual: rest
-			.filter((o) => o.total > 0)
+			.filter((o) => orderRevenue(o) > 0)
 			.map((o) => ({
 				id: o.id,
 				name: o.buyer_name,
 				method: o.payment_method,
 				channel: o.channel ?? 'online',
-				total: o.total
+				total: orderRevenue(o)
 			})),
 		free: rest.filter((o) => o.total === 0).length
 	};
@@ -168,7 +179,7 @@ export async function refundAllPreview(db, eventSlug) {
 
 /**
  * Una tanda de «Reembolsar todas»: las próximas `limit` órdenes de {@link isMpRefundable} del
- * evento después de `after` (la última de la tanda anterior; sin `after`, desde la primera), una
+ * evento con algo por devolver después de `after` (la última de la tanda anterior; sin `after`, desde la primera), una
  * después de otra con {@link refundFromPanel}; un error en una no corta la tanda. `after` tiene que
  * ser una orden de este evento (si no, tira). Las que fallan quedan como estaban (aprobadas) para
  * hacerlas a mano; como la tanda siguiente arranca después de la última vista, no se reintentan
@@ -183,7 +194,8 @@ export async function refundAllPreview(db, eventSlug) {
  *   after?: string | null,
  *   limit?: number,
  *   onRefunded?: (fresh: Order, before: Order) => Promise<void>
- * }} input `onRefunded`: lo que sigue a cada reembolso hecho (Actividad, mail, lista de espera)
+ * }} input `onRefunded`: lo que sigue a cada reembolso hecho (Actividad, mail, lista de espera).
+ * En los resultados, `total` es lo que quedaba por devolver de la orden ({@link orderRevenue}).
  * @returns {Promise<{
  *   results: { id: string, name: string, total: number, result: RefundResult }[],
  *   after: string | null,
@@ -205,7 +217,7 @@ export async function refundAllBatch({
 	if (after && !from) throw new RangeError('«after» no es una orden de este evento');
 	const { results } = await db
 		.prepare(
-			`SELECT o.* FROM orders o WHERE o.event_slug = ?1 AND ${MP_REFUNDABLE_SQL}
+			`SELECT o.* FROM orders o WHERE o.event_slug = ?1 AND ${MP_REFUND_ALL_SQL}
 				AND (?2 IS NULL OR o.created_at > ?2 OR (o.created_at = ?2 AND o.id > ?3))
 			ORDER BY o.created_at, o.id LIMIT ?4`
 		)
@@ -231,7 +243,7 @@ export async function refundAllBatch({
 			result = 'not-marked';
 		}
 		console.log(`[tickets] reembolsar todas ${eventSlug}: ${order.id} → ${result}`);
-		out.push({ id: order.id, name: order.buyer_name, total: order.total, result });
+		out.push({ id: order.id, name: order.buyer_name, total: orderRevenue(order), result });
 	}
 	const last = batch.at(-1) ?? from;
 	/** @type {number | null} */
@@ -239,7 +251,7 @@ export async function refundAllBatch({
 	try {
 		const rest = await db
 			.prepare(
-				`SELECT COUNT(*) AS n FROM orders o WHERE o.event_slug = ?1 AND ${MP_REFUNDABLE_SQL}
+				`SELECT COUNT(*) AS n FROM orders o WHERE o.event_slug = ?1 AND ${MP_REFUND_ALL_SQL}
 					AND (?2 IS NULL OR o.created_at > ?2 OR (o.created_at = ?2 AND o.id > ?3))`
 			)
 			.bind(eventSlug, last?.created_at ?? null, last?.id ?? '')
