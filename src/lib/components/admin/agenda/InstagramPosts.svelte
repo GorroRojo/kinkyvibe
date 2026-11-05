@@ -148,12 +148,11 @@
 	}
 
 	/**
-	 * El dibujo original de «agenda kinky» exportado del .ai (SVG o PNG en static/), recortado a la
-	 * tinta de las dos palabras. Mientras esté vacío, las placas lo escriben con Fredoka.
-	 * TODO: cuando gorrite pase el archivo, poner acá su ruta (p. ej. '/instagram/agenda-kinky.svg')
-	 * y medir `WORDMARK_BOX` en agendaInstagram.js.
+	 * El dibujo de «agenda kinky», calcado de la portada de octubre (las letras del .ai están en
+	 * curvas). Con '' las placas lo escriben con Fredoka. Si se cambia, medir `WORDMARK_BOX` en
+	 * agendaInstagram.js.
 	 */
-	const WORDMARK_URL = '';
+	const WORDMARK_URL = '/instagram/agenda-kinky.svg';
 
 	onMount(async () => {
 		try {

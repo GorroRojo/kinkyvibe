@@ -473,12 +473,12 @@ p { margin: 0; }
 `;
 
 /**
- * Dónde va el dibujo original de «agenda kinky» (`SlideAssets.wordmark`), en unidades del óvalo
- * chico (188.9 × 112.2): la caja de tinta de las dos palabras con su contorno y su sombra (medida
- * sobre las letras de Fredoka; con el archivo de verdad, medirla de nuevo). El archivo tiene que
- * estar recortado justo a esa tinta.
+ * Dónde va el dibujo de «agenda kinky» (`SlideAssets.wordmark`, static/instagram/agenda-kinky.svg,
+ * calcado de la portada de octubre), en unidades del óvalo chico (188.9 × 112.2): la caja de tinta
+ * de las dos palabras con su contorno y su sombra, medida sobre esa misma portada. El SVG está
+ * recortado justo a esa tinta; si se cambia el archivo, hay que medirla de nuevo.
  */
-export const WORDMARK_BOX = { left: 8.9, top: 6.4, width: 153.8, height: 96.2 };
+export const WORDMARK_BOX = { left: 9.23, top: 6.35, width: 152.3, height: 97 };
 
 /**
  * El contorno de las letras de «agenda kinky» como sombras alrededor (y otra vez corrido abajo a
