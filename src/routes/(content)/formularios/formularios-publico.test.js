@@ -126,7 +126,7 @@ async function rows() {
 	return (
 		await t.db
 			.prepare(
-				'SELECT anonymous, name, email, account_id, order_id, created_at, answers FROM form_responses ORDER BY id'
+				'SELECT anonymous, name, pronouns, email, account_id, order_id, created_at, answers FROM form_responses ORDER BY id'
 			)
 			.all()
 	).results;
@@ -179,7 +179,7 @@ describe('formulario abierto a cualquiera', () => {
 		expect(e?.status).toBe(404);
 	});
 
-	it('con nombre: pide nombre y mail, y los guarda', async () => {
+	it('con nombre: pide nombre y mail (el pronombre es opcional), y los guarda', async () => {
 		const form = await openForm();
 		const bad = /** @type {any} */ (await submit(form, { p_p1: 'Hola' }));
 		expect(bad.status).toBe(400);
@@ -189,16 +189,36 @@ describe('formulario abierto a cualquiera', () => {
 		).toEqual({
 			sent: true
 		});
+		await submit(form, {
+			p_p1: 'Otra',
+			nombre: 'Persona Demo',
+			pronombres: 'elle',
+			mail: 'demo@example.com'
+		});
 		expect(await rows()).toMatchObject([
-			{ anonymous: 0, name: 'Persona Demo', email: 'demo@example.com' }
+			{ anonymous: 0, name: 'Persona Demo', pronouns: null, email: 'demo@example.com' },
+			{ anonymous: 0, name: 'Persona Demo', pronouns: 'elle', email: 'demo@example.com' }
 		]);
 	});
 
 	it('anónimo: no guarda identidad aunque la manden', async () => {
 		const form = await openForm({ privacy: 'anonymous' });
-		await submit(form, { p_p1: 'Hola', nombre: 'Persona Demo', mail: 'demo@example.com' });
+		await submit(form, {
+			p_p1: 'Hola',
+			nombre: 'Persona Demo',
+			pronombres: 'elle',
+			mail: 'demo@example.com'
+		});
 		expect(await rows()).toMatchObject([
-			{ anonymous: 1, name: null, email: null, account_id: null, order_id: null, created_at: null }
+			{
+				anonymous: 1,
+				name: null,
+				pronouns: null,
+				email: null,
+				account_id: null,
+				order_id: null,
+				created_at: null
+			}
 		]);
 	});
 
@@ -208,12 +228,24 @@ describe('formulario abierto a cualquiera', () => {
 			p_p1: 'Uno',
 			anonima: 'on',
 			nombre: 'Persona Demo',
+			pronombres: 'elle',
 			mail: 'demo@example.com'
 		});
-		await submit(form, { p_p1: 'Dos', nombre: 'Persona Demo', mail: 'demo@example.com' });
+		await submit(form, {
+			p_p1: 'Dos',
+			nombre: 'Persona Demo',
+			pronombres: 'elle',
+			mail: 'demo@example.com'
+		});
 		const r = await rows();
-		expect(r[0]).toMatchObject({ anonymous: 1, name: null, email: null, created_at: null });
-		expect(r[1]).toMatchObject({ anonymous: 0, name: 'Persona Demo' });
+		expect(r[0]).toMatchObject({
+			anonymous: 1,
+			name: null,
+			pronouns: null,
+			email: null,
+			created_at: null
+		});
+		expect(r[1]).toMatchObject({ anonymous: 0, name: 'Persona Demo', pronouns: 'elle' });
 	});
 
 	it('la trampa invisible: contesta «gracias» y no guarda nada', async () => {

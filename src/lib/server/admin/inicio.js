@@ -1129,7 +1129,8 @@ export function upcomingEvents({
  *   resend?: { orderId: string },
  *   group?: ReviewGroupKind,
  *   name?: string,
- *   retryReminders?: { slug: string }
+ *   retryReminders?: { slug: string },
+ *   retryFormSends?: { formId: number }
  * }} ReviewItem
  */
 

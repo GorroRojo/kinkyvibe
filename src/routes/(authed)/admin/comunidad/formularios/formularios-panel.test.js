@@ -41,6 +41,8 @@ import * as editor from './[id]/+page.server.js';
 import * as respuestas from './[id]/respuestas/+page.server.js';
 import * as csv from './[id]/respuestas/respuestas.csv/+server.js';
 import * as encuesta from '../../eventos/[slug]/encuesta/+page.server.js';
+import * as porDefecto from './por-defecto/+page.server.js';
+import { getFormDefaults } from '$lib/server/formularios/defaults.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -139,6 +141,10 @@ describe('permisos', () => {
 		expect((await thrown(() => encuesta.load(fakeEvent({ params: { slug: SLUG } }))))?.status).toBe(
 			404
 		);
+		expect((await thrown(() => porDefecto.load(fakeEvent())))?.status).toBe(404);
+		expect((await thrown(() => porDefecto.actions.save(fakeEvent({ form: {} }))))?.status).toBe(
+			404
+		);
 	});
 
 	it('solo admins', async () => {
@@ -152,6 +158,16 @@ describe('permisos', () => {
 			)?.status
 		).toBe(403);
 		expect((await thrown(() => list.load(fakeEvent({ user: null }))))?.status).toBe(303);
+		expect(
+			(await thrown(() => porDefecto.actions.save(fakeEvent({ form: {}, user: notAdmin }))))?.status
+		).toBe(403);
+		expect(
+			(
+				await thrown(() =>
+					encuesta.actions.saveMail(fakeEvent({ params: { slug: SLUG }, form: {}, user: notAdmin }))
+				)
+			)?.status
+		).toBe(403);
 	});
 });
 
@@ -262,5 +278,108 @@ describe('encuesta del evento (ficha › Mails › Encuesta)', () => {
 		expect(surveys[0]).toMatchObject({ open: false, eventSlug: SLUG, privacy: 'anonymous' });
 		await encuesta.actions.setOpen(fakeEvent({ params: { slug: SLUG }, form: { open: 'on' } }));
 		expect((await getForm(t.db, surveys[0].id))?.open).toBe(true);
+	});
+});
+
+describe('Cómo salen por defecto', () => {
+	const valid = {
+		surveyAuto: 'on',
+		surveyDelayDays: '2',
+		surveyPrivacy: 'choose',
+		surveyAudience: 'admins',
+		formAccess: 'account',
+		formPrivacy: 'anonymous',
+		surveyMailSubject: 'Contanos de {{evento}}',
+		surveyMailBody: '',
+		formMailSubject: '',
+		formMailBody: ''
+	};
+
+	it('sin guardar, lo de siempre; guardado, vale para lo nuevo y queda en Actividad', async () => {
+		const before = /** @type {any} */ (await porDefecto.load(fakeEvent()));
+		expect(before.defaults).toMatchObject({ surveyAuto: true, surveyDelayDays: 1 });
+		expect(before.surveyTemplateId).toEqual(expect.any(Number));
+		const bad = /** @type {any} */ (
+			await porDefecto.actions.save(fakeEvent({ form: { ...valid, surveyDelayDays: '99' } }))
+		);
+		expect(bad.status).toBe(400);
+		expect(bad.data.save.errors.surveyDelayDays).toBeTruthy();
+		const r = /** @type {any} */ (await porDefecto.actions.save(fakeEvent({ form: valid })));
+		expect(r.save.ok).toBe(true);
+		expect(await getFormDefaults(t.db)).toMatchObject({
+			surveyDelayDays: 2,
+			surveyPrivacy: 'choose',
+			surveyMailSubject: 'Contanos de {{evento}}'
+		});
+		// Un formulario nuevo sale con lo elegido.
+		const id = await create('Nuevo');
+		expect(await getForm(t.db, id)).toMatchObject({ access: 'account', privacy: 'anonymous' });
+		// La encuesta del evento, también.
+		const data = /** @type {any} */ (await encuesta.load(fakeEvent({ params: { slug: SLUG } })));
+		expect(data.mail.subject).toBe('Contanos de Fiesta de prueba');
+		expect(data.privacy).toBe('choose');
+		const audit = await t.db
+			.prepare("SELECT summary FROM admin_audit WHERE action = 'form.defaults'")
+			.first();
+		expect(audit?.summary).toBe('Cambió cómo salen por defecto los formularios');
+	});
+
+	it('«Ver cómo queda» muestra el mail sin guardar nada', async () => {
+		const r = /** @type {any} */ (
+			await porDefecto.actions.previewMail(fakeEvent({ form: { ...valid, previewKind: 'survey' } }))
+		);
+		expect(r.preview.mail.subject).toBe('Contanos de Fiesta de ejemplo');
+		expect((await getFormDefaults(t.db)).surveyMailSubject).toBe('');
+	});
+});
+
+describe('el mail y borrar la encuesta (ficha › Mails › Encuesta)', () => {
+	it('la vista previa no crea la encuesta; guardar el mail sí, y vale para ese evento', async () => {
+		const params = { slug: SLUG };
+		const preview = /** @type {any} */ (
+			await encuesta.actions.previewMail(
+				fakeEvent({ params, form: { mailSubject: 'Hola {{evento}}', mailBody: '' } })
+			)
+		);
+		expect(preview.mail.preview.subject).toBe('Hola Fiesta de prueba');
+		expect((await listForms(t.db)).filter((f) => f.kind === 'survey')).toHaveLength(0);
+		const bad = /** @type {any} */ (
+			await encuesta.actions.saveMail(
+				fakeEvent({ params, form: { mailSubject: '', mailBody: '<b>no</b>' } })
+			)
+		);
+		expect(bad.status).toBe(400);
+		await encuesta.actions.saveMail(
+			fakeEvent({ params, form: { mailSubject: 'Hola {{evento}}', mailBody: '' } })
+		);
+		const data = /** @type {any} */ (await encuesta.load(fakeEvent({ params })));
+		expect(data.survey.mailSubject).toBe('Hola {{evento}}');
+		expect(data.mail.subject).toBe('Hola Fiesta de prueba');
+	});
+
+	it('borrarla la apaga para el evento; se recupera desde Actividad', async () => {
+		const params = { slug: SLUG };
+		await encuesta.actions.setOpen(fakeEvent({ params, form: { open: 'on' } }));
+		const r = /** @type {any} */ (await encuesta.actions.delete(fakeEvent({ params, form: {} })));
+		expect(r.remove.ok).toBe(true);
+		const data = /** @type {any} */ (await encuesta.load(fakeEvent({ params })));
+		expect(data).toMatchObject({ survey: null, deleted: true, on: false });
+		expect(
+			(await thrown(() => encuesta.actions.setOpen(fakeEvent({ params, form: { open: 'on' } }))))
+				?.status
+		).toBe(409);
+	});
+
+	it('borrar un formulario desde su editor lleva a la lista', async () => {
+		const id = await create('Para borrar');
+		const r = await thrown(() =>
+			editor.actions.delete(fakeEvent({ params: { id: String(id) }, form: {} }))
+		);
+		expect(r?.status).toBe(303);
+		expect(await getForm(t.db, id)).toBeNull();
+		const data = /** @type {any} */ (
+			await list.load(fakeEvent({ path: '/admin/comunidad/formularios?borrado=1' }))
+		);
+		expect(data.deleted).toBe(true);
 	});
 });

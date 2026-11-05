@@ -4,8 +4,9 @@
 	 * pública (/formularios/<dirección> y /calendario/<evento>/encuesta) y la vista previa del
 	 * editor del panel. Campos comunes (`name` = `answerName(id)`): andan sin JavaScript.
 	 *
-	 * Piezas del sitio público: opciones con `ChoiceCard` (`.kv-choice`), el puntaje con
-	 * `.kv-segmented` (radios, style.scss) y los textos y casillas con el estilo de las preguntas
+	 * Piezas del sitio público: opciones con `ChoiceCard` (`.kv-choice`), el puntaje con cinco
+	 * botones iguales (radios nativos: las flechas recorren el grupo; gorrite, 5/11: «el 1 a 5 se ve
+	 * mal, como estirado») y los textos y casillas con el estilo de las preguntas
 	 * de inscripción del flujo de compra (SignupFieldInputs.svelte).
 	 *
 	 * Props: `questions` (Question[]), `values` (lo que se mandó, por id de pregunta), `errors` (por
@@ -46,19 +47,28 @@
 				<legend
 					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</legend
 				>
-				<div class="kv-segmented rating" role="radiogroup" aria-label={q.label}>
-					{#each [1, 2, 3, 4, 5] as n (n)}
-						<label
-							><input
-								type="radio"
-								name={nameOf(q.id)}
-								value={String(n)}
-								{...picked(q.id, String(n))}
-							/>{n}</label
-						>
-					{/each}
+				<div class="rating">
+					<div
+						class="rating-options"
+						role="radiogroup"
+						aria-label={q.label}
+						aria-describedby="{id}-scale"
+					>
+						{#each [1, 2, 3, 4, 5] as n (n)}
+							<label
+								><input
+									type="radio"
+									name={nameOf(q.id) ?? `${id}-vista`}
+									value={String(n)}
+									{...picked(q.id, String(n))}
+								/><span>{n}</span></label
+							>
+						{/each}
+					</div>
+					<small class="scale" id="{id}-scale"
+						><span>1 = {q.low}</span><span>5 = {q.high}</span></small
+					>
 				</div>
-				<small class="scale"><span>1 = {q.low}</span><span>5 = {q.high}</span></small>
 				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
 			</fieldset>
 		{:else if q.kind === 'choice'}
@@ -138,15 +148,58 @@
 	small {
 		font-weight: normal;
 	}
-	.rating > label {
-		min-width: 2.75rem;
+	/* El puntaje: cinco botones iguales, juntos y a la izquierda; «1 = …» y «5 = …» debajo de las
+	   puntas del grupo (no de toda la fila). */
+	.rating {
+		display: inline-grid;
+		justify-self: start;
+		gap: 0.35em;
+		max-width: 100%;
+	}
+	.rating-options {
+		display: grid;
+		grid-template-columns: repeat(5, 2.75rem);
+		gap: 0.4rem;
+	}
+	.rating-options label {
+		position: relative;
+		display: grid;
+		place-items: center;
+		aspect-ratio: 1;
+		border-radius: var(--radius-s, 0.5rem);
+		box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--2) 45%, transparent);
+		background: var(--surface, white);
+		color: var(--2-dark, var(--2));
+		font-weight: bold;
+		font-size: var(--text-sm, 1rem);
+		cursor: pointer;
+		transition: background 150ms;
+	}
+	.rating-options label:hover {
+		background: color-mix(in srgb, var(--2) 10%, var(--surface, white));
+	}
+	.rating-options label:has(input:checked) {
+		background: var(--2-dark, var(--2));
+		box-shadow: inset 0 0 0 2px var(--2-dark, var(--2));
+		color: white;
+	}
+	.rating-options label:has(input:focus-visible) {
+		outline: var(--focus-ring, 2px solid var(--2-dark));
+		outline-offset: 2px;
+	}
+	.rating-options input {
+		position: absolute;
+		opacity: 0;
+		width: 1px;
+		height: 1px;
+		margin: 0;
+		pointer-events: none;
 	}
 	.scale {
 		display: flex;
 		justify-content: space-between;
 		gap: 1em;
 		color: var(--muted);
-		max-width: 17rem;
 	}
 	.choices {
 		display: grid;

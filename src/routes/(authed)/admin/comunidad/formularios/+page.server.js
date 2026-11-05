@@ -9,6 +9,7 @@ import { logDBError } from '$lib/server/db';
 import { requireFormsAdmin } from '$lib/server/formularios/admin.js';
 import { copyForm, createForm, getForm, listForms } from '$lib/server/formularios/store.js';
 import { ensureTemplates } from '$lib/server/formularios/templates.js';
+import { delayText, getFormDefaults } from '$lib/server/formularios/defaults.js';
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
 import { formPath, oneLine } from '$lib/utils/formularios.js';
 
@@ -17,7 +18,11 @@ export async function load(event) {
 	const { db } = await requireFormsAdmin(event);
 	event.setHeaders({ 'cache-control': 'private, no-store' });
 	await ensureTemplates(db);
-	const [forms, events] = await Promise.all([listForms(db), listTicketedEvents()]);
+	const [forms, events, defaults] = await Promise.all([
+		listForms(db),
+		listTicketedEvents(),
+		getFormDefaults(db)
+	]);
 	const titles = new Map(events.map((e) => [e.slug, e.config.title || e.slug]));
 	const rows = forms.map((f) => ({
 		id: f.id,
@@ -36,6 +41,10 @@ export async function load(event) {
 		updatedAt: f.updatedAt
 	}));
 	return {
+		surveyText: defaults.surveyAuto
+			? `Cada evento con entradas manda su encuesta ${delayText(defaults.surveyDelayDays)}, a quienes tenían entrada.`
+			: `La encuesta sale solo en los eventos que la prenden, ${delayText(defaults.surveyDelayDays)}.`,
+		deleted: event.url.searchParams.has('borrado'),
 		forms: rows.filter((f) => f.kind === 'form'),
 		surveys: rows.filter((f) => f.kind === 'survey'),
 		templates: rows.filter((f) => f.kind === 'template')

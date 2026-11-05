@@ -47,7 +47,7 @@
 							{#if q.average !== null && q.average !== undefined}<strong
 									>{String(q.average).replace('.', ',')}</strong
 								> de 5 en promedio ·
-							{/if}{count(q.answered, 'respuesta', 'respuestas')}
+							{/if}{count(q.answered, 'respuesta', 'respuestas')} · 1 = {q.low} · 5 = {q.high}
 						</p>
 						<ul class="bars">
 							{#each [5, 4, 3, 2, 1] as n (n)}
@@ -79,7 +79,9 @@
 			<ul class="list">
 				{#each data.responses as r, i (i)}
 					<li>
-						<strong>{r.hidden ? 'Anónima' : r.name || 'Sin nombre'}</strong>
+						<strong>{r.hidden ? 'Anónima' : r.name || 'Sin nombre'}</strong
+						>{#if !r.hidden && r.pronouns}
+							({r.pronouns}){/if}
 						<dl>
 							{#each r.answers as a (a.id)}
 								<dt>{a.label}</dt>

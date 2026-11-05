@@ -208,16 +208,19 @@ export const FLAGS = Object.freeze({
 	formularios: {
 		label: 'Formularios',
 		description:
-			'Comunidad › Formularios en el panel: formularios propios (con las preguntas en el mismo ' +
-			'editor que las preguntas de inscripción), en kinkyvibe.ar/formularios/<nombre>, y la ' +
-			'encuesta de después de cada evento: un día después, les llega a quienes tenían entrada un ' +
-			'link personal (anónima por defecto; cada evento la puede apagar). Cada formulario elige ' +
-			'quién responde, si es con nombre, anónimo o que cada persona elija, y quién ve las ' +
-			'respuestas. Prendido, las preguntas de inscripción también se editan con el editor nuevo ' +
-			'(con orden). Apagado, nada de esto se ve y las páginas públicas dan 404.',
+			'Comunidad › Formularios en el panel: formularios propios en kinkyvibe.ar/formularios/<nombre> ' +
+			'y la encuesta de después de cada evento: un día después, les llega a quienes tenían entrada ' +
+			'un link personal (anónima por defecto; cada evento la prende o la apaga en su ficha › Mails › ' +
+			'Encuesta). Cada formulario elige quién responde, si es con nombre, anónimo o que cada ' +
+			'persona elija, y quién ve las respuestas. Prendido, lo encontrás en Comunidad › Formularios, ' +
+			'en el buscador (Ctrl K: «formulario», «encuesta», cada plantilla), en «+ Crear» y en la ' +
+			'ficha de cada evento (Resumen › Formularios de este evento). Lo que sale por defecto (si la ' +
+			'encuesta sale sola, cuántos días después, privacidad, quién ve las respuestas y los mails) ' +
+			'se cambia en Comunidad › Formularios › Cómo salen por defecto. Apagado, nada de esto se ve ' +
+			'y las páginas públicas dan 404.',
 		tech:
-			'docs/formularios.md, decisión 0057. Antes de prenderlo: migración 0079 (forms, ' +
-			'form_responses, form_sends). La encuesta sale con el cron de cada 15 minutos ' +
+			'docs/formularios.md, decisión 0057. Antes de prenderlo: migraciones 0079 (forms, ' +
+			'form_responses, form_sends) y 0080 (pronombres, mail editable, borrado suave). La encuesta sale con el cron de cada 15 minutos ' +
 			'(src/lib/server/formularios/send.js).',
 		envVar: 'FORMULARIOS_ENABLED'
 	}

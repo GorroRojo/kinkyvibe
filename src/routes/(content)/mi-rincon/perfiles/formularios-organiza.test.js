@@ -170,7 +170,8 @@ describe('respuestas de formularios para les organizadores', () => {
 		const text = await res.text();
 		expect(text).toContain('Persona Demo');
 		expect(text).not.toContain('example.com');
-		expect(text.split('\r\n')[0]).toBe('día,nombre,¿Qué música?');
+		// Nombre y pronombres (si la privacidad los deja ver); el mail, nunca.
+		expect(text.split('\r\n')[0]).toBe('día,nombre,pronombres,¿Qué música?');
 
 		const { results } = await t.db
 			.prepare("SELECT summary FROM admin_audit WHERE action = 'form_responses.view' ORDER BY id")

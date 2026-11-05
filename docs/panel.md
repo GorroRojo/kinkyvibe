@@ -327,6 +327,9 @@ revisar" del Inicio.
   `broken`, `listTicketedEvents` (`src/lib/server/tickets/events.js`) los anota y «Para revisar»
   suma una fila por evento («… no puede vender entradas: su configuración tiene un error», con el
   error de validación y «Editar»).
+- **Links de formularios que no salieron** ([formularios.md](formularios.md)): una fila por
+  formulario o encuesta con links personales que fallaron todos sus intentos («La encuesta no le
+  llegó a todes: …»), con «Reintentar» (`?/retryFormSends`), como los recordatorios que fallaron.
 - **Cuando la base falla, el Inicio lo dice** (auditoría de confiabilidad, O18): cada consulta que
   cae a su respaldo por un error queda anotada (el parámetro `failed` de `runQuery` y `runQueries`
   en `src/lib/server/db/batch.js`, que pasa también por `combineQueries` y `mapQuery`) y el load

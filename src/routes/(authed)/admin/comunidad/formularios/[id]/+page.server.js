@@ -1,10 +1,11 @@
 /**
  * Comunidad › Formularios › un formulario (docs/formularios.md): el editor (nombre, dirección,
  * quién responde, privacidad, quién ve las respuestas y las preguntas con el editor compartido),
- * abrirlo o cerrarlo y, en uno «quienes tenían entrada», mandar el link. Lo mismo para la encuesta
- * de un evento y para las plantillas. Solo admins y con el interruptor `formularios`.
+ * abrirlo o cerrarlo y, en uno «quienes tenían entrada», mandar el link y su mail. Lo mismo para la
+ * encuesta de un evento y para las plantillas. Borrar (suave): vuelve desde Actividad. Solo admins
+ * y con el interruptor `formularios`.
  */
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logDBError } from '$lib/server/db';
 import {
@@ -12,7 +13,12 @@ import {
 	requireFormsAdmin,
 	ticketedEventChoices
 } from '$lib/server/formularios/admin.js';
+import { delayText, getFormDefaults } from '$lib/server/formularios/defaults.js';
+import { mailTexts } from '$lib/server/formularios/email.js';
+import { mailAction, mailPreview } from '$lib/server/formularios/mailAdmin.js';
+import { siteOrigin } from '$lib/server/tickets/index.js';
 import {
+	deleteForm,
 	requestFormSend,
 	responseCount,
 	saveForm,
@@ -32,22 +38,70 @@ export async function load(event) {
 	const { db } = await requireFormsAdmin(event);
 	event.setHeaders({ 'cache-control': 'private, no-store' });
 	const form = await formOr404(db, event.params.id);
-	const [responses, events, stats] = await Promise.all([
+	const [responses, events, stats, defaults] = await Promise.all([
 		responseCount(db, form.id),
 		ticketedEventChoices(),
-		form.access === 'ticket' && form.kind !== 'template' ? sendStats(db, form.id) : null
+		form.access === 'ticket' && form.kind !== 'template' ? sendStats(db, form.id) : null,
+		getFormDefaults(db)
 	]);
+	// El mail con el link personal: en la encuesta y en los «quienes tenían entrada».
+	const mails = form.kind === 'survey' || (form.kind === 'form' && form.access === 'ticket');
+	const eventTitle = events.find((e) => e.slug === form.eventSlug)?.title ?? form.eventSlug ?? '';
 	return {
 		form,
 		path: form.kind === 'template' ? null : formPath(form),
 		responses,
 		events,
-		stats
+		stats,
+		delayText: delayText(defaults.surveyDelayDays),
+		mail: mails
+			? {
+					preview: mailPreview(
+						{ ...form, questions: form.questions.length },
+						{ eventTitle, origin: siteOrigin(event.url), defaults }
+					),
+					fallback: mailTexts({ kind: form.kind }, defaults)
+				}
+			: null
 	};
+}
+
+/**
+ * @param {import('./$types').RequestEvent} event
+ * @param {boolean} save
+ */
+async function mailFor(event, save) {
+	const { admin, db } = await requireFormsAdmin(event);
+	const form = await formOr404(db, event.params.id);
+	if (form.kind === 'template' || (form.kind === 'form' && form.access !== 'ticket'))
+		return fail(400, { mail: { ok: false, message: 'Este formulario no se manda por mail.' } });
+	const [events, defaults] = await Promise.all([ticketedEventChoices(), getFormDefaults(db)]);
+	const eventTitle = events.find((e) => e.slug === form.eventSlug)?.title ?? form.eventSlug ?? '';
+	return mailAction(form, event, { admin, db, eventTitle, defaults, save });
 }
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+	previewMail: (event) => mailFor(event, false),
+	saveMail: (event) => mailFor(event, true),
+	delete: async (event) => {
+		const { admin, db } = await requireFormsAdmin(event);
+		const form = await formOr404(db, event.params.id);
+		if (form.kind === 'template')
+			return fail(400, { remove: { ok: false, message: 'Las plantillas no se borran.' } });
+		await deleteForm(db, form, { by: admin.login });
+		await logAdminAction(db, event.locals, {
+			action: 'form.delete',
+			targetType: form.kind === 'survey' ? 'event' : 'form',
+			targetId: form.kind === 'survey' ? String(form.eventSlug) : String(form.id),
+			summary:
+				form.kind === 'survey'
+					? `Borró la encuesta de ${form.eventSlug} (se recupera desde Actividad)`
+					: `Borró el formulario «${form.title}» (se recupera desde Actividad)`,
+			detail: { id: form.id }
+		});
+		redirect(303, '/admin/comunidad/formularios?borrado=1');
+	},
 	save: async (event) => {
 		const { admin, db } = await requireFormsAdmin(event);
 		const form = await formOr404(db, event.params.id);

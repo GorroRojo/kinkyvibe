@@ -65,6 +65,7 @@
 									<strong>{String(q.average).replace('.', ',')}</strong> de 5 en promedio
 								{:else}—{/if}
 							</p>
+							<p class="kv-note">1 = {q.low} · 5 = {q.high}</p>
 							<BarList
 								label="Puntajes de «{q.label}»"
 								items={[5, 4, 3, 2, 1].map((n) => ({
@@ -109,6 +110,7 @@
 								<Badge>Anónima</Badge>
 							{:else}
 								<strong>{r.name || 'Sin nombre'}</strong>
+								{#if r.pronouns}<span class="kv-note">({r.pronouns})</span>{/if}
 								{#if r.email}<span class="kv-note">{r.email}</span>{/if}
 							{/if}
 							<span class="kv-note">{dayText(r.day)}</span>

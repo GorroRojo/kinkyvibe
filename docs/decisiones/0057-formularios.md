@@ -59,4 +59,10 @@ beca) y el editor de las preguntas de inscripción necesitaba orden. Se resolvi�
 
 - Migración 0079 (solo agrega `forms`, `form_responses` y `form_sends`). Una respuesta anónima no
   tiene dónde guardar identidad: un CHECK de la tabla lo impide.
+- Respuestas de gorrite del 5/11 (detalle en [formularios.md](../formularios.md)): nombre,
+  pronombre y mail definen si una respuesta es anónima; la encuesta sale siempre, aunque sea tarde;
+  los mails se editan (por evento y por defecto) y lo que sale por defecto se cambia en un solo
+  lugar; los formularios se borran y se recuperan (0033); los links que fallaron van a «Para
+  revisar»; el editor de preguntas de inscripción va siempre, sin el interruptor; al duplicar un
+  evento se copian su encuesta y sus preguntas. Migración 0080 (solo agrega columnas).
 - Detalle y código en [formularios.md](../formularios.md).

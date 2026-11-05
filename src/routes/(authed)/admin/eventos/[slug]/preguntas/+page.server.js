@@ -9,14 +9,10 @@ import { error, fail } from '@sveltejs/kit';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logDBError } from '$lib/server/db';
 import {
-	createFieldAction,
-	deleteFieldAction,
 	eventTicketTypes,
 	requirePersonasAdmin,
-	saveFieldsAction,
-	updateFieldAction
+	saveFieldsAction
 } from '$lib/server/personas/admin.js';
-import { formulariosEnabled } from '$lib/server/flags.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import {
 	chosenGeneral,
@@ -40,29 +36,18 @@ export async function load(event) {
 	const { db } = await requirePersonasAdmin(event);
 	await requireTicketed(event.params.slug);
 	event.setHeaders({ 'cache-control': 'private, no-store' });
-	const [own, general, chosen, types, formularios] = await Promise.all([
+	const [own, general, chosen, types] = await Promise.all([
 		listOwnFields(db, event.params.slug),
 		listGeneralFields(db),
 		chosenGeneral(db, event.params.slug),
-		eventTicketTypes(event.params.slug),
-		// Con `formularios` prendido, las preguntas propias se editan con el editor compartido.
-		formulariosEnabled(event.platform)
+		eventTicketTypes(event.params.slug)
 	]);
-	return { own, general, chosen, types, formularios };
+	return { own, general, chosen, types };
 }
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	createField: async (event) => {
-		await requireTicketed(event.params.slug);
-		return createFieldAction(event, event.params.slug);
-	},
-	updateField: async (event) => {
-		await requireTicketed(event.params.slug);
-		return updateFieldAction(event, event.params.slug);
-	},
-	deleteField: (event) => deleteFieldAction(event, event.params.slug),
-	// El editor compartido (interruptor `formularios`): la lista entera, con su orden.
+	// El editor de preguntas (el mismo de los formularios): la lista entera, con su orden.
 	saveFields: async (event) => {
 		await requireTicketed(event.params.slug);
 		return saveFieldsAction(event, event.params.slug);

@@ -5,7 +5,7 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
-	import { ClipboardList, Copy, Eye, Inbox, Pencil, Plus } from '@lucide/svelte';
+	import { ClipboardList, Copy, Eye, Inbox, Pencil, Plus, SlidersHorizontal } from '@lucide/svelte';
 	import { fmtDate } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import { Badge, Button, Card, EmptyState, Field, Notice } from '$lib/components/ui';
@@ -24,12 +24,34 @@
 <PageHeader
 	title="Formularios"
 	subtitle="Formularios propios, la encuesta de después de cada evento y plantillas para copiar."
-/>
+>
+	<svelte:fragment slot="actions">
+		<Button
+			variant="secondary"
+			icon={SlidersHorizontal}
+			href="/admin/comunidad/formularios/por-defecto">Cómo salen por defecto</Button
+		>
+	</svelte:fragment>
+</PageHeader>
 
 <div class="kv-stack formularios">
+	{#if data.deleted}
+		<Notice tone="ok" compact
+			>Listo: se borró. Lo recuperás, con sus respuestas, desde <a href="/admin/ajustes/actividad"
+				>Ajustes › Actividad</a
+			>.</Notice
+		>
+	{/if}
+	<div id="nuevo"></div>
 	<Card title="Formulario nuevo">
 		<form class="kv-row create" method="POST" action="?/create" use:enhance>
-			<Field label="Nombre" name="title" bind:value={title} placeholder="Ej.: Pedido de beca" />
+			<Field
+				id="formulario-nuevo"
+				label="Nombre"
+				name="title"
+				bind:value={title}
+				placeholder="Ej.: Pedido de beca"
+			/>
 			<Button type="submit" icon={Plus}>Crear</Button>
 		</form>
 		<p class="kv-note">O empezá desde una plantilla (abajo).</p>
@@ -84,9 +106,9 @@
 
 	<Card title="Encuestas de los eventos">
 		<p class="kv-note">
-			Cada evento con entradas manda su encuesta un día después de terminar, a quienes tenían
-			entrada. Se crea sola la primera vez (copiando la plantilla «¿Cómo la pasaste?») y cada evento
-			la puede apagar en su ficha › Mails › Encuesta.
+			{data.surveyText} Se crea sola la primera vez (copiando la plantilla «¿Cómo la pasaste?») y cada
+			evento la prende o la apaga en su ficha › Mails › Encuesta. Cómo sale se cambia en
+			<a href="/admin/comunidad/formularios/por-defecto">Cómo salen por defecto</a>.
 		</p>
 		{#if data.surveys.length === 0}
 			<p class="kv-note">Todavía ningún evento tiene encuesta.</p>
@@ -126,7 +148,7 @@
 		</p>
 		<ul class="list">
 			{#each data.templates as f (f.id)}
-				<li>
+				<li id={f.slug}>
 					<div class="what">
 						<span class="name">{f.title}</span>
 						<span class="meta">
@@ -179,6 +201,12 @@
 	}
 	li:first-child {
 		border-top: 0;
+	}
+	/* Desde el buscador («Plantilla: …»): la plantilla elegida, marcada. */
+	li:target {
+		background: var(--link-bg);
+		border-radius: var(--radius-s);
+		padding-inline: var(--space-2xs);
 	}
 	.what {
 		display: flex;

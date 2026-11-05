@@ -24,6 +24,7 @@ export async function responsesView(db, form, { emails = true, random } = {}) {
 			anonymous: r.anonymous,
 			day: r.day,
 			name: show ? r.name : null,
+			pronouns: show ? r.pronouns : null,
 			email: show && emails ? r.email : null,
 			hidden: !show
 		};

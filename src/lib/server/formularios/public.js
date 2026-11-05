@@ -25,6 +25,7 @@ import {
 	EMAIL_MAX,
 	HONEYPOT_FIELD,
 	NAME_MAX,
+	PRONOUNS_MAX,
 	isAnonymousResponse,
 	oneLine,
 	validateFormAnswers
@@ -151,6 +152,7 @@ export async function submitPublicForm(event, form) {
 	}
 	const typed = {
 		name: oneLine(data.get('nombre')).slice(0, NAME_MAX),
+		pronouns: oneLine(data.get('pronombres')).slice(0, PRONOUNS_MAX),
 		email: oneLine(data.get('mail')).slice(0, EMAIL_MAX).toLowerCase(),
 		anonymous: data.get(ANONYMOUS_FIELD) === 'on'
 	};
@@ -190,10 +192,16 @@ export async function submitPublicForm(event, form) {
 	let identity = null;
 	if (!anonymous) {
 		if (order) {
-			identity = { name: order.buyer_name, email: order.buyer_email, orderId: order.id };
+			identity = {
+				name: order.buyer_name,
+				pronouns: order.buyer_pronouns || null,
+				email: order.buyer_email,
+				orderId: order.id
+			};
 		} else if (form.access === 'account' && event.locals.member) {
 			identity = {
 				name: typed.name || null,
+				pronouns: typed.pronouns || null,
 				email: event.locals.member.email,
 				accountId: event.locals.member.id
 			};
@@ -205,6 +213,7 @@ export async function submitPublicForm(event, form) {
 			if (Object.keys(errors).length) return failWith(400, 'Revisá lo marcado.', errors);
 			identity = {
 				name: typed.name,
+				pronouns: typed.pronouns || null,
 				email: typed.email,
 				accountId: event.locals.member?.id ?? null
 			};

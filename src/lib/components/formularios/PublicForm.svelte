@@ -19,7 +19,13 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import FormQuestions from './FormQuestions.svelte';
-	import { ANONYMOUS_FIELD, EMAIL_MAX, HONEYPOT_FIELD, NAME_MAX } from '$lib/utils/formularios.js';
+	import {
+		ANONYMOUS_FIELD,
+		EMAIL_MAX,
+		HONEYPOT_FIELD,
+		NAME_MAX,
+		PRONOUNS_MAX
+	} from '$lib/utils/formularios.js';
 
 	/** @type {any} */
 	export let data;
@@ -166,7 +172,7 @@
 					/>
 					<span
 						>Responder anónimamente <small
-							>Si la marcás, no guardamos tu nombre, tu mail ni tu cuenta.</small
+							>Si la marcás, no guardamos tu nombre, tus pronombres, tu mail ni tu cuenta.</small
 						></span
 					>
 				</label>
@@ -185,6 +191,16 @@
 						{#if errors.nombre}<span class="field-error">{errors.nombre}</span>{/if}
 					</label>
 					<label class="field">
+						<span>Tus pronombres <small>(opcional)</small></span>
+						<input
+							name="pronombres"
+							maxlength={PRONOUNS_MAX}
+							placeholder="ella, él, elle…"
+							autocomplete="off"
+							{...valueOf(typed.pronouns)}
+						/>
+					</label>
+					<label class="field">
 						<span>Tu mail</span>
 						<input
 							name="mail"
@@ -198,10 +214,27 @@
 					</label>
 				</div>
 			{:else if data.access === 'account' && data.privacy !== 'anonymous' && !anonymous}
-				<label class="field">
-					<span>Tu nombre <small>(opcional)</small></span>
-					<input name="nombre" autocomplete="name" maxlength={NAME_MAX} {...valueOf(typed.name)} />
-				</label>
+				<div class="who">
+					<label class="field">
+						<span>Tu nombre <small>(opcional)</small></span>
+						<input
+							name="nombre"
+							autocomplete="name"
+							maxlength={NAME_MAX}
+							{...valueOf(typed.name)}
+						/>
+					</label>
+					<label class="field">
+						<span>Tus pronombres <small>(opcional)</small></span>
+						<input
+							name="pronombres"
+							maxlength={PRONOUNS_MAX}
+							placeholder="ella, él, elle…"
+							autocomplete="off"
+							{...valueOf(typed.pronouns)}
+						/>
+					</label>
+				</div>
 			{/if}
 			<FormQuestions questions={data.questions} {values} {errors} idPrefix="formulario" />
 			<Button surface="sitio" type="submit" disabled={sending} busy={sending}

@@ -144,18 +144,43 @@ describe('encuesta después del evento', () => {
 		expect(sent).toHaveLength(2);
 	});
 
-	it('no sale si el evento la apagó, si pasaron más de 3 días o con el interruptor apagado', async () => {
+	// gorrite (5/11): la encuesta sale siempre, aunque sea tarde (antes había un corte de 3 días).
+	it('sale aunque sea tarde (sin corte), pero no la de un evento que tocaba antes de prenderlo', async () => {
 		await order('evento-de-prueba', 'a@example.com');
 		const { sent, fetch } = captureFetch();
-		// Más de 3 días tarde.
+		// La primera vuelta del cron con el interruptor prendido, antes de que toque.
+		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now: END });
+		// Diez días tarde: sale igual.
+		const late = END + 24 * HOUR + 240 * HOUR;
+		const r = await runFormsCron({
+			db: t.db,
+			platform: platform(),
+			origin: ORIGIN,
+			fetch,
+			now: late
+		});
+		expect(r).toMatchObject({ sent: 1 });
+		expect(sent).toHaveLength(1);
+	});
+
+	it('al prenderlo, no les llega la encuesta de los eventos que ya tocaban', async () => {
+		await order('evento-de-prueba', 'a@example.com');
+		const { sent, fetch } = captureFetch();
+		// La primera vuelta del cron es después de que tocaba: queda anotada y no sale.
 		await runFormsCron({
 			db: t.db,
 			platform: platform(),
 			origin: ORIGIN,
 			fetch,
-			now: END + 24 * HOUR + 73 * HOUR
+			now: END + 24 * HOUR + 5 * HOUR
 		});
 		expect(sent).toHaveLength(0);
+		expect(await getEventSurvey(t.db, 'evento-de-prueba')).toBeNull();
+	});
+
+	it('no sale si el evento la apagó, si la borraron o con el interruptor apagado', async () => {
+		await order('evento-de-prueba', 'a@example.com');
+		const { sent, fetch } = captureFetch();
 		// Apagada en el evento.
 		const now = END + 25 * HOUR;
 		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now: END });
@@ -166,6 +191,13 @@ describe('encuesta después del evento', () => {
 		await setFormOpen(t.db, survey.id, false, { by: 'x' });
 		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now });
 		expect(sent).toHaveLength(0);
+		// Borrada (se recupera desde Actividad): no sale y no se vuelve a crear.
+		const { deleteForm } = await import('./store.js');
+		await deleteForm(t.db, survey, { by: 'x' });
+		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now });
+		expect(sent).toHaveLength(0);
+		expect(await getEventSurvey(t.db, 'evento-de-prueba')).toBeNull();
+		await t.db.prepare('UPDATE forms SET deleted_at = NULL WHERE id = ?1').bind(survey.id).run();
 		// Interruptor apagado.
 		await setFormOpen(t.db, survey.id, true, { by: 'x' });
 		env.value.FORMULARIOS_ENABLED = '0';
@@ -174,6 +206,95 @@ describe('encuesta después del evento', () => {
 			await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now })
 		).toBeNull();
 		expect(sent).toHaveLength(0);
+	});
+});
+
+describe('cómo salen por defecto y el mail', () => {
+	it('sin nada guardado, lo de siempre; con «Cómo salen por defecto», lo nuevo', async () => {
+		const { getFormDefaults, saveFormDefaults, FORM_DEFAULTS } = await import('./defaults.js');
+		expect(await getFormDefaults(t.db)).toMatchObject(FORM_DEFAULTS);
+		await order('evento-de-prueba', 'a@example.com');
+		await saveFormDefaults(
+			t.db,
+			{
+				...FORM_DEFAULTS,
+				surveyDelayDays: 3,
+				surveyPrivacy: 'choose',
+				surveyAudience: 'admins',
+				surveyMailSubject: 'Contanos de {{evento}}',
+				surveyMailBody: 'Gracias por venir. Tu link: [acá]({{link}})'
+			},
+			{ by: 'x' }
+		);
+		const { sent, fetch } = captureFetch();
+		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now: END });
+		// Un día después ya no toca: ahora son 3.
+		await runFormsCron({
+			db: t.db,
+			platform: platform(),
+			origin: ORIGIN,
+			fetch,
+			now: END + 25 * HOUR
+		});
+		expect(sent).toHaveLength(0);
+		await runFormsCron({
+			db: t.db,
+			platform: platform(),
+			origin: ORIGIN,
+			fetch,
+			now: END + 73 * HOUR
+		});
+		expect(sent).toHaveLength(1);
+		expect(sent[0].subject).toBe('Contanos de Fiesta de prueba');
+		expect(String(sent[0].text)).toMatch(/Tu link: acá \(https:\/\/kinkyvibe\.example\/calendario/);
+		const survey = /** @type {any} */ (await getEventSurvey(t.db, 'evento-de-prueba'));
+		expect(survey).toMatchObject({ privacy: 'choose', audience: 'admins' });
+	});
+
+	it('la encuesta no sale sola si así se eligió; sí la que un evento prendió', async () => {
+		const { saveFormDefaults, FORM_DEFAULTS } = await import('./defaults.js');
+		await saveFormDefaults(t.db, { ...FORM_DEFAULTS, surveyAuto: false }, { by: 'x' });
+		await order('evento-de-prueba', 'a@example.com');
+		const { sent, fetch } = captureFetch();
+		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now: END });
+		const now = END + 25 * HOUR;
+		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now });
+		expect(sent).toHaveLength(0);
+		const { ensureEventSurvey } = await import('./store.js');
+		const survey = /** @type {any} */ (
+			await ensureEventSurvey(t.db, 'evento-de-prueba', { by: 'x' })
+		);
+		expect(survey.open).toBe(false);
+		await setFormOpen(t.db, survey.id, true, { by: 'x' });
+		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now: now + 1000 });
+		expect(sent).toHaveLength(1);
+	});
+
+	it('el mail propio de una encuesta manda sobre el de por defecto', async () => {
+		const { saveFormDefaults, FORM_DEFAULTS } = await import('./defaults.js');
+		const { ensureEventSurvey, saveFormMail } = await import('./store.js');
+		await saveFormDefaults(
+			t.db,
+			{ ...FORM_DEFAULTS, surveyMailSubject: 'El de por defecto' },
+			{ by: 'x' }
+		);
+		await order('evento-de-prueba', 'a@example.com');
+		const survey = /** @type {any} */ (
+			await ensureEventSurvey(t.db, 'evento-de-prueba', { by: 'x' })
+		);
+		await saveFormMail(t.db, survey.id, { subject: 'El de este evento', body: '' }, { by: 'x' });
+		const { sent, fetch } = captureFetch();
+		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now: END });
+		await runFormsCron({
+			db: t.db,
+			platform: platform(),
+			origin: ORIGIN,
+			fetch,
+			now: END + 25 * HOUR
+		});
+		expect(sent.map((m) => m.subject)).toEqual(['El de este evento']);
+		// El texto vacío: el de siempre.
+		expect(String(sent[0].text)).toContain('¡Gracias por venir a Fiesta de prueba!');
 	});
 });
 

@@ -41,6 +41,8 @@ export const INTRO_MAX = 1000;
 export const SLUG_MAX = 80;
 /** Nombre y mail de quien responde (formularios con nombre y sin cuenta). */
 export const NAME_MAX = 120;
+/** Largo máximo de los pronombres (como en la compra). */
+export const PRONOUNS_MAX = 40;
 export const EMAIL_MAX = 254;
 
 /** El nombre del campo trampa (invisible: si llega lleno, es un robot). */
@@ -70,7 +72,8 @@ export const PRIVACY_LABELS = Object.freeze({
 });
 export const PRIVACY_HELP = Object.freeze({
 	named: 'Se guarda quién respondió.',
-	anonymous: 'No se guarda nombre, mail, cuenta ni compra: solo las respuestas y el día.',
+	anonymous:
+		'No se guarda nombre, pronombre, mail, cuenta ni compra: solo las respuestas y el día.',
 	choose: 'El formulario muestra «Responder anónimamente». Si la marcan, se guarda como anónima.'
 });
 
@@ -485,7 +488,7 @@ export function shuffled(list, random = Math.random) {
 
 /**
  * @typedef {{ answers: FormAnswer[], anonymous: boolean, name?: string | null,
- *   email?: string | null, day: string }} ResponseRow
+ *   pronouns?: string | null, email?: string | null, day: string }} ResponseRow
  */
 
 /**
@@ -494,7 +497,7 @@ export function shuffled(list, random = Math.random) {
  * opción (y cuántas se marcó una casilla), y la lista de textos.
  *
  * @typedef {{ id: string, label: string, kind: QuestionKind, answered: number,
- *   average?: number | null, distribution?: number[],
+ *   average?: number | null, distribution?: number[], low?: string, high?: string,
  *   counts?: { option: string, count: number }[], texts?: string[] }} SummaryItem
  *
  * @param {readonly Question[]} questions
@@ -502,9 +505,15 @@ export function shuffled(list, random = Math.random) {
  * @returns {SummaryItem[]}
  */
 export function summarize(questions, responses) {
-	/** @type {Map<string, { id: string, label: string, kind: QuestionKind, options: string[] }>} */
+	/**
+	 * @type {Map<string, { id: string, label: string, kind: QuestionKind, options: string[],
+	 *   low?: string, high?: string }>}
+	 */
 	const cols = new Map(
-		questions.map((q) => [q.id, { id: q.id, label: q.label, kind: q.kind, options: q.options }])
+		questions.map((q) => [
+			q.id,
+			{ id: q.id, label: q.label, kind: q.kind, options: q.options, low: q.low, high: q.high }
+		])
 	);
 	for (const r of responses) {
 		for (const a of r.answers) {
@@ -523,7 +532,9 @@ export function summarize(questions, responses) {
 				average: nums.length
 					? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10
 					: null,
-				distribution: [1, 2, 3, 4, 5].map((n) => nums.filter((x) => x === n).length)
+				distribution: [1, 2, 3, 4, 5].map((n) => nums.filter((x) => x === n).length),
+				low: c.low || DEFAULT_LOW,
+				high: c.high || DEFAULT_HIGH
 			};
 		}
 		if (c.kind === 'choice' || c.kind === 'checkbox') {
@@ -540,7 +551,7 @@ export function summarize(questions, responses) {
 
 /**
  * Las filas del CSV de respuestas: una columna por pregunta y, si el formulario hoy muestra
- * nombres, «nombre» y «mail» (vacías en las anónimas). Fecha: solo el día.
+ * nombres, «nombre», «pronombres» y «mail» (vacías en las anónimas). Fecha: solo el día.
  *
  * @param {readonly Question[]} questions
  * @param {readonly ResponseRow[]} responses ya en el orden en que van
@@ -550,12 +561,18 @@ export function summarize(questions, responses) {
 export function responsesCsvRows(questions, responses, privacy) {
 	const cols = summarize(questions, responses).map((c) => ({ id: c.id, label: c.label }));
 	const withNames = privacy !== 'anonymous';
-	const head = ['día', ...(withNames ? ['nombre', 'mail'] : []), ...cols.map((c) => c.label)];
+	const head = [
+		'día',
+		...(withNames ? ['nombre', 'pronombres', 'mail'] : []),
+		...cols.map((c) => c.label)
+	];
 	const rows = responses.map((r) => {
 		const show = showsIdentity(privacy, r);
 		return [
 			r.day,
-			...(withNames ? [show ? (r.name ?? '') : '', show ? (r.email ?? '') : ''] : []),
+			...(withNames
+				? [show ? (r.name ?? '') : '', show ? (r.pronouns ?? '') : '', show ? (r.email ?? '') : '']
+				: []),
 			...cols.map((c) => r.answers.find((a) => a.id === c.id)?.value ?? '')
 		];
 	});

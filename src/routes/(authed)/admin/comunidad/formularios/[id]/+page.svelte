@@ -8,7 +8,8 @@
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { askConfirm } from '$lib/admin/confirm.js';
-	import { ExternalLink, Inbox, Send } from '@lucide/svelte';
+	import { ExternalLink, Inbox, Send, Trash2 } from '@lucide/svelte';
+	import FormMailEditor from '$lib/components/admin/forms/FormMailEditor.svelte';
 	import ChipCombobox from '$lib/components/admin/ChipCombobox.svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import QuestionEditor from '$lib/components/admin/forms/QuestionEditor.svelte';
@@ -53,6 +54,7 @@
 	$: eventTitle = data.events.find((e) => e.slug === eventSlug)?.title ?? eventSlug;
 	$: save = form?.save ?? null;
 	$: errors = save && !save.ok ? (save.errors ?? {}) : {};
+	$: mail = form?.mail ?? null;
 
 	/** @param {string} q */
 	const searchEvents = (q) => {
@@ -72,7 +74,7 @@
 	subtitle={template
 		? 'Plantilla: no se publica. «Usar esta plantilla» (en la lista) hace una copia para editar.'
 		: survey
-			? 'Se manda sola un día después del evento, con un link personal a quienes tenían entrada.'
+			? `Se manda ${data.delayText}, con un link personal a quienes tenían entrada.`
 			: ''}
 	back={{ href: '/admin/comunidad/formularios', label: 'Formularios' }}
 >
@@ -293,6 +295,49 @@
 			{#if save}<Notice tone={save.ok ? 'ok' : 'error'} compact>{save.message}</Notice>{/if}
 		</div>
 	</form>
+
+	{#if data.mail}
+		<Card title={survey ? 'El mail de la encuesta' : 'El mail con el link'}>
+			<p class="kv-note">
+				Vacío, va el de <a href="/admin/comunidad/formularios/por-defecto">Cómo salen por defecto</a
+				>.
+			</p>
+			<FormMailEditor
+				subject={mail?.subject ?? f.mailSubject}
+				body={mail?.body ?? f.mailBody}
+				fallbackSubject={data.mail.fallback.subject}
+				fallbackBody={data.mail.fallback.body}
+				kind={survey ? 'survey' : 'form'}
+				idPrefix="form-mail"
+				preview={mail?.preview ?? data.mail.preview}
+				errors={mail?.errors ?? {}}
+				message={mail?.message ?? ''}
+				ok={mail?.ok ?? true}
+			/>
+		</Card>
+	{/if}
+
+	{#if !template}
+		<form
+			method="POST"
+			action="?/delete"
+			use:enhance={async ({ cancel }) => {
+				const ok = await askConfirm({
+					title: survey ? '¿Borrar esta encuesta?' : '¿Borrar este formulario?',
+					text: survey
+						? 'Deja de salir para su evento. Las respuestas no se pierden: la recuperás con todo desde Ajustes › Actividad.'
+						: 'Se cierra y sale de la lista. Las respuestas no se pierden: lo recuperás con todo desde Ajustes › Actividad.',
+					confirmLabel: 'Borrar',
+					tone: 'danger'
+				});
+				if (!ok) return cancel();
+			}}
+		>
+			<Button type="submit" variant="danger" size="small" icon={Trash2}
+				>{survey ? 'Borrar la encuesta' : 'Borrar el formulario'}</Button
+			>
+		</form>
+	{/if}
 </div>
 
 <style>

@@ -31,7 +31,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [moderacion.md](moderacion.md)                 | Moderación: qué hacer cuando alguien pide desaparecer del sitio (perfil, foto, nombre, buscadores)                  |
 | [talleres-partes.md](talleres-partes.md)       | Talleres en varias partes: partes como edges, una entrada para todas, ingreso y avisos por parte                    |
 | [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción                                                  |
-| [formularios.md](formularios.md)               | Formularios, la encuesta después de cada evento y el editor de preguntas compartido (interruptor `formularios`)     |
+| [formularios.md](formularios.md)               | Formularios, la encuesta después de cada evento (interruptor `formularios`) y el editor de preguntas compartido     |
 | [analiticas.md](analiticas.md)                 | Visitas anónimas y embudo de compra con Workers Analytics Engine: qué se guarda, puesta en marcha y cómo apagarlo   |
 | [telegram.md](telegram.md)                     | Bot de Telegram: otra vista del sitio, solo lectura al principio, interruptor                                       |
 | [compartir.md](compartir.md)                   | La vista previa de un link al compartirlo (WhatsApp, Telegram…): etiquetas Open Graph de cada página e imágenes     |

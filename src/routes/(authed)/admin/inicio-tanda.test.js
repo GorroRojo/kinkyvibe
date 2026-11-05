@@ -932,8 +932,9 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		// fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita, 2 por
 		// evento de hoy para el gráfico, 1 de lo que queda por devolver de los eventos cancelados,
 		// porque el escenario tiene uno, y 1 de los lugares vinculados de los próximos, que mandan
-		// sobre el «Dónde» en texto libre).
-		expect(page.stats.prepared).toBe(22 + 21);
+		// sobre el «Dónde» en texto libre). Más 1 en la primera: los links de formularios que no
+		// salieron (docs/formularios.md).
+		expect(page.stats.prepared).toBe(23 + 21);
 
 		// El de antes, con las mismas funciones: una ida por consulta (acá sin las de la lista de
 		// eventos, que son de mentira).
@@ -952,7 +953,8 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		// es también su contador, la de los mails de la lista de espera que no salieron y la del aviso
 		// de cupo de Resend y la de la salud del webhook del bot). Segunda: totales, links, 3 de envíos fallidos, 4 recordatorios
 		// vencidos y lo que queda por devolver del evento cancelado.
-		expect(layout.stats.prepared).toBe(5 + 13 + 10);
+		// Más 1 en la primera: los links de formularios que no salieron (docs/formularios.md).
+		expect(layout.stats.prepared).toBe(5 + 14 + 10);
 
 		// Sin eventos que vienen con entradas, la segunda tanda no tiene nada: una sola ida.
 		fake.ticketed = [];

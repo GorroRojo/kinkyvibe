@@ -229,6 +229,7 @@ describe('respuestas en el panel', () => {
 			],
 			anonymous: false,
 			name: 'Persona Demo',
+			pronouns: 'elle',
 			email: 'demo@example.com',
 			day: '2099-01-02'
 		},
@@ -246,6 +247,9 @@ describe('respuestas en el panel', () => {
 	it('promedios, conteos y textos (y las preguntas viejas al final)', () => {
 		const s = summarize(questions, rows);
 		expect(s[0]).toMatchObject({ average: 4.5, distribution: [0, 0, 0, 1, 1] });
+		// La escala viaja con el resumen («1 = … · 5 = …» en la página de respuestas).
+		expect(s[0].low).toBeTruthy();
+		expect(s[0].high).toBeTruthy();
 		expect(s[1]).toMatchObject({
 			counts: [
 				{ option: 'Sí', count: 1 },
@@ -258,12 +262,20 @@ describe('respuestas en el panel', () => {
 
 	it('CSV: nombres solo si se muestran; en un formulario anónimo, sin columnas de nombre', () => {
 		const named = responsesCsvRows(questions, rows, 'named');
-		expect(named[0].slice(0, 3)).toEqual(['día', 'nombre', 'mail']);
-		expect(named[1].slice(0, 3)).toEqual(['2099-01-02', 'Persona Demo', 'demo@example.com']);
-		expect(named[2].slice(1, 3)).toEqual(['', '']);
+		// Nombre, pronombres y mail van juntos: son lo que define si una respuesta es anónima.
+		expect(named[0].slice(0, 4)).toEqual(['día', 'nombre', 'pronombres', 'mail']);
+		expect(named[1].slice(0, 4)).toEqual([
+			'2099-01-02',
+			'Persona Demo',
+			'elle',
+			'demo@example.com'
+		]);
+		expect(named[2].slice(1, 4)).toEqual(['', '', '']);
 		const anon = responsesCsvRows(questions, rows, 'anonymous');
 		expect(anon[0]).not.toContain('nombre');
+		expect(anon[0]).not.toContain('pronombres');
 		expect(anon.flat()).not.toContain('Persona Demo');
+		expect(anon.flat()).not.toContain('elle');
 	});
 
 	it('shuffled mezcla sin perder nada', () => {

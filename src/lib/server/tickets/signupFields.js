@@ -452,3 +452,39 @@ export async function setFieldPositions(db, eventSlug, ids) {
 		)
 	);
 }
+
+/**
+ * Al duplicar un evento: la copia lleva sus preguntas de inscripción como estaban, en su orden (las
+ * propias, copiadas, y la elección de generales con sus tipos de entrada). Las borradas no. Solo
+ * si la copia todavía no tiene preguntas (un evento recién creado). Devuelve cuántas propias copió.
+ *
+ * @param {D1Database} db
+ * @param {string} fromSlug
+ * @param {string} toSlug
+ * @param {{ by: string, now?: number }} opts
+ */
+export async function copyEventSignupFields(db, fromSlug, toSlug, { by, now = Date.now() }) {
+	const [res] = await db.batch([
+		db
+			.prepare(
+				`INSERT INTO signup_fields (event_slug, label, kind, required, options, position, per_ticket,
+					ticket_types, created_at, updated_at, updated_by)
+				SELECT ?2, label, kind, required, options, position, per_ticket, ticket_types, ?3, ?3, ?4
+				FROM signup_fields
+				WHERE event_slug = ?1 AND deleted_at IS NULL
+					AND NOT EXISTS (SELECT 1 FROM signup_fields WHERE event_slug = ?2)
+				ORDER BY position, id`
+			)
+			.bind(fromSlug, toSlug, now, by),
+		db
+			.prepare(
+				`INSERT INTO event_signup_general (event_slug, field_id, position, ticket_types)
+				SELECT ?2, g.field_id, g.position, g.ticket_types FROM event_signup_general g
+				JOIN signup_fields f ON f.id = g.field_id AND f.deleted_at IS NULL
+				WHERE g.event_slug = ?1
+					AND NOT EXISTS (SELECT 1 FROM event_signup_general WHERE event_slug = ?2)`
+			)
+			.bind(fromSlug, toSlug)
+	]);
+	return res.meta.changes ?? 0;
+}
