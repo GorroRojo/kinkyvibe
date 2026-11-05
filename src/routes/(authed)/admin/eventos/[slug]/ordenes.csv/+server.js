@@ -79,6 +79,8 @@ export async function GET({ locals, url, params, platform }) {
 		'nota',
 		'reembolsada_el',
 		'reembolsada_por',
+		// Cuándo se marcó «Facturada» (vacío = sin facturar).
+		'facturada',
 		'pago_mp',
 		'confirmo',
 		...extra.map((c) => c.label)
@@ -141,6 +143,7 @@ export async function GET({ locals, url, params, platform }) {
 				o.admin_note ?? '',
 				o.refunded_at ? new Date(o.refunded_at) : '',
 				o.refunded_at ? (o.refunded_by ?? 'Mercado Pago') : '',
+				o.invoiced_at ? new Date(o.invoiced_at) : '',
 				o.mp_payment_id,
 				o.confirmed_by,
 				...extra.map((c) => answerFor(answers.get(o.id), c.id))
