@@ -1,5 +1,5 @@
 /**
- * La cuenta de cada evento en la base (migración 0075; docs/tickets.md, «Gastos y reparto»):
+ * La cuenta de cada evento en la base (migración 0078; docs/tickets.md, «Gastos y reparto»):
  * lo cargado a mano (`event_accounts`), el cierre con su resumen (`event_account_closings`) y la
  * regla por defecto de cada lugar (`venue_cost_rules`). La cuenta en sí la hace
  * src/lib/admin/reparto.js. Interruptor `gastos_reparto`.

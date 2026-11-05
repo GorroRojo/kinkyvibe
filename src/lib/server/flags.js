@@ -200,7 +200,7 @@ export const FLAGS = Object.freeze({
 			'«quién le pasa a quién». Se guarda en la base y «Cerrar la cuenta» congela los números ' +
 			'para Ventas → Cuentas del año. Solo admins. Apagado, no se ve.',
 		tech:
-			'docs/tickets.md, «Gastos y reparto». Migración 0075 (event_accounts, ' +
+			'docs/tickets.md, «Gastos y reparto». Migración 0078 (event_accounts, ' +
 			'event_account_closings, venue_cost_rules); cuenta en src/lib/admin/reparto.js. Apagado, ' +
 			'/admin/eventos/<slug>/gastos y /admin/ventas/cuentas dan 404.',
 		envVar: 'GASTOS_REPARTO_ENABLED'

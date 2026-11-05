@@ -2,7 +2,7 @@
  * Ficha del evento, Ventas › Gastos y reparto (interruptor `gastos_reparto`; docs/tickets.md,
  * «Gastos y reparto»). Lo que entró sale de las órdenes del evento; lo cargado a mano (lugar,
  * contrataciones, gastos, otros ingresos, facilitadores y regla del reparto) se guarda en la base
- * (`event_accounts`, migración 0075). «Cerrar la cuenta» congela los números y guarda el resumen
+ * (`event_accounts`, migración 0078). «Cerrar la cuenta» congela los números y guarda el resumen
  * (`event_account_closings`). Solo admins; cada cambio queda en Actividad.
  */
 import { error, fail, redirect } from '@sveltejs/kit';

@@ -1,4 +1,4 @@
--- Migration number: 0075 	 Gastos y reparto: la cuenta de cada evento que vende entradas.
+-- Migration number: 0078 	 Gastos y reparto: la cuenta de cada evento que vende entradas.
 --
 -- Decisiones de gorrite en la Mesa (3 y 4/11) sobre el prototipo #549: lo que se carga en Ventas ›
 -- Gastos y reparto (lugar, contrataciones, otros gastos, otros ingresos, facilitadores y regla del

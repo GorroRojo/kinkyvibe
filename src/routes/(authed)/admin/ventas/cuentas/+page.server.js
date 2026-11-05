@@ -1,7 +1,7 @@
 /**
  * Ventas › Cuentas del año (interruptor `gastos_reparto`; docs/tickets.md, «Gastos y reparto»):
  * el resumen por mes y el total del año, armado con las cuentas cerradas de cada evento
- * (`event_account_closings`, migración 0075). Solo admins; con el interruptor apagado, 404.
+ * (`event_account_closings`, migración 0078). Solo admins; con el interruptor apagado, 404.
  */
 import { error } from '@sveltejs/kit';
 import { yearSummary } from '$lib/admin/reparto.js';

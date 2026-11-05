@@ -1,5 +1,5 @@
 /**
- * La cuenta de cada evento en la base (cuentas.js, migración 0075): guardar sin pisar a otre
+ * La cuenta de cada evento en la base (cuentas.js, migración 0078): guardar sin pisar a otre
  * admin, cerrar (y no guardar más), reabrir, el resumen del año y la regla por defecto de un
  * lugar. Eventos, lugares y personas inventados.
  */
