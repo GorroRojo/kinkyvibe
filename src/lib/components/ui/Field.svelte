@@ -14,7 +14,8 @@
 	 * Props: `label`, `help` (texto gris abajo), `error` (texto rojo abajo; marca el campo con
 	 * `aria-invalid`), `size`: 'normal' | 'large', `type` ('text', 'search', 'email', 'number',
 	 * 'tel', 'url', 'password', 'date', 'time' o 'textarea'), `value` (bind:value), `placeholder`,
-	 * `name`, `id`, `required`, `disabled`, `autocomplete`, `rows` (textarea), `inputmode`.
+	 * `name`, `id`, `required`, `disabled`, `autocomplete`, `rows` (textarea), `inputmode`,
+	 * `maxlength`.
 	 * Slot default: un control propio (un <select>, un combobox…) en lugar del input; en ese caso
 	 * `value` y `type` no se usan y el control tiene que llevar el `id` (slot prop `id`).
 	 */
@@ -46,6 +47,8 @@
 	export let rows = 4;
 	/** @type {any} */
 	export let inputmode = undefined;
+	/** @type {number | undefined} */
+	export let maxlength = undefined;
 
 	$: helpId = help ? `${id}-help` : '';
 	$: errorId = error ? `${id}-error` : '';
@@ -69,6 +72,7 @@
 			{required}
 			{disabled}
 			{rows}
+			{maxlength}
 			{autocomplete}
 			value={value ?? ''}
 			aria-invalid={error ? 'true' : undefined}
@@ -86,6 +90,7 @@
 			{disabled}
 			{autocomplete}
 			{inputmode}
+			{maxlength}
 			value={value ?? ''}
 			aria-invalid={error ? 'true' : undefined}
 			aria-describedby={describedBy}

@@ -14,7 +14,8 @@ import {
 	Tags,
 	TextAlignStart,
 	Ticket,
-	Users
+	Users,
+	Video
 } from '@lucide/svelte';
 
 /** @type {Record<import('$lib/admin/eventForm.js').SectionIcon, typeof CalendarClock>} */
@@ -28,6 +29,7 @@ export const SECTION_ICONS = {
 	entradas: Ticket,
 	imagen: ImageIcon,
 	texto: TextAlignStart,
+	video: Video,
 	lista: Eye,
 	partes: Puzzle
 };

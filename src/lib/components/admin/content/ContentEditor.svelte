@@ -16,6 +16,7 @@
 	import { argFormat } from '$lib/utils/dates.js';
 	import { onDestroy, tick } from 'svelte';
 	import { lineEndingOf } from '$lib/utils/lineEndings.js';
+	import { hasVideo } from '$lib/utils/videoExtras.js';
 	import { browser } from '$app/environment';
 	import { deserialize, enhance } from '$app/forms';
 	import { page } from '$app/stores';
@@ -160,6 +161,12 @@
 	const fields = fieldsFor(category);
 	const mainFields = fields.filter((x) => !x.section);
 	const contactFields = fields.filter((x) => x.section === 'contacto');
+	// Material: la transcripción y los subtítulos del video del texto ($lib/utils/videoExtras.js).
+	// La sección aparece si el texto tiene un video o si ya tienen algo escrito.
+	const videoFields = fields.filter((x) => x.section === 'video');
+	$: showVideo =
+		videoFields.length > 0 &&
+		(hasVideo(f.body) || videoFields.some((x) => String(f.values[x.key] ?? '').trim()));
 	const hasContact = contactFields.some((x) => initial.values[x.key]);
 
 	/* ---------- slug ---------- */
@@ -464,7 +471,8 @@
 		sections={formSections({
 			mode: 'contenido',
 			hasPersonas: withPeople,
-			parseError: !!parseError
+			parseError: !!parseError,
+			hasVideo: showVideo
 		})}
 		draftKey={unsavedKey}
 		base={isNew ? '' : sha}
@@ -647,6 +655,18 @@
 				/>
 			{/if}
 
+			{#if showVideo}
+				<fieldset class="card" id="sec-video">
+					<SectionHeading section="video" />
+					<p class="video-help">
+						Para quien no puede escuchar el audio. La transcripción se ve debajo del video, en «Ver
+						transcripción»; los subtítulos, en el video. Si el texto tiene más de un video, es la
+						del primero.
+					</p>
+					<FieldGrid fields={videoFields} bind:values={f.values} />
+				</fieldset>
+			{/if}
+
 			<fieldset class="card" id="sec-lista">
 				<SectionHeading section="lista" />
 				<div class="card-preview" aria-hidden="true">
@@ -813,6 +833,11 @@
 	.card-preview {
 		max-width: 26rem;
 		pointer-events: none;
+	}
+	.video-help {
+		margin: 0 0 var(--space-2xs);
+		color: var(--muted);
+		font-size: 0.95em;
 	}
 	textarea.raw {
 		font-family: monospace;
