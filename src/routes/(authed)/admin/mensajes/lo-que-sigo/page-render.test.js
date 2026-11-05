@@ -6,9 +6,21 @@
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
+import { JSDOM } from 'jsdom';
 import Page from './+page.svelte';
 
 const NOW = Date.parse('2026-06-01T12:00:00-03:00');
+
+/**
+ * El texto visible del HTML, leído con un DOM (jsdom) en vez de sacar etiquetas con regex: los
+ * comentarios de Svelte no cuentan, `<script>` y `<style>` se sacan y los espacios se juntan en uno.
+ * @param {string} markup
+ */
+function textOf(markup) {
+	const { document } = new JSDOM(markup).window;
+	for (const el of document.querySelectorAll('script, style')) el.remove();
+	return (document.body.textContent ?? '').replace(/\s+/g, ' ');
+}
 
 /** @param {number} total */
 const counts = (total) => ({ d7: total, d30: total, total });
@@ -115,10 +127,7 @@ describe('/admin/mensajes/lo-que-sigo (página)', () => {
 	});
 
 	it('avisos que fallaron: los de 7 días por canal, los bloqueados y los de 30 días', () => {
-		const text = html(data())
-			.replace(/<!--[^]*?-->/g, '')
-			.replace(/<[^>]+>/g, '')
-			.replace(/\s+/g, ' ');
+		const text = textOf(html(data()));
 		expect(text).toContain(
 			'Avisos que fallaron: 5 en los últimos 7 días (por mail: 2; por Telegram: 3, 1 porque el chat ya no recibe).'
 		);
@@ -129,10 +138,7 @@ describe('/admin/mensajes/lo-que-sigo (página)', () => {
 		const zero = { total: 0, mail: 0, telegram: 0, blocked: 0 };
 		const d = data();
 		d.stats.failures = { d7: zero, d30: zero };
-		const text = html(d)
-			.replace(/<!--[^]*?-->/g, '')
-			.replace(/<[^>]+>/g, '')
-			.replace(/\s+/g, ' ');
+		const text = textOf(html(d));
 		expect(text).toContain('Avisos que fallaron: 0 en los últimos 7 días.');
 		expect(text).not.toContain('por mail:');
 	});
