@@ -68,6 +68,9 @@ minuto por isolate. Cada paso cuenta visitas, no personas: si alguien recarga, c
 - `src/routes/api/visto/+server.js` y `src/lib/utils/funnelBeacon.js`: los pasos 2 y 3.
 - `src/lib/server/analytics/sql.js`: la API de SQL de Analytics Engine (con caché de 5 minutos).
 - `src/lib/server/analytics/report.js`: lo que muestra el panel y el resumen mensual.
+- `src/lib/server/analytics/page.js`: las visitas de una página (la tarjeta «Visitas» de las
+  fichas y `?pagina=`; ver abajo), con `src/lib/server/admin/pageVisits.js` y
+  `src/lib/components/admin/stats/PageVisitsCard.svelte`.
 - `migrations/0038_analiticas_mensuales.sql`: tabla `analytics_monthly`.
 - Panel: `src/lib/components/admin/stats/Visits.svelte` en
   `src/routes/(authed)/admin/estadisticas/visitas/` (la pestaña **Visitas al sitio**, que no lee
@@ -76,6 +79,32 @@ minuto por isolate. Cada paso cuenta visitas, no personas: si alguien recarga, c
   de arriba son de ese período, y con 7 o 30 días se compara con el período anterior (una consulta
   más de total; con 90 no, porque Analytics Engine ya no tiene los 90 días de antes). Visitas por
   mes y «Visitas → compras» siguen siendo de toda la historia.
+
+### Visitas de una página
+
+La tarjeta **«Visitas»** aparece donde el panel muestra una sola cosa: la ficha de un evento
+(pestaña Resumen), el editor de un material, el de un perfil (Comunidad › Perfiles) y el de una
+entrada de la Kinkipedia (Etiquetas). Muestra las visitas de los últimos 7 y 30 días (días de
+Argentina) con un gráfico chiquito por día, de dónde llegan (los 4 orígenes con más visitas y
+«Otros», en %, 30 días) y, en un evento que vende entradas, los pasos de la compra de los últimos
+90 días (lo que guarda Analytics Engine). «Ver en Estadísticas» lleva a
+`/admin/estadisticas/visitas?pagina=<dirección>`, que muestra solo esa página (sin leer el resto
+del sitio); «Páginas más vistas» también lleva ahí.
+
+- **Una sola consulta por página** (`pageVisitsSql` en `src/lib/server/analytics/page.js`), solo
+  por sus direcciones (`blob2 = '…'`): la de la página y las otras con las que responde (la vieja
+  de un `.md` importado y la del objeto; en la Kinkipedia, la forma con el nombre de la etiqueta).
+  En un evento con entradas suma `blob6 = '<slug>'`, que trae la página de compra y los pasos que
+  se anotan por slug. Agrupa por tipo, dirección, origen, paso y día, y lo demás sale de esas filas
+  (`buildPageVisits`). Las direcciones salen de `pagePaths` y solo pasan si son letras, números y
+  `%-_.~/` (van adentro de una cadena del SQL) y si se cuentan (`isTrackedPath`).
+- **No demora la ficha**: el `load` devuelve la promesa sin esperarla (SvelteKit la manda cuando
+  llega) y la tarjeta dice «Cargando las visitas…» mientras tanto. Con la caché de 5 minutos de
+  `sql.js`, abrir la misma ficha de nuevo no vuelve a consultar.
+- **Sin configurar** (falta `CF_ACCOUNT_ID` o `CF_ANALYTICS_TOKEN`), si Cloudflare falla o si
+  todavía no hay visitas, la tarjeta lo dice en una línea (sin configurar, ni siquiera busca las
+  otras direcciones en la base). Nunca tira.
+- Solo sumas, como todo lo de acá: ni personas ni nada de una visita en particular.
 
 ### Historia: resumen mensual en D1
 
@@ -132,7 +161,8 @@ Según la documentación de Cloudflare al escribir esto (verificalo en
   para que los números sigan siendo estimaciones correctas.
 
 Para kinkyvibe es un punto por visita más unos pocos por compra: muy lejos de los límites. El panel
-hace 6 consultas cada vez que se abre (con caché de 5 minutos) y el cron, 12 por noche.
+hace 6 consultas cada vez que se abre (con caché de 5 minutos), cada ficha con la tarjeta
+«Visitas», 1 (con la misma caché), y el cron, 12 por noche.
 
 ## Límites conocidos
 

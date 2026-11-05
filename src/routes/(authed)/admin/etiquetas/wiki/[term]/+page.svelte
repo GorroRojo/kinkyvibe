@@ -12,6 +12,7 @@
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
+	import PageVisitsCard from '$lib/components/admin/stats/PageVisitsCard.svelte';
 
 	/** @type {any} */
 	export let data;
@@ -124,6 +125,9 @@
 			</form>
 		</Card>
 	{/if}
+
+	<!-- Visitas de la página de la Kinkipedia (docs/analiticas.md, «Visitas de una página»). -->
+	<PageVisitsCard visits={data.visits} />
 </div>
 
 <style>

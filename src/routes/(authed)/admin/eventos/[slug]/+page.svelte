@@ -5,6 +5,7 @@
 	import { Check, ClipboardList, Send, X } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import DoorLinksCard from '$lib/components/admin/DoorLinksCard.svelte';
+	import PageVisitsCard from '$lib/components/admin/stats/PageVisitsCard.svelte';
 	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
 	import ConfirmDraft from '$lib/components/admin/agenda/ConfirmDraft.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
@@ -135,6 +136,9 @@
 		</dl>
 		<p><a class="kv-btn ghost" href={eventHref(e.slug, 'editar')}>Editar los datos</a></p>
 	</Card>
+
+	<!-- Visitas de la página del evento (docs/analiticas.md, «Visitas de una página»). -->
+	<PageVisitsCard visits={data.visits} />
 
 	{#if data.online && e.sellsTickets}
 		<section class="stream" aria-label="Link de la transmisión">

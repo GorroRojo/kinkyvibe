@@ -227,6 +227,12 @@ se puede compartir:
 - **Visitas al sitio** (`/visitas`): las visitas anónimas ([analiticas.md](analiticas.md)), 7 /
   **30** (por defecto) / 90 días. Analytics Engine guarda el detalle unos 3 meses: más atrás solo
   quedan los totales por mes de `analytics_monthly`, y la página lo dice. Nunca lee las órdenes.
+  Con `?pagina=/calendario/…` muestra solo esa página (una consulta); «Páginas más vistas» lleva
+  ahí.
+- **Tarjeta «Visitas» de una página**: en la ficha de un evento (Resumen) y en los editores de
+  material, perfiles y la Kinkipedia, las visitas de 7 y 30 días de esa página con un gráfico
+  chiquito, de dónde llegan y, en un evento con entradas, los pasos de la compra; se carga después
+  de la página y nunca la demora ([analiticas.md](analiticas.md#visitas-de-una-página)).
 - **Bot de Telegram** (`/bot`): las estadísticas de uso del bot (decisión
   [0045](decisiones/0045-estadisticas-del-bot.md), [telegram.md](telegram.md) «Estadísticas de
   uso»): quién lo usó en 7 / **30** (por defecto) / 90 días, con sus interacciones y el último día;
