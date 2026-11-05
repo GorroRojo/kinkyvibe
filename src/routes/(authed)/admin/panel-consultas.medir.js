@@ -286,7 +286,11 @@ const PAGES = [
 		path: '/admin/ajustes/interruptores',
 		page: () => import('./ajustes/interruptores/+page.server.js')
 	},
-	{ path: '/admin/ajustes/propinas', page: () => import('./ajustes/propinas/+page.server.js') },
+	{ path: '/admin/ajustes/paypal', page: () => import('./ajustes/paypal/+page.server.js') },
+	{
+		path: '/admin/estadisticas/propinas',
+		page: () => import('./estadisticas/propinas/+page.server.js')
+	},
 	{ path: '/admin/ajustes/textos-bot', page: () => import('./ajustes/textos-bot/+page.server.js') },
 	{
 		path: '/admin/ajustes/vistas-previas',
@@ -527,7 +531,8 @@ const BOUNDS = {
 	'/admin/ajustes/automatizaciones': { caliente: 3, nav: 3 }, // frío 5
 	'/admin/ajustes/cobros': { caliente: 2, nav: 1 }, // frío 4
 	'/admin/ajustes/interruptores': { caliente: 2, nav: 1 }, // frío 4
-	'/admin/ajustes/propinas': { caliente: 2, nav: 1 }, // frío 4
+	'/admin/ajustes/paypal': { caliente: 2, nav: 1 }, // frío 4
+	'/admin/estadisticas/propinas': { caliente: 2, nav: 1 }, // frío 4
 	'/admin/ajustes/textos-bot': { caliente: 2, nav: 1 }, // frío 4
 	'/admin/ajustes/vistas-previas': { caliente: 2, nav: 1 }, // frío 4
 	'/admin/estadisticas/ventas': { caliente: 2, nav: 2 }, // frío 4

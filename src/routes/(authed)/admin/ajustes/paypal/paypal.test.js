@@ -1,5 +1,5 @@
 /**
- * Panel → Propinas, la parte de PayPal (interruptor `paypal`): apagado no se carga y las actions
+ * Ajustes › PayPal (interruptor `paypal`): apagado no se carga y las actions
  * dan 404; prendido, el ajuste y los retiros se guardan, se validan y quedan en Actividad. D1 de
  * miniflare; datos inventados.
  */
@@ -37,7 +37,7 @@ const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
  * @returns {any}
  */
 function fakeEvent(fields, user = admin) {
-	const url = new URL('/admin/ajustes/propinas', 'https://kinkyvibe.ar');
+	const url = new URL('/admin/ajustes/paypal', 'https://kinkyvibe.ar');
 	const body = fields ? new URLSearchParams(fields) : undefined;
 	return {
 		url,

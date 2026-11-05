@@ -33,7 +33,7 @@ const NOW = Date.parse('2026-10-01T15:00:00Z');
  * @param {{ path?: string, user?: any }} [o]
  * @returns {any}
  */
-function fakeEvent({ path = '/admin/ajustes/propinas', user } = {}) {
+function fakeEvent({ path = '/admin/estadisticas/propinas', user } = {}) {
 	const url = new URL(path, 'https://kinkyvibe.ar');
 	return {
 		url,
@@ -114,13 +114,12 @@ async function seedFondo() {
 	return tip;
 }
 
-describe('/admin/ajustes/propinas', () => {
-	// Mapa del panel: pasó de Ventas a Ajustes › Plata, al lado de Cobros y Fondo (la URL no cambia).
-	it('está en el menú, en Ajustes › Plata', () => {
+describe('/admin/estadisticas/propinas', () => {
+	// Pasó de Ajustes › Plata a Estadísticas (gorrite); la dirección vieja redirige.
+	it('está en el menú, en Estadísticas', () => {
 		expect(navItem('propinas')).toMatchObject({
-			href: '/admin/ajustes/propinas',
-			area: 'ajustes',
-			sub: 'plata',
+			href: '/admin/estadisticas/propinas',
+			area: 'estadisticas',
 			soon: false
 		});
 	});
@@ -146,7 +145,7 @@ describe('/admin/ajustes/propinas', () => {
 
 	it('CSV: privado, con todas las propinas', async () => {
 		await seed();
-		const res = await csv.GET(fakeEvent({ path: '/admin/ajustes/propinas/propinas.csv' }));
+		const res = await csv.GET(fakeEvent({ path: '/admin/estadisticas/propinas/propinas.csv' }));
 		expect(res.headers.get('content-type')).toBe('text/csv; charset=utf-8');
 		expect(res.headers.get('cache-control')).toBe('private, no-store');
 		expect(res.headers.get('content-disposition')).toBe('attachment; filename="propinas.csv"');
@@ -170,7 +169,7 @@ describe('/admin/ajustes/propinas', () => {
 		expect(data.tips.map((/** @type {any} */ x) => x.destination)).toEqual(['fondo', 'kinkyvibe']);
 
 		const onlyFondo = /** @type {any} */ (
-			await page.load(fakeEvent({ path: '/admin/ajustes/propinas?destino=fondo' }))
+			await page.load(fakeEvent({ path: '/admin/estadisticas/propinas?destino=fondo' }))
 		);
 		expect(onlyFondo.destination).toBe('fondo');
 		expect(onlyFondo.tips.map((/** @type {any} */ x) => x.id)).toEqual([fondo.id]);
@@ -178,7 +177,7 @@ describe('/admin/ajustes/propinas', () => {
 		expect(onlyFondo.summary.total).toBe(7000);
 
 		const onlyKv = /** @type {any} */ (
-			await page.load(fakeEvent({ path: '/admin/ajustes/propinas?destino=kinkyvibe' }))
+			await page.load(fakeEvent({ path: '/admin/estadisticas/propinas?destino=kinkyvibe' }))
 		);
 		expect(onlyKv.tips).toHaveLength(1);
 		expect(onlyKv.tips[0]).toMatchObject({
@@ -188,7 +187,7 @@ describe('/admin/ajustes/propinas', () => {
 
 		// Un valor raro en la URL: sin filtro.
 		const odd = /** @type {any} */ (
-			await page.load(fakeEvent({ path: "/admin/ajustes/propinas?destino=fondo' OR 1=1" }))
+			await page.load(fakeEvent({ path: "/admin/estadisticas/propinas?destino=fondo' OR 1=1" }))
 		);
 		expect(odd.destination).toBeNull();
 		expect(odd.tips).toHaveLength(2);
@@ -197,7 +196,7 @@ describe('/admin/ajustes/propinas', () => {
 	it('CSV: columnas destino y origen', async () => {
 		await seed();
 		await seedFondo();
-		const res = await csv.GET(fakeEvent({ path: '/admin/ajustes/propinas/propinas.csv' }));
+		const res = await csv.GET(fakeEvent({ path: '/admin/estadisticas/propinas/propinas.csv' }));
 		const lines = (await res.text()).replace('\ufeff', '').trim().split('\r\n');
 		expect(lines[0].split(',').slice(-2)).toEqual(['destino', 'origen']);
 		expect(lines).toHaveLength(4);
@@ -217,7 +216,7 @@ describe('/admin/ajustes/propinas', () => {
 				at: NOW + 60_000,
 				title: `Propina de ${formatARS(2000)}`,
 				who: 'guia',
-				href: '/admin/ajustes/propinas'
+				href: '/admin/estadisticas/propinas'
 			})
 		]);
 		// Sin el mensaje (privado) en el feed.

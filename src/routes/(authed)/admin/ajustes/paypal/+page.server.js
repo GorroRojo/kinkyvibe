@@ -1,18 +1,13 @@
 /**
- * Propinas (docs/propinas.md): total (y por destino), por mes, por publicación y la lista, con
- * CSV. Solo admins. `?destino=kinkyvibe|fondo` filtra la lista (cualquier otro valor, todas).
- *
- * Con el interruptor `paypal` prendido, además la parte de PayPal (decisión 0054): la cotización
- * de hoy, el ajuste en % (se cambia acá y queda en Actividad), el reparto por mes Fondo (Mercado
- * Pago en pesos, PayPal en dólares netos y en pesos estimados) y los retiros. Apagado, esa parte no
- * se carga y sus actions dan 404.
+ * Ajustes › PayPal (decisión 0054, docs/propinas.md): la cotización de hoy, el ajuste en % (se
+ * cambia acá y queda en Actividad) y los retiros. Solo admins. Con el interruptor `paypal`
+ * apagado no se carga nada y sus actions dan 404.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { paypalEnabled } from '$lib/server/flags.js';
-import { listTips, tipSummary } from '$lib/server/propinas/index.js';
 import {
 	ADJUSTMENT_SETTING,
 	addWithdrawal,
@@ -22,47 +17,15 @@ import {
 	setAdjustment,
 	validateWithdrawal
 } from '$lib/server/paypal/index.js';
-import { TIP_DESTINATIONS } from '$lib/utils/propinas.js';
 import { parseAdjustmentPct } from '$lib/utils/paypal.js';
-
-/**
- * El filtro de destino de la URL, solo si es uno conocido.
- * @param {URL} url
- * @returns {import('$lib/utils/propinas.js').TipDestination | null}
- */
-function destinationFilter(url) {
-	const d = url.searchParams.get('destino');
-	return /** @type {readonly (string | null)[]} */ (TIP_DESTINATIONS).includes(d)
-		? /** @type {import('$lib/utils/propinas.js').TipDestination} */ (d)
-		: null;
-}
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
-	const destination = destinationFilter(url);
-	/** @type {Awaited<ReturnType<typeof tipSummary>> | null} */
-	let summary = null;
-	/** @type {Awaited<ReturnType<typeof listTips>>} */
-	let tips = [];
-	if (db) {
-		try {
-			[summary, tips] = await Promise.all([tipSummary(db), listTips(db, { destination })]);
-		} catch (error) {
-			// Sin las migraciones 0019/0022 todavía: la página se ve vacía, no rota.
-			logDBError('list tips', error);
-		}
-	}
 	const paypal = db && (await paypalEnabled(platform)) ? await loadPaypalPanel(db) : null;
-	return {
-		dbAvailable: Boolean(db),
-		summary,
-		tips,
-		destination,
-		paypal
-	};
+	return { dbAvailable: Boolean(db), paypal };
 }
 
 /**

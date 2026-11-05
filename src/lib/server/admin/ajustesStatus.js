@@ -11,7 +11,7 @@
  *
  * Idas a la base: una tanda ($lib/server/db/batch.js) con los ajustes guardados
  * (`ticket_settings`: cobros, Fondo, textos del bot y de las vistas previas), los interruptores, lo
- * último del registro y cuántas propinas entraron; y después, con los interruptores y los
+ * último del registro; y después, con los interruptores y los
  * recordatorios de esa tanda, lo de Automatizaciones (`loadAutomations`, sin mirar los backups de
  * R2: el estado no depende de eso). Cada parte tiene su respaldo: si una falla, esa tarjeta queda
  * sin línea y las demás siguen.
@@ -61,8 +61,7 @@ export const FONDO_PENDING_TEXT = 'Automático (todavía no llegó el porcentaje
  * @typedef {{
  *   settings: Record<string, unknown>[] | null,
  *   flags: Record<string, boolean> | null,
- *   lastActivity: number | null,
- *   tips: number | null
+ *   lastActivity: number | null
  * }} AjustesData
  */
 
@@ -123,7 +122,6 @@ export function buildAjustesStatus({
 	settings,
 	flags,
 	lastActivity,
-	tips,
 	mpReady,
 	automations,
 	fondoDevPercent = null,
@@ -176,10 +174,6 @@ export function buildAjustesStatus({
 		out['ajustes-carrusel'] = {
 			text: modo === ROTAR ? 'Rotan los 5 estilos' : `Siempre ${nombreDelEstilo(modo)}`
 		};
-	}
-
-	if (tips !== null) {
-		out.propinas = { text: tips ? plural(tips, 'recibida', 'recibidas') : 'Todavía ninguna' };
 	}
 
 	out['ajustes-admins'] = { text: plural(ADMINS.length, 'admin', 'admins') };
@@ -262,12 +256,6 @@ export async function loadAjustesStatus({
 			statements: (d) => [d.prepare('SELECT at FROM admin_audit ORDER BY id DESC LIMIT 1')],
 			// 0: el registro está vacío; `null` (el respaldo): no se pudo leer.
 			read: (r) => Number(rowsOf(r)[0]?.at) || 0
-		},
-		tips: {
-			what: 'portada de Ajustes: propinas',
-			fallback: /** @type {number | null} */ (null),
-			statements: (d) => [d.prepare("SELECT COUNT(*) AS n FROM tips WHERE status = 'approved'")],
-			read: (r) => Number(rowsOf(r)[0]?.n ?? 0)
 		}
 	});
 	// Sin base no hay nada que decir de los interruptores (todos se verían apagados).
