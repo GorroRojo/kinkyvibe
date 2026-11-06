@@ -125,6 +125,7 @@ CI) va en la fase 0.
 ### Panel
 
 - `agenda-impresa` · fase 0 · hecho · panel · Agenda impresa: volantes A4 (4 A6, 2 A5 o 1 A4) para repartir con los próximos eventos, con el diseño de gorrite; ícono y subtítulo de la serie, lugar con su privacidad y precio, todo editable en la página sin guardar nada · #370, [panel.md](panel.md#agenda-impresa)
+- `agenda-instagram` · fase 0 · hecho · panel · Agenda impresa › Instagram: el carrusel mensual «agenda kinky» (portada con la grilla, eventos con su imagen, Fondo, lista de actividades y eventos amigos) en PNG de 1080 × 1350 y el texto del posteo, con las medidas y las letras (1797) del .ai original de los posts, todo editable sin guardar nada (depende de: agenda-impresa) · #550, [panel.md](panel.md#instagram)
 - `precios-con-fondo-editor` · fase 0 · hecho · panel · Entradas del editor de eventos: debajo de cada precio (fijo, de cada tramo y en puerta) cuánto sale con el descuento del Fondo de hoy, el resumen de los tramos con esos precios y «Copiar precios» (una línea por tramo) para la agenda y los flyers (pedido de una admin) · [tickets.md](tickets.md#precios-con-el-fondo-en-el-editor), #631
 - `nav-c-puerta-hoy` · fase 0 · hecho · panel · La Puerta abre directo en el evento de hoy si hay uno solo · #314, [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)
 - `nav-c-ir-a-recientes` · fase 0 · hecho · panel · «Ir a…» (⌘K) vacío muestra Fijados y Recientes · #314
