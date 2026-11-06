@@ -159,11 +159,7 @@
 				bind:expanded={tagsExpanded}
 			/>
 		</ul>
-	</div>
-	<!-- Client-only: an <a> nested in the card's <a> is invalid HTML, so the browser would
-	     restructure it if it were server-rendered, breaking hydration. -->
-	{#if tickets}
-		{#if tickets.kind == 'note'}
+		{#if tickets?.kind == 'note'}
 			<span class="cta-group">
 				<span class="CTA note">{tickets.text}</span>
 				<!-- «Agotadas» no pierde a la persona: lleva a la página del evento (lista de espera o
@@ -174,6 +170,11 @@
 				{/if}
 			</span>
 		{/if}
+	</div>
+	<!-- Client-only: an <a> nested in the card's <a> is invalid HTML, so the browser would
+	     restructure it if it were server-rendered, breaking hydration. -->
+	{#if tickets}
+		<!-- «Agotadas»: va en la fila de las etiquetas (adentro de `.tags`) -->
 	{:else if mounted && link && status && status == 'abierto' && !past}
 		<!-- svelte-ignore node_invalid_placement_ssr -->
 		<a href={link} class="CTA" target="_blank">{link_text ?? 'INSCRIPCIÓN'}</a>
@@ -231,30 +232,38 @@
 		flex-wrap: wrap;
 		overflow-x: visible;
 	}
-	.post:has(.CTA) {
+	.post:has(> .CTA) {
 		grid-template-areas: 'img title title' 'img summary summary' 'img tags cta';
 	}
-	/* con el link de «Agotadas»: el aviso y el link van en su propia fila, abajo de las etiquetas */
-	.post:not(.amigues):has(.cta-group) {
-		grid-template-areas: 'img title title' 'img summary summary' 'img tags tags' 'img cta cta';
-	}
-	/* «Agotadas» + el link a la página del evento (lista de espera / «Seguir la serie») */
-	.cta-group {
-		grid-area: cta;
-		justify-self: end;
-		/* el link va en su propia línea, abajo de «Agotadas»: así las etiquetas no se aprietan */
+	/* «Agotadas» + el link a la página del evento (lista de espera / «Seguir la serie»): una línea,
+	   en la fila de las etiquetas (etiquetas a la izquierda, el aviso a la derecha); si no entra,
+	   baja abajo de las etiquetas, a la izquierda */
+	.tags:has(.cta-group) {
 		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 0.2em;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.3em 0.75em;
+		padding-bottom: 0.2em;
+	}
+	.tags:has(.cta-group) .tagrow {
+		/* las etiquetas se achican (y se deslizan) hasta ~11em; recién ahí el aviso baja */
+		flex: 1 1 11em;
+		min-width: 0;
+		max-width: 100%;
+	}
+	.cta-group {
+		display: inline-flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.2em 0.6em;
 	}
 	.followup {
 		color: var(--post-color);
 		font-weight: 700;
+		font-size: 0.85em;
 		text-decoration: underline;
-		min-height: var(--tap);
-		display: inline-flex;
-		align-items: center;
+		white-space: nowrap;
 	}
 	.CTA {
 		grid-area: cta;
@@ -431,7 +440,7 @@
 			grid-template-rows: auto 1fr minmax(2em, auto);
 			/* en el celu el botón va en su propia fila, abajo de las etiquetas (al lado las
 			   tapaba) */
-			&:has(.CTA) {
+			&:has(> .CTA) {
 				grid-template-areas:
 					'title title'
 					'img summary'
