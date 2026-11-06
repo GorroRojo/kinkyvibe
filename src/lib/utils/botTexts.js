@@ -390,6 +390,20 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'Abrir en el sitio'
 		),
 		f(
+			'eventos.boton_lista_espera',
+			'eventos',
+			'button',
+			'Tarjeta de un evento agotado con lista de espera: lleva a anotarse en la página del evento',
+			'Anotate en la lista de espera'
+		),
+		f(
+			'eventos.boton_avisame',
+			'eventos',
+			'button',
+			'Tarjeta de un evento agotado sin lista de espera: lleva a «Seguir la serie» en la página del evento',
+			'Avisame la próxima'
+		),
+		f(
 			'eventos.boton_calendario',
 			'eventos',
 			'button',
@@ -2106,10 +2120,10 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'miniapp.boton_comprar',
 			'miniapp',
 			'button',
-			'Botón para comprar entradas (abre el sitio)',
-			'Comprar en el sitio',
+			'Botón para ver el evento con sus entradas (abre el sitio)',
+			'Ver en el sitio',
 			{
-				help: `${MINIAPP} El código le suma «🎟 » adelante y « ↗» al final. Los otros estados de la venta («Agotadas»…) son los del sitio.`
+				help: `${MINIAPP} El código le suma «🎟 » adelante y « ↗» al final. Los otros estados de la venta («Agotadas»…) son los del sitio. (La clave se llama «comprar» por cómo empezó; si ya cambiaste este texto, tu versión se mantiene.)`
 			}
 		),
 		f(

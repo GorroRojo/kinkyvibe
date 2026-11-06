@@ -43,6 +43,7 @@ import {
 import tagsFactory from '$lib/utils/tags.js';
 import { makeInlineSource } from './inlineSource.js';
 import { miniAppTexts } from './miniapp.js';
+import { soldOutFollowUp } from '$lib/utils/ticketCta.js';
 import { shortHash } from './nav.js';
 import { planUpdate } from './router.js';
 import { adminEventsScreen, adminNoticesScreen, adminStatusScreen } from './adminBot.js';
@@ -513,6 +514,34 @@ export function botCases() {
 			{ follow }
 		)
 	);
+	add('tarjeta agotadas con lista de espera', () =>
+		eventScreen(
+			EVENTS[2],
+			{
+				ticket: {
+					kind: 'note',
+					text: 'Agotadas',
+					followUp: soldOutFollowUp(EVENTS[2].slug, true)
+				}
+			},
+			{ back: 'n' },
+			ctx('private')
+		)
+	);
+	add('tarjeta agotadas sin lista de espera', () =>
+		eventScreen(
+			EVENTS[2],
+			{
+				ticket: {
+					kind: 'note',
+					text: 'Agotadas',
+					followUp: soldOutFollowUp(EVENTS[2].slug, false)
+				}
+			},
+			{ back: 'n' },
+			ctx('private')
+		)
+	);
 	add('tarjeta nota', () =>
 		eventScreen(
 			EVENTS[2],
@@ -621,6 +650,14 @@ export function botCases() {
 			SITE_DOCS[0],
 			undefined,
 			{ ticket: { kind: 'note', text: 'Agotadas' } },
+			{ origin: ORIGIN, now: NOW }
+		)
+	);
+	add('inline: tarjeta evento agotado con lista de espera', () =>
+		inlineCard(
+			SITE_DOCS[0],
+			undefined,
+			{ ticket: { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp('x', true) } },
 			{ origin: ORIGIN, now: NOW }
 		)
 	);

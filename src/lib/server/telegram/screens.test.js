@@ -2,6 +2,7 @@
  * Las pantallas: texto, entidades (`date_time`) y botones. Datos inventados, sin red.
  */
 import { describe, expect, it } from 'vitest';
+import { soldOutFollowUp } from '$lib/utils/ticketCta.js';
 import {
 	CAPTION_MAX,
 	PAGE_SIZE,
@@ -187,6 +188,30 @@ describe('eventScreen', () => {
 	it('«Volver» va a la página de la lista que tiene el evento', () => {
 		const s = eventScreen(list[6], {}, { back: 'p', list }, PRIVATE);
 		expect(s.keyboard.at(-1)?.[0]).toEqual({ text: '‹ Volver', callback_data: 'l:p:1' });
+	});
+
+	it('agotadas: un botón con link a la página del evento (lista de espera o seguir la serie)', () => {
+		const wait = eventScreen(
+			ev,
+			{ ticket: { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp(ev.slug, true) } },
+			{ back: 'n' },
+			PRIVATE
+		);
+		expect(wait.keyboard[1]).toEqual([
+			{
+				text: 'Anotate en la lista de espera',
+				url: `${PRIVATE.origin}/calendario/${ev.slug}#entradas`
+			}
+		]);
+		const follow = eventScreen(
+			ev,
+			{ ticket: { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp(ev.slug, false) } },
+			{ back: 'n' },
+			PRIVATE
+		);
+		expect(follow.keyboard[1]).toEqual([
+			{ text: 'Avisame la próxima', url: `${PRIVATE.origin}/calendario/${ev.slug}#seguir` }
+		]);
 	});
 
 	it('sin lugar público ni mapa: ni 📍 ni «Cómo llegar»; agotadas como botón deshabilitado', () => {

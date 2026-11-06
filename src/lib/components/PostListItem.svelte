@@ -164,7 +164,15 @@
 	     restructure it if it were server-rendered, breaking hydration. -->
 	{#if tickets}
 		{#if tickets.kind == 'note'}
-			<span class="CTA note">{tickets.text}</span>
+			<span class="cta-group">
+				<span class="CTA note">{tickets.text}</span>
+				<!-- «Agotadas» no pierde a la persona: lleva a la página del evento (lista de espera o
+				     «Seguir la serie»), nunca directo a comprar. -->
+				{#if mounted && tickets.followUp}
+					<!-- svelte-ignore node_invalid_placement_ssr -->
+					<a href={tickets.followUp.href} class="followup">{tickets.followUp.text}</a>
+				{/if}
+			</span>
 		{/if}
 	{:else if mounted && link && status && status == 'abierto' && !past}
 		<!-- svelte-ignore node_invalid_placement_ssr -->
@@ -225,6 +233,24 @@
 	}
 	.post:has(.CTA) {
 		grid-template-areas: 'img title title' 'img summary summary' 'img tags cta';
+	}
+	/* «Agotadas» + el link a la página del evento (lista de espera / «Seguir la serie») */
+	.cta-group {
+		grid-area: cta;
+		justify-self: end;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.4em 0.75em;
+	}
+	.followup {
+		color: var(--post-color);
+		font-weight: 700;
+		text-decoration: underline;
+		min-height: var(--tap);
+		display: inline-flex;
+		align-items: center;
 	}
 	.CTA {
 		grid-area: cta;

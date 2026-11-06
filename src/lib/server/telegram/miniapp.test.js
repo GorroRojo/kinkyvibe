@@ -59,7 +59,7 @@ describe('groupByDay', () => {
 		expect(day.events[0]).toMatchObject({
 			place: 'Lugar de Prueba',
 			image: `${ORIGIN}/media/afiche.jpg`,
-			ticket: { text: 'Comprar en el sitio', href: `${ORIGIN}/calendario/x` }
+			ticket: { text: 'Ver en el sitio', href: `${ORIGIN}/calendario/x` }
 		});
 	});
 
@@ -69,7 +69,23 @@ describe('groupByDay', () => {
 			{ x: { open: false, reason: 'soldout', opensAt: null } },
 			{ now: NOW, origin: ORIGIN }
 		);
-		expect(day.events[0].ticket).toEqual({ text: 'Agotadas', href: null });
+		expect(day.events[0].ticket).toEqual({
+			text: 'Agotadas',
+			href: null,
+			followUp: { text: 'Avisame la próxima', href: `${ORIGIN}/calendario/x#seguir` }
+		});
+	});
+
+	it('agotadas con lista de espera: el link lleva a anotarse en la página del evento', () => {
+		const [day] = groupByDay(
+			[post('x', '2031-01-09T19:00:00-03:00', { tickets: [{ name: 'General' }] })],
+			{ x: { open: false, reason: 'soldout', opensAt: null, waitlist: true } },
+			{ now: NOW, origin: ORIGIN }
+		);
+		expect(day.events[0].ticket?.followUp).toEqual({
+			text: 'Anotate en la lista de espera',
+			href: `${ORIGIN}/calendario/x#entradas`
+		});
 	});
 
 	it('no más de APP_MAX_EVENTS', () => {
@@ -90,7 +106,9 @@ describe('los textos de la página («Textos del bot»)', () => {
 			agregada: 'Listo: quedó en tu pantalla de inicio.',
 			vacio: 'Por ahora no hay eventos próximos.',
 			cancelado: 'Cancelado',
-			comprar: 'Comprar en el sitio',
+			comprar: 'Ver en el sitio',
+			listaEspera: 'Anotate en la lista de espera',
+			avisame: 'Avisame la próxima',
 			verTodo: 'Ver el calendario completo en el sitio ↗'
 		});
 	});

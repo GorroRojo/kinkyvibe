@@ -40,6 +40,23 @@ describe('ticketCta (lo que muestra la tarjeta)', () => {
 		expect(ticketCta(meta(), states({ open: true }))).toEqual(BUY);
 	});
 
+	it('agotadas con lista de espera: lleva a anotarse, en la página del evento (nunca a comprar)', () => {
+		const cta = ticketCta(meta(), states({ reason: 'soldout', waitlist: true }));
+		expect(cta).toEqual({
+			kind: 'note',
+			text: 'Agotadas',
+			followUp: {
+				kind: 'waitlist',
+				href: '/calendario/evento-inventado#entradas',
+				text: 'Anotate en la lista de espera'
+			}
+		});
+	});
+
+	it('las otras notas (venta cerrada…) no suman nada', () => {
+		expect(ticketCta(meta(), states({ reason: 'closed' }))).not.toHaveProperty('followUp');
+	});
+
 	it('sin el estado (prerenderizado, sin base): el link a /entradas igual', () => {
 		expect(ticketCta(meta(), null)).toEqual(BUY);
 		expect(ticketCta(meta(), undefined)).toEqual(BUY);
@@ -48,7 +65,12 @@ describe('ticketCta (lo que muestra la tarjeta)', () => {
 	it('agotadas, venta cerrada y no disponible: un aviso sin link', () => {
 		expect(ticketCta(meta(), states({ reason: 'soldout' }))).toEqual({
 			kind: 'note',
-			text: 'Agotadas'
+			text: 'Agotadas',
+			followUp: {
+				kind: 'follow',
+				href: '/calendario/evento-inventado#seguir',
+				text: 'Avisame la próxima'
+			}
 		});
 		expect(ticketCta(meta(), states({ reason: 'closed' }))).toEqual({
 			kind: 'note',

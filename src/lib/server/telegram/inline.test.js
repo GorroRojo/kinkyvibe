@@ -5,6 +5,7 @@
  * tope por persona. Datos inventados.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { soldOutFollowUp } from '$lib/utils/ticketCta.js';
 import { find, groupHits, prepareIndex } from '$lib/utils/search';
 import {
 	EMPTY_MATERIAL,
@@ -363,7 +364,11 @@ describe('planInlineQuery', () => {
 					{
 						place: 'Lugar a confirmar',
 						area: 'Lugar a confirmar',
-						ticket: { kind: 'note', text: 'Agotadas' }
+						ticket: {
+							kind: 'note',
+							text: 'Agotadas',
+							followUp: soldOutFollowUp('agotado', true)
+						}
 					}
 				]
 			]);
@@ -381,7 +386,10 @@ describe('planInlineQuery', () => {
 			[{ text: renderBotText('sitio.boton_ver'), url: `${PROD}/calendario/con-entradas` }]
 		]);
 		expect(soldout.input_message_content.message_text).toContain('🎟 Agotadas');
-		expect(soldout.reply_markup.inline_keyboard[0]).toHaveLength(1);
+		expect(soldout.reply_markup.inline_keyboard).toEqual([
+			[{ text: renderBotText('sitio.boton_ver'), url: `${PROD}/calendario/agotado` }],
+			[{ text: 'Anotate en la lista de espera', url: `${PROD}/calendario/agotado#entradas` }]
+		]);
 		expect(plain.reply_markup.inline_keyboard).toEqual([
 			[{ text: renderBotText('sitio.boton_ver'), url: `${PROD}/calendario/sin-entradas` }]
 		]);

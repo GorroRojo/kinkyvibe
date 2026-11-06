@@ -27,7 +27,7 @@ import { botTextOverrides } from './texts.js';
 
 /**
  * @typedef {{ slug: string, title: string, time: string, place: string, image: string | null,
- *   href: string, ticket: { text: string, href: string | null } | null, cancelled: boolean }} AppEvent
+ *   href: string, ticket: { text: string, href: string | null, followUp?: { text: string, href: string } } | null, cancelled: boolean }} AppEvent
  * @typedef {{ day: string, events: AppEvent[] }} AppDay
  */
 
@@ -43,6 +43,8 @@ const TEXT_KEYS = Object.freeze({
 	vacio: 'miniapp.vacio',
 	cancelado: 'miniapp.cancelado',
 	comprar: 'miniapp.boton_comprar',
+	listaEspera: 'eventos.boton_lista_espera',
+	avisame: 'eventos.boton_avisame',
 	verTodo: 'miniapp.ver_todo'
 });
 
@@ -68,14 +70,22 @@ export function miniAppTexts(overrides = null) {
  *
  * @param {{ meta: Record<string, any> }[]} posts ya con el lugar público (`withVenuePlaces`)
  * @param {import('$lib/utils/ticketCta.js').TicketStates | null} states
- * @param {{ now: number, origin: string, buyText?: string }} ctx `buyText`: el botón de comprar
+ * @param {{ now: number, origin: string, buyText?: string, followTexts?: { waitlist: string, follow: string } }} ctx `buyText`: el botón de comprar
  *   (de {@link miniAppTexts}; por defecto, el original)
  * @returns {AppDay[]}
  */
 export function groupByDay(
 	posts,
 	states,
-	{ now, origin, buyText = renderBotText(TEXT_KEYS.comprar) }
+	{
+		now,
+		origin,
+		buyText = renderBotText(TEXT_KEYS.comprar),
+		followTexts = {
+			waitlist: renderBotText(TEXT_KEYS.listaEspera),
+			follow: renderBotText(TEXT_KEYS.avisame)
+		}
+	}
 ) {
 	/** @type {AppDay[]} */
 	const days = [];
@@ -104,7 +114,16 @@ export function groupByDay(
 				cta?.kind === 'buy'
 					? { text: buyText, href: `${origin}/calendario/${encodeURIComponent(slug)}` }
 					: cta?.kind === 'note'
-						? { text: cta.text, href: null }
+						? {
+								text: cta.text,
+								href: null,
+								...(cta.followUp && {
+									followUp: {
+										text: followTexts[cta.followUp.kind],
+										href: `${origin}${cta.followUp.href}`
+									}
+								})
+							}
 						: null,
 			cancelled: m.status === 'cancelado'
 		};
@@ -134,5 +153,13 @@ export async function miniAppData(platform, origin, now = Date.now()) {
 		botTextOverrides(db)
 	]);
 	const texts = miniAppTexts(overrides);
-	return { days: groupByDay(withPlaces, states, { now, origin, buyText: texts.comprar }), texts };
+	return {
+		days: groupByDay(withPlaces, states, {
+			now,
+			origin,
+			buyText: texts.comprar,
+			followTexts: { waitlist: texts.listaEspera, follow: texts.avisame }
+		}),
+		texts
+	};
 }

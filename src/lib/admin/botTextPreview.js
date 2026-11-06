@@ -144,6 +144,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 		keys: [
 			'eventos.ver_todo',
 			'eventos.boton_abrir',
+			'eventos.boton_lista_espera',
+			'eventos.boton_avisame',
 			'eventos.boton_calendario',
 			'eventos.boton_mapa',
 			'seguir.boton',
@@ -155,6 +157,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 				`<a href="https://kinkyvibe.ar">${escapeTelegramHtml(t('eventos.ver_todo'))}</a>`,
 			buttons: [
 				[{ text: t('eventos.boton_abrir'), link: true }],
+				[{ text: t('eventos.boton_lista_espera'), link: true }],
+				[{ text: t('eventos.boton_avisame'), link: true }],
 				[
 					{ text: t('eventos.boton_calendario'), link: true },
 					{ text: t('eventos.boton_mapa'), link: true }

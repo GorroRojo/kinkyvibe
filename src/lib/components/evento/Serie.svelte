@@ -21,7 +21,8 @@
 <section class="serie" aria-label="La serie">
 	<EventSeries {series} part="nav" />
 	{#if s}
-		<div class="seguir">
+		<!-- `#seguir`: a donde llevan «Agotadas · Avisame la próxima» de las tarjetas (ticketCta.js) -->
+		<div class="seguir" id="seguir">
 			<FollowButton
 				kind="etiqueta"
 				key={s.id}
