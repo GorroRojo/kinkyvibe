@@ -83,6 +83,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
 	'entradas-codigos': 'codigos descuento cupon',
 	propinas: 'propinas cafecito aportes donaciones',
+	'ajustes-paypal': 'paypal dolar cotizacion ajuste retiros propinas',
 	personas: 'personas clientes compradores gente ficha nota notas internas',
 	estadisticas:
 		'estadisticas graficos tendencias ventas en el tiempo vendidas cobrado por serie medios de pago fondo finanzas',
@@ -148,6 +149,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'entradas-transferencias': 'transfer',
 	'entradas-codigos': 'tag',
 	propinas: 'wallet',
+	'ajustes-paypal': 'wallet',
 	personas: 'users',
 	estadisticas: 'chart',
 	'estadisticas-asistencia': 'users',

@@ -382,6 +382,33 @@ export async function tipSummary(db) {
 }
 
 /**
+ * Propinas aprobadas de Mercado Pago desde `from` (ms, fecha de aprobación), por mes de Argentina
+ * y destino. Para «Fondo y finanzas» de Estadísticas › Ventas; las filas se arman por mes en
+ * `tipsByMonth` ($lib/server/admin/charts.js).
+ *
+ * @param {D1Database} db
+ * @param {number} from
+ * @returns {Promise<{ month: string, destination: string, count: number, total: number }[]>}
+ */
+export async function tipsByMonthDestination(db, from) {
+	const { results } = await db
+		.prepare(
+			`SELECT strftime('%Y-%m', (approved_at - ?1) / 1000, 'unixepoch') AS month, destination,
+				COUNT(*) AS count, SUM(amount) AS total
+			FROM tips WHERE status = 'approved' AND provider = 'mp' AND approved_at >= ?2
+			GROUP BY month, destination`
+		)
+		.bind(-AR_UTC_OFFSET_MS, from)
+		.all();
+	return /** @type {any[]} */ (results).map((r) => ({
+		month: String(r.month),
+		destination: String(r.destination),
+		count: Number(r.count),
+		total: Number(r.total)
+	}));
+}
+
+/**
  * Propinas de la más nueva a la más vieja. `includePending: false` deja afuera las que nunca se
  * pagaron (la lista de la página); el CSV las incluye. `destination`: solo las de ese destino
  * (el filtro del panel); sin él, todas.

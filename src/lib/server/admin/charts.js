@@ -201,6 +201,36 @@ export function fondoByMonth(orders, { now = Date.now(), months = 12 } = {}) {
 }
 
 /**
+ * Propinas recibidas por mes (hora de Argentina) y su reparto entre Kinky Vibe y el Fondo, para
+ * los meses dados (de la más vieja a la más nueva). `tipsByMonthDestination` trae las filas.
+ * @param {{ month: string, destination: string, count: number, total: number }[]} tipRows
+ * @param {string[]} monthKeys
+ */
+export function tipsByMonth(tipRows, monthKeys) {
+	const map = new Map(
+		monthKeys.map((m) => [m, { month: m, label: monthLabel(m), kinkyvibe: 0, fondo: 0, count: 0 }])
+	);
+	for (const r of tipRows) {
+		const row = map.get(r.month);
+		if (!row) continue;
+		if (r.destination === 'fondo') row.fondo += r.total;
+		else row.kinkyvibe += r.total;
+		row.count += r.count;
+	}
+	const rows = [...map.values()].map((r) => ({ ...r, total: r.kinkyvibe + r.fondo }));
+	const sum = (/** @type {'kinkyvibe'|'fondo'|'count'} */ k) => rows.reduce((s, r) => s + r[k], 0);
+	return {
+		rows,
+		totals: {
+			kinkyvibe: sum('kinkyvibe'),
+			fondo: sum('fondo'),
+			total: sum('kinkyvibe') + sum('fondo'),
+			count: sum('count')
+		}
+	};
+}
+
+/**
  * Todo lo de los gráficos, de una vez.
  * @param {PersonOrder[]} orders
  * @param {Map<string, EventInfo>} events

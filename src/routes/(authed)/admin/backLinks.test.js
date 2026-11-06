@@ -59,7 +59,7 @@ const DYNAMIC_BACKS = {
 	'src/routes/(authed)/admin/ajustes/interruptores/+page.svelte': [
 		"areaBackLink('ajustes-interruptores')"
 	],
-	'src/routes/(authed)/admin/ajustes/propinas/+page.svelte': ["areaBackLink('propinas')"],
+	'src/routes/(authed)/admin/ajustes/paypal/+page.svelte': ["areaBackLink('ajustes-paypal')"],
 	'src/routes/(authed)/admin/ajustes/textos-bot/+page.svelte': [
 		"areaBackLink('ajustes-textos-bot')"
 	],

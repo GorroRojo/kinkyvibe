@@ -886,7 +886,7 @@ export function activityItems({ orders, audit, checkins, tips }, { limit, titles
 			detail: t.post_slug ? tipCategoryLabel(String(t.post_category)) : 'fondo.kinkyvibe.ar',
 			slug: null,
 			orderId: null,
-			href: '/admin/ajustes/propinas'
+			href: '/admin/estadisticas/propinas'
 		});
 	}
 	items.sort((a, b) => b.at - a.at);
