@@ -48,3 +48,5 @@
   Cache-Control: public, max-age=86400
 /agenda-impresa/*
   Cache-Control: public, max-age=86400
+/instagram/*
+  Cache-Control: public, max-age=86400

@@ -73,7 +73,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	eventos: 'lista calendario agenda',
 	'eventos-nuevo': 'nuevo crear evento cargar duplicar',
 	'eventos-importar': 'importar planilla excel sheet',
-	'eventos-agenda-impresa': 'imprimir volante volantes flyer papel pdf repartir agenda impresa',
+	'eventos-agenda-impresa':
+		'imprimir volante volantes flyer papel pdf repartir agenda impresa instagram posts carrusel redes',
 	'eventos-agenda': 'agenda planilla tabla',
 	'eventos-lugares': 'lugares direccion mapa venue espacio donde aprobar rechazados',
 	'eventos-series': 'series ediciones recurrente repetir avisame',
@@ -83,6 +84,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
 	'entradas-codigos': 'codigos descuento cupon',
 	propinas: 'propinas cafecito aportes donaciones',
+	'ajustes-paypal': 'paypal dolar cotizacion ajuste retiros propinas',
 	personas: 'personas clientes compradores gente ficha nota notas internas',
 	estadisticas:
 		'estadisticas graficos tendencias ventas en el tiempo vendidas cobrado por serie medios de pago fondo finanzas',
@@ -148,6 +150,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'entradas-transferencias': 'transfer',
 	'entradas-codigos': 'tag',
 	propinas: 'wallet',
+	'ajustes-paypal': 'wallet',
 	personas: 'users',
 	estadisticas: 'chart',
 	'estadisticas-asistencia': 'users',

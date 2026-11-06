@@ -816,8 +816,9 @@ apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `li
   tipo. Si justo se vendió el lugar en la puerta, se lo dice y la oferta sigue hasta que venza.
 - **La puerta, la carga a mano y la confirmación de transferencias no miran la lista** (venden
   aunque haya gente esperando, como decidió gorrite; solo avisan, ver la parte 5).
-- La página del evento (botón «Comprar entradas») también resta la fila (las tarjetas de las
-  listas de eventos, desde la parte 5).
+- La página del evento (botón «Comprar entradas») también resta la fila. Las tarjetas de las
+  listas de eventos no llevan botón de compra (gorrite, 5/11: se compra desde la página del
+  evento, después del texto); solo «Agotadas» o «Venta cerrada».
 
 **Ya está (parte 4, el motor).** Con el interruptor apagado no corre nada (ni la pasada del cron,
 ni los mails, ni los empujones).

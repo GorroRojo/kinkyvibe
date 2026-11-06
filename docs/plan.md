@@ -125,6 +125,7 @@ CI) va en la fase 0.
 ### Panel
 
 - `agenda-impresa` · fase 0 · hecho · panel · Agenda impresa: volantes A4 (4 A6, 2 A5 o 1 A4) para repartir con los próximos eventos, con el diseño de gorrite; ícono y subtítulo de la serie, lugar con su privacidad y precio, todo editable en la página sin guardar nada · #370, [panel.md](panel.md#agenda-impresa)
+- `agenda-instagram` · fase 0 · hecho · panel · Agenda impresa › Instagram: el carrusel mensual «agenda kinky» (portada con la grilla, eventos con su imagen, Fondo, lista de actividades y eventos amigos) en PNG de 1080 × 1350 y el texto del posteo, con las medidas y las letras (1797) del .ai original de los posts, todo editable sin guardar nada (depende de: agenda-impresa) · #550, [panel.md](panel.md#instagram)
 - `precios-con-fondo-editor` · fase 0 · hecho · panel · Entradas del editor de eventos: debajo de cada precio (fijo, de cada tramo y en puerta) cuánto sale con el descuento del Fondo de hoy, el resumen de los tramos con esos precios y «Copiar precios» (una línea por tramo) para la agenda y los flyers (pedido de una admin) · [tickets.md](tickets.md#precios-con-el-fondo-en-el-editor), #631
 - `nav-c-puerta-hoy` · fase 0 · hecho · panel · La Puerta abre directo en el evento de hoy si hay uno solo · #314, [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)
 - `nav-c-ir-a-recientes` · fase 0 · hecho · panel · «Ir a…» (⌘K) vacío muestra Fijados y Recientes · #314
@@ -136,6 +137,8 @@ CI) va en la fase 0.
 - `login-sin-permisos` · fase 0 · hecho · panel · El login de admins no le pide permisos a GitHub (antes pedía `public_repo`, de cuando el panel guardaba en el repo): solo lee el id de la cuenta · #382, [panel.md](panel.md)
 - `panel-prefs-en-base` · fase 0 · algún día · panel · Fijados y el modo del panel lateral por admin en la base (hoy por navegador), si se suma una tabla de preferencias
 - `miniaturas-listas-panel` · fase 0 · hecho · panel · Miniaturas achicadas (`thumbnailUrl`) en Eventos y Contenido, como ya tiene «Hoy» · #323
+- `fondo-finanzas-propinas` · fase 0 · hecho · panel · Estadísticas › Ventas › «Fondo y finanzas» suma las suscripciones al Fondo del mes (fondo.kinkyvibe.ar) y las propinas por mes con su reparto Kinky Vibe / Fondo; Propinas pasó de Ajustes a Estadísticas (`/admin/estadisticas/propinas`, la vieja redirige) y la cotización y los retiros de PayPal quedaron en Ajustes › PayPal (gorrite) · [propinas.md](propinas.md), #265
+- `fondo-suscripciones-historial` · fase 0 · sigue · panel · El historial mensual de las suscripciones al Fondo en «Fondo y finanzas», cuando kv-fondo tenga el endpoint que lo da (pedido en #265; hoy solo se ve el mes en curso) (depende de: fondo-finanzas-propinas)
 - `graficos-mas` · fase 0 · algún día · panel · Más gráficos: mapa de la comunidad, Fondo y finanzas
 - `queermoji` · fase 0 · algún día · diseño · Sumar los Queermoji (emojis queer de pronouns.page) o algo parecido: dónde se usan en el sitio y con qué licencia, a definir (gorrite, 25/10) · [queermoji.pronouns.page](https://queermoji.pronouns.page/)
 - `editor-textos-sitio` · fase 0 · sigue · panel · Un «modo editar textos» para casi todo lo que dice el sitio, visualmente afuera del panel, con el mismo registro de textos del bot y las vistas previas; por partes, y antes decidir qué queda fijo (gorrite, 11/10)
