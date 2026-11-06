@@ -192,6 +192,12 @@
 								<a class="buy" {href} on:click={(e) => open(e, href)}>🎟 {ev.ticket.text} ↗</a>
 							{:else}
 								<span class="note">🎟 {ev.ticket.text}</span>
+								{#if ev.ticket.followUp}
+									{@const href = ev.ticket.followUp.href}
+									<a class="buy" {href} on:click={(e) => open(e, href)}
+										>{ev.ticket.followUp.text} ↗</a
+									>
+								{/if}
 							{/if}
 						{/if}
 						{#if canShare && !ev.cancelled}

@@ -63,6 +63,16 @@ describe('PostListItem: venta de entradas', () => {
 		expect(html).not.toContain('Comprar entradas');
 	});
 
+	it('agotadas: el link de la página del evento va solo después de montar (no un <a> en el <a>)', () => {
+		const html = body({
+			post: post(),
+			ticketStates: states({ reason: 'soldout', waitlist: true })
+		});
+		expect(cta(html)).toEqual([' note', 'Agotadas']);
+		expect(html).not.toContain('Anotate en la lista de espera');
+		expect(html).not.toContain('Avisame la próxima');
+	});
+
 	it('venta cerrada: un aviso, no un botón', () => {
 		const html = body({ post: post(), ticketStates: states({ reason: 'closed' }) });
 		expect(cta(html)).toEqual([' note', 'Venta cerrada']);

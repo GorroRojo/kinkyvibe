@@ -426,6 +426,25 @@ export function calendarLink(event, origin, place) {
  */
 
 /**
+ * El botón con link de un evento «Agotadas»: a la página del evento (nunca directo a comprar), a
+ * anotarse en la lista de espera (`#entradas`) o a seguir la serie (`#seguir`). `null` si no hay (o
+ * sin https: Telegram no acepta botones con link).
+ *
+ * @param {import('$lib/utils/ticketCta.js').TicketCta | null | undefined} ticket
+ * @param {string} origin
+ * @returns {Button | null}
+ */
+export function followUpButton(ticket, origin) {
+	const up = ticket?.kind === 'note' ? ticket.followUp : null;
+	if (!up || !isHttps(origin)) return null;
+	const text =
+		up.kind === 'waitlist'
+			? botText('eventos.boton_lista_espera')
+			: botText('eventos.boton_avisame');
+	return { text, url: `${origin}${up.href}` };
+}
+
+/**
  * La tarjeta de un evento: foto (la imagen destacada, si hay) o vista previa grande del link,
  * título, fecha, lugar (solo lo que la página pública muestra) y los botones «Comprar en el
  * sitio» (verde), «Agregar al calendario», «Cómo llegar» (solo si la página muestra el mapa) y,
@@ -460,16 +479,12 @@ export function eventScreen(
 	const rows = [];
 	if (https) {
 		const ticket = info.ticket;
-		if (ticket?.kind === 'buy') {
-			rows.push([
-				{
-					text: botText('eventos.boton_comprar'),
-					url: `${ctx.origin}${ticket.href}`,
-					style: 'success'
-				}
-			]);
-		} else if (ticket?.kind === 'note') {
+		// Comprar se hace desde la página del evento: el botón lleva ahí, no a las entradas.
+		if (ticket?.kind === 'note') {
 			rows.push([{ text: `🎟 ${ticket.text}`, disabled: {} }]);
+			// «Agotadas» no pierde a la persona: a la página del evento (lista de espera o seguir).
+			const up = followUpButton(ticket, ctx.origin);
+			if (up) rows.push([up]);
 		} else {
 			rows.push([{ text: botText('eventos.boton_abrir'), url }]);
 		}

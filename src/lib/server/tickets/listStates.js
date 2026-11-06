@@ -118,6 +118,9 @@ async function computeStates(db, slugs, now) {
 	// La configuración de todos juntos: dos consultas para toda la lista (los eventos y cuáles tienen
 	// lugar), no dos por tarjeta.
 	const bySlug = await getEventTicketsMany(slugs);
+	const withWaitlist = new Set(
+		[...bySlug].filter(([, config]) => config?.waitlist).map(([slug]) => slug)
+	);
 	const configs = slugs
 		.map((slug) => ({ slug, config: bySlug.get(slug) ?? null }))
 		.filter(
@@ -138,7 +141,7 @@ async function computeStates(db, slugs, now) {
 		else if (state.open) selling.push({ slug, config });
 		else out[slug] = { open: false, reason: state.reason, opensAt: config.opensAt ?? null };
 	}
-	if (!selling.length) return out;
+	if (!selling.length) return await markWaitlist(out, withWaitlist, reads.holders);
 
 	/** @param {string} slug @param {import('./config.js').EventTickets} config */
 	const unavailable = (slug, config) =>
@@ -153,7 +156,7 @@ async function computeStates(db, slugs, now) {
 		unavailable(e.slug, e.config);
 		return false;
 	});
-	if (!withMethods.length) return out;
+	if (!withMethods.length) return await markWaitlist(out, withWaitlist, reads.holders);
 
 	let takenBySlug;
 	try {
@@ -163,7 +166,7 @@ async function computeStates(db, slugs, now) {
 		for (const e of withMethods) unavailable(e.slug, e.config);
 		return out;
 	}
-	const queue = await reads.holders;
+	const queue = (await reads.holders).holders;
 	// La fila solo cuenta en los eventos con lista.
 	const holdersBySlug = new Map(
 		withMethods.filter((e) => e.config.waitlist).map((e) => [e.slug, queue.get(e.slug)])
@@ -184,6 +187,24 @@ async function computeStates(db, slugs, now) {
 			opensAt: config.opensAt ?? null
 		};
 	}
+	return await markWaitlist(out, withWaitlist, reads.holders);
+}
+
+/**
+ * Suma `waitlist: true` a los eventos agotados con lista de espera prendida (interruptor y lista del
+ * evento): la tarjeta ofrece anotarse en la página del evento. Es la cuenta de la página sin mirar
+ * si todavía queda un alcance donde anotarse (eso es una consulta por evento); ahí, el formulario
+ * dice lo que corresponde.
+ *
+ * @param {TicketStates} out
+ * @param {Set<string>} withWaitlist los eventos con `waitlist` en su configuración
+ * @param {Promise<{ on: boolean }>} flag
+ */
+async function markWaitlist(out, withWaitlist, flag) {
+	if (!(await flag).on) return out;
+	for (const [slug, state] of Object.entries(out)) {
+		if (state.reason === 'soldout' && withWaitlist.has(slug)) state.waitlist = true;
+	}
 	return out;
 }
 
@@ -195,7 +216,7 @@ async function computeStates(db, slugs, now) {
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string[]} slugs
  * @param {number} now
- * @returns {Promise<Map<string, Map<string, number>>>}
+ * @returns {Promise<{ on: boolean, holders: Map<string, Map<string, number>> }>}
  */
 async function queueFor(db, slugs, now) {
 	try {
@@ -203,10 +224,10 @@ async function queueFor(db, slugs, now) {
 			isFlagOn(db, 'lista_espera'),
 			queueHoldersMany(db, slugs, now)
 		]);
-		return on ? holders : new Map();
+		return { on, holders: on ? holders : new Map() };
 	} catch (error) {
 		console.error('[tickets] no se pudo leer la lista de espera para las listas:', error);
-		return new Map();
+		return { on: false, holders: new Map() };
 	}
 }
 

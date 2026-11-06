@@ -79,7 +79,9 @@ describe('privado', () => {
 			method: 'editMessageMedia',
 			media: { type: 'photo', media: CARD.image }
 		});
-		expect(p?.steps[0].reply_markup.inline_keyboard[0][0]).toMatchObject({ style: 'success' });
+		expect(p?.steps[0].reply_markup.inline_keyboard[0][0]).toMatchObject({
+			text: 'Abrir en el sitio'
+		});
 	});
 
 	it('sin token: la misma tarjeta como texto con vista previa grande', async () => {
