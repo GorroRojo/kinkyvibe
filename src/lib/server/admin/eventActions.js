@@ -14,6 +14,7 @@ import {
 	sendStreamLinkEmails,
 	siteOrigin
 } from '$lib/server/tickets/index.js';
+import { getPaypalGateway } from '$lib/server/paypal/gateway.js';
 import { confirmLimits, reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
@@ -622,7 +623,8 @@ export const eventTicketActions = {
 			db,
 			order,
 			by: admin.login,
-			gateway: () => getGateway(fetch)
+			gateway: () => getGateway(fetch),
+			paypal: () => getPaypalGateway(fetch)
 		});
 		if (r.result === 'refunded' && r.order) {
 			await afterRefund({ db, locals, platform, url, fetch, before: order, fresh: r.order });

@@ -76,6 +76,35 @@ export function estimateArs(usdNetCents, base, adjustmentPct) {
 }
 
 /**
+ * Pesos → centavos de dólar para cobrar (propinas y entradas con PayPal, docs/paypal.md): `ceil(pesos / (base × (1 + ajuste / 100)))`, en enteros
+ * exactos. Redondea para arriba: con el ajuste de gorrite (que estima lo que se pierde al
+ * convertir), lo que llega en pesos alcanza el precio. Con datos que no sirven: `null`.
+ *
+ * @param {number} ars pesos enteros
+ * @param {number} base cotización base (pesos por dólar)
+ * @param {number} adjustmentPct ajuste en %
+ */
+export function usdCentsForArs(ars, base, adjustmentPct) {
+	if (
+		!Number.isSafeInteger(ars) ||
+		ars <= 0 ||
+		!Number.isFinite(base) ||
+		base <= 0 ||
+		!Number.isFinite(adjustmentPct)
+	) {
+		return null;
+	}
+	const baseCents = BigInt(Math.round(base * 100));
+	const factor = BigInt(10_000 + Math.round(adjustmentPct * 100));
+	if (factor <= 0n || baseCents <= 0n) return null;
+	// pesos × 100 (centavos de peso) × 100 (centavos de dólar) × 10.000 (factor) / (base en
+	// centavos × factor).
+	const num = BigInt(ars) * 100n * 100n * 10_000n;
+	const den = baseCents * factor;
+	return Number((num + den - 1n) / den);
+}
+
+/**
  * Dólares (desde centavos) para mostrar: `US$ 12,34`.
  *
  * @param {number} cents

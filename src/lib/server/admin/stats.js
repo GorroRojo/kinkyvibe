@@ -42,7 +42,8 @@ export function lastMonths(now, months) {
 const METHOD_LABELS = /** @type {Record<string, string>} */ ({
 	mercadopago: 'Mercado Pago',
 	transferencia: 'Transferencia',
-	gratis: 'Sin cargo'
+	gratis: 'Sin cargo',
+	paypal: 'PayPal'
 });
 
 /**

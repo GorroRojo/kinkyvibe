@@ -1,5 +1,5 @@
 /**
- * /propinas/<id>/gracias: adonde vuelve Mercado Pago después de pagar (las back_urls de la
+ * /propinas/<id>/gracias: adonde vuelve Mercado Pago (o PayPal, por /paypal/vuelta) después de pagar (las back_urls de la
  * preferencia). El estado sale de la base (lo cambia el webhook); si sigue pendiente, se le
  * pregunta a MP una vez (`recheckTip`). Los parámetros que agrega MP a la URL se ignoran.
  *
@@ -13,6 +13,8 @@ import { getDB } from '$lib/server/db';
 import { getTip, recheckTip } from '$lib/server/propinas/index.js';
 import { tipPostPath } from '$lib/utils/propinas.js';
 import { getGateway } from '$lib/server/tickets/index.js';
+import { getPaypalGateway } from '$lib/server/paypal/gateway.js';
+import { recheckPaypalTip } from '$lib/server/propinas/paypal.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, fetch, setHeaders }) {
@@ -27,11 +29,16 @@ export async function load({ params, platform, fetch, setHeaders }) {
 	const db = getDB(platform);
 	let tip = db ? await getTip(db, params.id) : null;
 	if (!db || !tip) error(404, 'No encontramos esa propina.');
-	tip = await recheckTip({ db, gateway: await getGateway(fetch), tip });
+	tip =
+		tip.provider === 'paypal'
+			? await recheckPaypalTip({ db, gateway: await getPaypalGateway(fetch), tip })
+			: await recheckTip({ db, gateway: await getGateway(fetch), tip });
 	const fromFondo = tip.source === 'fondo';
 	return {
 		tip: {
 			amount: tip.amount,
+			// Con PayPal: los dólares que se cobraron.
+			usdCents: tip.provider === 'paypal' ? (tip.usd_gross_cents ?? null) : null,
 			status: tip.status,
 			destination: tip.destination,
 			source: fromFondo ? 'fondo' : 'post'

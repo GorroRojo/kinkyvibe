@@ -317,7 +317,13 @@ describe('propinas', () => {
 			await m.gracias.load(fakeEvent({ params: { id: tip.id }, mp }))
 		);
 		expect(data).toEqual({
-			tip: { amount: 1000, status: 'pending', destination: 'fondo', source: 'post' },
+			tip: {
+				amount: 1000,
+				usdCents: null,
+				status: 'pending',
+				destination: 'fondo',
+				source: 'post'
+			},
 			postPath: '/calendario/fiesta-de-prueba'
 		});
 		// El mensaje no se muestra en la página pública.
@@ -453,7 +459,13 @@ describe('propinas desde el Fondo (?de=fondo)', () => {
 			await m.gracias.load(fakeEvent({ params: { id: tip.id }, mp: () => ({ results: [] }) }))
 		);
 		expect(data).toEqual({
-			tip: { amount: 3000, status: 'approved', destination: 'fondo', source: 'fondo' },
+			tip: {
+				amount: 3000,
+				usdCents: null,
+				status: 'approved',
+				destination: 'fondo',
+				source: 'fondo'
+			},
 			postPath: null
 		});
 		const { body } = render(GraciasPage, { props: { data } });

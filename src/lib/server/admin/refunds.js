@@ -51,13 +51,27 @@ export const REFUND_ALL_WORD = 'REEMBOLSAR';
  *   db: D1Database,
  *   order: Order,
  *   by: string,
- *   gateway: () => Promise<Gateway | null>
- * }} input `gateway`: se pide recién si la orden es de Mercado Pago
+ *   gateway: () => Promise<Gateway | null>,
+ *   paypal?: () => Promise<import('$lib/server/paypal/gateway.js').PaypalGateway | null>
+ * }} input `gateway`: se pide recién si la orden es de Mercado Pago; `paypal`, si es de PayPal
  * @returns {Promise<{ result: RefundResult, order: Order | null }>}
  */
-export async function refundFromPanel({ db, order, by, gateway }) {
+export async function refundFromPanel({ db, order, by, gateway, paypal }) {
 	if (order.status === 'refunded') return { result: 'already', order };
 	if (order.status !== 'approved') return { result: 'not-approved', order };
+	if (order.payment_method === 'paypal') {
+		// PayPal (docs/paypal.md): reembolso TOTAL de la captura, con `PayPal-Request-Id`
+		// `refund-<orden>` (dos pedidos a la vez dan el mismo reembolso).
+		const pp = paypal ? await paypal() : null;
+		if (!pp || !order.paypal_capture_id) return { result: 'no-gateway', order };
+		try {
+			await pp.refundCapture(order.paypal_capture_id, `refund-${order.id}`);
+		} catch (error) {
+			console.error(`[tickets] reembolso de ${order.id} rechazado por PayPal:`, error);
+			const capture = await pp.getCapture(order.paypal_capture_id).catch(() => null);
+			if (capture?.status !== 'REFUNDED') return { result: 'mp-failed', order };
+		}
+	}
 	if (order.payment_method === 'mercadopago') {
 		const gw = await gateway();
 		if (!gw || !order.mp_payment_id) return { result: 'no-gateway', order };

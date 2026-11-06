@@ -909,11 +909,13 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
 		? 'Era una compra sin cargo: no hay dinero para devolver.'
 		: order.payment_method === 'mercadopago'
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
-			: order.payment_method === 'transferencia'
-				? 'Te devolvimos el dinero por transferencia.'
-				: order.payment_method === 'efectivo'
-					? 'Te devolvimos el dinero en efectivo.'
-					: 'Te devolvimos el dinero.';
+			: order.payment_method === 'paypal'
+				? 'PayPal te devuelve los dólares a la misma cuenta o tarjeta con la que pagaste (puede tardar unos días en verse).'
+				: order.payment_method === 'transferencia'
+					? 'Te devolvimos el dinero por transferencia.'
+					: order.payment_method === 'efectivo'
+						? 'Te devolvimos el dinero en efectivo.'
+						: 'Te devolvimos el dinero.';
 	const amount = orderPaid(order) ? ` de ${formatARS(orderPaid(order))}` : '';
 	const html = mailLayout({
 		origin,

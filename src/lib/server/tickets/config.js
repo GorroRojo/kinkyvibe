@@ -82,7 +82,8 @@
 /**
  * @typedef {{ min: number, suggested: number }} Gorra
  */
-/** @typedef {'mercadopago' | 'transferencia'} PaymentMethod */
+/** @typedef {'mercadopago' | 'transferencia' | 'paypal'} PaymentMethod */
+// `paypal` no se configura por evento: se suma solo donde hay Mercado Pago (docs/paypal.md).
 /** @typedef {{ name: string, pronouns: string }} Holder */
 /** @typedef {{ name: string, pronouns: string, email: string, dni: string }} Buyer */
 /**

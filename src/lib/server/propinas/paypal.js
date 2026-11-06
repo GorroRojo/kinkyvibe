@@ -9,8 +9,13 @@
  * los dólares netos pasados a pesos al leer (`PAYPAL_FONDO_TIP_WHERE`, $lib/server/paypal/index.js).
  */
 import { nextStatus } from '$lib/server/tickets/orders.js';
-import { PAYPAL_TIP_PREFIX, parseCustomId } from '$lib/server/paypal/payments.js';
-import { getTip, tipStatusFromPayment } from './index.js';
+import { hitRateLimit } from '$lib/server/db/rateLimit.js';
+import {
+	PAYPAL_TIP_PREFIX,
+	parseCustomId,
+	settlePaypalOrder
+} from '$lib/server/paypal/payments.js';
+import { TIP_RECHECK_LIMIT, getTip, tipStatusFromPayment } from './index.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./index.js').Tip} Tip */
@@ -47,6 +52,25 @@ export async function setTipPaypalOrder(db, id, paypalOrderId) {
 	await db
 		.prepare('UPDATE tips SET paypal_order_id = ?2 WHERE id = ?1')
 		.bind(id, paypalOrderId)
+		.run();
+}
+
+/**
+ * Quien dejaba la propina canceló en PayPal: queda «rechazada» (no se cobró nada), si seguía
+ * pendiente. Un pago que llegue después igual la aprueba (`nextStatus`).
+ *
+ * @param {D1Database} db
+ * @param {string} id
+ * @param {string} paypalOrderId
+ * @param {number} [now]
+ */
+export async function cancelPaypalTip(db, id, paypalOrderId, now = Date.now()) {
+	await db
+		.prepare(
+			`UPDATE tips SET status = 'rejected', updated_at = ?3
+			WHERE id = ?1 AND provider = 'paypal' AND paypal_order_id = ?2 AND status = 'pending'`
+		)
+		.bind(id, paypalOrderId, now)
 		.run();
 }
 
@@ -101,4 +125,30 @@ export async function applyPaypalTipPayment(db, payment, { now = Date.now() } = 
 		current = fresh;
 	}
 	return { outcome: 'unchanged', tip: current, newlyApproved: false };
+}
+
+/**
+ * Si una propina de PayPal sigue pendiente (la vuelta no llegó a cobrar o el webhook tarda), mira
+ * su orden de PayPal (y la cobra si ya está aprobada). Mismo límite que el re-chequeo de MP.
+ *
+ * @param {{
+ *   db: D1Database,
+ *   gateway: import('$lib/server/paypal/gateway.js').PaypalGateway | null,
+ *   tip: Tip,
+ *   now?: number
+ * }} input
+ * @returns {Promise<Tip>}
+ */
+export async function recheckPaypalTip({ db, gateway, tip, now = Date.now() }) {
+	if (tip.status !== 'pending' || !gateway || !tip.paypal_order_id) return tip;
+	try {
+		const limit = await hitRateLimit(db, `propinas:g:${tip.id}`, TIP_RECHECK_LIMIT, now);
+		if (!limit.allowed) return tip;
+		const payment = await settlePaypalOrder(gateway, tip.paypal_order_id);
+		const res = await applyPaypalTipPayment(db, payment, { now });
+		return res.tip ?? tip;
+	} catch (error) {
+		console.error(`[propinas] no se pudo re-chequear la propina de PayPal ${tip.id}:`, error);
+		return tip;
+	}
 }

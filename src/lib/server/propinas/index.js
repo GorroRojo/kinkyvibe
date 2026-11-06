@@ -464,7 +464,8 @@ export const TIP_RECHECK_LIMIT = { limit: 10, windowSeconds: 10 * 60 };
  * @returns {Promise<Tip>}
  */
 export async function recheckTip({ db, gateway, tip, now = Date.now() }) {
-	if (tip.status !== 'pending' || !gateway) return tip;
+	// Las de PayPal se miran en PayPal (`recheckPaypalTip`, ./paypal.js).
+	if (tip.status !== 'pending' || !gateway || (tip.provider ?? 'mp') !== 'mp') return tip;
 	try {
 		const limit = await hitRateLimit(db, `propinas:g:${tip.id}`, TIP_RECHECK_LIMIT, now);
 		if (!limit.allowed) return tip;
