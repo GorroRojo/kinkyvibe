@@ -108,6 +108,9 @@ describe('toCardInfo (lo que la página pública muestra)', () => {
 				origin: ORIGIN,
 				states: { ev: { open: false, reason: 'soldout', opensAt: null } }
 			}).ticket
-		).toEqual({ kind: 'note', text: 'Agotadas' });
+		).toEqual({
+			kind: 'note',
+			text: 'Agotadas'
+		});
 	});
 });

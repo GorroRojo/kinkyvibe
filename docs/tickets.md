@@ -819,6 +819,16 @@ apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `li
 - La página del evento (botón «Comprar entradas») también resta la fila. Las tarjetas de las
   listas de eventos no llevan botón de compra (gorrite, 5/11: se compra desde la página del
   evento, después del texto); solo «Agotadas» o «Venta cerrada».
+- **«Agotadas» no pierde a la persona** (gorrite, 6/11). Donde se ve «Agotadas» (tarjetas
+  `PostListItem`, carrusel del inicio, tarjeta del bot, inline y Mini App) hay un link a la
+  **página del evento**, nunca directo a comprar: con la lista de espera prendida (interruptor
+  `lista_espera` y `waitlist` en el evento; `waitlist: true` en el estado de la lista,
+  `listStates.js`) lleva a `#entradas` con «Anotate en la lista de espera»; sin lista, a `#seguir`
+  (el «Seguir la serie» de la página, ver [lo-que-sigo.md](lo-que-sigo.md)) con «Avisame la
+  próxima». Sale de `ticketCta` (`followUp`, `soldOutFollowUp`). El estado de las listas no mira
+  si todavía queda un alcance donde anotarse (sería una consulta por evento): si ya no, la página
+  dice «Agotadas.» sin formulario. En las tarjetas del sitio el link se suma recién al montar (un
+  `<a>` dentro del `<a>` de la tarjeta no es HTML válido); «Agotadas» queda siempre como aviso.
 
 **Ya está (parte 4, el motor).** Con el interruptor apagado no corre nada (ni la pasada del cron,
 ni los mails, ni los empujones).
