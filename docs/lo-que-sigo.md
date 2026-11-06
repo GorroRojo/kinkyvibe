@@ -269,6 +269,13 @@ que se vuelva a prender.
   maneja los filtros de las listas (los stores `filteredTags` y `searchText`) y no sirve para otra
   cosa sin reescribirlo.
 
+### Desde «Agotadas»
+
+El bloque «Seguir la serie» de la página del evento (`Serie.svelte`) tiene el ancla `#seguir`. Las
+tarjetas de un evento agotado sin lista de espera (sitio, carrusel, bot, inline y Mini App) llevan
+ahí con «Avisame la próxima» (ver [tickets.md](tickets.md)). Un evento sin serie no tiene ese
+bloque: el link llega a la página igual.
+
 ### Límites
 
 | Qué                                 | Límite            |

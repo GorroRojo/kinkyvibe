@@ -20,7 +20,7 @@ import { isMediaPath, isPublicMediaUrl } from '$lib/utils/media.js';
 import { PRODUCTION_HOST } from '$lib/utils/seo.js';
 import { escapeHtml, formatWhen } from './format.js';
 import { truncate } from './keyboards.js';
-import { isHttps, tgTime } from './screens.js';
+import { followUpButton, isHttps, tgTime } from './screens.js';
 import { botText } from './texts.js';
 import { startLink, startParam } from './nav.js';
 import { richDocMessage } from './rich.js';
@@ -293,12 +293,9 @@ export function inlineCard(doc, extra, event, ctx) {
 	/** @type {Button[][]} */
 	const keyboard = [];
 	if (isHttps(ctx.origin)) {
-		/** @type {Button[]} */
-		const row = [{ text: botText('sitio.boton_ver'), url }];
-		if (event?.ticket?.kind === 'buy') {
-			row.push({ text: botText('sitio.boton_entradas'), url: `${ctx.origin}${event.ticket.href}` });
-		}
-		keyboard.push(row);
+		keyboard.push([{ text: botText('sitio.boton_ver'), url }]);
+		const up = followUpButton(event?.ticket, ctx.origin);
+		if (up) keyboard.push([up]);
 	} else {
 		// Sin https Telegram no acepta botones con link: el link va en el texto.
 		lines.push(`<a href="${escapeHtml(url)}">${escapeHtml(botText('sitio.boton_ver'))}</a>`);
