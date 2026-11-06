@@ -1026,3 +1026,71 @@ describe('los extras de la compra (órdenes inventadas)', () => {
 		expect(cleanIncome({ hola: 1 })).toBeNull();
 	});
 });
+
+describe('yearShares y el CSV de Cuentas del año', async () => {
+	const { CLOSINGS_CSV_COLUMNS, cajaPart, eventIncome, newPart, emptyAccount, yearShares } =
+		await import('./reparto.js');
+	const { toCsv } = await import('$lib/admin/csv.js');
+	/** @param {number} presale */
+	const income = (presale) => ({ ...eventIncome([]), presale });
+	/** @param {any[]} parts */
+	const account = (parts) => ({
+		...emptyAccount(),
+		venue: { ...emptyAccount().venue, kind: 'fijo', amount: 0 },
+		parts
+	});
+
+	it('suma por parte (sin mayúsculas), la Caja KV de su columna y salta las fotos sin detalle', () => {
+		/** @param {string} name */
+		const parts = (name) => [
+			cajaPart({ rule: 'resto' }),
+			newPart({ id: 'a', name, rule: 'pct', pct: 30 }),
+			newPart({ id: 'b', name: 'Persona del equipo', team: true, rule: 'pct', pct: 10 })
+		];
+		const r = yearShares([
+			{ caja: 70000, snapshot: { income: income(100000), data: account(parts('Persona A')) } },
+			{ caja: 140000, snapshot: { income: income(200000), data: account(parts(' persona a ')) } },
+			{ caja: 5000, snapshot: {} }
+		]);
+		expect(r.skipped).toBe(1);
+		expect(r.rows).toEqual([
+			{ name: 'Caja KV', team: true, events: 3, amount: 215000 },
+			{ name: 'Persona A', team: false, events: 2, amount: 90000 }
+		]);
+	});
+
+	it('con pérdida, lo que puso la parte resta', () => {
+		const data = {
+			...account([
+				cajaPart({ rule: 'resto' }),
+				newPart({ id: 'a', name: 'Persona A', rule: 'pct', pct: 50, coversLoss: true })
+			]),
+			expenses: [{ id: 'x', concept: 'Gasto', amount: 30000, paidBy: '' }]
+		};
+		const r = yearShares([{ caja: 0, snapshot: { income: income(10000), data } }]);
+		expect(r.rows.find((p) => p.name === 'Persona A')?.amount).toBeLessThan(0);
+	});
+
+	it('el CSV tiene una fila por cierre y nada de las partes', () => {
+		const rows = [
+			{
+				event_date: '2026-09-20',
+				event_title: 'Taller de prueba',
+				income_total: 200000,
+				expenses_total: 70000,
+				profit: 130000,
+				caja: 84500,
+				closed_by: 'admin-de-prueba',
+				shares: [{ name: 'Persona A', amount: 1 }]
+			}
+		];
+		const csv = toCsv(rows, CLOSINGS_CSV_COLUMNS, { bom: false });
+		expect(csv.split('\r\n')).toEqual([
+			'fecha,evento,ingresos,gastos,ganancia,caja_kv',
+			'2026-09-20,Taller de prueba,200000,70000,130000,84500',
+			''
+		]);
+		expect(csv).not.toContain('Persona A');
+		expect(csv).not.toContain('admin-de-prueba');
+	});
+});

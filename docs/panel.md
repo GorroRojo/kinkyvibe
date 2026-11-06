@@ -213,7 +213,9 @@ se puede compartir:
   anterior), ventas en el tiempo, por serie, cómo pagan, opciones del fondo y Fondo y finanzas
   (además de lo de las entradas: las suscripciones al Fondo del mes en curso, leídas de
   fondo.kinkyvibe.ar, y las propinas de Mercado Pago de esos meses con su reparto Kinky Vibe / Fondo;
-  el historial mensual de suscripciones espera un endpoint de kv-fondo, #265).
+  el historial mensual de suscripciones espera un endpoint de kv-fondo, #265; con el interruptor
+  `gastos_reparto`, la ganancia de las cuentas cerradas y «Ganancia por mes», ver
+  [tickets.md](tickets.md#gastos-y-reparto)).
   Períodos 30 días / 90 días / **12 meses** (por defecto) / Todo, y filtro de serie (`?serie=`,
   el slug sin la fecha, como «Por serie»). Los números, «Por serie», «Cómo pagan», las opciones del
   fondo y «Fondo y finanzas» cuentan por el **mes del evento** (ver «Ventas por mes» abajo): las
