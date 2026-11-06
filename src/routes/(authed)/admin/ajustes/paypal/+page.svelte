@@ -52,7 +52,7 @@
 <PageHeader
 	back={areaBackLink('ajustes-paypal')}
 	title="PayPal"
-	subtitle="La cotización del dólar, su ajuste y los retiros de las propinas que entran por PayPal."
+	subtitle="La cotización del dólar y su ajuste, la comisión de PayPal y los retiros de lo que entra por PayPal."
 />
 
 <div class="kv-stack">
@@ -134,7 +134,9 @@
 				<p class="kv-note">
 					La cotización es el dólar MEP «compra» de cada día, más el ajuste. Cambiar el ajuste
 					cambia todas las estimaciones, también las de meses pasados; la cotización de cada pago no
-					cambia. fondo.kinkyvibe.ar usa la misma.
+					cambia. fondo.kinkyvibe.ar usa la misma. Con esta cotización también se pasan a dólares
+					las entradas que se pagan con PayPal: cambiar el ajuste cambia los dólares de las compras
+					nuevas.
 				</p>
 			</Card>
 

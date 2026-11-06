@@ -457,7 +457,7 @@
 				{/if}
 				<OrderAnswers answers={o.answers} />
 				<div class="meta">
-					<span class="ref">{o.reference}</span> · {shortTime(o.createdAt)}{#if o.paymentId}
+					<span class="ref">{o.reference}</span> · {shortTime(o.createdAt)}{#if o.paymentId}{' '}
 						· {o.method === 'paypal' ? 'cobro PayPal' : 'pago MP'}
 						{o.paymentId}{/if}{#if o.usdCents}{' '}· {formatUSD(
 							o.usdCents
@@ -533,9 +533,9 @@
 									Se pide a Mercado Pago el reembolso TOTAL del pago {o.paymentId} (tiene que haber saldo
 									en la cuenta; hasta 180 días desde el pago).
 								{:else if o.method === 'paypal'}
-									Se pide a PayPal el reembolso TOTAL del cobro {o.paymentId}{#if o.usdCents}
-										({formatUSD(o.usdCents)}){/if} (tiene que haber saldo en la cuenta de PayPal; hasta
-									180 días desde el pago).
+									Se pide a PayPal el reembolso TOTAL del cobro {o.paymentId}{#if o.usdCents}{' '}({formatUSD(
+											o.usdCents
+										)}){/if} (tiene que haber saldo en la cuenta de PayPal; hasta 180 días desde el pago).
 								{:else if o.method === 'transferencia'}
 									No hay devolución automática: primero devolvé la transferencia a mano, después
 									marcala acá.

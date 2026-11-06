@@ -45,6 +45,7 @@
 		purchaseConditions,
 		saleWindowText
 	} from '$lib/utils/tickets.js';
+	import { usdCentsForArs } from '$lib/utils/paypal.js';
 	import {
 		PURCHASE_STEPS,
 		STEP_BUYER,
@@ -224,6 +225,15 @@
 		Boolean(selected) &&
 		(!gorra || gorraAmount !== null) &&
 		prices.subtotal - prices.discount + prices.extras === 0;
+	/** Con PayPal, el total en dólares (la misma cuenta que el servidor: `usdCentsForArs`). */
+	$: paypalUsdCents =
+		method === 'paypal' && tickets.paypal && (prices.paid ?? prices.total) > 0
+			? usdCentsForArs(
+					prices.paid ?? prices.total,
+					tickets.paypal.base,
+					tickets.paypal.adjustmentPct
+				)
+			: null;
 	$: conditions = purchaseConditions({
 		contactEmail: tickets.contactEmail,
 		transferUntil: tickets.transferUntil,
@@ -241,6 +251,7 @@
 		feeBasisPoints: tickets.feeBasisPoints,
 		methods: tickets.methods,
 		method,
+		usdCents: paypalUsdCents,
 		extras: extraLines
 	});
 

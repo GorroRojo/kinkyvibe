@@ -109,9 +109,12 @@ para arriba** al centavo (`usdCentsForArs` en `$lib/utils/paypal.js`):
     dólares = ceil(pesos / (base × (1 + ajuste / 100)))
 
 Así, lo cobrado pasado a pesos con la misma cuenta (`estimateArs`) alcanza el precio. Quien paga ve
-los dólares **antes** de ir a PayPal: en «Pagar» de la compra y en el formulario de propina (que
-pide la cotización a `GET /api/paypal/oferta`, porque está también en páginas sin servidor). La
-cuenta del navegador es la misma función que la del servidor.
+los dólares **antes** de ir a PayPal: en «Pagar» de la compra (en la nota del medio de pago, con el
+total en pesos argentinos, la cotización y la comisión, y al lado del total del resumen) y en el
+formulario de propina (que pide la cotización a `GET /api/paypal/oferta`, porque está también en
+páginas sin servidor). La cuenta del navegador es la misma función que la del servidor. Después,
+la página de la compra y el mail muestran el total en pesos y, entre paréntesis, los dólares que
+se cobraron.
 
 ### El recargo
 

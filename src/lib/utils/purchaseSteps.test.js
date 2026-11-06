@@ -371,6 +371,45 @@ describe('resumen de la compra', () => {
 		expect(sl.countText).toBe('1 entrada');
 	});
 
+	it('con PayPal: el recargo dice PayPal y el total va también en dólares', () => {
+		const paypalFee = { base: 1250, adjustmentPct: 0, feeBasisPoints: 540, fixedCents: 30 };
+		const prices = computePrice({
+			price: 10000,
+			fondo: 2000,
+			quantity: 1,
+			method: 'paypal',
+			paypalFee
+		});
+		const s = summary({
+			...base,
+			methods: ['mercadopago', 'paypal'],
+			method: 'paypal',
+			usdCents: 709,
+			type: general,
+			count: 1,
+			prices
+		});
+		expect(s.lines.at(-1)).toMatchObject({ id: 'recargo', label: 'Recargo PayPal' });
+		expect(s.feeText).toBe('Incluye el recargo de PayPal');
+		expect(s.usd).toBe('US$ 7,09');
+		// Con Mercado Pago, sin dólares.
+		const mp = summary({
+			...base,
+			method: 'mercadopago',
+			usdCents: 709,
+			type: general,
+			count: 1,
+			prices: computePrice({
+				price: 10000,
+				quantity: 1,
+				method: 'mercadopago',
+				feeBasisPoints: 200
+			})
+		});
+		expect(mp.feeText).toBe('Incluye el recargo de Mercado Pago');
+		expect(mp.usd).toBe(null);
+	});
+
 	it('sin cargo: no reserva el lugar del recargo', () => {
 		const prices = computePrice({ price: 0, option: 'gorra', quantity: 1, method: 'mercadopago' });
 		const s = summary({ ...base, gorra: true, free: true, type: gorra, count: 1, prices });

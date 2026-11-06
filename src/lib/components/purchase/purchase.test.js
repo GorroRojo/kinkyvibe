@@ -77,7 +77,9 @@ describe('PurchaseSummary', () => {
 					option: 'Con el descuento del fondo',
 					lines: [{ id: 'entradas', label: 'Entradas (2 × $ 8.000)', amount: '$ 16.000' }],
 					surchargePlaceholder: '+$ 320',
-					total: '$ 16.000'
+					feeText: 'Incluye el recargo de Mercado Pago',
+					total: '$ 16.000',
+					usd: null
 				},
 				closesText: 'La venta cierra el sábado 10/10 a las 20:00.'
 			}
@@ -98,7 +100,9 @@ describe('PurchaseSummary en el celu: una línea y el recargo siempre a la vista
 		countText: '1 entrada',
 		option: null,
 		surchargePlaceholder: null,
-		total: '$ 15.300'
+		feeText: 'Incluye el recargo de Mercado Pago',
+		total: '$ 15.300',
+		usd: /** @type {string | null} */ (null)
 	};
 
 	it('la barra dice cuántas entradas y el total en una línea, y despliega el detalle', () => {
@@ -132,6 +136,27 @@ describe('PurchaseSummary en el celu: una línea y el recargo siempre a la vista
 		expect(fee).toBeGreaterThan(0);
 		expect(fee).toBeLessThan(body.indexOf('id="resumen-detalle"'));
 		expect(body.slice(fee, body.indexOf('</p>', fee))).toContain('+$ 300');
+	});
+
+	it('con PayPal: la línea del recargo dice PayPal y la barra y el total llevan los dólares', () => {
+		const { body } = render(PurchaseSummary, {
+			props: {
+				summary: {
+					...base,
+					feeText: 'Incluye el recargo de PayPal',
+					usd: 'US$ 12,34',
+					lines: [
+						{ id: 'entradas', label: 'Entradas (1 × $ 15.000)', amount: '$ 15.000' },
+						{ id: 'recargo', label: 'Recargo PayPal', amount: '+$ 300' }
+					]
+				}
+			}
+		});
+		const text = stripHtmlTags(body).replace(/\s+/g, ' ');
+		expect(text).toContain('Incluye el recargo de PayPal +$ 300');
+		expect(text).not.toContain('Mercado Pago');
+		expect(text).toContain('1 entrada · $ 15.300 (US$ 12,34)');
+		expect(text).toContain('Total: $ 15.300 US$ 12,34 con PayPal');
 	});
 
 	it('con transferencia elegida, la línea guarda su lugar (invisible) para que nada salte', () => {

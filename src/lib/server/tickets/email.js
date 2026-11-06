@@ -12,6 +12,7 @@ import {
 import { ARGENTINA_TIME_NOTE } from '$lib/utils/expiry.js';
 import { TRANSFER_HOLD_AFTER, transferHoldText } from '$lib/utils/transferDeadline.js';
 import { formatARS } from '$lib/utils/money.js';
+import { formatUSD } from '$lib/utils/paypal.js';
 import {
 	adultsOnlyText,
 	fondoOptionLabel,
@@ -272,7 +273,12 @@ export function priceLines(order, typeName) {
 		const by = order.payment_method === 'paypal' ? 'PayPal' : 'Mercado Pago';
 		lines.push(`Recargo ${by}: +${formatARS(order.surcharge_amount)}`);
 	}
-	lines.push(`Total: ${formatARS(orderPaid(order))}`);
+	// Con PayPal se pagó en dólares: el total también en dólares, como en el recibo de PayPal.
+	const usd =
+		order.payment_method === 'paypal' && order.usd_amount_cents
+			? ` (${formatUSD(order.usd_amount_cents)} con PayPal)`
+			: '';
+	lines.push(`Total: ${formatARS(orderPaid(order))}${usd}`);
 	return lines;
 }
 
