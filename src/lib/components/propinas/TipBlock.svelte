@@ -14,8 +14,7 @@
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { FONDO_SITE_URL, TIP_MESSAGE_MAX, parseTipAmount } from '$lib/utils/propinas.js';
-	import { formatRate, formatUSD, paypalCharge } from '$lib/utils/paypal.js';
-	import { formatARS } from '$lib/utils/money.js';
+	import { formatUSD, paypalCharge } from '$lib/utils/paypal.js';
 	import TipAmountPicker from './TipAmountPicker.svelte';
 
 	/** @type {import('$lib/utils/propinas.js').TipCategory | null} */
@@ -36,7 +35,7 @@
 	let selected = values.amount || undefined;
 	let custom = values.custom ?? '';
 	let method = values.method === 'paypal' ? 'paypal' : 'mp';
-	/** @type {(import('$lib/utils/paypal.js').PaypalFee & { rate: number }) | null} */
+	/** @type {import('$lib/utils/paypal.js').PaypalFee | null} */
 	let paypal = null;
 
 	onMount(async () => {
@@ -47,7 +46,6 @@
 				paypal = {
 					base: offer.base,
 					adjustmentPct: offer.adjustmentPct,
-					rate: offer.rate,
 					feeBasisPoints: offer.feeBasisPoints,
 					fixedCents: offer.fixedCents
 				};
@@ -132,12 +130,8 @@
 				</label>
 				{#if method === 'paypal'}
 					<p class="usd" aria-live="polite">
-						{#if charge?.usdCents && chosen.ok && paypal}Con PayPal pagás <strong
-								>{formatUSD(charge.usdCents)}</strong
-							>: los {formatARS(chosen.amount)}{#if charge.surcharge}{' '}más {formatARS(
-									charge.surcharge
-								)} de recargo PayPal{/if}, a {formatRate(paypal.rate)} por dólar.{:else}Elegí un
-							monto para ver cuánto es en dólares.{/if}
+						{#if charge?.usdCents}Con PayPal pagás <strong>{formatUSD(charge.usdCents)}</strong
+							>.{:else}Elegí un monto para ver cuánto es en dólares.{/if}
 					</p>
 				{/if}
 			</fieldset>

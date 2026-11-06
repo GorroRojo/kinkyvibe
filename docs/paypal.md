@@ -131,7 +131,7 @@ en `total`, los reportes lo cuentan como comisión del medio de pago hasta que P
 real (`mp_fee_amount`) y Gastos y reparto lo descuenta igual que el de MP (no se cuenta dos veces).
 Las **propinas con PayPal también llevan el recargo** (`paypalCharge`, la misma cuenta en el
 formulario y en el servidor): se cobra `usdCentsForArs(monto + recargo)`, el formulario lo muestra
-(«Con PayPal pagás US$ 1,15: los $ 1.000 más $ 437 de recargo PayPal, a $ 1.250,00 por dólar») y
+(solo «Con PayPal pagás US$ 1,17.», sin desglose) y
 `tips.amount` sigue siendo el monto elegido. Lo que cuenta para el Fondo y las estadísticas son
 los dólares **netos** pasados a pesos (`usd_net_cents`), así que el recargo (que se lleva la
 comisión) no se cuenta como propina ni dos veces.
