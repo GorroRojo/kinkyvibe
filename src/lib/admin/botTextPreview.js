@@ -143,7 +143,9 @@ export const PREVIEW_SCREENS = Object.freeze([
 		label: 'Tarjeta de un evento',
 		keys: [
 			'eventos.ver_todo',
-			'eventos.boton_comprar',
+			'eventos.boton_abrir',
+			'eventos.boton_lista_espera',
+			'eventos.boton_avisame',
 			'eventos.boton_calendario',
 			'eventos.boton_mapa',
 			'seguir.boton',
@@ -154,7 +156,9 @@ export const PREVIEW_SCREENS = Object.freeze([
 				`<b>Taller de ejemplo</b>\n📅 vie 10 ene · 21:00\n📍 Lugar de ejemplo\n\n` +
 				`<a href="https://kinkyvibe.ar">${escapeTelegramHtml(t('eventos.ver_todo'))}</a>`,
 			buttons: [
-				[{ text: t('eventos.boton_comprar'), success: true, link: true }],
+				[{ text: t('eventos.boton_abrir'), link: true }],
+				[{ text: t('eventos.boton_lista_espera'), link: true }],
+				[{ text: t('eventos.boton_avisame'), link: true }],
 				[
 					{ text: t('eventos.boton_calendario'), link: true },
 					{ text: t('eventos.boton_mapa'), link: true }
@@ -281,10 +285,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 			].join(''),
 			rich: true,
 			buttons: [
-				[
-					{ text: t('sitio.boton_ver'), link: true },
-					{ text: t('sitio.boton_entradas'), link: true }
-				],
+				[{ text: t('sitio.boton_ver'), link: true }],
 				[{ text: t('compartir.boton_calendario'), link: true }]
 			]
 		})
@@ -838,6 +839,56 @@ export const PREVIEW_SCREENS = Object.freeze([
 				}),
 				t('admin.mails_cupo', { pendientes: 4 })
 			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_aviso_venta_detalle',
+		label: 'Avisos (admins): el detalle de «Cada venta» (el bloque que se despliega)',
+		keys: [
+			'admin.venta_comprador',
+			'admin.venta_mail',
+			'admin.venta_orden',
+			'admin.venta_entradas',
+			'admin.venta_extras',
+			'admin.venta_codigo',
+			'admin.venta_fondo',
+			'admin.venta_aporte',
+			'admin.venta_pago',
+			'admin.venta_recargo',
+			'admin.venta_comision',
+			'admin.venta_comision_estimada',
+			'admin.venta_neto',
+			'admin.venta_neto_estimado',
+			'admin.venta_respuestas',
+			'admin.venta_respuesta'
+		],
+		build: (t) => ({
+			html: `${t('admin.venta', {
+				entradas: '2 General (Preventa 1)',
+				evento: 'Fiesta de ejemplo',
+				vendidas: '25/50'
+			})}\n<blockquote>${[
+				t('admin.venta_comprador', { nombre: 'Persona de Ejemplo', pronombres: ' (elle)' }),
+				t('admin.venta_mail', { mail: 'persona@example.com' }),
+				t('admin.venta_orden', { orden: 'KV-1A2B3C4D', fecha: '8/1/31 15:00' }),
+				t('admin.venta_entradas', { entradas: '2 × General (Preventa 1)', precio: '$ 8.000' }),
+				t('admin.venta_extras', { extras: '2 × Trago', monto: '$ 6.000' }),
+				t('admin.venta_codigo', { codigo: 'AMIGUES10', monto: '$ 1.440' }),
+				t('admin.venta_fondo', { monto: '$ 1.600' }),
+				t('admin.venta_aporte', { opcion: 'Entrada solidaria (+10 %)', monto: '$ 1.600' }),
+				t('admin.venta_pago', { total: '$ 19.360', medio: 'Mercado Pago' }),
+				t('admin.venta_recargo', { monto: '$ 400' }),
+				t('admin.venta_comision', { monto: '$ 1.250' }),
+				t('admin.venta_neto', { monto: '$ 18.110' }),
+				t('admin.venta_comision_estimada', { monto: '$ 400' }),
+				t('admin.venta_neto_estimado', { monto: '$ 18.960' }),
+				t('admin.venta_respuestas'),
+				t('admin.venta_respuesta', {
+					pregunta: '¿Cómo te enteraste?',
+					respuesta: 'Por amigues'
+				})
+			].join('\n')}</blockquote>`,
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})
 	},

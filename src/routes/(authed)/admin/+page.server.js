@@ -31,12 +31,20 @@ import {
 	skipReviewEvent
 } from '$lib/server/admin/review.js';
 import { markSeen, touchLastSeenQuery } from '$lib/server/admin/lastSeen.js';
+import {
+	kbText,
+	saveProfileImageAlt,
+	setHeavyOk,
+	swapCover
+} from '$lib/server/admin/contentReview.js';
+import { cleanAlt } from '$lib/utils/imageAlt.js';
 import { listEvents } from '$lib/server/eventos/index.js';
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
 import { parseReminders, retryFailedReminders } from '$lib/server/tickets/reminders.js';
+import { retryFailedFormSends } from '$lib/server/formularios/store.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { eventLink, orderHref, transfersHref } from '$lib/admin/links.js';
 import { navItem, navLink } from '$lib/admin/nav.js';
@@ -269,6 +277,111 @@ export const actions = {
 		};
 	},
 
+	// "Reintentar" desde "Para revisar": los links personales de un formulario que fallaron todos
+	// sus intentos vuelven a la cola (docs/formularios.md); los manda el próximo cron.
+	retryFormSends: async ({ locals, url, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { resend: { ok: false, message: 'Sin base de datos.' } });
+		const formId = Number((await request.formData()).get('form'));
+		if (!Number.isSafeInteger(formId) || formId <= 0) {
+			return fail(400, { resend: { ok: false, message: 'Formulario inválido.' } });
+		}
+		const n = await retryFailedFormSends(db, formId);
+		if (n) {
+			await logAdminAction(db, locals, {
+				action: 'form.retry',
+				targetType: 'form',
+				targetId: String(formId),
+				summary: `Volvió a poner en la cola ${n === 1 ? '1 link de un formulario' : `${n} links de un formulario`}`,
+				detail: { count: n }
+			});
+		}
+		return {
+			resend: {
+				ok: true,
+				message: n
+					? `Listo: ${n === 1 ? 'el link sale' : `los ${n} links salen`} en la próxima vuelta del cron (cada 15 minutos).`
+					: 'No había links fallidos para reintentar.'
+			}
+		};
+	},
+
+	// «Fotos sin descripción» (Para revisar): escribir qué se ve en una foto del texto de un perfil.
+	fotoAlt: async ({ locals, url, platform, request }) => {
+		const user = requireAdmin(locals, url);
+		const db = getDB(platform);
+		const form = await request.formData();
+		const id = String(form.get('item') ?? '');
+		if (!db) return fail(503, { contentFix: { id, ok: false, message: 'Sin base de datos.' } });
+		const profileId = Number(form.get('profile'));
+		const index = Number(form.get('index'));
+		const src = String(form.get('src') ?? '');
+		const alt = cleanAlt(form.get('alt'));
+		if (!Number.isSafeInteger(profileId) || !Number.isSafeInteger(index) || index < 0) {
+			return fail(400, { contentFix: { id, ok: false, message: 'Foto inválida.' } });
+		}
+		if (!alt) {
+			return fail(400, {
+				contentFix: { id, ok: false, message: 'Escribí qué se ve en la foto.' }
+			});
+		}
+		const r = await saveProfileImageAlt(db, { profileId, index, src, alt }, { actor: user.login });
+		if (!r.ok) return fail(r.status, { contentFix: { id, ok: false, message: r.message } });
+		await logAdminAction(db, locals, {
+			action: 'profile.update',
+			targetType: 'profile',
+			targetId: r.id,
+			summary: `Describió una foto del perfil «${r.title}»`,
+			detail: { from: 'inicio', image: index + 1 }
+		});
+		return {
+			contentFix: { id, ok: true, message: `Listo: la foto de «${r.title}» ya tiene descripción.` }
+		};
+	},
+
+	// «Portadas pesadas» (Para revisar): la portada pasa a ser la copia achicada que ya subió el
+	// navegador (la original queda en la biblioteca).
+	portada: async ({ locals, url, platform, request }) => {
+		const user = requireAdmin(locals, url);
+		const db = getDB(platform);
+		const form = await request.formData();
+		const id = String(form.get('item') ?? '');
+		if (!db) return fail(503, { contentFix: { id, ok: false, message: 'Sin base de datos.' } });
+		const ownerId = Number(form.get('owner'));
+		const oldImageId = Number(form.get('old'));
+		const newImageId = Number(form.get('new'));
+		if (![ownerId, oldImageId, newImageId].every((n) => Number.isSafeInteger(n) && n > 0)) {
+			return fail(400, { contentFix: { id, ok: false, message: 'Portada inválida.' } });
+		}
+		const r = await swapCover(db, { ownerId, oldImageId, newImageId }, { actor: user.login });
+		if (!r.ok) return fail(r.status, { contentFix: { id, ok: false, message: r.message } });
+		const before = kbText(r.before ?? 0, r.after ?? 0);
+		const after = kbText(r.after ?? 0, r.before ?? 0);
+		const sizes = `${before} → ${after}`;
+		await logAdminAction(db, locals, {
+			action: 'content.cover.shrink',
+			targetType: 'object',
+			targetId: r.id,
+			summary: `Achicó la portada de «${r.title}» (${sizes})`,
+			detail: { from: 'inicio', before: oldImageId, after: newImageId }
+		});
+		return {
+			contentFix: {
+				id,
+				ok: true,
+				message: `Listo: la portada de «${r.title}» ahora pesa ${after} (antes ${before}). La original sigue en la biblioteca.`
+			}
+		};
+	},
+
+	// «Dejarla así» en «Portadas pesadas» (Para revisar): la imagen queda como está y sale de la
+	// lista (`heavy_ok` en sus datos). Lleva «Deshacer» (`portadaAsiDeshacer`).
+	portadaAsi: async (event) => heavyOkAction(event, true),
+
+	// «Deshacer» después de «Dejarla así»: la portada vuelve a «Portadas pesadas».
+	portadaAsiDeshacer: async (event) => heavyOkAction(event, false),
+
 	// "Marcar como visto" en "Desde tu última visita".
 	seen: async ({ locals, url, platform }) => {
 		const user = requireAdmin(locals, url);
@@ -276,3 +389,53 @@ export const actions = {
 		return { seen: { ok } };
 	}
 };
+
+/**
+ * «Dejarla así» (`ok`) y su «Deshacer» (Portadas pesadas): marca o desmarca la imagen como
+ * aceptada (setHeavyOk), con su versión en el historial y su línea en Actividad.
+ * @param {import('./$types').RequestEvent} event
+ * @param {boolean} ok
+ */
+async function heavyOkAction({ locals, url, platform, request }, ok) {
+	const user = requireAdmin(locals, url);
+	const db = getDB(platform);
+	const form = await request.formData();
+	const id = String(form.get('item') ?? '');
+	if (!db) return fail(503, { contentFix: { id, ok: false, message: 'Sin base de datos.' } });
+	const imageId = Number(form.get('image'));
+	const ownerId = Number(form.get('owner'));
+	if (![imageId, ownerId].every((n) => Number.isSafeInteger(n) && n > 0)) {
+		return fail(400, { contentFix: { id, ok: false, message: 'Portada inválida.' } });
+	}
+	const r = await setHeavyOk(db, { imageId, ok }, { actor: user.login });
+	if (!r.ok) return fail(r.status, { contentFix: { id, ok: false, message: r.message } });
+	const owner = await db
+		.prepare(`SELECT title FROM objects WHERE id = ?1`)
+		.bind(ownerId)
+		.first()
+		.catch(() => null);
+	const title = String(owner?.title ?? r.title);
+	await logAdminAction(db, locals, {
+		action: ok ? 'content.cover.accept' : 'content.cover.unaccept',
+		targetType: 'object',
+		targetId: imageId,
+		summary: ok
+			? `Dejó como está la portada pesada de «${title}»`
+			: `Volvió a poner la portada de «${title}» en «Portadas pesadas»`,
+		detail: { from: 'inicio', owner: ownerId }
+	});
+	return {
+		contentFix: ok
+			? {
+					id,
+					ok: true,
+					message: `Listo: la portada de «${title}» queda como está y sale de la lista.`,
+					undo: { item: id, image: imageId, owner: ownerId }
+				}
+			: {
+					id,
+					ok: true,
+					message: `Listo: la portada de «${title}» volvió a «Portadas pesadas».`
+				}
+	};
+}

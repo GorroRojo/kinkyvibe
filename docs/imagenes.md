@@ -20,7 +20,8 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 | Servir                   | `src/routes/media/[...key]/+server.js` → `/media/img/…`, `/media/file/…`; rangos en `media/range.js`      |
 | Selector de los editores | `src/lib/components/admin/ImagePicker.svelte`                                                             |
 | Enlazar un archivo       | `src/lib/components/admin/LibraryLinkPicker.svelte`, `src/lib/utils/libraryFiles.js` (editor de material) |
-| Achicar en el navegador  | `src/lib/utils/imageResize.js`                                                                            |
+| Achicar en el navegador  | `src/lib/utils/imageResize.js` (también «Achicar» de «Portadas pesadas», ver abajo)                       |
+| Colores (carrusel)       | `src/lib/utils/flyerColors.js`; las de antes, en Ajustes › Carrusel de la portada (ver «Colores»)         |
 | Copias chicas (tarjetas) | `src/lib/utils/mediaCopies.js`; la pasada por las viejas: `scripts/copias-chicas.js` + `media/copias.js`  |
 | Copia nocturna y bloqueo | `src/lib/server/backup/media.js` (binding `MEDIA_COPIA`, solo producción); ver «Copia de la biblioteca»   |
 | Imágenes viejas del repo | `src/lib/utils/legacyMedia.js` (mapa fijo a su copia en la biblioteca)                                    |
@@ -40,11 +41,16 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
   caché del borde o de un navegador se sigue viendo hasta un día. Las portadas de eventos, material
   y series siguen inmutables (nada cambia para el rendimiento de las tarjetas).
 - **Sin metadatos**: antes de calcular el hash, `storeImage` le saca a un JPEG los segmentos Exif,
-  XMP, IPTC y los comentarios (de Exif deja solo la orientación) y a un PNG los bloques eXIf,
-  tEXt, zTXt, iTXt y tIME (`src/lib/server/media/metadata.js`). Ahí pueden ir el GPS de donde se
-  sacó la foto, la fecha o el modelo del celu. WEBP, GIF y AVIF van tal cual (lo que sube el
-  navegador ya pasó por el canvas, que no copia metadatos). Una imagen subida antes de este cambio
-  y subida de nuevo da otro hash: es otra imagen.
+  XMP, IPTC y los comentarios (de Exif deja solo la orientación), a un PNG los bloques eXIf,
+  tEXt, zTXt, iTXt y tIME, y a un WEBP los bloques EXIF y XMP (de Exif deja solo la orientación,
+  y corrige `VP8X`) (`src/lib/server/media/metadata.js`). En un AVIF pisa en el mismo lugar el
+  contenido de los ítems Exif (queda un Exif válido con solo la orientación: uno vacío hace fallar
+  a libavif) y XMP (espacios): el archivo mide lo mismo y no hay que reescribir sus posiciones; la
+  orientación propia del AVIF (`irot`/`imir`) no se toca. Ahí pueden ir el GPS de donde se sacó la
+  foto, la fecha o el modelo del celu. Un GIF va tal cual. Las pruebas usan fotos de verdad con
+  metadatos inventados (`src/lib/server/media/fixtures/`). WEBP y AVIF, desde el 4/11 (gorrite,
+  Mesa `chica-532-metadatos-webp`): una imagen subida antes de un cambio así y subida de nuevo da
+  otro hash: es otra imagen.
 - **Objeto `imagen`**: `title` (nombre para buscarla), `key`, `mime`, `size`, `width`, `height`,
   `alt` (texto alternativo), `original_name` y, si vino del repo, `source_path`. Quién la subió y
   cuándo: `created_by`/`created_at` (solo les admins lo ven).
@@ -115,6 +121,29 @@ sin usar, no molestan). Si hiciera falta borrarlas, son exactamente las claves q
 `-360.webp` o `-720.webp` dentro de `img/` (los originales nunca tienen guion); borrarlas solo hace
 que `/media` redirija al original.
 
+## Colores de la imagen (para el carrusel de la portada)
+
+El carrusel de la portada usa los colores de cada flyer para elegir cuál de las paletas de la marca
+va detrás y como acento ([estilo.md](estilo.md), «Carrusel de la portada»). Los colores **se
+calculan una sola vez, en el navegador**, y se guardan en el objeto `imagen`: la portada nunca mira
+la imagen.
+
+- **Qué se guarda**: `colors`, una lista de hasta 5 `#rrggbb` (los colores principales, primero
+  los que más pesan, con un empujón a los vivos), en los datos del objeto (`data.colors`). Sin
+  tabla ni columna nueva, sin migración: los datos de un objeto son JSON (migración 0012) y el tipo
+  `imagen` valida cada color (`types/imagen.js`).
+- **Al subir** (`prepareImage` en `imageResize.js`): del mismo dibujo, uno de 64 × 64 px y
+  `extractColors` ($lib/utils/flyerColors.js); viajan como `colors` (JSON) y `storeImage` guarda
+  solo los válidos. A una imagen que ya estaba sin colores se le suman; con colores, no se pisan.
+  Si el navegador no puede (un GIF, un canvas que no deja leer), se sube igual, sin colores.
+- **Las de antes**: Ajustes › Carrusel de la portada › «Calcular los colores que faltan». El
+  navegador de le admin abre la copia de 360 px de cada imagen sin colores (las portadas de
+  eventos primero), calcula y manda de a 20 (`?/colores` → `saveImageColors`, por saveObject:
+  cada una suma una versión al historial de la imagen). Solo completa: nunca pisa colores que ya
+  están. Se puede cortar y seguir después.
+- **Sin colores** (una imagen que todavía no pasó, o de otro sitio), las paletas de la marca rotan,
+  igual que con un evento sin flyer.
+
 ## Documentos y video
 
 gorrite decidió (5/10) que los PDF, el video y el ODT del material vayan a la biblioteca. Ya
@@ -126,8 +155,9 @@ están ahí, y los textos que los enlazan, reescritos («Los PDF y el video del 
 | MP4 (`video/mp4`)            | caja `ftyp` con marca de video (`isom`, `mp41`, `mp42`, `avc1`…)    | `inline`, con rangos (206)         |
 | WebM (`video/webm`)          | cabecera EBML con DocType `webm`                                    | `inline`, con rangos (206)         |
 | ODT, ODS, ODP (OpenDocument) | zip cuya primera entrada es `mimetype`, sin comprimir, con ese tipo | `attachment` (se descarga)         |
+| Subtítulos VTT (`text/vtt`)  | empieza con `WEBVTT` (y un espacio o salto), UTF-8 sin bytes nulos  | `attachment` y `sandbox`           |
 
-- **Se rechaza** todo lo demás: HTML, SVG, scripts, texto, un zip que no es OpenDocument (un
+- **Se rechaza** todo lo demás: HTML, SVG, scripts, otro texto, un zip que no es OpenDocument (un
   `.docx`, un `.zip` cualquiera), un `mimetype` comprimido o de otro tipo, un `ftyp` de imagen.
   Las imágenes siguen siendo solo JPG, PNG, WEBP, GIF y AVIF.
 - **Solo les admins** suben documentos y video. Una cuenta del público (Mi rincón) sigue subiendo
@@ -174,6 +204,60 @@ están ahí, y los textos que los enlazan, reescritos («Los PDF y el video del 
   todo edge al borrar suave, para poder deshacer) y el próximo guardado de ese material los saca
   (como una etiqueta borrada: solo hay edge hacia lo vivo); el enlace del texto queda y da 404.
 
+## Video: transcripción y subtítulos
+
+Para quien no puede escuchar el audio (auditoría de UX: el video de «Con la soga al cuello» no
+tenía ni una cosa ni la otra). El material tiene dos campos para **el video de su texto** (el
+primero, si tiene varios), en la sección **«Video»** de su editor (aparece si el texto tiene un
+video o si ya tienen algo escrito):
+
+- **Transcripción** (`transcript`, texto largo con sus saltos de línea; en el .md descargado,
+  `transcript:`). La página la muestra debajo del video, en un desplegable **«Ver
+  transcripción»** (`<details>`). Es texto plano: se escapa siempre, nunca es HTML. Sin `<video>`
+  en el texto (por ejemplo, solo un enlace al .mp4), va al final del texto.
+- **Subtítulos** (`subtitles`, opcional): un archivo **.vtt de la biblioteca**
+  (`/media/file/<hash>.vtt`; se sube en Contenido → Biblioteca y se pega su dirección). Va como
+  `<track kind="subtitles" srclang="es" default>` del video. Una dirección que no es un .vtt de la
+  biblioteca no se guarda (el editor y el tipo lo dicen). El material tiene edge `adjunto` hacia
+  el .vtt, como hacia lo que enlaza su texto.
+- Lo arma `addVideoExtras` (`$lib/utils/videoExtras.js`) sobre el HTML ya limpio, en
+  `renderContentBody` (`src/lib/server/contenido/render.js`).
+- **Nadie la inventa**: la escribe alguien que conoce el audio. «Videos sin transcripción», en
+  «Para revisar» del Inicio, lista el material con video y sin transcripción
+  ([panel.md](panel.md)).
+
+## Portadas pesadas
+
+Una portada (edge `portada` de un evento o un material, o la imagen vieja del repo si no tiene
+edge) que pesa **más de 300 KB** (`HEAVY_COVER_BYTES` en `$lib/utils/imageResize.js`) aparece en
+«Portadas pesadas», en «Para revisar» del Inicio ([panel.md](panel.md)). Pasaba con las que se
+subieron antes del achique del navegador, y con las que se subieron antes de que la subida usara
+el mismo tope de 300 KB (abajo).
+
+- **«Achicar»** hace en el navegador lo mismo que una subida: baja la original
+  (`/media/img/…`), la pasa por `prepareImage` (lado largo 2000 px, WEBP 0,85) con `targetBytes`.
+  Si todavía pesa más de 300 KB, prueba los pasos de `SHRINK_STEPS` en orden y para apenas
+  alcanza: 1600 px a 0,8, 1280 px a 0,78 y 1080 px a 0,75; después baja la calidad a 1080 px
+  (0,7, 0,62, 0,55); después el lado (960, 840 y 720 px a 0,55) y por último 720 px a 0,5. **Piso:
+  nunca menos de 720 px de lado largo (`MIN_SHRINK_SIDE`) ni de calidad 0,5
+  (`MIN_SHRINK_QUALITY`)**; una portada se ve a lo sumo a unos 768 px y las tarjetas usan sus
+  copias chicas. Si ni así alcanza, queda la más liviana.
+- **Solo si vale la pena** (`muchLighter`: la copia pesa como mucho 300 KB, o al menos un 15 % menos
+  que la original) la sube con `POST /imagenes` (con sus copias chicas, el mismo nombre y el mismo
+  texto alternativo; si la original no tiene, lo pide antes) y cambia la portada (`swapCover`, en
+  `src/lib/server/admin/contentReview.js`, que vuelve a mirar la misma regla), con su versión en el
+  historial y en Actividad. Si no vale la pena, no sube nada ni cambia la portada, y lo dice («No se
+  pudo bajar de 300 KB sin que se vea mal (queda en 381 KB)…»). Los pesos van con un decimal (o dos)
+  cuando «antes» y «ahora» se verían iguales (`kbText`).
+- **«Dejarla así»**: si la portada se ve bien como está, la saca de la lista. Guarda en los datos
+  de esa imagen de la biblioteca `heavy_ok: { by, at }` (quién y cuándo; campo del tipo `imagen`),
+  con saveObject(), su versión en el historial y Actividad (`content.cover.accept`); el aviso trae
+  «Deshacer». Es de esa imagen: si la portada cambia por otra imagen pesada, aparece de nuevo.
+- **La original queda en la biblioteca**: es otra imagen (otro hash), no se borra ni se pisa. Para
+  volver atrás, se elige la original en el selector del editor.
+- Si el navegador no sabe hacer WEBP, no cambia nada y lo dice. Un GIF no se achica (puede ser
+  animado).
+
 ## El selector (ImagePicker)
 
 Es para elegir **una imagen** (portada, imagen de la serie, imagen del perfil), así que muestra
@@ -184,7 +268,10 @@ recorrer toda la biblioteca está Contenido → Biblioteca (abajo). Pestañas:
 
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
-  largo 2000 px) y la pasa a WEBP, y hace sus dos copias chicas para las tarjetas (arriba). Si el
+  largo 2000 px) y la pasa a WEBP; si así pesa más de 300 KB, la achica un poco más con los mismos
+  pasos y el mismo piso que «Achicar» (`targetBytes: HEAVY_COVER_BYTES`, arriba; una imagen que ya
+  pesa menos sale igual que antes). También hace sus dos copias chicas para las tarjetas y saca sus
+  colores (arriba). Si el
   navegador no sabe hacer WEBP (Safari), una foto JPEG la pasa a JPEG, y un PNG, WEBP o AVIF lo
   sube como está (puede tener transparencias, que en JPEG saldrían negras); si no puede dibujarla
   (o un GIF, que puede ser animado), sube el original, y el servidor le saca los metadatos (arriba).
@@ -212,7 +299,8 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
   (o el nombre del archivo original), el tipo y el peso, **dónde se usa** (con enlace a la ficha del
   evento, al editor del material, a la ficha del perfil o a Series; `libraryUses`) y «Abrir».
 - **Subir** imágenes y archivos con el mismo `POST /imagenes` y los mismos límites (imágenes 10 MB,
-  achicadas en el navegador; documentos y videos 25 MB).
+  achicadas en el navegador con el mismo tope de 300 KB que el selector; documentos y videos
+  25 MB).
 - **Sacar** pide confirmación en la página (dice dónde se usa) y usa `DELETE /imagenes/<id>` (el
   borrado suave de abajo). El aviso trae **Deshacer** (la acción `recuperar` de la página).
 - **Recuperar en Actividad**: todo lo que una persona admin saca de la biblioteca (desde esta

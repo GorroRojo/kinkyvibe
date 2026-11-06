@@ -227,3 +227,46 @@ async function refreshLive(db, fetchFn, apiUrl, now) {
 	}
 	return live;
 }
+
+/** Lo más que espera el editor de eventos al porcentaje (si no hay ninguno conocido). */
+export const EDITOR_FONDO_WAIT_MS = 800;
+
+/**
+ * Porcentaje del Fondo para el editor de eventos (sección Entradas), que solo lo muestra: los
+ * precios con el Fondo de cada tramo, para la agenda y los flyers. Nunca hace esperar a la página
+ * por fondo.kinkyvibe.ar: pide el último conocido (`staleOk`, con la actualización en segundo
+ * plano) y, si no hay ninguno, espera la API como mucho `maxWaitMs`. Si no llega a tiempo o algo
+ * falla, `null` (el editor no muestra los precios con el Fondo); la consulta sigue en segundo
+ * plano (`waitUntil`) para la próxima vez.
+ *
+ * @param {{ db?: D1Database | null, fetch?: typeof fetch,
+ *   ctx?: { waitUntil?: (task: Promise<unknown>) => void } | null, maxWaitMs?: number }} [options]
+ *   `ctx`: el de la plataforma (`platform.ctx`), para seguir en segundo plano
+ * @returns {Promise<number | null>}
+ */
+export async function editorFondoPercent({
+	db,
+	fetch: fetchFn = fetch,
+	ctx,
+	maxWaitMs = EDITOR_FONDO_WAIT_MS
+} = {}) {
+	/** @type {((task: Promise<unknown>) => void) | undefined} */
+	const waitUntil = ctx?.waitUntil ? (task) => ctx.waitUntil?.(task) : undefined;
+	/** @type {Promise<number | null>} */
+	const pending = resolveFondoPercent({ db, fetch: fetchFn, staleOk: true, waitUntil }).then(
+		(r) => r.percent,
+		() => null
+	);
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let timer;
+	const late = new Promise((resolve) => {
+		timer = setTimeout(() => resolve(null), maxWaitMs);
+	});
+	try {
+		const percent = await Promise.race([pending, late]);
+		if (percent === null) waitUntil?.(pending);
+		return /** @type {number | null} */ (percent);
+	} finally {
+		clearTimeout(timer);
+	}
+}

@@ -16,6 +16,11 @@
  *   los nombres del tipo y el tramo. Las funciones que arman los textos ni reciben la orden: les
  *   llega un objeto con esos campos ({@link orderSummary}), así un campo nuevo de la orden nunca
  *   termina en Telegram por accidente.
+ * - **La excepción, «Cada venta»** (decisión 0058): abajo del resumen va el detalle de la compra
+ *   (nombre, pronombres, mail, orden, entradas, extras, código, Fondo, montos, medio de pago,
+ *   respuestas y la hora), en un bloque que se despliega. Lo mismo que esas personas ya ven en
+ *   Órdenes del panel, con la misma regla: la orden pasa por {@link saleDetail}, que copia solo
+ *   esos campos (nunca el DNI, el teléfono, les titulares, el id del pago ni los tokens).
  * - **Nada dos veces**: cada envío toma antes una fila de `telegram_admin_sent` (migración 0055)
  *   y la suelta si Telegram falla.
  * - **Horario de silencio** (23 a 9, hora de Argentina, quiet.js): el resumen sale desde las
@@ -41,6 +46,15 @@ import { botText, botTextOverrides } from './texts.js';
 import { formatARS } from '$lib/utils/money.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { argentinaHour, isQuietHour } from './quiet.js';
+import { getOrder } from '$lib/server/tickets/orders.js';
+import { orderExtras } from '$lib/server/tickets/extras.js';
+import { orderAnswers } from '$lib/server/tickets/signupFields.js';
+import { orderPaid } from '$lib/utils/extras.js';
+import { orderMpFee } from '$lib/utils/salesGoal.js';
+import { answerTicketLabel } from '$lib/utils/signupFields.js';
+import { fondoOptionLabel } from '$lib/utils/tickets.js';
+import { PAYMENT_METHOD } from '$lib/admin/orderFormat.js';
+import { argDateLog } from '$lib/utils/dates.js';
 import { getStreamLink } from '$lib/server/tickets/stream.js';
 import { placeLine } from '$lib/utils/eventPlace.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
@@ -173,6 +187,230 @@ export function saleNoticeText({ summary, eventTitle, sold, capacity }, override
 		{ entradas: ticketsPhrase(summary), evento: eventTitle, vendidas: soldOf(sold, capacity) },
 		overrides
 	);
+}
+
+// ---------------------------------------------------------------------------------------------
+// El detalle de «Cada venta» (decisión 0058)
+// ---------------------------------------------------------------------------------------------
+
+/** El largo máximo de un mensaje de Telegram (se mide el HTML, que es más largo que lo que se ve). */
+export const TELEGRAM_TEXT_MAX = 4096;
+
+/**
+ * Lo que va en el detalle de «Cada venta»: los mismos datos que muestra Órdenes en el panel, y
+ * nada más. Sin DNI, teléfono, titulares, id del pago, tokens ni notas.
+ *
+ * @typedef {object} SaleDetail
+ * @property {string} name
+ * @property {string} pronouns
+ * @property {string} email
+ * @property {string} reference «KV-1A2B3C4D»
+ * @property {number} createdAt
+ * @property {number} quantity
+ * @property {string} typeName
+ * @property {string | null} tierName
+ * @property {number} unitPrice
+ * @property {{ name: string, quantity: number }[]} extras
+ * @property {number} extrasAmount
+ * @property {string | null} discountCode
+ * @property {number} discountAmount
+ * @property {number} fondoAmount lo que cubrió el Fondo
+ * @property {string} fondoOption
+ * @property {number} contribution el aporte al Fondo
+ * @property {number} paid lo que pagó en total (entradas con el recargo, más los extras)
+ * @property {string} method
+ * @property {number} surcharge el recargo de MP
+ * @property {number} mpFee la comisión de MP (la informada o, si no, la estimada)
+ * @property {boolean} mpFeeEstimated
+ * @property {import('$lib/utils/signupFields.js').Answer[]} answers
+ */
+
+/**
+ * Copia de la orden solo lo que va en el detalle (una lista cerrada: un campo nuevo de la orden
+ * no llega a Telegram si no se suma acá).
+ *
+ * @param {Order} order
+ * @param {TicketType | undefined} type
+ * @param {{ extras?: { name: string, quantity: number }[],
+ *   answers?: import('$lib/utils/signupFields.js').Answer[] }} [more]
+ * @returns {SaleDetail}
+ */
+export function saleDetail(order, type, { extras = [], answers = [] } = {}) {
+	const summary = orderSummary(order, type);
+	const mp = order.payment_method === 'mercadopago';
+	return {
+		name: String(order.buyer_name ?? ''),
+		pronouns: String(order.buyer_pronouns ?? ''),
+		email: String(order.buyer_email ?? ''),
+		reference: orderReference(order.id),
+		createdAt: Number(order.created_at),
+		quantity: summary.quantity,
+		typeName: summary.typeName,
+		tierName: summary.tierName,
+		unitPrice: Number(order.unit_price) || 0,
+		extras: extras.map((x) => ({ name: String(x.name), quantity: Number(x.quantity) })),
+		extrasAmount: Number(order.extras_amount ?? 0) || 0,
+		discountCode: order.discount_code ?? null,
+		discountAmount: Number(order.discount_amount) || 0,
+		fondoAmount: Number(order.fondo_amount) || 0,
+		fondoOption: String(order.fondo_option ?? ''),
+		contribution: Number(order.fondo_contribution) || 0,
+		paid: orderPaid(order),
+		method: String(order.payment_method ?? ''),
+		surcharge: mp ? Number(order.surcharge_amount) || 0 : 0,
+		mpFee: orderMpFee(order),
+		mpFeeEstimated: mp && (order.mp_fee_amount === null || order.mp_fee_amount === undefined),
+		answers: answers.map((a) => ({ id: a.id, label: a.label, value: a.value, ticket: a.ticket }))
+	};
+}
+
+/**
+ * Las líneas fijas del detalle (sin las respuestas), en HTML de Telegram: cada dato pasa por
+ * «Textos del bot», que escapa lo que escribió quien compra.
+ *
+ * @param {SaleDetail} d
+ * @param {BotTexts | null} [overrides]
+ */
+export function saleDetailLines(d, overrides = null) {
+	const tickets = `${d.quantity} × ${d.typeName}${d.tierName ? ` (${d.tierName})` : ''}`;
+	const mp = d.method === 'mercadopago';
+	const net = formatARS(Math.max(0, d.paid - d.mpFee));
+	return [
+		botText(
+			'admin.venta_comprador',
+			{ nombre: d.name, pronombres: d.pronouns ? ` (${d.pronouns})` : '' },
+			overrides
+		),
+		botText('admin.venta_mail', { mail: d.email }, overrides),
+		botText('admin.venta_orden', { orden: d.reference, fecha: argDateLog(d.createdAt) }, overrides),
+		botText(
+			'admin.venta_entradas',
+			{ entradas: tickets, precio: formatARS(d.unitPrice) },
+			overrides
+		),
+		...(d.extras.length
+			? [
+					botText(
+						'admin.venta_extras',
+						{
+							extras: d.extras.map((x) => `${x.quantity} × ${x.name}`).join(', '),
+							monto: formatARS(d.extrasAmount)
+						},
+						overrides
+					)
+				]
+			: []),
+		...(d.discountCode && d.discountAmount
+			? [
+					botText(
+						'admin.venta_codigo',
+						{ codigo: d.discountCode, monto: formatARS(d.discountAmount) },
+						overrides
+					)
+				]
+			: []),
+		...(d.fondoAmount
+			? [botText('admin.venta_fondo', { monto: formatARS(d.fondoAmount) }, overrides)]
+			: []),
+		...(d.contribution
+			? [
+					botText(
+						'admin.venta_aporte',
+						{ opcion: fondoOptionLabel(d.fondoOption), monto: formatARS(d.contribution) },
+						overrides
+					)
+				]
+			: []),
+		botText(
+			'admin.venta_pago',
+			{ total: formatARS(d.paid), medio: PAYMENT_METHOD[d.method] ?? d.method },
+			overrides
+		),
+		...(mp && d.surcharge
+			? [botText('admin.venta_recargo', { monto: formatARS(d.surcharge) }, overrides)]
+			: []),
+		...(mp
+			? [
+					botText(
+						d.mpFeeEstimated ? 'admin.venta_comision_estimada' : 'admin.venta_comision',
+						{ monto: formatARS(d.mpFee) },
+						overrides
+					),
+					botText(
+						d.mpFeeEstimated ? 'admin.venta_neto_estimado' : 'admin.venta_neto',
+						{ monto: net },
+						overrides
+					)
+				]
+			: [])
+	];
+}
+
+/** @param {import('$lib/utils/signupFields.js').Answer} a */
+const answerQuestion = (a) => (a.ticket ? `${answerTicketLabel(a.ticket)} · ${a.label}` : a.label);
+
+/**
+ * El aviso de «Cada venta» entero: el resumen (la línea de siempre) y abajo, en un bloque que se
+ * despliega (`<blockquote expandable>`, Bot API 7.4), el detalle. Nunca pasa de `max`: si no
+ * entra todo, se cortan las respuestas (la última que entra, con «…»; si quedan más, una línea
+ * «…»). Si ni el detalle sin respuestas entra (un título larguísimo), solo el resumen.
+ *
+ * @param {string} head el resumen ({@link saleNoticeText})
+ * @param {SaleDetail} detail
+ * @param {BotTexts | null} [overrides]
+ * @param {number} [max]
+ */
+export function saleNoticeWithDetail(head, detail, overrides = null, max = TELEGRAM_TEXT_MAX) {
+	/** @param {string[]} lines */
+	const frame = (lines) => `${head}\n<blockquote expandable>${lines.join('\n')}</blockquote>`;
+	const lines = saleDetailLines(detail, overrides);
+	if (frame(lines).length > max) return head;
+	if (!detail.answers.length) return frame(lines);
+	const title = botText('admin.venta_respuestas', {}, overrides);
+	if (frame([...lines, title, '…']).length > max) return frame(lines);
+	lines.push(title);
+	const answers = detail.answers;
+	for (let i = 0; i < answers.length; i++) {
+		const pregunta = answerQuestion(answers[i]);
+		/** @param {string} respuesta */
+		const line = (respuesta) =>
+			botText('admin.venta_respuesta', { pregunta, respuesta }, overrides);
+		// Lo que queda, guardando lugar para la línea «…» si después vienen más.
+		const reserve = i < answers.length - 1 ? 2 : 0;
+		const room = max - frame(lines).length - 1 - reserve;
+		const full = line(answers[i].value);
+		if (full.length <= room) {
+			lines.push(full);
+			continue;
+		}
+		const clipped = clipToFit(answers[i].value, (v) => line(v).length <= room);
+		lines.push(clipped === null ? '…' : line(clipped));
+		if (clipped !== null && i < answers.length - 1) lines.push('…');
+		break;
+	}
+	return frame(lines);
+}
+
+/**
+ * El principio más largo de `value` que, con «…» al final, cumple `fits` (sin partir un emoji ni
+ * dejar espacios antes de «…»). `null` si ni «…» solo entra.
+ *
+ * @param {string} value
+ * @param {(v: string) => boolean} fits
+ * @returns {string | null}
+ */
+export function clipToFit(value, fits) {
+	const chars = Array.from(value);
+	const at = (/** @type {number} */ n) => `${chars.slice(0, n).join('').trimEnd()}…`;
+	if (!fits(at(0))) return null;
+	let lo = 0;
+	let hi = chars.length - 1;
+	while (lo < hi) {
+		const mid = Math.ceil((lo + hi) / 2);
+		if (fits(at(mid))) lo = mid;
+		else hi = mid - 1;
+	}
+	return at(lo);
 }
 
 /**
@@ -551,10 +789,26 @@ export async function notifyOrder({
 			)
 			.bind(order.event_slug, order.ticket_type)
 			.first();
-		text = saleNoticeText(
+		const head = saleNoticeText(
 			{ summary, eventTitle, sold: Number(row?.n ?? 0), capacity: type?.capacity ?? null },
 			overrides
 		);
+		// El detalle (decisión 0058), de la orden recién leída (la comisión de MP puede haber
+		// llegado después). Si algo falla, sale el resumen solo.
+		try {
+			const full = (await getOrder(db, order.id)) ?? /** @type {Order} */ (order);
+			const [extras, answers] = await Promise.all([
+				Number(full.extras_amount ?? 0) > 0 ? orderExtras(db, full.id) : [],
+				orderAnswers(db, full.id)
+			]);
+			text = saleNoticeWithDetail(head, saleDetail(full, type, { extras, answers }), overrides);
+		} catch (error) {
+			console.error(
+				'[telegram] el detalle de «Cada venta» no se pudo armar:',
+				/** @type {Error} */ (error)?.name
+			);
+			text = head;
+		}
 	} else if (kind === 'contracargo') {
 		text = chargebackNoticeText(
 			{

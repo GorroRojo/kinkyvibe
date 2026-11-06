@@ -1092,6 +1092,26 @@ button {
 	white-space: nowrap;
 }
 
+/* «Ver transcripción» under a video in a text ($lib/utils/videoExtras.js). */
+.kv-transcripcion {
+	/* debajo del video también si el texto lo pone en una grilla (`.col-2` de algunos textos) */
+	grid-column: 1 / -1;
+	margin: 0.6rem 0 1.2rem;
+	border: 1px solid var(--line, #ddd);
+	border-radius: 0.5rem;
+	padding: 0.4rem 0.8rem;
+	> summary {
+		cursor: pointer;
+		font-weight: 600;
+		/* área de toque de 44 px (texto de ~1.5rem de alto + 0.7rem arriba y abajo) */
+		padding-block: 0.7rem;
+	}
+	.kv-transcripcion-texto {
+		max-height: 30rem;
+		overflow-y: auto;
+	}
+}
+
 /* People who ask their system for less motion: hover zooms, slides and fades happen at once. */
 @media (prefers-reduced-motion: reduce) {
 	*,

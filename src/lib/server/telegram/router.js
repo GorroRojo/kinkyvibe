@@ -55,6 +55,7 @@ import {
 	ticketsUnlinkedScreen
 } from './misEntradas.js';
 import { botText } from './texts.js';
+import { foldText as fold } from '$lib/utils/text.js';
 import { decodeAdminNav } from './adminNav.js';
 import { adminResult } from './adminBot.js';
 import { normalizeSearch, objectKey, trackUso } from './uso.js';
@@ -147,13 +148,6 @@ export function forOtherBot(text, botUsername) {
 	const to = /^\/[a-z0-9_]{1,32}@(\w+)/i.exec(text.trim())?.[1];
 	return !!to && to.toLowerCase() !== botUsername.toLowerCase();
 }
-
-/** Minúsculas y sin tildes, para buscar sin que importe cómo se escribió. */
-const fold = (/** @type {string} */ s) =>
-	s
-		.normalize('NFD')
-		.replace(/[\u0300-\u036f]/g, '')
-		.toLowerCase();
 
 const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 

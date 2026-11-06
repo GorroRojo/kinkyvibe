@@ -36,6 +36,7 @@
 	import { pushState, replaceState } from '$app/navigation';
 	import { formatARS } from '$lib/utils/money.js';
 	import { fieldsForTicketType } from '$lib/utils/signupFields.js';
+	import { extrasAmount } from '$lib/utils/extras.js';
 	import {
 		computePrice,
 		defaultFondoOption,
@@ -74,7 +75,7 @@
 	 * @typedef {{
 	 *   error?: string | null,
 	 *   errors?: Record<string, string>,
-	 *   values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string>, accountForm?: boolean, remember?: boolean, rememberDni?: boolean, lista?: string },
+	 *   values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string>, accountForm?: boolean, remember?: boolean, rememberDni?: boolean, lista?: string, extras?: Record<string, string> },
 	 *   discount?: import('$lib/server/tickets/checkout.js').AppliedDiscount | null
 	 * } | null} BuyResult
 	 */
@@ -117,6 +118,14 @@
 		? Boolean(initial.rememberDni)
 		: (account?.rememberDni ?? false);
 	let code = initial.code ?? '';
+	/** Extras elegidos (id → cantidad; interruptor `extras`, decisión 0056). */
+	/** @type {Record<string, number>} */
+	let extrasChoice = Object.fromEntries(
+		(tickets.extras ?? []).map((e) => [
+			e.id,
+			Math.max(0, Math.min(e.available, Math.trunc(Number(initial.extras?.[e.id])) || 0))
+		])
+	);
 	let method = initial.method || tickets.methods[0] || 'mercadopago';
 	let option = initial.option ?? '';
 	/** Monto "a la gorra" por entrada, como texto (vacío = el sugerido). */
@@ -195,6 +204,10 @@
 	$: gorraAmount = gorraState.value;
 	/** Montos rápidos: el mínimo (si es mayor a 0), el sugerido, 1,5 × el sugerido y el doble. */
 	$: gorraChips = gorra ? gorraQuickAmounts(gorra.min, gorra.suggested) : [];
+	// Los extras elegidos, a precio de lista (sin Fondo ni código: solo el recargo de MP).
+	$: extraLines = (tickets.extras ?? [])
+		.map((e) => ({ id: e.id, name: e.name, price: e.price, quantity: extrasChoice[e.id] ?? 0 }))
+		.filter((l) => l.quantity > 0);
 	$: prices = computePrice({
 		price: gorra ? (gorraAmount ?? 0) : (selected?.price ?? 0),
 		fondo: selected?.fondo ?? 0,
@@ -202,12 +215,13 @@
 		quantity: selected ? count : 0,
 		discount: applied,
 		method,
-		feeBasisPoints: tickets.feeBasisPoints
+		feeBasisPoints: tickets.feeBasisPoints,
+		extras: selected ? extrasAmount(extraLines) : 0
 	});
 	$: free =
 		Boolean(selected) &&
 		(!gorra || gorraAmount !== null) &&
-		prices.subtotal - prices.discount === 0;
+		prices.subtotal - prices.discount + prices.extras === 0;
 	$: conditions = purchaseConditions({
 		contactEmail: tickets.contactEmail,
 		transferUntil: tickets.transferUntil,
@@ -223,7 +237,8 @@
 		discountCode: applied?.code ?? null,
 		free,
 		feeBasisPoints: tickets.feeBasisPoints,
-		methods: tickets.methods
+		methods: tickets.methods,
+		extras: extraLines
 	});
 
 	/**
@@ -267,7 +282,8 @@
 			method,
 			methods: tickets.methods,
 			free,
-			accept: Boolean(accept?.checked)
+			accept: Boolean(accept?.checked),
+			count
 		});
 	}
 
@@ -410,6 +426,12 @@
 			email = String(d.email ?? '');
 			dni = String(d.dni ?? '');
 			code = String(d.code ?? '');
+			if (d.extras && typeof d.extras === 'object')
+				for (const e of tickets.extras ?? [])
+					extrasChoice[e.id] = Math.max(
+						0,
+						Math.min(e.available, Math.trunc(Number(d.extras[e.id])) || 0)
+					);
 			if (account && typeof d.remember === 'boolean') remember = d.remember;
 			if (account && typeof d.rememberDni === 'boolean') rememberDni = d.rememberDni;
 			firstHolderEdited = Boolean(d.firstHolderEdited);
@@ -479,6 +501,7 @@
 		email,
 		dni,
 		code,
+		...(tickets.extras?.length ? { extras: extrasChoice } : {}),
 		firstHolderEdited,
 		firstPronounsEdited,
 		...(account ? { remember, rememberDni } : {}),
@@ -645,6 +668,7 @@
 								bind:amount
 								bind:quantity
 								bind:code
+								bind:extrasChoice
 								{selected}
 								{gorraState}
 								{gorraChips}
@@ -679,6 +703,7 @@
 								{tickets}
 								bind:method
 								{free}
+								{count}
 								{conditions}
 								{errors}
 								{submitText}

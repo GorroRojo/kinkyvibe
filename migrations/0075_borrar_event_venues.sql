@@ -1,0 +1,24 @@
+-- Migration number: 0075 	 2026-11-04T01:25:02.153Z
+-- Borra la tabla vieja `event_venues` (0017, rehecha en 0027): el «sucede en» de antes de que los
+-- lugares fueran perfiles. Desde la 0035 es el edge `lugar` del evento y nada la escribe ni la lee
+-- (decisión de gorrite, Mesa `chica-592-event-venues`; plan `event-venues-borrar`). Creada con
+-- `npm run db:migrations:new`.
+--
+-- Nada apunta a ella (ni foreign keys ni triggers: ver la 0027) y su índice `event_venues_venue` se
+-- va con la tabla. Anda con el código de `main` de antes de este PR: la importación la leía dentro
+-- de un try (una base sin la tabla da «sin lugar») y la demo solo borraba sus filas si existía.
+--
+-- ANTES DE APLICARLA en producción (con el visto bueno de gorrite, no sola):
+-- 1. Un marcador de time travel de D1 (`npx wrangler d1 time-travel info <base>`), para poder volver.
+-- 2. Que cada fila tenga su edge `lugar` (tiene que dar 0 filas):
+--      SELECT v.event_slug, v.venue_id FROM event_venues v
+--      WHERE NOT EXISTS (
+--        SELECT 1 FROM edges e JOIN objects ev ON ev.id = e.from_id AND ev.type = 'evento'
+--        LEFT JOIN content_sources s ON s.object_id = ev.id AND s.category = 'calendario'
+--        WHERE e.kind = 'lugar' AND e.to_id = v.venue_id
+--          AND coalesce(s.legacy_slug, ev.slug) = v.event_slug
+--      )
+--      AND EXISTS (SELECT 1 FROM objects o WHERE o.id = v.venue_id AND o.deleted_at IS NULL);
+--    (Un lugar ya borrado no cuenta: su edge tampoco se muestra.)
+
+DROP TABLE IF EXISTS event_venues;

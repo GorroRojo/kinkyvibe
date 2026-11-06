@@ -14,6 +14,7 @@
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import { eventLink, orderHref } from '$lib/admin/links.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { SALE_CHANNELS, SALE_CHANNEL_LABELS } from '$lib/utils/saleChannel.js';
 	import { ChartColumn, ChevronRight } from '@lucide/svelte';
 
 	/** @type {import('$lib/server/admin/inicio.js').SalesSummary} */
@@ -29,6 +30,14 @@
 	$: weekTotal = days.reduce((s, d) => s + d.count, 0);
 	// Etiquetas selectivas: el máximo y hoy (el último), si vendieron algo.
 	$: maxIndex = days.findIndex((d) => d.count === max);
+	// Por canal (la regla única de saleChannel.js), solo si no es todo online: los canales con
+	// entradas, siempre con «Online».
+	$: channels = sales.trend?.channels;
+	$: shownChannels = shownOf(channels);
+
+	/** @param {Record<import('$lib/utils/saleChannel.js').SaleChannel, number> | undefined} counts */
+	const shownOf = (counts) =>
+		counts ? SALE_CHANNELS.filter((c) => c === 'online' || counts[c] > 0) : [];
 	/** @param {string} label */
 	const short = (label) =>
 		label === 'Hoy' ? 'hoy' : label === 'Ayer' ? 'ayer' : label.split(' ')[0];
@@ -126,10 +135,11 @@
 					{#each days as d (d.day)}<tr><th scope="row">{d.label}</th><td>{d.count}</td></tr>{/each}
 				</tbody>
 			</table>
-			{#if sales.trend.door}
+			{#if channels && shownChannels.length > 1}
 				<p class="channels">
-					<span>Online <b class="num">{sales.trend.online}</b></span>
-					<span>En la puerta <b class="num">{sales.trend.door}</b></span>
+					{#each shownChannels as c (c)}<span
+							>{SALE_CHANNEL_LABELS[c]} <b class="num">{channels[c]}</b></span
+						>{/each}
 				</p>
 			{/if}
 		</figure>
@@ -298,7 +308,8 @@
 	}
 	.channels {
 		display: flex;
-		gap: var(--space-xs);
+		flex-wrap: wrap;
+		gap: var(--space-3xs) var(--space-xs);
 		margin-top: 0.5rem;
 		font-size: var(--text-sm);
 		color: var(--muted);

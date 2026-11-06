@@ -32,9 +32,13 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
   castellano para las apps viejas); el lugar **solo como lo muestra la página pública del evento**
   (`feedVenues` + `eventPlace`: un lugar oculto dice «Lugar a confirmar», nunca la dirección) y
   los botones:
-  - «🎟 Comprar en el sitio» (verde, Bot API 9.4) a `/calendario/<evento>/entradas`, o el estado de
-    la venta deshabilitado («Agotadas», «Abre el 5/10»), igual que las tarjetas del calendario;
-    sin entradas acá, «Abrir en el sitio»;
+  - «Abrir en el sitio» a `/calendario/<evento>` (la compra se hace desde la página del evento,
+    después de leer el texto: ningún botón del bot lleva directo a `/entradas`), o el estado de
+    la venta deshabilitado («Agotadas», «Abre el 5/10»), igual que las tarjetas del calendario.
+    Con «Agotadas», un botón más con link a la página del evento (nunca a comprar): «Anotate en
+    la lista de espera» (`#entradas`, si el evento tiene la lista prendida) o «Avisame la
+    próxima» (`#seguir`, «Seguir la serie»); textos `eventos.boton_lista_espera` y
+    `eventos.boton_avisame`, y lo mismo en la tarjeta inline y en la Mini App;
   - «📅 Agregar al calendario» (link de Google Calendar con título, fecha, link y el lugar público;
     sin fin cargado, 2 horas);
   - «🗺 Cómo llegar», solo si la página muestra el mapa (`googleMapsLink` del lugar o el
@@ -299,9 +303,11 @@ funciones que `/calendario`).
   El botón de menú del bot sigue siendo la lista de comandos.
 - **Textos**: en «Textos del bot», sección «Mini App del calendario», con su vista previa
   (aproximada: es una página, no un mensaje). Van sin formato. La página los lee una vez por
-  pedido (`miniAppTexts` en `miniapp.js`); como la página se guarda hasta 5 minutos
-  (`max-age=300`), un cambio puede tardar eso en verse. Los estados de la venta («Agotadas»…) son
-  los del sitio (`ticketCta`).
+  pedido (`miniAppTexts` en `miniapp.js`); la página no se guarda (`private, no-store`): una
+  copia guardada nombraba los archivos JS de un deploy anterior, que ya no existen, y la Mini App
+  no cargaba («Failed to load», 5/11). Los estados de la venta («Agotadas»…) son
+  los del sitio (`ticketCta`). El botón del evento dice «Ver en el sitio» (clave
+  `miniapp.boton_comprar`, se llama así por cómo empezó; un texto ya cambiado en el panel se mantiene).
 - Con `telegram_enriquecido`: «📤 Mandar a un chat» en cada evento y el link directo a un evento
   (abajo, «Mensajes enriquecidos y compartir»).
 
@@ -611,7 +617,8 @@ minutos), con estas reglas:
   `contenido_db`). No armar consultas propias ni leer los `.md` o la base desde otro lado.
 - **Nada oculto, no listado ni ya empezado.**
 - **Sin datos de compradores ni de lugares con dirección privada** (0005, 0007, 0029): el lugar de
-  una tarjeta sale de las mismas funciones que la página pública del evento.
+  una tarjeta sale de las mismas funciones que la página pública del evento. La única excepción es
+  el detalle del aviso «Cada venta», solo para admins que lo prendieron (0058, abajo).
 - **Nada personal en grupos** (tampoco en efímeros) ni sin chat vinculado; «Seguir» es lo único
   que escribe (0034).
 - El secreto del webhook se chequea **antes** que el interruptor y en tiempo constante.
@@ -932,7 +939,8 @@ una confirmación):
 
 - venta aprobada por Mercado Pago (`processPayment`), entrada gratis (`checkout.js`) y
   transferencia confirmada desde el panel (en el evento o en Ventas → Transferencias): «🎟 Se vendió
-  1 General (Preventa 1) de **Fiesta X** · 23/50» (vendidas del tipo contra su cupo);
+  1 General (Preventa 1) de **Fiesta X** · 23/50» (vendidas del tipo contra su cupo) y, abajo, el
+  **detalle de la compra** en un bloque que se despliega (ver «El detalle de «Cada venta»»);
 - orden nueva por transferencia (`checkout.js`): «💸 Transferencia para confirmar: 2 General de
   **Fiesta X** · 3 por confirmar».
 - contracargo de Mercado Pago (`processPayment`, pago `charged_back`): «⚠️ Contracargo en Mercado
@@ -949,6 +957,29 @@ una confirmación):
 - En el horario de silencio salen igual, pero **sin sonido** (`disable_notification`): una venta
   avisada a las 9 de la mañana ya no sirve.
 - Si Telegram falla en ese momento, ese aviso no se reintenta (el resumen diario la cuenta igual).
+
+**El detalle de «Cada venta»** (decisión [0058](decisiones/0058-detalle-de-cada-venta.md)): la
+primera línea es el resumen de siempre; abajo va un `<blockquote expandable>` (HTML de Telegram,
+Bot API 7.4: se ve cerrado con las primeras líneas y se abre al tocarlo) con lo mismo que muestra
+Órdenes del panel:
+
+- quién compró y sus pronombres, el mail, la orden (`KV-…`) y la hora de la compra (Argentina,
+  `created_at`);
+- las entradas («2 × General (Preventa 1) · $ 8.000 c/u»), los extras si hay, el código de
+  descuento y lo que cubrió el Fondo (o el aporte, en una solidaria), como los paréntesis de Órdenes;
+- lo que pagó en total (entradas con el recargo, más los extras) y el medio de pago (las etiquetas
+  de Órdenes); si fue con Mercado Pago, el recargo, la comisión (la que informó MP o, si todavía no
+  la informó, «estimada», con el recargo) y lo neto («Neto» o «Neto estimado», como en el panel);
+- las respuestas a las preguntas de inscripción (las de «una vez por entrada», con «Entrada 2 ·»).
+
+Nunca el DNI (ni los últimos dígitos), les titulares, el id del pago, la nota ni los tokens: la
+orden pasa por `saleDetail`, que copia solo esos campos. Todo lo que escribió quien compra se
+escapa (lo hace «Textos del bot»). El mensaje nunca pasa de 4096 caracteres (se mide el HTML): si
+no entra, se corta la última respuesta que entra con «…» y, si quedaban más, va una línea «…». La
+orden se relee de la base al mandar (la comisión de MP puede haber llegado después); si algo falla
+al armar el detalle, sale el resumen solo. A quién, una sola vez y sin sonido de noche: lo mismo
+que el resto. Las etiquetas están en «Textos del bot» (`admin.venta_*`, sección «Estado y avisos
+(admins)»). Pruebas: `adminNotify-detalle.test.js`.
 
 **Día del evento y recordatorios** (PR 3, `runAdminEventDayCron`): el mismo cron, a la misma hora
 que el resumen diario (desde las 9 de Argentina, fuera del horario de silencio), aparte de él (su

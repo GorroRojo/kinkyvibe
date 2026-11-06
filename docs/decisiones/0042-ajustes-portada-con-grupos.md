@@ -30,7 +30,9 @@ en Plata, Comunicación, Equipo y Sistema.
 - Dejar las pestañas además de la portada: dos maneras de lo mismo, y la tira larga era el
   problema.
 - Ir a buscar el porcentaje del Fondo a fondo.kinkyvibe.ar para la tarjeta: haría lenta la
-  portada; se muestra el fijado a mano o el último que llegó.
+  portada; se muestra el fijado a mano o el último que llegó. Si todavía no llegó ninguno, la
+  tarjeta dice «Automático (todavía no llegó el porcentaje)» y lo busca en segundo plano, sin
+  esperarlo (`ajustes-fondo-linea`).
 
 ## Consecuencias
 

@@ -30,6 +30,12 @@ y etiquetas (y cada sección por sus palabras: «pie de mail», «alias», «ree
 - **Los datos de amigues (mail, teléfono, cumpleaños) son públicos a propósito** (0010): no es un
   problema a arreglar.
 - El modo demo y el admin falso de dev no existen en producción ([demo.md](demo.md)).
+- **Los campos y botones van con las piezas del panel** (gorrite, 5/11): `<Field>` y `<Button>`
+  (`$lib/components/ui/`), o un `<select>` propio en el slot de `Field`, `.kv-field` / `.kv-check`
+  (`$lib/admin/panel-forms.scss`) o `.kv-input`. Nunca un `<input>`, `<textarea>` o `<select>`
+  suelto con CSS propio. Lo controla `src/routes/(authed)/admin/formControls.test.js`, con la lista
+  de los que ya estaban (no le sumes archivos; si pasás uno a las piezas, bajá su cuenta).
+  Para ver una imagen grande, `ImageViewer` (`$lib/components/admin/panel/`).
 
 ## Secciones
 
@@ -64,12 +70,14 @@ las pestañas de la ficha y los ajustes de mails no cambian (quedan para otra de
 nombre, qué hay (`desc` del ítem) y una **línea de estado** («Mercado Pago y transferencia», «10 %
 (fijado a mano)», «2 textos cambiados», «3 admins», «4 en prueba», «Todo al día», «Último cambio:
 hace 5 min»…), resaltada si hay algo para mirar. La arma `src/lib/server/admin/ajustesStatus.js`
-con una sola tanda a la base (ajustes guardados, interruptores, lo último del registro, propinas
-aprobadas) más lo de Automatizaciones; una tarjeta sin un dato barato y claro no lleva línea (el
-Fondo, si no hay uno fijado a mano ni llegó ninguno automático; cualquier parte que no se pudo
-leer). El Fondo automático dice de cuándo es si el último dato tiene más de un día («12 % de cada
-entrada (último dato hace 30 h)»): con fondo.kinkyvibe.ar caído se sigue cobrando ese (auditoría
-de confiabilidad, O36). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
+con una sola tanda a la base (ajustes guardados, interruptores, lo último del registro) más
+lo de Automatizaciones; una tarjeta sin un dato barato y claro no lleva línea
+(cualquier parte que no se pudo leer). El Fondo dice el fijado a mano o el último porcentaje
+automático guardado; si todavía no llegó ninguno, «Automático (todavía no llegó el porcentaje)» y
+lo busca en segundo plano (`waitUntil`, como la página del evento): la portada nunca lo espera y
+la próxima vez ya dice el porcentaje. El Fondo automático dice de cuándo es si el último dato tiene
+más de un día («12 % de cada entrada (último dato hace 30 h)»): con fondo.kinkyvibe.ar caído se
+sigue cobrando ese (auditoría de confiabilidad, O36). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
 `NAV_GROUPS`, y cada página de Ajustes vuelve a la portada con «← Ajustes» (`areaBackLink`).
 
 **Opción C, parte 2** (gorrite, 11/10; [decisión 0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)):
@@ -137,10 +145,10 @@ junta lo que eran tres pestañas y **Mails** lo que eran dos: cada parte es una 
 pestaña (`views`), con su URL de siempre, y la ficha las muestra como botones (`.kv-segmented`)
 debajo de las pestañas:
 
-| Pestaña | Vistas (URL)                                                                                                                |
-| ------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo) |
-| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`)                                              |
+| Pestaña | Vistas (URL)                                                                                                                                                                                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo), Gastos y reparto (`/gastos`, con el interruptor `gastos_reparto`; las cuentas cerradas, en Ventas › Cuentas del año, ver [tickets.md](tickets.md)) |
+| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`), Encuesta (`/encuesta`, interruptor `formularios`)                                                                                                                                               |
 
 Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
@@ -164,18 +172,18 @@ Cada sección vive en **`/admin/<área>/<sección>`**. Las excepciones: Inicio (
 (`/admin/checkin`, porque esa URL está guardada en los celus de la puerta) y las áreas de una sola
 sección (Etiquetas), que usan la URL del área.
 
-| Área         | Secciones (URL)                                                                                                                                                                                                                                                                                                                                           | Para qué                                                                                                                                                                                                                                                                                                                          |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| —            | Inicio (`/admin`)                                                                                                                                                                                                                                                                                                                                         | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                                                                                                                                |
-| Puerta       | Puerta (`/admin/checkin`)                                                                                                                                                                                                                                                                                                                                 | elegir el evento y abrir su modo puerta (`/admin/eventos/<slug>/ingreso`)                                                                                                                                                                                                                                                         |
-| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`, fuera del menú: botón en Eventos), Agenda (`/agenda`, + Importar planilla en `/importar` y Agenda impresa en `/agenda-impresa`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                      | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
-| Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                                                   | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                                      |
-| Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                                                           | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                                    |
-| Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`), Lo que sigo (`/lo-que-sigo`) · próximamente: Bandeja (`/admin/mensajes`, fase 5)                                                                                                                                                                                             | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas, el estado de «Lo que sigo» en números ([lo-que-sigo.md](lo-que-sigo.md#en-el-panel))                                                                                                                                                |
-| Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`), Enlaces que faltan (`/falta`, con un botón por nombre para crear la página, [enlaces.md](enlaces.md))                                                                                                                                                                       | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                                                                                                             |
-| Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                                                                                                                                                     | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                                                                                                                              |
-| Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`), Bot de Telegram (`/bot`); `/admin/estadisticas` redirige a Ventas                                                                                                                                                                          | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)); uso del bot ([telegram.md](telegram.md)). Ver «Estadísticas» abajo                                                                                                                               |
-| Ajustes      | Portada (`/admin/ajustes`) · Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), Propinas (`/propinas`) · Comunicación: Vistas previas al compartir (`/vistas-previas`), Textos del bot (`/textos-bot`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Automatizaciones (`/automatizaciones`), Actividad (`/actividad`) | datos para transferir y comisión de MP, % del Fondo, propinas, textos de la vista previa al compartir un link, todo lo que dice el bot de Telegram, lista de admins, interruptores, lo que corre solo (crons, mails programados, bot; para mirar, más «Actualizar comandos del bot»), registro (con CSV y "Recuperar" lo borrado) |
+| Área         | Secciones (URL)                                                                                                                                                                                                                                                                                                                                                                                                                                      | Para qué                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| —            | Inicio (`/admin`)                                                                                                                                                                                                                                                                                                                                                                                                                                    | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                                                                                                                                                                                                                 |
+| Puerta       | Puerta (`/admin/checkin`)                                                                                                                                                                                                                                                                                                                                                                                                                            | elegir el evento y abrir su modo puerta (`/admin/eventos/<slug>/ingreso`)                                                                                                                                                                                                                                                                                                                                          |
+| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`, fuera del menú: botón en Eventos), Agenda (`/agenda`, + Importar planilla en `/importar` y Agenda impresa en `/agenda-impresa`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                                                                                                 | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                                                                                                               |
+| Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                                                                                                                                              | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                                                                                                                       |
+| Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`), Formularios (`/formularios`, interruptor `formularios`: [formularios.md](formularios.md))                                                                                                                           | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                                                                                                                     |
+| Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`), Lo que sigo (`/lo-que-sigo`) · próximamente: Bandeja (`/admin/mensajes`, fase 5)                                                                                                                                                                                                                                                                                        | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas, el estado de «Lo que sigo» en números ([lo-que-sigo.md](lo-que-sigo.md#en-el-panel))                                                                                                                                                                                                                                 |
+| Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`), Enlaces que faltan (`/falta`, con un botón por nombre para crear la página, [enlaces.md](enlaces.md))                                                                                                                                                                                                                                                                  | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                                                                                                                                                                                              |
+| Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                                                                                                                                                                                                                                                | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                                                                                                                                                                                                               |
+| Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`), Bot de Telegram (`/bot`), Propinas (`/propinas`, antes en Ajustes; `/admin/ajustes/propinas` redirige); `/admin/estadisticas` redirige a Ventas                                                                                                                                                                                       | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)); uso del bot ([telegram.md](telegram.md)). Ver «Estadísticas» abajo                                                                                                                                                                                                                |
+| Ajustes      | Portada (`/admin/ajustes`) · Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), PayPal (`/paypal`: cotización, ajuste y retiros de las propinas por PayPal) · Comunicación: Vistas previas al compartir (`/vistas-previas`), Carrusel de la portada (`/carrusel`), Textos del bot (`/textos-bot`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Automatizaciones (`/automatizaciones`), Actividad (`/actividad`) | datos para transferir y comisión de MP, % del Fondo, cotización y retiros de PayPal, textos de la vista previa al compartir un link, estilo del carrusel de la portada y colores de los flyers, todo lo que dice el bot de Telegram, lista de admins, interruptores, lo que corre solo (crons, mails programados, bot; para mirar, más «Actualizar comandos del bot»), registro (con CSV y "Recuperar" lo borrado) |
 
 **Ficha de una persona** (`/admin/comunidad/personas/<id>`, con un id corto sacado del mail; nunca
 el mail en la URL). Es una sola ficha con todo lo que sabemos de alguien, encontrada por el mail
@@ -202,7 +210,10 @@ se puede compartir:
 
 - **Ventas en el tiempo** (`/admin/estadisticas/ventas`, id `estadisticas`: el atajo `g s` y el
   buscador siguen yendo acá): entradas, cobrado y entrada promedio (con el cambio contra el período
-  anterior), ventas en el tiempo, por serie, cómo pagan, opciones del fondo y Fondo y finanzas.
+  anterior), ventas en el tiempo, por serie, cómo pagan, opciones del fondo y Fondo y finanzas
+  (además de lo de las entradas: las suscripciones al Fondo del mes en curso, leídas de
+  fondo.kinkyvibe.ar, y las propinas de Mercado Pago de esos meses con su reparto Kinky Vibe / Fondo;
+  el historial mensual de suscripciones espera un endpoint de kv-fondo, #265).
   Períodos 30 días / 90 días / **12 meses** (por defecto) / Todo, y filtro de serie (`?serie=`,
   el slug sin la fecha, como «Por serie»). Los números, «Por serie», «Cómo pagan», las opciones del
   fondo y «Fondo y finanzas» cuentan por el **mes del evento** (ver «Ventas por mes» abajo): las
@@ -219,6 +230,12 @@ se puede compartir:
 - **Visitas al sitio** (`/visitas`): las visitas anónimas ([analiticas.md](analiticas.md)), 7 /
   **30** (por defecto) / 90 días. Analytics Engine guarda el detalle unos 3 meses: más atrás solo
   quedan los totales por mes de `analytics_monthly`, y la página lo dice. Nunca lee las órdenes.
+  Con `?pagina=/calendario/…` muestra solo esa página (una consulta); «Páginas más vistas» lleva
+  ahí.
+- **Tarjeta «Visitas» de una página**: en la ficha de un evento (Resumen) y en los editores de
+  material, perfiles y la Kinkipedia, las visitas de 7 y 30 días de esa página con un gráfico
+  chiquito, de dónde llegan y, en un evento con entradas, los pasos de la compra; se carga después
+  de la página y nunca la demora ([analiticas.md](analiticas.md#visitas-de-una-página)).
 - **Bot de Telegram** (`/bot`): las estadísticas de uso del bot (decisión
   [0045](decisiones/0045-estadisticas-del-bot.md), [telegram.md](telegram.md) «Estadísticas de
   uso»): quién lo usó en 7 / **30** (por defecto) / 90 días, con sus interacciones y el último día;
@@ -327,6 +344,9 @@ revisar" del Inicio.
   `broken`, `listTicketedEvents` (`src/lib/server/tickets/events.js`) los anota y «Para revisar»
   suma una fila por evento («… no puede vender entradas: su configuración tiene un error», con el
   error de validación y «Editar»).
+- **Links de formularios que no salieron** ([formularios.md](formularios.md)): una fila por
+  formulario o encuesta con links personales que fallaron todos sus intentos («La encuesta no le
+  llegó a todes: …»), con «Reintentar» (`?/retryFormSends`), como los recordatorios que fallaron.
 - **Cuando la base falla, el Inicio lo dice** (auditoría de confiabilidad, O18): cada consulta que
   cae a su respaldo por un error queda anotada (el parámetro `failed` de `runQuery` y `runQueries`
   en `src/lib/server/db/batch.js`, que pasa también por `combineQueries` y `mapQuery`) y el load
@@ -359,8 +379,47 @@ revisar" del Inicio.
   (juntos si son 2 o más), **Etiquetas** («N cosas para revisar en Etiquetas»: sin declarar, fuera
   del árbol y referencias rotas, lo mismo que las pestañas de su tarjeta «Para revisar»; «Sin usar»
   no cuenta), **el importador de contenido** («N archivos .md para revisar en Contenido → En la
-  base», su lista «Para revisar») y el chequeo nocturno. Las de Etiquetas y del importador llevan
-  a su página, que sigue mostrando su lista.
+  base», su lista «Para revisar»), el chequeo nocturno y, al final, los **arreglos de contenido**
+  (abajo). Las de Etiquetas y del importador llevan a su página, que sigue mostrando su lista.
+- **Arreglos de contenido** (gorrite, Mesa `tu-lista-contenido-panel`: «esto debería ser algo para
+  admins, no para desarrollo»): tres filas que se despliegan y se resuelven ahí mismo, sin ir a
+  otra página. Las arma `src/lib/server/admin/contentReview.js` (una consulta de cuatro sentencias
+  en la primera tanda, `content` en `reviewQueries`; las portadas viejas del repo salen de la lista
+  de publicaciones que el isolate recuerda, `legacyCovers` en `reviewTagUsage`) y cada una cuenta 1
+  en el botón. Cada fila muestra hasta 30 cosas (`CONTENT_REVIEW_SHOWN`) y «y N más».
+  - **Fotos sin descripción**: cada imagen del texto de un perfil de amigues sin `alt` (las dos
+    formas de las fichas: `<img alt="" src=…>` y `![](…)`; lo comentado no cuenta;
+    `$lib/utils/imageAlt.js`), con su miniatura grande (tocándola se ve entera, en `ImageViewer`;
+    Escape la cierra), el perfil y un campo «Qué se ve en la foto».
+    «Guardar» (`?/fotoAlt`) escribe ese `alt` en el texto del perfil y nada más
+    (`saveProfileImageAlt`: saveObject() con su versión en el historial, Actividad
+    `profile.update` «Describió una foto del perfil…»). Si la foto cambió o ya tiene descripción
+    (alguien editó mientras tanto), no guarda y avisa. Nadie escribe descripciones por su cuenta: ni
+    el código ni Claude (gorrite).
+  - **Portadas pesadas**: cada evento o material cuya portada (edge `portada`, o la vieja del repo
+    si no tiene edge) pesa más de 300 KB (`HEAVY_COVER_BYTES`) y nadie dejó así. «Achicar» baja la
+    original de la biblioteca, la pasa por el mismo achique de la subida (en el navegador,
+    `prepareImage` con `targetBytes`: si con 2000 px todavía pesa más, baja el lado hasta 1080 px,
+    después la calidad hasta 0,55 y después el lado hasta 720 px, con piso en 720 px y calidad 0,5;
+    `SHRINK_STEPS`). Solo si la copia vale la pena (`muchLighter`: pesa como mucho 300 KB, o al
+    menos un 15 % menos que la original) la sube como imagen nueva (`POST /imagenes`, con sus
+    copias chicas y el mismo nombre y texto alternativo; si la original no tiene, lo pide) y cambia
+    la portada (`?/portada`, `swapCover`: solo si la portada sigue siendo esa y con la misma regla
+    del 15 %; saca la vieja del repo, `featured`, como el selector; historial y Actividad
+    `content.cover.shrink`). Si no vale la pena, no sube nada y lo dice: «No se pudo bajar de
+    300 KB sin que se vea mal (queda en 381 KB). Si se ve bien así, tocá «Dejarla así».». Los pesos
+    van con decimales cuando «antes» y «ahora» se verían iguales (`kbText`). **La original queda
+    en la biblioteca** ([imagenes.md](imagenes.md#portadas-pesadas)).
+    «Dejarla así» (`?/portadaAsi`, `setHeavyOk`) marca esa imagen como aceptada
+    (`heavy_ok: { by, at }` en los datos de la imagen, con saveObject(), su versión en el historial
+    y Actividad `content.cover.accept`) y la saca de la lista; el aviso trae «Deshacer» (`?/portadaAsiDeshacer`,
+    Actividad `content.cover.unaccept`). La marca es de la imagen: una portada nueva es otra imagen
+    y se revisa de nuevo. Las fotos sin descripción y los videos sin transcripción no tienen «Dejar
+    así»: lo que falta ahí es un texto que alguien tiene que escribir.
+  - **Videos sin transcripción**: el material con un video en el texto (`<video>` o un enlace a un
+    MP4/WebM de la biblioteca) y sin «Transcripción». Cada uno lleva a la sección «Video» de su
+    editor (`#sec-video`), donde alguien que conoce el audio la escribe
+    ([imagenes.md](imagenes.md#video-transcripción-y-subtítulos)).
 - **Sin PRs de contenido** (gorrite, 9/10): el contenido vive solo en la base, así que los PRs
   `contenido/*` de GitHub ya no son filas y ninguna página del panel los pide para esto. El estado
   de un PR suelto (`contentPullStatus` en `src/lib/server/admin/contentPulls.js`) sigue para el
@@ -618,6 +677,65 @@ guarda en ningún lado.
   español en `static/fonts/1797/` con su `LICENSE.txt`; se carga solo en esta página. El logo es el
   del sitio (`src/routes/logo.png`) pasado a blanco y negro con un filtro.
 
+### Instagram
+
+**Instagram** (pestaña de la misma página, `/admin/eventos/agenda-impresa?modo=instagram`) arma el
+carrusel mensual «agenda kinky» para Instagram, copiando los posts que publica KinkyVibe (primera
+versión, para ir ajustando con gorrite). Como los volantes, **solo lee**: usa los mismos eventos,
+el mismo orden, las mismas tildes y los mismos cambios a mano (cambiar de pestaña no los pierde).
+
+- **Qué rango**: sin `?desde=&hasta=`, la agenda del mes: si hoy es antes del día 20, de hoy al
+  fin de este mes; desde el 20, el mes que viene entero (`instagramRange`). Los eventos nuevos del
+  rango entran todos tildados.
+- **Las placas** (1080 × 1350, 4:5; `src/lib/utils/agendaInstagram.js`, puro):
+  - **portada**: «agenda kinky», la bajada y la grilla del mes (semana desde el domingo): círculo
+    amarillo los días con eventos de KinkyVibe, aro violeta los de eventos amigos;
+  - **eventos de KinkyVibe** (los que tienen la etiqueta KinkyVibe), de a 3 (o 2), con la imagen
+    del evento alternando derecha e izquierda: día y hora («SÁBADO 24. 20:00HS»), el precio de los
+    volantes, el resumen del evento y el lugar en dos líneas (la primera es el lugar de los
+    volantes, **como lo ve cualquiera**; la segunda, «Dirección x privado» o el nombre del lugar
+    solo si es público). Sin imagen, un recuadro violeta con el título. Estrella «Nuevo» a mano.
+    La primera imagen va a la izquierda, como en el .ai;
+  - **el Fondo**: «este mes el N % del precio de las entradas… está cubierto por el Fondo», con la
+    barra; N arranca con el porcentaje de este mes (`resolveFondoPercent`, el mismo que descuentan
+    las entradas) y se cambia a mano (o se saca la placa);
+  - **la lista de actividades** (se puede sacar): «Actividades de <mes>» en la banda ancha y los
+    eventos de KinkyVibe de a 8, con la imagen chica, el título y «jueves 8 de octubre I 19:00 hs I
+    lugar»;
+  - **otros eventos amigos** (los que no tienen la etiqueta KinkyVibe): en la última placa, debajo
+    del último evento de KinkyVibe (4 entran ahí; los demás, de a 4 en placas propias con el título
+    en la banda ancha y sin pie, como en el .ai), con quién organiza (los autores menos KinkyVibe),
+    la imagen chica, el título y «SÁB 10 DE OCTUBRE I ALMAGRO» (la 1797 no dibuja la barra «|»: los
+    posts usan una «I»).
+- **Qué se cambia a mano**, además de lo de los volantes: el texto (el resumen), la segunda línea
+  del lugar, la estrella «Nuevo» y, en los amigos, quién organiza; de las placas, el mes, la
+  bajada, el pie, cuántos eventos por placa, el Fondo y si va la lista de actividades.
+- **Cómo se baja**: cada placa es un SVG con el diseño en HTML adentro (`foreignObject`) y todo
+  embebido como `data:` (letras, dibujo de fondo, logo e imágenes): la vista previa es esa misma
+  imagen y «Descargar» la dibuja en un canvas y la guarda como PNG; «Descargar todas» baja una por
+  una. Las imágenes de los eventos se piden al propio sitio (`/media/img/…`; las de kinkyvibe.ar
+  con la dirección entera, las del modo demo, primero acá) y se recortan al cuadrado, así el canvas
+  no queda bloqueado; si una no carga, va el recuadro violeta. Anda en Chrome y Firefox (Safari
+  puede negarse a guardar el PNG).
+- **El texto del posteo** se arma con los eventos (día, título, lugar público, precio, los amigos y
+  los links), se puede cambiar antes de copiarlo y cuenta los 2200 caracteres de Instagram.
+- **Medidas, letras y dibujos**: posiciones, tamaños, interlineados y colores salen del .ai
+  original de los posts que mandó gorrite (no está en el repo). Las letras son las del .ai: 1797
+  POSTER, MEDIUM y SIGNAGE (`static/fonts/1797/`, CC BY 4.0, con su `LICENSE.txt`; SIGNAGE con el
+  espaciado −50 del .ai); la portada, que en el .ai va en Arial, usa Arimo (Google Fonts, SIL OFL
+  1.1, mismas medidas que Arial; en `static/fonts/agenda-instagram/` con su `OFL.txt`), angostada
+  para la Arial Narrow de los números. «agenda kinky» está en curvas en el .ai: va el dibujo
+  calcado (potrace) de la portada de octubre, `static/instagram/agenda-kinky.svg` (relleno menta y
+  contorno con sombra), puesto en la caja `WORDMARK_BOX`; con `WORDMARK_URL` vacío
+  (`InstagramPosts.svelte`) vuelve a Fredoka angostada con el contorno hecho con sombras (con
+  `-webkit-text-stroke` se veían los contornos que Fredoka pisa adentro de cada letra). Todas
+  las letras se declaran en un solo lugar (el CSS de las placas en `agendaInstagram.js`) y se
+  cargan solo en esta pestaña. El dibujo de fondo es el de
+  los volantes (`static/agenda-impresa/fondo.svg`) al doble de tamaño y en el gris lila de los
+  posts, y el logo, el del sitio (`src/routes/logo.png`) recortado al círculo y con el rosa
+  cambiado por el violeta exacto de las placas. Detrás del logo del Fondo van tres manchas
+  desparejas (amarilla, menta y rosa), no círculos.
+
 ## El buscador
 
 **«Ir a… o buscar»** (opción C): el botón de la barra de arriba (y del header del celu) se llama
@@ -639,11 +757,14 @@ La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registro
 (`GET /admin/buscar`, `src/lib/server/admin/search.js`).
 
 - **Sin mayúsculas ni tildes, en todo**: «jose» encuentra «José», «nunez» a «Núñez», «muller» a
-  «Müller». Todo compara con `foldText` (`src/lib/server/tickets/orders.js`), la misma función de
-  los eventos, las etiquetas y la búsqueda de la Puerta. SQLite no ignora tildes, así que cada
+  «Müller», y también sin signos sueltos como `´ ^ ¨ ·`. Todo compara con `foldText`
+  (`src/lib/utils/text.js`), la misma función de los eventos, las etiquetas, la búsqueda de la
+  Puerta, las órdenes y el resto del sitio. SQLite no ignora tildes, así que cada
   consulta a la base usa un `LIKE` flojo (`looseLike`: las letras que pueden llevar tilde, como
   a e i o u n c y, valen cualquier carácter) y la comparación de verdad se hace en JS sobre lo que
-  vuelve, con un techo de `MAX_CANDIDATES` filas (las más nuevas). Sin columnas nuevas ni
+  vuelve, con un techo de `MAX_CANDIDATES` filas (las más nuevas). Como el `LIKE` no puede saltear
+  un carácter, los nombres se comparan sin los signos sueltos (`withoutSigns`): «mella» y «Mel·la»
+  traen a «Mel·la». Sin columnas nuevas ni
   migraciones: alcanza para cientos o pocos miles de filas. La referencia `KV-…`, el código de la
   entrada y el DNI se siguen comparando en SQL (el DNI nunca sale de la base).
 - **Qué encuentra y adónde lleva**: eventos (a la ficha; del primero salen atajos a Puerta,
@@ -742,6 +863,16 @@ El editor de texto de los formularios de eventos, material y amigues (CodeMirror
 sección (`import()`), no con el resto del panel. Mientras llega se ve el texto en un recuadro del
 mismo tamaño con «Cargando el editor…»; si no se puede bajar, queda un campo de texto común. Si
 agregás otro editor pesado, cargalo igual.
+
+El editor se arma directo con CodeMirror en `event-form/markdownEditor.js` (sin envoltorio de
+Svelte). Lo que se escribe llega al formulario en la misma transacción; un texto que viene de
+afuera (recuperar un borrador) entra como un cambio chico y solo si es distinto del que tiene
+(`markdownEditorSync.js`), sin rearmar el editor. Si CodeMirror tira errores seguidos, queda el
+campo de texto común con el mismo texto. Su scroll interno va con `scroll-behavior: auto` (el
+sitio pone `smooth` en todo): CodeMirror mueve ese scroll por código y lee la posición enseguida;
+con scroll suave dibuja las líneas equivocadas. No le pongas `overflow: hidden`, `transform` ni
+`scroll-behavior: smooth` a lo que lo rodea. La prueba con un texto largo está en
+`tests/tickets/editor-texto.spec.js` (corre con `npx playwright test -c playwright.tickets.config.js`).
 
 **Avisos para lectores de pantalla** (`src/lib/admin/announce.js`). Un `<p role="status">` que
 aparece junto con su texto (por ejemplo dentro de `{#if form?.x}`) no siempre se lee. Para eso hay

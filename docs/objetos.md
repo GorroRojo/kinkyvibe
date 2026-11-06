@@ -271,7 +271,7 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
 - **`lugar`**: «sucede en». `setEventVenue`/`removeEventVenue` guardan el evento con
   `saveObject()` (versión nueva, revisión `source = 'lugar'`) sin tocar `data`; si el evento se
   importó de un `.md` y no estaba editado, sigue sin estarlo (`content_sources.imported_version`).
-  El evento tiene que estar en la base. La tabla vieja `event_venues` queda sin uso.
+  El evento tiene que estar en la base. La tabla vieja `event_venues` la borra la migración 0075.
 - **`persona`**: los perfiles de la lista de personas. `at[i]` es el lugar de `roles[i]` en la
   lista única (`src/lib/utils/personasList.js`), así leer arma la misma lista en el mismo orden.
   En `data.personas` quedan los nombres sin perfil y las direcciones que no son de ningún perfil
@@ -446,20 +446,7 @@ Repaso del 28/10 (ítem `objetos-pendientes` del plan), mirado en el código:
 - Purga definitiva de lo borrado: sigue pendiente (ítem `borrar-para-siempre`).
 - Campos extra y tipos simples desde el panel (`object_types.origin = 'panel'`): sigue pendiente
   (ítem `campos-propios-tipos`, falta diseño).
-- **Borrar la tabla `event_venues`** (ítem `event-venues-borrar`): ya nadie la escribe ni la lee
-  en producción. Lo que queda, en el código:
-  - **La única lectura**: `legacyVenueEdge()` en `contenido/importer.js`, al importar de un `.md`
-    un evento que no estaba en la base (le pasaba el lugar de la tabla vieja). Desde 0032 eso solo
-    pasa con la semilla, en una base nueva donde la tabla está vacía; ya atrapa el error si la
-    tabla no existe. Se borra la función y su llamada.
-  - **El modo demo**: `demo/seed.js` tiene una entrada `event_venues` (`optional`, sin filas) que
-    solo borra filas de seeds viejos; se saca, y su nombre de la lista de `demo/seed.test.js`.
-  - **Pruebas**: `amigues/venues.test.js` («nada de `event_venues`», que inserta una fila vieja)
-    se saca o se cambia junto con la migración. `db/migration0027.test.js` y
-    `db/migration0035.test.js` aplican solo las migraciones hasta la suya: siguen andando.
-  - **Antes de la migración** (la decide y la aplica gorrite): mirar en producción que cada fila
-    de `event_venues` tenga su edge `lugar` en el evento (la 0035 los pasó; las de eventos que
-    seguían en `.md` se pasaban al importarlos) y que no queden filas de eventos que no están en
-    la base. Después, una migración nueva con `DROP TABLE IF EXISTS event_venues;` (el índice
-    `event_venues_venue` se va con la tabla), aplicada en producción y en preview antes de
-    mergear el código que la acompaña (0028).
+- **Borrar la tabla `event_venues`** (ítem `event-venues-borrar`): hecho. El código que la usaba
+  salió en #625 y la migración 0075 se aplicó en producción y en preview el 4/11, después del merge,
+  con un marcador de time travel antes y el chequeo que trae escrito (0 eventos sin su edge
+  `lugar`).

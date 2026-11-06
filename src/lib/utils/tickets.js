@@ -377,8 +377,14 @@ export function unitPrice(price, fondo, option) {
  *      redondeado al peso, como aporte al fondo;
  * 3. subtotal = lista − fondo + aporte
  * 4. descuento (código) sobre el subtotal, redondeado al peso, nunca más que el subtotal
- * 5. recargo de Mercado Pago sobre lo que queda (solo con Mercado Pago y si queda algo)
- * 6. total = subtotal − descuento + recargo
+ * 5. recargo de Mercado Pago sobre lo que queda **más los extras** (solo con Mercado Pago y si
+ *    queda algo): el recargo es de todo lo que se paga por MP
+ * 6. total = subtotal − descuento + recargo (la parte de las entradas: el `total` de la orden, con
+ *    los CHECK de la base)
+ * 7. paid = total + extras: lo que se paga en total (`orderPaid` de ./extras.js)
+ *
+ * `extras` (pesos, ya sumados a precio de lista: `extrasAmount` de ./extras.js): los extras de la
+ * compra (decisión 0056). **El Fondo y el código de descuento no los tocan**; solo el recargo.
  *
  * Sin `option`, se usa la opción por defecto (con fondo si hay fondo).
  *
@@ -393,7 +399,8 @@ export function unitPrice(price, fondo, option) {
  *   quantity: number,
  *   discount?: { kind: DiscountKind, value: number } | null,
  *   method?: string,
- *   feeBasisPoints?: number
+ *   feeBasisPoints?: number,
+ *   extras?: number
  * }} input
  */
 export function computePrice({
@@ -403,8 +410,10 @@ export function computePrice({
 	quantity,
 	discount,
 	method,
-	feeBasisPoints = 0
+	feeBasisPoints = 0,
+	extras = 0
 }) {
+	if (!Number.isSafeInteger(extras) || extras < 0) throw new RangeError('Extras inválidos');
 	const gorra = option === 'gorra';
 	/** @type {PriceOption} */
 	const chosen = gorra ? 'gorra' : (option ?? defaultFondoOption(fondo));
@@ -415,7 +424,7 @@ export function computePrice({
 	const fondoAmount = unit.fondo * quantity;
 	const contribution = unit.contribution * quantity;
 	const d = applyDiscount(list - fondoAmount + contribution, gorra ? null : discount);
-	const surcharge = method === 'mercadopago' ? mpSurcharge(d.total, feeBasisPoints) : 0;
+	const surcharge = method === 'mercadopago' ? mpSurcharge(d.total + extras, feeBasisPoints) : 0;
 	return {
 		option: chosen,
 		unit: unit.price,
@@ -425,7 +434,9 @@ export function computePrice({
 		subtotal: d.subtotal,
 		discount: d.discount,
 		surcharge,
-		total: d.total + surcharge
+		total: d.total + surcharge,
+		extras,
+		paid: d.total + surcharge + extras
 	};
 }
 
@@ -484,6 +495,19 @@ export function refundPolicy(contactEmail) {
 			`Si le pasás tu entrada a otra persona, escribinos a ${contactEmail} con su nombre, sus pronombres y su email.`
 		]
 	};
+}
+
+/**
+ * La línea fija de +18 (gorrite, 26/10): en la página del evento, junto al botón de las entradas,
+ * y en el mail de las entradas. La pone el código, fuera de los textos editables: ninguna
+ * plantilla ni cuerpo de evento la puede sacar. En un evento online no hay puerta.
+ *
+ * @param {boolean} [online]
+ */
+export function adultsOnlyText(online = false) {
+	return online
+		? 'Solo para personas mayores de 18 años.'
+		: 'Solo para personas mayores de 18 años. Puede pedirse documento en la puerta.';
 }
 
 /**

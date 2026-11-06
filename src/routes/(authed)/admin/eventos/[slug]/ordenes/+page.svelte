@@ -8,6 +8,7 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import OrderAnswers from '$lib/components/admin/OrderAnswers.svelte';
 	import DniReveal from '$lib/components/admin/DniReveal.svelte';
+	import InvoicedCheck from '$lib/components/admin/InvoicedCheck.svelte';
 	import { announce, announceResult } from '$lib/admin/announce.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { foldSearch } from '$lib/admin/eventFormat.js';
@@ -19,10 +20,10 @@
 		dniQueryDigits,
 		orderFilterFor,
 		orderIdFromHash,
+		orderMoneyLines,
 		shortTime
 	} from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
-	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 	import { replaceState } from '$app/navigation';
 	import {
 		DEFAULT_ORDER_SORT,
@@ -45,7 +46,9 @@
 			? data.orders
 			: filter === 'pending'
 				? data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
-				: data.orders.filter((o) => o.status === filter);
+				: filter === 'uninvoiced'
+					? data.orders.filter((o) => o.toInvoice && !o.invoicedAt)
+					: data.orders.filter((o) => o.status === filter);
 	// El DNI completo no está en la página: las palabras que parecen un DNI se buscan en el
 	// servidor (`?/dniSearch`, devuelve los ids de las órdenes que coinciden). Nombre, email,
 	// referencia y personas se buscan acá.
@@ -190,6 +193,7 @@
 		pending: data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
 			.length,
 		refunded: data.orders.filter((o) => o.status === 'refunded').length,
+		uninvoiced: data.orders.filter((o) => o.toInvoice && !o.invoicedAt).length,
 		all: data.orders.length
 	};
 </script>
@@ -365,6 +369,7 @@
 				<option value="approved">Aprobadas ({counts.approved})</option>
 				<option value="pending">Pendientes ({counts.pending})</option>
 				<option value="refunded">Reembolsadas ({counts.refunded})</option>
+				<option value="uninvoiced">Sin facturar ({counts.uninvoiced})</option>
 				<option value="all">Todas ({counts.all})</option>
 			</select>
 		</label>
@@ -393,6 +398,7 @@
 	{/if}
 	<ul class="orders">
 		{#each shown as o (o.id)}
+			{@const money = orderMoneyLines(o)}
 			<li class="order status-{o.status}" class:linked={o.id === linked} id="orden-{o.id}">
 				<div class="who">
 					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}
@@ -402,25 +408,16 @@
 						><span class="status">{ORDER_STATUS[o.status]}</span></Badge
 					>
 				</div>
+				<!-- Lo pagado y lo que queda arriba; el desglose (Fondo, recargo, comisión, extras) abajo,
+				     chico (opción A de gorrite). -->
 				<div class="what">
-					{o.quantity} × {o.type} · <strong>{formatARS(o.total)}</strong>
-					{#if o.gorra !== null}<small>(a la gorra, {formatARS(o.gorra)} c/u)</small>{/if}
-					{#if o.fondo}<small>(fondo −{formatARS(o.fondo)})</small>{/if}
-					{#if o.contribution}<small
-							>({fondoOptionLabel(o.fondoOption)}: aporte al fondo +{formatARS(
-								o.contribution
-							)})</small
-						>{/if}
-					{#if o.discountAmount}<small
-							>(código {o.discountCode}, −{formatARS(o.discountAmount)})</small
-						>{/if}
-					{#if o.surcharge}<small>(recargo MP +{formatARS(o.surcharge)})</small>{/if}
-					{#if o.mpFee !== null}<small>(comisión de MP {formatARS(o.mpFee)})</small>{/if}
+					{money.main}
 					· {PAYMENT_METHOD[o.method]}
 					{#if o.status === 'approved'}
 						· ingresaron {o.checkedIn}/{o.quantity}
 					{/if}
 				</div>
+				{#if money.detail}<p class="what-detail">{money.detail}</p>{/if}
 				{#if o.refundedAmount}<p class="admin-note">
 						Reembolso parcial en Mercado Pago: {formatARS(o.refundedAmount)} (quedan {formatARS(
 							Math.max(0, o.total - o.refundedAmount)
@@ -475,6 +472,14 @@
 							: ' (desde Mercado Pago)'}
 					{/if}
 				</div>
+				{#if o.toInvoice || o.invoicedAt}
+					<!-- Ya se facturó esta compra (solo admins). -->
+					<InvoicedCheck
+						orderId={o.id}
+						bind:invoicedAt={o.invoicedAt}
+						bind:invoicedBy={o.invoicedBy}
+					/>
+				{/if}
 				{#if o.status === 'approved'}
 					<!-- Quien compró escribió mal su mail: se corrige y las entradas salen a la nueva. -->
 					<details class="email-fix" open={form?.emailFix?.order === o.id && !form.emailFix.ok}>
@@ -737,6 +742,12 @@
 		font-size: var(--text-sm);
 	}
 	.meta {
+		color: var(--muted);
+	}
+	/* El desglose de la plata, debajo de «Pagó … · te quedan …»: chico y gris. */
+	.what-detail {
+		margin: 0;
+		font-size: var(--text-xs);
 		color: var(--muted);
 	}
 	.meta form {

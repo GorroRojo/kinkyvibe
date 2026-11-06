@@ -84,11 +84,13 @@ import {
 	CalendarPlus,
 	CalendarRange,
 	ChartLine,
+	ClipboardList,
 	Database,
 	Eye,
 	EyeOff,
 	FileSpreadsheet,
 	FileText,
+	GalleryHorizontal,
 	CircleUser,
 	DoorClosed,
 	HandCoins,
@@ -446,6 +448,19 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// Formularios propios, la encuesta de cada evento y plantillas (docs/formularios.md,
+		// decisión 0057). Con el interruptor apagado las páginas dan 404.
+		id: 'formularios',
+		href: '/admin/comunidad/formularios',
+		icon: ClipboardList,
+		emoji: '📋',
+		label: 'Formularios',
+		area: 'comunidad',
+		soon: false,
+		flag: 'formularios',
+		hiddenWhenOff: true
+	},
+	{
 		// Personas que la organización no admite en los eventos de Kinky Vibe (decisión 0053). Solo
 		// admins; el motivo se ve solo ahí.
 		id: 'avisos-puerta',
@@ -634,6 +649,18 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 
+	{
+		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
+		// Era Ajustes › Plata (mudada acá a pedido de gorrite); la dirección vieja redirige.
+		id: 'propinas',
+		href: '/admin/estadisticas/propinas',
+		icon: HandCoins,
+		emoji: '🪙',
+		label: 'Propinas',
+		area: 'estadisticas',
+		soon: false
+	},
+
 	// Ajustes (al pie)
 	{
 		// La portada de Ajustes (decisión 0042): una tarjeta por sección, en sus cuatro subgrupos,
@@ -669,15 +696,15 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
-		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
-		id: 'propinas',
-		href: '/admin/ajustes/propinas',
+		// Cotización, ajuste y retiros de las propinas por PayPal (decisión 0054, docs/propinas.md).
+		id: 'ajustes-paypal',
+		href: '/admin/ajustes/paypal',
 		icon: HandCoins,
-		emoji: '🪙',
-		label: 'Propinas',
+		emoji: '💵',
+		label: 'PayPal',
 		area: 'ajustes',
 		sub: 'plata',
-		desc: 'Las propinas que entraron, por mes y por publicación',
+		desc: 'Cotización del dólar, su ajuste y los retiros de las propinas por PayPal',
 		soon: false
 	},
 	{
@@ -690,6 +717,19 @@ export const NAV = Object.freeze([
 		area: 'ajustes',
 		sub: 'comunicacion',
 		desc: 'Cómo se ve un link del sitio en WhatsApp, Telegram o X',
+		soon: false
+	},
+	{
+		// El carrusel de la portada (docs/estilo.md, «Carrusel de la portada»): el estilo de las
+		// diapositivas y los colores de los flyers.
+		id: 'ajustes-carrusel',
+		href: '/admin/ajustes/carrusel',
+		icon: GalleryHorizontal,
+		emoji: '🎠',
+		label: 'Carrusel de la portada',
+		area: 'ajustes',
+		sub: 'comunicacion',
+		desc: 'El estilo de cada evento arriba de la portada y los colores de los flyers',
 		soon: false
 	},
 	{
@@ -788,7 +828,10 @@ export const EVENT_TABS = Object.freeze(
 				{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias' },
 				// Lista de espera (interruptor `lista_espera`): la ficha la muestra con la lista
 				// prendida, o si el evento ya tiene lista o gente anotada.
-				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' }
+				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' },
+				// Gastos y reparto (prototipo, interruptor `gastos_reparto`): la ficha la muestra solo
+				// con el interruptor prendido.
+				{ id: 'gastos', suffix: '/gastos', label: 'Gastos y reparto' }
 			]
 		},
 		{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false, section: 'checkin' },
@@ -810,7 +853,10 @@ export const EVENT_TABS = Object.freeze(
 			emoji: '✉️',
 			views: [
 				{ id: 'mail', suffix: '/mail', label: 'Mandar un aviso' },
-				{ id: 'mails', suffix: '/mails', label: 'Plantillas' }
+				{ id: 'mails', suffix: '/mails', label: 'Plantillas' },
+				// La encuesta de después del evento (interruptor `formularios`, docs/formularios.md):
+				// la ficha la muestra solo con el interruptor prendido.
+				{ id: 'encuesta', suffix: '/encuesta', label: 'Encuesta' }
 			]
 		},
 		// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.

@@ -28,6 +28,9 @@ import { answersStatement } from './signupFields.js';
 import { markPurchasedStatement } from './waitlist.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
 import { MP_FEE_ESTIMATED_SQL, MP_FEE_SQL, REVENUE_SQL } from '$lib/utils/salesGoal.js';
+import { foldText } from '$lib/utils/text.js';
+import { extrasAmount, orderPaid } from '$lib/utils/extras.js';
+import { extrasStatements, isExtrasStockError } from './extras.js';
 
 // El código corto se normaliza también en el navegador (modo puerta sin conexión).
 export { TICKET_CODE_LENGTH, normalizeTicketCode };
@@ -55,7 +58,8 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
  *   admin_note?: string | null, ticket_tier?: string | null,
  *   client_sale_id?: string | null, offline_review?: string | null,
- *   door_list_price?: number | null
+ *   door_list_price?: number | null, extras_amount?: number,
+ *   invoiced_at?: number | null, invoiced_by?: string | null
  * }} Order
  */
 /**
@@ -161,9 +165,15 @@ export function newToken() {
  *   limits?: typeof HOLD_LIMITS,
  *   answers?: import('$lib/utils/signupFields.js').Answer[],
  *   waitlist?: import('./waitlistPurchase.js').WaitlistGuard | null,
- *   freeOnce?: boolean
+ *   freeOnce?: boolean,
+ *   extras?: (import('$lib/utils/extras.js').ExtraLine & { capacity: number | null })[]
  * }} input
  * Con `type.capacity` `null` (sin cupo) no hay límite de entradas del tipo.
+ * `extras` (interruptor `extras`, decisión 0056): lo que se lleva además de las entradas, a precio
+ * de lista (sin Fondo ni código). Se suma a lo que se paga y al recargo de MP (`computePrice`), va a
+ * `orders.extras_amount` y a `order_extras` en la misma tanda, con el tope de cada extra controlado
+ * ahí (extras.js). Si un extra no alcanza no se crea nada: `reason: 'extras'`. Sin `extras` (o
+ * vacío) la sentencia es la de siempre y no nombra nada de la migración 0077.
  * `freeOnce` (entradas gratis con un mail que no es el de la cuenta con sesión): la MISMA
  * sentencia controla que ese mail no tenga otra orden gratis aprobada o reservada en el evento; si
  * la tiene, `reason: 'free'`.
@@ -187,6 +197,7 @@ export function newToken() {
  *   | { ok: false, reason: 'code', message: string }
  *   | { ok: false, reason: 'tier' }
  *   | { ok: false, reason: 'free' }
+ *   | { ok: false, reason: 'extras' }
  *   | { ok: false, reason: 'method' }>}
  */
 export async function reserveOrder(db, input) {
@@ -202,6 +213,7 @@ export async function reserveOrder(db, input) {
 	// Los códigos de descuento no aplican a la gorra.
 	const discount = gorra ? null : (input.discount ?? null);
 	const method = input.method ?? 'mercadopago';
+	const extraLines = (input.extras ?? []).filter((l) => l.quantity > 0);
 	const prices = computePrice({
 		price,
 		fondo: gorra ? 0 : (type.fondo ?? 0),
@@ -209,10 +221,11 @@ export async function reserveOrder(db, input) {
 		quantity,
 		discount,
 		method,
-		feeBasisPoints: input.feeBasisPoints ?? 0
+		feeBasisPoints: input.feeBasisPoints ?? 0,
+		extras: extrasAmount(extraLines)
 	});
-	// El medio "gratis" es solo para total 0, y un total 0 solo puede ser "gratis".
-	if ((method === 'gratis') !== (prices.total === 0)) return { ok: false, reason: 'method' };
+	// El medio "gratis" es solo para lo pagado 0 (entradas y extras), y 0 solo puede ser "gratis".
+	if ((method === 'gratis') !== (prices.paid === 0)) return { ok: false, reason: 'method' };
 	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
 	const holdMs =
 		input.holdMs ?? (method === 'transferencia' ? transferDeadline(now) - now : HOLD_MS);
@@ -231,17 +244,27 @@ export async function reserveOrder(db, input) {
 	const purchased = guard?.entryId
 		? [markPurchasedStatement(db, { entryId: guard.entryId, orderId: id, now })]
 		: [];
-	const [, inserted] = await db.batch([
-		expireStatement(db, eventSlug, now),
-		db
-			.prepare(
-				`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
+	// Los extras (si hay): la columna solo se nombra con extras, y su valor es un entero que calculó
+	// `computePrice` (no viene del formulario).
+	const extrasCol = extraLines.length ? ', extras_amount' : '';
+	const extrasVal = extraLines.length ? `, ${prices.extras}` : '';
+	const extrasRows = extraLines.length
+		? extrasStatements(db, { orderId: id, eventSlug, lines: extraLines, now })
+		: [];
+	/** @type {import('@cloudflare/workers-types').D1Result[]} */
+	let batch;
+	try {
+		batch = await db.batch([
+			expireStatement(db, eventSlug, now),
+			db
+				.prepare(
+					`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
 					discount_code, discount_amount, total, payment_method, buyer_name, buyer_email,
 					holders, status, created_at, updated_at, expires_at, fondo_amount,
 					surcharge_amount, buyer_dni, fondo_option, fondo_contribution, buyer_pronouns,
-					fondo_percent, client_hash, ticket_tier)
+					fondo_percent, client_hash, ticket_tier${extrasCol})
 				SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?12, ?15, ?16, ?17, ?7, ?8, ?18, ?19, ?9, ?9, ?10,
-					?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?31
+					?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?31${extrasVal}
 				WHERE ${openHoldsSql('buyer_email = ?8', 'SUM(quantity)')} + ?4 <= ?28
 				AND ${openHoldsSql('buyer_email = ?8', 'COUNT(*)')} < ?29
 				AND (?27 IS NULL OR ${openHoldsSql('client_hash = ?27', 'SUM(quantity)')} + ?4 <= ?30)
@@ -257,45 +280,52 @@ export async function reserveOrder(db, input) {
 				) + ?4 <= ?32)
 				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9', qty: '?4', email: '?8' })}
 				${input.freeOnce ? `${FREE_ONCE_SQL}\n\t\t\t\t` : ''}${guard ? `${WAITLIST_GUARD_SQL}\n\t\t\t\t` : ''}RETURNING *`
-			)
-			.bind(
-				id,
-				eventSlug,
-				type.id,
-				quantity,
-				price,
-				prices.subtotal,
-				buyer.name,
-				buyer.email,
-				now,
-				now + holdMs,
-				type.capacity,
-				discount?.code ?? null,
-				discount?.kind ?? null,
-				discount?.value ?? null,
-				prices.discount,
-				prices.total,
-				method,
-				JSON.stringify(holders),
-				status,
-				prices.fondo,
-				prices.surcharge,
-				buyer.dni,
-				prices.option,
-				prices.contribution,
-				'pronouns' in buyer && buyer.pronouns ? buyer.pronouns : null,
-				gorra ? null : (input.fondoPercent ?? null),
-				clientHash,
-				limits.perEmailQuantity,
-				limits.perEmailOrders,
-				limits.perClientQuantity,
-				tier?.id ?? null,
-				tier?.quantity ?? null,
-				...(guard ? [guard.entryId, JSON.stringify(guard.caps), guard.scope] : [])
-			),
-		...answers,
-		...purchased
-	]);
+				)
+				.bind(
+					id,
+					eventSlug,
+					type.id,
+					quantity,
+					price,
+					prices.subtotal,
+					buyer.name,
+					buyer.email,
+					now,
+					now + holdMs,
+					type.capacity,
+					discount?.code ?? null,
+					discount?.kind ?? null,
+					discount?.value ?? null,
+					prices.discount,
+					prices.total,
+					method,
+					JSON.stringify(holders),
+					status,
+					prices.fondo,
+					prices.surcharge,
+					buyer.dni,
+					prices.option,
+					prices.contribution,
+					'pronouns' in buyer && buyer.pronouns ? buyer.pronouns : null,
+					gorra ? null : (input.fondoPercent ?? null),
+					clientHash,
+					limits.perEmailQuantity,
+					limits.perEmailOrders,
+					limits.perClientQuantity,
+					tier?.id ?? null,
+					tier?.quantity ?? null,
+					...(guard ? [guard.entryId, JSON.stringify(guard.caps), guard.scope] : [])
+				),
+			...extrasRows,
+			...answers,
+			...purchased
+		]);
+	} catch (error) {
+		// Un extra no alcanzó: la tanda entera (con la orden) se deshizo.
+		if (isExtrasStockError(error)) return { ok: false, reason: 'extras' };
+		throw error;
+	}
+	const inserted = batch[1];
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
 	if (order) return { ok: true, order };
 	if (input.freeOnce && (await hasFreeOrder(db, { eventSlug, email: buyer.email, now })))
@@ -945,10 +975,12 @@ async function applyPaymentStatus(db, payment, { now = Date.now(), capacityOf } 
 	}
 
 	// El monto y la moneda tienen que coincidir con lo que calculamos nosotres al crear la orden.
-	if (payment.currency_id !== 'ARS' || Number(payment.transaction_amount) !== order.total) {
+	// Con extras (migración 0077), lo que se paga es `total + extras_amount` (`orderPaid`).
+	const due = orderPaid(order);
+	if (payment.currency_id !== 'ARS' || Number(payment.transaction_amount) !== due) {
 		console.error(
 			`[tickets] pago ${paymentId} no coincide con la orden ${order.id}: ` +
-				`${payment.transaction_amount} ${payment.currency_id} ≠ ${order.total} ARS`
+				`${payment.transaction_amount} ${payment.currency_id} ≠ ${due} ARS`
 		);
 		return { outcome: 'mismatch', order, newlyApproved: false, tickets: [] };
 	}
@@ -1340,19 +1372,8 @@ export async function listOrders(db, eventSlug) {
 	return /** @type {(Order & { checked_in: number })[]} */ (results);
 }
 
-/**
- * Texto para comparar sin distinguir mayúsculas ni tildes ("Ñandú José" → "nandu jose").
- *
- * @param {unknown} value
- */
-export function foldText(value) {
-	return String(value ?? '')
-		.normalize('NFD')
-		.replace(/\p{Diacritic}/gu, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
-}
+/** Texto para comparar sin distinguir mayúsculas ni tildes: la receta única de $lib/utils/text.js. */
+export { foldText };
 
 /** @typedef {'code' | 'holder' | 'pronouns' | 'buyer' | 'email' | 'dni'} SearchField */
 

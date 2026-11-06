@@ -10,9 +10,15 @@ import { libraryCoverOf } from '$lib/server/contenido/posts.js';
 import { EVENT_CATEGORY } from '$lib/server/contenido/eventos.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
-import { salesByType, ticketsFileErrors, waitlistLiveFor } from '$lib/server/tickets/editor.js';
+import {
+	extrasSalesFor,
+	salesByType,
+	ticketsFileErrors,
+	waitlistLiveFor
+} from '$lib/server/tickets/editor.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { transferReady } from '$lib/server/tickets/index.js';
+import { editorFondoPercent } from '$lib/server/tickets/fondo.js';
 import { linkFileErrors, placeFileErrors } from '$lib/server/eventos/fileErrors.js';
 import {
 	checkVenueChoice,
@@ -72,9 +78,9 @@ export async function load(event) {
 
 /**
  * El load del editor, para cualquier categoría (también la usa la pestaña Editar del panel).
- * @param {{ locals: App.Locals, params: {category: string, postID: string}, url: URL, platform?: App.Platform }} event
+ * @param {{ locals: App.Locals, params: {category: string, postID: string}, url: URL, platform?: App.Platform, fetch?: typeof fetch }} event
  */
-export async function _editLoad({ locals, params, url, platform }) {
+export async function _editLoad({ locals, params, url, platform, fetch: fetchFn }) {
 	// Server loads run in parallel with the layout load, so guard here too.
 	requireAdmin(locals, url);
 	const path = postPath(params);
@@ -91,6 +97,9 @@ export async function _editLoad({ locals, params, url, platform }) {
 		// anotada por alcance (no deja apagarla ni cambiar el alcance con gente anotada).
 		isEvent ? isFlagOn(db, 'lista_espera') : null,
 		isEvent ? waitlistLiveFor(db, params.postID) : null,
+		// «Extras» en la sección Entradas (interruptor `extras`, decisión 0056).
+		isEvent ? isFlagOn(db, 'extras') : false,
+		isEvent ? extrasSalesFor(db, params.postID) : null,
 		// «Lugar» del formulario: los lugares y el elegido (edge `lugar` del evento, no en el archivo).
 		isEvent ? venuePickerData(db, params.postID) : null,
 		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
@@ -100,7 +109,10 @@ export async function _editLoad({ locals, params, url, platform }) {
 		// Personas con rol: roles y perfiles públicos (sin base, null).
 		params.category === 'amigues' ? null : editorPersonas(platform),
 		// La imagen de la biblioteca (la vieja del repo sale del texto, más abajo).
-		isEvent ? eventLibraryImage(db, locals, params.postID) : null
+		isEvent ? eventLibraryImage(db, locals, params.postID) : null,
+		// El porcentaje del Fondo de hoy, para mostrar los precios con el Fondo en Entradas (sin
+		// esperar a fondo.kinkyvibe.ar; `null` si no se sabe).
+		isEvent ? editorFondoPercent({ db, fetch: fetchFn, ctx: platform?.ctx }) : null
 	]);
 	rest.catch(() => {}); // si la publicación no está, lo demás no cuenta
 	const post = await postP;
@@ -108,19 +120,25 @@ export async function _editLoad({ locals, params, url, platform }) {
 		sales,
 		waitlistEnabled,
 		waitlistLive,
+		extrasEnabled,
+		extrasSales,
 		venuePicker,
 		transfer,
 		editor,
 		personas,
-		libraryImage
+		libraryImage,
+		fondoPercent
 	] = await rest;
 	return {
 		sales,
 		waitlistEnabled,
 		waitlistLive,
+		extrasEnabled,
+		extrasSales,
 		venuePicker,
 		salesUnavailable: isEvent && sales === null,
 		transferReady: transfer,
+		fondoPercent,
 		post,
 		...editor,
 		personas,
@@ -213,7 +231,8 @@ export const _editActions = {
 				params,
 				fileContent,
 				await salesByType(getDB(platform), params.postID),
-				await waitlistLiveFor(getDB(platform), params.postID)
+				await waitlistLiveFor(getDB(platform), params.postID),
+				await extrasSalesFor(getDB(platform), params.postID)
 			);
 			if (ticketError) return fail(400, { error: ticketError });
 			// «Dónde»: el link al mapa, si está, https de OpenStreetMap o Google Maps.
@@ -376,10 +395,18 @@ function eventTagError(content) {
  * @param {string} content
  * @param {import('$lib/utils/ticketsEditor.js').SalesByType | null} sales
  * @param {Record<string, number> | null} [waitlistLive] gente anotada en la lista de espera
+ * @param {Record<string, number> | null} [extrasSales] vendidos y reservados por extra
  */
-async function newTicketsError(token, params, content, sales, waitlistLive = null) {
+async function newTicketsError(
+	token,
+	params,
+	content,
+	sales,
+	waitlistLive = null,
+	extrasSales = null
+) {
 	return newFileErrors(token, params, content, (c) =>
-		ticketsFileErrors(c, { sales, waitlistLive })
+		ticketsFileErrors(c, { sales, waitlistLive, extrasSales })
 	);
 }
 

@@ -23,7 +23,9 @@ export const ACCOUNT_EVENT_ACTIONS = Object.freeze({
 	accountCreated: 'account.create',
 	profileCreated: 'profile.create',
 	signupAnswersViewed: 'signup_answers.view',
-	venueResubmitted: 'profile.resubmit'
+	formResponsesViewed: 'form_responses.view',
+	venueResubmitted: 'profile.resubmit',
+	profileEdited: 'profile.account_edit'
 });
 
 const actor = { user: { login: ACCOUNT_EVENT_ACTOR } };
@@ -98,6 +100,36 @@ export function logSignupAnswersViewed(db, entry, { now = Date.now() } = {}) {
 }
 
 /**
+ * Quien organiza un evento vio (o bajó) las respuestas de un formulario de ese evento en Mi
+ * rincón (docs/formularios.md). Sin las respuestas.
+ *
+ * @param {D1Database} db
+ * @param {{ accountId: string, profile: { id: number, title: string }, eventSlug: string,
+ *   formId: number, formTitle: string, csv: boolean }} entry
+ * @param {{ now?: number }} [opts]
+ */
+export function logFormResponsesViewed(db, entry, { now = Date.now() } = {}) {
+	const what = entry.csv ? 'bajó en CSV' : 'vio';
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.formResponsesViewed,
+			targetType: 'profile',
+			targetId: entry.profile.id,
+			summary: `«${entry.profile.title}» ${what} las respuestas de «${entry.formTitle}»`,
+			detail: {
+				event: entry.eventSlug,
+				form: entry.formId,
+				account: entry.accountId,
+				csv: entry.csv
+			}
+		},
+		{ now }
+	);
+}
+
+/**
  * "Volvieron a mandar un lugar rechazado" (quien lo gestiona tocó «Volver a mandar» en Mi
  * rincón): vuelve a "Para aprobar" en Eventos → Lugares.
  *
@@ -114,6 +146,32 @@ export function logVenueResubmitted(db, profile, { now = Date.now() } = {}) {
 			targetType: 'profile',
 			targetId: profile.id,
 			summary: `Volvieron a mandar el lugar «${profile.title}» para aprobar`
+		},
+		{ now }
+	);
+}
+
+/**
+ * "Editó su perfil" (quien lo gestiona lo guardó desde Mi rincón): solo de un perfil que une
+ * admin ya aprobó, que sale al toque sin volver a «Para aprobar» (decisión de gorrite, Mesa
+ * chica-532-revision-perfiles). Lo que cambió se ve en el historial del perfil (T31); acá van
+ * solo el nombre y el tipo, como en "perfil creado".
+ *
+ * @param {D1Database} db
+ * @param {{ id: number, title: string, kind: string }} profile
+ * @param {{ now?: number }} [opts]
+ */
+export function logProfileEdited(db, profile, { now = Date.now() } = {}) {
+	const kind = profileKindOf(profile);
+	return logAdminAction(
+		db,
+		actor,
+		{
+			action: ACCOUNT_EVENT_ACTIONS.profileEdited,
+			targetType: 'profile',
+			targetId: profile.id,
+			summary: `«${profile.title}» editó su perfil (${kind})`,
+			detail: { kind }
 		},
 		{ now }
 	);

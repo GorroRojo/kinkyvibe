@@ -23,6 +23,7 @@
  */
 
 import { SEARCH_SCOPE } from './searchScope.js';
+import { foldText } from './text.js';
 
 /** @typedef {'sitio' | 'bot' | 'panel'} Engine */
 /** @typedef {'calendario' | 'material' | 'amigues' | 'wiki' | 'serie'} DocType */
@@ -450,17 +451,10 @@ export function dayInWhen(start, end, when, now = Date.now()) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Texto para comparar sin distinguir mayúsculas ni tildes ("Ñandú José" → "nandu jose").
- * @param {unknown} value
+ * Texto para comparar sin distinguir mayúsculas ni tildes ("Ñandú José" → "nandu jose"): la
+ * receta única ({@link foldText} de ./text.js).
  */
-export function foldQuery(value) {
-	return String(value ?? '')
-		.normalize('NFD')
-		.replace(/\p{Diacritic}/gu, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
-}
+export const foldQuery = foldText;
 
 /**
  * @typedef {{ neg: boolean, key: string | null, value: string, quoted: boolean, src: string }} Piece

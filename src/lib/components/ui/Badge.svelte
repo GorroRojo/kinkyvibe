@@ -8,6 +8,9 @@
 	 * `filled` (default false: relleno del color, texto blanco, como las etiquetas marcadas),
 	 * `icon` (componente de Lucide; si no se pasa, va el del tono: ✓ ok, ⚠ warn, ! bad, i info,
 	 * ○ neutral y accent). Si el slot ya trae su propio ícono de Lucide, el automático no se muestra.
+	 * `surface`: 'panel' (default, los tokens del panel) | 'sitio' (fuera del panel, con los del
+	 * sitio: `--3-ink`, `--4-ink`, `--error`, `--2-dark`, `--1-ink`; llenas, texto blanco sobre esos
+	 * mismos, todos a 6:1 o más).
 	 * Color: cuando se comparan muchas, el tono dice qué significa; cuando son pocas, que combine
 	 * con el componente.
 	 */
@@ -20,6 +23,8 @@
 	export let filled = false;
 	/** @type {any} */
 	export let icon = null;
+	/** @type {'panel' | 'sitio'} */
+	export let surface = 'panel';
 
 	const TONE_ICONS = {
 		neutral: Circle,
@@ -32,7 +37,7 @@
 	$: auto = icon ?? TONE_ICONS[tone] ?? Circle;
 </script>
 
-<span class="badge {tone}" class:filled {title}
+<span class="badge {tone}" class:filled class:sitio={surface === 'sitio'} {title}
 	><span class="auto" aria-hidden="true"><svelte:component this={auto} size={12} /></span><slot
 	/></span
 >
@@ -92,6 +97,34 @@
 	.filled.info {
 		background: var(--2);
 		border-color: var(--2);
+		color: white;
+	}
+	/* Sitio: los tokens del sitio. Llenas, el texto blanco va sobre el tono oscuro de cada color
+	   (el rosa y el violeta de la marca no llegan a 4.5:1 con blanco). */
+	.sitio {
+		--c: var(--muted);
+	}
+	.sitio.ok {
+		--c: var(--3-ink);
+	}
+	.sitio.warn {
+		--c: var(--4-ink);
+	}
+	.sitio.bad {
+		--c: var(--error);
+	}
+	.sitio.info {
+		--c: var(--2-dark);
+	}
+	.sitio.accent {
+		--c: var(--1-ink);
+	}
+	.sitio.filled,
+	.sitio.filled.bad,
+	.sitio.filled.accent,
+	.sitio.filled.info {
+		background: var(--c);
+		border-color: var(--c);
 		color: white;
 	}
 </style>

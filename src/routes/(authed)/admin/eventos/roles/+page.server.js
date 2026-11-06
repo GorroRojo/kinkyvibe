@@ -12,12 +12,7 @@
 import { fail } from '@sveltejs/kit';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logDBError } from '$lib/server/db';
-import {
-	createFieldAction,
-	deleteFieldAction,
-	updateFieldAction,
-	requirePersonasAdmin
-} from '$lib/server/personas/admin.js';
+import { requirePersonasAdmin, saveFieldsAction } from '$lib/server/personas/admin.js';
 import { addRole, listCustomRoles, removeRole } from '$lib/server/personas/roles.js';
 import { listGeneralFields } from '$lib/server/tickets/signupFields.js';
 import { FIXED_ROLES } from '$lib/utils/personas.js';
@@ -84,7 +79,6 @@ export const actions = {
 			}
 		};
 	},
-	createField: (event) => createFieldAction(event, null),
-	updateField: (event) => updateFieldAction(event, null),
-	deleteField: (event) => deleteFieldAction(event, null)
+	// El editor de preguntas (el mismo de los formularios): la lista entera, con su orden.
+	saveFields: (event) => saveFieldsAction(event, null)
 };

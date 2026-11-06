@@ -1,6 +1,7 @@
 /**
- * La tarjeta de un evento con entradas propias: «Comprar entradas» (o «Agotadas», «Venta
- * cerrada») en lugar del botón de inscripción; los eventos sin entradas acá quedan como siempre.
+ * La tarjeta de un evento con entradas propias: sin botón de compra (se compra desde la página del
+ * evento, después del texto; gorrite, 5/11), solo «Agotadas» o «Venta cerrada», y sin el botón de
+ * inscripción; los eventos sin entradas acá quedan como siempre.
  * Render del servidor: el link a /entradas (y el externo) se arman al montar, porque un <a>
  * adentro del <a> de la tarjeta rompería la hidratación; en el servidor va una etiqueta igual.
  */
@@ -38,24 +39,38 @@ const cta = (/** @type {string} */ html) =>
 	html.match(/<span class="CTA( note)?[^"]*"[^>]*>([^<]*)<\/span>/)?.slice(1) ?? null;
 
 describe('PostListItem: venta de entradas', () => {
-	it('venta abierta: «Comprar entradas», sin precio', () => {
-		const html = body({ post: post(), ticketStates: states({ open: true }) });
-		expect(cta(html)).toEqual([undefined, 'Comprar entradas']);
+	it('venta abierta: sin botón de compra ni de inscripción (se compra desde el evento)', () => {
+		const html = body({
+			post: post({ link: 'https://example.com/inscripcion' }),
+			ticketStates: states({ open: true })
+		});
+		expect(cta(html)).toBeNull();
+		expect(html).not.toContain('Comprar entradas');
+		expect(html).not.toContain('/entradas');
 		expect(html).not.toContain('$');
 		expect(html).not.toContain('INSCRIPCIÓN');
 	});
 
-	it('sin el estado (página prerenderizada): «Comprar entradas» igual', () => {
-		expect(cta(body({ post: post(), ticketStates: null }))).toEqual([
-			undefined,
-			'Comprar entradas'
-		]);
+	it('sin el estado (página prerenderizada): tampoco', () => {
+		const html = body({ post: post(), ticketStates: null });
+		expect(cta(html)).toBeNull();
+		expect(html).not.toContain('Comprar entradas');
 	});
 
 	it('agotadas: un aviso, no un botón', () => {
 		const html = body({ post: post(), ticketStates: states({ reason: 'soldout' }) });
 		expect(cta(html)).toEqual([' note', 'Agotadas']);
 		expect(html).not.toContain('Comprar entradas');
+	});
+
+	it('agotadas: el link de la página del evento va solo después de montar (no un <a> en el <a>)', () => {
+		const html = body({
+			post: post(),
+			ticketStates: states({ reason: 'soldout', waitlist: true })
+		});
+		expect(cta(html)).toEqual([' note', 'Agotadas']);
+		expect(html).not.toContain('Anotate en la lista de espera');
+		expect(html).not.toContain('Avisame la próxima');
 	});
 
 	it('venta cerrada: un aviso, no un botón', () => {

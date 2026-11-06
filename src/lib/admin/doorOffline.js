@@ -20,6 +20,7 @@
  * panel); el resto de la lista y lo que falta sincronizar quedan como estaban.
  */
 import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
+import { foldText as fold } from '$lib/utils/text.js';
 
 /**
  * Una entrada de la lista sin conexión (misma forma que devuelve el servidor).
@@ -36,8 +37,10 @@ import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
  * @typedef {{
  *   ticketId: string, orderId: string, orderRef: string, holder: string, pronouns: string,
  *   type: string, buyer: string, email: string, dniTail: string, code: string,
- *   at: number | null, by: string | null, firstTime: boolean | null, notice?: boolean
- * }} DoorCard
+ *   at: number | null, by: string | null, firstTime: boolean | null, notice?: boolean,
+ *   extras?: { id: string, name: string, quantity: number, delivered: number }[]
+ * }} DoorCard `extras`: los extras de la compra (interruptor `extras`, decisión 0056), solo en un
+ *   escaneo con conexión
  */
 /**
  * Un resultado del modo puerta (escaneo, venta o error).
@@ -252,16 +255,6 @@ export function localCounts(list) {
 		}
 	}
 	return { total, inside, byType };
-}
-
-/** @param {unknown} v */
-function fold(v) {
-	return String(v ?? '')
-		.normalize('NFD')
-		.replace(/\p{Diacritic}/gu, '')
-		.toLowerCase()
-		.replace(/\s+/g, ' ')
-		.trim();
 }
 
 /**

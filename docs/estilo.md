@@ -164,10 +164,11 @@ Lo que no se ve pero se oye. Nada de esto cambia cómo se ve la página.
 
 - En el celu, todo lo que se toca mide al menos 44px (`--tap`). Para algo chico (un chip, un
   link suelto), `.tap-target` (`style.scss`): agranda la zona sin cambiar lo que se ve.
-- Si esa zona invisible taparía a un vecino, crece el control mismo: «Comprar entradas» en las
-  tarjetas de las listas (`PostListItem`) mide 44px de alto y va centrado cuando tiene su
+- Si esa zona invisible taparía a un vecino, crece el control mismo: el botón de inscripción de
+  las tarjetas de las listas (`PostListItem`) mide 44px de alto y va centrado cuando tiene su
   fila, abajo de las etiquetas; en pantalla ancha queda como estaba (gorrite,
-  `areas-toque-restos`).
+  `areas-toque-restos`). Un evento con entradas en el sitio no lleva botón en la tarjeta: se
+  compra desde su página, después del texto (gorrite, 5/11).
 
 ## Piezas
 
@@ -340,6 +341,94 @@ Lo controlan `src/lib/components/PostList.test.js`, `TagSearch.test.js`,
 `tests/smoke.spec.js` («barra de filtros de las listas», en un celu y en pantalla ancha) y
 `tests/buscador-etiquetas.spec.js` (el buscador con el teclado y con el mouse, y el glosario).
 
+### Carrusel de la portada
+
+Detrás del interruptor `carrusel_portada` ([interruptores.md](interruptores.md)). Lo pidió gorrite
+(#15); el diseño está para que lo revise. Para mirarlo en un preview, se prende el interruptor de
+ese preview: `?carrousel` en la dirección ya no lo muestra en producción ni en los previews, solo
+en `npm run dev` (ahí `?carrousel` lo muestra apagado y `?carrousel=a…e|rotar` prueba un estilo
+sin guardarlo).
+
+- **Qué entra** (`carruselPosts` en `$lib/utils/carrusel.js`; gorrite, 5/11: «todo lo nuevo por
+  ahora, de cualquier categoría de las 4»):
+  - primero, los **eventos** del calendario que todavía no empezaron, con la etiqueta `KinkyVibe`
+    y sin cancelar, por fecha, con o sin imagen;
+  - después, **lo nuevo** de Material, Amigues (perfiles) y la Kinkipedia publicado en los últimos
+    **14 días**, lo más nuevo primero e intercalando los tipos (uno de cada uno por vuelta), así uno
+    no llena todo. Solo lo que tiene página pública: lo listado y visible (nada oculto, sin listar
+    ni sin aprobar) y sin el material que redirige directo a su link. La fecha: `published_date`
+    del material y de los perfiles. La Kinkipedia no tiene fecha de publicación propia: cuenta la
+    de cuando se creó su etiqueta (`created_at`), así que escribirle la página a una etiqueta vieja
+    no la hace nueva (**A CONFIRMAR**);
+  - como mucho **8** diapositivas en total, contando los eventos.
+  - Los días (1 a 60) y el máximo (1 a 12) se cambian en Ajustes › Carrusel de la portada, «Qué
+    entra» (`ticket_settings`, filas `carrusel_dias` y `carrusel_maximo`). Sin nada que entre, no
+    hay carrusel.
+  - Lo que no es un evento usa su imagen (la portada, o la foto del perfil) como flyer, y en lugar
+    de la fecha lleva su tipo como lo nombra el sitio («Material», «Amigues», «Kinkipedia»): en la
+    franja de la fecha (A, C, E), arriba del título (B) o en la miga (D). Sin estrella ni franja de
+    la fecha, con el resumen (en la compu) y «Ver» en vez de «Saber más». El estilo elegido por
+    evento existe solo en los eventos; lo demás usa el de Ajustes.
+  - **Sin imagen**, en el lugar del flyer va **la ficha de su tipo**, sacada de su vista previa
+    al compartir ([compartir.md](compartir.md), «Objetos sin imagen»; gorrite, 5/11: la vista
+    previa como inspiración para la miniatura, no para rediseñar la diapositiva): el color y el
+    símbolo del tipo (verde con el ícono del material —libro, descarga, carrito…—, amarillo con el
+    corazón de Amigues, blanca con el globo violeta de la Kinkipedia), sin el título (ya está al lado)
+    (`categoryTileLook` y `objectTileLook` en `$lib/utils/ogObjeto.js`, los mismos del dibujo de
+    la vista previa). Es cuadrada como un flyer, así entra igual en la pila (A), el marco (B, que
+    no la recorta en círculo), el sticker (C, también en los stickers chiquitos de abajo), la
+    mitad (D) y la mesa (E, con copias de la ficha de fondo). La paleta de la marca se elige
+    contra el color de la ficha, como contra los colores de un flyer. Un evento sin imagen sigue
+    con el flyer hecho con su título.
+- **Cinco estilos** (`$lib/utils/carruselEstilos.js`), los cinco del prototipo que eligió
+  gorrite: **A** Pila de flyers (el flyer impreso y torcido sobre papeles de colores), **B** Franja
+  cruzada (título grande, la fecha en una estrella y una franja de lado a lado), **C** Mesa de
+  stickers (fondo claro, el flyer como sticker y los eventos como stickers chiquitos abajo), **D**
+  Diagonal (dos colores cortados en diagonal) y **E** Mesa de zines (copias del flyer tiradas de
+  fondo y el título en tiras). Todos de borde a borde, con pocos contornos.
+- **Qué estilo le toca a cada diapositiva**: en Ajustes › Comunicación › Carrusel de la portada,
+  **«Rotar»** (por defecto: A, B, C, D, E y de vuelta, por el lugar de la diapositiva) o uno fijo
+  para todo el carrusel (`ticket_settings`, fila `carrusel_estilo`; src/lib/server/carrusel.js).
+  Cada evento puede elegir el suyo en Editar → Datos, «Estilo en el carrusel de la portada»
+  (`carrusel_estilo`, en `extra`), y ese manda. Los controles de abajo (flechas y puntos; en C,
+  los stickers) toman el estilo y los colores de la diapositiva que se ve.
+- **Colores** (`$lib/utils/carruselPaletas.js`; gorrite, 5/11, al ver la v3: pintar la
+  diapositiva con los colores del flyer lo hacía perderse contra el fondo y apagaba todo):
+  - **Fondos y bloques, siempre de la marca**: cinco paletas con los colores saturados del sitio
+    (rosa, verde, violeta, amarillo y fucsia; las tres primeras son las del prototipo v2).
+  - **El flyer elige la paleta**: con los `colors` guardados en su imagen
+    ([imagenes.md](imagenes.md), «Colores de la imagen»), va detrás la paleta que más se distingue
+    de su color principal (tono y contraste), así resalta; dos diapositivas seguidas evitan
+    repetir si hay otra casi igual de buena. El color más vivo del flyer, avivado, va de **acento**
+    en lo chico: la estrella con la fecha, la cinta adhesiva de A y la franja de la fecha (si se ve
+    contra el fondo; si no, el de la paleta).
+  - **Textos**: blanco si se lee, si no la tinta oscura de la marca. Los títulos son texto grande
+    (31 px o más): les alcanza **3:1** (WCAG AA texto grande); el resto, **4.5:1**. Lo prueban
+    `carruselPaletas.test.js` con cientos de flyers al azar.
+  - Sin flyer, o con un flyer que todavía no tiene sus colores: las tres paletas del prototipo,
+    rotando. Los colores `carrousel_background` y `carrousel_color` de un evento (hex) siguen
+    mandando sobre el fondo y su texto (el texto, corrido hasta que se lea).
+- **Qué muestra**: la imagen (sin imagen, un flyer hecho con el título), el título, la fecha corta
+  de las tarjetas (`argDateList`), el lugar (`placeShort`, como el lugar vinculado de la portada),
+  el resumen (en A y C, no en el celu) y el estado de la venta cuando no se puede
+  comprar (`ticketCta`: «Agotadas»…) más «Saber más» (que lleva a la página del evento, donde se compra). El precio no: tampoco está en las tarjetas.
+- **Accesible** (patrón de carrusel de WAI-ARIA): grupo con nombre, diapositivas «N de M», pausa
+  primero en el orden del foco, «Evento anterior» / «Evento siguiente» y un punto por evento (una
+  sola parada del Tab; entre ellos, con las flechas). Las flechas ← → también andan con el foco en
+  la diapositiva. Las que no se ven quedan `inert`.
+- **Pasa sola** cada 7 s, salvo con «reducir movimiento» (ahí no hay botón de pausa: no se mueve).
+  Se frena con el mouse encima o el foco adentro, y se para del todo al elegir otra diapositiva
+  (botones, flechas o deslizando en el celu) o con «Pausar».
+- **Sin saltos** (CLS): todas las diapositivas ocupan la misma celda de la grilla, así que el alto
+  es el de la más alta desde el HTML del servidor, y la imagen tiene su cuadrado reservado. La
+  imagen de la primera va `eager` con `fetchpriority="high"`; las demás, recién después de
+  hidratar, de a una por delante de la que se ve, y `lazy`. Con `posterSrcset` (copias chicas).
+- **Lo que cuesta**: la portada lee los ajustes (una consulta) una vez cada 30 s por isolate y
+  los colores de las imágenes que entran en otra, solo con el carrusel prendido. Los eventos, el
+  material y los perfiles son las listas de siempre de la portada; las páginas de la Kinkipedia
+  vienen con el árbol de etiquetas, que el layout ya leyó (recordado 30 s por isolate). Nada de
+  mirar imágenes en cada visita.
+
 ## Componentes
 
 Un componente por concepto, en [`src/lib/components/ui/`](../src/lib/components/ui/), con un solo
@@ -397,9 +486,28 @@ código nuevo, importá de `$lib/components/ui`. **Pendiente** (gorrite, 5/10: q
 un PR aparte pasa los imports viejos y borra los envoltorios, después del rediseño de la página del
 evento.
 
-**Pendiente** (gorrite, 5/10): las piezas que hoy son solo del panel (`UndoToast`, el diálogo de
-`askConfirm`, que monta solo el layout del panel) tienen que tener también su versión para el
-sitio público.
+### Versiones para el sitio público
+
+`Field`, `Checkbox`, `Switch`, `Notice`, `Card`, `Badge`, `Table`, `UndoToast`, `Dialog` y
+`ConfirmDialog` aceptan `surface="sitio"` (como `Button`): el mismo componente, sin `.kv-panel`
+alrededor, con los tokens del sitio (`--ink`, `--muted`, `--line`, `--hover`, `--2-dark`, los
+`-tint` con sus `-ink` y `--error`). Sin `surface`, el del panel de siempre. Se ven lado a lado
+con las del panel en `/estilo`, sección «Sitio público» (`/estilo?grupo=sitio-publico`). Todavía
+no las usa ninguna página pública: adoptarlas es otra decisión (plan `diseno-versiones-publicas`).
+
+- **Contraste.** Texto: 5:1 o más en todos los pares nuevos (avisos 5.4–6:1 sobre su fondo; badges
+  llenas, blanco sobre el tono oscuro de cada color, 6:1 o más, porque blanco sobre `--1` da
+  3.35:1). Bordes de los controles: `--field` da 2.2:1 sobre blanco, así que en el sitio el borde
+  de los campos, de la casilla sin marcar y el riel del interruptor apagado van en
+  `color-mix(in srgb, var(--muted) 75%, var(--surface))` (3.65:1, el mínimo de 3:1 para
+  controles). El texto del botón secundario (`--1` sobre blanco, 3.35:1) es el aprobado y no se
+  tocó.
+- **Diálogo.** `.kv-dialog-sitio` (`ui/dialogo-sitio.scss`), con el fondo de atrás violeta como el
+  `--scrim` claro del panel y botones `.pill-btn`. `ConfirmDialog surface="sitio"` lo montaría una
+  vez un layout público, igual que el del panel, y `askConfirm` lo usa. `register={false}` deja
+  tener dos en una página (la galería): ese no atiende `askConfirm` y se le pregunta con su `ask()`.
+- **Foco y movimiento.** Los de siempre de `style.scss`: anillo violeta con teclado, borde rosa en
+  los campos, y «reducir movimiento» apaga las transiciones de la casilla y el interruptor.
 
 ## Textos
 

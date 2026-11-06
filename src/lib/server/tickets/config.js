@@ -105,6 +105,7 @@
  *   location_name: string | undefined,
  *   goal: import('$lib/utils/salesGoal.js').SalesGoal | null,
  *   waitlist: import('$lib/utils/waitlistHold.js').EventWaitlist | null,
+ *   extras: import('$lib/utils/extras.js').Extra[],
  *   fields?: import('$lib/utils/signupFields.js').SignupField[]
  * }} EventTickets
  *
@@ -114,6 +115,10 @@
  * `waitlist`: la lista de espera (`lista_espera`, ver $lib/utils/waitlistHold.js), o `null` si el
  * evento no tiene. Igual que la meta: una lista que no se entiende es `null` (sin lista) y nunca
  * frena la venta. Solo se usa con el interruptor `lista_espera` prendido.
+ *
+ * `extras`: los extras de la compra (`extras`, ver $lib/utils/extras.js; decisión 0056). Unos que
+ * no se entienden quedan en `[]` (sin extras) y nunca frenan la venta de entradas. Solo se usan con
+ * el interruptor `extras` prendido.
  */
 
 import {
@@ -136,8 +141,10 @@ import {
 	isOnlineEvent
 } from '$lib/utils/ticketsEditor.js';
 import { validateAnswers } from '$lib/utils/signupFields.js';
+import { acceptError } from '$lib/utils/purchaseSteps.js';
 import { GOAL_KEY, parseSalesGoal } from '$lib/utils/salesGoal.js';
 import { WAITLIST_KEY, parseEventWaitlist } from '$lib/utils/waitlistHold.js';
+import { EXTRAS_KEY, parseExtras } from '$lib/utils/extras.js';
 import { validateBuyer, validateHolder, validateHolders } from '$lib/utils/ticketBuyer.js';
 
 // Viven en $lib/utils/ticketBuyer.js (la página de compra valida cada paso en el navegador con
@@ -349,8 +356,23 @@ export function parseTicketConfig(meta, options = {}) {
 		location: meta.location,
 		location_name: meta.location_name,
 		goal: parseSalesGoal(meta[GOAL_KEY]),
-		waitlist: parseEventWaitlist(meta[WAITLIST_KEY])
+		waitlist: parseEventWaitlist(meta[WAITLIST_KEY]),
+		extras: eventExtras(meta[EXTRAS_KEY], meta.title)
 	};
+}
+
+/**
+ * Los extras del evento, o `[]` si no tiene o no se entienden (se loguea: la venta de entradas
+ * sigue igual).
+ *
+ * @param {unknown} raw
+ * @param {unknown} title
+ */
+function eventExtras(raw, title) {
+	const { extras, errors } = parseExtras(raw);
+	if (errors.length)
+		console.error(`[tickets] extras de «${String(title ?? '')}» sin usar:`, errors);
+	return extras;
 }
 
 /**
@@ -677,7 +699,8 @@ export function validatePurchase(config, input) {
 		else Object.assign(errors, a.errors);
 	}
 	if (input.accept !== 'on' && input.accept !== '1') {
-		errors.accept = 'Tenés que confirmar que tenés 18 años o más y aceptar las condiciones.';
+		// Obligatoria como siempre; el texto cubre a todas las personas de las entradas.
+		errors.accept = acceptError(errors.quantity ? 1 : quantity);
 	}
 	if (Object.keys(errors).length || !type || !b.ok || option === null) return { ok: false, errors };
 	return {

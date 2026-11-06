@@ -1150,8 +1150,43 @@ describe('columna de la derecha: agenda, ventas y actividad', () => {
 			{ day: '2026-09-29', count: 3 },
 			{ day: '2026-09-30', count: 3 }
 		]);
-		// Sin la columna `channel` (llega con el modo puerta) todo cuenta como online.
-		expect(trend).toMatchObject({ online: 19, door: 0 });
+		// Todo comprado en la página: online.
+		expect(trend?.channels).toEqual({ online: 19, puerta: 0, cortesia: 0, manual: 0 });
+
+		// La regla única de los cuatro canales (saleChannel.js): puerta, cortesía ($ 0) y cargadas
+		// a mano y cobradas.
+		const door = await insertOrder(t.db, {
+			slug: 'a',
+			quantity: 2,
+			created: ar('2026-09-30T12:00')
+		});
+		const byHand = await insertOrder(t.db, {
+			slug: 'a',
+			quantity: 1,
+			created: ar('2026-09-30T12:00')
+		});
+		const free = await insertOrder(t.db, {
+			slug: 'a',
+			quantity: 3,
+			created: ar('2026-09-30T12:00')
+		});
+		const set = (/** @type {string} */ sql, /** @type {string} */ id) =>
+			t.db.prepare(sql).bind(id).run();
+		await set(
+			"UPDATE orders SET channel = 'puerta', payment_method = 'efectivo' WHERE id = ?1",
+			door
+		);
+		await set(
+			"UPDATE orders SET channel = 'manual', payment_method = 'transferencia' WHERE id = ?1",
+			byHand
+		);
+		await set(
+			`UPDATE orders SET channel = 'manual', payment_method = 'gratis', unit_price = 0, subtotal = 0,
+				total = 0 WHERE id = ?1`,
+			free
+		);
+		const mixed = await eventSalesTrend(t.db, 'a', NOW);
+		expect(mixed?.channels).toEqual({ online: 19, puerta: 2, cortesia: 3, manual: 1 });
 	});
 
 	/** @param {any} o @returns {any} */
@@ -1198,7 +1233,10 @@ describe('columna de la derecha: agenda, ventas y actividad', () => {
 					])
 				]
 			]),
-			trend: { days: [{ day: '2026-09-30', count: 3 }], online: 3, door: 0 },
+			trend: {
+				days: [{ day: '2026-09-30', count: 3 }],
+				channels: { online: 3, puerta: 0, cortesia: 0, manual: 0 }
+			},
 			now: NOW
 		});
 		expect(s.when).toBe('vie 2/10 · 21:00');

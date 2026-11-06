@@ -63,7 +63,9 @@ import {
 	waitlistGuard,
 	waitlistShareMessage
 } from './waitlistPurchase.js';
-import { listaEsperaEnabled } from '$lib/server/flags.js';
+import { extrasEnabled, listaEsperaEnabled } from '$lib/server/flags.js';
+import { extrasAvailability } from './extras.js';
+import { extrasLeftMessage, readExtrasChoice, validateExtrasChoice } from '$lib/utils/extras.js';
 import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { eventSignupFields, readAnswers } from './signupFields.js';
 import { getSalesSettings } from './settings.js';
@@ -132,8 +134,14 @@ export const CHECKOUT_RATE_LIMITS = {
  *     closesAt: number | null, closed: boolean,
  *     tier?: { id: string, name: string, until: number | null } | null,
  *     tierLeft?: boolean, waitingFor?: string | null }[],
- *   fields?: import('$lib/utils/signupFields.js').SignupField[]
+ *   fields?: import('$lib/utils/signupFields.js').SignupField[],
+ *   extras?: { id: string, name: string, price: number, description: string,
+ *     available: number }[]
  * }} TicketsView
+ *
+ * Extras (decisión 0056; solo con el interruptor `extras` prendido, `opts.extras`, y si el evento
+ * tiene): `available` es cuántos se pueden llevar en UNA compra (máximo por compra y, con tope, lo
+ * que queda). Sin el interruptor no hay `extras` en la vista.
  *
  * Preventas: en un tipo con tramos, `price` y `fondo` son los del tramo vigente, `tier` dice cuál
  * es (la página muestra "Preventa 1" y manda su id, para avisar si cambió antes de cobrar) y
@@ -321,8 +329,9 @@ export function prefetchTicketsView(db, slug, now, { waitlist } = {}) {
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {string} slug
  * @param {typeof fetch} [fetchFn] para leer el porcentaje automático del Fondo
- * @param {{ waitlist?: boolean, offerId?: string | null, now?: number,
+ * @param {{ waitlist?: boolean, offerId?: string | null, now?: number, extras?: boolean,
  *   fondo?: { staleOk?: boolean, waitUntil?: (task: Promise<unknown>) => void } }} [opts]
+ *   `extras`: el interruptor `extras` prendido (la vista trae los extras del evento).
  *   Lista de espera (docs/tickets.md): con `waitlist` (el interruptor `lista_espera` prendido),
  *   lo que se puede comprar es lo que sobra después de la fila (waitlistPurchase.js); con
  *   `offerId` (la anotación de una oferta vigente, de `findOffer`), lo que sobra después de los
@@ -369,7 +378,7 @@ export async function getTicketsView(db, slug, fetchFn, opts = {}) {
  * @param {import('./config.js').EventTickets} config
  * @param {number} now
  * @param {ReturnType<typeof salesReads> | undefined} reads lo que ya salió a leerse, si salió
- * @param {{ waitlist?: boolean, offerId?: string | null }} opts
+ * @param {{ waitlist?: boolean, offerId?: string | null, extras?: boolean }} opts
  * @returns {Promise<TicketsView>}
  */
 async function salesView(db, slug, config, now, reads, opts) {
@@ -451,6 +460,16 @@ async function salesView(db, slug, config, now, reads, opts) {
 			t.left = publicLeft(remaining);
 			t.tierLeft = t.left !== null && a.tier?.remaining === remaining;
 		}
+		if (opts.extras && config.extras.length) {
+			const available = await extrasAvailability(db, slug, config.extras, now);
+			view.extras = config.extras.map((e) => ({
+				id: e.id,
+				name: e.name,
+				price: e.price,
+				description: e.description,
+				available: available[e.id] ?? 0
+			}));
+		}
 	} catch (error) {
 		logDBError('tickets view', error);
 		return { ...view, reason: view.reason ?? 'unavailable' };
@@ -473,7 +492,8 @@ export { LOW_STOCK };
  * @returns {{ open: boolean, reason: TicketsView['reason'], pausedMessage: string | null,
  *   priceFrom: number | null,
  *   gorraSuggested: number | null, left: number | null, opensAt: number | null,
- *   closesAt: number | null, door: TicketsView['door'] }}
+ *   closesAt: number | null, door: TicketsView['door'], online: boolean }}
+ * `online`: para la línea de +18 (sin «documento en la puerta» si es online).
  */
 export function summarizeTickets(view) {
 	const candidates = view.open
@@ -495,7 +515,8 @@ export function summarizeTickets(view) {
 		left: view.open && left !== null && left < LOW_STOCK ? left : null,
 		opensAt: view.opensAt,
 		closesAt: view.closesAt,
-		door: view.door
+		door: view.door,
+		online: Boolean(view.online)
 	};
 }
 
@@ -584,6 +605,9 @@ function readForm(form) {
 		fondoPercent: str('fondo_percent', 5).trim(),
 		// Link de una oferta de la lista de espera (`?lista=<token>`, campo oculto).
 		lista: str('lista', 60).trim(),
+		// Extras elegidos (`extra_<id>`): los lee buyAction, que sabe cuáles hay (interruptor
+		// `extras`).
+		extras: /** @type {Record<string, string>} */ ({}),
 		method: str('method', 30),
 		option: str('option', 30),
 		amount: str('amount', 30),
@@ -938,6 +962,31 @@ export async function buyAction(event) {
 			? { ...config, types: config.types.map((t) => (t.id === effective?.id ? effective : t)) }
 			: config;
 
+	// Extras (interruptor `extras`, decisión 0056): lo elegido, contra el máximo por compra y lo que
+	// queda. Apagado (o un evento sin extras), nada de esto cambia la compra.
+	/** @type {(import('$lib/utils/extras.js').ExtraLine & { capacity: number | null })[]} */
+	let extraLines = [];
+	/** @type {Record<string, string>} */
+	let extrasErrors = {};
+	let extrasOn = false;
+	try {
+		extrasOn = config.extras.length > 0 && (await extrasEnabled(platform));
+		if (extrasOn) {
+			values.extras = readExtrasChoice(config.extras, (k) => form.get(k));
+			const available = await extrasAvailability(db, params.event, config.extras, now);
+			const check = validateExtrasChoice(config.extras, values.extras, { available });
+			if (check.ok)
+				extraLines = check.lines.map((l) => ({
+					...l,
+					capacity: config.extras.find((e) => e.id === l.id)?.capacity ?? null
+				}));
+			else extrasErrors = check.errors;
+		}
+	} catch (error) {
+		logDBError('extras', error);
+		return failWith(500, 'No pudimos reservar tus entradas. Probá de nuevo más tarde.');
+	}
+
 	// Preguntas de inscripción (sin base, ninguna).
 	const fields = await eventSignupFields(db, params.event);
 	values.answers = readAnswers(form, fields, values.quantity);
@@ -996,7 +1045,10 @@ export async function buyAction(event) {
 			return failWith(500, 'No pudimos validar el código. Probá de nuevo.');
 		}
 	}
-	if (!valid.ok) return failWith(400, 'Revisá los datos marcados.', valid.errors);
+	if (!valid.ok)
+		return failWith(400, 'Revisá los datos marcados.', { ...extrasErrors, ...valid.errors });
+	if (Object.keys(extrasErrors).length)
+		return failWith(400, 'Revisá los extras marcados.', extrasErrors);
 	// Una compra entra entera en un tramo (un solo precio por orden): si pide más de lo que queda
 	// a este precio, compra lo que queda y el resto en otra compra (al precio del tramo siguiente).
 	if (tierRemaining !== null && valid.quantity > tierRemaining && valid.type.tier) {
@@ -1004,16 +1056,18 @@ export async function buyAction(event) {
 		return failWith(409, message, { quantity: message });
 	}
 
-	// Total 0 (sin contar el recargo de MP, que sobre 0 es 0): se emite sin pasar por un pago.
+	// Total 0 (sin contar el recargo de MP, que sobre 0 es 0): se emite sin pasar por un pago. Con
+	// extras siempre hay algo que pagar (los extras no tienen Fondo ni descuento).
 	const base = computePrice({
 		price: valid.unitPrice,
 		fondo: valid.type.fondo,
 		option: valid.option,
 		quantity: valid.quantity,
-		discount
+		discount,
+		extras: extraLines.reduce((sum, l) => sum + l.price * l.quantity, 0)
 	});
 	/** @type {import('./orders.js').OrderPaymentMethod} */
-	const method = base.total === 0 ? 'gratis' : valid.method;
+	const method = base.paid === 0 ? 'gratis' : valid.method;
 	/** @type {import('./index.js').Gateway | null} */
 	let gateway = null;
 	if (method === 'mercadopago') {
@@ -1070,6 +1124,7 @@ export async function buyAction(event) {
 			answers: valid.answers,
 			waitlist,
 			freeOnce: method === 'gratis' && !confirmedEmail,
+			...(extraLines.length ? { extras: extraLines } : {}),
 			now
 		});
 	} catch (error) {
@@ -1086,6 +1141,20 @@ export async function buyAction(event) {
 		if (reserved.reason === 'method') return failWith(400, 'Elegí un medio de pago.');
 		if (reserved.reason === 'limit') return failWith(429, reserved.message);
 		if (reserved.reason === 'free') return failWith(409, FREE_ONCE_MESSAGE);
+		if (reserved.reason === 'extras') {
+			// Otra compra se llevó lo que quedaba de un extra en el medio: se dice cuánto queda.
+			/** @type {Record<string, string>} */
+			const errors = {};
+			try {
+				const left = await extrasAvailability(db, params.event, config.extras, Date.now());
+				for (const l of extraLines)
+					if ((left[l.id] ?? 0) < l.quantity)
+						errors[`extra_${l.id}`] = extrasLeftMessage(l.name, left[l.id] ?? 0);
+			} catch (error) {
+				logDBError('extras', error);
+			}
+			return failWith(409, 'Se agotó un extra mientras comprabas: revisá los extras.', errors);
+		}
 		if (reserved.reason === 'offer') {
 			values.lista = '';
 			return failWith(409, WAITLIST_BUY_MESSAGES.offerGone);

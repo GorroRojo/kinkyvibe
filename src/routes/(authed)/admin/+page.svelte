@@ -14,7 +14,9 @@
 	import Agenda from '$lib/components/admin/inicio/Agenda.svelte';
 	import SalesCard from '$lib/components/admin/inicio/SalesCard.svelte';
 	import TodayThumb from '$lib/components/admin/inicio/TodayThumb.svelte';
+	import ContentFix from '$lib/components/admin/inicio/ContentFix.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
+	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
@@ -47,7 +49,10 @@
 		Inbox,
 		Sparkles,
 		Tag,
-		TriangleAlert
+		TriangleAlert,
+		Video,
+		ImageDown,
+		ScanText
 	} from '@lucide/svelte';
 
 	export let data;
@@ -64,7 +69,10 @@
 		profile: IdCard,
 		place: MapPin,
 		tag: Tag,
-		import: DatabaseZap
+		import: DatabaseZap,
+		video: Video,
+		alt: ScanText,
+		cover: ImageDown
 	});
 
 	$: user = data.user;
@@ -142,6 +150,10 @@
 	];
 
 	let resending = '';
+	/** Deshaciendo «Dejarla así» (Portadas pesadas). */
+	let undoing = false;
+	/** El «Deshacer» de «Dejarla así», si el último arreglo lo trae. */
+	$: fixUndo = form?.contentFix?.ok && 'undo' in form.contentFix ? form.contentFix.undo : undefined;
 </script>
 
 <svelte:head><title>Inicio · Panel</title></svelte:head>
@@ -298,6 +310,28 @@
 						{#if form?.resend}
 							<p class="flash" class:bad={!form.resend.ok} role="status">{form.resend.message}</p>
 						{/if}
+						{#if form?.contentFix && fixUndo}
+							<!-- «Dejarla así» (Portadas pesadas): con «Deshacer», que la vuelve a la lista. -->
+							<form
+								method="POST"
+								action="?/portadaAsiDeshacer"
+								use:enhance={() => {
+									undoing = true;
+									return async ({ update }) => {
+										await update();
+										undoing = false;
+									};
+								}}
+							>
+								<input type="hidden" name="item" value={fixUndo.item} />
+								<input type="hidden" name="image" value={fixUndo.image} />
+								<input type="hidden" name="owner" value={fixUndo.owner} />
+								<UndoToast message={form.contentFix.message} submit busy={undoing} />
+							</form>
+						{:else if form?.contentFix?.ok}
+							<!-- Un arreglo de contenido que salió bien: su fila ya no está (ContentFix). -->
+							<p class="flash" role="status">{form.contentFix.message}</p>
+						{/if}
 						{#if data.todo.length}
 							<ul class="todo">
 								{#each data.todo as t (t.id)}
@@ -323,9 +357,13 @@
 												<ul class="sub">
 													{#each t.items as i (i.id)}
 														<li>
-															<span class="grow"><b>{i.name ?? i.title}</b></span>
-															{#if i.href}<a class="kv-btn ghost sm" href={i.href}>{i.action}</a
-																>{/if}
+															{#if i.altFix || i.shrink}
+																<ContentFix item={i} {form} />
+															{:else}
+																<span class="grow"><b>{i.name ?? i.title}</b></span>
+																{#if i.href}<a class="kv-btn ghost sm" href={i.href}>{i.action}</a
+																	>{/if}
+															{/if}
 														</li>
 													{/each}
 												</ul>
@@ -373,6 +411,23 @@
 													}}
 												>
 													<input type="hidden" name="slug" value={t.retryReminders.slug} />
+													<button class="kv-btn ghost sm" disabled={resending === t.id}
+														>{resending === t.id ? 'Un momento…' : t.action}</button
+													>
+												</form>
+											{:else if t.kind === 'item' && t.retryFormSends}
+												<form
+													method="POST"
+													action="?/retryFormSends"
+													use:enhance={() => {
+														resending = t.id;
+														return async ({ update }) => {
+															await update();
+															resending = '';
+														};
+													}}
+												>
+													<input type="hidden" name="form" value={t.retryFormSends.formId} />
 													<button class="kv-btn ghost sm" disabled={resending === t.id}
 														>{resending === t.id ? 'Un momento…' : t.action}</button
 													>

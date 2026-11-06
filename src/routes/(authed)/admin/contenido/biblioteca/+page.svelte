@@ -32,6 +32,7 @@
 	} from '$lib/components/ui';
 	import { DOCUMENT_ACCEPT, LIBRARY_KINDS, documentPickProblem } from '$lib/utils/libraryFiles.js';
 	import {
+		HEAVY_COVER_BYTES,
 		PICKABLE_TYPES,
 		appendCopies,
 		pickProblem,
@@ -236,7 +237,7 @@
 			const body = new FormData();
 			if (isImage) {
 				busy = 'achicando';
-				const prepared = await prepareImage(picked);
+				const prepared = await prepareImage(picked, {}, { targetBytes: HEAVY_COVER_BYTES });
 				body.set('file', prepared.blob, prepared.name);
 				body.set('name', title.trim() || prepared.name);
 				body.set('alt', alt.trim());

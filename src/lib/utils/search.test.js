@@ -34,6 +34,16 @@ describe('fold / tokenize', () => {
 		]);
 		expect(tokenize('Gorro_Rojo')).toEqual(['gorro', 'rojo']);
 	});
+	// La receta amplia (Mesa chica-567-quitar-tildes): un signo suelto no corta la palabra.
+	it('un signo diacrítico suelto (· ´ ^ ¨) queda adentro de la palabra y se busca sin él', () => {
+		expect(tokenize('Taller de Mel·la')).toEqual(['taller', 'de', 'mella']);
+		expect(tokenize('MEL·LA')).toEqual(['mella']);
+		expect(tokenize('mel·la')).toEqual(tokenize('mella'));
+		// Texto ya descompuesto (NFD): la tilde no parte la palabra.
+		expect(tokenize('cafe\u0301 rico')).toEqual(['cafe', 'rico']);
+		// fold sigue conservando la longitud: el signo queda en su lugar.
+		expect(fold('Mel·la')).toBe('mel·la');
+	});
 	it('ignora palabras vacías salvo que no quede otra cosa', () => {
 		expect(queryTerms('taller de cuerdas')).toEqual(['taller', 'cuerdas']);
 		expect(queryTerms('de la')).toEqual(['de', 'la']);
@@ -209,6 +219,30 @@ describe('search', () => {
 		const groups = groupHits(search(index, 'shibari'), new Date('2025-01-01').getTime());
 		expect(groups.map((g) => g.key)).toEqual(['proximos', 'material', 'wiki', 'pasados']);
 		expect(groups[0].hits[0].doc.h).toBe('/calendario/nuevo');
+	});
+});
+
+describe('Mel·la: se encuentra con «mella» y con «Mel·la»', () => {
+	const index = prepareIndex({
+		v: 1,
+		tags: {},
+		docs: [
+			{ c: 'amigues', h: '/amigues/mel-la', t: 'Mel·la', s: 'Cuerdas en Mel·la, Catalunya' },
+			{ c: 'material', h: '/material/otro', t: 'Otro texto', b: 'Nada que ver.' }
+		]
+	});
+	it('las dos formas dan el mismo resultado', () => {
+		for (const q of ['mella', 'Mel·la', 'MEL·LA', 'Méllá']) {
+			expect(search(index, q).map((h) => h.doc.h)).toEqual(['/amigues/mel-la']);
+		}
+	});
+	it('resalta la palabra entera, con su signo', () => {
+		const words = new Set(['mella']);
+		expect(highlight('En Mel·la hay cuerdas', words)).toEqual([
+			{ text: 'En ', hit: false },
+			{ text: 'Mel·la', hit: true },
+			{ text: ' hay cuerdas', hit: false }
+		]);
 	});
 });
 

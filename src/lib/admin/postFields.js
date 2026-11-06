@@ -13,12 +13,14 @@ import {
 	isValidTime,
 	parseEventDate
 } from '$lib/utils/eventDraft.js';
+import { CARRUSEL_ESTILOS, EVENTO_ESTILO_KEY } from '$lib/utils/carruselEstilos.js';
 
 /**
  * @typedef {object} Field
  * @prop {string} key
  * @prop {string} label
- * @prop {'text'|'textarea'|'url'|'email'|'tel'|'date'|'datetime'|'checkbox'|'select'} type
+ * @prop {'text'|'textarea'|'longtext'|'url'|'email'|'tel'|'date'|'datetime'|'checkbox'|'select'} type
+ *   (`longtext`: un texto largo con sus saltos de línea, ver $lib/utils/contentPosts.js)
  * @prop {string} [placeholder]
  * @prop {string} [help]
  * @prop {boolean} [required]
@@ -83,7 +85,20 @@ const byCategory = {
 			placeholder: 'https://forms.gle/... o mailto:hola@...',
 			help: 'Un link web o un mail (mailto:). Solo se muestra cuando el estado es «Abierto».'
 		},
-		{ key: 'link_text', label: 'Texto del botón', type: 'text', placeholder: 'Ej.: Inscribirme' }
+		{ key: 'link_text', label: 'Texto del botón', type: 'text', placeholder: 'Ej.: Inscribirme' },
+		{
+			key: EVENTO_ESTILO_KEY,
+			label: 'Estilo en el carrusel de la portada',
+			type: 'select',
+			options: [
+				{ value: '', label: 'El de Ajustes (rotar o el fijo)' },
+				...CARRUSEL_ESTILOS.map((e) => ({
+					value: e.id,
+					label: `${e.id.toUpperCase()} · ${e.nombre}`
+				}))
+			],
+			help: 'Solo cuenta si el evento sale en el carrusel (de Kinky Vibe y todavía no empezó). Sin elegir, usa lo de Ajustes › Carrusel de la portada.'
+		}
 	],
 	amigues: [
 		{
@@ -166,10 +181,11 @@ export function fromInput(f, v) {
 }
 
 /**
- * Lo que crear un evento no muestra en «Datos»: las fechas de publicación las pone el servidor y
- * «No listado» se elige al final («Guardar como no listado»).
+ * Lo que crear un evento no muestra en «Datos»: las fechas de publicación las pone el servidor,
+ * «No listado» se elige al final («Guardar como no listado») y el estilo en el carrusel es un
+ * retoque para después (Editar).
  */
-const NOT_IN_NEW_EVENT = ['published_date', 'updated_date', 'force_unlisted'];
+const NOT_IN_NEW_EVENT = ['published_date', 'updated_date', 'force_unlisted', EVENTO_ESTILO_KEY];
 
 /**
  * Los campos de la sección «Datos» (DatosSection), los mismos al crear un evento y al editar

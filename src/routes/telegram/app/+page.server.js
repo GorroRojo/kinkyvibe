@@ -18,8 +18,10 @@ import { botTextOverrides } from '$lib/server/telegram/texts.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ platform, url, setHeaders }) {
-	// Lo mismo para todes (sin cuenta): se puede guardar un rato, y no va a los buscadores.
-	setHeaders({ 'cache-control': 'public, max-age=300', 'x-robots-tag': 'noindex' });
+	// No se guarda: la página nombra los archivos JS de este deploy, y una copia guardada (en
+	// Cloudflare o en el navegador de Telegram, que estiraba los 5 minutos a horas) pedía los de un
+	// deploy anterior, que ya no existen, y la Mini App no cargaba. No va a los buscadores.
+	setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const db = getDB(platform);
 	const token = String(env.TELEGRAM_BOT_TOKEN ?? '').trim();
 	const [data, enabled] = await Promise.all([

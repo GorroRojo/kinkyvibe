@@ -481,11 +481,12 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
   [panel.md](panel.md), «Aviso «Online con lugar»».
 - `eventVenuesStamp` (lo usa el índice de la búsqueda para saber si cambió algo) suma la versión de
   los eventos con lugar: cualquier cambio del vínculo la mueve.
-- **La tabla `event_venues` queda en la base pero nadie la usa** (las migraciones solo agregan).
-  La migración `0035_relaciones_edges.sql` pasó a edges las filas de los eventos que ya estaban en
-  la base; todos los eventos están en la base desde 0032 (`legacyVenueEdge` en
-  `contenido/importer.js` la sigue leyendo al cargar la semilla). Una migración futura la puede
-  borrar.
+- **La tabla `event_venues` se borra** con la migración `0075_borrar_event_venues.sql` (gorrite,
+  Mesa `chica-592-event-venues`). La `0035_relaciones_edges.sql` pasó a edges las filas de los
+  eventos que ya estaban en la base; todos los eventos están en la base desde 0032, y ya nada la
+  lee ni la escribe (la importación dejó de buscar ahí el lugar de un evento nuevo, y la demo, de
+  limpiarla). Antes de aplicar la 0075 en producción: un marcador de time travel y el chequeo que
+  trae escrito (cada fila con su edge `lugar`), con el visto bueno de gorrite.
 - Antes (0017 → 0035) era esa tabla, por la dirección del evento, mientras los eventos eran `.md`.
 
 ## Tablas (migraciones 0017, 0024, 0025 y 0046)
@@ -497,7 +498,7 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
 | `profile_claims`         | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
 | `profile_rejections`     | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; «Volver a mandar» o aprobarlo borra la fila                                                                                                  |
 | `event_venue_dismissals` | «Dejar como texto» de Vincular lugares (0046): un evento por fila, con la clave de su «Dónde» de entonces; si el «Dónde» cambia, se vuelve a sugerir                                                                                |
-| `event_venues`           | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento y la tabla ya no se usa                                                                                                                                 |
+| `event_venues`           | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento; la 0075 la borra                                                                                                                                       |
 
 ## Dónde está el código
 

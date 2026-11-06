@@ -96,7 +96,7 @@ const BUYER_FIELDS = new Set(['name', 'pronouns', 'email', 'dni']);
  * @returns {number}
  */
 export function stepOfField(name) {
-	if (TICKETS_FIELDS.has(name)) return STEP_TICKETS;
+	if (TICKETS_FIELDS.has(name) || name.startsWith('extra_')) return STEP_TICKETS;
 	if (BUYER_FIELDS.has(name) || name.startsWith('holder_') || name.startsWith('campo_')) {
 		return STEP_BUYER;
 	}
@@ -232,19 +232,44 @@ export function buyerStepErrors({ buyer, holders, count, fields, typeId, answers
 }
 
 /**
- * Errores del paso «Pagar»: medio de pago (si hay que elegir) y la casilla de +18/condiciones.
+ * El texto de la casilla de +18 y condiciones del paso «Pagar». Cubre a todas las personas de
+ * las entradas, no solo a quien compra (gorrite, 26/10): con varias entradas, en plural. La
+ * validación es la misma (la casilla es obligatoria, en el navegador y en el servidor).
  *
- * @param {{ method: string, methods: readonly string[], free: boolean, accept: boolean }} input
+ * @param {number} count cuántas entradas tiene la compra
+ */
+export function acceptLabel(count) {
+	return count > 1
+		? 'Todas las personas de estas entradas tienen 18 años o más y acepto las condiciones de compra.'
+		: 'La persona de esta entrada tiene 18 años o más y acepto las condiciones de compra.';
+}
+
+/**
+ * El error de la casilla de +18 sin marcar, con el mismo criterio que {@link acceptLabel}.
+ *
+ * @param {number} count
+ */
+export function acceptError(count) {
+	return count > 1
+		? 'Tenés que confirmar que todas las personas de las entradas tienen 18 años o más y aceptar las condiciones.'
+		: 'Tenés que confirmar que la persona de la entrada tiene 18 años o más y aceptar las condiciones.';
+}
+
+/**
+ * Errores del paso «Pagar»: medio de pago (si hay que elegir) y la casilla de +18/condiciones.
+ * `count`: cuántas entradas (para el texto del error de la casilla); sin él, una.
+ *
+ * @param {{ method: string, methods: readonly string[], free: boolean, accept: boolean, count?: number }} input
  * @returns {Record<string, string>}
  */
-export function payStepErrors({ method, methods, free, accept }) {
+export function payStepErrors({ method, methods, free, accept, count = 1 }) {
 	/** @type {Record<string, string>} */
 	const errors = {};
 	if (!free && methods.length > 1 && !methods.includes(method)) {
 		errors.method = 'Elegí un medio de pago.';
 	}
 	if (!accept) {
-		errors.accept = 'Tenés que confirmar que tenés 18 años o más y aceptar las condiciones.';
+		errors.accept = acceptError(count);
 	}
 	return errors;
 }
@@ -274,8 +299,11 @@ export function payStepErrors({ method, methods, free, accept }) {
  *   discountCode: string | null,
  *   free: boolean,
  *   feeBasisPoints: number,
- *   methods: readonly string[]
- * }} input
+ *   methods: readonly string[],
+ *   extras?: { id: string, name: string, price: number, quantity: number }[]
+ * }} input `extras` (decisión 0056): una línea por extra elegido, después del código (el código y
+ *   el Fondo son solo de las entradas) y antes del recargo, que es de todo; el total es lo que se
+ *   paga (`prices.paid`)
  * @returns {PurchaseSummary}
  */
 export function purchaseSummary({
@@ -287,7 +315,8 @@ export function purchaseSummary({
 	discountCode,
 	free,
 	feeBasisPoints,
-	methods
+	methods,
+	extras = []
 }) {
 	/** @type {SummaryLine[]} */
 	const lines = [];
@@ -318,6 +347,14 @@ export function purchaseSummary({
 				amount: `−${formatARS(prices.discount)}`
 			});
 		}
+		for (const e of extras) {
+			if (e.quantity > 0)
+				lines.push({
+					id: `extra-${e.id}`,
+					label: `${e.name} (${e.quantity} × ${formatARS(e.price)})`,
+					amount: formatARS(e.price * e.quantity)
+				});
+		}
 		if (prices.surcharge) {
 			lines.push({
 				id: 'recargo',
@@ -328,7 +365,7 @@ export function purchaseSummary({
 	}
 	const surchargePlaceholder =
 		type && !prices.surcharge && feeBasisPoints && methods.includes('mercadopago') && !free
-			? `+${formatARS(mpSurcharge(prices.total, feeBasisPoints))}`
+			? `+${formatARS(mpSurcharge(prices.paid ?? prices.total, feeBasisPoints))}`
 			: null;
 	return {
 		item: type ? { name: type.name, tier: type.tier?.name ?? null } : null,
@@ -336,6 +373,6 @@ export function purchaseSummary({
 		option: type && showOption && !gorra ? fondoOptionLabel(prices.option) : null,
 		lines,
 		surchargePlaceholder,
-		total: formatARS(type ? prices.total : 0)
+		total: formatARS(type ? (prices.paid ?? prices.total) : 0)
 	};
 }

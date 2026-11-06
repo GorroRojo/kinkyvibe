@@ -18,6 +18,7 @@
 	import { invalidTitle } from '$lib/admin/doorOffline.js';
 	import { argTime } from '$lib/utils/dates.js';
 	import { DOOR_NOTICE_TEXT } from '$lib/utils/doorNotices.js';
+	import ExtrasDelivery from './ExtrasDelivery.svelte';
 	import {
 		ChevronRight,
 		CircleCheck,
@@ -45,6 +46,8 @@
 	export let orderHref = null;
 	/** La venta sin conexión todavía está en la cola del celu: se puede descartar. */
 	export let canDiscard = false;
+	/** Entregando un extra (apaga «Entregar 1» mientras tanto). */
+	export let delivering = false;
 
 	const dispatch = createEventDispatcher();
 
@@ -119,6 +122,15 @@
 			</p>
 		{:else if scan.result === 'void'}
 			<p class="when">La compra fue reembolsada o cancelada.</p>
+		{/if}
+		{#if card.extras?.length}
+			<!-- Extras de la compra (decisión 0056): «Entregar 1» (evento `deliver`). -->
+			<ExtrasDelivery
+				extras={card.extras}
+				busy={delivering}
+				disabled={scan.offline}
+				on:deliver={(e) => dispatch('deliver', { card, extra: e.detail })}
+			/>
 		{/if}
 		{#if card.firstTime && series && tone === 'ok'}
 			<p class="first"><Sparkles size={16} /> Primera vez en {series}</p>

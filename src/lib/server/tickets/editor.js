@@ -12,6 +12,26 @@ import { parseTicketConfig } from './config.js';
 import { getCounts, getTaken } from './orders.js';
 import { tierKey } from '$lib/utils/ticketTiers.js';
 import { waitlistLiveByScope } from './waitlistAdmin.js';
+import { extrasTaken } from './extras.js';
+
+/**
+ * Vendidos y reservados por extra de un evento (decisión 0056: un extra que vendió no se puede
+ * borrar), o `null` si no hay base o falla (sin la migración 0077): entonces el editor no frena
+ * nada por los extras.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {string} slug
+ * @returns {Promise<Record<string, number> | null>}
+ */
+export async function extrasSalesFor(db, slug) {
+	if (!db) return null;
+	try {
+		return Object.fromEntries(await extrasTaken(db, slug));
+	} catch (error) {
+		logDBError('editor: extras del evento', error);
+		return null;
+	}
+}
 
 /**
  * Vendidas y reservadas por tipo de un evento, o `null` si no hay base (o falla).
@@ -72,11 +92,13 @@ export async function waitlistLiveFor(db, slug) {
  *
  * @param {string} content el archivo completo
  * @param {{ sales?: import('$lib/utils/ticketsEditor.js').SalesByType | null,
- *   waitlistLive?: Record<string, number> | null }} [opts] `waitlistLive`: la gente anotada en
- *   la lista de espera (no deja apagarla ni cambiar el alcance)
+ *   waitlistLive?: Record<string, number> | null,
+ *   extrasSales?: Record<string, number> | null }} [opts] `waitlistLive`: la gente anotada en
+ *   la lista de espera (no deja apagarla ni cambiar el alcance); `extrasSales`: vendidos y
+ *   reservados por extra (no deja borrar uno que vendió)
  * @returns {string[]}
  */
-export function ticketsFileErrors(content, { sales, waitlistLive } = {}) {
+export function ticketsFileErrors(content, { sales, waitlistLive, extrasSales } = {}) {
 	/** @type {Record<string, any>} */
 	let meta;
 	try {
@@ -89,7 +111,8 @@ export function ticketsFileErrors(content, { sales, waitlistLive } = {}) {
 	const form = readTicketsForm(meta);
 	const { errors } = validateTicketsForm(form, {
 		sales: sales ?? undefined,
-		waitlistLive: waitlistLive ?? undefined
+		waitlistLive: waitlistLive ?? undefined,
+		extrasSales: extrasSales ?? undefined
 	});
 	if (form.enabled && !errors.length) {
 		try {

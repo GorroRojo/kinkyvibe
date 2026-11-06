@@ -65,8 +65,11 @@ export const PAGES = [
 		title: 'Calendario (grilla)',
 		group: 'sitio',
 		path: () => '/calendario',
+		// En el celu la grilla del mes se abre con su botón; en la compu está siempre al lado (el
+		// botón no se ve). Antes esperaba un selector que ya no existe y perdía 30 s por captura.
 		prepare: async (page) => {
-			await page.locator('label:has(#display-type-grid)').click();
+			const toggle = page.locator('button.grid-toggle');
+			if (await toggle.isVisible()) await toggle.click();
 		}
 	},
 	{

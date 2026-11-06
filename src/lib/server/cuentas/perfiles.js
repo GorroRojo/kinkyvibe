@@ -49,8 +49,12 @@ import { normalizeProfileKind, profileKindOf } from '$lib/server/objects/types/p
 import { imageOf } from '$lib/server/media/library.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
-import { logProfileCreated, logVenueResubmitted } from '$lib/server/admin/accountEvents.js';
-import { clearRejectionStatement } from '$lib/server/amigues/approvals.js';
+import {
+	logProfileCreated,
+	logProfileEdited,
+	logVenueResubmitted
+} from '$lib/server/admin/accountEvents.js';
+import { approvalOf, clearRejectionStatement } from '$lib/server/amigues/approvals.js';
 import { revisionStatement } from '$lib/server/contenido/revisions.js';
 import { parseCoordinate, reviewState } from '$lib/utils/venues.js';
 import {
@@ -531,6 +535,12 @@ export async function updateProfile(db, accountId, slug, input, { now = Date.now
 				also: (self) => [revisionStatement(db, self, 'cuenta')]
 			}
 		);
+		// Un perfil ya aprobado sale al toque (decisión 0022: se aprueba una vez) y avisa en
+		// Actividad (gorrite, Mesa chica-532-revision-perfiles). Sin aprobar ya está en «Para
+		// aprobar»: no hace falta otro aviso. Nunca frena el guardado.
+		if (await approvalOf(db, profile.id).catch(() => null)) {
+			await logProfileEdited(db, { ...saved, kind }, { now });
+		}
 		return { ok: true, profile: saved };
 	} catch (error) {
 		return saveFailure(error);
