@@ -32,9 +32,13 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
   castellano para las apps viejas); el lugar **solo como lo muestra la página pública del evento**
   (`feedVenues` + `eventPlace`: un lugar oculto dice «Lugar a confirmar», nunca la dirección) y
   los botones:
-  - «🎟 Comprar en el sitio» (verde, Bot API 9.4) a `/calendario/<evento>/entradas`, o el estado de
-    la venta deshabilitado («Agotadas», «Abre el 5/10»), igual que las tarjetas del calendario;
-    sin entradas acá, «Abrir en el sitio»;
+  - «Abrir en el sitio» a `/calendario/<evento>` (la compra se hace desde la página del evento,
+    después de leer el texto: ningún botón del bot lleva directo a `/entradas`), o el estado de
+    la venta deshabilitado («Agotadas», «Abre el 5/10»), igual que las tarjetas del calendario.
+    Con «Agotadas», un botón más con link a la página del evento (nunca a comprar): «Anotate en
+    la lista de espera» (`#entradas`, si el evento tiene la lista prendida) o «Avisame la
+    próxima» (`#seguir`, «Seguir la serie»); textos `eventos.boton_lista_espera` y
+    `eventos.boton_avisame`, y lo mismo en la tarjeta inline y en la Mini App;
   - «📅 Agregar al calendario» (link de Google Calendar con título, fecha, link y el lugar público;
     sin fin cargado, 2 horas);
   - «🗺 Cómo llegar», solo si la página muestra el mapa (`googleMapsLink` del lugar o el
@@ -302,7 +306,8 @@ funciones que `/calendario`).
   pedido (`miniAppTexts` en `miniapp.js`); la página no se guarda (`private, no-store`): una
   copia guardada nombraba los archivos JS de un deploy anterior, que ya no existen, y la Mini App
   no cargaba («Failed to load», 5/11). Los estados de la venta («Agotadas»…) son
-  los del sitio (`ticketCta`).
+  los del sitio (`ticketCta`). El botón del evento dice «Ver en el sitio» (clave
+  `miniapp.boton_comprar`, se llama así por cómo empezó; un texto ya cambiado en el panel se mantiene).
 - Con `telegram_enriquecido`: «📤 Mandar a un chat» en cada evento y el link directo a un evento
   (abajo, «Mensajes enriquecidos y compartir»).
 

@@ -404,10 +404,12 @@
 								{meta.summary}
 							</p>{/if}
 						<div class="actions">
-							{#if slide.cta?.kind === 'buy'}
-								<a class="btn buy" href={slide.cta.href}>{slide.cta.text}</a>
-							{:else if slide.cta?.kind === 'note'}
+							<!-- Comprar se hace desde la página del evento (después de leer el texto): «Saber más» -->
+							{#if slide.cta?.kind === 'note'}
 								<span class="note">{slide.cta.text}</span>
+								{#if slide.cta.followUp}
+									<a class="followup" href={slide.cta.followUp.href}>{slide.cta.followUp.text}</a>
+								{/if}
 							{/if}
 							<a class="btn mas" href={slide.post.path} aria-describedby="carrusel-{i}-titulo"
 								>{slide.evento ? 'Saber más' : 'Ver'}</a
@@ -634,6 +636,12 @@
 	}
 	.note {
 		font-weight: 700;
+	}
+	/* «Agotadas» → lista de espera / «Seguir la serie» en la página del evento */
+	.followup {
+		font-weight: 700;
+		color: inherit;
+		text-decoration: underline;
 	}
 	.btn:focus-visible,
 	.control:focus-visible,
