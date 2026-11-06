@@ -13,7 +13,8 @@
 	 * - `series`: `[{ key, label, mark? }]`, hasta 3 (colores fijos en ese orden); `mark: 'line'`
 	 *   para una línea sobre las barras (misma unidad, mismo eje);
 	 * - `stacked`: barras apiladas en lugar de una al lado de la otra;
-	 * - `format`: cómo se escribe un valor (default: número entero);
+	 * - `format`: cómo se escribe un valor (default: número entero); un valor `null` (un mes sin
+	 *   datos, no un 0) no dibuja nada y en la tabla y el tooltip se escribe «—»;
 	 * - `csv`: nombre del archivo CSV (sin fecha); `csvColumns`: columnas de más para el CSV;
 	 * - `height` (px, default 220); `empty`: texto si no hay datos.
 	 * Slot `controls`: botones al lado de "Gráfico / Tabla" (ej. Entradas / Plata).
@@ -51,6 +52,8 @@
 	$: lines = series.filter((s) => s.mark === 'line');
 	/** @param {any} r @param {string} k */
 	const val = (r, k) => Number(r?.[k] ?? 0) || 0;
+	/** @param {any} r @param {string} k */
+	const cellText = (r, k) => (r?.[k] == null ? '—' : format(val(r, k)));
 	$: values = rows.flatMap((r) => [
 		...(stacked
 			? [bars.reduce((s, b) => s + Math.max(0, val(r, b.key)), 0)]
@@ -191,8 +194,9 @@
 					<b>{rows[hover][x.key]}</b>
 					{#each series as s, i (s.key)}
 						<span
-							><i class="sw c{i + 1}" class:line={s.mark === 'line'}></i>{s.label}: {format(
-								val(rows[hover], s.key)
+							><i class="sw c{i + 1}" class:line={s.mark === 'line'}></i>{s.label}: {cellText(
+								rows[hover],
+								s.key
 							)}</span
 						>
 					{/each}
@@ -212,7 +216,7 @@
 					{#each rows as r, i (i)}
 						<tr>
 							<td>{r[x.key]}</td>
-							{#each series as s (s.key)}<td class="r num">{format(val(r, s.key))}</td>{/each}
+							{#each series as s (s.key)}<td class="r num">{cellText(r, s.key)}</td>{/each}
 						</tr>
 					{/each}
 				</tbody>

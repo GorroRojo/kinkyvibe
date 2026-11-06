@@ -7,7 +7,7 @@
 	import '$lib/admin/panel-forms.scss';
 	import { ChartLine } from '@lucide/svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
-	import { formatARS } from '$lib/utils/money.js';
+	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import {
 		SALES_DEFAULT_PERIOD,
 		SALES_PERIODS,
@@ -40,6 +40,14 @@
 	/** Abajo de un número: el período y, si hay, la comparación con el anterior. */
 	$: sub = (/** @type {number} */ cur, /** @type {number | undefined} */ prev) =>
 		[when, s?.previous ? changeText(cur, prev, period) : ''].filter(Boolean).join(' · ');
+
+	$: pr = s?.profit ?? null;
+	/** «X de Y eventos con cuenta cerrada». */
+	$: closedText = pr
+		? `${pr.closed} de ${pr.events} ${pr.events === 1 ? 'evento' : 'eventos'} con cuenta cerrada`
+		: '';
+	/** @param {number | null} v */
+	const money = (v) => (v === null ? '—' : formatARS(v));
 
 	/** @param {string} key @param {string} label */
 	const col = (key, label) => ({ key, label });
@@ -235,6 +243,22 @@
 				{:else}
 					<Stat label="Propinas recibidas" value="—" sub="no se pudieron leer" />
 				{/if}
+				{#if pr}
+					<Stat label="Ingresos de la cuenta" value={money(pr.totals.income)} sub={closedText} />
+					<Stat label="Gastos" value={money(pr.totals.expenses)} sub="de las cuentas cerradas" />
+					<Stat
+						label="Ganancia o pérdida"
+						value={pr.totals.profit === null ? '—' : formatSignedARS(pr.totals.profit)}
+						sub="ingresos de la cuenta − gastos"
+						tone={pr.totals.profit === null
+							? ''
+							: pr.totals.profit > 0
+								? 'ok'
+								: pr.totals.profit < 0
+									? 'bad'
+									: ''}
+					/>
+				{/if}
 			</div>
 			<div class="kv-grid-2">
 				<div class="sub">
@@ -271,6 +295,26 @@
 						empty="Sin recargos de Mercado Pago en este período."
 					/>
 				</div>
+				{#if pr}
+					<div class="sub" id="ganancia-por-mes">
+						<h3>Ganancia por mes</h3>
+						<p class="kv-note">{closedText}</p>
+						<Chart
+							title="Ganancia por mes: ingresos de la cuenta, gastos y ganancia"
+							rows={pr.rows}
+							x={{ key: 'label', label: 'mes' }}
+							series={[
+								{ key: 'income', label: 'Ingresos de la cuenta' },
+								{ key: 'expenses', label: 'Gastos' },
+								{ key: 'profit', label: 'Ganancia' }
+							]}
+							format={formatARS}
+							csv="ganancia-por-mes"
+							csvColumns={[col('month', 'clave'), col('closed', 'cuentas cerradas')]}
+							empty="Ninguna cuenta cerrada en este período."
+						/>
+					</div>
+				{/if}
 				{#if tips}
 					<div class="sub">
 						<h3>Propinas por mes</h3>
@@ -298,6 +342,13 @@
 				aprobación, de los mismos meses, y no dependen de la serie elegida; detalle en <a
 					href="/admin/estadisticas/propinas">Propinas</a
 				>.
+				{#if pr}
+					«Ingresos de la cuenta», «Gastos» y «Ganancia» salen de las cuentas cerradas de cada
+					evento (Gastos y reparto, en su ficha): no incluyen el recargo de Mercado Pago y suman lo
+					que se cargó a mano (otros ingresos), por eso no coinciden con «Cobrado». Un mes sin
+					cuentas cerradas queda vacío; el detalle por evento, en
+					<a href="/admin/ventas/cuentas">Cuentas del año</a>.
+				{/if}
 			</p>
 		</Card>
 

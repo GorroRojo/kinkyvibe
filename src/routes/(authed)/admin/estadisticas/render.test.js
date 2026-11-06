@@ -109,6 +109,42 @@ describe('Ventas', () => {
 		]);
 	});
 
+	it('sin `gastos_reparto` no hay ganancia; con cierres, los totales y «Ganancia por mes»', () => {
+		const off = text(
+			render(Ventas, {
+				props: { data: /** @type {any} */ ({ dbAvailable: true, period: '90d', serie: '', sales }) }
+			}).body
+		);
+		expect(off).not.toContain('Ganancia por mes');
+		expect(off).not.toContain('Ingresos de la cuenta');
+		const closings = [
+			{
+				event_slug: 'fiesta-2026-09',
+				event_date: '2026-09-20',
+				income_total: 300000,
+				expenses_total: 120000,
+				profit: 180000
+			}
+		];
+		const withProfit = salesPage(orders, events, { period, now: NOW, closings });
+		const on = text(
+			render(Ventas, {
+				props: {
+					data: /** @type {any} */ ({
+						dbAvailable: true,
+						period: '90d',
+						serie: '',
+						sales: withProfit
+					})
+				}
+			}).body
+		);
+		expect(on).toContain('Ganancia por mes');
+		expect(on).toContain('1 de 2 eventos con cuenta cerrada');
+		expect(on).toContain('Ingresos de la cuenta $ 300.000');
+		expect(on).toContain('Ganancia o pérdida +$ 180.000');
+	});
+
 	it('con una serie elegida, los links de período la conservan y se dice cuál es', () => {
 		const one = salesPage(orders, events, { period, serie: 'taller', now: NOW });
 		const html = render(Ventas, {

@@ -704,7 +704,22 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   borra el cierre. Todo queda en Actividad (`event_account.save`, `.close`, `.reopen`,
   `venue.cost_rule`).
 - **Cuentas del año:** los cierres de un año por el mes del evento, con el renglón del año y la
-  lista de eventos. La columna «Extras» va después de «Fondo neto».
+  lista de eventos. La columna «Extras» va después de «Fondo neto». **Descargar CSV** baja una fila
+  por cierre (fecha, evento, ingresos, gastos, ganancia, Caja KV; `CLOSINGS_CSV_COLUMNS`), sin nada
+  de las partes. **Lo que le tocó a cada parte** suma el año por parte (`yearShares`): la Caja KV
+  con su columna del cierre y cada parte de afuera del equipo por nombre (sin distinguir
+  mayúsculas), con la cuenta vuelta a hacer desde la foto; con pérdida, lo que puso resta. Tiene
+  nombres de personas: solo en esta página de admins, nunca en un CSV.
+- **La ganancia en otras páginas** (gorrite, 6/11; `estadisticas-ganancia` en el plan), solo con
+  el interruptor prendido:
+  - la ficha del evento › **Resumen**, tarjeta «La cuenta» (si vende entradas): «Ingresos de la
+    cuenta», «Gastos» y «Ganancia o pérdida» de la cuenta cerrada; empezada y sin cerrar dice «sin
+    cerrar», y sin cuenta, «—» (nunca $ 0). Lee `accountState` (`cuentas.js`);
+  - Estadísticas › Ventas › **Fondo y finanzas**: los mismos tres totales de los eventos del período
+    (y la serie) con la cuenta cerrada, con «X de Y eventos con cuenta cerrada», y el gráfico y la
+    tabla **Ganancia por mes** (`profitByMonth` en `statsPages.js`, por el mes del evento; un mes sin
+    cierres queda vacío). «Ingresos de la cuenta» no es «Cobrado»: no tiene el recargo de MP y suma
+    lo cargado a mano.
 - **La página** (gorrite, Mesa 5/11: más compacta): arriba, ingresos, gastos, ganancia o pérdida y
   Caja KV; abajo, cuatro tarjetas: **Ingresos** (lo que entró y otros ingresos), **Gastos** (lugar,
   contrataciones y otros gastos), **Reparto** (cada parte: nombre y lo suyo; su regla; sus marcas,

@@ -13,6 +13,16 @@
 	import { ONLINE_MISMATCH_TEXT } from '$lib/utils/onlineTagMismatch.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { describeSchedule } from '$lib/utils/eventDraft.js';
+	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
+
+	/**
+	 * Un número de «La cuenta»: con la cuenta cerrada, el monto; si no, «sin cerrar» o «—» (nunca
+	 * $ 0, que diría otra cosa).
+	 * @param {{ state: string }} account
+	 * @param {number | null} value
+	 */
+	const accountText = (account, value) =>
+		value !== null ? formatARS(value) : account.state === 'open' ? 'sin cerrar' : '—';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -136,6 +146,32 @@
 		</dl>
 		<p><a class="kv-btn ghost" href={eventHref(e.slug, 'editar')}>Editar los datos</a></p>
 	</Card>
+
+	{#if data.account}
+		<!-- La cuenta (Gastos y reparto): los números, solo con la cuenta cerrada. -->
+		<Card title="La cuenta">
+			<dl class="kv" id="la-cuenta">
+				<dt>Ingresos de la cuenta</dt>
+				<dd class="num">{accountText(data.account, data.account.income)}</dd>
+				<dt>Gastos</dt>
+				<dd class="num">{accountText(data.account, data.account.expenses)}</dd>
+				<dt>Ganancia o pérdida</dt>
+				<dd class="num">
+					{data.account.profit === null
+						? accountText(data.account, null)
+						: formatSignedARS(data.account.profit)}
+				</dd>
+			</dl>
+			<p class="muted small">
+				{data.account.state === 'closed'
+					? 'De la cuenta cerrada. No incluye el recargo de Mercado Pago.'
+					: data.account.state === 'open'
+						? 'La cuenta está empezada pero sin cerrar: los números salen cuando la cierres.'
+						: 'Todavía nadie empezó la cuenta de este evento.'}
+				<a href={eventHref(e.slug, 'gastos')}>Gastos y reparto</a>
+			</p>
+		</Card>
+	{/if}
 
 	<!-- Visitas de la página del evento (docs/analiticas.md, «Visitas de una página»). -->
 	<PageVisitsCard visits={data.visits} />

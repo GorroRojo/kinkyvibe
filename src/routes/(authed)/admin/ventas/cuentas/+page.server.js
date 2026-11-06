@@ -1,10 +1,12 @@
 /**
  * Ventas › Cuentas del año (interruptor `gastos_reparto`; docs/tickets.md, «Gastos y reparto»):
  * el resumen por mes y el total del año, armado con las cuentas cerradas de cada evento
- * (`event_account_closings`, migración 0078). Solo admins; con el interruptor apagado, 404.
+ * (`event_account_closings`, migración 0078), «Lo que le tocó a cada parte» (de la foto de cada
+ * cierre: tiene nombres, por eso no va en ningún CSV) y el CSV de los cierres (sin las partes).
+ * Solo admins; con el interruptor apagado, 404.
  */
 import { error } from '@sveltejs/kit';
-import { yearSummary } from '$lib/admin/reparto.js';
+import { yearShares, yearSummary } from '$lib/admin/reparto.js';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { gastosRepartoEnabled } from '$lib/server/flags.js';
@@ -12,6 +14,7 @@ import {
 	MISSING_MIGRATION,
 	accountsReady,
 	closingYears,
+	listClosingSnapshots,
 	listClosings
 } from '$lib/server/tickets/cuentas.js';
 import { todayInArgentina } from '$lib/utils/eventDraft.js';
@@ -28,14 +31,15 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const year = Number.isInteger(asked) && asked > 2000 && asked < 3000 ? asked : thisYear;
 	// Sin la migración 0078 (por ejemplo, una vista previa): la página avisa en vez de romperse.
 	const ready = await accountsReady(db);
-	const [rows, years] = ready
-		? await Promise.all([listClosings(db, year), closingYears(db)])
-		: [[], []];
+	const [rows, years, snapshots] = ready
+		? await Promise.all([listClosings(db, year), closingYears(db), listClosingSnapshots(db, year)])
+		: [[], [], []];
 	return {
 		missingMigration: ready ? null : MISSING_MIGRATION,
 		year,
 		years: [...new Set([thisYear, year, ...years])].sort((a, b) => b - a),
 		events: rows,
-		...yearSummary(rows)
+		...yearSummary(rows),
+		shares: yearShares(snapshots)
 	};
 }

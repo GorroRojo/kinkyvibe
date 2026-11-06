@@ -145,7 +145,9 @@ export function rehypeProfileLinks({ firstImageEager = false } = {}) {
 
 /**
  * Los dos pasos juntos, como preset de unified: `processor.use(rehypeProfileHtml)`.
- * @type {import('unified').Preset}
+ * `any`: `rehype-sanitize` 5 está tipado contra unified 10 y `rehype` 13 trae unified 11 (el mismo
+ * árbol hast; los tipos no se llevan). Volver a `import('unified').Preset` al subir rehype-sanitize.
+ * @type {any}
  */
 export const rehypeProfileHtml = {
 	plugins: [[rehypeSanitize, PROFILE_SCHEMA], rehypeProfileLinks]
@@ -154,7 +156,7 @@ export const rehypeProfileHtml = {
 /**
  * Lo mismo para el texto de un perfil: la primera imagen se pide primero (ver
  * {@link rehypeProfileLinks}).
- * @type {import('unified').Preset}
+ * @type {any}
  */
 export const rehypeProfilePageHtml = {
 	plugins: [
