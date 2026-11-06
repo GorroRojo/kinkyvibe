@@ -105,6 +105,73 @@ export function usdCentsForArs(ars, base, adjustmentPct) {
 }
 
 /**
+ * La comisión de PayPal por defecto: 5,4 % + US$ 0,30 por pago, la de «recibir pagos de ventas
+ * internacionales» de una cuenta de Argentina (paypal.com/ar/webapps/mpp/merchant-fees, revisar
+ * antes de cobrar de verdad: A CONFIRMAR). Se cambia en Ajustes › PayPal.
+ */
+export const PAYPAL_FEE_DEFAULT = Object.freeze({ basisPoints: 540, fixedCents: 30 });
+
+/**
+ * @typedef {{ base: number, adjustmentPct: number, feeBasisPoints: number, fixedCents: number }} PaypalFee
+ * La cotización con la que se cobra y la comisión de PayPal (en centésimos de % y centavos de
+ * dólar): lo que necesita {@link paypalSurcharge}.
+ */
+
+/**
+ * El recargo de PayPal en pesos (como el de Mercado Pago, `mpSurcharge`): lo que hay que sumarle a
+ * `ars` para que, cobrado en dólares con {@link usdCentsForArs} y descontada la comisión de PayPal
+ * (porcentaje + fijo), quede al menos `ars`:
+ *
+ *     total = ceil((ars + fijo_en_pesos) / (1 − porcentaje)),  recargo = total − ars
+ *
+ * con el fijo pasado a pesos con la misma cotización. En enteros exactos. Sin comisión o con datos
+ * que no sirven: 0.
+ *
+ * @param {number} ars pesos enteros
+ * @param {PaypalFee} fee
+ */
+export function paypalSurcharge(ars, fee) {
+	const bp = Math.round(Number(fee?.feeBasisPoints));
+	const fixed = Math.round(Number(fee?.fixedCents));
+	if (!(ars > 0) || !Number.isSafeInteger(ars) || !(fee?.base > 0)) return 0;
+	if (!(bp >= 0) || bp >= 5000 || !(fixed >= 0) || (bp === 0 && fixed === 0)) return 0;
+	const baseCents = BigInt(Math.round(fee.base * 100));
+	const factor = BigInt(10_000 + Math.round((fee.adjustmentPct || 0) * 100));
+	if (factor <= 0n) return 0;
+	// En pesos × 10^8: el fijo es centavos de dólar × centavos de peso × diezmilésimos.
+	const D = 100_000_000n;
+	const num = (BigInt(ars) * D + BigInt(fixed) * baseCents * factor) * 10_000n;
+	const den = D * BigInt(10_000 - bp);
+	const total = (num + den - 1n) / den;
+	return Number(total) - ars;
+}
+
+/**
+ * La comisión de Ajustes › PayPal escrita como texto: porcentaje (`5,4`) y fijo en dólares
+ * (`0,30`). Vacío = el de {@link PAYPAL_FEE_DEFAULT}. Otra cosa: `null`.
+ *
+ * @param {unknown} pctRaw
+ * @param {unknown} fixedRaw
+ * @returns {{ basisPoints: number, fixedCents: number } | null}
+ */
+export function parsePaypalFee(pctRaw, fixedRaw) {
+	const pct = String(pctRaw ?? '')
+		.trim()
+		.replace(/\s*%$/, '')
+		.replace(',', '.');
+	const fixed = String(fixedRaw ?? '')
+		.trim()
+		.replace(/^(US\$|USD|\$)\s*/i, '')
+		.replace(',', '.');
+	const basisPoints = pct === '' ? PAYPAL_FEE_DEFAULT.basisPoints : Math.round(Number(pct) * 100);
+	const fixedCents = fixed === '' ? PAYPAL_FEE_DEFAULT.fixedCents : Math.round(Number(fixed) * 100);
+	if (pct !== '' && !/^\d{1,2}(\.\d{1,2})?$/.test(pct)) return null;
+	if (fixed !== '' && !/^\d{1,2}(\.\d{1,2})?$/.test(fixed)) return null;
+	if (basisPoints >= 5000 || fixedCents > 1000) return null;
+	return { basisPoints, fixedCents };
+}
+
+/**
  * Dólares (desde centavos) para mostrar: `US$ 12,34`.
  *
  * @param {number} cents

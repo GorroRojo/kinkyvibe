@@ -269,7 +269,8 @@ export function priceLines(order, typeName) {
 		lines.push(`${e.quantity} × ${e.name}: ${formatARS(e.price * e.quantity)}`);
 	}
 	if (order.surcharge_amount) {
-		lines.push(`Recargo Mercado Pago: +${formatARS(order.surcharge_amount)}`);
+		const by = order.payment_method === 'paypal' ? 'PayPal' : 'Mercado Pago';
+		lines.push(`Recargo ${by}: +${formatARS(order.surcharge_amount)}`);
 	}
 	lines.push(`Total: ${formatARS(orderPaid(order))}`);
 	return lines;

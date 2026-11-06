@@ -1104,14 +1104,16 @@ Además, **Admins** (`/admin/ajustes/admins`) muestra quién puede entrar al pan
 
 ### PayPal
 
-Con el interruptor `paypal`, las credenciales y una cotización reciente, **todo evento que cobra
-con Mercado Pago** suma «PayPal» como medio de pago (en dólares, al dólar MEP del día con el ajuste
-de Ajustes › PayPal; se ve el monto en dólares en «Pagar» antes de ir a PayPal). Extras, Fondo,
-códigos y links de la lista de espera andan igual (es el mismo `buyAction`). Sin recargo. La orden
-tiene `payment_method = 'paypal'` (migración 0082) y entra por el mismo `processPayment` que MP:
-entradas, mail, «Cada venta», reportes (la comisión de PayPal en pesos en `mp_fee_amount`) y
-«PayPal (online)» en Gastos y reparto. Reembolsar desde Ventas › Órdenes pide el reembolso a
-PayPal. Todo, con la lista para prenderlo, en [paypal.md](paypal.md).
+Con el interruptor `paypal`, las credenciales y una cotización reciente, cada evento ofrece «PayPal»
+como medio de pago (en dólares, al dólar MEP del día con el ajuste de Ajustes › PayPal; se ve el
+monto en dólares en «Pagar» antes de ir a PayPal). Es una **opción por evento** (casilla en Medios
+de pago, prendida por defecto; `paypal: false` en el evento la apaga). Extras, Fondo, códigos y
+links de la lista de espera andan igual (es el mismo `buyAction`). **Con recargo**: quien compra
+paga la comisión de PayPal, como el recargo de MP (`surcharge_amount`). La orden tiene
+`payment_method = 'paypal'` (migración 0082) y entra por el mismo `processPayment` que MP:
+entradas, mail, «Cada venta», reportes y «PayPal (online)» en Gastos y reparto. Reembolsar (una o
+«Reembolsar todas») pide el reembolso a PayPal. Todo, con la lista para prenderlo, en
+[paypal.md](paypal.md).
 
 ### Transferencia
 

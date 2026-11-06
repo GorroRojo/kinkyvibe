@@ -284,7 +284,9 @@
 		{/if}
 		{#if ra.mp.count}
 			<p>
-				<strong>{ra.mp.count} {ra.mp.count === 1 ? 'orden' : 'órdenes'} de Mercado Pago</strong>
+				<strong
+					>{ra.mp.count} {ra.mp.count === 1 ? 'orden' : 'órdenes'} de Mercado Pago o PayPal</strong
+				>
 				sin reembolsar, por <strong>{formatARS(ra.mp.total)}</strong> en total.
 			</p>
 			{#if !confirmingAll}
@@ -324,7 +326,7 @@
 				</form>
 			{/if}
 		{:else}
-			<p>No queda ninguna orden de Mercado Pago para reembolsar.</p>
+			<p>No queda ninguna orden de Mercado Pago o PayPal para reembolsar.</p>
 		{/if}
 		{#if ra.manual.length}
 			<h3>Para devolver a mano</h3>

@@ -13,7 +13,7 @@
  *   preventa `{ id, name, price, quantity?, until? }`; `after`: id del tipo que se tiene que agotar
  *   o cerrar para que este se habilite; `door_price`: precio en la puerta y en la carga a mano,
  *   opcional; si falta, el del último tramo o el precio fijo);
- * - `payment_methods`, `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
+ * - `payment_methods`, `paypal` (solo `false` para apagar PayPal en el evento), `tickets_open`, `tickets_close`, `modalidad`, `recordatorios`,
  *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo;
  * - `meta_venta`: la meta de venta (plata o entradas, ver ./salesGoal.js). Se edita junto con la
  *   venta y solo se escribe con la venta prendida.
@@ -65,6 +65,7 @@ export const TYPE_ID_RE = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 export const TICKET_KEYS = [
 	'tickets',
 	'payment_methods',
+	'paypal',
 	'tickets_open',
 	'tickets_close',
 	'modalidad',
@@ -86,7 +87,8 @@ export const MAX_TIERS = 10;
 
 export const PAYMENT_METHOD_LABELS = /** @type {const} */ ({
 	mercadopago: 'Mercado Pago',
-	transferencia: 'Transferencia (se confirma a mano)'
+	transferencia: 'Transferencia (se confirma a mano)',
+	paypal: 'PayPal (en dólares, con recargo)'
 });
 
 /**
@@ -145,7 +147,7 @@ export { isOnlineEvent };
  * @typedef {object} TicketsForm
  * @prop {boolean} enabled
  * @prop {TicketTypeForm[]} types
- * @prop {{ mercadopago: boolean, transferencia: boolean }} methods
+ * @prop {{ mercadopago: boolean, transferencia: boolean, paypal: boolean }} methods
  * @prop {boolean} customOpen
  * @prop {string} openAt datetime-local (hora de Argentina)
  * @prop {boolean} customClose
@@ -378,7 +380,8 @@ export function readTicketsForm(meta) {
 		types,
 		methods: {
 			mercadopago: methodList.includes('mercadopago'),
-			transferencia: methodList.includes('transferencia')
+			transferencia: methodList.includes('transferencia'),
+			paypal: meta?.paypal !== false
 		},
 		customOpen: Boolean(openAt),
 		openAt,
@@ -1025,6 +1028,11 @@ export function applyTicketsForm(frontmatter, form, initial, opts) {
 			node.flow = true;
 			doc.set('payment_methods', node);
 		}
+	}
+	// PayPal (docs/paypal.md): prendido por defecto; solo se escribe `paypal: false`.
+	if (!initial.enabled || form.methods.paypal !== initial.methods.paypal) {
+		if (form.methods.paypal) doc.delete('paypal');
+		else doc.set('paypal', false);
 	}
 	for (const [key, on, value, wasOn, was] of /** @type {const} */ ([
 		['tickets_open', form.customOpen, form.openAt, initial.customOpen, initial.openAt],

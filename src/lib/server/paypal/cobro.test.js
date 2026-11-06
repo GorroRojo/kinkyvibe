@@ -22,7 +22,8 @@ import {
 	setPaypalCharge,
 	setPaypalOrder
 } from '$lib/server/tickets/orders.js';
-import { refundFromPanel } from '$lib/server/admin/refunds.js';
+import { refundAllBatch, refundAllPreview, refundFromPanel } from '$lib/server/admin/refunds.js';
+import { paypalSurcharge } from '$lib/utils/paypal.js';
 import { MP_FEE_SQL } from '$lib/utils/salesGoal.js';
 import { decideMockPaypalOrder, mockPaypalGateway as gw } from './mock.js';
 import {
@@ -46,6 +47,7 @@ beforeEach(async () => {
 
 const ORIGIN = 'http://localhost:5173';
 const QUOTE = { base: 1250, adjustmentPct: -4 };
+const FEE = { ...QUOTE, feeBasisPoints: 540, fixedCents: 30 };
 
 /** Crea la orden en el PayPal simulado y la aprueba. @param {string} customId @param {number} cents */
 async function approvedPaypalOrder(customId, cents) {
@@ -134,7 +136,8 @@ describe('propinas con PayPal', () => {
 describe('entradas con PayPal', () => {
 	const TYPE = { id: 'general', price: 8000, capacity: 5 };
 
-	async function paypalOrder() {
+	/** @param {{ fee?: boolean }} [o] */
+	async function paypalOrder({ fee = false } = {}) {
 		const reserved = await reserveOrder(t.db, {
 			eventSlug: 'fiesta',
 			type: TYPE,
@@ -142,13 +145,16 @@ describe('entradas con PayPal', () => {
 			holders: [{ name: 'Persona de Prueba', pronouns: '' }],
 			buyer: { name: 'Persona de Prueba', email: 'prueba@example.com', dni: '30000000' },
 			method: 'paypal',
-			// El recargo es solo de Mercado Pago: con PayPal no se suma.
-			feeBasisPoints: 500
+			// La tasa de MP no cuenta con PayPal: su recargo sale de `paypalFee`.
+			feeBasisPoints: 500,
+			paypalFee: fee ? FEE : null
 		});
 		if (!reserved.ok) throw new Error('no se reservó');
 		const order = reserved.order;
-		expect(order.total).toBe(8000);
-		const cents = /** @type {number} */ (usdCentsForArs(8000, QUOTE.base, QUOTE.adjustmentPct));
+		expect(order.total).toBe(fee ? 8000 + paypalSurcharge(8000, FEE) : 8000);
+		const cents = /** @type {number} */ (
+			usdCentsForArs(order.total, QUOTE.base, QUOTE.adjustmentPct)
+		);
 		await setPaypalCharge(t.db, order.id, { usdCents: cents, ...QUOTE });
 		const ppId = await approvedPaypalOrder(PAYPAL_ORDER_PREFIX + order.id, cents);
 		await setPaypalOrder(t.db, order.id, ppId);
@@ -246,5 +252,35 @@ describe('entradas con PayPal', () => {
 			gateway: async () => null
 		});
 		expect(r2.result).toBe('no-gateway');
+	});
+
+	it('con recargo: la orden lo guarda como el de MP y lo neto de PayPal alcanza el precio', async () => {
+		const { order, ppId } = await paypalOrder({ fee: true });
+		expect(order.surcharge_amount).toBe(838);
+		await applyPayment(t.db, asOrderPayment(await settlePaypalOrder(gw, ppId), order.id));
+		const saved = /** @type {any} */ (await getOrder(t.db, order.id));
+		const net = saved.usd_amount_cents - saved.usd_fee_cents;
+		expect(net).toBeGreaterThanOrEqual(
+			/** @type {number} */ (usdCentsForArs(8000, QUOTE.base, QUOTE.adjustmentPct))
+		);
+	});
+
+	it('«Reembolsar todas» también devuelve las de PayPal por la API', async () => {
+		const { order, ppId } = await paypalOrder();
+		await applyPayment(t.db, asOrderPayment(await settlePaypalOrder(gw, ppId), order.id));
+		const preview = await refundAllPreview(t.db, 'fiesta');
+		expect(preview.mp.count).toBe(1);
+		expect(preview.manual).toEqual([]);
+		const batch = await refundAllBatch({
+			db: t.db,
+			eventSlug: 'fiesta',
+			by: 'gorrite',
+			gateway: async () => null,
+			paypal: async () => gw
+		});
+		expect(batch.results.map((r) => r.result)).toEqual(['refunded']);
+		const saved = /** @type {any} */ (await getOrder(t.db, order.id));
+		expect(saved.status).toBe('refunded');
+		expect((await gw.getCapture(saved.paypal_capture_id)).status).toBe('REFUNDED');
 	});
 });

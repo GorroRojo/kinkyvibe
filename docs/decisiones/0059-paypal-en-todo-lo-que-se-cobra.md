@@ -1,8 +1,9 @@
 # 0059. PayPal en todo lo que se cobra: propinas y entradas
 
 - Fecha: 2026-11-06
-- Estado: Propuesta. Pedido de gorrite (6/11: «PayPal como forma de pago para todo»); lo marcado
-  «A confirmar» lo eligió Claude como opción por defecto y espera el visto bueno de gorrite.
+- Estado: Aceptada. Pedido de gorrite (6/11: «PayPal como forma de pago para todo»); lo que
+  estaba «A confirmar» lo respondió gorrite en #652 (7/11). Queda A CONFIRMAR solo la tarifa de
+  PayPal por defecto (5,4 % + US$ 0,30), contra la cuenta de verdad.
   Completa [0054](0054-paypal-en-las-propinas.md).
 
 ## Contexto
@@ -23,9 +24,14 @@ puerta (efectivo o MP) y las suscripciones del Fondo (fondo.kinkyvibe.ar) quedan
   mails y «Cada venta» no cambian.
 - **Cuánto se cobra**: `ceil(pesos / (base × (1 + ajuste / 100)))` al centavo de dólar, con la base
   del día (o la última de hasta 5 días antes). Quien paga ve los dólares antes de ir a PayPal.
-- **A confirmar**: PayPal en todos los eventos con MP (sin casilla por evento); sin recargo por la
-  comisión de PayPal; la conversión usa el ajuste; las propinas siguen eligiéndose en pesos;
-  cancelar en PayPal cancela la compra enseguida; «Reembolsar todas» no incluye las de PayPal.
+- **PayPal es una opción por evento**, como la transferencia, prendida por defecto (`paypal: false`
+  en el evento la apaga).
+- **Con recargo, como Mercado Pago**: quien compra paga la comisión de PayPal (porcentaje + fijo en
+  dólares, en Ajustes › PayPal), en `surcharge_amount`; los reportes y el reparto lo tratan igual
+  que el de MP.
+- Las propinas se eligen en pesos y se convierten, sin recargo. Cancelar en PayPal cancela la
+  compra. «Reembolsar todas» devuelve también las de PayPal por la API. Con una cotización de más
+  de 5 días PayPal no se ofrece y la vigilancia avisa a les admins una vez por día.
 
 ## Descartado
 

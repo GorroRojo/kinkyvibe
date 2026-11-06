@@ -138,8 +138,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   en dólares netos, con una cotización propia (MEP «compra» + un ajuste de gorrite) y retiros para
   comparar (2/11)
 - [0055](0055-cotizacion-sin-interruptor.md): la cotización para kv-fondo anda aunque el interruptor `paypal` esté apagado.
-- [0059](0059-paypal-en-todo-lo-que-se-cobra.md): PayPal también en las entradas, en todo evento
-  con Mercado Pago, al dólar del día con el ajuste y redondeado para arriba (6/11)
+- [0059](0059-paypal-en-todo-lo-que-se-cobra.md): PayPal también en las entradas: opción por
+  evento (prendida por defecto), con recargo de la comisión como MP, al dólar del día (6/11)
 
 ### Comunidad y suscripciones
 

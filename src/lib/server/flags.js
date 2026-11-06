@@ -151,8 +151,9 @@ export const FLAGS = Object.freeze({
 	paypal: {
 		label: 'PayPal',
 		description:
-			'Pagar con PayPal, en dólares: las propinas y las entradas de todo evento que cobra con ' +
-			'Mercado Pago (con extras, Fondo, códigos y lugares guardados de la lista de espera). Se ' +
+			'Pagar con PayPal, en dólares: las propinas y las entradas de los eventos que lo tienen ' +
+			'prendido (lo está por defecto; con extras, Fondo, códigos y lugares guardados de la ' +
+			'lista de espera; en las entradas, con el recargo de la comisión de PayPal). Se ' +
 			'cobra al dólar MEP del día con el ajuste en % de Ajustes → PayPal, donde también están ' +
 			'los retiros y el reparto por mes del Fondo. Solo se ofrece si están cargadas las ' +
 			'credenciales de PayPal y hay una cotización reciente. Apagado, no se ofrece PayPal y ' +

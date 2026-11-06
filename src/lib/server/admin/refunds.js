@@ -10,7 +10,7 @@
  * (`order.refund`), sale el mail «Reembolsamos tu compra» y la lista de espera sigue.
  *
  * «Reembolsar todas» ({@link refundAllBatch}): solo eventos cancelados, solo órdenes aprobadas de
- * Mercado Pago compradas online y con número de pago ({@link isMpRefundable}); de a
+ * Mercado Pago o de PayPal compradas online y con número de pago ({@link isMpRefundable}); de a
  * {@link REFUND_ALL_BATCH} por pedido, una después de otra, en orden de compra. Las demás
  * aprobadas (puerta, carga a mano, transferencia) se listan «para devolver a mano» y no se tocan.
  *
@@ -137,20 +137,19 @@ export const REFUND_REASON = {
  * ¿«Reembolsar todas» la devuelve por Mercado Pago? Aprobada, de MP, comprada online y con número
  * de pago. Las demás (puerta, carga a mano, transferencia) se devuelven a mano.
  *
- * @param {Pick<Order, 'status' | 'payment_method' | 'mp_payment_id'> & { channel?: string | null }} o
+ * @param {Pick<Order, 'status' | 'payment_method' | 'mp_payment_id' | 'paypal_capture_id'> & { channel?: string | null }} o
  */
 export function isMpRefundable(o) {
-	return (
-		o.status === 'approved' &&
-		o.payment_method === 'mercadopago' &&
-		Boolean(o.mp_payment_id) &&
-		(o.channel ?? 'online') === 'online'
-	);
+	if (o.status !== 'approved' || (o.channel ?? 'online') !== 'online') return false;
+	// PayPal (docs/paypal.md): también se devuelve por la API, con su cobro (`paypal_capture_id`).
+	if (o.payment_method === 'paypal') return Boolean(o.paypal_capture_id);
+	return o.payment_method === 'mercadopago' && Boolean(o.mp_payment_id);
 }
 
 /** Las de {@link isMpRefundable} en SQL (alias `o`). */
-const MP_REFUNDABLE_SQL = `o.status = 'approved' AND o.payment_method = 'mercadopago'
-	AND o.mp_payment_id IS NOT NULL AND o.mp_payment_id != '' AND COALESCE(o.channel, 'online') = 'online'`;
+const MP_REFUNDABLE_SQL = `o.status = 'approved' AND COALESCE(o.channel, 'online') = 'online' AND (
+	(o.payment_method = 'mercadopago' AND o.mp_payment_id IS NOT NULL AND o.mp_payment_id != '')
+	OR (o.payment_method = 'paypal' AND o.paypal_capture_id IS NOT NULL AND o.paypal_capture_id != ''))`;
 
 /** Las de {@link MP_REFUNDABLE_SQL} a las que les queda algo por devolver (las de «Reembolsar todas»). */
 const MP_REFUND_ALL_SQL = `${MP_REFUNDABLE_SQL} AND ${REVENUE_SQL} > 0`;
@@ -205,6 +204,7 @@ export async function refundAllPreview(db, eventSlug) {
  *   eventSlug: string,
  *   by: string,
  *   gateway: () => Promise<Gateway | null>,
+ *   paypal?: () => Promise<import('$lib/server/paypal/gateway.js').PaypalGateway | null>,
  *   after?: string | null,
  *   limit?: number,
  *   onRefunded?: (fresh: Order, before: Order) => Promise<void>
@@ -221,6 +221,7 @@ export async function refundAllBatch({
 	eventSlug,
 	by,
 	gateway,
+	paypal,
 	after = null,
 	limit = REFUND_ALL_BATCH,
 	onRefunded
@@ -243,7 +244,7 @@ export async function refundAllBatch({
 		/** @type {RefundResult} */
 		let result;
 		try {
-			const r = await refundFromPanel({ db, order, by, gateway });
+			const r = await refundFromPanel({ db, order, by, gateway, paypal });
 			result = r.result;
 			if (r.result === 'refunded' && r.order && onRefunded) {
 				// La plata ya se devolvió: un error de acá (Actividad, mail) no cambia el resultado.

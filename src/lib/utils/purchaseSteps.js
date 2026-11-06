@@ -300,6 +300,7 @@ export function payStepErrors({ method, methods, free, accept, count = 1 }) {
  *   free: boolean,
  *   feeBasisPoints: number,
  *   methods: readonly string[],
+ *   method?: string,
  *   extras?: { id: string, name: string, price: number, quantity: number }[]
  * }} input `extras` (decisión 0056): una línea por extra elegido, después del código (el código y
  *   el Fondo son solo de las entradas) y antes del recargo, que es de todo; el total es lo que se
@@ -316,6 +317,7 @@ export function purchaseSummary({
 	free,
 	feeBasisPoints,
 	methods,
+	method = '',
 	extras = []
 }) {
 	/** @type {SummaryLine[]} */
@@ -358,7 +360,7 @@ export function purchaseSummary({
 		if (prices.surcharge) {
 			lines.push({
 				id: 'recargo',
-				label: 'Recargo Mercado Pago',
+				label: method === 'paypal' ? 'Recargo PayPal' : 'Recargo Mercado Pago',
 				amount: `+${formatARS(prices.surcharge)}`
 			});
 		}

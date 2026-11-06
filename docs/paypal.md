@@ -60,7 +60,8 @@ tipeo nunca cobra de verdad). Sin los tres primeros, PayPal no se ofrece en ning
 ### 4. Prender y probar en sandbox
 
 1. Ajustes → PayPal: que haya **cotización de hoy** (la trae el cron diario; sin una cotización de
-   los últimos 5 días, PayPal no se ofrece) y revisar el **ajuste en %**.
+   los últimos 5 días, PayPal no se ofrece), revisar el **ajuste en %** y la **comisión** (5,4 % +
+   US$ 0,30 por defecto: compararla con la de la cuenta de PayPal, ver «El recargo»).
 2. Panel → Interruptores → **PayPal** prendido.
 3. En developer.paypal.com → **Sandbox accounts**: hay una cuenta «Personal» de prueba (o crear
    una, de país US o ES, con saldo). Con esa se paga.
@@ -90,8 +91,14 @@ chica de verdad y su reembolso. Avisar en #265 (las credenciales se rotan junto 
 
 `paypalOffer` (`src/lib/server/paypal/payments.js`): el interruptor `paypal` prendido, las tres
 credenciales y una cotización de hace 5 días o menos (fines de semana y feriados). Si algo falta,
-no aparece la opción y todo sigue con Mercado Pago. En las entradas aparece en **todo evento que
-cobra con Mercado Pago** (no se configura por evento), después de los medios del evento.
+no aparece la opción y todo sigue con Mercado Pago. En las entradas, además, **es una opción por
+evento**, como la transferencia: casilla «PayPal» en Medios de pago de la sección Entradas del
+editor, **prendida por defecto** (en el evento solo se guarda `paypal: false` si se apaga).
+
+**Sin cotización reciente** (más de 5 días: el cron de la cotización falló varios días), PayPal no
+se ofrece en ningún lado, Ajustes › PayPal lo marca como dato viejo y la vigilancia
+(`/api/cron/vigilancia`, la corrida de las 10, hora de Argentina) avisa una vez por día por
+Telegram a les admins con «Fallas en compras» prendido (`paypal_cotizacion`).
 
 ### Cuánto se cobra
 
@@ -105,6 +112,26 @@ Así, lo cobrado pasado a pesos con la misma cuenta (`estimateArs`) alcanza el p
 los dólares **antes** de ir a PayPal: en «Pagar» de la compra y en el formulario de propina (que
 pide la cotización a `GET /api/paypal/oferta`, porque está también en páginas sin servidor). La
 cuenta del navegador es la misma función que la del servidor.
+
+### El recargo
+
+Como con Mercado Pago, **quien compra entradas paga la comisión de PayPal** como recargo
+(`paypalSurcharge` en `$lib/utils/paypal.js`, el mismo cálculo en el navegador y en el servidor):
+
+    total = ceil((pesos + fijo_en_pesos) / (1 − porcentaje)),  recargo = total − pesos
+
+con el fijo (en dólares) pasado a pesos con la misma cotización. Así, cobrado en dólares y
+descontada la comisión, queda el precio. Se ve como «Recargo PayPal» en el resumen de la compra,
+la página de la compra, el mail y el panel, y se guarda en `surcharge_amount` como el de MP: entra
+en `total`, los reportes lo cuentan como comisión del medio de pago hasta que PayPal informa la
+real (`mp_fee_amount`) y Gastos y reparto lo descuenta igual que el de MP (no se cuenta dos veces).
+Las propinas no llevan recargo.
+
+La comisión se cambia en **Ajustes › PayPal › Comisión de PayPal** (queda en Actividad). Por
+defecto **5,4 % + US$ 0,30**: la de PayPal Argentina para «recibir pagos de ventas
+internacionales» (<https://www.paypal.com/ar/webapps/mpp/merchant-fees>, consultada el
+6/11/2026). **A CONFIRMAR** contra la cuenta de verdad antes de cobrar: la tarifa puede depender
+del país de quien paga y de la cuenta.
 
 Se guarda en la orden lo que se cobra y con qué (`usd_amount_cents`, `rate_base`,
 `rate_adjustment_pct`, migración 0082); en la propina, `usd_gross_cents` y `rate_base` (0071). El
@@ -146,8 +173,8 @@ con un 200.
   llegue después igual se acepta (como con MP).
 - **Reembolsar** desde Ventas › Órdenes: reembolso TOTAL de la captura por la API. Si PayPal da
   error pero la captura figura reembolsada, se marca igual. «Reembolsar todas» de un evento
-  cancelado no incluye las de PayPal: salen en la lista «para devolver a mano» (las devolvés en
-  Ventas › Órdenes, una por una, con «Reembolsar…»).
+  cancelado también las devuelve por la API, junto con las de Mercado Pago. El recargo se
+  devuelve entero (es un reembolso total); la comisión de PayPal de ese cobro puede no volver.
 - **Reembolso hecho en PayPal** o **contracargo** (`PAYMENT.CAPTURE.REFUNDED` / `REVERSED`): el
   webhook pasa la orden a reembolsada, como con MP (con el contracargo, sin mail).
 - Las propinas no tienen «reembolsar» en el panel (tampoco las de MP): se devuelven desde PayPal y
@@ -175,15 +202,12 @@ de órdenes, cobro e idempotencia contra la base) y `migration0082.test.js`.
 | `PAYPAL_ENABLED`       | (opcional) fuerza el interruptor `paypal` | `1` / `0`                                   |
 | `PAYPAL_MOCK`          | solo `.env.tickets` (dev)                 | `1`: PayPal simulado                        |
 
-## A confirmar con gorrite
+## Decidido con gorrite (7/11)
 
-- **PayPal en todos los eventos con Mercado Pago**, sin casilla por evento.
-- **Sin recargo por la comisión de PayPal** (con MP sí hay recargo): la comisión (≈ 5,4 % + US$
-  0,30 del exterior) la absorbe Kinky Vibe y se ve en los reportes.
-- **La conversión usa el ajuste en %** (con −4 %, se cobra un 4 % más de dólares que con la base
-  sola) y redondea para arriba.
-- **Propinas en pesos convertidos** (los mismos montos de siempre, en dólares al cobrar), no montos
-  en dólares aparte.
-- **Cancelar en PayPal cancela la compra** enseguida (con MP se espera a que venza la reserva).
-- **«Reembolsar todas» no devuelve las de PayPal** automáticamente.
-- **Cotización de hasta 5 días** para cobrar; con una más vieja no se ofrece PayPal.
+- PayPal es **una opción por evento**, prendida por defecto.
+- **Con recargo**: quien compra paga la comisión de PayPal (configurable; la tarifa por defecto es
+  A CONFIRMAR, ver «El recargo»). La conversión usa el ajuste en % y redondea para arriba.
+- **Propinas en pesos convertidos** (los mismos montos de siempre), sin recargo.
+- **Cancelar en PayPal cancela la compra** enseguida.
+- **«Reembolsar todas» devuelve también las de PayPal** por la API.
+- **Cotización de hasta 5 días**; con una más vieja PayPal no se ofrece y se avisa a les admins.

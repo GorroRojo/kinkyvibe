@@ -130,7 +130,7 @@ export const CHECKOUT_RATE_LIMITS = {
  *   maxQuantity: number,
  *   mock: boolean,
  *   methods: import('./config.js').PaymentMethod[],
- *   paypal?: { base: number, adjustmentPct: number, rate: number, mock: boolean } | null,
+ *   paypal?: { base: number, adjustmentPct: number, rate: number, feeBasisPoints: number, fixedCents: number, mock: boolean } | null,
  *   transferUntil: number,
  *   feeBasisPoints: number,
  *   contactEmail: string,
@@ -178,11 +178,11 @@ export const CHECKOUT_RATE_LIMITS = {
 async function availableMethods(db, config) {
 	const [transfer, paypal] = await Promise.all([
 		config.paymentMethods.includes('transferencia') ? transferInfo(db).then(Boolean) : false,
-		config.paymentMethods.includes('mercadopago') ? paypalOffer(db) : null
+		config.paypal ? paypalOffer(db) : null
 	]);
 	const methods = methodsFor(config, transfer);
-	// PayPal (docs/paypal.md): en todo evento que cobra con Mercado Pago, con el interruptor
-	// `paypal`, las credenciales y una cotización reciente. Va después de los del evento.
+	// PayPal (docs/paypal.md): opción por evento (prendida salvo `paypal: false`), con el
+	// interruptor `paypal`, las credenciales y una cotización reciente. Va después de los demás.
 	return { methods: paypal ? [...methods, /** @type {const} */ ('paypal')] : methods, paypal };
 }
 
@@ -416,6 +416,8 @@ async function salesView(db, slug, config, now, reads, opts) {
 					base: paypal.base,
 					adjustmentPct: paypal.adjustmentPct,
 					rate: paypal.rate,
+					feeBasisPoints: paypal.feeBasisPoints,
+					fixedCents: paypal.fixedCents,
 					mock: isPaypalMock()
 				}
 			: null,
@@ -1143,6 +1145,8 @@ export async function buyAction(event) {
 			fondoPercent: config.fondoPercent,
 			method,
 			feeBasisPoints: await mpFeeBasisPoints(db, config),
+			// El recargo de PayPal (docs/paypal.md), con la misma cotización que se muestra.
+			paypalFee: method === 'paypal' ? paypalQuote : null,
 			discount: discount && { code: discount.code, kind: discount.kind, value: discount.value },
 			// Transferencia: 2 días hábiles después del día de la compra, o hasta que empiece el
 			// evento si es antes (decisión 0031).
@@ -1344,7 +1348,7 @@ export async function buyAction(event) {
  *   db: import('@cloudflare/workers-types').D1Database,
  *   order: import('./orders.js').Order,
  *   gateway: import('$lib/server/paypal/gateway.js').PaypalGateway,
- *   quote: { base: number, adjustmentPct: number },
+ *   quote: { base: number, adjustmentPct: number, feeBasisPoints?: number, fixedCents?: number },
  *   eventTitle: string,
  *   typeName: string,
  *   origin: string
@@ -1363,7 +1367,11 @@ export async function startPaypalOrder({
 	try {
 		const usdCents = usdCentsForArs(orderPaid(order), quote.base, quote.adjustmentPct);
 		if (!usdCents) throw new Error('no se pudo pasar el total a dólares');
-		await setPaypalCharge(db, order.id, { usdCents, ...quote });
+		await setPaypalCharge(db, order.id, {
+			usdCents,
+			base: quote.base,
+			adjustmentPct: quote.adjustmentPct
+		});
 		const extras = Number(order.extras_amount ?? 0) > 0 ? ' + extras' : '';
 		const created = await gateway.createOrder(
 			buildPaypalOrder({

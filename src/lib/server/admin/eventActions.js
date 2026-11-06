@@ -717,13 +717,14 @@ export const eventTicketActions = {
 				return fail(409, {
 					refundAll: {
 						ok: false,
-						message: 'No queda ninguna orden de Mercado Pago para reembolsar.'
+						message: 'No queda ninguna orden de Mercado Pago o PayPal para reembolsar.'
 					}
 				});
 			}
 		}
 		const gateway = await getGateway(fetch);
-		if (!gateway) {
+		const paypalGateway = await getPaypalGateway(fetch);
+		if (!gateway && !paypalGateway) {
 			return fail(503, {
 				refundAll: { ok: false, message: 'Mercado Pago no está disponible: no se hizo nada.' }
 			});
@@ -735,6 +736,8 @@ export const eventTicketActions = {
 				eventSlug: params.slug,
 				by: admin.login,
 				gateway: async () => gateway,
+				// Las de PayPal también se devuelven por la API (docs/paypal.md).
+				paypal: async () => paypalGateway,
 				after,
 				onRefunded: (fresh, before) =>
 					afterRefund({ db, locals, platform, url, fetch, before, fresh, waitlist: false })
