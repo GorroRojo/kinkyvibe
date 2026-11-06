@@ -7,6 +7,7 @@
 	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
 	import { TRANSFER_HOLD_AFTER } from '$lib/utils/transferDeadline.js';
 	import { acceptLabel } from '$lib/utils/purchaseSteps.js';
+	import { formatRate, formatUSD, usdCentsForArs } from '$lib/utils/paypal.js';
 
 	/** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 	export let tickets;
@@ -23,6 +24,21 @@
 	export let submitDisabled = false;
 	/** El mail de quien compra: se muestra antes de pagar para que se vea un error de tipeo. */
 	export let email = '';
+	/** Lo que se paga en pesos (entradas y extras): con PayPal se muestra en dólares. */
+	export let paid = 0;
+
+	/** Con PayPal (docs/paypal.md): los dólares, con la misma cuenta que hace el servidor. */
+	$: usdCents =
+		tickets.paypal && paid > 0
+			? usdCentsForArs(paid, tickets.paypal.base, tickets.paypal.adjustmentPct)
+			: null;
+
+	/** @type {Record<string, [string, string]>} */
+	const METHOD_TEXT = {
+		mercadopago: ['Mercado Pago', 'tarjeta o dinero en cuenta'],
+		transferencia: ['Transferencia', 'bancaria, sin recargo'],
+		paypal: ['PayPal', 'en dólares, desde cualquier país']
+	};
 
 	/** Porcentaje de comisión para mostrar (773 → "7,73 %"). */
 	$: feeText =
@@ -43,10 +59,8 @@
 						aria-describedby={errors.method ? 'entradas-medio-error' : undefined}
 					/>
 					<span>
-						<strong>{m === 'mercadopago' ? 'Mercado Pago' : 'Transferencia'}</strong>
-						<small
-							>{m === 'mercadopago' ? 'tarjeta o dinero en cuenta' : 'bancaria, sin recargo'}</small
-						>
+						<strong>{METHOD_TEXT[m]?.[0] ?? m}</strong>
+						<small>{METHOD_TEXT[m]?.[1] ?? ''}</small>
 					</span>
 				</label>
 			{/each}
@@ -59,6 +73,14 @@
 					{#if m === 'mercadopago'}
 						Pagás en Mercado Pago{#if tickets.feeBasisPoints}, con el recargo de la comisión ({feeText}){/if}.
 						Te reservamos el lugar 20 minutos mientras pagás.
+					{:else if m === 'paypal'}
+						{#if usdCents && tickets.paypal}
+							Pagás <strong>{formatUSD(usdCents)}</strong> en PayPal, al dólar MEP de hoy ({formatRate(
+								tickets.paypal.rate
+							)} por dólar). Te reservamos el lugar 20 minutos mientras pagás.
+						{:else}
+							Pagás en dólares en PayPal. Te reservamos el lugar 20 minutos mientras pagás.
+						{/if}
 					{:else}
 						Sin recargo. Te guardamos el lugar <ExpiryTime at={tickets.transferUntil} until />.
 						{TRANSFER_HOLD_AFTER}

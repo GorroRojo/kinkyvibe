@@ -45,14 +45,22 @@ import {
 	transferInfo
 } from './index.js';
 import { buildPreference } from './mercadopago.js';
+import { approveLink } from '$lib/server/paypal/client.js';
+import { getPaypalGateway, isPaypalMock } from '$lib/server/paypal/gateway.js';
+import { PAYPAL_ORDER_PREFIX, buildPaypalOrder, paypalOffer } from '$lib/server/paypal/payments.js';
+import { usdCentsForArs } from '$lib/utils/paypal.js';
+import { isSafeCheckoutUrl } from '$lib/server/propinas/checkout.js';
 import {
 	approveFreeOrder,
 	cancelPendingOrder,
 	getTaken,
 	isValidOrderId,
 	reserveOrder,
+	setPaypalCharge,
+	setPaypalOrder,
 	setPreference
 } from './orders.js';
+import { orderPaid } from '$lib/utils/extras.js';
 import { clientAddress, clientHash } from './safeguards.js';
 import {
 	WAITLIST_BUY_MESSAGES,
@@ -122,6 +130,7 @@ export const CHECKOUT_RATE_LIMITS = {
  *   maxQuantity: number,
  *   mock: boolean,
  *   methods: import('./config.js').PaymentMethod[],
+ *   paypal?: { base: number, adjustmentPct: number, rate: number, mock: boolean } | null,
  *   transferUntil: number,
  *   feeBasisPoints: number,
  *   contactEmail: string,
@@ -167,10 +176,14 @@ export const CHECKOUT_RATE_LIMITS = {
  * @param {import('./config.js').EventTickets} config
  */
 async function availableMethods(db, config) {
-	const transfer = config.paymentMethods.includes('transferencia')
-		? Boolean(await transferInfo(db))
-		: false;
-	return methodsFor(config, transfer);
+	const [transfer, paypal] = await Promise.all([
+		config.paymentMethods.includes('transferencia') ? transferInfo(db).then(Boolean) : false,
+		config.paymentMethods.includes('mercadopago') ? paypalOffer(db) : null
+	]);
+	const methods = methodsFor(config, transfer);
+	// PayPal (docs/paypal.md): en todo evento que cobra con Mercado Pago, con el interruptor
+	// `paypal`, las credenciales y una cotización reciente. Va después de los del evento.
+	return { methods: paypal ? [...methods, /** @type {const} */ ('paypal')] : methods, paypal };
 }
 
 /**
@@ -290,12 +303,12 @@ async function salesReads(db, slug, config, now, opts) {
 				(/** @type {unknown} */ error) => ({ error })
 			)
 		: { error: null };
-	const [methods, feeBasisPoints, fields] = await Promise.all([
+	const [{ methods, paypal }, feeBasisPoints, fields] = await Promise.all([
 		availableMethods(db, config),
 		mpFeeBasisPoints(db, config),
 		eventSignupFields(db, slug)
 	]);
-	return { methods, feeBasisPoints, fields, sold: await sold };
+	return { methods, paypal, feeBasisPoints, fields, sold: await sold };
 }
 
 /**
@@ -383,7 +396,7 @@ export async function getTicketsView(db, slug, fetchFn, opts = {}) {
  */
 async function salesView(db, slug, config, now, reads, opts) {
 	const state = salesState(config, now);
-	const { methods, feeBasisPoints, fields, sold } = await (reads ??
+	const { methods, paypal, feeBasisPoints, fields, sold } = await (reads ??
 		salesReads(db, slug, config, now, opts));
 	// Sin la base todavía: el tramo vigente solo por fecha (para mostrar un precio).
 	const noSales = emptyTaken();
@@ -396,6 +409,16 @@ async function salesView(db, slug, config, now, reads, opts) {
 		maxQuantity: MAX_TICKETS_PER_FORM,
 		mock: isMpMock() && methods.includes('mercadopago'),
 		methods,
+		// Con qué cotización se pasan los pesos a dólares si se elige PayPal (la misma cuenta que
+		// hace el servidor: `usdCentsForArs`).
+		paypal: paypal
+			? {
+					base: paypal.base,
+					adjustmentPct: paypal.adjustmentPct,
+					rate: paypal.rate,
+					mock: isPaypalMock()
+				}
+			: null,
 		// Hasta cuándo se guardaría el lugar comprando ahora por transferencia (decisión 0031).
 		transferUntil: transferDeadline(now, config.start ?? null),
 		feeBasisPoints,
@@ -879,7 +902,7 @@ export async function buyAction(event) {
 					: 'No hay entradas a la venta.'
 		);
 	}
-	const methods = await availableMethods(db, config);
+	const { methods, paypal: paypalQuote } = await availableMethods(db, config);
 
 	// Lista de espera (interruptor `lista_espera` y evento con lista; waitlistPurchase.js): el
 	// público compra lo que sobra después de la fila, y quien tiene un lugar guardado compra con el
@@ -1070,9 +1093,14 @@ export async function buyAction(event) {
 	const method = base.paid === 0 ? 'gratis' : valid.method;
 	/** @type {import('./index.js').Gateway | null} */
 	let gateway = null;
+	/** @type {import('$lib/server/paypal/gateway.js').PaypalGateway | null} */
+	let paypalGateway = null;
 	if (method === 'mercadopago') {
 		gateway = await getGateway(fetch);
 		if (!gateway) return failWith(503, 'El pago con Mercado Pago no está disponible ahora.');
+	} else if (method === 'paypal') {
+		paypalGateway = paypalQuote ? await getPaypalGateway(fetch) : null;
+		if (!paypalGateway) return failWith(503, 'El pago con PayPal no está disponible ahora.');
 	} else if (method === 'transferencia' && !(await transferInfo(db))) {
 		return failWith(503, 'El pago por transferencia no está disponible ahora.');
 	}
@@ -1258,6 +1286,26 @@ export async function buyAction(event) {
 		redirect(303, statusUrl);
 	}
 
+	if (method === 'paypal') {
+		const paypalUrl = await startPaypalOrder({
+			db,
+			order,
+			gateway: /** @type {import('$lib/server/paypal/gateway.js').PaypalGateway} */ (paypalGateway),
+			quote: /** @type {{ base: number, adjustmentPct: number }} */ (paypalQuote),
+			eventTitle: config.title,
+			typeName: valid.type.name,
+			origin
+		});
+		if (!paypalUrl) {
+			await reportPurchaseFailure({ db, platform, code: 'paypal_orden', order, origin, fetch });
+			await cancelPendingOrder(db, order.id).catch((e) => logDBError('cancel order', e));
+			queueWaitlistAdvance({ platform, db, eventSlug: params.event, fetch, origin });
+			return failWith(502, 'No pudimos conectar con PayPal. Probá de nuevo en un ratito.');
+		}
+		await rememberOrder(db, cookies, url, order.id);
+		redirect(303, paypalUrl);
+	}
+
 	/** @type {string} */
 	let checkoutUrl;
 	try {
@@ -1284,4 +1332,57 @@ export async function buyAction(event) {
 	}
 	await rememberOrder(db, cookies, url, order.id);
 	redirect(303, checkoutUrl);
+}
+
+/**
+ * Crea la orden de PayPal de una orden de entradas recién reservada (docs/paypal.md): calcula los
+ * dólares de lo que se paga (entradas y extras, `orderPaid`) con la cotización de ahora, los guarda
+ * en la orden (`setPaypalCharge`) y crea la orden en PayPal con `custom_id` `kv-entrada:<orden>`.
+ * Devuelve el link de PayPal para aprobar el pago, o `null` si algo falló (ya quedó en el log).
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database,
+ *   order: import('./orders.js').Order,
+ *   gateway: import('$lib/server/paypal/gateway.js').PaypalGateway,
+ *   quote: { base: number, adjustmentPct: number },
+ *   eventTitle: string,
+ *   typeName: string,
+ *   origin: string
+ * }} input
+ * @returns {Promise<string | null>}
+ */
+export async function startPaypalOrder({
+	db,
+	order,
+	gateway,
+	quote,
+	eventTitle,
+	typeName,
+	origin
+}) {
+	try {
+		const usdCents = usdCentsForArs(orderPaid(order), quote.base, quote.adjustmentPct);
+		if (!usdCents) throw new Error('no se pudo pasar el total a dólares');
+		await setPaypalCharge(db, order.id, { usdCents, ...quote });
+		const extras = Number(order.extras_amount ?? 0) > 0 ? ' + extras' : '';
+		const created = await gateway.createOrder(
+			buildPaypalOrder({
+				customId: PAYPAL_ORDER_PREFIX + order.id,
+				description: `${order.quantity} × Entrada ${typeName}${extras} · ${eventTitle}`,
+				usdCents,
+				returnUrl: `${origin}/paypal/vuelta`,
+				cancelUrl: `${origin}/paypal/vuelta?cancelado=1`
+			}),
+			`order-${order.id}`
+		);
+		const link = approveLink(created);
+		if (!created?.id || !isSafeCheckoutUrl(link, origin)) {
+			throw new Error('PayPal devolvió un link de pago inesperado');
+		}
+		await setPaypalOrder(db, order.id, created.id);
+		return link;
+	} catch (error) {
+		console.error(`[tickets] no se pudo crear la orden de PayPal de ${order.id}:`, error);
+		return null;
+	}
 }

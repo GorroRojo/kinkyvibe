@@ -24,6 +24,7 @@ export const ORDER_STATUS_TONE = /** @type {Record<string, 'ok' | 'warn' | 'bad'
 
 export const PAYMENT_METHOD = /** @type {Record<string, string>} */ ({
 	mercadopago: 'Mercado Pago',
+	paypal: 'PayPal',
 	transferencia: 'Transferencia',
 	gratis: 'Sin cargo',
 	// Venta en la puerta (modo puerta) o carga a mano.
@@ -146,7 +147,8 @@ export function orderFilterFor(current, status) {
  *   surcharge?: number | null,
  *   mpFee?: number | null,
  *   extras?: { name: string, quantity: number, price: number }[],
- *   extrasAmount?: number | null
+ *   extrasAmount?: number | null,
+ *   method?: string | null
  * }} o
  * @returns {{ main: string, detail: string }}
  */
@@ -166,7 +168,7 @@ export function orderMoneyLines(o) {
 		o.discountAmount && `código ${o.discountCode} −${formatARS(o.discountAmount)}`,
 		...(o.extras ?? []).map((x) => `${x.quantity} × ${x.name} ${formatARS(x.quantity * x.price)}`),
 		o.surcharge && `recargo MP ${formatARS(o.surcharge)}`,
-		o.mpFee != null && `MP se quedó ${formatARS(o.mpFee)}`
+		o.mpFee != null && `${o.method === 'paypal' ? 'PayPal' : 'MP'} se quedó ${formatARS(o.mpFee)}`
 	]
 		.filter(Boolean)
 		.join(' · ');

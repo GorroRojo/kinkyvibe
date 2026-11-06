@@ -537,7 +537,11 @@ export function purchaseConditions({
 	/** @type {string[]} */
 	const holds = [];
 	if (methods.includes('mercadopago')) {
-		holds.push('Con Mercado Pago te reservamos el lugar 20 minutos mientras pagás.');
+		holds.push(
+			methods.includes('paypal')
+				? 'Con Mercado Pago o PayPal te reservamos el lugar 20 minutos mientras pagás.'
+				: 'Con Mercado Pago te reservamos el lugar 20 minutos mientras pagás.'
+		);
 	}
 	if (methods.includes('transferencia')) {
 		holds.push(

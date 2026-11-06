@@ -29,12 +29,15 @@ export const ERROR_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const NO_ROUTE = '(sin ruta)';
 
 /**
- * Las rutas de compra (sin los grupos): el webhook de Mercado Pago, el formulario de compra del
+ * Las rutas de compra (sin los grupos): los webhooks de Mercado Pago y de PayPal (y la vuelta de
+ * PayPal), el formulario de compra del
  * evento, la página de la orden y de las entradas, la compra en la puerta y las propinas. Cuenta
  * la ruta y todo lo que cuelga de ella.
  */
 export const PURCHASE_ROUTES = Object.freeze([
 	'/api/mercadopago',
+	'/api/paypal',
+	'/paypal',
 	'/calendario/[event]/entradas',
 	'/entradas',
 	'/puerta/[slug]/compra',

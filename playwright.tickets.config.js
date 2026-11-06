@@ -13,6 +13,8 @@
  * - PW_CHROMIUM: ruta a un Chromium ya instalado (opcional).
  * - TICKETS_SHOTS_DIR: carpeta para guardar capturas (opcional).
  * - LISTA_ESPERA_ENABLED=1: el interruptor de la lista de espera prendido.
+ * - PAYPAL_MOCK=1 / PAYPAL_ENABLED=1 / PAYPAL_MOCK_RATE: PayPal simulado en /paypal/simular/<id>,
+ *   con una cotización inventada (docs/paypal.md).
  */
 import {
 	MP_FEE_PERCENT,
@@ -56,6 +58,9 @@ const config = {
 			CRON_SECRET: 'e2e-cron-secret-0123456789',
 			// La lista de espera prendida (los eventos de prueba no tienen lista: no les cambia nada).
 			LISTA_ESPERA_ENABLED: '1',
+			PAYPAL_MOCK: '1',
+			PAYPAL_ENABLED: '1',
+			PAYPAL_MOCK_RATE: '1250',
 			MP_ACCESS_TOKEN: '',
 			RESEND_API_KEY: ''
 		}

@@ -6,7 +6,6 @@
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import { getDB } from '$lib/server/db';
 import { isFlagOn } from '$lib/server/flags.js';
 import {
 	captureOrder,
@@ -48,13 +47,14 @@ export function paypalConfigured() {
 }
 
 /**
- * ¿Se puede cobrar con PayPal? El interruptor `paypal` prendido y las credenciales cargadas.
+ * ¿Se puede cobrar con PayPal? El interruptor `paypal` prendido y las credenciales cargadas (la
+ * cotización del día se mira aparte: `chargeQuote`).
  *
- * @param {App.Platform | undefined} platform
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
  */
-export async function paypalCharging(platform) {
+export async function paypalCharging(db) {
 	if (!paypalConfigured()) return false;
-	return isFlagOn(getDB(platform), 'paypal');
+	return isFlagOn(db, 'paypal');
 }
 
 /**
@@ -62,7 +62,7 @@ export async function paypalCharging(platform) {
  * @returns {Promise<PaypalGateway | null>}
  */
 export async function getPaypalGateway(fetchFn) {
-	if (isPaypalMock()) {
+	if (dev && isPaypalMock()) {
 		const { mockPaypalGateway } = await import('./mock.js');
 		return mockPaypalGateway;
 	}

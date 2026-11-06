@@ -1,6 +1,7 @@
 <script>
 	import { invalidate } from '$app/navigation';
 	import { formatARS } from '$lib/utils/money.js';
+	import { formatUSD } from '$lib/utils/paypal.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
 	import { TRANSFER_HOLD_AFTER } from '$lib/utils/transferDeadline.js';
@@ -139,8 +140,8 @@
 	{:else if order.status === 'pending'}
 		<h1>Estamos esperando la confirmación del pago…</h1>
 		<p>
-			Apenas Mercado Pago nos confirme, te mandamos las entradas a <strong>{order.email}</strong>.
-			Esta página se actualiza sola.
+			Apenas {order.method === 'paypal' ? 'PayPal' : 'Mercado Pago'} nos confirme, te mandamos las entradas
+			a <strong>{order.email}</strong>. Esta página se actualiza sola.
 		</p>
 	{:else if order.status === 'rejected'}
 		<h1>El pago fue rechazado</h1>
@@ -206,14 +207,20 @@
 			<dd>+{formatARS(order.surcharge)}</dd>
 		{/if}
 		<dt>Total</dt>
-		<dd>{formatARS(order.total)}</dd>
+		<dd>
+			{formatARS(order.total)}{#if order.usdCents}{' '}<small
+					>({formatUSD(order.usdCents)} con PayPal)</small
+				>{/if}
+		</dd>
 		<dt>Pago</dt>
 		<dd>
 			{order.method === 'transferencia'
 				? 'Transferencia'
 				: order.method === 'gratis'
 					? 'Sin cargo'
-					: 'Mercado Pago'}
+					: order.method === 'paypal'
+						? 'PayPal'
+						: 'Mercado Pago'}
 		</dd>
 		<dt>Número de compra</dt>
 		<dd><code>{order.reference}</code></dd>

@@ -1102,6 +1102,17 @@ Tres páginas del panel (menú **Ajustes**; `requireAdmin` en cada `load` y acti
 
 Además, **Admins** (`/admin/ajustes/admins`) muestra quién puede entrar al panel (la lista de `src/lib/server/auth.js`; por ahora solo lectura).
 
+### PayPal
+
+Con el interruptor `paypal`, las credenciales y una cotización reciente, **todo evento que cobra
+con Mercado Pago** suma «PayPal» como medio de pago (en dólares, al dólar MEP del día con el ajuste
+de Ajustes › PayPal; se ve el monto en dólares en «Pagar» antes de ir a PayPal). Extras, Fondo,
+códigos y links de la lista de espera andan igual (es el mismo `buyAction`). Sin recargo. La orden
+tiene `payment_method = 'paypal'` (migración 0082) y entra por el mismo `processPayment` que MP:
+entradas, mail, «Cada venta», reportes (la comisión de PayPal en pesos en `mp_fee_amount`) y
+«PayPal (online)» en Gastos y reparto. Reembolsar desde Ventas › Órdenes pide el reembolso a
+PayPal. Todo, con la lista para prenderlo, en [paypal.md](paypal.md).
+
 ### Transferencia
 
 Opt-in por evento (`payment_methods`) y requiere datos para transferir (Ajustes de venta o `TICKETS_TRANSFER_INFO`; **nunca en el repo**).
@@ -1179,6 +1190,7 @@ En producción van en Cloudflare: **Workers & Pages → (proyecto) → Settings 
 | Variable                 | Qué es                                                                                                                                                                                                                                                                      |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `MP_ACCESS_TOKEN`        | Secret. Access token de la aplicación de Mercado Pago (primero el de la **cuenta de prueba vendedora**).                                                                                                                                                                    |
+| `PAYPAL_*`               | PayPal (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENV`; `PAYPAL_MOCK=1` solo en dev): ver [paypal.md](paypal.md).                                                                                                                            |
 | `MP_WEBHOOK_SECRET`      | Secret. "Clave secreta" de la sección Webhooks de la aplicación de MP. Sin ella todos los webhooks se rechazan (503).                                                                                                                                                       |
 | `RESEND_API_KEY`         | Secret. API key de Resend con permiso de envío. Sin ella no se mandan mails (en producción se loguea un error).                                                                                                                                                             |
 | `EMAIL_ALLOWLIST`        | Solo previews. Direcciones (separadas por comas) que pueden recibir mails reales desde un preview; cualquier otra se desvía a la primera, con `[DEMO]` en el asunto. Sin ella, un preview no manda mails. Estado del entorno: `GET /api/preview-status` (solo en previews). |

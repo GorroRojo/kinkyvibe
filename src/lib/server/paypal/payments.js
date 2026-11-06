@@ -10,7 +10,11 @@
  */
 import { MAX_LIVE_AGE_DAYS, arDay, daysBetween, rateForDay } from './rates.js';
 import { getAdjustment } from './index.js';
-import { effectiveRate } from '$lib/utils/paypal.js';
+import { env } from '$env/dynamic/private';
+import { isPaypalMock, paypalCharging } from './gateway.js';
+import { effectiveRate, usdCentsForArs } from '$lib/utils/paypal.js';
+
+export { usdCentsForArs };
 
 export const PAYPAL_TIP_PREFIX = 'kv-propina:';
 export const PAYPAL_ORDER_PREFIX = 'kv-entrada:';
@@ -30,35 +34,6 @@ export function parseCustomId(customId) {
 		return { kind: 'entrada', id: customId.slice(PAYPAL_ORDER_PREFIX.length) };
 	}
 	return null;
-}
-
-/**
- * Pesos → centavos de dólar para cobrar: `ceil(pesos / (base × (1 + ajuste / 100)))`, en enteros
- * exactos. Redondea para arriba: con el ajuste de gorrite (que estima lo que se pierde al
- * convertir), lo que llega en pesos alcanza el precio. Con datos que no sirven: `null`.
- *
- * @param {number} ars pesos enteros
- * @param {number} base cotización base (pesos por dólar)
- * @param {number} adjustmentPct ajuste en %
- */
-export function usdCentsForArs(ars, base, adjustmentPct) {
-	if (
-		!Number.isSafeInteger(ars) ||
-		ars <= 0 ||
-		!Number.isFinite(base) ||
-		base <= 0 ||
-		!Number.isFinite(adjustmentPct)
-	) {
-		return null;
-	}
-	const baseCents = BigInt(Math.round(base * 100));
-	const factor = BigInt(10_000 + Math.round(adjustmentPct * 100));
-	if (factor <= 0n || baseCents <= 0n) return null;
-	// pesos × 100 (centavos de peso) × 100 (centavos de dólar) × 10.000 (factor) / (base en
-	// centavos × factor).
-	const num = BigInt(ars) * 100n * 100n * 10_000n;
-	const den = baseCents * factor;
-	return Number((num + den - 1n) / den);
 }
 
 /** `1234` → `'12.34'` (el formato de montos de PayPal). */
@@ -87,7 +62,18 @@ export function usdCents(/** @type {unknown} */ value) {
 export async function chargeQuote(db, now = Date.now()) {
 	const today = arDay(now);
 	const [rate, adjustment] = await Promise.all([rateForDay(db, today), getAdjustment(db)]);
-	if (!rate || daysBetween(rate.day, today) > MAX_LIVE_AGE_DAYS) return null;
+	if (!rate || daysBetween(rate.day, today) > MAX_LIVE_AGE_DAYS) {
+		// DEV ONLY: con el PayPal simulado, una cotización inventada si la base local no tiene una
+		// (`PAYPAL_MOCK_RATE` en .env.tickets). En el build `isPaypalMock()` es siempre `false`.
+		const mock = isPaypalMock() ? Number(env.PAYPAL_MOCK_RATE) : NaN;
+		if (!(mock > 0)) return null;
+		return {
+			base: mock,
+			adjustmentPct: adjustment.pct,
+			rate: effectiveRate(mock, adjustment.pct),
+			day: today
+		};
+	}
 	return {
 		base: rate.compra,
 		adjustmentPct: adjustment.pct,
@@ -247,3 +233,21 @@ export const WEBHOOK_EVENTS = Object.freeze([
 	'PAYMENT.CAPTURE.REFUNDED',
 	'PAYMENT.CAPTURE.REVERSED'
 ]);
+
+/**
+ * Lo que hace falta para ofrecer PayPal ahora: el interruptor prendido, las credenciales y una
+ * cotización reciente. Si algo falta (o falla al leerlo), `null`: no se ofrece.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ * @param {number} [now]
+ */
+export async function paypalOffer(db, now = Date.now()) {
+	if (!db) return null;
+	try {
+		if (!(await paypalCharging(db))) return null;
+		return await chargeQuote(db, now);
+	} catch (error) {
+		console.error('[paypal] no se pudo ver si se ofrece PayPal:', error);
+		return null;
+	}
+}

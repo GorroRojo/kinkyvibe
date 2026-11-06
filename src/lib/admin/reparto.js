@@ -62,6 +62,7 @@ import { formatARS as fmtARS } from '$lib/utils/money.js';
 
 const SOURCE_LABELS = /** @type {Record<string, string>} */ ({
 	mercadopago: 'Mercado Pago (online)',
+	paypal: 'PayPal (online)',
 	transferencia: 'Transferencias (online)',
 	'puerta-efectivo': 'Puerta: efectivo',
 	'puerta-transferencia': 'Puerta: transferencia',

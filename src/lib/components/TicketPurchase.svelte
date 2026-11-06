@@ -536,7 +536,9 @@
 			? 'Confirmar entradas sin cargo'
 			: method === 'transferencia'
 				? 'Reservar y ver cómo transferir'
-				: 'Ir a pagar con Mercado Pago';
+				: method === 'paypal'
+					? 'Ir a pagar con PayPal'
+					: 'Ir a pagar con Mercado Pago';
 
 	$: closesText = tickets.closesAt ? `${saleWindowText({ closesAt: tickets.closesAt })}.` : '';
 	/** Pasos que tienen algún error a la vista. */
@@ -707,6 +709,7 @@
 								{conditions}
 								{errors}
 								{submitText}
+								paid={prices.paid ?? prices.total}
 								submitDisabled={pending || !selected || (Boolean(gorra) && gorraAmount === null)}
 								{email}
 							>

@@ -332,13 +332,29 @@ async function dumpRows(db, table, emit, stats, flush) {
 	const sources = rowidName ? [rowidName, ...columns.map(quoteIdent)] : columns.map(quoteIdent);
 	if (!sources.length) return 0;
 	const targets = rowidName ? [rowidName, ...columns.map(quoteIdent)] : columns.map(quoteIdent);
-	const select = sources
-		.map(
-			(src, i) =>
-				`typeof(${src}) AS t${i}, CASE WHEN typeof(${src}) = 'integer' THEN CAST(${src} AS TEXT) ELSE ${src} END AS v${i}`
+	// Los tipos van juntos en pocas columnas (`ts0`, `ts1`…, un arreglo JSON cada una) y no uno por
+	// columna: D1 no deja traer más de 100 columnas, y con dos por columna una tabla ancha (como
+	// `orders`, 54 columnas desde la migración 0082) no entraría.
+	// De a 50 por `json_array` (una función con muchos argumentos no pasa el tope de profundidad de
+	// las expresiones, y 50 queda lejos del de argumentos).
+	/** @type {string[]} */
+	const typeCols = [];
+	for (let i = 0; i < sources.length; i += 50) {
+		const chunk = sources.slice(i, i + 50).map((src) => `typeof(${src})`);
+		typeCols.push(`json_array(${chunk.join(', ')}) AS ts${typeCols.length}`);
+	}
+	const select = typeCols
+		.concat(
+			sources.map(
+				(src, i) =>
+					`CASE WHEN typeof(${src}) = 'integer' THEN CAST(${src} AS TEXT) ELSE ${src} END AS v${i}`
+			)
 		)
 		.concat(rowidAlias ? [`CAST(${rowidAlias} AS TEXT) AS r`] : [])
 		.join(', ');
+	/** @param {Record<string, unknown>} row */
+	const typesOf = (row) =>
+		typeCols.flatMap((_, k) => /** @type {string[]} */ (JSON.parse(String(row[`ts${k}`]))));
 	const insert = `INSERT INTO ${quoteIdent(table.name)} (${targets.join(', ')}) VALUES (`;
 	const offset0 = rowidName ? 1 : 0;
 	const pkIndexes = pkColumns.map((c) => columns.indexOf(c) + offset0);
@@ -370,10 +386,11 @@ async function dumpRows(db, table, emit, stats, flush) {
 		if (keyset && last) {
 			after = rowidAlias
 				? sqlLiteral('integer', last.r)
-				: `(${pkIndexes.map((i) => sqlLiteral(String(last[`t${i}`]), last[`v${i}`])).join(', ')})`;
+				: `(${pkIndexes.map((i) => sqlLiteral(typesOf(last)[i], last[`v${i}`])).join(', ')})`;
 		}
 		for (const row of results) {
-			const values = sources.map((_, i) => sqlLiteral(String(row[`t${i}`]), row[`v${i}`]));
+			const types = typesOf(row);
+			const values = sources.map((_, i) => sqlLiteral(types[i], row[`v${i}`]));
 			let line = `${insert}${values.join(', ')});`;
 			/** @type {number[]} */
 			const deferred = [];
@@ -391,7 +408,7 @@ async function dumpRows(db, table, emit, stats, flush) {
 				let total = utf8Length(line);
 				const candidates = sources
 					.map((_, i) => i)
-					.filter((i) => row[`t${i}`] === 'text' && !pkIndexes.includes(i))
+					.filter((i) => types[i] === 'text' && !pkIndexes.includes(i))
 					.map((i) => ({ i, bytes: utf8Length(values[i]) }))
 					.sort((x, y) => y.bytes - x.bytes);
 				for (const { i, bytes } of candidates) {
