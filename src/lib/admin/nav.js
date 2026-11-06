@@ -90,6 +90,7 @@ import {
 	EyeOff,
 	FileSpreadsheet,
 	FileText,
+	GalleryHorizontal,
 	CircleUser,
 	DoorClosed,
 	HandCoins,
@@ -648,6 +649,18 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 
+	{
+		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
+		// Era Ajustes › Plata (mudada acá a pedido de gorrite); la dirección vieja redirige.
+		id: 'propinas',
+		href: '/admin/estadisticas/propinas',
+		icon: HandCoins,
+		emoji: '🪙',
+		label: 'Propinas',
+		area: 'estadisticas',
+		soon: false
+	},
+
 	// Ajustes (al pie)
 	{
 		// La portada de Ajustes (decisión 0042): una tarjeta por sección, en sus cuatro subgrupos,
@@ -683,15 +696,15 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
-		// Propinas al pie de las publicaciones (docs/propinas.md); misma cuenta de MP que las ventas.
-		id: 'propinas',
-		href: '/admin/ajustes/propinas',
+		// Cotización, ajuste y retiros de las propinas por PayPal (decisión 0054, docs/propinas.md).
+		id: 'ajustes-paypal',
+		href: '/admin/ajustes/paypal',
 		icon: HandCoins,
-		emoji: '🪙',
-		label: 'Propinas',
+		emoji: '💵',
+		label: 'PayPal',
 		area: 'ajustes',
 		sub: 'plata',
-		desc: 'Las propinas que entraron, por mes y por publicación',
+		desc: 'Cotización del dólar, su ajuste y los retiros de las propinas por PayPal',
 		soon: false
 	},
 	{
@@ -704,6 +717,19 @@ export const NAV = Object.freeze([
 		area: 'ajustes',
 		sub: 'comunicacion',
 		desc: 'Cómo se ve un link del sitio en WhatsApp, Telegram o X',
+		soon: false
+	},
+	{
+		// El carrusel de la portada (docs/estilo.md, «Carrusel de la portada»): el estilo de las
+		// diapositivas y los colores de los flyers.
+		id: 'ajustes-carrusel',
+		href: '/admin/ajustes/carrusel',
+		icon: GalleryHorizontal,
+		emoji: '🎠',
+		label: 'Carrusel de la portada',
+		area: 'ajustes',
+		sub: 'comunicacion',
+		desc: 'El estilo de cada evento arriba de la portada y los colores de los flyers',
 		soon: false
 	},
 	{

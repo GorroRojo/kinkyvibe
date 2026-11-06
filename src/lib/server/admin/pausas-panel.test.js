@@ -15,7 +15,6 @@ const status = (pauses) =>
 		settings: null,
 		flags: { lo_que_sigo: true },
 		lastActivity: null,
-		tips: null,
 		mpReady: true,
 		automations: null,
 		now: NOW,

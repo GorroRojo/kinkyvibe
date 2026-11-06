@@ -87,7 +87,7 @@ estén las credenciales de prueba. Lo que ya está, sin credenciales y detrás d
   (`estimateArs` en `src/lib/utils/paypal.js`).
 - **La base** es el dólar MEP «compra» del día, que guarda un cron diario en `mep_rates`
   (migración 0071). Cada pago guarda la base de su día en `tips.rate_base`, que no cambia nunca.
-- **El ajuste** lo fija gorrite en Ajustes › Plata › Propinas (por ejemplo −4; de −50 a 50, hasta 2
+- **El ajuste** lo fija gorrite en Ajustes › Plata › PayPal (`/admin/ajustes/paypal`; por ejemplo −4; de −50 a 50, hasta 2
   decimales). Se guarda en `ticket_settings` (`paypal_rate_adjustment_pct`), queda en Actividad y
   se aplica **al leer**: cambiarlo cambia todas las estimaciones, también las de meses pasados.
 - **Son estimaciones.** Los pesos de verdad son los de cada retiro (abajo).
@@ -189,26 +189,26 @@ pie de página ya no existen.
 
 ## Dónde está el código
 
-| Qué                                     | Dónde                                                                            |
-| --------------------------------------- | -------------------------------------------------------------------------------- |
-| Montos, validación, helpers compartidos | `src/lib/utils/propinas.js`                                                      |
-| Propinas en D1, webhook, panel          | `src/lib/server/propinas/index.js`                                               |
-| Crear la propina y la preferencia de MP | `src/lib/server/propinas/checkout.js` (`startTip`)                               |
-| Pie de las publicaciones                | `src/lib/components/propinas/` (`TipBlock`, …)                                   |
-| Link del pie de página (Footer)         | `supportLink` en `src/lib/utils/footer.js`                                       |
-| Form action y gracias                   | `src/routes/(content)/propinas/`                                                 |
-| Panel (lista, CSV)                      | `src/routes/(authed)/admin/ajustes/propinas/` (menú: Ajustes › Plata › Propinas) |
-| Tabla                                   | `migrations/0019_propinas.sql` (`tips`)                                          |
-| Destino (`destination`)                 | `migrations/0022_propinas_destino.sql`                                           |
-| Origen (`source`: publicación o Fondo)  | `migrations/0052_propinas_origen.sql`                                            |
-| Sin listas fijas en la base             | `migrations/0070_propinas_sin_listas_fijas.sql`                                  |
-| Total para el Fondo                     | `src/lib/server/fondo/propinasTotal.js`, `src/routes/api/fondo/propinas-total/`  |
-| PayPal: cuentas en pesos                | `src/lib/utils/paypal.js`                                                        |
-| PayPal: ajuste, totales, retiros        | `src/lib/server/paypal/index.js`                                                 |
-| Cotización del dólar (cron)             | `src/lib/server/paypal/rates.js`                                                 |
-| Cotización para el Fondo                | `src/lib/server/fondo/cotizacion.js`, `src/routes/api/fondo/cotizacion/`         |
-| PayPal en la base                       | `migrations/0071_paypal_base.sql`                                                |
-| Datos de demo (inventados)              | `scripts/demo/n3-propinas.sql`                                                   |
+| Qué                                     | Dónde                                                                              |
+| --------------------------------------- | ---------------------------------------------------------------------------------- |
+| Montos, validación, helpers compartidos | `src/lib/utils/propinas.js`                                                        |
+| Propinas en D1, webhook, panel          | `src/lib/server/propinas/index.js`                                                 |
+| Crear la propina y la preferencia de MP | `src/lib/server/propinas/checkout.js` (`startTip`)                                 |
+| Pie de las publicaciones                | `src/lib/components/propinas/` (`TipBlock`, …)                                     |
+| Link del pie de página (Footer)         | `supportLink` en `src/lib/utils/footer.js`                                         |
+| Form action y gracias                   | `src/routes/(content)/propinas/`                                                   |
+| Panel (lista, CSV)                      | `src/routes/(authed)/admin/estadisticas/propinas/` (menú: Estadísticas › Propinas) |
+| Tabla                                   | `migrations/0019_propinas.sql` (`tips`)                                            |
+| Destino (`destination`)                 | `migrations/0022_propinas_destino.sql`                                             |
+| Origen (`source`: publicación o Fondo)  | `migrations/0052_propinas_origen.sql`                                              |
+| Sin listas fijas en la base             | `migrations/0070_propinas_sin_listas_fijas.sql`                                    |
+| Total para el Fondo                     | `src/lib/server/fondo/propinasTotal.js`, `src/routes/api/fondo/propinas-total/`    |
+| PayPal: cuentas en pesos                | `src/lib/utils/paypal.js`                                                          |
+| PayPal: ajuste, totales, retiros        | `src/lib/server/paypal/index.js`                                                   |
+| Cotización del dólar (cron)             | `src/lib/server/paypal/rates.js`                                                   |
+| Cotización para el Fondo                | `src/lib/server/fondo/cotizacion.js`, `src/routes/api/fondo/cotizacion/`           |
+| PayPal en la base                       | `migrations/0071_paypal_base.sql`                                                  |
+| Datos de demo (inventados)              | `scripts/demo/n3-propinas.sql`                                                     |
 
 Reutiliza lo de las entradas: el cliente de MP y su gateway (`getGateway`), el cuerpo común de la
 preferencia (`checkoutProPreference` en `tickets/mercadopago.js`), la firma del webhook, la máquina
@@ -217,7 +217,8 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
 
 ## En el panel
 
-- **Ajustes › Plata › Propinas** (`/admin/ajustes/propinas`): total recibido y separado por destino ("Para
+- **Estadísticas › Propinas** (`/admin/estadisticas/propinas`; antes Ajustes › Plata ›
+  Propinas, `/admin/ajustes/propinas` redirige): total recibido y separado por destino ("Para
   KinkyVibe" / "Para el Fondo"), por mes (hora de Argentina, por fecha de aprobación), por
   publicación y las últimas propinas con su destino y su mensaje. Las pestañas Todas / Para
   KinkyVibe / Para el Fondo filtran la lista (`?destino=kinkyvibe|fondo`; los totales no se
@@ -237,8 +238,8 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
 
 ## Probarlo
 
-- `npx vitest run src/lib/utils/propinas.test.js src/lib/utils/footer.test.js src/lib/components/Footer.test.js src/lib/server/propinas src/routes/\(content\)/propinas src/routes/\(authed\)/admin/ajustes/propinas src/routes/api/fondo/propinas-total`
-- PayPal: `npx vitest run src/lib/utils/paypal.test.js src/lib/server/paypal src/routes/api/fondo src/routes/\(authed\)/admin/ajustes/propinas`. En local, `PAYPAL_ENABLED=1 npm run dev:admin` muestra la parte de PayPal de Ajustes › Propinas (sin cotización hasta que alguien corra el cron).
+- `npx vitest run src/lib/utils/propinas.test.js src/lib/utils/footer.test.js src/lib/components/Footer.test.js src/lib/server/propinas src/routes/\(content\)/propinas src/routes/\(authed\)/admin/estadisticas/propinas src/routes/\(authed\)/admin/ajustes/propinas src/routes/api/fondo/propinas-total`
+- PayPal: `npx vitest run src/lib/utils/paypal.test.js src/lib/server/paypal src/routes/api/fondo src/routes/\(authed\)/admin/ajustes/paypal src/routes/\(authed\)/admin/estadisticas/propinas`. En local, `PAYPAL_ENABLED=1 npm run dev:admin` muestra Ajustes › PayPal y el reparto por mes del Fondo de Estadísticas › Propinas (sin cotización hasta que alguien corra el cron).
 - La página del Fondo en local: `PROPINAS_FONDO_ENABLED=1 npm run dev:tickets` y entrá a
   `/propinas?de=fondo&monto=3000`.
 - En local, con MP simulado: `npm run dev:tickets`, entrá a un material de

@@ -7,8 +7,8 @@
  *   Con `&tipo=todo|imagen|documento|video` (solo admins): toda la biblioteca, con filtro por
  *   tipo (cada cosa con `kind`, `typeLabel` y dónde se usa); con `&desde=<n>`, la página
  *   siguiente de Contenido › Biblioteca ({@link LIBRARY_PAGE}), con `more` si hay más.
- * - POST (multipart: `file`, `alt`, `name`, `width`, `height` y, para una imagen, `copy360` y
- *   `copy720`): subir. El tipo sale de los bytes:
+ * - POST (multipart: `file`, `alt`, `name`, `width`, `height` y, para una imagen, `copy360`,
+ *   `copy720` y `colors`, sus colores principales en JSON): subir. El tipo sale de los bytes:
  *   - una imagen (el navegador ya la achicó y la pasó a WEBP): pide texto alternativo; con ella
  *     pueden venir sus copias chicas para las tarjetas (WEBP, $lib/utils/mediaCopies.js);
  *   - un documento o un video (PDF, MP4, WebM, ODT, ODS, ODP): solo admins, pide `name` y pesa
@@ -217,7 +217,9 @@ export async function POST({ locals, platform, request }) {
 				alt,
 				width: Number(form.get('width')),
 				height: Number(form.get('height')),
-				copies
+				copies,
+				// Sus colores, sacados en el navegador (JSON; storeImage guarda solo los válidos).
+				colors: String(form.get('colors') ?? '').slice(0, 200)
 			},
 			{ actor: access.actor }
 		);

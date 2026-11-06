@@ -143,7 +143,8 @@ describe('Ventas (/admin/estadisticas/ventas)', () => {
 		);
 		expect(loadPeopleOrders).toHaveBeenCalledTimes(1);
 		expect(loadVisits).not.toHaveBeenCalled();
-		expect(fetchSpy).not.toHaveBeenCalled();
+		// Solo fondo.kinkyvibe.ar (suscripciones de «Fondo y finanzas»), nunca la API de Cloudflare.
+		expect(fetchedHosts().every((h) => h === 'fondo.kinkyvibe.ar')).toBe(true);
 		expect(queries.some((q) => q.sql.includes('analytics_monthly'))).toBe(false);
 		// Una consulta a las órdenes, desde el comienzo del período anterior (para comparar).
 		const ordersQuery = queries.filter((q) => /\bFROM orders\b/.test(q.sql));
@@ -164,7 +165,7 @@ describe('Ventas (/admin/estadisticas/ventas)', () => {
 		expect(q?.sql).not.toContain('created_at >=');
 		expect(q?.args).toEqual([]);
 		expect(all.data.sales.kpis.tickets).toBe(2);
-		expect(fetchSpy).not.toHaveBeenCalled();
+		expect(fetchedHosts().every((h) => h === 'fondo.kinkyvibe.ar')).toBe(true);
 	});
 
 	it('un período inválido vuelve al de por defecto', async () => {
@@ -232,6 +233,37 @@ describe('Visitas al sitio (/admin/estadisticas/visitas)', () => {
 			const { data } = await run(loadVisitas, path);
 			expect(data.period, path).toBe('30d');
 			expect(data.visits.topDays, path).toBe(30);
+		}
+	});
+
+	it('con ?pagina=: una sola consulta, solo por esa página; sin el resto del sitio', async () => {
+		const { data, queries } = await run(
+			loadVisitas,
+			'/admin/estadisticas/visitas?pagina=%2Fmaterial%2Fcuerdas-falsas'
+		);
+		expect(loadVisits).not.toHaveBeenCalled();
+		expect(queries).toEqual([]);
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+		const sql = String(/** @type {any} */ (fetchSpy.mock.calls[0])[1].body);
+		expect(sql).toContain("blob2 = '/material/cuerdas-falsas'");
+		expect(sql).not.toContain('blob6');
+		expect(data).toMatchObject({
+			pagina: '/material/cuerdas-falsas',
+			visits: null,
+			page: { status: 'ok', path: '/material/cuerdas-falsas', month: 0, funnel: null }
+		});
+	});
+
+	it('con una ?pagina= que no se cuenta (el panel) o rara: no consulta nada', async () => {
+		for (const raw of ['/admin/inicio', "/material/x'or'1", 'material/sin-barra']) {
+			fetchSpy.mockClear();
+			const { data } = await run(
+				loadVisitas,
+				`/admin/estadisticas/visitas?pagina=${encodeURIComponent(raw)}`
+			);
+			expect(fetchSpy, raw).not.toHaveBeenCalled();
+			expect(data.page.status, raw).toBe('nopath');
+			expect(data.visits, raw).toBeNull();
 		}
 	});
 });

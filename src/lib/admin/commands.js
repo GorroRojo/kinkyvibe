@@ -84,6 +84,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
 	'entradas-codigos': 'codigos descuento cupon',
 	propinas: 'propinas cafecito aportes donaciones',
+	'ajustes-paypal': 'paypal dolar cotizacion ajuste retiros propinas',
 	personas: 'personas clientes compradores gente ficha nota notas internas',
 	estadisticas:
 		'estadisticas graficos tendencias ventas en el tiempo vendidas cobrado por serie medios de pago fondo finanzas',
@@ -104,6 +105,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 		'ajustes de mails plantillas recordatorios remitente email envios pie de mail firma',
 	'ajustes-vistas-previas':
 		'vistas previas al compartir link whatsapp telegram tarjeta imagen og textos titulo descripcion',
+	'ajustes-carrusel':
+		'carrusel portada estilos flyers colores diapositivas inicio rotar pila franja stickers diagonal zines',
 	'ajustes-plantillas':
 		'plantillas textos mails email compra recordatorio mensajes pie de mail asunto',
 	'ajustes-textos-bot':
@@ -147,6 +150,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'entradas-transferencias': 'transfer',
 	'entradas-codigos': 'tag',
 	propinas: 'wallet',
+	'ajustes-paypal': 'wallet',
 	personas: 'users',
 	estadisticas: 'chart',
 	'estadisticas-asistencia': 'users',
@@ -164,6 +168,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-fondo': 'settings',
 	'ajustes-mails': 'mail',
 	'ajustes-vistas-previas': 'eye',
+	'ajustes-carrusel': 'eye',
 	'ajustes-plantillas': 'mail',
 	'ajustes-textos-bot': 'mail',
 	'ajustes-admins': 'key',

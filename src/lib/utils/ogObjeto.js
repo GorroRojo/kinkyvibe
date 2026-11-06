@@ -289,6 +289,60 @@ const img = (src, size, style = {}) =>
 /** @param {import('./ogIconos.js').OgIconName} name @param {Parameters<typeof iconSvg>[1]} opts */
 const iconSrc = (name, opts) => `data:image/svg+xml;base64,${toBase64(iconSvg(name, opts))}`;
 
+/** Los colores de la tarjeta (los mismos del sitio), para quien la dibuje en HTML. */
+export const OBJECT_CARD_COLORS = C;
+
+/**
+ * La ficha de la izquierda sin fecha (un material, un perfil, la Kinkipedia o un evento sin fecha):
+ * su fondo, la sombra corrida, el símbolo (dirección `data:` del SVG), el color de la etiqueta de
+ * arriba y el de un texto sobre la ficha (`ink`). La usan el dibujo de acá y el carrusel de la
+ * portada (la ficha de lo que no tiene imagen), así se ven igual.
+ * @param {Pick<ObjectCardSpec, 'kind' | 'icon'>} spec
+ * @returns {{ bg: string, shadow: string, icon: string, label: string, ink: string }}
+ */
+export function objectTileLook(spec) {
+	const accent = ACCENT[spec.kind];
+	const label = accent === C.violet ? C.violetLight : accent;
+	if (spec.kind === 'perfil') {
+		return {
+			bg: accent,
+			shadow: C.pink,
+			icon: iconSrc(spec.icon, { color: C.ink, fill: C.pink, stroke: 1.5 }),
+			label,
+			ink: C.ink
+		};
+	}
+	if (spec.kind === 'material') {
+		return {
+			bg: accent,
+			shadow: C.pink,
+			icon: iconSrc(spec.icon, { color: C.tealDark }),
+			label,
+			ink: C.tealDark
+		};
+	}
+	// la Kinkipedia y un evento sin fecha: blanca, con el color del tipo
+	const ink = spec.kind === 'wiki' ? C.violet : C.ink;
+	return { bg: 'white', shadow: accent, icon: iconSrc(spec.icon, { color: ink }), label, ink };
+}
+
+/**
+ * La ficha de un material, un perfil o una entrada de la Kinkipedia sin imagen, por su categoría
+ * del sitio (`material`, `amigues`, `wiki`) y sus etiquetas (el símbolo del material). `null` para
+ * otra cosa.
+ * @param {string} category
+ * @param {readonly unknown[]} [tags]
+ */
+export function categoryTileLook(category, tags = []) {
+	if (category === 'material') {
+		const t = tags.filter((x) => typeof x === 'string');
+		return objectTileLook({ kind: 'material', icon: materialIcon(/** @type {string[]} */ (t)) });
+	}
+	if (category === 'amigues') return objectTileLook({ kind: 'perfil', icon: 'heart' });
+	if (category === 'wiki') return objectTileLook({ kind: 'wiki', icon: 'globe' });
+	return null;
+}
+
 /** La ficha de la izquierda. @param {ObjectCardSpec} spec */
 function tile(spec) {
 	const accent = ACCENT[spec.kind];
@@ -344,20 +398,9 @@ function tile(spec) {
 			]
 		);
 	}
-	const size = 200;
-	if (spec.kind === 'perfil') {
-		return div({ ...box, backgroundColor: accent, boxShadow: `14px 14px 0 ${C.pink}` }, [
-			img(iconSrc(spec.icon, { color: C.ink, fill: C.pink, stroke: 1.5 }), size)
-		]);
-	}
-	if (spec.kind === 'material') {
-		return div({ ...box, backgroundColor: accent, boxShadow: `14px 14px 0 ${C.pink}` }, [
-			img(iconSrc(spec.icon, { color: C.tealDark }), size)
-		]);
-	}
-	// la Kinkipedia y un evento sin fecha: blanca, con el color del tipo
-	return div({ ...box, backgroundColor: 'white', boxShadow: `14px 14px 0 ${accent}` }, [
-		img(iconSrc(spec.icon, { color: spec.kind === 'wiki' ? C.violet : C.ink }), size)
+	const look = objectTileLook(spec);
+	return div({ ...box, backgroundColor: look.bg, boxShadow: `14px 14px 0 ${look.shadow}` }, [
+		img(look.icon, 200)
 	]);
 }
 

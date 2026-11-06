@@ -57,8 +57,9 @@
 	let mounted = false;
 	let tagsExpanded = false;
 	let past = start ? parseSiteDate(start).getTime() < Date.now() : false;
-	// Si el evento vende entradas acá, «Comprar entradas» (o «Agotadas»…) en lugar de la
-	// inscripción externa.
+	// Si el evento vende entradas acá, la tarjeta no lleva botón de compra (gorrite, 5/11: se
+	// compra desde la página del evento, después de leer el texto); solo el aviso «Agotadas» o
+	// «Venta cerrada». Tampoco va la inscripción externa.
 	$: tickets = ticketCta(post.meta, ticketStates, { past });
 	onMount(() => {
 		mounted = true;
@@ -162,14 +163,7 @@
 	<!-- Client-only: an <a> nested in the card's <a> is invalid HTML, so the browser would
 	     restructure it if it were server-rendered, breaking hydration. -->
 	{#if tickets}
-		{#if tickets.kind == 'buy' && mounted}
-			<!-- svelte-ignore node_invalid_placement_ssr -->
-			<a href={tickets.href} class="CTA">{tickets.text}</a>
-		{:else if tickets.kind == 'buy'}
-			<!-- Server-rendered as a plain label (same look and place; until hydration a click opens
-			     the event page, like the rest of the card). -->
-			<span class="CTA">{tickets.text}</span>
-		{:else if tickets.kind == 'note'}
+		{#if tickets.kind == 'note'}
 			<span class="CTA note">{tickets.text}</span>
 		{/if}
 	{:else if mounted && link && status && status == 'abierto' && !past}

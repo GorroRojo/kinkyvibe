@@ -15,6 +15,7 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import ProfileEditorForm from './ProfileEditorForm.svelte';
+	import PageVisitsCard from '$lib/components/admin/stats/PageVisitsCard.svelte';
 	import { typeIcon } from '$lib/admin/typeIcons.js';
 	import { draftKey } from '$lib/admin/draft.js';
 
@@ -113,4 +114,9 @@
 			saved={Boolean(form?.perfil?.ok)}
 		/>
 	</Card>
+
+	{#if data.visits}
+		<!-- Visitas de la página del perfil (docs/analiticas.md, «Visitas de una página»). -->
+		<PageVisitsCard visits={data.visits} />
+	{/if}
 </div>

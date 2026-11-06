@@ -31,7 +31,7 @@
 	/** @param {string} d */
 	const day = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 
-	/** @typedef {'tickets' | 'presale' | 'door' | 'fondo_net' | 'other_income' | 'income_total' | 'venue' | 'fees' | 'other_expenses' | 'expenses_total' | 'caja' | 'profit'} Column */
+	/** @typedef {'tickets' | 'presale' | 'door' | 'fondo_net' | 'extras' | 'other_income' | 'income_total' | 'venue' | 'fees' | 'other_expenses' | 'expenses_total' | 'caja' | 'profit'} Column */
 
 	/** @type {[Column, string][]} */
 	const COLUMNS = [
@@ -39,6 +39,7 @@
 		['presale', 'Preventa'],
 		['door', 'Puerta'],
 		['fondo_net', 'Fondo neto'],
+		['extras', 'Extras'],
 		['other_income', 'Otros ingresos'],
 		['income_total', 'Ingresos'],
 		['venue', 'Lugar'],

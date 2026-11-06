@@ -35,7 +35,9 @@ export function wikiPost(entry, tagManager) {
 				category: 'wiki',
 				postID: entry.slug
 			},
-			authorsProfiles: []
+			authorsProfiles: [],
+			// Cuándo se creó su etiqueta: lo nuevo de la Kinkipedia en el carrusel de la portada.
+			...(entry.createdAt ? { createdAt: entry.createdAt } : {})
 		})
 	);
 }

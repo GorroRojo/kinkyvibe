@@ -140,7 +140,8 @@ describe('NAV', () => {
 			'/admin/estadisticas/ventas',
 			'/admin/estadisticas/asistencia',
 			'/admin/estadisticas/visitas',
-			'/admin/ajustes/propinas',
+			'/admin/estadisticas/propinas',
+			'/admin/ajustes/paypal',
 			'/admin/contenido/material',
 			'/admin/comunidad/perfiles',
 			'/admin/etiquetas',
@@ -231,13 +232,15 @@ describe('NAV', () => {
 			'estadisticas',
 			'estadisticas-asistencia',
 			'estadisticas-visitas',
-			'estadisticas-bot'
+			'estadisticas-bot',
+			'propinas'
 		]);
 		expect(ids('ajustes')).toEqual([
 			'ajustes-cobros',
 			'ajustes-fondo',
-			'propinas',
+			'ajustes-paypal',
 			'ajustes-vistas-previas',
+			'ajustes-carrusel',
 			'ajustes-textos-bot',
 			'ajustes-admins',
 			'ajustes-interruptores',
@@ -366,7 +369,16 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			['', ['entradas', 'entradas-transferencias', 'entradas-codigos', 'tienda']]
 		]);
 		expect(blocks('estadisticas')).toEqual([
-			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas', 'estadisticas-bot']]
+			[
+				'',
+				[
+					'estadisticas',
+					'estadisticas-asistencia',
+					'estadisticas-visitas',
+					'estadisticas-bot',
+					'propinas'
+				]
+			]
 		]);
 		expect(blocks('comunidad')).toEqual([
 			['', ['personas', 'amigues', 'cuentas', 'formularios', 'avisos-puerta']],
@@ -411,8 +423,8 @@ describe('sectionTabs (pestañas de sección)', () => {
 		expect(navItem('ajustes')?.href).toBe('/admin/ajustes');
 		// La portada: las mismas secciones que antes eran pestañas, en sus cuatro subgrupos.
 		expect(navAreaSections('ajustes').map((s) => [s.label, s.items.map((i) => i.label)])).toEqual([
-			['Plata', ['Cobros', 'Fondo', 'Propinas']],
-			['Comunicación', ['Vistas previas al compartir', 'Textos del bot']],
+			['Plata', ['Cobros', 'Fondo', 'PayPal']],
+			['Comunicación', ['Vistas previas al compartir', 'Carrusel de la portada', 'Textos del bot']],
 			['Equipo', ['Admins']],
 			['Sistema', ['Interruptores', 'Automatizaciones', 'Actividad']]
 		]);
@@ -430,7 +442,8 @@ describe('sectionTabs (pestañas de sección)', () => {
 			'/admin/estadisticas/ventas',
 			'/admin/estadisticas/asistencia',
 			'/admin/estadisticas/visitas',
-			'/admin/estadisticas/bot'
+			'/admin/estadisticas/bot',
+			'/admin/estadisticas/propinas'
 		]) {
 			expect(sectionTabs(path)).toEqual({
 				label: 'Secciones de Estadísticas',
@@ -454,6 +467,11 @@ describe('sectionTabs (pestañas de sección)', () => {
 						href: '/admin/estadisticas/bot',
 						label: 'Bot de Telegram',
 						icon: navItem('estadisticas-bot')?.icon
+					},
+					{
+						href: '/admin/estadisticas/propinas',
+						label: 'Propinas',
+						icon: navItem('propinas')?.icon
 					}
 				]
 			});
@@ -480,7 +498,7 @@ describe('sectionTabs (pestañas de sección)', () => {
 	it('con el interruptor apagado, lo que da 404 no aparece', () => {
 		const labelsOf = (/** @type {Record<string, boolean>} */ flags) =>
 			navAreaSections('ajustes', { flags }).flatMap((s) => s.items.map((i) => i.label));
-		expect(labelsOf({ propinas: false })).toContain('Propinas');
+		expect(labelsOf({ formularios: false })).toContain('PayPal');
 	});
 	it('Eventos también lleva pestañas (la barra lateral ya no muestra sus páginas, opción C)', () => {
 		const eventos = ['Eventos', 'Agenda', 'Series', 'Lugares', 'Roles y preguntas'];

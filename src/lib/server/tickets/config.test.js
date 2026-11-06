@@ -445,6 +445,25 @@ describe('validatePurchase', () => {
 		expect(r.ok).toBe(false);
 		expect(/** @type {any} */ (r).errors[field]).toBeTruthy();
 	});
+
+	// La validación de la casilla de +18 no cambió (gorrite, 26/10): sigue obligatoria y acepta lo
+	// mismo que antes; solo el texto del error cubre a todas las personas de las entradas.
+	it('la casilla de +18 sigue obligatoria, con cualquier cantidad de entradas', () => {
+		for (const accept of [null, undefined, '', 'off', 'true', 'no']) {
+			const r = validatePurchase(c, { ...ok, accept: /** @type {any} */ (accept) });
+			expect(r.ok, String(accept)).toBe(false);
+			expect(/** @type {any} */ (r).errors.accept).toBe(
+				'Tenés que confirmar que todas las personas de las entradas tienen 18 años o más y aceptar las condiciones.'
+			);
+		}
+		const one = validatePurchase(c, { ...ok, quantity: '1', holders: people(1), accept: null });
+		expect(/** @type {any} */ (one).errors.accept).toBe(
+			'Tenés que confirmar que la persona de la entrada tiene 18 años o más y aceptar las condiciones.'
+		);
+		for (const accept of ['on', '1']) {
+			expect(validatePurchase(c, { ...ok, accept }).ok, accept).toBe(true);
+		}
+	});
 });
 
 describe('a la gorra', () => {

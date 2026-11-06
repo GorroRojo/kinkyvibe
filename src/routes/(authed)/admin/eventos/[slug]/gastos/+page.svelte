@@ -25,6 +25,7 @@
 		CAJA_LABEL,
 		cajaPart,
 		computeAccount,
+		extraIncomeText,
 		fondoLine,
 		newPart,
 		partNames,
@@ -51,6 +52,12 @@
 		{ value: 'pct', label: 'Porcentaje' },
 		{ value: 'fijo', label: 'Monto fijo' },
 		{ value: 'resto', label: 'Lo que sobra' }
+	];
+	// Adónde van los extras de la compra (gorrite, #642).
+	const EXTRAS_OPTIONS = [
+		{ value: 'reparto', label: 'Al reparto' },
+		{ value: 'lugar', label: 'Todos al lugar' },
+		{ value: 'porcentaje', label: 'El lugar cobra su % también sobre los extras' }
 	];
 	const VENUE_OPTIONS = [
 		{ value: 'fijo', label: 'Monto fijo' },
@@ -83,6 +90,15 @@
 
 	$: income = closing ? closing.income : data.income;
 	$: result = computeAccount(income, account);
+	/**
+	 * «3 entradas · extras $ 12.000» (debajo de cada fuente de plata).
+	 * @param {import('$lib/admin/reparto.js').IncomeRow} row
+	 */
+	const rowNote = (row) =>
+		`${row.tickets} ${row.tickets === 1 ? 'entrada' : 'entradas'}` +
+		(row.extras ? ` · extras ${formatARS(row.extras)}` : '');
+	// Los extras de cada fuente (la plata entró con el mismo pago, así que la tiene quien tiene esa).
+	$: extrasBySource = income.rows.filter((r) => r.extras > 0);
 	$: hasFondo = data.fondoEnabled || income.fondoUsed > 0 || income.fondoContributed > 0;
 	$: names = partNames(account.parts);
 	$: who = [
@@ -246,9 +262,10 @@
 		['Preventa', formatARS(income.presale)],
 		['Puerta', formatARS(income.door)],
 		['Fondo neto', formatSignedARS(result.fondo)],
+		['Extras', formatARS(result.extras)],
 		['Otros ingresos', formatARS(result.otherIncome)],
 		['Ingresos', formatARS(result.totalIncome)],
-		['Lugar', formatARS(result.venue.amount)],
+		['Lugar', formatARS(result.venueTotal)],
 		['Contrataciones', formatARS(result.feesTotal)],
 		['Otros gastos', formatARS(result.expensesTotal)],
 		['Gastos', formatARS(result.allExpenses)],
@@ -292,7 +309,9 @@
 	<Stat
 		label="Ingresos"
 		value={formatARS(result.totalIncome)}
-		sub="entradas, Fondo y otros ingresos"
+		sub={result.extras
+			? 'entradas, extras, Fondo y otros ingresos'
+			: 'entradas, Fondo y otros ingresos'}
 	/>
 	<Stat label="Gastos" value={formatARS(result.allExpenses)} sub="lugar, contrataciones y otros" />
 	<Stat
@@ -320,12 +339,8 @@
 						<tbody>
 							{#each income.rows as row (row.key)}
 								<tr>
-									<td
-										>{row.label}<br /><span class="muted small"
-											>{row.tickets} {row.tickets === 1 ? 'entrada' : 'entradas'}</span
-										></td
-									>
-									<td class="r num">{formatARS(row.amount)}</td>
+									<td>{row.label}<br /><span class="muted small">{rowNote(row)}</span></td>
+									<td class="r num">{formatARS(row.amount + row.extras)}</td>
 									<td>
 										<select
 											class="kv-input"
@@ -382,6 +397,31 @@
 							{income.awaiting.orders === 1
 								? 'transferencia sin confirmar'
 								: 'transferencias sin confirmar'} ({formatARS(income.awaiting.amount)}).{/if}
+					</p>
+				{/if}
+				{#if result.extras}
+					<h3 class="sub">Extras</h3>
+					<p class="muted small">
+						Lo que se pagó por los extras de la compra (online, en la puerta o cargados a mano), a
+						precio de lista. Cuenta lo pagado, no lo entregado.
+					</p>
+					{#if income.extrasLines.length}
+						<ul class="extras-lines">
+							{#each income.extrasLines as x (x.id)}
+								<li class="num">{extraIncomeText(x, formatARS)}</li>
+							{/each}
+						</ul>
+					{/if}
+					{#if extrasBySource.length}
+						<p class="muted small">
+							Lo tiene quien tiene la plata de cada fuente: {extrasBySource
+								.map((r) => `${r.label}, ${formatARS(r.extras)}`)
+								.join(' · ')}.
+						</p>
+					{/if}
+					<p class="total-line">
+						<span>Extras</span>
+						<strong class="num">{formatARS(result.extras)}</strong>
 					</p>
 				{/if}
 				<h3 class="sub">Otros ingresos</h3>
@@ -560,10 +600,44 @@
 						/>
 					</label>
 				</div>
+				{#if result.extras || account.extrasTo !== 'reparto'}
+					<div class="extras-to" role="radiogroup" aria-labelledby="extras-to-label">
+						<span id="extras-to-label" class="extras-to-label">Los extras van:</span>
+						{#each EXTRAS_OPTIONS as o (o.value)}
+							<label class="radio">
+								<input
+									type="radio"
+									name="extras-to"
+									value={o.value}
+									bind:group={account.extrasTo}
+									on:change={touch}
+								/>
+								{o.label}
+							</label>
+						{/each}
+					</div>
+					{#if account.extrasTo === 'lugar'}
+						<p class="extras-venue">
+							<span>Extras: {formatARS(result.extrasToVenue)}, todo para el lugar</span>
+						</p>
+					{:else if account.extrasTo === 'porcentaje' && account.venue.kind !== 'porcentaje' && account.venue.kind !== 'porcentaje_minimo'}
+						<p class="muted small">
+							El lugar no cobra un porcentaje: los extras quedan para el reparto.
+						</p>
+					{/if}
+				{/if}
 				{#if account.venue.kind === 'porcentaje' || account.venue.kind === 'porcentaje_minimo'}
 					<p class="muted small">
-						El porcentaje es sobre los ingresos por entradas con lo que cubrió el Fondo y sin los
-						aportes al Fondo ({formatARS(result.ticketIncome)}). No cuenta otros ingresos.
+						{#if account.extrasTo === 'porcentaje'}
+							El porcentaje es sobre los ingresos por entradas con lo que cubrió el Fondo y sin los
+							aportes al Fondo, más los extras ({formatARS(result.venueBase)}). No cuenta otros
+							ingresos.
+						{:else}
+							El porcentaje es sobre los ingresos por entradas con lo que cubrió el Fondo y sin los
+							aportes al Fondo ({formatARS(result.ticketIncome)}). No cuenta {result.extras
+								? 'los extras ni otros ingresos'
+								: 'otros ingresos'}.
+						{/if}
 						{#if result.venue.usedMin}Esta vez el porcentaje da {formatARS(result.venue.byPct)}: se
 							cobra el mínimo.{/if}
 					</p>
@@ -586,7 +660,7 @@
 					{:else}
 						<span></span>
 					{/if}
-					<strong class="num">Lugar: {formatARS(result.venue.amount)}</strong>
+					<strong class="num">Lugar: {formatARS(result.venueTotal)}</strong>
 				</div>
 				{#if venueRuleSaved}<p class="muted small">
 						Listo: los próximos eventos en {data.venue?.title} arrancan con esta regla.
@@ -1092,6 +1166,23 @@
 		border-radius: var(--radius, 0.5rem);
 		background: var(--surface-2, rgba(127, 127, 127, 0.08));
 		font-weight: 600;
+	}
+	.extras-to {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
+		margin-top: var(--space-2xs);
+	}
+	.extras-to-label {
+		font-weight: 600;
+	}
+	.extras-venue {
+		margin: var(--space-3xs) 0 0;
+	}
+	.extras-lines {
+		list-style: none;
+		margin: var(--space-3xs) 0 0;
+		padding: 0;
 	}
 	.total-line {
 		display: flex;

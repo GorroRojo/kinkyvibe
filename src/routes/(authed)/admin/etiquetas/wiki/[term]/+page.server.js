@@ -4,11 +4,13 @@ import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { panelAuthor } from '$lib/server/contenido/author.js';
 import { loadWikiEditor, readWikiForm, saveWikiPage } from '$lib/server/etiquetas/wikiEditor.js';
+import { objectPageVisits } from '$lib/server/admin/pageVisits.js';
 
 /**
  * Etiquetas › «Entrada de la Kinkipedia»: el texto de la wiki de una etiqueta, en la base (se
  * publica al guardar, sin GitHub). Solo admins: el `load` y cada action llaman a `requireAdmin`.
- * La lógica está en src/lib/server/etiquetas/wikiEditor.js.
+ * La lógica está en src/lib/server/etiquetas/wikiEditor.js. La tarjeta «Visitas» de /wiki/<…> va
+ * sin esperar (docs/analiticas.md, «Visitas de una página»).
  */
 
 /** @type {import('./$types').PageServerLoad} */
@@ -19,7 +21,16 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	if (!db) error(503, 'Sin base de datos: no hay dónde guardar la Kinkipedia.');
 	const found = await loadWikiEditor(db, params.term);
 	if (!found) error(404, 'No hay ninguna etiqueta con esa dirección. Creala primero en Etiquetas.');
-	return { tag: found.tag, exists: found.exists, values: found.values };
+	return {
+		tag: found.tag,
+		exists: found.exists,
+		values: found.values,
+		// La dirección canónica y la que lleva el nombre de la etiqueta (las dos responden).
+		visits: objectPageVisits(platform, {
+			kind: 'wiki',
+			slugs: [found.tag.slug, found.tag.key, params.term]
+		})
+	};
 }
 
 /**

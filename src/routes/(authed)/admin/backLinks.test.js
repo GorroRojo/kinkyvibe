@@ -53,12 +53,13 @@ const DYNAMIC_BACKS = {
 	'src/routes/(authed)/admin/ajustes/automatizaciones/+page.svelte': [
 		"areaBackLink('ajustes-automatizaciones')"
 	],
+	'src/routes/(authed)/admin/ajustes/carrusel/+page.svelte': ["areaBackLink('ajustes-carrusel')"],
 	'src/routes/(authed)/admin/ajustes/cobros/+page.svelte': ["areaBackLink('ajustes-cobros')"],
 	'src/routes/(authed)/admin/ajustes/fondo/+page.svelte': ["areaBackLink('ajustes-fondo')"],
 	'src/routes/(authed)/admin/ajustes/interruptores/+page.svelte': [
 		"areaBackLink('ajustes-interruptores')"
 	],
-	'src/routes/(authed)/admin/ajustes/propinas/+page.svelte': ["areaBackLink('propinas')"],
+	'src/routes/(authed)/admin/ajustes/paypal/+page.svelte': ["areaBackLink('ajustes-paypal')"],
 	'src/routes/(authed)/admin/ajustes/textos-bot/+page.svelte': [
 		"areaBackLink('ajustes-textos-bot')"
 	],

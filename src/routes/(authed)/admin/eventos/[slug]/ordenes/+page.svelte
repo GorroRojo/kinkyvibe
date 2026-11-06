@@ -1,5 +1,4 @@
 <script>
-	import { extraDeliveryText } from '$lib/utils/extras.js';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { deserialize, enhance } from '$app/forms';
 	import { CircleCheck, ReceiptText, Search, TicketPlus, TriangleAlert } from '@lucide/svelte';
@@ -21,10 +20,10 @@
 		dniQueryDigits,
 		orderFilterFor,
 		orderIdFromHash,
+		orderMoneyLines,
 		shortTime
 	} from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
-	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 	import { replaceState } from '$app/navigation';
 	import {
 		DEFAULT_ORDER_SORT,
@@ -399,6 +398,7 @@
 	{/if}
 	<ul class="orders">
 		{#each shown as o (o.id)}
+			{@const money = orderMoneyLines(o)}
 			<li class="order status-{o.status}" class:linked={o.id === linked} id="orden-{o.id}">
 				<div class="who">
 					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}
@@ -408,33 +408,16 @@
 						><span class="status">{ORDER_STATUS[o.status]}</span></Badge
 					>
 				</div>
+				<!-- Lo pagado y lo que queda arriba; el desglose (Fondo, recargo, comisión, extras) abajo,
+				     chico (opción A de gorrite). -->
 				<div class="what">
-					{o.quantity} × {o.type} · <strong>{formatARS(o.total)}</strong>
-					{#if o.gorra !== null}<small>(a la gorra, {formatARS(o.gorra)} c/u)</small>{/if}
-					{#if o.fondo}<small>(fondo −{formatARS(o.fondo)})</small>{/if}
-					{#if o.contribution}<small
-							>({fondoOptionLabel(o.fondoOption)}: aporte al fondo +{formatARS(
-								o.contribution
-							)})</small
-						>{/if}
-					{#if o.discountAmount}<small
-							>(código {o.discountCode}, −{formatARS(o.discountAmount)})</small
-						>{/if}
-					{#if o.surcharge}<small>(recargo MP +{formatARS(o.surcharge)})</small>{/if}
-					{#if o.mpFee !== null}<small>(comisión de MP {formatARS(o.mpFee)})</small>{/if}
+					{money.main}
 					· {PAYMENT_METHOD[o.method]}
 					{#if o.status === 'approved'}
 						· ingresaron {o.checkedIn}/{o.quantity}
 					{/if}
 				</div>
-				{#if o.extras?.length}
-					<!-- Extras de la compra (decisión 0056): aparte del total de las entradas. -->
-					<div class="what">
-						Extras: {o.extras.map(extraDeliveryText).join(' · ')} ·
-						<strong>+{formatARS(o.extrasAmount)}</strong>
-						<small>(pagó {formatARS(o.total + o.extrasAmount)} en total)</small>
-					</div>
-				{/if}
+				{#if money.detail}<p class="what-detail">{money.detail}</p>{/if}
 				{#if o.refundedAmount}<p class="admin-note">
 						Reembolso parcial en Mercado Pago: {formatARS(o.refundedAmount)} (quedan {formatARS(
 							Math.max(0, o.total - o.refundedAmount)
@@ -759,6 +742,12 @@
 		font-size: var(--text-sm);
 	}
 	.meta {
+		color: var(--muted);
+	}
+	/* El desglose de la plata, debajo de «Pagó … · te quedan …»: chico y gris. */
+	.what-detail {
+		margin: 0;
+		font-size: var(--text-xs);
 		color: var(--muted);
 	}
 	.meta form {

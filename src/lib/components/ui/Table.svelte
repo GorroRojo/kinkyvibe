@@ -27,6 +27,8 @@
 	 * - `caption` (opcional, para lectores de pantalla y arriba de la tabla); `empty`: texto si no
 	 *   hay filas (default «No hay nada para mostrar.»); `rowKey`: clave única de cada fila;
 	 *   `rowClass(row)` (opcional): clases de la fila.
+	 * - `surface`: 'panel' (default, `.kv-table` de panel.scss) | 'sitio' (fuera del panel: la misma
+	 *   tabla con los tokens del sitio, encabezados en `--2-dark`, líneas `--line`, hover `--hover`).
 	 * Slot `cell` (opcional, `let:row let:column let:value`): para dibujar una celda a mano.
 	 */
 	import { createEventDispatcher } from 'svelte';
@@ -50,6 +52,8 @@
 	/** @type {((row: any) => string) | undefined} */
 	export let rowClass = undefined;
 	export let presorted = false;
+	/** @type {'panel' | 'sitio'} */
+	export let surface = 'panel';
 
 	/** @type {import('svelte').EventDispatcher<{ sort: { key: string, dir: 'asc' | 'desc' } }>} */
 	const dispatch = createEventDispatcher();
@@ -69,8 +73,8 @@
 	const classes = (parts) => parts.filter(Boolean).join(' ') || undefined;
 </script>
 
-<div class="kv-table-wrap">
-	<table class="kv-table">
+<div class="kv-table-wrap" class:sitio={surface === 'sitio'}>
+	<table class:kv-table={surface !== 'sitio'} class:kv-table-sitio={surface === 'sitio'}>
 		{#if caption}<caption>{caption}</caption>{/if}
 		{#if hasWidths}
 			<colgroup>
@@ -173,6 +177,39 @@
 	/* Sin ordenar: la flecha doble, apagada; la columna ordenada lleva la flecha del sentido. */
 	th:not([aria-sort]) .sort :global(.sort-icon) {
 		opacity: 0.55;
+	}
+	/* Sitio: lo de `.kv-table` (panel.scss, solo dentro de `.kv-panel`) con los tokens del sitio
+	   (encabezados violetas a 7.4:1 sobre blanco). */
+	.kv-table-wrap.sitio {
+		overflow-x: auto;
+	}
+	.kv-table-sitio {
+		border-collapse: collapse;
+		width: 100%;
+		color: var(--ink);
+	}
+	.kv-table-sitio th,
+	.kv-table-sitio td {
+		text-align: left;
+		padding: var(--space-3xs) var(--space-2xs);
+		border-bottom: 1px solid var(--line);
+	}
+	.kv-table-sitio th {
+		font-size: var(--text-sm);
+		color: var(--2-dark);
+		font-weight: 700;
+	}
+	.kv-table-sitio tbody tr:hover {
+		background: var(--hover);
+	}
+	.kv-table-sitio .r {
+		text-align: right;
+	}
+	.kv-table-sitio .num {
+		font-variant-numeric: tabular-nums;
+	}
+	.kv-table-sitio .empty {
+		text-align: center;
 	}
 	.sr-only {
 		position: absolute;

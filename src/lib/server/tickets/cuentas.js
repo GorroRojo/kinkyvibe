@@ -122,6 +122,13 @@ const SUMMARY_COLUMNS = /** @type {const} */ ([
 	'profit'
 ]);
 
+/**
+ * Los extras de un cierre no tienen columna (no hizo falta migración): salen de la foto
+ * (`income.extras`; la tabla ya exige que la foto sea JSON). Los cierres de antes de los extras dan
+ * 0 (y su `income_total` no los tenía).
+ */
+const EXTRAS_SQL = `COALESCE(json_extract(snapshot, '$.income.extras'), 0) AS extras`;
+
 /** @param {Record<string, unknown>} row @returns {ClosingRow} */
 function closingRow(row) {
 	return /** @type {ClosingRow} */ ({
@@ -129,6 +136,7 @@ function closingRow(row) {
 		event_title: String(row.event_title),
 		event_date: String(row.event_date),
 		...Object.fromEntries(SUMMARY_COLUMNS.map((k) => [k, Number(row[k]) || 0])),
+		extras: Number(row.extras) || 0,
 		closed_at: Number(row.closed_at),
 		closed_by: String(row.closed_by)
 	});
@@ -143,7 +151,7 @@ function closingRow(row) {
  */
 export async function getClosing(db, slug) {
 	const row = await db
-		.prepare('SELECT * FROM event_account_closings WHERE event_slug = ?1')
+		.prepare(`SELECT *, ${EXTRAS_SQL} FROM event_account_closings WHERE event_slug = ?1`)
 		.bind(slug)
 		.first();
 	if (!row) return null;
@@ -151,7 +159,8 @@ export async function getClosing(db, slug) {
 }
 
 /**
- * Cierra la cuenta: guarda el resumen y la foto. `false` si ya estaba cerrada.
+ * Cierra la cuenta: guarda el resumen y la foto. `false` si ya estaba cerrada. `summary.extras` no
+ * se escribe en una columna: va en la foto (`snapshot.income.extras`).
  *
  * @param {D1Database} db
  * @param {{ slug: string, title: string, date: string, summary: ClosingSummary, snapshot: unknown, by: string, now?: number }} input
@@ -210,7 +219,7 @@ export async function reopenAccount(db, slug) {
 export async function listClosings(db, year) {
 	const { results } = await db
 		.prepare(
-			`SELECT ${['event_slug', 'event_title', 'event_date', ...SUMMARY_COLUMNS, 'closed_at', 'closed_by'].join(', ')}
+			`SELECT ${['event_slug', 'event_title', 'event_date', ...SUMMARY_COLUMNS, 'closed_at', 'closed_by', EXTRAS_SQL].join(', ')}
 			FROM event_account_closings WHERE event_date >= ?1 AND event_date < ?2
 			ORDER BY event_date, event_slug`
 		)
