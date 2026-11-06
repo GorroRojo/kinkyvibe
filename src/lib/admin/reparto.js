@@ -1084,3 +1084,57 @@ export function yearSummary(rows) {
 		total
 	};
 }
+
+/**
+ * Lo que le tocó a cada parte en los cierres de un año: la Caja KV (su columna del cierre, con lo
+ * de las partes del equipo y las contrataciones que quedan en la caja) y cada parte de afuera del
+ * equipo, por nombre (sin distinguir mayúsculas). Sale de la foto de cada cierre (la cuenta se
+ * vuelve a hacer con lo guardado). Con pérdida, lo que puso cuenta en negativo. Tiene nombres de
+ * personas: solo para la página de admins, nunca para un CSV.
+ *
+ * @param {{ caja: number, snapshot: unknown }[]} closings
+ * @returns {{ rows: { name: string, team: boolean, events: number, amount: number }[], skipped: number }}
+ */
+export function yearShares(closings) {
+	/** @type {Map<string, { name: string, team: boolean, events: number, amount: number }>} */
+	const map = new Map();
+	/** @param {string} key @param {string} name @param {boolean} team @param {number} amount */
+	const add = (key, name, team, amount) => {
+		const r = map.get(key) ?? { name, team, events: 0, amount: 0 };
+		r.events += 1;
+		r.amount += amount;
+		map.set(key, r);
+	};
+	let skipped = 0;
+	for (const c of closings) {
+		add(CAJA, CAJA_LABEL, true, Number(c.caja) || 0);
+		const snap = /** @type {{ income?: unknown, data?: unknown } | null} */ (c.snapshot);
+		const income = cleanIncome(snap?.income);
+		if (!income || !snap?.data) {
+			skipped += 1;
+			continue;
+		}
+		const { split } = computeAccount(income, cleanAccount(snap.data));
+		for (const s of split.shares) {
+			if (s.team || s.id === CAJA) continue;
+			add(`parte:${s.name.trim().toLocaleLowerCase('es')}`, s.name.trim(), false, s.amount);
+		}
+	}
+	const rows = [...map.values()].sort(
+		(a, b) => Number(b.team) - Number(a.team) || b.amount - a.amount
+	);
+	return { rows, skipped };
+}
+
+/**
+ * Las columnas del CSV de Cuentas del año: una fila por cierre, sin nada de las partes.
+ * @type {ReadonlyArray<import('$lib/admin/csv.js').CsvColumn<any>>}
+ */
+export const CLOSINGS_CSV_COLUMNS = Object.freeze([
+	{ key: 'event_date', label: 'fecha' },
+	{ key: 'event_title', label: 'evento' },
+	{ key: 'income_total', label: 'ingresos' },
+	{ key: 'expenses_total', label: 'gastos' },
+	{ key: 'profit', label: 'ganancia' },
+	{ key: 'caja', label: 'caja_kv' }
+]);

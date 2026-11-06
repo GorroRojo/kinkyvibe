@@ -210,3 +210,53 @@ describe('accountsReady', () => {
 		expect(await accountsReady(/** @type {any} */ (missing))).toBe(false);
 	});
 });
+
+describe('accountState, listClosingsBetween y listClosingSnapshots', async () => {
+	const { accountState, listClosingsBetween, listClosingSnapshots } = await import('./cuentas.js');
+
+	it('sin cuenta, empezada y cerrada', async () => {
+		expect(await accountState(t.db, SLUG)).toEqual({ state: 'none' });
+		await saveAccount(t.db, { slug: SLUG, data: emptyAccount(), version: 0, by: 'x' });
+		expect(await accountState(t.db, SLUG)).toEqual({ state: 'open' });
+		await closeAccount(t.db, {
+			slug: SLUG,
+			title: 'Taller de prueba',
+			date: '2026-09-20',
+			summary,
+			snapshot: { income: { rows: [] }, data: {} },
+			by: 'x'
+		});
+		const closed = await accountState(t.db, SLUG);
+		expect(closed.state).toBe('closed');
+		expect(closed.state === 'closed' && closed.closing.profit).toBe(130000);
+	});
+
+	it('los cierres entre dos fechas (o todos) y las fotos de un año', async () => {
+		for (const [slug, date] of [
+			['a-2025', '2025-12-31'],
+			['b-2026', '2026-01-01'],
+			['c-2026', '2026-06-15']
+		]) {
+			await closeAccount(t.db, {
+				slug,
+				title: slug,
+				date,
+				summary,
+				snapshot: { income: { rows: [] } },
+				by: 'x'
+			});
+		}
+		expect((await listClosingsBetween(t.db, null, null)).map((r) => r.event_slug)).toEqual([
+			'a-2025',
+			'b-2026',
+			'c-2026'
+		]);
+		expect(
+			(await listClosingsBetween(t.db, '2026-01-01', '2026-06-15')).map((r) => r.event_slug)
+		).toEqual(['b-2026']);
+		expect(await listClosingSnapshots(t.db, 2026)).toEqual([
+			{ event_slug: 'b-2026', caja: 84500, snapshot: { income: { rows: [] } } },
+			{ event_slug: 'c-2026', caja: 84500, snapshot: { income: { rows: [] } } }
+		]);
+	});
+});
