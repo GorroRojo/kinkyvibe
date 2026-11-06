@@ -148,10 +148,15 @@
 		<p>No se cobró nada. Podés volver al evento e intentar de nuevo con otro medio de pago.</p>
 	{:else if order.status === 'cancelled'}
 		<h1>Esta compra se canceló</h1>
-		<p>
-			No se emitieron entradas. Si pagaste igual, respondé el email o escribinos con el número de
-			compra, {order.reference}.
-		</p>
+		{#if order.paypalCancelled}
+			<!-- El botón «Volver a comprar» va abajo, como en los demás estados sin entradas. -->
+			<p>Cancelaste el pago en PayPal: no se cobró nada.</p>
+		{:else}
+			<p>
+				No se emitieron entradas. Si pagaste igual, respondé el email o escribinos con el número de
+				compra, {order.reference}.
+			</p>
+		{/if}
 	{:else if order.status === 'refunded'}
 		<h1>Esta compra fue reembolsada</h1>
 		<p>Las entradas de esta compra ya no son válidas.</p>

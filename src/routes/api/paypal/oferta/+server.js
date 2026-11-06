@@ -1,7 +1,7 @@
 /**
  * ¿Se puede pagar con PayPal ahora, y con qué cotización? Para el formulario de propina (que está
  * también en páginas que no pasan por el servidor): con JavaScript, muestra «PayPal» y los
- * dólares del monto elegido (la misma cuenta que hace el servidor, `usdCentsForArs`). Sin el
+ * dólares del monto elegido con el recargo (la misma cuenta que hace el servidor, `paypalCharge`). Sin el
  * interruptor, sin credenciales o sin una cotización reciente: `{ available: false }`.
  */
 import { json } from '@sveltejs/kit';
@@ -17,6 +17,9 @@ export async function GET({ platform, setHeaders }) {
 		available: true,
 		base: offer.base,
 		adjustmentPct: offer.adjustmentPct,
-		rate: offer.rate
+		rate: offer.rate,
+		// La comisión, para mostrar el recargo de PayPal (`paypalCharge`, la misma cuenta que el servidor).
+		feeBasisPoints: offer.feeBasisPoints,
+		fixedCents: offer.fixedCents
 	});
 }

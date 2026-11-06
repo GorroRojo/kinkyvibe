@@ -8,7 +8,6 @@
 	import { TRANSFER_HOLD_AFTER } from '$lib/utils/transferDeadline.js';
 	import { acceptLabel } from '$lib/utils/purchaseSteps.js';
 	import { formatRate, formatUSD, usdCentsForArs } from '$lib/utils/paypal.js';
-	import { formatARS } from '$lib/utils/money.js';
 
 	/** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 	export let tickets;
@@ -33,18 +32,6 @@
 		tickets.paypal && paid > 0
 			? usdCentsForArs(paid, tickets.paypal.base, tickets.paypal.adjustmentPct)
 			: null;
-
-	/** La comisión de PayPal para mostrar (540 y 30 → "5,4 % + US$ 0,30"), como la de Mercado Pago. */
-	$: paypalFeeText =
-		tickets.paypal && (tickets.paypal.feeBasisPoints || tickets.paypal.fixedCents)
-			? [
-					tickets.paypal.feeBasisPoints &&
-						`${(tickets.paypal.feeBasisPoints / 100).toLocaleString('es-AR', { maximumFractionDigits: 2 })} %`,
-					tickets.paypal.fixedCents && formatUSD(tickets.paypal.fixedCents)
-				]
-					.filter(Boolean)
-					.join(' + ')
-			: '';
 
 	/** @type {Record<string, [string, string]>} */
 	const METHOD_TEXT = {
@@ -88,11 +75,9 @@
 						Te reservamos el lugar 20 minutos mientras pagás.
 					{:else if m === 'paypal'}
 						{#if usdCents && tickets.paypal}
-							Pagás <strong>{formatUSD(usdCents)}</strong> en PayPal: el total en pesos argentinos ({formatARS(
-								paid
-							)}) pasado a dólares al dólar MEP de hoy ({formatRate(tickets.paypal.rate)} por dólar).{#if paypalFeeText}{' '}Incluye
-								el recargo de la comisión de PayPal ({paypalFeeText}).{/if} Te reservamos el lugar 20
-							minutos mientras pagás.
+							Pagás <strong>{formatUSD(usdCents)}</strong> en PayPal (los montos en $ son pesos
+							argentinos, a {formatRate(tickets.paypal.rate)} por dólar). Te reservamos el lugar 20 minutos
+							mientras pagás.
 						{:else}
 							Pagás en dólares en PayPal. Te reservamos el lugar 20 minutos mientras pagás.
 						{/if}

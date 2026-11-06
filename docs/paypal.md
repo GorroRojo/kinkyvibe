@@ -109,8 +109,9 @@ para arriba** al centavo (`usdCentsForArs` en `$lib/utils/paypal.js`):
     dólares = ceil(pesos / (base × (1 + ajuste / 100)))
 
 Así, lo cobrado pasado a pesos con la misma cuenta (`estimateArs`) alcanza el precio. Quien paga ve
-los dólares **antes** de ir a PayPal: en «Pagar» de la compra (en la nota del medio de pago, con el
-total en pesos argentinos, la cotización y la comisión, y al lado del total del resumen) y en el
+los dólares **antes** de ir a PayPal: en «Pagar» de la compra (en la nota del medio de pago, corta: los
+dólares, que los $ son pesos argentinos y la cotización como «a $ X por dólar»; y al lado del
+total del resumen) y en el
 formulario de propina (que pide la cotización a `GET /api/paypal/oferta`, porque está también en
 páginas sin servidor). La cuenta del navegador es la misma función que la del servidor. Después,
 la página de la compra y el mail muestran el total en pesos y, entre paréntesis, los dólares que
@@ -128,7 +129,12 @@ descontada la comisión, queda el precio. Se ve como «Recargo PayPal» en el re
 la página de la compra, el mail y el panel, y se guarda en `surcharge_amount` como el de MP: entra
 en `total`, los reportes lo cuentan como comisión del medio de pago hasta que PayPal informa la
 real (`mp_fee_amount`) y Gastos y reparto lo descuenta igual que el de MP (no se cuenta dos veces).
-Las propinas no llevan recargo.
+Las **propinas con PayPal también llevan el recargo** (`paypalCharge`, la misma cuenta en el
+formulario y en el servidor): se cobra `usdCentsForArs(monto + recargo)`, el formulario lo muestra
+(«Con PayPal pagás US$ 1,15: los $ 1.000 más $ 437 de recargo PayPal, a $ 1.250,00 por dólar») y
+`tips.amount` sigue siendo el monto elegido. Lo que cuenta para el Fondo y las estadísticas son
+los dólares **netos** pasados a pesos (`usd_net_cents`), así que el recargo (que se lleva la
+comisión) no se cuenta como propina ni dos veces.
 
 La comisión se cambia en **Ajustes › PayPal › Comisión de PayPal** (queda en Actividad). Por
 defecto **5,4 % + US$ 0,30**: la de PayPal Argentina para «recibir pagos de ventas
@@ -172,8 +178,10 @@ con un 200.
 ### Cancelar, reembolsar, contracargos
 
 - **Cancelar en PayPal** (`?cancelado=1`): si la orden de PayPal no se aprobó, la compra se cancela
-  y libera el lugar (la lista de espera sigue); la propina queda «no se completó». Un pago que
-  llegue después igual se acepta (como con MP).
+  y libera el lugar (la lista de espera sigue); la propina queda «no se completó». La página
+  dice «Cancelaste el pago en PayPal: no se cobró nada.» con «Volver a comprar» (entradas) o
+  «Volver a dejar la propina» (al formulario; una cancelación del panel, con `confirmed_by`, sigue
+  con el texto de siempre). Un pago que llegue después igual se acepta (como con MP).
 - **Reembolsar** desde Ventas › Órdenes: reembolso TOTAL de la captura por la API. Si PayPal da
   error pero la captura figura reembolsada, se marca igual. «Reembolsar todas» de un evento
   cancelado también las devuelve por la API, junto con las de Mercado Pago. El recargo se
@@ -210,7 +218,7 @@ de órdenes, cobro e idempotencia contra la base) y `migration0082.test.js`.
 - PayPal es **una opción por evento**, prendida por defecto.
 - **Con recargo**: quien compra paga la comisión de PayPal (configurable; la tarifa por defecto es
   A CONFIRMAR, ver «El recargo»). La conversión usa el ajuste en % y redondea para arriba.
-- **Propinas en pesos convertidos** (los mismos montos de siempre), sin recargo.
+- **Propinas en pesos convertidos** (los mismos montos de siempre), con el mismo recargo.
 - **Cancelar en PayPal cancela la compra** enseguida.
 - **«Reembolsar todas» devuelve también las de PayPal** por la API.
 - **Cotización de hasta 5 días**; con una más vieja PayPal no se ofrece y se avisa a les admins.

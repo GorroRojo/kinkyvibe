@@ -12,6 +12,7 @@ import {
 	PAYPAL_FEE_DEFAULT,
 	estimateArs,
 	parsePaypalFee,
+	paypalCharge,
 	paypalSurcharge
 } from '$lib/utils/paypal.js';
 import { computePrice } from '$lib/utils/tickets.js';
@@ -209,6 +210,17 @@ describe('recargo de PayPal (la comisión la paga quien compra)', () => {
 		}
 		// 8.000 → 8.838 (el recargo es 838): US$ 7,37 brutos, US$ 6,67 netos.
 		expect(paypalSurcharge(8000, fee)).toBe(838);
+	});
+
+	it('paypalCharge (propinas): el recargo y los dólares de monto + recargo', () => {
+		expect(paypalCharge(8000, fee)).toEqual({
+			surcharge: 838,
+			usdCents: usdCentsForArs(8838, fee.base, fee.adjustmentPct)
+		});
+		expect(paypalCharge(8000, { ...fee, feeBasisPoints: 0, fixedCents: 0 })).toEqual({
+			surcharge: 0,
+			usdCents: usdCentsForArs(8000, fee.base, fee.adjustmentPct)
+		});
 	});
 
 	it('sin comisión o con datos raros: sin recargo', () => {

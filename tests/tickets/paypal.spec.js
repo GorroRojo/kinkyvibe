@@ -95,4 +95,6 @@ test('PayPal: cancelar en PayPal cancela la compra (no se cobra nada)', async ({
 	await page.getByRole('button', { name: 'Cancelar y volver' }).click();
 	await expect(page).toHaveURL(/\/entradas\/[0-9a-f-]{36}\/estado$/);
 	await expect(page.getByRole('heading', { name: 'Esta compra se canceló' })).toBeVisible();
+	await expect(page.getByText('Cancelaste el pago en PayPal: no se cobró nada.')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Volver a comprar' })).toBeVisible();
 });

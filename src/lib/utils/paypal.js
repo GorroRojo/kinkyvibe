@@ -147,6 +147,20 @@ export function paypalSurcharge(ars, fee) {
 }
 
 /**
+ * Lo que se cobra en PayPal por `ars` pesos, con el recargo de la comisión: los pesos más
+ * {@link paypalSurcharge}, pasados a dólares con {@link usdCentsForArs}. Lo usan las propinas (en
+ * el servidor y en el formulario); las entradas guardan el recargo aparte y hacen la misma cuenta.
+ *
+ * @param {number} ars pesos enteros (sin el recargo)
+ * @param {PaypalFee} fee
+ * @returns {{ surcharge: number, usdCents: number | null }}
+ */
+export function paypalCharge(ars, fee) {
+	const surcharge = paypalSurcharge(ars, fee);
+	return { surcharge, usdCents: usdCentsForArs(ars + surcharge, fee?.base, fee?.adjustmentPct) };
+}
+
+/**
  * La comisión de Ajustes › PayPal escrita como texto: porcentaje (`5,4`) y fijo en dólares
  * (`0,30`). Vacío = el de {@link PAYPAL_FEE_DEFAULT}. Otra cosa: `null`.
  *

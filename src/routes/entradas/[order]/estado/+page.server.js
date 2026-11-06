@@ -149,6 +149,13 @@ export async function load({ params, url, platform, fetch, cookies, depends }) {
 			method: current.payment_method,
 			// Lo que se cobró en dólares (solo PayPal).
 			usdCents: current.payment_method === 'paypal' ? (current.usd_amount_cents ?? null) : null,
+			// Quien compraba canceló en PayPal (o no se llegó a crear el pago): no se cobró nada. Una
+			// cancelación del panel guarda quién la hizo (`confirmed_by`).
+			paypalCancelled:
+				current.payment_method === 'paypal' &&
+				current.status === 'cancelled' &&
+				!current.paypal_capture_id &&
+				!current.confirmed_by,
 			reference: orderReference(current.id),
 			typeName:
 				config?.types.find((t) => t.id === current.ticket_type)?.name ?? current.ticket_type,

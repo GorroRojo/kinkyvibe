@@ -178,10 +178,10 @@
 					</div>
 				</form>
 				<p class="kv-note">
-					Quien compra entradas con PayPal paga esta comisión como recargo, como el recargo de
-					Mercado Pago: así a Kinky Vibe le queda el precio entero. Por defecto, 5,4 % + US$ 0,30
-					(la de PayPal para cobros del exterior en Argentina; revisala en tu cuenta de PayPal). Las
-					propinas no llevan recargo.
+					Quien paga con PayPal (entradas y propinas) paga esta comisión como recargo, como el
+					recargo de Mercado Pago: así a Kinky Vibe le queda el precio (o la propina) entero. Por
+					defecto, 5,4 % + US$ 0,30 (la de PayPal para cobros del exterior en Argentina; revisala en
+					tu cuenta de PayPal).
 				</p>
 			</Card>
 

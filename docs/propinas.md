@@ -155,8 +155,9 @@ una propina de PayPal (`applyTipPayment`).
 
 El cobro ([paypal.md](paypal.md), `src/lib/server/propinas/paypal.js`): con JavaScript, el
 formulario muestra «Mercado Pago» / «PayPal (en dólares)» si `GET /api/paypal/oferta` dice que se
-puede, y con PayPal los dólares del monto elegido. `amount` sigue siendo **los pesos que eligió la
-persona**; al crearla se guardan los dólares a cobrar (`usd_gross_cents`, `usdCentsForArs`) y la
+puede, y con PayPal los dólares del monto elegido con el recargo de PayPal (como las entradas,
+`paypalCharge`). `amount` sigue siendo **los pesos que eligió la persona** (sin el recargo); al
+crearla se guardan los dólares a cobrar (`usd_gross_cents`, con el recargo) y la
 base del día con la que se calcularon (`rate_base`, no cambia). Al aprobarse, la captura
 (`paypal_capture_id`) y lo neto (`usd_net_cents`), que es lo que cuenta para el Fondo, en pesos
 estimados al leer. La vuelta es `/paypal/vuelta` → `/propinas/<id>/gracias` (que muestra los

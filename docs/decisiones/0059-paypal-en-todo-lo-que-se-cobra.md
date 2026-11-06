@@ -29,8 +29,10 @@ puerta (efectivo o MP) y las suscripciones del Fondo (fondo.kinkyvibe.ar) quedan
 - **Con recargo, como Mercado Pago**: quien compra paga la comisión de PayPal (porcentaje + fijo en
   dólares, en Ajustes › PayPal), en `surcharge_amount`; los reportes y el reparto lo tratan igual
   que el de MP.
-- Las propinas se eligen en pesos y se convierten, sin recargo. Cancelar en PayPal cancela la
-  compra. «Reembolsar todas» devuelve también las de PayPal por la API. Con una cotización de más
+- Las propinas se eligen en pesos y se convierten, con el mismo recargo que las entradas (gorrite,
+  en #652; lo que cuenta es lo neto, así que el recargo no se cuenta como propina). Cancelar en
+  PayPal cancela la compra (la página dice «Cancelaste el pago en PayPal: no se cobró nada.» y
+  lleva de vuelta a comprar o a la propina). «Reembolsar todas» devuelve también las de PayPal por la API. Con una cotización de más
   de 5 días PayPal no se ofrece y la vigilancia avisa a les admins una vez por día.
 
 ## Descartado

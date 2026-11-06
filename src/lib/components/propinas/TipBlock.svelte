@@ -14,7 +14,8 @@
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { FONDO_SITE_URL, TIP_MESSAGE_MAX, parseTipAmount } from '$lib/utils/propinas.js';
-	import { formatUSD, usdCentsForArs } from '$lib/utils/paypal.js';
+	import { formatRate, formatUSD, paypalCharge } from '$lib/utils/paypal.js';
+	import { formatARS } from '$lib/utils/money.js';
 	import TipAmountPicker from './TipAmountPicker.svelte';
 
 	/** @type {import('$lib/utils/propinas.js').TipCategory | null} */
@@ -35,22 +36,30 @@
 	let selected = values.amount || undefined;
 	let custom = values.custom ?? '';
 	let method = values.method === 'paypal' ? 'paypal' : 'mp';
-	/** @type {{ base: number, adjustmentPct: number } | null} */
+	/** @type {(import('$lib/utils/paypal.js').PaypalFee & { rate: number }) | null} */
 	let paypal = null;
 
 	onMount(async () => {
 		try {
 			const res = await fetch('/api/paypal/oferta');
 			const offer = res.ok ? await res.json() : null;
-			if (offer?.available) paypal = { base: offer.base, adjustmentPct: offer.adjustmentPct };
+			if (offer?.available) {
+				paypal = {
+					base: offer.base,
+					adjustmentPct: offer.adjustmentPct,
+					rate: offer.rate,
+					feeBasisPoints: offer.feeBasisPoints,
+					fixedCents: offer.fixedCents
+				};
+			}
 		} catch {
 			// Sin PayPal: queda Mercado Pago, como siempre.
 		}
 	});
 
 	$: chosen = parseTipAmount(selected === 'otro' || !selected ? custom : selected);
-	$: usdCents =
-		paypal && chosen.ok ? usdCentsForArs(chosen.amount, paypal.base, paypal.adjustmentPct) : null;
+	// Con el recargo de PayPal, como las entradas (la misma cuenta que el servidor).
+	$: charge = paypal && chosen.ok ? paypalCharge(chosen.amount, paypal) : null;
 	$: if (!paypal) method = 'mp';
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
@@ -123,8 +132,12 @@
 				</label>
 				{#if method === 'paypal'}
 					<p class="usd" aria-live="polite">
-						{#if usdCents}Con PayPal pagás <strong>{formatUSD(usdCents)}</strong>, al dólar MEP de
-							hoy.{:else}Elegí un monto para ver cuánto es en dólares.{/if}
+						{#if charge?.usdCents && chosen.ok && paypal}Con PayPal pagás <strong
+								>{formatUSD(charge.usdCents)}</strong
+							>: los {formatARS(chosen.amount)}{#if charge.surcharge}{' '}más {formatARS(
+									charge.surcharge
+								)} de recargo PayPal{/if}, a {formatRate(paypal.rate)} por dólar.{:else}Elegí un
+							monto para ver cuánto es en dólares.{/if}
 					</p>
 				{/if}
 			</fieldset>

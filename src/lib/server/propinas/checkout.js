@@ -7,7 +7,8 @@ import { logDBError } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { TIP_SOURCE_FONDO, validateTip } from '$lib/utils/propinas.js';
 import { approveLink } from '$lib/server/paypal/client.js';
-import { buildPaypalOrder, usdCentsForArs } from '$lib/server/paypal/payments.js';
+import { buildPaypalOrder } from '$lib/server/paypal/payments.js';
+import { paypalCharge } from '$lib/utils/paypal.js';
 import { paypalTipCustomId, setTipPaypalCharge, setTipPaypalOrder } from './paypal.js';
 import {
 	TIP_RATE_LIMITS,
@@ -79,7 +80,7 @@ export function readTipForm(form) {
  *   origin: string,
  *   findPost: (category: import('$lib/utils/propinas.js').TipCategory, slug: string) => Promise<{ title: string } | null>,
  *   fondoEnabled?: boolean,
- *   paypal?: { gateway: import('$lib/server/paypal/gateway.js').PaypalGateway, quote: { base: number, adjustmentPct: number } } | null,
+ *   paypal?: { gateway: import('$lib/server/paypal/gateway.js').PaypalGateway, quote: import('$lib/utils/paypal.js').PaypalFee } | null,
  *   now?: number
  * }} input
  * `paypal`: con `values.method = 'paypal'`, el cliente de PayPal y la cotización con la que se
@@ -170,7 +171,7 @@ export async function startTip({
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
- *   paypal: { gateway: import('$lib/server/paypal/gateway.js').PaypalGateway, quote: { base: number, adjustmentPct: number } },
+ *   paypal: { gateway: import('$lib/server/paypal/gateway.js').PaypalGateway, quote: import('$lib/utils/paypal.js').PaypalFee },
  *   valid: Extract<ReturnType<typeof validateTip>, { ok: true }>,
  *   postTitle: string | null,
  *   origin: string,
@@ -181,7 +182,9 @@ export async function startTip({
  *   | { ok: false, status: number, error: string, errors: Record<string, string> }>}
  */
 async function startPaypalTip({ db, paypal, valid, postTitle, origin, now, failWith }) {
-	const usdCents = usdCentsForArs(valid.amount, paypal.quote.base, paypal.quote.adjustmentPct);
+	// Con el recargo de la comisión de PayPal, como las entradas (docs/paypal.md, «El recargo»): lo
+	// neto, pasado a pesos, da el monto elegido (que es lo que queda en `amount`).
+	const { usdCents } = paypalCharge(valid.amount, paypal.quote);
 	if (!usdCents) return failWith(503, 'El pago con PayPal no está disponible ahora.');
 	/** @type {import('./index.js').Tip} */
 	let tip;
