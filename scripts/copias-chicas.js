@@ -35,7 +35,9 @@ export const PRODUCTION_WORD = 'produccion';
 
 /** Pide escribir {@link PRODUCTION_WORD} antes de tocar producción; si no, corta. */
 async function confirmProduction() {
-	const rl = createInterface({ input: process.stdin, output: process.stdout });
+	// @types/node 26: el asyncIterator de process.stdin (ReadStream) ya no encaja con NodeJS.ReadableStream.
+	const input = /** @type {NodeJS.ReadableStream} */ (/** @type {unknown} */ (process.stdin));
+	const rl = createInterface({ input, output: process.stdout });
 	const answer = await rl.question(
 		`Vas a escribir copias nuevas en el bucket de PRODUCCIÓN (solo suma, no pisa nada). Escribí «${PRODUCTION_WORD}» para seguir: `
 	);
