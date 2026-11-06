@@ -216,6 +216,8 @@
 		discount: applied,
 		method,
 		feeBasisPoints: tickets.feeBasisPoints,
+		// El recargo de PayPal (docs/paypal.md): la misma cuenta que el servidor.
+		paypalFee: method === 'paypal' ? (tickets.paypal ?? null) : null,
 		extras: selected ? extrasAmount(extraLines) : 0
 	});
 	$: free =
@@ -238,6 +240,7 @@
 		free,
 		feeBasisPoints: tickets.feeBasisPoints,
 		methods: tickets.methods,
+		method,
 		extras: extraLines
 	});
 

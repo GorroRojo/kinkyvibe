@@ -163,6 +163,7 @@ export function newToken() {
  *   unitPrice?: number,
  *   fondoPercent?: number | null,
  *   feeBasisPoints?: number,
+ *   paypalFee?: import('$lib/utils/paypal.js').PaypalFee | null,
  *   method?: OrderPaymentMethod,
  *   discount?: { code: string, kind: 'percent' | 'fixed', value: number } | null,
  *   now?: number,
@@ -228,6 +229,7 @@ export async function reserveOrder(db, input) {
 		discount,
 		method,
 		feeBasisPoints: input.feeBasisPoints ?? 0,
+		paypalFee: method === 'paypal' ? (input.paypalFee ?? null) : null,
 		extras: extrasAmount(extraLines)
 	});
 	// El medio "gratis" es solo para lo pagado 0 (entradas y extras), y 0 solo puede ser "gratis".

@@ -37,7 +37,7 @@
 	const METHOD_TEXT = {
 		mercadopago: ['Mercado Pago', 'tarjeta o dinero en cuenta'],
 		transferencia: ['Transferencia', 'bancaria, sin recargo'],
-		paypal: ['PayPal', 'en dólares, desde cualquier país']
+		paypal: ['PayPal', 'en dólares, con recargo']
 	};
 
 	/** Porcentaje de comisión para mostrar (773 → "7,73 %"). */
@@ -77,7 +77,8 @@
 						{#if usdCents && tickets.paypal}
 							Pagás <strong>{formatUSD(usdCents)}</strong> en PayPal, al dólar MEP de hoy ({formatRate(
 								tickets.paypal.rate
-							)} por dólar). Te reservamos el lugar 20 minutos mientras pagás.
+							)} por dólar), con el recargo de la comisión de PayPal. Te reservamos el lugar 20 minutos
+							mientras pagás.
 						{:else}
 							Pagás en dólares en PayPal. Te reservamos el lugar 20 minutos mientras pagás.
 						{/if}

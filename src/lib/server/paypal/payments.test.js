@@ -8,7 +8,13 @@ import {
 	usdValue,
 	webhookTarget
 } from './payments.js';
-import { estimateArs } from '$lib/utils/paypal.js';
+import {
+	PAYPAL_FEE_DEFAULT,
+	estimateArs,
+	parsePaypalFee,
+	paypalSurcharge
+} from '$lib/utils/paypal.js';
+import { computePrice } from '$lib/utils/tickets.js';
 
 describe('pesos → dólares para cobrar', () => {
 	it('redondea para arriba con la base y el ajuste', () => {
@@ -176,5 +182,65 @@ describe('webhookTarget (qué orden ir a buscar)', () => {
 		expect(
 			webhookTarget({ event_type: 'BILLING.SUBSCRIPTION.ACTIVATED', resource: {} })
 		).toBeNull();
+	});
+});
+
+describe('recargo de PayPal (la comisión la paga quien compra)', () => {
+	const fee = { base: 1250, adjustmentPct: -4, feeBasisPoints: 540, fixedCents: 30 };
+
+	it('con el recargo, lo que queda después de la comisión de PayPal alcanza el precio', () => {
+		for (const ars of [500, 8000, 12_345, 99_999, 250_000]) {
+			for (const f of [
+				fee,
+				{ ...fee, base: 1432.25, adjustmentPct: 0 },
+				{ ...fee, fixedCents: 0 }
+			]) {
+				const surcharge = paypalSurcharge(ars, f);
+				expect(surcharge).toBeGreaterThan(0);
+				const usd = /** @type {number} */ (
+					usdCentsForArs(ars + surcharge, f.base, f.adjustmentPct)
+				);
+				const net = usd - Math.round((usd * f.feeBasisPoints) / 10_000) - f.fixedCents;
+				expect(net).toBeGreaterThanOrEqual(
+					/** @type {number} */ (usdCentsForArs(ars, f.base, f.adjustmentPct)) - 1
+				);
+				expect(estimateArs(net + 1, f.base, f.adjustmentPct)).toBeGreaterThanOrEqual(ars);
+			}
+		}
+		// 8.000 → 8.838 (el recargo es 838): US$ 7,37 brutos, US$ 6,67 netos.
+		expect(paypalSurcharge(8000, fee)).toBe(838);
+	});
+
+	it('sin comisión o con datos raros: sin recargo', () => {
+		expect(paypalSurcharge(8000, { ...fee, feeBasisPoints: 0, fixedCents: 0 })).toBe(0);
+		expect(paypalSurcharge(0, fee)).toBe(0);
+		expect(paypalSurcharge(8000, { ...fee, base: 0 })).toBe(0);
+		expect(paypalSurcharge(8000, { ...fee, feeBasisPoints: 5000 })).toBe(0);
+	});
+
+	it('computePrice: el recargo de PayPal va como el de MP (en el total, con los extras)', () => {
+		const p = computePrice({
+			price: 8000,
+			quantity: 1,
+			method: 'paypal',
+			paypalFee: fee,
+			extras: 2000
+		});
+		expect(p.surcharge).toBe(paypalSurcharge(10_000, fee));
+		expect(p.paid).toBe(10_000 + p.surcharge);
+		// Sin la cotización (o con otro medio), nada.
+		expect(computePrice({ price: 8000, quantity: 1, method: 'paypal' }).surcharge).toBe(0);
+		expect(
+			computePrice({ price: 8000, quantity: 1, method: 'transferencia', paypalFee: fee }).surcharge
+		).toBe(0);
+	});
+
+	it('la comisión de Ajustes › PayPal', () => {
+		expect(parsePaypalFee('5,4', '0,30')).toEqual({ basisPoints: 540, fixedCents: 30 });
+		expect(parsePaypalFee('', '')).toEqual(PAYPAL_FEE_DEFAULT);
+		expect(parsePaypalFee('4 %', 'US$ 0.49')).toEqual({ basisPoints: 400, fixedCents: 49 });
+		expect(parsePaypalFee('60', '0,30')).toBeNull();
+		expect(parsePaypalFee('abc', '0,30')).toBeNull();
+		expect(parsePaypalFee('5,4', '-1')).toBeNull();
 	});
 });

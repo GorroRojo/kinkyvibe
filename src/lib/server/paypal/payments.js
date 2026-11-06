@@ -9,7 +9,7 @@
  * fondo.kinkyvibe.ar: lo que no empieza con `kv-` no es nuestro y se ignora.
  */
 import { MAX_LIVE_AGE_DAYS, arDay, daysBetween, rateForDay } from './rates.js';
-import { getAdjustment } from './index.js';
+import { getAdjustment, getPaypalFee } from './index.js';
 import { env } from '$env/dynamic/private';
 import { isPaypalMock, paypalCharging } from './gateway.js';
 import { effectiveRate, usdCentsForArs } from '$lib/utils/paypal.js';
@@ -57,11 +57,16 @@ export function usdCents(/** @type {unknown} */ value) {
  *
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {number} [now]
- * @returns {Promise<{ base: number, adjustmentPct: number, rate: number, day: string } | null>}
+ * @returns {Promise<{ base: number, adjustmentPct: number, rate: number, day: string, feeBasisPoints: number, fixedCents: number } | null>}
  */
 export async function chargeQuote(db, now = Date.now()) {
 	const today = arDay(now);
-	const [rate, adjustment] = await Promise.all([rateForDay(db, today), getAdjustment(db)]);
+	const [rate, adjustment, fee] = await Promise.all([
+		rateForDay(db, today),
+		getAdjustment(db),
+		getPaypalFee(db)
+	]);
+	const feeFields = { feeBasisPoints: fee.basisPoints, fixedCents: fee.fixedCents };
 	if (!rate || daysBetween(rate.day, today) > MAX_LIVE_AGE_DAYS) {
 		// DEV ONLY: con el PayPal simulado, una cotización inventada si la base local no tiene una
 		// (`PAYPAL_MOCK_RATE` en .env.tickets). En el build `isPaypalMock()` es siempre `false`.
@@ -71,14 +76,16 @@ export async function chargeQuote(db, now = Date.now()) {
 			base: mock,
 			adjustmentPct: adjustment.pct,
 			rate: effectiveRate(mock, adjustment.pct),
-			day: today
+			day: today,
+			...feeFields
 		};
 	}
 	return {
 		base: rate.compra,
 		adjustmentPct: adjustment.pct,
 		rate: effectiveRate(rate.compra, adjustment.pct),
-		day: rate.day
+		day: rate.day,
+		...feeFields
 	};
 }
 
@@ -249,5 +256,25 @@ export async function paypalOffer(db, now = Date.now()) {
 	} catch (error) {
 		console.error('[paypal] no se pudo ver si se ofrece PayPal:', error);
 		return null;
+	}
+}
+
+/**
+ * ¿PayPal está prendido y con credenciales pero sin una cotización de los últimos
+ * {@link MAX_LIVE_AGE_DAYS} días? Entonces no se ofrece en ningún lado: lo avisa la vigilancia
+ * (`/api/cron/vigilancia`, una vez por día) a les admins con «Fallas en compras». Nunca tira.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {number} [now]
+ * @returns {Promise<boolean>}
+ */
+export async function paypalRateMissing(db, now = Date.now()) {
+	try {
+		if (!(await paypalCharging(db))) return false;
+		const rate = await rateForDay(db, arDay(now));
+		return !rate || daysBetween(rate.day, arDay(now)) > MAX_LIVE_AGE_DAYS;
+	} catch (error) {
+		console.error('[paypal] no se pudo revisar la cotización:', error);
+		return false;
 	}
 }

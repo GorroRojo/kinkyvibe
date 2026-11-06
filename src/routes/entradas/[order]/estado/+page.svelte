@@ -203,7 +203,7 @@
 			<dd>{e.quantity} × {formatARS(e.price)}</dd>
 		{/each}
 		{#if order.surcharge}
-			<dt>Recargo Mercado Pago</dt>
+			<dt>Recargo {order.method === 'paypal' ? 'PayPal' : 'Mercado Pago'}</dt>
 			<dd>+{formatARS(order.surcharge)}</dd>
 		{/if}
 		<dt>Total</dt>

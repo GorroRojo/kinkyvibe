@@ -167,7 +167,7 @@ export function orderMoneyLines(o) {
 			`aporte al Fondo ${formatARS(o.contribution)} (${fondoOptionLabel(o.fondoOption ?? '')})`,
 		o.discountAmount && `código ${o.discountCode} −${formatARS(o.discountAmount)}`,
 		...(o.extras ?? []).map((x) => `${x.quantity} × ${x.name} ${formatARS(x.quantity * x.price)}`),
-		o.surcharge && `recargo MP ${formatARS(o.surcharge)}`,
+		o.surcharge && `recargo ${o.method === 'paypal' ? 'PayPal' : 'MP'} ${formatARS(o.surcharge)}`,
 		o.mpFee != null && `${o.method === 'paypal' ? 'PayPal' : 'MP'} se quedó ${formatARS(o.mpFee)}`
 	]
 		.filter(Boolean)

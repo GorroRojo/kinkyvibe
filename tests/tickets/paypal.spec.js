@@ -58,8 +58,12 @@ test('PayPal: ver los dólares → aprobar en PayPal → compra aprobada → el 
 	const usd = /** @type {string} */ (/US\$\s[\d.,]+/.exec(await note.innerText())?.[0]);
 	const submit = block.locator('.pay button[type="submit"]');
 	await expect(submit).toHaveText('Ir a pagar con PayPal');
-	await block.locator('fieldset.methods').scrollIntoViewIfNeeded();
-	await shot(page, '1-elegir-paypal', block.locator('fieldset.methods'));
+	// El recargo de PayPal, como el de Mercado Pago, en el resumen.
+	// (en el celu el resumen es una barra que se despliega)
+	const bar = block.locator('button.bar[aria-controls="resumen-detalle"]');
+	if (await bar.isVisible()) await bar.click();
+	await expect(block.locator('#resumen-detalle').getByText('Recargo PayPal')).toBeVisible();
+	await shot(page, '1b-elegir-paypal-recargo', block);
 
 	await submit.click();
 	await expect(page).toHaveURL(/\/paypal\/simular\/MOCK[A-Z0-9]+$/);
