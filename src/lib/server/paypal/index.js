@@ -8,6 +8,7 @@
  * cada día, en ./rates.js.
  */
 import {
+	PAYPAL_FEE_DEFAULT,
 	effectiveRate,
 	estimateArs,
 	parseAdjustmentPct,
@@ -29,6 +30,54 @@ export const ADJUSTMENT_SETTING = 'paypal_rate_adjustment_pct';
  */
 export const PAYPAL_FONDO_TIP_WHERE =
 	"provider = 'paypal' AND status = 'approved' AND destination = 'fondo'";
+
+/** Las claves de `ticket_settings` con la comisión de PayPal (docs/paypal.md, «El recargo»). */
+export const FEE_SETTINGS = Object.freeze({
+	basisPoints: 'paypal_fee_basis_points',
+	fixedCents: 'paypal_fee_fixed_cents'
+});
+
+/**
+ * La comisión de PayPal con la que se calcula el recargo: la de Ajustes › PayPal o, sin nada
+ * guardado, {@link PAYPAL_FEE_DEFAULT}.
+ *
+ * @param {D1Database} db
+ * @returns {Promise<{ basisPoints: number, fixedCents: number, custom: boolean }>}
+ */
+export async function getPaypalFee(db) {
+	const { results } = await db
+		.prepare('SELECT key, value FROM ticket_settings WHERE key IN (?1, ?2)')
+		.bind(FEE_SETTINGS.basisPoints, FEE_SETTINGS.fixedCents)
+		.all();
+	/** @param {string} key @param {number} fallback @param {number} max */
+	const read = (key, fallback, max) => {
+		const row = results.find((r) => r.key === key);
+		const n = row ? Number(row.value) : NaN;
+		return Number.isInteger(n) && n >= 0 && n < max ? n : fallback;
+	};
+	return {
+		basisPoints: read(FEE_SETTINGS.basisPoints, PAYPAL_FEE_DEFAULT.basisPoints, 5000),
+		fixedCents: read(FEE_SETTINGS.fixedCents, PAYPAL_FEE_DEFAULT.fixedCents, 1001),
+		custom: results.length > 0
+	};
+}
+
+/**
+ * Guarda la comisión (ya validada con `parsePaypalFee`).
+ *
+ * @param {D1Database} db
+ * @param {{ basisPoints: number, fixedCents: number }} fee
+ * @param {{ by: string, now?: number }} opts
+ */
+export async function setPaypalFee(db, { basisPoints, fixedCents }, { by, now = Date.now() }) {
+	const sql = `INSERT INTO ticket_settings (key, value, updated_at, updated_by) VALUES (?1, ?2, ?3, ?4)
+		ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at,
+			updated_by = excluded.updated_by`;
+	await db.batch([
+		db.prepare(sql).bind(FEE_SETTINGS.basisPoints, String(basisPoints), now, by),
+		db.prepare(sql).bind(FEE_SETTINGS.fixedCents, String(fixedCents), now, by)
+	]);
+}
 
 /**
  * El ajuste guardado, con quién y cuándo lo cambió. Sin fila (o con algo que no se entiende): 0.
@@ -342,12 +391,13 @@ export async function loadPaypalPanel(db, now = Date.now()) {
 	const today = arDay(now);
 	try {
 		const adjustment = await getAdjustment(db);
-		const [quote, split, withdrawals] = await Promise.all([
+		const [quote, split, withdrawals, fee] = await Promise.all([
 			quoteFor(db, { day: today, adjustmentPct: adjustment.pct }),
 			fondoMonthSplit(db, { now, adjustmentPct: adjustment.pct }),
-			listWithdrawals(db, { adjustmentPct: adjustment.pct })
+			listWithdrawals(db, { adjustmentPct: adjustment.pct }),
+			getPaypalFee(db)
 		]);
-		return { error: false, today, adjustment, quote, split, withdrawals };
+		return { error: false, today, adjustment, quote, split, withdrawals, fee };
 	} catch (e) {
 		console.error('[paypal] no se pudo leer la parte de PayPal del panel', e);
 		return {
@@ -356,7 +406,8 @@ export async function loadPaypalPanel(db, now = Date.now()) {
 			adjustment: { pct: 0, updatedAt: null, updatedBy: null },
 			quote: null,
 			split: [],
-			withdrawals: []
+			withdrawals: [],
+			fee: { ...PAYPAL_FEE_DEFAULT, custom: false }
 		};
 	}
 }

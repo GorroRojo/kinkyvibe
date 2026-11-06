@@ -5,11 +5,24 @@
 	 */
 	import { formatARS } from '$lib/utils/money.js';
 	import { FONDO_SITE_URL } from '$lib/utils/propinas.js';
+	import { formatUSD } from '$lib/utils/paypal.js';
 
 	export let data;
 
 	$: status = data.tip.status;
 	$: fromFondo = data.tip.source === 'fondo';
+	// Con PayPal se cobró en dólares: se muestra eso.
+	$: usd = data.tip.usdCents ? formatUSD(data.tip.usdCents) : null;
+	$: amount = usd ?? formatARS(data.tip.amount);
+	$: provider = usd ? 'PayPal' : 'Mercado Pago';
+	$: forFondo = data.tip.destination === 'fondo' ? ' para el Fondo Kinky Vibe' : '';
+	// Canceló en PayPal: la vuelta es al formulario de la propina, para intentar de nuevo.
+	$: paypalCancelled = status === 'rejected' && Boolean(usd);
+	$: formPath = fromFondo
+		? '/propinas?de=fondo'
+		: data.postPath
+			? `${data.postPath}#propina`
+			: null;
 </script>
 
 <svelte:head>
@@ -25,28 +38,34 @@
 		<p class="emoji" aria-hidden="true">💖</p>
 		<h1>¡Gracias por tu propina!</h1>
 		<p>
-			Recibimos tus <strong>{formatARS(data.tip.amount)}</strong
-			>{#if data.tip.destination === 'fondo'}{' '}para el Fondo Kinky Vibe{/if}. Nos ayuda un montón
-			a seguir haciendo material y encuentros para todes.
+			Recibimos tus <strong>{amount}</strong>{forFondo}. Nos ayuda un montón a seguir haciendo
+			material y encuentros para todes.
 		</p>
 	{:else if status === 'pending'}
 		<p class="emoji" aria-hidden="true">⏳</p>
 		<h1>¡Gracias!</h1>
 		<p>
-			Mercado Pago todavía no nos confirmó el pago de {formatARS(data.tip.amount)}. Suele tardar
-			unos segundos: podés <a href="?" data-sveltekit-reload>actualizar esta página</a> en un ratito.
+			{provider} todavía no nos confirmó el pago de {amount}. Suele tardar unos segundos: podés
+			<a href="?" data-sveltekit-reload>actualizar esta página</a> en un ratito.
 		</p>
 	{:else if status === 'rejected'}
 		<p class="emoji" aria-hidden="true">🙈</p>
 		<h1>El pago no se completó</h1>
-		<p>
-			No se cobró nada. Si querés, podés intentar de nuevo desde {fromFondo
-				? 'el Fondo'
-				: 'la publicación'}.
-		</p>
+		{#if paypalCancelled}
+			<p>Cancelaste el pago en PayPal: no se cobró nada.</p>
+		{:else}
+			<p>
+				No se cobró nada. Si querés, podés intentar de nuevo desde {fromFondo
+					? 'el Fondo'
+					: 'la publicación'}.
+			</p>
+		{/if}
 	{:else}
 		<h1>Esta propina se reembolsó</h1>
-		<p>La devolvimos por Mercado Pago. Gracias igual por la intención.</p>
+		<p>La devolvimos por {provider}. Gracias igual por la intención.</p>
+	{/if}
+	{#if paypalCancelled && formPath}
+		<a class="pill-btn" href={formPath}>Volver a dejar la propina</a>
 	{/if}
 	{#if fromFondo || !data.postPath}
 		<a class="pill-btn ghost" href={FONDO_SITE_URL}>Volver al Fondo Kinky Vibe</a>

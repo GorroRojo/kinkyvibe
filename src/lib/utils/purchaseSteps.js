@@ -6,6 +6,7 @@
  * no se recalcula nada por otro camino. El servidor vuelve a validar todo al comprar.
  */
 import { formatARS } from './money.js';
+import { formatUSD } from './paypal.js';
 import { validateAnswers } from './signupFields.js';
 import { validateBuyer, validateHolders } from './ticketBuyer.js';
 import {
@@ -282,7 +283,9 @@ export function payStepErrors({ method, methods, free, accept, count = 1 }) {
  *   option: string | null,
  *   lines: SummaryLine[],
  *   surchargePlaceholder: string | null,
- *   total: string
+ *   feeText: string,
+ *   total: string,
+ *   usd: string | null
  * }} PurchaseSummary
  */
 
@@ -300,10 +303,12 @@ export function payStepErrors({ method, methods, free, accept, count = 1 }) {
  *   free: boolean,
  *   feeBasisPoints: number,
  *   methods: readonly string[],
+ *   method?: string,
+ *   usdCents?: number | null,
  *   extras?: { id: string, name: string, price: number, quantity: number }[]
  * }} input `extras` (decisión 0056): una línea por extra elegido, después del código (el código y
  *   el Fondo son solo de las entradas) y antes del recargo, que es de todo; el total es lo que se
- *   paga (`prices.paid`)
+ *   paga (`prices.paid`). `usdCents`: con PayPal, el total en dólares (lo que se cobra en PayPal).
  * @returns {PurchaseSummary}
  */
 export function purchaseSummary({
@@ -316,6 +321,8 @@ export function purchaseSummary({
 	free,
 	feeBasisPoints,
 	methods,
+	method = '',
+	usdCents = null,
 	extras = []
 }) {
 	/** @type {SummaryLine[]} */
@@ -358,7 +365,7 @@ export function purchaseSummary({
 		if (prices.surcharge) {
 			lines.push({
 				id: 'recargo',
-				label: 'Recargo Mercado Pago',
+				label: method === 'paypal' ? 'Recargo PayPal' : 'Recargo Mercado Pago',
 				amount: `+${formatARS(prices.surcharge)}`
 			});
 		}
@@ -373,6 +380,9 @@ export function purchaseSummary({
 		option: type && showOption && !gorra ? fondoOptionLabel(prices.option) : null,
 		lines,
 		surchargePlaceholder,
-		total: formatARS(type ? (prices.paid ?? prices.total) : 0)
+		// La línea del recargo en la barra del celu, con el medio que lo cobra.
+		feeText: `Incluye el recargo de ${method === 'paypal' ? 'PayPal' : 'Mercado Pago'}`,
+		total: formatARS(type ? (prices.paid ?? prices.total) : 0),
+		usd: type && method === 'paypal' && usdCents ? formatUSD(usdCents) : null
 	};
 }

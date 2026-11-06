@@ -48,7 +48,7 @@ export const FUNNEL_STEPS = Object.freeze([
 ]);
 
 /** Medios de pago que se anotan (cualquier otro queda como ''). */
-const METHODS = new Set(['mercadopago', 'transferencia', 'gratis']);
+const METHODS = new Set(['mercadopago', 'transferencia', 'gratis', 'paypal']);
 
 /**
  * @typedef {{ indexes: string[], blobs: string[], doubles: number[] }} DataPoint

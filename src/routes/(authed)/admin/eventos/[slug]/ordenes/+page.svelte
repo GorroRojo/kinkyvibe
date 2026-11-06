@@ -24,6 +24,7 @@
 		shortTime
 	} from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { formatUSD } from '$lib/utils/paypal.js';
 	import { replaceState } from '$app/navigation';
 	import {
 		DEFAULT_ORDER_SORT,
@@ -283,7 +284,9 @@
 		{/if}
 		{#if ra.mp.count}
 			<p>
-				<strong>{ra.mp.count} {ra.mp.count === 1 ? 'orden' : 'órdenes'} de Mercado Pago</strong>
+				<strong
+					>{ra.mp.count} {ra.mp.count === 1 ? 'orden' : 'órdenes'} de Mercado Pago o PayPal</strong
+				>
 				sin reembolsar, por <strong>{formatARS(ra.mp.total)}</strong> en total.
 			</p>
 			{#if !confirmingAll}
@@ -323,7 +326,7 @@
 				</form>
 			{/if}
 		{:else}
-			<p>No queda ninguna orden de Mercado Pago para reembolsar.</p>
+			<p>No queda ninguna orden de Mercado Pago o PayPal para reembolsar.</p>
 		{/if}
 		{#if ra.manual.length}
 			<h3>Para devolver a mano</h3>
@@ -454,8 +457,12 @@
 				{/if}
 				<OrderAnswers answers={o.answers} />
 				<div class="meta">
-					<span class="ref">{o.reference}</span> · {shortTime(o.createdAt)}{#if o.paymentId}
-						· pago MP {o.paymentId}{/if}{#if o.confirmedBy}
+					<span class="ref">{o.reference}</span> · {shortTime(o.createdAt)}{#if o.paymentId}{' '}
+						· {o.method === 'paypal' ? 'cobro PayPal' : 'pago MP'}
+						{o.paymentId}{/if}{#if o.usdCents}{' '}· {formatUSD(
+							o.usdCents
+						)}{#if o.usdFeeCents}{' '}(comisión
+							{formatUSD(o.usdFeeCents)}){/if}{/if}{#if o.confirmedBy}
 						· {o.status === 'cancelled' ? 'canceló' : 'confirmó'} {o.confirmedBy}{/if}
 					{#if o.status === 'approved'}
 						· {#if o.emailProblem}<strong class="mail-problem"
@@ -525,6 +532,10 @@
 								{#if o.method === 'mercadopago'}
 									Se pide a Mercado Pago el reembolso TOTAL del pago {o.paymentId} (tiene que haber saldo
 									en la cuenta; hasta 180 días desde el pago).
+								{:else if o.method === 'paypal'}
+									Se pide a PayPal el reembolso TOTAL del cobro {o.paymentId}{#if o.usdCents}{' '}({formatUSD(
+											o.usdCents
+										)}){/if} (tiene que haber saldo en la cuenta de PayPal; hasta 180 días desde el pago).
 								{:else if o.method === 'transferencia'}
 									No hay devolución automática: primero devolvé la transferencia a mano, después
 									marcala acá.
@@ -544,7 +555,7 @@
 								>
 									{refunding === o.id
 										? 'Reembolsando…'
-										: o.method === 'mercadopago'
+										: o.method === 'mercadopago' || o.method === 'paypal'
 											? `Confirmar reembolso de ${formatARS(Math.max(0, o.total - o.refundedAmount))}`
 											: o.method === 'transferencia'
 												? 'Marcar como reembolsada (transferencia devuelta a mano)'

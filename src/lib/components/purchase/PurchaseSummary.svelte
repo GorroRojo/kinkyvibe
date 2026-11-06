@@ -41,13 +41,14 @@
 	>
 		<span class="bar-text"
 			>{summary.item ? summary.countText : 'Elegí tu entrada'} ·
-			<strong>{summary.total}</strong></span
+			<strong>{summary.total}</strong>{#if summary.usd}{' '}<small>({summary.usd})</small
+				>{/if}</span
 		>
 		<span class="visually-hidden">{expanded ? 'Ocultar detalle' : 'Ver detalle'}</span>
 		<ChevronDown size="1.1em" aria-hidden="true" />
 	</button>
 	{#if fee}
-		<p class="fee">Incluye el recargo de Mercado Pago <span class="amount">{fee.amount}</span></p>
+		<p class="fee">{summary.feeText} <span class="amount">{fee.amount}</span></p>
 	{:else if summary.surchargePlaceholder}
 		<!-- Mismo lugar que la línea del recargo, para que el formulario no salte al cambiar el medio
 		     de pago (el texto va en ::before, fuera del DOM). -->
@@ -87,7 +88,11 @@
 		{#if closesText}<small class="closes">{closesText}</small>{/if}
 	</div>
 	{#if summary.item}<span class="count">{summary.countText}</span>{/if}
-	<p class="total" aria-live="polite">Total: <strong>{summary.total}</strong></p>
+	<p class="total" aria-live="polite">
+		Total: <strong>{summary.total}</strong>{#if summary.usd}{' '}<small class="usd"
+				>{summary.usd} con PayPal</small
+			>{/if}
+	</p>
 </aside>
 
 <style>
@@ -269,6 +274,12 @@
 			padding-top: 0.4em;
 			border-top: 1px solid color-mix(in srgb, var(--2) 25%, transparent);
 			font-size: var(--step-1);
+		}
+		/* Con PayPal: los dólares abajo del total en pesos. */
+		.total .usd {
+			display: block;
+			font-size: var(--step--1);
+			color: var(--muted);
 		}
 	}
 </style>

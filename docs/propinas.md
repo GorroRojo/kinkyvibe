@@ -78,9 +78,10 @@ Para el porcentaje de fondo.kinkyvibe.ar (issue #265). Pedido de servidor a serv
 
 Decisión [0054](decisiones/0054-paypal-en-las-propinas.md) (gorrite, 2/11, issue #265). PayPal va a
 ser una segunda forma de pagar en el mismo formulario de propina (también `?de=fondo`), con una
-sola app de PayPal compartida con fondo.kinkyvibe.ar. **El cobro todavía no existe**: llega cuando
-estén las credenciales de prueba. Lo que ya está, sin credenciales y detrás del interruptor
-**`paypal`** (apagado):
+sola app de PayPal compartida con fondo.kinkyvibe.ar. **El cobro está hecho** (decisión
+[0059](decisiones/0059-paypal-en-todo-lo-que-se-cobra.md)) y espera las credenciales: cómo se
+cobra y la lista para prenderlo, en [paypal.md](paypal.md). Detrás del interruptor **`paypal`**
+(apagado):
 
 - **La cuenta:** los pagos son en dólares y cuenta lo **neto** (después de la comisión de PayPal).
   Pesos = `floor(neto × base × (1 + ajuste / 100))`, cada pago por separado, en enteros exactos
@@ -150,8 +151,19 @@ Migración 0071: `provider` (`mp` por defecto, `paypal`), `currency`, `usd_gross
 `usd_net_cents`, `rate_base`, `paypal_order_id` (único) y `paypal_capture_id`. **Todos los totales
 de Mercado Pago filtran `provider = 'mp'`**: `FONDO_TIP_WHERE` (el Inicio, `propinas-total`), el
 resumen de esta página (`tipSummary`) y la actividad del Inicio. Un pago de Mercado Pago nunca toca
-una propina de PayPal (`applyTipPayment`). Qué guarda `amount` en una propina de PayPal, y cómo se
-ven en la lista y el CSV, lo define el PR del cobro.
+una propina de PayPal (`applyTipPayment`).
+
+El cobro ([paypal.md](paypal.md), `src/lib/server/propinas/paypal.js`): con JavaScript, el
+formulario muestra «Mercado Pago» / «PayPal (en dólares)» si `GET /api/paypal/oferta` dice que se
+puede, y con PayPal los dólares del monto elegido con el recargo de PayPal (como las entradas,
+`paypalCharge`). `amount` sigue siendo **los pesos que eligió la persona** (sin el recargo); al
+crearla se guardan los dólares a cobrar (`usd_gross_cents`, con el recargo) y la
+base del día con la que se calcularon (`rate_base`, no cambia). Al aprobarse, la captura
+(`paypal_capture_id`) y lo neto (`usd_net_cents`), que es lo que cuenta para el Fondo, en pesos
+estimados al leer. La vuelta es `/paypal/vuelta` → `/propinas/<id>/gracias` (que muestra los
+dólares y vuelve a mirar en PayPal si sigue pendiente). Cancelar en PayPal la deja «no se
+completó». En la lista y el CSV del panel se ven como hoy (monto en pesos); verlas con sus dólares
+queda en el plan (`paypal-cobro`).
 
 Está siempre prendido: el interruptor `propinas` quedó fijo ([interruptores.md](interruptores.md))
 y la variable `PROPINAS_ENABLED` ya no hace nada. La nota del cafecito y el link a Cafecito del

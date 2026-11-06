@@ -12,7 +12,8 @@ export const KINKYVIBE_TAG = 'KinkyVibe';
  * Lo que manda el formulario de propina (todo texto; ver `validateTip`).
  * `source`: `fondo` si se deja desde fondo.kinkyvibe.ar (`/propinas?de=fondo`, sin publicación);
  * vacío o `post` si es desde una publicación.
- * @typedef {{ amount: string, custom: string, message: string, category: string, slug: string, source?: string }} TipFormValues
+ * @typedef {{ amount: string, custom: string, message: string, category: string, slug: string, source?: string, method?: string }} TipFormValues
+ * `method`: `paypal` para pagar con PayPal; cualquier otra cosa (o nada), Mercado Pago.
  */
 
 /**

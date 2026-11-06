@@ -21,6 +21,8 @@ import {
 import { orderReference } from '$lib/utils/tickets.js';
 import { getOrder, getOrderTickets, isValidOrderId } from '$lib/server/tickets/orders.js';
 import { workshopPartsList } from '$lib/server/tickets/workshopParts.js';
+import { getPaypalGateway } from '$lib/server/paypal/gateway.js';
+import { settleAndProcess } from '$lib/server/paypal/process.js';
 
 const RECHECK_LIMIT = { limit: 10, windowSeconds: 60 };
 
@@ -64,6 +66,33 @@ export async function load({ params, url, platform, fetch, cookies, depends }) {
 		} catch (e) {
 			// Si MP no responde mostramos el estado que tenemos; el webhook lo va a actualizar.
 			console.error('[tickets] no se pudo re-chequear el pago:', e);
+		}
+	}
+
+	// PayPal (docs/paypal.md): si la vuelta no llegó a cobrar o el webhook tarda, se mira la orden de
+	// PayPal (y se cobra si ya está aprobada), igual que el webhook.
+	if (
+		order.payment_method === 'paypal' &&
+		order.status !== 'approved' &&
+		order.status !== 'refunded' &&
+		order.paypal_order_id
+	) {
+		try {
+			const limit = await hitRateLimit(db, `tickets:o:${order.id}`, RECHECK_LIMIT);
+			const gateway = limit.allowed ? await getPaypalGateway(fetch) : null;
+			if (gateway) {
+				await settleAndProcess({
+					db,
+					gateway,
+					paypalOrderId: order.paypal_order_id,
+					origin: siteOrigin(url),
+					fetch,
+					platform
+				});
+				order = (await getOrder(db, order.id)) ?? order;
+			}
+		} catch (e) {
+			console.error('[tickets] no se pudo re-chequear el pago de PayPal:', e);
 		}
 	}
 
@@ -118,6 +147,15 @@ export async function load({ params, url, platform, fetch, cookies, depends }) {
 			total: orderPaid(current),
 			extras: extras.map((e) => ({ name: e.name, quantity: e.quantity, price: e.price })),
 			method: current.payment_method,
+			// Lo que se cobró en dólares (solo PayPal).
+			usdCents: current.payment_method === 'paypal' ? (current.usd_amount_cents ?? null) : null,
+			// Quien compraba canceló en PayPal (o no se llegó a crear el pago): no se cobró nada. Una
+			// cancelación del panel guarda quién la hizo (`confirmed_by`).
+			paypalCancelled:
+				current.payment_method === 'paypal' &&
+				current.status === 'cancelled' &&
+				!current.paypal_capture_id &&
+				!current.confirmed_by,
 			reference: orderReference(current.id),
 			typeName:
 				config?.types.find((t) => t.id === current.ticket_type)?.name ?? current.ticket_type,

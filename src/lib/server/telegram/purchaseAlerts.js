@@ -46,6 +46,10 @@ export const PURCHASE_FAILURES = Object.freeze({
 	reserva: 'no se pudo reservar la compra',
 	mp_preferencia: 'no se pudo crear el pago en Mercado Pago',
 	mp_pago: 'el webhook no pudo leer un pago de Mercado Pago',
+	paypal_orden: 'no se pudo crear el pago en PayPal',
+	paypal_pago: 'no se pudo leer un pago de PayPal',
+	paypal_cotizacion:
+		'no hay cotización del dólar de los últimos 5 días: PayPal no se ofrece (Ajustes › PayPal)',
 	pago: 'no se pudo aplicar un pago a su orden',
 	pago_no_coincide: 'un pago no coincide con su orden (monto o medio de pago)',
 	gratis: 'no se pudieron emitir entradas gratis',

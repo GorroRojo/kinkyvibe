@@ -72,7 +72,13 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		// Reembolso parcial hecho desde el panel de MP (la orden sigue aprobada; migración 0069) y la
 		// comisión que informó MP (null = no la informó: se estima con el recargo).
 		refundedAmount: o.status === 'approved' ? (o.refunded_amount ?? 0) : 0,
-		mpFee: o.payment_method === 'mercadopago' ? (o.mp_fee_amount ?? null) : null,
+		mpFee:
+			o.payment_method === 'mercadopago' || o.payment_method === 'paypal'
+				? (o.mp_fee_amount ?? null)
+				: null,
+		// PayPal: lo que se cobró en dólares y la comisión en dólares (docs/paypal.md).
+		usdCents: o.payment_method === 'paypal' ? (o.usd_amount_cents ?? null) : null,
+		usdFeeCents: o.payment_method === 'paypal' ? (o.usd_fee_cents ?? null) : null,
 		method: o.payment_method,
 		// Una reserva vencida que todavía no se marcó como tal se muestra como vencida.
 		status:
@@ -86,7 +92,7 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		emailProblem: o.email_sent_at ? (o.email_problem ?? null) : null,
 		createdAt: o.created_at,
 		expiresAt: o.expires_at,
-		paymentId: o.mp_payment_id,
+		paymentId: o.payment_method === 'paypal' ? (o.paypal_capture_id ?? null) : o.mp_payment_id,
 		confirmedBy: o.confirmed_by,
 		refundedAt: o.refunded_at ?? null,
 		refundedBy: o.refunded_by ?? null,

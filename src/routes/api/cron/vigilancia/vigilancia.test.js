@@ -59,7 +59,11 @@ describe('POST /api/cron/vigilancia', () => {
 			platform: { env: { DB: t.db } }
 		});
 		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual({ crons: { stale: [] }, errorRowsDeleted: 1 });
+		expect(await res.json()).toEqual({
+			crons: { stale: [] },
+			errorRowsDeleted: 1,
+			paypalRateStale: false
+		});
 		const { results } = await t.db.prepare('SELECT cron FROM cron_heartbeats ORDER BY cron').all();
 		expect(results.map((r) => r.cron)).toEqual([
 			'*/15 * * * *',

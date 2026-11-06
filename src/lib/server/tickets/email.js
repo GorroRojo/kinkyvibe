@@ -12,6 +12,7 @@ import {
 import { ARGENTINA_TIME_NOTE } from '$lib/utils/expiry.js';
 import { TRANSFER_HOLD_AFTER, transferHoldText } from '$lib/utils/transferDeadline.js';
 import { formatARS } from '$lib/utils/money.js';
+import { formatUSD } from '$lib/utils/paypal.js';
 import {
 	adultsOnlyText,
 	fondoOptionLabel,
@@ -269,9 +270,15 @@ export function priceLines(order, typeName) {
 		lines.push(`${e.quantity} × ${e.name}: ${formatARS(e.price * e.quantity)}`);
 	}
 	if (order.surcharge_amount) {
-		lines.push(`Recargo Mercado Pago: +${formatARS(order.surcharge_amount)}`);
+		const by = order.payment_method === 'paypal' ? 'PayPal' : 'Mercado Pago';
+		lines.push(`Recargo ${by}: +${formatARS(order.surcharge_amount)}`);
 	}
-	lines.push(`Total: ${formatARS(orderPaid(order))}`);
+	// Con PayPal se pagó en dólares: el total también en dólares, como en el recibo de PayPal.
+	const usd =
+		order.payment_method === 'paypal' && order.usd_amount_cents
+			? ` (${formatUSD(order.usd_amount_cents)} con PayPal)`
+			: '';
+	lines.push(`Total: ${formatARS(orderPaid(order))}${usd}`);
 	return lines;
 }
 
@@ -909,11 +916,13 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
 		? 'Era una compra sin cargo: no hay dinero para devolver.'
 		: order.payment_method === 'mercadopago'
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
-			: order.payment_method === 'transferencia'
-				? 'Te devolvimos el dinero por transferencia.'
-				: order.payment_method === 'efectivo'
-					? 'Te devolvimos el dinero en efectivo.'
-					: 'Te devolvimos el dinero.';
+			: order.payment_method === 'paypal'
+				? 'PayPal te devuelve los dólares a la misma cuenta o tarjeta con la que pagaste (puede tardar unos días en verse).'
+				: order.payment_method === 'transferencia'
+					? 'Te devolvimos el dinero por transferencia.'
+					: order.payment_method === 'efectivo'
+						? 'Te devolvimos el dinero en efectivo.'
+						: 'Te devolvimos el dinero.';
 	const amount = orderPaid(order) ? ` de ${formatARS(orderPaid(order))}` : '';
 	const html = mailLayout({
 		origin,

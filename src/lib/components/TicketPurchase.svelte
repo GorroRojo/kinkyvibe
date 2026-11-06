@@ -45,6 +45,7 @@
 		purchaseConditions,
 		saleWindowText
 	} from '$lib/utils/tickets.js';
+	import { usdCentsForArs } from '$lib/utils/paypal.js';
 	import {
 		PURCHASE_STEPS,
 		STEP_BUYER,
@@ -216,12 +217,23 @@
 		discount: applied,
 		method,
 		feeBasisPoints: tickets.feeBasisPoints,
+		// El recargo de PayPal (docs/paypal.md): la misma cuenta que el servidor.
+		paypalFee: method === 'paypal' ? (tickets.paypal ?? null) : null,
 		extras: selected ? extrasAmount(extraLines) : 0
 	});
 	$: free =
 		Boolean(selected) &&
 		(!gorra || gorraAmount !== null) &&
 		prices.subtotal - prices.discount + prices.extras === 0;
+	/** Con PayPal, el total en dólares (la misma cuenta que el servidor: `usdCentsForArs`). */
+	$: paypalUsdCents =
+		method === 'paypal' && tickets.paypal && (prices.paid ?? prices.total) > 0
+			? usdCentsForArs(
+					prices.paid ?? prices.total,
+					tickets.paypal.base,
+					tickets.paypal.adjustmentPct
+				)
+			: null;
 	$: conditions = purchaseConditions({
 		contactEmail: tickets.contactEmail,
 		transferUntil: tickets.transferUntil,
@@ -238,6 +250,8 @@
 		free,
 		feeBasisPoints: tickets.feeBasisPoints,
 		methods: tickets.methods,
+		method,
+		usdCents: paypalUsdCents,
 		extras: extraLines
 	});
 
@@ -536,7 +550,9 @@
 			? 'Confirmar entradas sin cargo'
 			: method === 'transferencia'
 				? 'Reservar y ver cómo transferir'
-				: 'Ir a pagar con Mercado Pago';
+				: method === 'paypal'
+					? 'Ir a pagar con PayPal'
+					: 'Ir a pagar con Mercado Pago';
 
 	$: closesText = tickets.closesAt ? `${saleWindowText({ closesAt: tickets.closesAt })}.` : '';
 	/** Pasos que tienen algún error a la vista. */
@@ -707,6 +723,7 @@
 								{conditions}
 								{errors}
 								{submitText}
+								paid={prices.paid ?? prices.total}
 								submitDisabled={pending || !selected || (Boolean(gorra) && gorraAmount === null)}
 								{email}
 							>

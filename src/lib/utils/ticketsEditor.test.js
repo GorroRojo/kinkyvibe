@@ -77,7 +77,7 @@ describe('readTicketsForm', () => {
 				capacity: '3'
 			}
 		]);
-		expect(f.methods).toEqual({ mercadopago: true, transferencia: true });
+		expect(f.methods).toEqual({ mercadopago: true, transferencia: true, paypal: true });
 		expect(f).toMatchObject({ customClose: false, modalidad: '', reminders: true, mpFee: '' });
 	});
 
@@ -86,7 +86,7 @@ describe('readTicketsForm', () => {
 		expect(f).toMatchObject({
 			enabled: false,
 			types: [],
-			methods: { mercadopago: true, transferencia: false }
+			methods: { mercadopago: true, transferencia: false, paypal: true }
 		});
 	});
 
@@ -351,6 +351,21 @@ describe('applyTicketsForm: ida y vuelta', () => {
 			]
 		});
 		expect(parseTicketConfig(metaOf(out))?.types).toHaveLength(2);
+	});
+
+	it('PayPal: prendido por defecto; apagarlo escribe `paypal: false` y prenderlo lo borra', () => {
+		const initial = formOf(FM);
+		const form = formOf(FM);
+		form.methods.paypal = false;
+		const off = applyTicketsForm(FM, form, initial);
+		expect(metaOf(off).paypal).toBe(false);
+		expect(parseTicketConfig(metaOf(off))?.paypal).toBe(false);
+		expect(parseTicketConfig(metaOf(FM))?.paypal).toBe(true);
+		const back = formOf(off);
+		expect(back.methods.paypal).toBe(false);
+		back.methods.paypal = true;
+		const on = applyTicketsForm(off, back, formOf(off));
+		expect(metaOf(on)).not.toHaveProperty('paypal');
 	});
 
 	it('medios de pago, cierre, modalidad, recordatorios y comisión', () => {

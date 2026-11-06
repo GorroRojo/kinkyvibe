@@ -159,13 +159,19 @@ export function orderRevenue(order) {
  *   `mpFeeBasisPoints`) justo para que, después de la comisión de MP, quede la base
  *   (`mpSurcharge` en ./tickets.js). {@link MP_FEE_ESTIMATED_SQL} dice cuánto es estimado.
  * Sumar solo sobre órdenes aprobadas.
+ *
+ * PayPal (docs/paypal.md) cuenta igual: su comisión, pasada a pesos con la cotización de la orden,
+ * va en `mp_fee_amount` (no tiene recargo: sin comisión informada, 0).
  */
-export const MP_FEE_SQL = `CASE WHEN payment_method = 'mercadopago'
+export const MP_FEE_SQL = `CASE WHEN payment_method IN ('mercadopago', 'paypal')
 	THEN COALESCE(mp_fee_amount, surcharge_amount) ELSE 0 END`;
 
 /** La parte de {@link MP_FEE_SQL} que es estimada (MP no informó la comisión de esa orden). */
-export const MP_FEE_ESTIMATED_SQL = `CASE WHEN payment_method = 'mercadopago' AND mp_fee_amount IS NULL
-	THEN surcharge_amount ELSE 0 END`;
+export const MP_FEE_ESTIMATED_SQL = `CASE WHEN payment_method IN ('mercadopago', 'paypal')
+	AND mp_fee_amount IS NULL THEN surcharge_amount ELSE 0 END`;
+
+/** Los medios con comisión del medio de pago (Mercado Pago y PayPal). */
+const FEE_METHODS = new Set(['mercadopago', 'paypal']);
 
 /**
  * Lo mismo que {@link MP_FEE_SQL}, sobre una orden ya leída.
@@ -173,7 +179,7 @@ export const MP_FEE_ESTIMATED_SQL = `CASE WHEN payment_method = 'mercadopago' AN
  *   mp_fee_amount?: number | null }} order
  */
 export function orderMpFee(order) {
-	if (order.payment_method !== 'mercadopago') return 0;
+	if (!FEE_METHODS.has(String(order.payment_method))) return 0;
 	return order.mp_fee_amount === null || order.mp_fee_amount === undefined
 		? Number(order.surcharge_amount) || 0
 		: Number(order.mp_fee_amount) || 0;
@@ -185,7 +191,7 @@ export function orderMpFee(order) {
  *   mp_fee_amount?: number | null }} order
  */
 export function orderMpFeeEstimated(order) {
-	if (order.payment_method !== 'mercadopago') return 0;
+	if (!FEE_METHODS.has(String(order.payment_method))) return 0;
 	return order.mp_fee_amount === null || order.mp_fee_amount === undefined
 		? Number(order.surcharge_amount) || 0
 		: 0;
