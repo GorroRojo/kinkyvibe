@@ -367,7 +367,7 @@ describe('planInlineQuery', () => {
 						ticket: {
 							kind: 'note',
 							text: 'Agotadas',
-							followUp: soldOutFollowUp('agotado', true)
+							followUp: soldOutFollowUp('agotado', true, false)
 						}
 					}
 				]

@@ -234,15 +234,19 @@
 	.post:has(.CTA) {
 		grid-template-areas: 'img title title' 'img summary summary' 'img tags cta';
 	}
+	/* con el link de «Agotadas»: el aviso y el link van en su propia fila, abajo de las etiquetas */
+	.post:not(.amigues):has(.cta-group) {
+		grid-template-areas: 'img title title' 'img summary summary' 'img tags tags' 'img cta cta';
+	}
 	/* «Agotadas» + el link a la página del evento (lista de espera / «Seguir la serie») */
 	.cta-group {
 		grid-area: cta;
 		justify-self: end;
+		/* el link va en su propia línea, abajo de «Agotadas»: así las etiquetas no se aprietan */
 		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: flex-end;
-		gap: 0.4em 0.75em;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.2em;
 	}
 	.followup {
 		color: var(--post-color);

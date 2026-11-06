@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setSiteTagList } from './siteTags.js';
 import { hasOwnTickets, opensText, ticketCta } from './ticketCta.js';
 
 /** @param {Record<string, any>} [extra] */
@@ -19,6 +20,8 @@ const BUY = {
 	text: 'Comprar entradas'
 };
 
+afterEach(() => setSiteTagList(null));
+
 describe('hasOwnTickets', () => {
 	it('solo eventos con `tickets`', () => {
 		expect(hasOwnTickets(meta())).toBe(true);
@@ -38,6 +41,29 @@ describe('ticketCta (lo que muestra la tarjeta)', () => {
 
 	it('abierta: «Comprar entradas» a /entradas, sin precio', () => {
 		expect(ticketCta(meta(), states({ open: true }))).toEqual(BUY);
+	});
+
+	it('agotadas sin lista y sin serie: solo «Agotadas», nada que seguir', () => {
+		expect(ticketCta(meta({ tags: ['Taller'] }), states({ reason: 'soldout' }))).toEqual({
+			kind: 'note',
+			text: 'Agotadas'
+		});
+	});
+
+	it('agotadas sin lista, de una serie: «Avisame la próxima» lleva a seguirla en la página del evento', () => {
+		setSiteTagList([
+			{ id: 'evento recurrente', children: ['mi serie'] },
+			{ id: 'mi serie', children: [] }
+		]);
+		expect(ticketCta(meta({ tags: ['Mi Serie'] }), states({ reason: 'soldout' }))).toEqual({
+			kind: 'note',
+			text: 'Agotadas',
+			followUp: {
+				kind: 'follow',
+				href: '/calendario/evento-inventado#seguir',
+				text: 'Avisame la próxima'
+			}
+		});
 	});
 
 	it('agotadas con lista de espera: lleva a anotarse, en la página del evento (nunca a comprar)', () => {
@@ -65,12 +91,7 @@ describe('ticketCta (lo que muestra la tarjeta)', () => {
 	it('agotadas, venta cerrada y no disponible: un aviso sin link', () => {
 		expect(ticketCta(meta(), states({ reason: 'soldout' }))).toEqual({
 			kind: 'note',
-			text: 'Agotadas',
-			followUp: {
-				kind: 'follow',
-				href: '/calendario/evento-inventado#seguir',
-				text: 'Avisame la próxima'
-			}
+			text: 'Agotadas'
 		});
 		expect(ticketCta(meta(), states({ reason: 'closed' }))).toEqual({
 			kind: 'note',

@@ -2,6 +2,7 @@
  * La Mini App del calendario: los próximos eventos por día, con lo público y links al sitio.
  * Eventos inventados.
  */
+import { setSiteTagList } from '$lib/utils/siteTags.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { cleanBotTextOverrides } from '$lib/utils/botTexts.js';
@@ -69,11 +70,34 @@ describe('groupByDay', () => {
 			{ x: { open: false, reason: 'soldout', opensAt: null } },
 			{ now: NOW, origin: ORIGIN }
 		);
-		expect(day.events[0].ticket).toEqual({
-			text: 'Agotadas',
-			href: null,
-			followUp: { text: 'Avisame la próxima', href: `${ORIGIN}/calendario/x#seguir` }
-		});
+		// Sin lista de espera y sin serie: nada que seguir, solo «Agotadas».
+		expect(day.events[0].ticket).toEqual({ text: 'Agotadas', href: null });
+	});
+
+	it('agotadas, de una serie: «Avisame la próxima» lleva a seguirla en la página del evento', () => {
+		setSiteTagList([
+			{ id: 'evento recurrente', children: ['mi serie'] },
+			{ id: 'mi serie', children: [] }
+		]);
+		try {
+			const [day] = groupByDay(
+				[
+					post('x', '2031-01-09T19:00:00-03:00', {
+						tickets: [{ name: 'General' }],
+						tags: ['Mi serie']
+					})
+				],
+				{ x: { open: false, reason: 'soldout', opensAt: null } },
+				{ now: NOW, origin: ORIGIN }
+			);
+			expect(day.events[0].ticket).toEqual({
+				text: 'Agotadas',
+				href: null,
+				followUp: { text: 'Avisame la próxima', href: `${ORIGIN}/calendario/x#seguir` }
+			});
+		} finally {
+			setSiteTagList(null);
+		}
 	});
 
 	it('agotadas con lista de espera: el link lleva a anotarse en la página del evento', () => {

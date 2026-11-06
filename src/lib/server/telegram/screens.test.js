@@ -193,7 +193,9 @@ describe('eventScreen', () => {
 	it('agotadas: un botón con link a la página del evento (lista de espera o seguir la serie)', () => {
 		const wait = eventScreen(
 			ev,
-			{ ticket: { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp(ev.slug, true) } },
+			{
+				ticket: { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp(ev.slug, true, true) }
+			},
 			{ back: 'n' },
 			PRIVATE
 		);
@@ -205,7 +207,9 @@ describe('eventScreen', () => {
 		]);
 		const follow = eventScreen(
 			ev,
-			{ ticket: { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp(ev.slug, false) } },
+			{
+				ticket: { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp(ev.slug, false, true) }
+			},
 			{ back: 'n' },
 			PRIVATE
 		);

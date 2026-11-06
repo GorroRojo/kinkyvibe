@@ -521,7 +521,7 @@ export function botCases() {
 				ticket: {
 					kind: 'note',
 					text: 'Agotadas',
-					followUp: soldOutFollowUp(EVENTS[2].slug, true)
+					followUp: soldOutFollowUp(EVENTS[2].slug, true, true)
 				}
 			},
 			{ back: 'n' },
@@ -535,7 +535,7 @@ export function botCases() {
 				ticket: {
 					kind: 'note',
 					text: 'Agotadas',
-					followUp: soldOutFollowUp(EVENTS[2].slug, false)
+					followUp: soldOutFollowUp(EVENTS[2].slug, false, true)
 				}
 			},
 			{ back: 'n' },
@@ -657,7 +657,7 @@ export function botCases() {
 		inlineCard(
 			SITE_DOCS[0],
 			undefined,
-			{ ticket: { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp('x', true) } },
+			{ ticket: { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp('x', true, true) } },
 			{ origin: ORIGIN, now: NOW }
 		)
 	);

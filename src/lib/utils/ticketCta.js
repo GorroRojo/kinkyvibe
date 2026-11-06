@@ -8,6 +8,7 @@
  * tarjeta muestra igual el link a /entradas: ahí se ve si quedan.
  */
 import { argDayMonth } from './dates.js';
+import { eventSeriesTags } from './series.js';
 
 /**
  * Estado de la venta de un evento para las listas: lo mismo que `open`/`reason` del resumen de la
@@ -28,7 +29,7 @@ import { argDayMonth } from './dates.js';
 /**
  * @typedef {{ kind: 'waitlist' | 'follow', href: string, text: string }} TicketFollowUp
  * @typedef {{ kind: 'buy', href: string, text: string }
- *   | { kind: 'note', text: string, followUp?: TicketFollowUp }
+ *   | { kind: 'note', text: string, followUp?: TicketFollowUp | null }
  *   | { kind: 'none' }} TicketCta
  * - `buy`: botón «Comprar entradas»;
  * - `note`: aviso sin link («Agotadas», «Venta cerrada»…). «Agotadas» suma `followUp`, para no
@@ -77,7 +78,7 @@ export function ticketCta(meta, states, { past = false } = {}) {
 	if (!state || state.open) return buy;
 	switch (state.reason) {
 		case 'soldout':
-			return { kind: 'note', text: 'Agotadas', followUp: soldOutFollowUp(slug, state.waitlist) };
+			return soldOutNote(meta, slug, state.waitlist);
 		case 'closed':
 			return { kind: 'note', text: 'Venta cerrada' };
 		case 'notyet':
@@ -92,14 +93,29 @@ export function ticketCta(meta, states, { past = false } = {}) {
 
 /**
  * Qué ofrecer junto a «Agotadas». Los dos textos son del sitio; el bot los tiene en «Textos del bot»
- * (`eventos.boton_lista_espera`, `eventos.boton_avisame`).
+ * (`eventos.boton_lista_espera`, `eventos.boton_avisame`). Sin lista de espera y sin serie (no hay
+ * nada que seguir en la página), nada: queda solo «Agotadas».
  * @param {string} slug
  * @param {boolean | undefined} waitlist
- * @returns {TicketFollowUp}
+ * @param {boolean} series ¿el evento es parte de una serie (hay «Seguir la serie» en su página)?
+ * @returns {TicketFollowUp | null}
  */
-export function soldOutFollowUp(slug, waitlist) {
+export function soldOutFollowUp(slug, waitlist, series) {
 	const href = `/calendario/${slug}`;
-	return waitlist
-		? { kind: 'waitlist', href: `${href}#entradas`, text: 'Anotate en la lista de espera' }
-		: { kind: 'follow', href: `${href}#seguir`, text: 'Avisame la próxima' };
+	if (waitlist)
+		return { kind: 'waitlist', href: `${href}#entradas`, text: 'Anotate en la lista de espera' };
+	return series ? { kind: 'follow', href: `${href}#seguir`, text: 'Avisame la próxima' } : null;
+}
+
+/**
+ * @param {Record<string, any>} meta
+ * @param {string} slug
+ * @param {boolean | undefined} waitlist
+ * @returns {TicketCta}
+ */
+function soldOutNote(meta, slug, waitlist) {
+	const followUp = soldOutFollowUp(slug, waitlist, eventSeriesTags(meta.tags).length > 0);
+	return followUp
+		? { kind: 'note', text: 'Agotadas', followUp }
+		: { kind: 'note', text: 'Agotadas' };
 }

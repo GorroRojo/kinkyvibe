@@ -110,8 +110,7 @@ describe('toCardInfo (lo que la página pública muestra)', () => {
 			}).ticket
 		).toEqual({
 			kind: 'note',
-			text: 'Agotadas',
-			followUp: { kind: 'follow', href: '/calendario/ev#seguir', text: 'Avisame la próxima' }
+			text: 'Agotadas'
 		});
 	});
 });
