@@ -1,6 +1,6 @@
 /**
  * Los íconos de las tarjetas de vista previa de objetos sin imagen (src/lib/utils/ogObjeto.js):
- * los mismos de Lucide que usa el sitio (`@lucide/svelte` 1.52.0, licencia ISC), copiados
+ * los mismos de Lucide que usa el sitio (`@lucide/svelte` 1.66.0, licencia ISC), copiados
  * como datos porque el dibujo corre en el Worker sin componentes de Svelte. Una prueba
  * (ogIconos.test.js) los compara con los del paquete: si se actualiza, se regeneran copiando los
  * `node` de cada `node_modules/@lucide/svelte/dist/icons/<nombre>.svelte`.
