@@ -6,6 +6,9 @@
 import { logDBError } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { TIP_SOURCE_FONDO, validateTip } from '$lib/utils/propinas.js';
+import { approveLink } from '$lib/server/paypal/client.js';
+import { buildPaypalOrder, usdCentsForArs } from '$lib/server/paypal/payments.js';
+import { paypalTipCustomId, setTipPaypalCharge, setTipPaypalOrder } from './paypal.js';
 import {
 	TIP_RATE_LIMITS,
 	buildTipPreference,
@@ -15,8 +18,9 @@ import {
 } from './index.js';
 
 /**
- * ¿Se puede redirigir a esta URL de checkout? Solo a Mercado Pago por https o a una ruta de este
- * mismo sitio (el checkout simulado de dev). Nunca a otra web, aunque MP devolviera algo raro.
+ * ¿Se puede redirigir a esta URL de checkout? Solo a Mercado Pago o a PayPal por https, o a una
+ * ruta de este mismo sitio (los checkouts simulados de dev). Nunca a otra web, aunque MP o PayPal
+ * devolvieran algo raro.
  *
  * @param {unknown} url
  * @param {string} origin
@@ -32,7 +36,8 @@ export function isSafeCheckoutUrl(url, origin) {
 	if (parsed.origin === new URL(origin).origin) return true;
 	return (
 		parsed.protocol === 'https:' &&
-		/(^|\.)mercadopago\.com(\.ar)?$/.test(parsed.hostname) &&
+		(/(^|\.)mercadopago\.com(\.ar)?$/.test(parsed.hostname) ||
+			/(^|\.)paypal\.com$/.test(parsed.hostname)) &&
 		!parsed.username &&
 		!parsed.password
 	);
@@ -56,7 +61,8 @@ export function readTipForm(form) {
 		message: get('message', 600),
 		category: get('category', 20),
 		slug: get('slug', 160),
-		source: get('source', 10) === TIP_SOURCE_FONDO ? TIP_SOURCE_FONDO : ''
+		source: get('source', 10) === TIP_SOURCE_FONDO ? TIP_SOURCE_FONDO : '',
+		method: get('method', 10) === 'paypal' ? 'paypal' : ''
 	};
 }
 
@@ -73,8 +79,11 @@ export function readTipForm(form) {
  *   origin: string,
  *   findPost: (category: import('$lib/utils/propinas.js').TipCategory, slug: string) => Promise<{ title: string } | null>,
  *   fondoEnabled?: boolean,
+ *   paypal?: { gateway: import('$lib/server/paypal/gateway.js').PaypalGateway, quote: { base: number, adjustmentPct: number } } | null,
  *   now?: number
  * }} input
+ * `paypal`: con `values.method = 'paypal'`, el cliente de PayPal y la cotización con la que se
+ * cobra (`chargeQuote`); sin eso (interruptor apagado, sin credenciales o sin cotización), 503.
  * @returns {Promise<{ ok: true, checkoutUrl: string, tipId: string }
  *   | { ok: false, status: number, error: string, errors: Record<string, string> }>}
  */
@@ -86,6 +95,7 @@ export async function startTip({
 	origin,
 	findPost,
 	fondoEnabled = false,
+	paypal = null,
 	now = Date.now()
 }) {
 	/** @param {number} status @param {string} error @param {Record<string, string>} [errors] */
@@ -123,6 +133,10 @@ export async function startTip({
 		}
 		postTitle = post.title;
 	}
+	if (values.method === 'paypal') {
+		if (!paypal) return failWith(503, 'El pago con PayPal no está disponible ahora.');
+		return startPaypalTip({ db, paypal, valid, postTitle, origin, now, failWith });
+	}
 	if (!gateway) return failWith(503, 'El pago con Mercado Pago no está disponible ahora.');
 
 	/** @type {import('./index.js').Tip} */
@@ -147,5 +161,59 @@ export async function startTip({
 		console.error(`[propinas] no se pudo crear la preferencia de la propina ${tip.id}:`, error);
 		await discardTip(db, tip.id).catch((e) => logDBError('discard tip', e));
 		return failWith(502, 'No pudimos conectar con Mercado Pago. Probá de nuevo en un ratito.');
+	}
+}
+
+/**
+ * La parte de PayPal de {@link startTip}: crea la propina, la marca como de PayPal con los dólares
+ * a cobrar y crea la orden en PayPal. Si PayPal falla, la propina se borra (como con MP).
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database,
+ *   paypal: { gateway: import('$lib/server/paypal/gateway.js').PaypalGateway, quote: { base: number, adjustmentPct: number } },
+ *   valid: Extract<ReturnType<typeof validateTip>, { ok: true }>,
+ *   postTitle: string | null,
+ *   origin: string,
+ *   now: number,
+ *   failWith: (status: number, error: string, errors?: Record<string, string>) => { ok: false, status: number, error: string, errors: Record<string, string> }
+ * }} input
+ * @returns {Promise<{ ok: true, checkoutUrl: string, tipId: string }
+ *   | { ok: false, status: number, error: string, errors: Record<string, string> }>}
+ */
+async function startPaypalTip({ db, paypal, valid, postTitle, origin, now, failWith }) {
+	const usdCents = usdCentsForArs(valid.amount, paypal.quote.base, paypal.quote.adjustmentPct);
+	if (!usdCents) return failWith(503, 'El pago con PayPal no está disponible ahora.');
+	/** @type {import('./index.js').Tip} */
+	let tip;
+	try {
+		tip = await createTip(db, valid, { now });
+		await setTipPaypalCharge(db, tip.id, { usdCents, base: paypal.quote.base });
+	} catch (error) {
+		logDBError('create paypal tip', error);
+		return failWith(500, 'No pudimos preparar tu propina. Probá de nuevo más tarde.');
+	}
+	try {
+		const created = await paypal.gateway.createOrder(
+			buildPaypalOrder({
+				customId: paypalTipCustomId(tip.id),
+				description: postTitle
+					? `Propina para el Fondo Kinky Vibe · ${postTitle}`
+					: 'Propina para el Fondo Kinky Vibe',
+				usdCents,
+				returnUrl: `${origin}/paypal/vuelta`,
+				cancelUrl: `${origin}/paypal/vuelta?cancelado=1`
+			}),
+			`tip-${tip.id}`
+		);
+		const url = approveLink(created);
+		if (!created?.id || !isSafeCheckoutUrl(url, origin)) {
+			throw new Error('PayPal devolvió un link de pago inesperado');
+		}
+		await setTipPaypalOrder(db, tip.id, created.id);
+		return { ok: true, checkoutUrl: /** @type {string} */ (url), tipId: tip.id };
+	} catch (error) {
+		console.error(`[propinas] no se pudo crear la orden de PayPal de la propina ${tip.id}:`, error);
+		await discardTip(db, tip.id).catch((e) => logDBError('discard tip', e));
+		return failWith(502, 'No pudimos conectar con PayPal. Probá de nuevo en un ratito.');
 	}
 }
