@@ -947,7 +947,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Cambios de Claude**: si el conector de Claude aplica muchos cambios en una hora.\n• **Fallas en compras**: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• **Fallas del sitio**: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras y las fallas del sitio, en el momento.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• **Cambios de Claude**: si el conector de Claude aplica muchos cambios en una hora.\n• **Fallas en compras**: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• **Fallas del sitio**: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n• **Cada deploy**: cuando un cambio llega a producción (o si falla la publicación), con el PR y una descripción corta.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras, las fallas del sitio y cada deploy, en el momento.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -1004,6 +1004,10 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				help: 'El bot le suma ✅ o ⬜ adelante.'
 			}
 		),
+		f('admin.aviso_deploy', 'admin', 'button', 'Mis avisos: cada deploy', 'Cada deploy', {
+			max: 56,
+			help: 'El bot le suma ✅ o ⬜ adelante.'
+		}),
 		f('admin.prendido', 'admin', 'toast', 'Mis avisos: al prender uno', 'Prendido: {aviso}', {
 			vars: [{ name: 'aviso', label: 'el aviso', sample: 'Resumen diario' }]
 		}),
