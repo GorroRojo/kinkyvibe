@@ -37,6 +37,7 @@ import { failedWaitlistMailsQuery } from '$lib/server/tickets/waitlistAdmin.js';
 import { emergencyPauses } from '$lib/server/emergencia.js';
 import { resendQuotaItem, resendQuotaQuery } from '$lib/server/tickets/resendQuota.js';
 import { webhookHealthItem, webhookHealthQuery } from '$lib/server/telegram/webhookHealth.js';
+import { failedFormSendsStatement, readFailedFormSends } from '$lib/server/formularios/store.js';
 import {
 	contentReviewQuery,
 	contentReviewRows,
@@ -110,6 +111,20 @@ export function claimsQuery() {
 }
 
 /**
+ * Los links personales de formularios que se rindieron, por formulario (docs/formularios.md); `[]`
+ * si falla (sin la migración 0079 o 0080).
+ * @returns {import('$lib/server/db/batch.js').BatchQuery<ReturnType<typeof readFailedFormSends>>}
+ */
+export function failedFormSendsQuery() {
+	return {
+		what: 'inicio: links de formularios que no salieron',
+		fallback: [],
+		statements: (db) => [failedFormSendsStatement(db)],
+		read: (results) => readFailedFormSends(rowsOf(results))
+	};
+}
+
+/**
  * Lugar vacío en una tanda: no va a la base y da `value`.
  * @template T
  * @param {T} value
@@ -149,7 +164,9 @@ export function reviewQueries(now, { login = '' } = {}) {
 		webhookHealth: webhookHealthQuery(now),
 		// Arreglos de contenido: fotos sin descripción, portadas pesadas, videos sin transcripción
 		// (contentReview.js). null si falla.
-		content: contentReviewQuery()
+		content: contentReviewQuery(),
+		// Links personales de formularios que fallaron todos sus intentos ([] sin la 0079).
+		formsFailed: failedFormSendsQuery()
 	};
 }
 
@@ -293,6 +310,7 @@ export function tagReviewItem(tags) {
  *   brokenTickets?: import('$lib/server/tickets/events.js').BrokenTicketConfig[],
  *   cancelled?: import('./inicio.js').CancelledLeftovers[],
  *   pauses?: { tickets: string | null, mails: string | null },
+ *   formsFailed?: ReturnType<typeof readFailedFormSends>,
  *   content?: import('./contentReview.js').ContentFacts | null,
  *   legacyCovers?: import('./contentReview.js').CoverRef[],
  *   now: number
@@ -338,6 +356,7 @@ export function reviewRows(facts) {
 			...todoItems,
 			...(onlineItem ? [onlineItem] : []),
 			...(waitlistItem ? [waitlistItem] : []),
+			...formSendsFailedItems(facts.formsFailed ?? [], titles),
 			...profileReviewItems(facts.newProfiles, { formatWhen }),
 			...claimReviewItems(facts.claims, { formatWhen }),
 			...(tagItem ? [tagItem] : [])
@@ -479,6 +498,37 @@ export function cancelledEventItems(cancelled, titles) {
 					.replace(/^c/, 'C'),
 				action: c.approved ? 'Ver órdenes' : 'Ver transferencias',
 				href: c.approved ? orderHref(c.slug) : transfersHref(c.slug)
+			};
+		});
+}
+
+/**
+ * «Para revisar»: una fila por formulario (o encuesta) con links personales que fallaron todos sus
+ * intentos, como los recordatorios que fallaron: ya no se reintentan solos; «Reintentar» los vuelve
+ * a poner en la cola (`retryFailedFormSends`) y salen en la próxima vuelta del cron.
+ *
+ * @param {ReturnType<typeof readFailedFormSends>} failed
+ * @param {Map<string, string>} titles
+ * @returns {ReviewItem[]}
+ */
+export function formSendsFailedItems(failed, titles) {
+	/** @param {number} n @param {string} one @param {string} many */
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	return failed
+		.filter((f) => f.count > 0)
+		.map((f) => {
+			const event = f.eventSlug ? (titles.get(f.eventSlug) ?? f.eventSlug) : '';
+			return {
+				id: `form-sends-failed-${f.id}`,
+				tone: 'bad',
+				icon: 'mail',
+				title:
+					f.kind === 'survey'
+						? `La encuesta no le llegó a todes: ${event}`
+						: `El link de «${f.title}» no le llegó a todes`,
+				text: `${plural(f.count, 'persona', 'personas')} sin su link después de varios intentos (ver logs); ya no se reintenta solo`,
+				action: 'Reintentar',
+				retryFormSends: { formId: f.id }
 			};
 		});
 }

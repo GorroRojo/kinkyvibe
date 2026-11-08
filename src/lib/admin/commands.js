@@ -73,7 +73,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	eventos: 'lista calendario agenda',
 	'eventos-nuevo': 'nuevo crear evento cargar duplicar',
 	'eventos-importar': 'importar planilla excel sheet',
-	'eventos-agenda-impresa': 'imprimir volante volantes flyer papel pdf repartir agenda impresa',
+	'eventos-agenda-impresa':
+		'imprimir volante volantes flyer papel pdf repartir agenda impresa instagram posts carrusel redes',
 	'eventos-agenda': 'agenda planilla tabla',
 	'eventos-lugares': 'lugares direccion mapa venue espacio donde aprobar rechazados',
 	'eventos-series': 'series ediciones recurrente repetir avisame',
@@ -83,6 +84,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
 	'entradas-codigos': 'codigos descuento cupon',
 	propinas: 'propinas cafecito aportes donaciones',
+	'ajustes-paypal': 'paypal dolar cotizacion ajuste retiros propinas',
 	personas: 'personas clientes compradores gente ficha nota notas internas',
 	estadisticas:
 		'estadisticas graficos tendencias ventas en el tiempo vendidas cobrado por serie medios de pago fondo finanzas',
@@ -103,6 +105,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 		'ajustes de mails plantillas recordatorios remitente email envios pie de mail firma',
 	'ajustes-vistas-previas':
 		'vistas previas al compartir link whatsapp telegram tarjeta imagen og textos titulo descripcion',
+	'ajustes-carrusel':
+		'carrusel portada estilos flyers colores diapositivas inicio rotar pila franja stickers diagonal zines',
 	'ajustes-plantillas':
 		'plantillas textos mails email compra recordatorio mensajes pie de mail asunto',
 	'ajustes-textos-bot':
@@ -112,6 +116,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-automatizaciones':
 		'ajustes automatizaciones crons cron tareas programadas backup recordatorios mails automaticos bot telegram reglas',
 	cuentas: 'cuentas usuaries publico registradas contraseña entrar sesiones',
+	formularios: 'formulario formularios encuesta encuestas preguntas respuestas beca propuesta',
 	'avisos-puerta':
 		'avisos de puerta no admitides no entra derecho de admision moderacion cuidados ingreso',
 	amigues:
@@ -145,6 +150,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'entradas-transferencias': 'transfer',
 	'entradas-codigos': 'tag',
 	propinas: 'wallet',
+	'ajustes-paypal': 'wallet',
 	personas: 'users',
 	estadisticas: 'chart',
 	'estadisticas-asistencia': 'users',
@@ -162,6 +168,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-fondo': 'settings',
 	'ajustes-mails': 'mail',
 	'ajustes-vistas-previas': 'eye',
+	'ajustes-carrusel': 'eye',
 	'ajustes-plantillas': 'mail',
 	'ajustes-textos-bot': 'mail',
 	'ajustes-admins': 'key',
@@ -169,6 +176,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-automatizaciones': 'history',
 	cuentas: 'person',
 	'avisos-puerta': 'person',
+	formularios: 'mail',
 	actividad: 'history',
 	// Próximamente (no están en la paleta hasta que existan, pero ya tienen ícono).
 	tienda: 'wallet',

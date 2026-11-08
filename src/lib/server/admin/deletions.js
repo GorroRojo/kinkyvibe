@@ -49,6 +49,7 @@ import { VersionConflictError } from '../objects/errors.js';
 import { saveObject } from '../objects/save.js';
 import { deleteImage, findLibraryObject, restoreLibraryItem } from '../media/library.js';
 import { logAdminAction } from './audit.js';
+import { restoreFormStatement } from '../formularios/store.js';
 import { gitBlobSha } from './posts.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -469,6 +470,9 @@ export async function undoDeletion(client, db, actor, id, { now = Date.now() } =
 	if (role !== null) return undoRoleDeletion(db, actor, d, role, { now });
 	const noteId = noteIdOf(d.path);
 	if (noteId !== null) return undoNoteDeletion(db, actor, d, noteId, { now });
+	// Un formulario o la encuesta de un evento (docs/formularios.md): en la base.
+	const formId = formIdOf(d.path);
+	if (formId !== null) return undoFormDeletion(db, actor, d, formId, { now });
 
 	const k = DELETABLE[d.kind];
 	const targetId = d.kind === 'calendario' ? d.slug : `${d.kind}/${d.slug}`;
@@ -1461,6 +1465,58 @@ async function undoNoteDeletion(db, actor, d, noteId, { now = Date.now() } = {})
 				? 'Recuperó una nota de una cuenta borrada'
 				: 'Recuperó una nota de una persona',
 			detail: { deletion: d.id }
+		},
+		{ now }
+	);
+	return restoredNow(d);
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/*  Formularios (docs/formularios.md, migración 0080)                                          */
+/* ------------------------------------------------------------------------------------------ */
+
+/** `formulario:<id>` (`forms`, borrado suave): `kind` 'calendario', `slug` el evento o vacío. */
+const FORM_PATH = /^formulario:([1-9]\d*)$/;
+
+/** El id del formulario de un borrado, o `null`. @param {string} path */
+export function formIdOf(path) {
+	const m = FORM_PATH.exec(path);
+	return m ? Number(m[1]) : null;
+}
+
+/**
+ * Vuelve a poner un formulario (o la encuesta de un evento) con sus respuestas. Vuelve cerrado.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {Deletion} d el borrado (status 'borrado')
+ * @param {number} formId
+ * @param {{ now?: number }} [opts]
+ */
+async function undoFormDeletion(db, actor, d, formId, { now = Date.now() } = {}) {
+	const row = await db
+		.prepare('SELECT deleted_at, kind, event_slug FROM forms WHERE id = ?1')
+		.bind(formId)
+		.first();
+	if (!row) throw new UndoError('Ese formulario ya no existe en la base.');
+	if (row.deleted_at == null) {
+		await closeDeletion(db, d.id, now, actor.login).run();
+		throw new UndoError('Ese formulario ya estaba recuperado.');
+	}
+	const [res] = await db.batch([
+		await restoreFormStatement(db, formId, { by: actor.login, now }),
+		closeDeletionIfChanged(db, d.id, now, actor.login)
+	]);
+	if (!res?.meta?.changes) throw new UndoError('Ese formulario ya estaba recuperado.');
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'form.restore',
+			targetType: row.kind === 'survey' ? 'event' : 'form',
+			targetId: row.kind === 'survey' ? String(row.event_slug) : String(formId),
+			summary: `Recuperó ${row.kind === 'survey' ? 'la encuesta' : 'el formulario'} «${d.title}»`,
+			detail: { deletion: d.id, id: formId }
 		},
 		{ now }
 	);

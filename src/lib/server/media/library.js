@@ -23,6 +23,7 @@ import { stripImageMetadata } from './metadata.js';
 import { usageText } from '../../utils/imageChoice.js';
 import { MAX_FILE_BYTES, fileSizeProblem } from '../../utils/libraryFiles.js';
 import { MAX_COPY_BYTES, copyKey, copySize, parseCopyKey } from '../../utils/mediaCopies.js';
+import { parseColors } from '../../utils/flyerColors.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').R2Bucket} R2Bucket */
@@ -219,10 +220,14 @@ async function findBySlug(db, slug, type = IMAGE_TYPE) {
  * son WEBP con las medidas que corresponden; una copia que no cumple se ignora sin frenar la subida
  * (la tarjeta usa el original). Nunca se pisa nada que ya esté en R2.
  *
+ * Los colores (`colors`, sacados en el navegador; $lib/utils/flyerColors.js) se guardan si son
+ * válidos; a una imagen que ya estaba y no los tenía, se le suman (como el texto alternativo).
+ *
  * @param {D1Database} db
  * @param {R2Bucket | undefined | null} bucket
  * @param {{ bytes: Uint8Array, name?: string, alt?: string, title?: string, width?: number,
- *   height?: number, sourcePath?: string, copies?: { side: number, bytes: Uint8Array }[] }} file
+ *   height?: number, sourcePath?: string, copies?: { side: number, bytes: Uint8Array }[],
+ *   colors?: unknown }} file
  * @param {{ actor: string, now?: number }} ctx
  * @returns {Promise<{ image: PublicImage, created: boolean, copies: number[] }>}
  */
@@ -247,6 +252,7 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 	const hash = await sha256Hex(bytes);
 	const key = mediaKey(hash, sniffed.ext);
 	const alt = String(file.alt ?? '').trim();
+	const colors = parseColors(file.colors);
 
 	const width = sniffed.width ?? positive(file.width);
 	const height = sniffed.height ?? positive(file.height);
@@ -263,7 +269,8 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 	if (existing) {
 		const d = /** @type {Record<string, any>} */ (existing.data);
 		const addAlt = alt && !d.alt;
-		if (existing.deleted_at === null && !addAlt)
+		const addColors = colors && !parseColors(d.colors);
+		if (existing.deleted_at === null && !addAlt && !addColors)
 			return { image: publicImage(existing), created: false, copies };
 		const saved = await saveObject(
 			db,
@@ -271,7 +278,7 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 				id: existing.id,
 				type: IMAGE_TYPE,
 				version: existing.version,
-				data: addAlt ? { ...d, alt } : d,
+				data: { ...d, ...(addAlt ? { alt } : {}), ...(addColors ? { colors } : {}) },
 				deleted: false
 			},
 			{ actor, now }
@@ -293,12 +300,91 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 				...(height ? { height } : {}),
 				...(alt ? { alt } : {}),
 				...(file.name ? { original_name: String(file.name).slice(0, 200) } : {}),
-				...(file.sourcePath ? { source_path: file.sourcePath } : {})
+				...(file.sourcePath ? { source_path: file.sourcePath } : {}),
+				...(colors ? { colors } : {})
 			}
 		},
 		{ actor, now }
 	);
 	return { image: publicImage(saved), created: true, copies };
+}
+
+/** Cuántas imágenes sin colores devuelve {@link imagesWithoutColors} de una vez. */
+export const COLORS_BATCH = 200;
+
+/**
+ * Las imágenes vivas que todavía no tienen sus colores (subidas antes de que se calcularan), las
+ * portadas de eventos primero y después las más nuevas, para «Calcular los colores que faltan»
+ * (Ajustes › Carrusel de la portada). Un GIF también (el navegador dibuja su primer cuadro).
+ *
+ * @param {D1Database} db
+ * @param {{ limit?: number }} [opts]
+ * @returns {Promise<{ total: number, images: { id: number, url: string, small: string }[] }>}
+ *   `url`: el original; `small`: la copia de 360 px (redirige al original si no existe)
+ */
+export async function imagesWithoutColors(db, { limit = COLORS_BATCH } = {}) {
+	const missing = `o.type = ?1 AND o.deleted_at IS NULL AND json_extract(o.data, '$.colors') IS NULL`;
+	const [count, rows] = await db.batch([
+		db.prepare(`SELECT COUNT(*) AS n FROM objects o WHERE ${missing}`).bind(IMAGE_TYPE),
+		db
+			.prepare(
+				`SELECT o.id, json_extract(o.data, '$.key') AS key,
+					EXISTS (SELECT 1 FROM edges e JOIN objects f ON f.id = e.from_id AND f.type = 'evento'
+						WHERE e.to_id = o.id AND e.kind = 'portada') AS portada
+				FROM objects o WHERE ${missing}
+				ORDER BY portada DESC, o.created_at DESC, o.id DESC LIMIT ?2`
+			)
+			.bind(IMAGE_TYPE, limit)
+	]);
+	const images = [];
+	for (const r of /** @type {Record<string, unknown>[]} */ (rows.results ?? [])) {
+		const key = String(r.key ?? '');
+		if (!MEDIA_KEY.test(key)) continue;
+		images.push({ id: Number(r.id), url: mediaPath(key), small: smallCopyPath(key) });
+	}
+	return { total: Number(/** @type {any} */ (count.results?.[0])?.n ?? 0), images };
+}
+
+/** La copia de 360 px de una imagen (`/media/img/<hash>-360.webp`); un GIF no tiene: el original. @param {string} key */
+function smallCopyPath(key) {
+	return mediaPath((!key.endsWith('.gif') && copyKey(key, 360)) || key);
+}
+
+/**
+ * Guarda los colores calculados en el navegador de varias imágenes (la pasada de «Calcular los
+ * colores que faltan»). Solo imágenes vivas que no los tenían: si otra pestaña ya los guardó, no
+ * los pisa. Cada una por saveObject (con su versión), de a una: si una falla, las demás siguen.
+ *
+ * @param {D1Database} db
+ * @param {readonly { id: unknown, colors: unknown }[]} items
+ * @param {{ actor: string, now?: number }} ctx
+ * @returns {Promise<{ saved: number, skipped: number }>}
+ */
+export async function saveImageColors(db, items, { actor, now = Date.now() }) {
+	let saved = 0;
+	let skipped = 0;
+	for (const item of items) {
+		const id = Number(item.id);
+		const colors = parseColors(item.colors);
+		const o = Number.isSafeInteger(id) && id > 0 && colors ? await findLibraryObject(db, id) : null;
+		const d = /** @type {Record<string, any>} */ (o?.data ?? {});
+		if (!o || o.type !== IMAGE_TYPE || o.deleted_at !== null || parseColors(d.colors)) {
+			skipped++;
+			continue;
+		}
+		try {
+			await saveObject(
+				db,
+				{ id: o.id, type: IMAGE_TYPE, version: o.version, data: { ...d, colors } },
+				{ actor, now }
+			);
+			saved++;
+		} catch (e) {
+			if (!(e instanceof ObjectError)) throw e;
+			skipped++;
+		}
+	}
+	return { saved, skipped };
 }
 
 /**

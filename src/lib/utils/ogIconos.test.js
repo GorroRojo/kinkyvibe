@@ -11,7 +11,7 @@ import { OG_ICONS, iconSvg } from './ogIconos.js';
 function packageNodes(name) {
 	const index = import.meta.resolve('@lucide/svelte');
 	const src = readFileSync(fileURLToPath(new URL(`./icons/${name}.svelte`, index)), 'utf8');
-	const m = src.match(/const iconData = (\{.*?\});/s);
+	const m = src.match(/(?:const iconData|export const __iconData) = (\{.*?\});/s);
 	if (!m) throw new Error(`sin datos para ${name}`);
 	return JSON.parse(m[1]).node;
 }

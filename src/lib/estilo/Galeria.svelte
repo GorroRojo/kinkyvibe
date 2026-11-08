@@ -90,6 +90,26 @@
 	let dialogoAbierto = false;
 	let hojaAbierta = false;
 	let respuesta = '';
+	let interruptorSitio = false;
+
+	/** «Sitio público»: cada componente con los dos aspectos, uno al lado del otro. */
+	/** @type {('panel' | 'sitio')[]} */
+	const LADOS = ['panel', 'sitio'];
+	const PARES = [
+		{ id: 'field', nombre: 'Field' },
+		{ id: 'checkbox', nombre: 'Checkbox' },
+		{ id: 'switch', nombre: 'Switch' },
+		{ id: 'notice', nombre: 'Notice' },
+		{ id: 'card', nombre: 'Card' },
+		{ id: 'badge', nombre: 'Badge' },
+		{ id: 'table', nombre: 'Table' },
+		{ id: 'undo', nombre: 'UndoToast (aviso con Deshacer)' },
+		{ id: 'confirm', nombre: 'ConfirmDialog (diálogo de confirmar)' }
+	];
+	/** @type {ConfirmDialog | undefined} */
+	let confirmarSitio;
+	/** @type {Record<string, string>} */
+	let respuestaLado = {};
 
 	const TABS = [
 		{ href: '/estilo#resumen', label: 'Resumen' },
@@ -157,6 +177,10 @@
 	];
 	/** @type {{ key: string, dir: 'asc' | 'desc' } | null} */
 	let ordenTabla = { key: 'total', dir: 'desc' };
+	/** En «Sitio público», sin la columna de la fecha (dos tablas lado a lado). */
+	const COLUMNAS_SITIO = COLUMNAS.filter((c) => c.key !== 'fecha');
+	/** @type {{ key: string, dir: 'asc' | 'desc' } | null} */
+	let ordenTablaSitio = { key: 'total', dir: 'desc' };
 
 	/** Lo que había en <html data-theme> antes de entrar, para dejarlo igual al salir. */
 	/** @type {string | undefined} */
@@ -204,6 +228,25 @@
 			tone
 		});
 		respuesta = ok ? 'Elegiste confirmar.' : 'Elegiste cancelar.';
+	}
+
+	/** «Probá» en «Sitio público»: el del panel con askConfirm, el del sitio con su `ask()`. */
+	/** @param {'panel' | 'sitio'} lado */
+	async function preguntarLado(lado) {
+		/** @type {import('$lib/admin/confirm.js').ConfirmOptions} */
+		const o = {
+			title: '¿Cancelar tu lugar?',
+			text: 'Lo podés volver a pedir mientras haya lugar.',
+			confirmLabel: 'Cancelar mi lugar',
+			cancelLabel: 'No, dejarlo',
+			tone: 'danger'
+		};
+		const ok =
+			lado === 'sitio' && confirmarSitio ? (await confirmarSitio.ask(o)).ok : await askConfirm(o);
+		respuestaLado = {
+			...respuestaLado,
+			[lado]: ok ? 'Elegiste confirmar.' : 'Elegiste cancelar.'
+		};
 	}
 </script>
 
@@ -720,12 +763,236 @@
 	</div>
 </div>
 
+<!-- Sitio público: fuera de `.kv-panel` (con los tokens del sitio, que no tiene tema oscuro), cada
+     componente con `surface="sitio"` al lado del mismo en el panel (ese sí, adentro de un
+     `.kv-panel`, en claro u oscuro según el tema). -->
+<div class="galeria galeria-sitio">
+	<div class="marco" class:celu={ancho === 'celu'}>
+		<Seccion seccion={seccion.sitio}>
+			<!-- Para «Probá» del diálogo del sitio: no atiende askConfirm (ese es el del panel). -->
+			<ConfirmDialog surface="sitio" register={false} bind:this={confirmarSitio} />
+			{#each PARES as par (par.id)}
+				<div class="par" id="sitio-{par.id}">
+					<h3 class="sub-titulo">{par.nombre}</h3>
+					<div class="lados">
+						{#each LADOS as s (s)}
+							<div class="lado" class:kv-panel={s === 'panel'} class:lado-sitio={s === 'sitio'}>
+								<p class="lado-titulo">{s === 'panel' ? 'Panel' : 'Sitio (surface="sitio")'}</p>
+								{#if par.id === 'field'}
+									<div class="pila">
+										<Field
+											surface={s}
+											label="Tu nombre"
+											bind:value={nombre}
+											help="Como querés que te llamemos."
+										/>
+										<Field surface={s} label="Vacío" placeholder="Ej.: Persona de Prueba" />
+										<Field
+											surface={s}
+											label="Email"
+											type="email"
+											bind:value={mail}
+											error="Revisá el email: le falta la arroba."
+										/>
+										<Field surface={s} label="Apagado" value="No se puede cambiar" disabled />
+										<Field surface={s} label="Buscar" type="search" placeholder="Buscar eventos…" />
+										<Field
+											surface={s}
+											label="Grande (flujo de compra)"
+											size="large"
+											placeholder="Tu DNI"
+											inputmode="numeric"
+										/>
+									</div>
+								{:else if par.id === 'checkbox'}
+									<div class="pila">
+										<Checkbox surface={s} bind:checked={casilla} label="Marcada" />
+										<Checkbox surface={s} bind:checked={casillaNo} label="Sin marcar" />
+										<Checkbox surface={s} indeterminate label="A medias" />
+										<Checkbox surface={s} disabled label="Apagada" />
+									</div>
+								{:else if par.id === 'switch'}
+									<div class="pila">
+										<Switch
+											surface={s}
+											label="Avisos por mail"
+											onLabel="Prendido"
+											offLabel="Apagado"
+											bind:checked={interruptor}
+											status="saved"
+										/>
+										<Switch
+											surface={s}
+											label="Recordatorio"
+											onLabel="Prendido"
+											offLabel="Apagado"
+											bind:checked={interruptorSitio}
+										/>
+										<Switch
+											surface={s}
+											label="Con error"
+											bind:checked={interruptorError}
+											status="error"
+											error="No se pudo guardar. Probá de nuevo."
+										/>
+										<Switch surface={s} label="Apagado (no se puede tocar)" disabled />
+									</div>
+								{:else if par.id === 'notice'}
+									<div class="pila">
+										<Notice surface={s}>Listo: te anotamos.</Notice>
+										<Notice surface={s} tone="warn">Quedan pocas entradas.</Notice>
+										<Notice surface={s} tone="error">No se pudo guardar: revisá tu conexión.</Notice
+										>
+										<Notice surface={s} tone="warn" compact
+											>Compacto: para avisos largos junto a un campo, con letra normal.</Notice
+										>
+									</div>
+								{:else if par.id === 'card'}
+									<div class="pila">
+										<Card surface={s} title="Lisa" icon={Ticket}
+											>Una tarjeta blanca, sin estado.</Card
+										>
+										<Card surface={s} title="Estado: ok" status="ok"
+											>Tu entrada está confirmada.</Card
+										>
+										<Card surface={s} title="Estado: aviso" status="warn"
+											>Falta confirmar el lugar.</Card
+										>
+										<Card surface={s} title="Estado: error" status="error"
+											>No se pudo mandar el mail.</Card
+										>
+										<Card surface={s} title="Llena (destacar)" status="info" filled
+											>Hay lugar en la lista de espera.</Card
+										>
+									</div>
+								{:else if par.id === 'badge'}
+									<div class="fila">
+										<Badge surface={s}>Borrador</Badge>
+										<Badge surface={s} tone="ok">Pagada</Badge>
+										<Badge surface={s} tone="warn">Últimas</Badge>
+										<Badge surface={s} tone="bad">Agotadas</Badge>
+										<Badge surface={s} tone="info">Online</Badge>
+										<Badge surface={s} tone="accent">Hoy</Badge>
+									</div>
+									<div class="fila">
+										<Badge surface={s} filled tone="ok">Pagada</Badge>
+										<Badge surface={s} filled tone="warn">Últimas</Badge>
+										<Badge surface={s} filled tone="bad">Agotadas</Badge>
+										<Badge surface={s} filled tone="info">Online</Badge>
+										<Badge surface={s} filled tone="accent">Hoy</Badge>
+									</div>
+								{:else if par.id === 'table'}
+									<Table
+										surface={s}
+										caption="Órdenes de prueba"
+										columns={COLUMNAS_SITIO}
+										rows={FILAS}
+										rowKey="orden"
+										bind:sort={ordenTablaSitio}
+									/>
+								{:else if par.id === 'undo'}
+									<div class="pila">
+										<UndoToast surface={s} message="Sacaste el evento de lo que seguís." />
+										<UndoToast surface={s} message="No se pudo deshacer." error canUndo={false} />
+									</div>
+								{:else if par.id === 'confirm'}
+									<Dialog
+										surface={s}
+										inline
+										title="¿Cancelar tu lugar?"
+										icon={Trash2}
+										tone="danger"
+									>
+										<p>Lo podés volver a pedir mientras haya lugar.</p>
+										<svelte:fragment slot="buttons">
+											<Button surface={s} variant="secondary">No, dejarlo</Button>
+											<Button surface={s} variant="danger" icon={Trash2}>Cancelar mi lugar</Button>
+										</svelte:fragment>
+									</Dialog>
+									<div class="fila">
+										<Button surface={s} variant="secondary" on:click={() => preguntarLado(s)}
+											>Probá el diálogo</Button
+										>
+										{#if respuestaLado[s]}<span class="nota" role="status">{respuestaLado[s]}</span
+											>{/if}
+									</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/each}
+		</Seccion>
+	</div>
+</div>
+
 <style>
 	.galeria {
 		background: var(--bg);
 		color: var(--text, var(--ink));
 		min-height: 100vh;
 		padding: var(--space-s) var(--space-xs) var(--space-xl);
+		box-sizing: border-box;
+	}
+	/* Con `?grupo=sitio-publico` la de arriba queda casi vacía: que no ocupe la pantalla. */
+	.galeria:has(+ .galeria-sitio) {
+		min-height: 0;
+		padding-bottom: var(--space-s);
+	}
+	.galeria-sitio {
+		min-height: 0;
+		padding-top: 0;
+	}
+	.par {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2xs);
+		padding-top: var(--space-2xs);
+		border-top: 1px solid var(--line);
+		scroll-margin-top: var(--space-xl);
+	}
+	.lados {
+		display: grid;
+		gap: var(--space-xs);
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+		align-items: start;
+	}
+	/* Cada lado sobre su fondo: el del panel (claro u oscuro) y el gris del sitio. */
+	.lado {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2xs);
+		min-width: 0;
+		background: var(--bg);
+		color: var(--text, var(--ink));
+		border-radius: var(--radius-m);
+		padding: var(--space-xs);
+	}
+	.lado.kv-panel {
+		min-height: 0;
+	}
+	.lado-titulo {
+		margin: 0;
+		font-size: var(--text-xs);
+		font-weight: 700;
+		color: var(--muted);
+	}
+	.pila {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2xs);
+		min-width: 0;
+	}
+	.fila {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2xs);
+		align-items: center;
+	}
+	.lado :global(.kv-dialog),
+	.lado :global(.kv-dialog-sitio) {
+		width: auto;
+		max-width: 100%;
 		box-sizing: border-box;
 	}
 	.barra {

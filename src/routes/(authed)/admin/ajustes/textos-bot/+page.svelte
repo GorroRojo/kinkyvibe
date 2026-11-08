@@ -431,6 +431,12 @@
 	.tg-text :global(a) {
 		color: #168acd;
 	}
+	/* El detalle de «Cada venta»: un bloque citado (en Telegram se despliega). */
+	.tg-text :global(blockquote) {
+		margin: 0.25rem 0 0;
+		padding: 0.1rem 0 0.1rem 0.5rem;
+		border-left: 3px solid #168acd;
+	}
 	/* Mensaje enriquecido: bloques (título, párrafos, pie) en lugar de renglones. */
 	.rich .tg-text {
 		white-space: normal;

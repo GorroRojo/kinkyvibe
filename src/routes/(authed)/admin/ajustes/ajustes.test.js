@@ -85,7 +85,7 @@ describe('/admin/ajustes (portada)', () => {
 		expect(navItem('ajustes')).toMatchObject({ href: '/admin/ajustes', area: 'ajustes' });
 		const groups = navAreaSections('ajustes');
 		expect(groups.map((g) => g.id)).toEqual(AJUSTES_SUBGROUPS.map((g) => g.id));
-		expect(groups.flatMap((g) => g.items).length).toBe(9);
+		expect(groups.flatMap((g) => g.items).length).toBe(10);
 	});
 
 	it('con la base vacía: los originales, nada en el registro, todo apagado', async () => {
@@ -93,13 +93,15 @@ describe('/admin/ajustes (portada)', () => {
 		const status = data.status;
 		expect(status['ajustes-textos-bot']).toEqual({ text: 'Los originales' });
 		expect(status['ajustes-vistas-previas']).toEqual({ text: 'Los originales' });
-		expect(status.propinas).toEqual({ text: 'Todavía ninguna' });
 		expect(status.actividad).toEqual({ text: 'Sin cambios todavía' });
 		expect(status['ajustes-admins']).toEqual({
 			text: `${ADMINS.length} ${ADMINS.length === 1 ? 'admin' : 'admins'}`
 		});
-		// Sin Fondo guardado (ni a mano ni el último automático): sin línea, no se adivina.
-		expect(status['ajustes-fondo']).toBeUndefined();
+		// Sin Fondo guardado (ni a mano ni el último automático): dice que es automático y que
+		// todavía no llegó (ajustes-fondo-linea); no inventa un porcentaje.
+		expect(status['ajustes-fondo']).toEqual({
+			text: 'Automático (todavía no llegó el porcentaje)'
+		});
 		// Cada línea que hay es de una sección de Ajustes.
 		const ids = new Set(navAreaSections('ajustes').flatMap((g) => g.items.map((i) => i.id)));
 		for (const id of Object.keys(status)) expect(ids.has(id), id).toBe(true);
@@ -121,23 +123,10 @@ describe('/admin/ajustes (portada)', () => {
 			)
 			.bind(NOW - 5 * MIN)
 			.run();
-		for (const [id, status] of [
-			['t1', 'approved'],
-			['t2', 'approved'],
-			['t3', 'pending']
-		]) {
-			await t.db
-				.prepare(
-					"INSERT INTO tips (id, amount, status, post_category, post_slug, created_at, updated_at) VALUES (?1, 1000, ?2, 'material', 'nota-de-prueba', ?3, ?3)"
-				)
-				.bind(id, status, NOW)
-				.run();
-		}
 		const status = await loadAjustesStatus({ db: t.db, env: {}, mpReady: true, now: NOW });
 		expect(status['ajustes-cobros']).toEqual({ text: 'Mercado Pago y transferencia' });
 		expect(status['ajustes-fondo']).toEqual({ text: '10 % (fijado a mano)' });
 		expect(status['ajustes-textos-bot']).toEqual({ text: '2 textos cambiados' });
-		expect(status.propinas).toEqual({ text: '2 recibidas' });
 		expect(status.actividad).toEqual({ text: 'Último cambio: hace 5 min' });
 		const off = Object.keys(FLAGS).length - 1;
 		expect(status['ajustes-interruptores']).toEqual({ text: `${off} en prueba`, tone: 'warn' });
@@ -183,7 +172,6 @@ describe('buildAjustesStatus (Cobros)', () => {
 	const base = {
 		flags: null,
 		lastActivity: null,
-		tips: null,
 		automations: null,
 		now: NOW
 	};
@@ -212,7 +200,6 @@ describe('buildAjustesStatus (Fondo)', () => {
 	const base = {
 		flags: null,
 		lastActivity: null,
-		tips: null,
 		automations: null,
 		mpReady: false,
 		now: NOW
@@ -233,6 +220,6 @@ describe('buildAjustesStatus (Fondo)', () => {
 		});
 		expect(fondo([last], 20)).toEqual({ text: '20 % de cada entrada' });
 		expect(fondo([last], null)).toEqual({ text: '12 % de cada entrada' });
-		expect(fondo([], null)).toBeUndefined();
+		expect(fondo([], null)).toEqual({ text: 'Automático (todavía no llegó el porcentaje)' });
 	});
 });

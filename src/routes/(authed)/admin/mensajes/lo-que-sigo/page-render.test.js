@@ -6,9 +6,21 @@
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
+import { JSDOM } from 'jsdom';
 import Page from './+page.svelte';
 
 const NOW = Date.parse('2026-06-01T12:00:00-03:00');
+
+/**
+ * El texto visible del HTML, leído con un DOM (jsdom) en vez de sacar etiquetas con regex: los
+ * comentarios de Svelte no cuentan, `<script>` y `<style>` se sacan y los espacios se juntan en uno.
+ * @param {string} markup
+ */
+function textOf(markup) {
+	const { document } = new JSDOM(markup).window;
+	for (const el of document.querySelectorAll('script, style')) el.remove();
+	return (document.body.textContent ?? '').replace(/\s+/g, ' ');
+}
 
 /** @param {number} total */
 const counts = (total) => ({ d7: total, d30: total, total });
@@ -35,6 +47,10 @@ function data(over = {}) {
 				nuevo: { mail: counts(40), telegram: counts(7) },
 				recordatorio: { mail: counts(9), telegram: counts(0) },
 				last: NOW - 3600_000
+			},
+			failures: {
+				d7: { total: 5, mail: 2, telegram: 3, blocked: 1 },
+				d30: { total: 14, mail: 6, telegram: 8, blocked: 2 }
 			},
 			avisame: { migrated: 5, pendingWithAccount: 2, withoutAccount: 11 },
 			telegram: { linked: 4, muted: 1 },
@@ -108,6 +124,31 @@ describe('/admin/mensajes/lo-que-sigo (página)', () => {
 		expect(body).toMatch(/>12</);
 		expect(body).toContain('Desde el principio');
 		expect(body).not.toContain('Próximamente');
+	});
+
+	it('avisos que fallaron: los de 7 días por canal, los bloqueados y los de 30 días', () => {
+		const text = textOf(html(data()));
+		expect(text).toContain(
+			'Avisos que fallaron: 5 en los últimos 7 días (por mail: 2; por Telegram: 3, 1 porque el chat ya no recibe).'
+		);
+		expect(text).toContain('En 30 días: 14.');
+	});
+
+	it('sin avisos que fallaron no muestra el detalle por canal', () => {
+		const zero = { total: 0, mail: 0, telegram: 0, blocked: 0 };
+		const d = data();
+		d.stats.failures = { d7: zero, d30: zero };
+		const text = textOf(html(d));
+		expect(text).toContain('Avisos que fallaron: 0 en los últimos 7 días.');
+		expect(text).not.toContain('por mail:');
+	});
+
+	it('sin el contador de fallos (migración sin aplicar) lo dice y lo demás se ve', () => {
+		const d = data();
+		d.stats.failures = null;
+		const body = html(d);
+		expect(body).toContain('No se pudieron contar los avisos que fallaron.');
+		expect(body).toContain('Desde el principio');
 	});
 
 	it('lo más seguido: link al panel, el número aunque sea 1, y el estado', () => {
@@ -192,6 +233,7 @@ describe('/admin/mensajes/lo-que-sigo (página)', () => {
 					follows: null,
 					options: null,
 					notices: null,
+					failures: null,
 					avisame: { migrated: null, pendingWithAccount: null, withoutAccount: null },
 					telegram: null,
 					ranking: null

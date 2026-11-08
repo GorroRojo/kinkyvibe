@@ -311,3 +311,66 @@ describe('lastMonths', () => {
 		expect(lastMonths(Date.parse('2026-11-01T00:30:00-03:00'), 2)).toEqual(['2026-10', '2026-11']);
 	});
 });
+
+describe('profitByMonth y la ganancia de salesPage', async () => {
+	const { profitByMonth } = await import('./statsPages.js');
+	/** @param {string} slug @param {string} date @param {number} profit */
+	const closing = (slug, date, profit) => ({
+		event_slug: slug,
+		event_date: date,
+		income_total: profit + 50000,
+		expenses_total: 50000,
+		profit
+	});
+	const months = [
+		{ month: '2026-08', label: 'ago 2026' },
+		{ month: '2026-09', label: 'sep 2026' },
+		{ month: '2026-10', label: 'oct 2026' }
+	];
+
+	it('suma por mes del evento; un mes sin cierres queda vacío (null, no 0)', () => {
+		const r = profitByMonth(
+			[
+				closing('fiesta-2026-08', '2026-08-20', 100000),
+				closing('taller-2026-08', '2026-08-28', -20000),
+				closing('fiesta-2026-10', '2026-10-02', 30000),
+				closing('fiesta-2025-06', '2025-06-20', 999)
+			],
+			months,
+			['fiesta-2026-08', 'fiesta-2026-09']
+		);
+		expect(r.rows.map((x) => [x.month, x.closed, x.income, x.expenses, x.profit])).toEqual([
+			['2026-08', 2, 180000, 100000, 80000],
+			['2026-09', 0, null, null, null],
+			['2026-10', 1, 80000, 50000, 30000]
+		]);
+		expect(r.totals).toEqual({ income: 260000, expenses: 150000, profit: 110000 });
+		// 3 cerrados de 4 eventos (los 2 con ventas y los 2 cerrados que no estaban).
+		expect([r.closed, r.events]).toEqual([3, 4]);
+	});
+
+	it('sin cierres en el período, los totales son null', () => {
+		const r = profitByMonth([], months, ['fiesta-2026-08']);
+		expect(r.totals).toEqual({ income: null, expenses: null, profit: null });
+		expect([r.closed, r.events]).toEqual([0, 1]);
+	});
+
+	it('salesPage respeta la serie y sin cierres (interruptor apagado) da null', () => {
+		const orders = [order({ event_slug: 'fiesta-2026-08' })];
+		expect(salesPage(orders, events, { period: period('12m'), now: NOW }).profit).toBeNull();
+		const closings = [
+			closing('fiesta-2026-08', '2026-08-20', 100000),
+			closing('taller-2026-09', '2026-09-10', 40000)
+		];
+		const all = salesPage(orders, events, { period: period('12m'), now: NOW, closings });
+		expect(all.profit?.totals.profit).toBe(140000);
+		const fiesta = salesPage(orders, events, {
+			period: period('12m'),
+			serie: 'fiesta',
+			now: NOW,
+			closings
+		});
+		expect(fiesta.profit?.totals.profit).toBe(100000);
+		expect(fiesta.profit?.rows.map((r) => r.month)).toEqual(fiesta.fondo.rows.map((r) => r.month));
+	});
+});

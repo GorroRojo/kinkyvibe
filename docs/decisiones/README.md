@@ -102,6 +102,9 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0023](0023-contacto-publico.md): Se muestra el contacto que ya era público (1/10)
 - [0024](0024-organizadores-ven-respuestas.md): Les organizadores ven las respuestas de
   inscripción (1/10)
+- [0057](0057-formularios.md): Formularios: quién responde, privacidad en tres modos (con nombre,
+  anónimo, que cada persona elija), quién ve las respuestas (sin mínimo) y la encuesta después del
+  evento (5/11)
 
 ### Entradas
 
@@ -150,6 +153,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   el bot (11/10)
 - [0041](0041-telegram-para-admins.md): Telegram para admins: estado de la venta y avisos
   (organizadores, más adelante) (12/10)
+- [0058](0058-detalle-de-cada-venta.md): El aviso «Cada venta» por Telegram lleva el detalle de
+  la compra (cambia en parte 0041) (5/11)
 - [0043](0043-lo-que-sigo-en-el-panel.md): «Lo que sigo» en el panel: les admins ven lo que sigue
   cada persona en su ficha y, en Mensajes › Lo que sigo, «Lo más seguido» con el número exacto y
   quiénes siguen cada cosa (12/10)

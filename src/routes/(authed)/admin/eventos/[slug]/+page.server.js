@@ -1,7 +1,10 @@
 /**
  * Ficha del evento, pestaña Resumen: datos, checklist (imagen, link de la transmisión,
  * recordatorios, venta abierta), el link de la transmisión de los eventos online y los links de
- * puerta de los presenciales (docs/tickets.md, «Link de puerta»).
+ * puerta de los presenciales (docs/tickets.md, «Link de puerta») y la tarjeta «Visitas» de su
+ * página (docs/analiticas.md, «Visitas de una página»; va como promesa, no demora la ficha) y,
+ * con el interruptor `gastos_reparto`, «La cuenta»: ingresos, gastos y ganancia de la cuenta
+ * cerrada (docs/tickets.md, «Gastos y reparto»).
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -20,6 +23,9 @@ import { panelVenueRow } from '$lib/server/amigues/eventFormVenue.js';
 import { getPanelEvent } from '$lib/server/eventos/panel.js';
 import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { formulariosEnabled, gastosRepartoEnabled } from '$lib/server/flags.js';
+import { accountState, accountsReady } from '$lib/server/tickets/cuentas.js';
+import { eventForms } from '$lib/server/formularios/store.js';
 import {
 	DOOR_LINK_MIN_MS,
 	createDoorLink,
@@ -32,6 +38,7 @@ import {
 import { toArgentinaLocalInput } from '$lib/utils/tickets.js';
 import { siteOrigin } from '$lib/server/tickets/index.js';
 import { isFlagOn } from '$lib/server/flags.js';
+import { objectPageVisits } from '$lib/server/admin/pageVisits.js';
 
 /**
  * Los links de puerta vivos del evento y el vencimiento por defecto para el formulario. `null` si
@@ -75,6 +82,55 @@ const CLOSED_REASON = {
 	notyet: 'La venta todavía no abrió'
 };
 
+/**
+ * Los formularios del evento para la tarjeta «Formularios de este evento», o `null` con el
+ * interruptor apagado o sin base.
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ * @param {App.Platform | undefined} platform
+ * @param {string} slug
+ */
+async function formsFor(db, platform, slug) {
+	if (!db || !(await formulariosEnabled(platform))) return null;
+	try {
+		return (await eventForms(db, slug)).map((f) => ({
+			id: f.id,
+			kind: f.kind,
+			title: f.title,
+			open: f.open,
+			responses: f.responses
+		}));
+	} catch (e) {
+		logDBError('formularios en la ficha', e);
+		return [];
+	}
+}
+
+/**
+ * «La cuenta» del evento (Gastos y reparto): `null` con el interruptor apagado, sin entradas, sin
+ * base, sin la migración 0078 o si falla (la tarjeta no se ve). Si no está cerrada, sin números.
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ * @param {App.Platform | undefined} platform
+ * @param {string} slug
+ * @param {boolean} sellsTickets
+ */
+async function accountFor(db, platform, slug, sellsTickets) {
+	if (!db || !sellsTickets || !(await gastosRepartoEnabled(platform))) return null;
+	try {
+		if (!(await accountsReady(db))) return null;
+		const a = await accountState(db, slug);
+		if (a.state !== 'closed') return { state: a.state, income: null, expenses: null, profit: null };
+		return {
+			state: a.state,
+			income: a.closing.income_total,
+			expenses: a.closing.expenses_total,
+			profit: a.closing.profit
+		};
+	} catch (e) {
+		logDBError('la cuenta en la ficha', e);
+		return null;
+	}
+}
+
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, parent, setHeaders }) {
 	requireAdmin(locals, url);
@@ -91,6 +147,7 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		getPanelEvent(params.slug),
 		getEventTickets(params.slug)
 	]);
+	const accountP = accountFor(db, platform, params.slug, Boolean(config));
 	const event = found
 		? { ...found, sellsTickets: Boolean(config), online: config?.online ?? found.online }
 		: (await parent()).event;
@@ -186,6 +243,8 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 			});
 		}
 	}
+	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
+	const venue = await venueP;
 	// Borrador del panel (`borrador: true` y no listado): «Confirmar», con lo que le falta.
 	const draft = Boolean(event.draft && event.unlisted);
 	const missing = draft
@@ -198,11 +257,13 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 				authors: event.authors,
 				link: event.link,
 				tickets: Boolean(event.sellsTickets),
-				status: event.status
+				status: event.status,
+				hasVenue: Boolean(venue)
 			})
 		: [];
-	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
-	const venue = await venueP;
+	// Formularios de este evento (interruptor `formularios`, docs/formularios.md): la encuesta y los
+	// que lo eligieron, con links. `null` apagado (la tarjeta no se ve).
+	const forms = await formsFor(db, platform, params.slug);
 	// Links de puerta (presenciales con entradas).
 	const doorLinks = await doorLinksFor(db, params.slug, config);
 	// Etiqueta «Online» y además un lugar: un aviso arriba (no cambia nada).
@@ -211,6 +272,14 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		{ hasVenue: Boolean(venue) }
 	);
 	return {
+		// Sin esperar: SvelteKit la manda cuando llega y la tarjeta se llena sola.
+		visits: objectPageVisits(platform, {
+			kind: 'evento',
+			slug: params.slug,
+			tickets: Boolean(config)
+		}),
+		forms,
+		account: await accountP,
 		checklist,
 		stream,
 		sale,

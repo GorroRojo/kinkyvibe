@@ -12,6 +12,9 @@ import {
 	MAX_UPLOAD_BYTES,
 	contextImages,
 	deleteImage,
+	findLibraryObject,
+	imagesWithoutColors,
+	saveImageColors,
 	findImage,
 	imageKeysByObject,
 	imageOf,
@@ -424,5 +427,103 @@ describe('storeFile (documentos y video)', () => {
 		const again = await store(fakePdf());
 		expect(again.file.id).toBe(file.id);
 		expect(await servableMedia(t.db, file.key)).not.toBeNull();
+	});
+});
+
+describe('colores de las imágenes (carrusel de la portada)', () => {
+	/** @param {number} id */
+	const colorsOf = async (id) =>
+		/** @type {Record<string, any>} */ ((await findLibraryObject(t.db, id))?.data ?? {}).colors;
+
+	it('al subir, guarda los colores válidos que mandó el navegador', async () => {
+		const { image } = await storeImage(
+			t.db,
+			bucket(),
+			{ bytes: png(10, [230, 20, 140]), name: 'a.png', colors: '["#E6148C","rojo","#1e9be0"]' },
+			{ actor: 'admin-prueba' }
+		);
+		expect(await colorsOf(image.id)).toEqual(['#e6148c', '#1e9be0']);
+		// nada válido: sin colores (la imagen se guarda igual)
+		const other = await storeImage(
+			t.db,
+			bucket(),
+			{ bytes: png(11), name: 'b.png', colors: 'url(javascript:x)' },
+			{ actor: 'admin-prueba' }
+		);
+		expect(await colorsOf(other.image.id)).toBeUndefined();
+	});
+
+	it('subir otra vez una imagen sin colores se los suma; con colores, no los pisa', async () => {
+		const bytes = png(12);
+		const first = await storeImage(t.db, bucket(), { bytes, name: 'c.png' }, { actor: 'a' });
+		expect(await colorsOf(first.image.id)).toBeUndefined();
+		await storeImage(t.db, bucket(), { bytes, name: 'c.png', colors: ['#112233'] }, { actor: 'a' });
+		expect(await colorsOf(first.image.id)).toEqual(['#112233']);
+		await storeImage(t.db, bucket(), { bytes, name: 'c.png', colors: ['#445566'] }, { actor: 'a' });
+		expect(await colorsOf(first.image.id)).toEqual(['#112233']);
+	});
+
+	it('las que faltan (portadas de eventos primero) y la pasada que las completa', async () => {
+		const plain = (
+			await storeImage(t.db, bucket(), { bytes: png(5), name: 'p.png' }, { actor: 'a' })
+		).image;
+		const cover = (
+			await storeImage(t.db, bucket(), { bytes: png(6), name: 'q.png' }, { actor: 'a' })
+		).image;
+		const done = (
+			await storeImage(
+				t.db,
+				bucket(),
+				{ bytes: png(7), name: 'r.png', colors: ['#000000'] },
+				{ actor: 'a' }
+			)
+		).image;
+		const ev = await saveObject(
+			t.db,
+			{
+				type: 'evento',
+				slug: 'con-flyer',
+				title: 'Con flyer',
+				data: { start: '2026-11-20T20:00-03:00' }
+			},
+			{ actor: 'a' }
+		);
+		await linkImage(t.db, ev.id, 'portada', cover.id, { actor: 'a' });
+
+		const missing = await imagesWithoutColors(t.db);
+		expect(missing.total).toBe(2);
+		expect(missing.images.map((i) => i.id)).toEqual([cover.id, plain.id]);
+		expect(missing.images[0].url).toBe(cover.url);
+		expect(missing.images[0].small).toMatch(/^\/media\/img\/[0-9a-f]{64}-360\.webp$/);
+
+		const res = await saveImageColors(
+			t.db,
+			[
+				{ id: cover.id, colors: ['#E6148C'] },
+				{ id: plain.id, colors: ['no'] },
+				{ id: done.id, colors: ['#ffffff'] },
+				{ id: 999999, colors: ['#ffffff'] },
+				{ id: 'x', colors: ['#ffffff'] }
+			],
+			{ actor: 'admin-prueba' }
+		);
+		expect(res).toEqual({ saved: 1, skipped: 4 });
+		expect(await colorsOf(cover.id)).toEqual(['#e6148c']);
+		// la que ya tenía no se pisa
+		expect(await colorsOf(done.id)).toEqual(['#000000']);
+		expect((await imagesWithoutColors(t.db)).images.map((i) => i.id)).toEqual([plain.id]);
+	});
+
+	it('una imagen borrada no aparece ni se completa', async () => {
+		const img = (await storeImage(t.db, bucket(), { bytes: png(8), name: 's.png' }, { actor: 'a' }))
+			.image;
+		await deleteImage(t.db, img.id, { actor: 'a' });
+		expect((await imagesWithoutColors(t.db)).total).toBe(0);
+		expect(
+			await saveImageColors(t.db, [{ id: img.id, colors: ['#123456'] }], { actor: 'a' })
+		).toEqual({
+			saved: 0,
+			skipped: 1
+		});
 	});
 });

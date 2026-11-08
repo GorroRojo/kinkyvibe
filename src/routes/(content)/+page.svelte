@@ -17,11 +17,15 @@
 	const loadPast = pastPostsLoader((posts) => (allPosts = posts));
 	$: if ($userConfig.show_past_events) loadPast();
 
-	// Los eventos que todavía no empezaron: el carrusel (`?carrousel`) y la fila del calendario.
+	// Los eventos que todavía no empezaron: la fila del calendario.
 	$: upcomingEvents = allPosts.filter(
 		(/** @type {{ meta: AnyPostData; }} */ p) =>
 			p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
 	);
+
+	// El carrusel de arriba (interruptor `carrusel_portada`): las diapositivas ya vienen del
+	// servidor, con su estilo y sus colores (src/lib/server/carrusel.js); apagado, ninguna.
+	$: carrusel = data.carrusel ?? [];
 
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
 	$: previewTexts = linkPreviewOf($page.data).texts;
@@ -70,9 +74,9 @@
 	<!-- El logo del encabezado es la presentación (decisión de gorrite, 5/10): el h1 queda solo
 	     para lectores de pantalla y buscadores. -->
 	<h1 class="visually-hidden">Kinky Vibe</h1>
-	<!-- Sin eventos próximos no hay carrusel: el componente necesita al menos una diapositiva. -->
-	{#if $page.url.searchParams.has('carrousel') && upcomingEvents.length > 0}
-		<Carrousel posts={upcomingEvents} />
+	<!-- Sin eventos que entren no hay carrusel: el componente necesita al menos una diapositiva. -->
+	{#if carrusel.length > 0}
+		<Carrousel posts={carrusel} ticketStates={data.ticketStates ?? null} />
 	{/if}
 	<div class="cardrow">
 		<CardRow

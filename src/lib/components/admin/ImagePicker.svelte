@@ -3,7 +3,8 @@
 	 * El selector de imágenes de los editores (evento, material, serie y perfil; docs/imagenes.md).
 	 * Tres pestañas:
 	 * - «Subir»: elegir un archivo, escribir qué se ve (texto alternativo, obligatorio) y subirlo.
-	 *   Se achica y se pasa a WEBP en el navegador ($lib/utils/imageResize.js); va a R2 y a la
+	 *   Se achica y se pasa a WEBP en el navegador ($lib/utils/imageResize.js; si pesa más de
+	 *   300 KB, se achica un poco más, como «Achicar» de «Portadas pesadas»); va a R2 y a la
 	 *   biblioteca al momento. Todo lo que se sube queda en la biblioteca.
 	 * - «Buscar»: buscar en la biblioteca por nombre o texto alternativo.
 	 * - «De este evento» (`contextLabel`): las imágenes que ya usa este objeto o su serie.
@@ -36,6 +37,7 @@
 		usageText
 	} from '$lib/utils/imageChoice.js';
 	import {
+		HEAVY_COVER_BYTES,
 		PICKABLE_TYPES,
 		appendCopies,
 		pickProblem,
@@ -119,7 +121,7 @@
 		const pickedAlt = alt.trim();
 		const pickedTitle = title.trim();
 		try {
-			const prepared = await prepareImage(picked);
+			const prepared = await prepareImage(picked, {}, { targetBytes: HEAVY_COVER_BYTES });
 			busy = 'subiendo';
 			const body = new FormData();
 			body.set('file', prepared.blob, prepared.name);

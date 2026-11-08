@@ -4,7 +4,9 @@
  *
  * - a quién: solo admins vinculades, todavía en `ADMINS`, que prendieron ese aviso;
  * - los textos: solo cantidades, el evento, el tipo y el tramo; ningún dato de quien compra
- *   (aunque estén todos en la base y en la orden);
+ *   (aunque estén todos en la base y en la orden). La excepción es el detalle de «Cada venta»
+ *   (decisión 0058, adminNotify-detalle.test.js): nombre, pronombres y mail sí; el DNI, les
+ *   titulares, el id del pago, la nota y los tokens nunca;
  * - nada dos veces (`telegram_admin_sent`), y si Telegram falla se suelta para reintentar;
  * - los interruptores, el token, la hora del resumen y el horario de silencio.
  */
@@ -181,6 +183,19 @@ function expectNoSecrets(text) {
 	for (const s of SECRETS) expect(text, s).not.toContain(s);
 }
 
+/**
+ * Lo que nunca sale ni en el detalle de «Cada venta» (decisión 0058): todo {@link SECRETS} menos
+ * el nombre, los pronombres y el mail de quien compra, que el detalle sí lleva.
+ */
+const NEVER_IN_SALE = SECRETS.filter(
+	(s) => !['Persona Secreta', 'secreta@example.com', 'he/him-secreto'].includes(s)
+);
+
+/** @param {string} text */
+function expectNoSaleSecrets(text) {
+	for (const s of NEVER_IN_SALE) expect(text, s).not.toContain(s);
+}
+
 async function flagsOn() {
 	await setFlag(t.db, 'telegram_bot', true, { by: 'prueba' });
 	await setFlag(t.db, 'telegram_admin', true, { by: 'prueba' });
@@ -305,11 +320,20 @@ describe('cada venta y cada transferencia', () => {
 		expect(tg.sent).toEqual([
 			{
 				chatId: String(ADMIN_TG),
-				text: '🎟 Se vendió 1 General (Preventa 1) de <b>Fiesta inventada</b> · 3/50',
+				text: expect.any(String),
 				panelUrl: `${ORIGIN}/admin/eventos/${SLUG}`,
 				silent: false
 			}
 		]);
+		// La primera línea, la de siempre; abajo, el detalle desplegable (decisión 0058).
+		expect(tg.sent[0].text.split('\n')[0]).toBe(
+			'🎟 Se vendió 1 General (Preventa 1) de <b>Fiesta inventada</b> · 3/50'
+		);
+		expect(tg.sent[0].text).toContain(
+			'\n<blockquote expandable>👤 Persona Secreta (he/him-secreto)'
+		);
+		expect(tg.sent[0].text.endsWith('</blockquote>')).toBe(true);
+		expectNoSaleSecrets(tg.sent[0].text);
 		// Otra vez la misma orden (un webhook repetido, dos clicks): no sale de nuevo.
 		const again = await notifyOrder({
 			db: t.db,
@@ -537,12 +561,14 @@ describe('queueOrderNotice (lo que llaman los flujos de compra)', () => {
 		expect(body).toMatchObject({
 			chat_id: String(ADMIN_TG),
 			parse_mode: 'HTML',
-			text: '🎟 Se vendió 1 General de <b>Fiesta inventada</b> · 1/50',
+			text: expect.stringMatching(
+				/^🎟 Se vendió 1 General de <b>Fiesta inventada<\/b> · 1\/50\n<blockquote expandable>/
+			),
 			reply_markup: {
 				inline_keyboard: [[{ text: 'Ver en el panel ↗', url: `${ORIGIN}/admin/eventos/${SLUG}` }]]
 			}
 		});
-		expectNoSecrets(JSON.stringify(tg.bodies));
+		expectNoSaleSecrets(JSON.stringify(tg.bodies));
 		// Un evento que ya no vende entradas: nada, y no tira.
 		await queueOrderNotice({
 			db: t.db,

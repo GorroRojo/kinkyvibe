@@ -2,9 +2,10 @@
 	import { argDateLog } from '$lib/utils/dates.js';
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { enhance } from '$app/forms';
-	import { Check, Send, X } from '@lucide/svelte';
+	import { Check, ClipboardList, Send, X } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import DoorLinksCard from '$lib/components/admin/DoorLinksCard.svelte';
+	import PageVisitsCard from '$lib/components/admin/stats/PageVisitsCard.svelte';
 	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
 	import ConfirmDraft from '$lib/components/admin/agenda/ConfirmDraft.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
@@ -12,6 +13,16 @@
 	import { ONLINE_MISMATCH_TEXT } from '$lib/utils/onlineTagMismatch.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { describeSchedule } from '$lib/utils/eventDraft.js';
+	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
+
+	/**
+	 * Un número de «La cuenta»: con la cuenta cerrada, el monto; si no, «sin cerrar» o «—» (nunca
+	 * $ 0, que diría otra cosa).
+	 * @param {{ state: string }} account
+	 * @param {number | null} value
+	 */
+	const accountText = (account, value) =>
+		value !== null ? formatARS(value) : account.state === 'open' ? 'sin cerrar' : '—';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -136,6 +147,35 @@
 		<p><a class="kv-btn ghost" href={eventHref(e.slug, 'editar')}>Editar los datos</a></p>
 	</Card>
 
+	{#if data.account}
+		<!-- La cuenta (Gastos y reparto): los números, solo con la cuenta cerrada. -->
+		<Card title="La cuenta">
+			<dl class="kv" id="la-cuenta">
+				<dt>Ingresos de la cuenta</dt>
+				<dd class="num">{accountText(data.account, data.account.income)}</dd>
+				<dt>Gastos</dt>
+				<dd class="num">{accountText(data.account, data.account.expenses)}</dd>
+				<dt>Ganancia o pérdida</dt>
+				<dd class="num">
+					{data.account.profit === null
+						? accountText(data.account, null)
+						: formatSignedARS(data.account.profit)}
+				</dd>
+			</dl>
+			<p class="muted small">
+				{data.account.state === 'closed'
+					? 'De la cuenta cerrada. No incluye el recargo de Mercado Pago.'
+					: data.account.state === 'open'
+						? 'La cuenta está empezada pero sin cerrar: los números salen cuando la cierres.'
+						: 'Todavía nadie empezó la cuenta de este evento.'}
+				<a href={eventHref(e.slug, 'gastos')}>Gastos y reparto</a>
+			</p>
+		</Card>
+	{/if}
+
+	<!-- Visitas de la página del evento (docs/analiticas.md, «Visitas de una página»). -->
+	<PageVisitsCard visits={data.visits} />
+
 	{#if data.online && e.sellsTickets}
 		<section class="stream" aria-label="Link de la transmisión">
 			<Card title="Link de la transmisión" tag="div">
@@ -210,6 +250,44 @@
 		</section>
 	{/if}
 
+	{#if data.forms}
+		<!-- Formularios de este evento (interruptor `formularios`, docs/formularios.md). -->
+		<Card title="Formularios de este evento">
+			{#if data.forms.length}
+				<ul class="forms">
+					{#each data.forms as f (f.id)}
+						<li>
+							<a href="/admin/comunidad/formularios/{f.id}"
+								>{f.kind === 'survey' ? 'Encuesta de después del evento' : f.title}</a
+							>
+							<Badge tone={f.open ? 'ok' : 'neutral'}
+								>{f.kind === 'survey'
+									? f.open
+										? 'Se manda'
+										: 'Apagada'
+									: f.open
+										? 'Abierto'
+										: 'Cerrado'}</Badge
+							>
+							<a class="small-link" href="/admin/comunidad/formularios/{f.id}/respuestas"
+								>{f.responses === 1 ? '1 respuesta' : `${f.responses} respuestas`}</a
+							>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="muted small">Todavía no tiene formularios.</p>
+			{/if}
+			<p class="forms-links">
+				{#if e.sellsTickets}<a href={eventHref(e.slug, 'encuesta')}>Encuesta (Mails › Encuesta)</a
+					>{/if}
+				<a href="/admin/comunidad/formularios"
+					><ClipboardList size={14} aria-hidden="true" /> Todos los formularios</a
+				>
+			</p>
+		</Card>
+	{/if}
+
 	{#if data.doorLinks}
 		<!-- Links de puerta (docs/tickets.md, «Link de puerta»): presenciales con entradas. -->
 		<DoorLinksCard doorLinks={data.doorLinks} result={form?.doorLink ?? null} />
@@ -219,6 +297,31 @@
 <DeleteLink kind="calendario" slug={e.slug} label="Borrar evento…" />
 
 <style>
+	.forms {
+		list-style: none;
+		margin: 0 0 var(--space-2xs);
+		padding: 0;
+		display: grid;
+		gap: var(--space-3xs);
+	}
+	.forms li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3xs) var(--space-2xs);
+	}
+	.forms-links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-3xs) var(--space-s);
+		margin: 0;
+		font-size: var(--text-sm);
+	}
+	.forms-links a {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
 	.waitlist-chip {
 		margin: 0 0 var(--space-xs);
 	}

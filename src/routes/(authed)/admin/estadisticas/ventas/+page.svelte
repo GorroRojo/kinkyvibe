@@ -7,7 +7,7 @@
 	import '$lib/admin/panel-forms.scss';
 	import { ChartLine } from '@lucide/svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
-	import { formatARS } from '$lib/utils/money.js';
+	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import {
 		SALES_DEFAULT_PERIOD,
 		SALES_PERIODS,
@@ -30,6 +30,9 @@
 	const PATH = '/admin/estadisticas/ventas';
 	$: period = parsePeriod(data.period, SALES_PERIODS, SALES_DEFAULT_PERIOD);
 	$: s = data.sales;
+	$: tips = data.tips ?? null;
+	$: fm = data.fondoMonth ?? null;
+	$: fondoPct = fm && fm.goal ? Math.floor((fm.collected / fm.goal) * 100) : 0;
 	$: when = periodText(period);
 	$: serieLabel = data.serie
 		? (s?.serieOptions.find((o) => o.value === data.serie)?.label ?? data.serie)
@@ -37,6 +40,14 @@
 	/** Abajo de un número: el período y, si hay, la comparación con el anterior. */
 	$: sub = (/** @type {number} */ cur, /** @type {number | undefined} */ prev) =>
 		[when, s?.previous ? changeText(cur, prev, period) : ''].filter(Boolean).join(' · ');
+
+	$: pr = s?.profit ?? null;
+	/** «X de Y eventos con cuenta cerrada». */
+	$: closedText = pr
+		? `${pr.closed} de ${pr.events} ${pr.events === 1 ? 'evento' : 'eventos'} con cuenta cerrada`
+		: '';
+	/** @param {number | null} v */
+	const money = (v) => (v === null ? '—' : formatARS(v));
 
 	/** @param {string} key @param {string} label */
 	const col = (key, label) => ({ key, label });
@@ -206,6 +217,48 @@
 							? 'estimada con la tasa de Ajustes › Cobros'
 							: `${formatARS(s.fondo.totals.mpFee - s.fondo.totals.mpFeeEstimated)} cobrada por MP · ${formatARS(s.fondo.totals.mpFeeEstimated)} estimada`}
 				/>
+				{#if fm}
+					<Stat
+						label="Suscripciones al Fondo, este mes"
+						value={formatARS(fm.collected)}
+						sub="{fondoPct} % de la meta ({formatARS(
+							fm.goal
+						)}) · descuento del {fm.percent} %{fm.stale ? ' · sin datos de este mes todavía' : ''}"
+					/>
+				{:else}
+					<Stat
+						label="Suscripciones al Fondo, este mes"
+						value="—"
+						sub="no pudimos leer fondo.kinkyvibe.ar"
+					/>
+				{/if}
+				{#if tips}
+					<Stat
+						label="Propinas recibidas"
+						value={formatARS(tips.totals.total)}
+						sub="{tips.totals.count} aprobadas, {when} · Kinky Vibe {formatARS(
+							tips.totals.kinkyvibe
+						)} · Fondo {formatARS(tips.totals.fondo)}"
+					/>
+				{:else}
+					<Stat label="Propinas recibidas" value="—" sub="no se pudieron leer" />
+				{/if}
+				{#if pr}
+					<Stat label="Ingresos de la cuenta" value={money(pr.totals.income)} sub={closedText} />
+					<Stat label="Gastos" value={money(pr.totals.expenses)} sub="de las cuentas cerradas" />
+					<Stat
+						label="Ganancia o pérdida"
+						value={pr.totals.profit === null ? '—' : formatSignedARS(pr.totals.profit)}
+						sub="ingresos de la cuenta − gastos"
+						tone={pr.totals.profit === null
+							? ''
+							: pr.totals.profit > 0
+								? 'ok'
+								: pr.totals.profit < 0
+									? 'bad'
+									: ''}
+					/>
+				{/if}
 			</div>
 			<div class="kv-grid-2">
 				<div class="sub">
@@ -242,11 +295,60 @@
 						empty="Sin recargos de Mercado Pago en este período."
 					/>
 				</div>
+				{#if pr}
+					<div class="sub" id="ganancia-por-mes">
+						<h3>Ganancia por mes</h3>
+						<p class="kv-note">{closedText}</p>
+						<Chart
+							title="Ganancia por mes: ingresos de la cuenta, gastos y ganancia"
+							rows={pr.rows}
+							x={{ key: 'label', label: 'mes' }}
+							series={[
+								{ key: 'income', label: 'Ingresos de la cuenta' },
+								{ key: 'expenses', label: 'Gastos' },
+								{ key: 'profit', label: 'Ganancia' }
+							]}
+							format={formatARS}
+							csv="ganancia-por-mes"
+							csvColumns={[col('month', 'clave'), col('closed', 'cuentas cerradas')]}
+							empty="Ninguna cuenta cerrada en este período."
+						/>
+					</div>
+				{/if}
+				{#if tips}
+					<div class="sub">
+						<h3>Propinas por mes</h3>
+						<Chart
+							title="Propinas por mes: a Kinky Vibe y al Fondo"
+							rows={tips.rows}
+							x={{ key: 'label', label: 'mes' }}
+							series={[
+								{ key: 'kinkyvibe', label: 'Kinky Vibe' },
+								{ key: 'fondo', label: 'Fondo' }
+							]}
+							format={formatARS}
+							csv="propinas-por-mes"
+							csvColumns={[col('month', 'clave'), col('count', 'propinas')]}
+							empty="Sin propinas en este período."
+						/>
+					</div>
+				{/if}
 			</div>
 			<p class="kv-note">
 				Por mes del evento, solo aprobadas. La comisión es la que informó Mercado Pago en cada pago;
 				si no la informó, se estima con la tasa de Ajustes › Cobros (el recargo) y se muestra
-				aparte. El Fondo de las suscripciones (fondo.kinkyvibe.ar) no entra acá: está en el Inicio.
+				aparte. Las suscripciones al Fondo (fondo.kinkyvibe.ar) son las del mes en curso, del 5 al
+				4; el historial por mes todavía no está. Las propinas son las de Mercado Pago, por mes de
+				aprobación, de los mismos meses, y no dependen de la serie elegida; detalle en <a
+					href="/admin/estadisticas/propinas">Propinas</a
+				>.
+				{#if pr}
+					«Ingresos de la cuenta», «Gastos» y «Ganancia» salen de las cuentas cerradas de cada
+					evento (Gastos y reparto, en su ficha): no incluyen el recargo de Mercado Pago y suman lo
+					que se cargó a mano (otros ingresos), por eso no coinciden con «Cobrado». Un mes sin
+					cuentas cerradas queda vacío; el detalle por evento, en
+					<a href="/admin/ventas/cuentas">Cuentas del año</a>.
+				{/if}
 			</p>
 		</Card>
 

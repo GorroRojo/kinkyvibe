@@ -205,6 +205,20 @@ export const FLAGS = Object.freeze({
 			'tope: aviso «Cambios de Claude» por Telegram desde 20 cambios en una hora (mcp/avisoCambios.js).',
 		envVar: 'CONECTOR_CLAUDE_EDICION_ENABLED'
 	},
+	gastos_reparto: {
+		label: 'Gastos y reparto',
+		description:
+			'En la ficha de cada evento que vende entradas, Ventas → «Gastos y reparto»: lo que entró ' +
+			'(con el Fondo calculado orden por orden), el lugar, las contrataciones, los otros gastos y ' +
+			'otros ingresos, y el reparto de la ganancia entre las partes que elijas (la Caja KV, les ' +
+			'facilitadores, quien co-produce…), con «quién le pasa a quién». Se guarda en la base y «Cerrar la cuenta» congela los números ' +
+			'para Ventas → Cuentas del año. Solo admins. Apagado, no se ve.',
+		tech:
+			'docs/tickets.md, «Gastos y reparto». Migración 0078 (event_accounts, ' +
+			'event_account_closings, venue_cost_rules); cuenta en src/lib/admin/reparto.js. Apagado, ' +
+			'/admin/eventos/<slug>/gastos y /admin/ventas/cuentas dan 404.',
+		envVar: 'GASTOS_REPARTO_ENABLED'
+	},
 	fediverso: {
 		label: 'Agenda en el fediverso (prototipo)',
 		description:
@@ -218,6 +232,40 @@ export const FLAGS = Object.freeze({
 			'/ap/eventos/<evento>; el inbox responde 202 sin procesar nada. Sin claves ni migración. ' +
 			'src/lib/utils/activitypub.js.',
 		envVar: 'FEDIVERSO_ENABLED'
+	},
+	carrusel_portada: {
+		label: 'Carrusel en la portada',
+		description:
+			'Arriba de la portada, un carrusel con los próximos eventos de Kinky Vibe y lo nuevo de ' +
+			'Material, Amigues y la Kinkipedia (hasta 8, primero los eventos por ' +
+			'fecha), con los colores de la marca elegidos para que cada flyer resalte: pasa solo cada unos segundos, se puede pausar ' +
+			'y se mueve con las flechas o deslizando en el celu. El estilo se elige en Ajustes › ' +
+			'Carrusel de la portada. Sin nada que entre, no aparece. Apagado, la portada se ve como siempre.',
+		tech:
+			'src/lib/components/Carrousel.svelte, la regla en src/lib/utils/carrusel.js, los estilos en ' +
+			'src/lib/utils/carruselEstilos.js y los colores en src/lib/utils/carruselPaletas.js ' +
+			'(docs/estilo.md, «Carrusel de la portada»). `?carrousel` lo muestra apagado solo en ' +
+			'`npm run dev`. Sin migración.',
+		envVar: 'CARRUSEL_PORTADA_ENABLED'
+	},
+	formularios: {
+		label: 'Formularios',
+		description:
+			'Comunidad › Formularios en el panel: formularios propios en kinkyvibe.ar/formularios/<nombre> ' +
+			'y la encuesta de después de cada evento: un día después, les llega a quienes tenían entrada ' +
+			'un link personal (anónima por defecto; cada evento la prende o la apaga en su ficha › Mails › ' +
+			'Encuesta). Cada formulario elige quién responde, si es con nombre, anónimo o que cada ' +
+			'persona elija, y quién ve las respuestas. Prendido, lo encontrás en Comunidad › Formularios, ' +
+			'en el buscador (Ctrl K: «formulario», «encuesta», cada plantilla), en «+ Crear» y en la ' +
+			'ficha de cada evento (Resumen › Formularios de este evento). Lo que sale por defecto (si la ' +
+			'encuesta sale sola, cuántos días después, privacidad, quién ve las respuestas y los mails) ' +
+			'se cambia en Comunidad › Formularios › Cómo salen por defecto. Apagado, nada de esto se ve ' +
+			'y las páginas públicas dan 404.',
+		tech:
+			'docs/formularios.md, decisión 0057. Antes de prenderlo: migraciones 0079 (forms, ' +
+			'form_responses, form_sends) y 0080 (pronombres, mail editable, borrado suave). La encuesta sale con el cron de cada 15 minutos ' +
+			'(src/lib/server/formularios/send.js).',
+		envVar: 'FORMULARIOS_ENABLED'
 	}
 });
 
@@ -421,6 +469,15 @@ export function conectorClaudeEnabled(platform) {
 }
 
 /**
+ * Atajo para las rutas: ¿está prendido Gastos y reparto? (docs/tickets.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function gastosRepartoEnabled(platform) {
+	return isFlagOn(getDB(platform), 'gastos_reparto');
+}
+
+/**
  * Atajo para las rutas: ¿está prendido el prototipo de la agenda en el fediverso?
  * (docs/investigaciones/indieweb-activitypub.md).
  *
@@ -428,6 +485,24 @@ export function conectorClaudeEnabled(platform) {
  */
 export function fediversoEnabled(platform) {
 	return isFlagOn(getDB(platform), 'fediverso');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el carrusel de la portada? (docs/estilo.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function carruselPortadaEnabled(platform) {
+	return isFlagOn(getDB(platform), 'carrusel_portada');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los formularios? (docs/formularios.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function formulariosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'formularios');
 }
 
 /**

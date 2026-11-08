@@ -8,6 +8,7 @@ import { answersByOrder } from '$lib/server/tickets/signupFields.js';
 import { dniTail, offlineReviewSummary, orderPriceChangeText } from '$lib/server/tickets/door.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
+import { countsForInvoicing } from '$lib/server/admin/invoiced.js';
 import { extrasByOrder } from '$lib/server/tickets/extras.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -89,6 +90,10 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		confirmedBy: o.confirmed_by,
 		refundedAt: o.refunded_at ?? null,
 		refundedBy: o.refunded_by ?? null,
+		// «Facturada» (solo admins; invoiced.js): si es para facturar y cuándo se marcó.
+		toInvoice: countsForInvoicing(o),
+		invoicedAt: o.invoiced_at ?? null,
+		invoicedBy: o.invoiced_by ?? null,
 		// Solo en el panel: la nota de la carga a mano o de la venta en la puerta, y si en la puerta
 		// se cobró otro precio («Precio cambiado en la puerta: $ 5.000 en vez de $ 12.000»).
 		note: o.admin_note ?? '',

@@ -16,7 +16,8 @@ Lo de GitHub Actions que corre en cada PR está en un solo archivo, `.github/wor
 (los otros workflows son los vigilantes del repaso y de producción y las corridas programadas de pruebas, ver abajo, que no corren en PRs). Corre en cada pull request (también cuando se edita su descripción, por el job
 `plan-pr`) y en cada push a `main`, con permiso de solo lectura sobre el repo (`permissions:
 contents: read`). Si pusheás de nuevo a la misma rama o editás la descripción, la corrida anterior
-se cancela (`concurrency`) y vuelve a correr todo. Los jobs de prueba corren en paralelo, usan
+se cancela (`concurrency`) y vuelve a correr todo. En `main` no se cancela: cada corrida de `main`
+termina, porque es la que guarda las cachés que leen los PRs. Los jobs de prueba corren en paralelo, usan
 Ubuntu 22.04 y la versión de Node de `.node-version` (con caché de npm), y arrancan con `npm ci`.
 Tienen un límite de tiempo: 15 minutos `unit`, `tests` y `e2e`, 10 `typecheck`.
 
@@ -26,15 +27,23 @@ de formato) y se saltean `unit`, `tests`, `e2e` y `typecheck`; `ci-ok` igual da 
 cuenta lo salteado como bien. `plan` y `plan-pr` corren igual. En `main` (push) corre todo
 siempre (salvo `plan-pr`, que es solo de PRs).
 
-| Job (nombre en GitHub)          | Pasos, en orden                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Cómo reproducirlo en tu compu                                                                    |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `unit`                          | **Lint** (`npm run lint`) → **Prettier** (`npm run format:check`)                                                                                                                                                                                                                                                                                                                                                                                                      | `npm run lint && npm run format:check`                                                           |
-| `tests (1/3)`, `(2/3)`, `(3/3)` | trae la caché de vitest → **Unit + content tests** repartidas en 3 máquinas por tiempo (`npx vitest run --shard=N/3 --fsModuleCache`): juntas corren todas                                                                                                                                                                                                                                                                                                             | `npx vitest run` (todas), `npx vitest run --shard=1/3` o `npm run test:related`                  |
-| `e2e`                           | **Build + seed + Chromium** en paralelo (`npm run build`, `node scripts/semilla.js` e instalar Chromium o, si está en caché, solo sus librerías del sistema) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → guardia del modo demo → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`)                                                                                                                               | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
-| `typecheck`                     | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                                                                                                                                                                                                                                      | `node scripts/svelte-check-ratchet.js`                                                           |
-| `plan`                          | **plan-lint** (`node scripts/plan-lint.js`, sin `npm ci`): en [plan.md](plan.md), ids únicos y bien escritos, fase y estado en cada ítem, cada uno en la sección de su fase, dependencias que existen y no están en una fase posterior, y las fases de `src/lib/admin/nav.js` iguales a las del plan (ver abajo). Y **migrations-lint**: ninguna migración que ya está en main cambia, se borra o se renombra, y no hay dos con el mismo número ([datos.md](datos.md)) | `node scripts/plan-lint.js`, `node scripts/migrations-lint.js`                                   |
-| `plan-pr`                       | solo en PRs: **la línea `Plan:`** de la descripción (`node scripts/plan-pr.js`, lee el evento): `Plan: <id>[, <id>]` con ids que existen en el `plan.md` del PR, o `Plan: ninguno`. Los PRs de bots (Dependabot) no la necesitan                                                                                                                                                                                                                                       | —                                                                                                |
-| **`ci-ok`**                     | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `changes`, `docs`, `unit`, `tests`, `e2e`, `typecheck`, `plan` y `plan-pr` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                                                                                                                                                                                       | —                                                                                                |
+**PRs que no tocan el sitio construido** (gorrite, 5/11, [Tiempos de la CI](#tiempos-de-la-ci)):
+el mismo job `changes` saltea `e2e` si cada archivo del PR es documentación (lo de arriba), una
+prueba unitaria (`src/**/*.test.js` o `scripts/**/*.test.js`; las de Playwright, en `tests/`, no
+cuentan) o una herramienta de la CI que no entra al build (`scripts/vitest/`, `scripts/hooks/`,
+`scripts/ui-impacto/`). Cualquier otro archivo (todo `src/`, `migrations/`, el resto de
+`scripts/`, `tests/`, `package*.json`, `wrangler.toml`, `worker/`, los workflows) corre `e2e`. En
+`main`, siempre.
+
+| Job (nombre en GitHub)  | Pasos, en orden                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Cómo reproducirlo en tu compu                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `unit`                  | **Lint** (`npm run lint`) → **Prettier** (`npm run format:check`)                                                                                                                                                                                                                                                                                                                                                                                                      | `npm run lint && npm run format:check`                                                           |
+| `tests (1/4)` … `(4/4)` | trae la caché de vitest → **Unit + content tests** repartidas en 4 máquinas por tiempo (`npx vitest run --shard=N/4 --fsModuleCache`): juntas corren todas                                                                                                                                                                                                                                                                                                             | `npx vitest run` (todas), `npx vitest run --shard=1/4` o `npm run test:related`                  |
+| `e2e`                   | trae la base sembrada de la caché, si está → **Build + seed + Chromium** en paralelo (`npm run build`, `node scripts/semilla.js` si la base no vino de la caché, y `scripts/chromium-ci.sh`) → guarda la base sembrada → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → guardia del modo demo → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`)                                                                     | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
+| `typecheck`             | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                                                                                                                                                                                                                                      | `node scripts/svelte-check-ratchet.js`                                                           |
+| `plan`                  | **plan-lint** (`node scripts/plan-lint.js`, sin `npm ci`): en [plan.md](plan.md), ids únicos y bien escritos, fase y estado en cada ítem, cada uno en la sección de su fase, dependencias que existen y no están en una fase posterior, y las fases de `src/lib/admin/nav.js` iguales a las del plan (ver abajo). Y **migrations-lint**: ninguna migración que ya está en main cambia, se borra o se renombra, y no hay dos con el mismo número ([datos.md](datos.md)) | `node scripts/plan-lint.js`, `node scripts/migrations-lint.js`                                   |
+| `plan-pr`               | solo en PRs: **la línea `Plan:`** de la descripción (`node scripts/plan-pr.js`, lee el evento): `Plan: <id>[, <id>]` con ids que existen en el `plan.md` del PR, o `Plan: ninguno`. Los PRs de bots (Dependabot) no la necesitan                                                                                                                                                                                                                                       | —                                                                                                |
+| **`ci-ok`**             | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `changes`, `docs`, `unit`, `tests`, `e2e`, `typecheck`, `plan` y `plan-pr` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                                                                                                                                                                                       | —                                                                                                |
 
 Fuera de `ci.yml` aparecen además:
 
@@ -153,6 +162,14 @@ Detalles de `e2e`:
   primera vez tarda ~1-2 minutos; después, segundos. Por eso en la CI la primera carga corre al
   mismo tiempo que el build y la instalación de Chromium, y la de Playwright es la segunda
   (segundos).
+- **La base sembrada va en caché** (`.wrangler/state`). La clave es el hash de todo lo que la
+  arma: `migrations/`, los `.js` de `src/lib/server/` y `src/lib/utils/` (lo que importa
+  `scripts/semilla.js`) y de `src/lib/`, los `.json` de la semilla, `scripts/semilla.js`,
+  `scripts/local-d1.js`, `wrangler.toml` y `package-lock.json`, sin los `*.test.js`. Clave exacta,
+  sin «la más parecida»: si cambia algo de eso, se siembra de cero y se guarda la nueva. Se guarda
+  apenas se siembra, antes de que las pruebas escriban en la base. Igual Playwright corre la
+  semilla otra vez antes de servir, así que una base de la caché nunca reemplaza a la semilla. Los
+  PRs que no tocan nada de eso (casi todos los de diseño) se ahorran ~1,5 minutos.
 - `playwright.config.js` tiene `fullyParallel: true`: cada prueba es independiente, así los 2
   workers de Playwright se reparten las pruebas sueltas y no archivos enteros (`smoke.spec.js`
   tiene casi todas).
@@ -165,6 +182,10 @@ Detalles de `e2e`:
   el beacon de Cloudflare: con salida a internet, las pruebas que esperan `networkidle` en `/wiki`
   o `/material` esperaban a producción y, si tardaba, se pasaban de los 30 s.
 - Chromium se guarda en caché entre corridas, por versión de `@playwright/test`.
+  `scripts/chromium-ci.sh` (también en `ui-impacto`) lo baja si falta y corre
+  `playwright install-deps` **solo si a Chromium le falta alguna librería** (`ldd`): las máquinas
+  de GitHub ya traen todo, y `install-deps` (que hace `apt-get`) casi siempre tardaba ~20 s pero a
+  veces más de 9 minutos.
 - Si las pruebas fallan, sube `playwright-results` (capturas y trazas) como artifact por 7 días.
 
 Detalles de `tests`:
@@ -173,11 +194,13 @@ Detalles de `tests`:
   parte, sin mirar cuánto tardan, y una parte terminaba mucho después que las otras.
   `scripts/vitest/sequencer.js` (en `vite.config.js`, `test.sequence.sequencer`) los reparte por
   lo que tardó cada uno según `scripts/vitest/durations.json`: del más lento al más rápido, cada
-  archivo va a la parte que menos suma. Un archivo que no está ahí cuenta como la mediana; cada
-  archivo corre en exactamente una parte aunque los tiempos estén viejos. Cada parte sube lo que
-  tardó cada archivo como artifact `vitest-durations-N` (30 días). Para actualizar los tiempos
-  (conviene cuando se suman o cambian pruebas lentas), bajá los tres de una corrida reciente de
-  `main` y juntalos:
+  archivo va a la parte que menos suma. Un archivo que no está ahí cuenta como la mediana, y cada
+  uno cuenta por lo menos 0,3 s (`MIN_FILE_SECONDS`: levantar su worker e importar cuesta aunque
+  sus pruebas tarden 0 s; sin ese piso, los ~90 archivos de 0 s caían todos en la misma parte, que
+  terminaba más de un minuto después). Cada archivo corre en exactamente una parte aunque los
+  tiempos estén viejos. En `main`, cada parte sube lo que tardó cada archivo como artifact
+  `vitest-durations-N` (30 días). Para actualizar los tiempos (conviene cuando se suman o cambian
+  pruebas lentas), bajá los cuatro de una corrida reciente de `main` y juntalos:
   `gh run download <id> -p 'vitest-durations-*' -D /tmp/tiempos && node scripts/vitest/merge-durations.js /tmp/tiempos/*/vitest-durations.json`.
   Desde una sesión de Claude en la nube, `gh` no baja artifacts: el tool del MCP de GitHub
   `actions_get` con `download_workflow_run_artifact` da un link temporal para bajar cada zip.
@@ -187,7 +210,9 @@ Detalles de `tests`:
 - **Caché**: cada parte guarda y recupera `node_modules/.vite` (cuánto tardó cada archivo la
   última vez: los lentos arrancan primero) y `node_modules/.vitest-cache` (los módulos ya
   transformados, `--fsModuleCache`, solo en la CI). La clave lleva la parte, el hash de
-  `package-lock.json` y el commit; los PRs arrancan de la última de `main`.
+  `package-lock.json` y el commit; los PRs arrancan de la última de `main`. **Solo `main` la
+  guarda**: si cada corrida de PR guardara la suya, llenarían los 10 GB de caché del repo y GitHub
+  borraría las de npm y Chromium.
 
 `npm run lint` es solo ESLint: **no** revisa el formato de Prettier. Eso lo hace el paso
 **Prettier** del job `unit` con `npm run format:check` (todo el repo menos lo que lista
@@ -203,6 +228,52 @@ sin ruido: `svelte/no-at-html-tags` (cada `{@html}` lleva arriba
 código por separado: borrá solo el que señala) y `svelte/no-immutable-reactive-statements` (un `$:`
 que no depende de nada reactivo es un `const`). `npm run lint` lleva
 `--report-unused-disable-directives`: un `eslint-disable` que ya no hace falta también es error.
+
+## Tiempos de la CI
+
+Medido el 5/11/2026 (pedido de gorrite: la CI tardaba 15-20 minutos), con 15 corridas de
+`ci.yml` y los tiempos de cada job y paso de la API de GitHub. Lo que hacía esperar no eran las
+pruebas que exige `ci-ok` (~3 minutos) sino **`ui-impacto`**: es solo informativo, pero la guardia
+de merge (`scripts/hooks/check-merge.js`) espera a que termine todo chequeo, y tardaba 10-22
+minutos en cada PR de diseño. Dos veces, además, `playwright install-deps` (apt) tardó más de 9
+minutos.
+
+| Qué                               | Antes (15 corridas)         | Después (PR `ci-mas-rapida`)             |
+| --------------------------------- | --------------------------- | ---------------------------------------- |
+| `ci-ok` verde, sin cola           | 170-200 s (mediana ~193 s)  | 144-182 s (182 s sin cachés)             |
+| Parte de vitest más lenta (job)   | 146-185 s (3 partes)        | 123-147 s (4 partes)                     |
+| `e2e`                             | 118-163 s (una vez 635 s)   | 91-125 s con la base en caché, 161 s sin |
+| Librerías de Chromium (apt)       | 16-557 s                    | 0 s (no hacían falta)                    |
+| `ui-impacto` (job)                | 610-1302 s (mediana ~780 s) | 337-488 s                                |
+| Corrida entera de un PR de diseño | 622-1305 s (mediana ~790 s) | 340-491 s                                |
+
+Qué se hizo, y por qué:
+
+- **`ui-impacto` captura los dos lados a la vez** (cada uno con su `vite dev`): de ~4 + 4 minutos
+  de capturas a ~4. Comparando una rama consigo misma con los dos lados a la vez no cambió
+  ninguna de las 72 capturas. La captura de la grilla del calendario esperaba un selector que ya
+  no existe: perdía 30 s por captura (2 minutos por corrida) y siempre daba error.
+- **Chromium sin apt** si no le falta nada (`scripts/chromium-ci.sh`), en `e2e` y `ui-impacto`.
+- **vitest en 4 partes** y un piso de 0,3 s por archivo en el reparto (los ~90 archivos de 0 s
+  caían todos en la misma parte, que era siempre la última); `durations.json` al día.
+- **La base sembrada de `e2e` en caché** (clave exacta por lo que la arma, ver «Detalles de
+  `e2e`»): ~1 minuto menos en casi todos los PRs.
+- Las cachés de vitest y los artifacts de tiempos los guarda solo `main`, y `main` no se cancela.
+
+**Pruebas que cambiaron** (gorrite, 5/11: se pueden cortar o mover pruebas si es con criterio y
+se dice; nunca para tapar una falla real):
+
+- **Condicional**: `e2e` se saltea en los PRs que solo tocan documentación, pruebas unitarias o
+  herramientas de la CI que no entran al build (ver arriba, «PRs que no tocan el sitio
+  construido»). Esos archivos no pueden cambiar lo que recorre Playwright. En `main` corre siempre.
+- **Borradas o movidas a una corrida programada: ninguna.** Con los tiempos de cada archivo
+  (`npx vitest run --reporter=json`) no hay ninguno que pese: el más lento
+  (`mi-link.test.js`, ~21 s en una compu cargada) es menos del 4 % del total, y mover un archivo
+  ahorra menos que el arranque de una máquina. Y borrar una prueba sigue necesitando el sí de
+  gorrite por cada una (`tests-auditoria` en [plan.md](plan.md)).
+
+Lo que sigue pesando: las máquinas de GitHub no son todas iguales (la misma parte de vitest tarda
+75 s o 140 s según cuál toque) y, si hay muchos PRs a la vez, la cola (hasta ~2 minutos).
 
 ## Los tipos de pruebas
 

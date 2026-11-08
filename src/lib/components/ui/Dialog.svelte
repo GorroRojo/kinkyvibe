@@ -7,11 +7,14 @@
 	 *
 	 * Props: `open` (bind:open), `title`, `icon` (componente de Lucide, opcional, al lado del
 	 * título), `tone`: 'primary' | 'danger' | 'permanent' (color del ícono), `inline` (se muestra
-	 * en el lugar, sin modal: solo para la galería /estilo).
+	 * en el lugar, sin modal: solo para la galería /estilo), `surface`: 'panel' (default,
+	 * `.kv-dialog`) | 'sitio' (fuera del panel, `.kv-dialog-sitio` de ./dialogo-sitio.scss; los
+	 * botones, con `<Button surface="sitio">`).
 	 * Slots: default (el contenido), `buttons` (los botones, en `.kv-dialog-btns`).
 	 * Evento: `close`.
 	 */
 	import { createEventDispatcher } from 'svelte';
+	import './dialogo-sitio.scss';
 
 	export let open = false;
 	/** @type {string} */
@@ -21,6 +24,8 @@
 	/** @type {'primary' | 'danger' | 'permanent'} */
 	export let tone = 'primary';
 	export let inline = false;
+	/** @type {'panel' | 'sitio'} */
+	export let surface = 'panel';
 
 	const dispatch = createEventDispatcher();
 	/** @type {HTMLDialogElement | undefined} */
@@ -39,7 +44,7 @@
 
 <dialog
 	bind:this={dialog}
-	class="kv-dialog {tone}"
+	class="{surface === 'sitio' ? 'kv-dialog-sitio' : 'kv-dialog'} {tone}"
 	class:inline
 	open={inline || undefined}
 	aria-label={title}
@@ -61,6 +66,15 @@
 		color: var(--bad);
 	}
 	.permanent h2 :global(svg) {
+		color: var(--error);
+	}
+	.kv-dialog-sitio h2 :global(svg) {
+		color: var(--1);
+	}
+	.kv-dialog-sitio.danger h2 :global(svg) {
+		color: var(--1-dark);
+	}
+	.kv-dialog-sitio.permanent h2 :global(svg) {
 		color: var(--error);
 	}
 	.inline {

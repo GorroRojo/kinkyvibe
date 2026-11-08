@@ -173,6 +173,16 @@ export const SECCIONES = [
 		cuandoNo:
 			'El estilo de planilla editable va solo donde se edita. No ordenes una lista que se pagina en el servidor: el orden de la página sería falso.',
 		soloPanel: true
+	},
+	{
+		id: 'sitio',
+		nombre: 'Sitio público',
+		importa:
+			"import { Field, Checkbox, Switch, Notice, Card, Badge, Table, UndoToast, ConfirmDialog } from '$lib/components/ui';",
+		cuando:
+			'Las versiones para el sitio público, al lado de las del panel: el mismo componente con `surface="sitio"`, que usa los tokens del sitio (`--ink`, `--muted`, `--2-dark`, los `-tint` y los `-ink`) y anda fuera de `.kv-panel`. El diálogo de confirmar del sitio lo montaría un layout público, como el del panel.',
+		cuandoNo:
+			'Todavía no las usa ninguna página pública: adoptarlas es otra decisión. En una página pública, cada componente por su archivo (no el barril). Dentro del panel, sin `surface`.'
 	}
 ];
 
@@ -191,5 +201,6 @@ export const GRUPOS = Object.freeze({
 	'tarjetas-y-vacios': ['card', 'empty'],
 	'avisos-y-guardado': ['notice', 'savestatus'],
 	'dialogos-y-hojas': ['dialog', 'sheet'],
-	tablas: ['table']
+	tablas: ['table'],
+	'sitio-publico': ['sitio']
 });

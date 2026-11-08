@@ -8,6 +8,7 @@ import { render } from 'svelte/server';
 import { textOf } from '$lib/testing/html.js';
 import { SALES_PERIODS, VISITS_PERIODS, parsePeriod } from '$lib/admin/statsPeriod.js';
 import { attendancePage, salesPage } from '$lib/server/admin/statsPages.js';
+import { tipsByMonth } from '$lib/server/admin/charts.js';
 import Ventas from './ventas/+page.svelte';
 import Asistencia from './asistencia/+page.svelte';
 import Visitas from './visitas/+page.svelte';
@@ -108,6 +109,42 @@ describe('Ventas', () => {
 		]);
 	});
 
+	it('sin `gastos_reparto` no hay ganancia; con cierres, los totales y «Ganancia por mes»', () => {
+		const off = text(
+			render(Ventas, {
+				props: { data: /** @type {any} */ ({ dbAvailable: true, period: '90d', serie: '', sales }) }
+			}).body
+		);
+		expect(off).not.toContain('Ganancia por mes');
+		expect(off).not.toContain('Ingresos de la cuenta');
+		const closings = [
+			{
+				event_slug: 'fiesta-2026-09',
+				event_date: '2026-09-20',
+				income_total: 300000,
+				expenses_total: 120000,
+				profit: 180000
+			}
+		];
+		const withProfit = salesPage(orders, events, { period, now: NOW, closings });
+		const on = text(
+			render(Ventas, {
+				props: {
+					data: /** @type {any} */ ({
+						dbAvailable: true,
+						period: '90d',
+						serie: '',
+						sales: withProfit
+					})
+				}
+			}).body
+		);
+		expect(on).toContain('Ganancia por mes');
+		expect(on).toContain('1 de 2 eventos con cuenta cerrada');
+		expect(on).toContain('Ingresos de la cuenta $ 300.000');
+		expect(on).toContain('Ganancia o pérdida +$ 180.000');
+	});
+
 	it('con una serie elegida, los links de período la conservan y se dice cuál es', () => {
 		const one = salesPage(orders, events, { period, serie: 'taller', now: NOW });
 		const html = render(Ventas, {
@@ -117,6 +154,64 @@ describe('Ventas', () => {
 		}).body;
 		expect(text(html)).toContain('Solo la serie Taller Inventado');
 		for (const l of periodLinks(html)) expect(l.url.searchParams.get('serie')).toBe('taller');
+	});
+
+	it('«Fondo y finanzas» suma las suscripciones del mes y las propinas por destino', () => {
+		const months = sales.fondo.rows.map((r) => r.month);
+		const tips = tipsByMonth(
+			[
+				{ month: months[months.length - 1], destination: 'kinkyvibe', count: 2, total: 3000 },
+				{ month: months[months.length - 1], destination: 'fondo', count: 1, total: 500 },
+				{ month: '1999-01', destination: 'fondo', count: 9, total: 9999 }
+			],
+			months
+		);
+		const fondoMonth = {
+			collected: 45000,
+			goal: 100000,
+			percent: 12,
+			step: 1,
+			updatedAt: null,
+			stale: false
+		};
+		const t = text(
+			render(Ventas, {
+				props: {
+					data: /** @type {any} */ ({
+						dbAvailable: true,
+						period: '90d',
+						serie: '',
+						sales,
+						fondoMonth,
+						tips
+					})
+				}
+			}).body
+		);
+		expect(t).toContain('Suscripciones al Fondo, este mes');
+		expect(t).toContain('45 % de la meta');
+		expect(t).toContain('descuento del 12 %');
+		expect(t).toContain('Propinas recibidas');
+		expect(t).toContain('3 aprobadas');
+		expect(t).toContain('Propinas por mes');
+		expect(t).not.toContain('está en el Inicio');
+		// Sin esos datos, la tarjeta sigue y lo dice.
+		const empty = text(
+			render(Ventas, {
+				props: {
+					data: /** @type {any} */ ({
+						dbAvailable: true,
+						period: '90d',
+						serie: '',
+						sales,
+						fondoMonth: null,
+						tips: null
+					})
+				}
+			}).body
+		);
+		expect(empty).toContain('no pudimos leer fondo.kinkyvibe.ar');
+		expect(empty).toContain('Fondo y finanzas');
 	});
 
 	it('sin base: «Sin datos», con el filtro igual', () => {

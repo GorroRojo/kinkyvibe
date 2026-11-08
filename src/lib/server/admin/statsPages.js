@@ -83,6 +83,47 @@ function monthEnd(now) {
 }
 
 /**
+ * @typedef {{ event_slug: string, event_date: string, income_total: number, expenses_total: number, profit: number }} ClosingLike
+ */
+
+/**
+ * «Ganancia por mes» (interruptor `gastos_reparto`): las cuentas cerradas (Gastos y reparto) de los
+ * eventos de esos meses, por el mes del evento (como el resto de la pestaña). Un mes sin cierres
+ * queda vacío (`null`, no $ 0). `events` son los eventos del período (con ventas o cerrados); el
+ * total dice cuántos tienen la cuenta cerrada.
+ *
+ * @param {ClosingLike[]} closings ya filtrados por serie
+ * @param {{ month: string, label: string }[]} months de la más vieja a la más nueva
+ * @param {Iterable<string>} events los slugs de los eventos del período que ya pasaron
+ */
+export function profitByMonth(closings, months, events) {
+	const keys = new Set(months.map((m) => m.month));
+	const inPeriod = closings.filter((c) => keys.has(String(c.event_date).slice(0, 7)));
+	const rows = months.map(({ month, label }) => {
+		const here = inPeriod.filter((c) => c.event_date.startsWith(month));
+		/** @param {'income_total' | 'expenses_total' | 'profit'} k */
+		const sum = (k) => (here.length ? here.reduce((t, c) => t + (Number(c[k]) || 0), 0) : null);
+		return {
+			month,
+			label,
+			closed: here.length,
+			income: sum('income_total'),
+			expenses: sum('expenses_total'),
+			profit: sum('profit')
+		};
+	});
+	/** @param {'income' | 'expenses' | 'profit'} k */
+	const total = (k) => (inPeriod.length ? rows.reduce((t, r) => t + (r[k] ?? 0), 0) : null);
+	const all = new Set([...events, ...inPeriod.map((c) => c.event_slug)]);
+	return {
+		rows,
+		totals: { income: total('income'), expenses: total('expenses'), profit: total('profit') },
+		closed: inPeriod.length,
+		events: all.size
+	};
+}
+
+/**
  * Pestaña Ventas: KPIs (con el período anterior, si hay), ventas en el tiempo, por serie, cómo
  * pagan, opciones del fondo y Fondo y finanzas, todo del período y, si se eligió, de una serie.
  *
@@ -95,9 +136,14 @@ function monthEnd(now) {
  *
  * @param {PersonOrder[]} orders aprobadas y reembolsadas
  * @param {Map<string, EventInfo>} events
- * @param {{ period: Period, serie?: string, now?: number }} opts
+ * @param {{ period: Period, serie?: string, now?: number, closings?: ClosingLike[] | null }} opts
+ *   `closings`: las cuentas cerradas (con `gastos_reparto` prendido); sin ellas, `profit` es `null`
  */
-export function salesPage(orders, events, { period, serie = '', now = Date.now() }) {
+export function salesPage(
+	orders,
+	events,
+	{ period, serie = '', now = Date.now(), closings = null }
+) {
 	const range = periodRange(period, now);
 	/** @param {PersonOrder} o */
 	const ofSerie = (o) => !serie || seriesOf(o.event_slug) === serie;
@@ -132,6 +178,9 @@ export function salesPage(orders, events, { period, serie = '', now = Date.now()
 				? monthKey(Math.min(...current.map(saleAt)))
 				: monthKey(now);
 	const months = monthsBetween(firstMonth, monthKey(now));
+	const fondo = fondoByMonth(current, { now, months });
+	// Los eventos del período que ya empezaron (los de este mes que todavía no, no cuentan).
+	const pastEvents = new Set(current.filter((o) => saleAt(o) < now).map((o) => o.event_slug));
 	return {
 		period: period.id,
 		serie,
@@ -149,7 +198,14 @@ export function salesPage(orders, events, { period, serie = '', now = Date.now()
 			// Cómo arranca agrupado el gráfico: por día en 30 días, por mes con todo.
 			bucket: period.days === 30 ? 'day' : period.days || period.months ? 'week' : 'month'
 		},
-		fondo: fondoByMonth(current, { now, months })
+		fondo,
+		profit: closings
+			? profitByMonth(
+					closings.filter((c) => !serie || seriesOf(c.event_slug) === serie),
+					fondo.rows,
+					pastEvents
+				)
+			: null
 	};
 }
 

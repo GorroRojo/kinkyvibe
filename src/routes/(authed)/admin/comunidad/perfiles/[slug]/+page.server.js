@@ -6,11 +6,13 @@ import {
 	editorPageData,
 	saveProfileAction
 } from '$lib/server/admin/amiguesRoutes.js';
+import { objectPageVisits } from '$lib/server/admin/pageVisits.js';
 
 /**
  * El editor de un perfil, solo en la base («solo base»: publica al toque, con control de versión):
  * los creados en el panel, los de las cuentas, los lugares y las fichas importadas. Un perfil que
- * la base no tiene (una ficha del repo sin importar) da 404 con el aviso de importarla primero.
+ * la base no tiene (una ficha del repo sin importar) da 404 con el aviso de importarla primero. La tarjeta «Visitas» de su página va
+ * sin esperar (docs/analiticas.md, «Visitas de una página»).
  *
  * @type {import('./$types').PageServerLoad}
  */
@@ -18,7 +20,13 @@ export async function load(event) {
 	requireAdmin(event.locals, event.url);
 	const data = await editorPageData(event.platform, event.params.slug, event.locals);
 	if (!data) error(404, NOT_IN_DB);
-	return data;
+	return {
+		...data,
+		visits: objectPageVisits(event.platform, {
+			kind: 'perfil',
+			slugs: [data.profile.urlSlug, data.profile.slug, event.params.slug]
+		})
+	};
 }
 
 /** @type {import('./$types').Actions} */
