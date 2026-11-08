@@ -87,6 +87,13 @@ describe('prSummary', () => {
 		expect(prSummary({ body })).toBe('El texto real.');
 	});
 
+	it('un comentario armado de dos o sin cerrar tampoco queda', () => {
+		expect(prSummary({ body: '<!<!-- a -->-- b -->\n\nEl texto real.' })).toBe('El texto real.');
+		expect(prSummary({ body: 'El texto real.\n\n<!-- sin cerrar\n\nOtra cosa.' })).toBe(
+			'El texto real.'
+		);
+	});
+
 	it('sin cuerpo: el del mensaje del commit, sin el título ni los trailers', () => {
 		const commitMessage = [
 			'Título del commit (#12)',

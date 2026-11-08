@@ -74,8 +74,15 @@ export function shorten(text) {
  * @returns {string[][]}
  */
 function paragraphs(md) {
-	const lines = String(md)
-		.replace(/<!--[^]*?-->/g, '')
+	// Hasta que no cambie: sacar un comentario puede armar otro (`<!<!-- -->-- -->`). Un `<!--`
+	// sin cierre se corta hasta el final, como lo haría el navegador.
+	let text = String(md);
+	for (let prev = ''; prev !== text;) {
+		prev = text;
+		text = text.replace(/<!--[^]*?-->/g, '');
+	}
+	const lines = text
+		.replace(/<!--[^]*$/, '')
 		.replace(/\r\n?/g, '\n')
 		.split('\n');
 	/** @type {string[][]} */
