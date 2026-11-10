@@ -113,8 +113,8 @@
 	 */
 	export let fondoPercent = null;
 
-	/** @type {Array<'mercadopago' | 'transferencia'>} */
-	const METHODS = ['mercadopago', 'transferencia'];
+	/** @type {Array<'mercadopago' | 'transferencia' | 'paypal'>} */
+	const METHODS = ['mercadopago', 'transferencia', 'paypal'];
 	/** Cómo se cobra un tipo. */
 	const MODES = /** @type {const} */ ([
 		{ id: 'price', label: 'Precio fijo' },
@@ -579,7 +579,16 @@
 							rel="noopener">Ajustes → Cobros</a
 						>: por ahora no se ofrece.
 					</Notice>
-				{:else if state.methods.transferencia}
+				{/if}
+				{#if state.methods.paypal}
+					<small
+						>PayPal se ofrece solo con el interruptor PayPal prendido, las credenciales cargadas y
+						la cotización del día (<a href="/admin/ajustes/paypal" target="_blank" rel="noopener"
+							>Ajustes → PayPal</a
+						>). Quien paga con PayPal paga la comisión como recargo.</small
+					>
+				{/if}
+				{#if state.methods.transferencia && transferReady !== false}
 					<small
 						>El alias y los datos para transferir se configuran en <a
 							href={settingsHref}

@@ -23,6 +23,7 @@
  *                                         # (solo fecha = hasta el fin de ese día; hora de
  *                                         # Argentina si no tiene zona)
  * payment_methods: [mercadopago, transferencia]   # opcional; por defecto solo mercadopago
+ * paypal: false                  # opcional; PayPal se ofrece salvo esto (docs/paypal.md)
  * mp_fee_percent: 2      # opcional; si falta: /admin/ajustes/cobros, TICKETS_MP_FEE_PERCENT o 2 %
  * puerta: true           # opcional (eventos presenciales): true = también hay entradas en la
  *                        # puerta (la página lo dice); false = "Solo anticipadas" y el modo puerta
@@ -82,7 +83,8 @@
 /**
  * @typedef {{ min: number, suggested: number }} Gorra
  */
-/** @typedef {'mercadopago' | 'transferencia'} PaymentMethod */
+/** @typedef {'mercadopago' | 'transferencia' | 'paypal'} PaymentMethod */
+// `paypal` no va en `payment_methods`: es la clave aparte `paypal` (prendida salvo `paypal: false`).
 /** @typedef {{ name: string, pronouns: string }} Holder */
 /** @typedef {{ name: string, pronouns: string, email: string, dni: string }} Buyer */
 /**
@@ -91,6 +93,7 @@
  *   fondoEnabled: boolean,
  *   fondoPercent: number | null,
  *   paymentMethods: PaymentMethod[],
+ *   paypal: boolean,
  *   mpFeeBasisPoints: number | null,
  *   opensAt: number | null,
  *   closesAt: number | null,
@@ -340,6 +343,8 @@ export function parseTicketConfig(meta, options = {}) {
 		fondoEnabled,
 		fondoPercent,
 		paymentMethods,
+		// PayPal por evento (docs/paypal.md): prendido salvo `paypal: false`, como opción aparte.
+		paypal: meta.paypal !== false,
 		mpFeeBasisPoints,
 		opensAt,
 		closesAt,

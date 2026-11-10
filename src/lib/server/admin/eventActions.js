@@ -14,6 +14,7 @@ import {
 	sendStreamLinkEmails,
 	siteOrigin
 } from '$lib/server/tickets/index.js';
+import { getPaypalGateway } from '$lib/server/paypal/gateway.js';
 import { confirmLimits, reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
@@ -622,7 +623,8 @@ export const eventTicketActions = {
 			db,
 			order,
 			by: admin.login,
-			gateway: () => getGateway(fetch)
+			gateway: () => getGateway(fetch),
+			paypal: () => getPaypalGateway(fetch)
 		});
 		if (r.result === 'refunded' && r.order) {
 			await afterRefund({ db, locals, platform, url, fetch, before: order, fresh: r.order });
@@ -715,13 +717,14 @@ export const eventTicketActions = {
 				return fail(409, {
 					refundAll: {
 						ok: false,
-						message: 'No queda ninguna orden de Mercado Pago para reembolsar.'
+						message: 'No queda ninguna orden de Mercado Pago o PayPal para reembolsar.'
 					}
 				});
 			}
 		}
 		const gateway = await getGateway(fetch);
-		if (!gateway) {
+		const paypalGateway = await getPaypalGateway(fetch);
+		if (!gateway && !paypalGateway) {
 			return fail(503, {
 				refundAll: { ok: false, message: 'Mercado Pago no está disponible: no se hizo nada.' }
 			});
@@ -733,6 +736,8 @@ export const eventTicketActions = {
 				eventSlug: params.slug,
 				by: admin.login,
 				gateway: async () => gateway,
+				// Las de PayPal también se devuelven por la API (docs/paypal.md).
+				paypal: async () => paypalGateway,
 				after,
 				onRefunded: (fresh, before) =>
 					afterRefund({ db, locals, platform, url, fetch, before, fresh, waitlist: false })

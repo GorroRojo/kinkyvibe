@@ -149,17 +149,21 @@ export const FLAGS = Object.freeze({
 		envVar: 'LO_QUE_ENLAZA_ENABLED'
 	},
 	paypal: {
-		label: 'PayPal en las propinas',
+		label: 'PayPal',
 		description:
-			'En construcción. Por ahora prende la parte de PayPal de Ajustes → Propinas: la cotización ' +
-			'del dólar con la que se estiman en pesos las propinas en dólares, el ajuste en % de esa ' +
-			'cotización, los retiros y el reparto por mes del Fondo, y le pasa a fondo.kinkyvibe.ar ' +
-			'lo de PayPal. Todavía no se puede pagar con PayPal. Apagado, nada de esto se ve (la ' +
-			'cotización le llega igual a fondo.kinkyvibe.ar).',
+			'Pagar con PayPal, en dólares: las propinas y las entradas de los eventos que lo tienen ' +
+			'prendido (lo está por defecto; con extras, Fondo, códigos y lugares guardados de la ' +
+			'lista de espera; en las entradas, con el recargo de la comisión de PayPal). Se ' +
+			'cobra al dólar MEP del día con el ajuste en % de Ajustes → PayPal, donde también están ' +
+			'los retiros y el reparto por mes del Fondo. Solo se ofrece si están cargadas las ' +
+			'credenciales de PayPal y hay una cotización reciente. Apagado, no se ofrece PayPal y ' +
+			'nada de esto se ve (la cotización le llega igual a fondo.kinkyvibe.ar).',
 		tech:
-			'docs/propinas.md («PayPal: cotización, ajuste y retiros»), decisión 0054. Necesita la ' +
-			'migración 0071. Apagado, GET /api/fondo/propinas-total no trae `paypal`. ' +
-			'GET /api/fondo/cotizacion y el cron diario de la cotización andan igual (no se ven).',
+			'docs/paypal.md (la lista para prenderlo) y docs/propinas.md, decisiones 0054 y 0059. ' +
+			'Necesita las migraciones 0071 y 0082 y los secretos PAYPAL_CLIENT_ID, ' +
+			'PAYPAL_CLIENT_SECRET y PAYPAL_WEBHOOK_ID (PAYPAL_ENV=live para cobrar de verdad). ' +
+			'Apagado, GET /api/fondo/propinas-total no trae `paypal`. GET /api/fondo/cotizacion y el ' +
+			'cron diario de la cotización andan igual (no se ven).',
 		envVar: 'PAYPAL_ENABLED'
 	},
 	extras: {

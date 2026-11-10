@@ -711,3 +711,18 @@ describe('mail de las entradas: la línea fija de +18 (gorrite, 26/10)', () => {
 		expect(text).toContain('Solo para personas mayores de 18 años.');
 	});
 });
+
+describe('el desglose del mail con PayPal (priceLines)', () => {
+	it('el recargo dice PayPal y el total va también en dólares, como en el recibo de PayPal', () => {
+		const lines = email
+			.priceLines(fixtureOrder({ payment_method: 'paypal', usd_amount_cents: 1234 }), 'General')
+			.map((l) => l.replaceAll(' ', ' '));
+		expect(lines).toContain('Recargo PayPal: +$ 307');
+		expect(lines.at(-1)).toBe('Total: $ 15.307 (US$ 12,34 con PayPal)');
+	});
+
+	it('con Mercado Pago, el total solo en pesos', () => {
+		const lines = email.priceLines(fixtureOrder({ usd_amount_cents: 1234 }), 'General');
+		expect(lines.at(-1)?.replaceAll(' ', ' ')).toBe('Total: $ 15.307');
+	});
+});

@@ -19,6 +19,20 @@ import { getGateway, siteOrigin } from '$lib/server/tickets/index.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { propinasFondoEnabled } from '$lib/server/flags.js';
 import { TIP_SOURCE_FONDO, presetFromQuery, tipPost } from '$lib/utils/propinas.js';
+import { getPaypalGateway } from '$lib/server/paypal/gateway.js';
+import { paypalOffer } from '$lib/server/paypal/payments.js';
+
+/**
+ * PayPal para una propina (docs/paypal.md): el cliente y la cotización, o `null` si no se ofrece.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {typeof fetch} fetchFn
+ */
+async function paypalForTip(db, fetchFn) {
+	const quote = await paypalOffer(db);
+	const gateway = quote ? await getPaypalGateway(fetchFn) : null;
+	return quote && gateway ? { gateway, quote } : null;
+}
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ url, setHeaders, platform }) {
@@ -57,7 +71,8 @@ export const actions = {
 			client: relaxed ? `dev-${crypto.randomUUID()}` : await clientHash(clientAddress(event)),
 			origin: siteOrigin(url),
 			findPost: (category, slug) => findTipPost(category, slug, platform),
-			fondoEnabled: values.source === TIP_SOURCE_FONDO && (await propinasFondoEnabled(platform))
+			fondoEnabled: values.source === TIP_SOURCE_FONDO && (await propinasFondoEnabled(platform)),
+			paypal: values.method === 'paypal' ? await paypalForTip(db, fetch) : null
 		});
 		if (!result.ok) {
 			// Un 5xx cuenta para el aviso «Fallas del sitio» (con JavaScript, el `fail` llega como 200).

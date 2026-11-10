@@ -7,6 +7,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { createPreference } from '$lib/server/tickets/mercadopago.js';
 import { isSafeCheckoutUrl, readTipForm, startTip } from './checkout.js';
 import { TIP_RATE_LIMITS, getTip } from './index.js';
+import { paypalCharge, usdCentsForArs } from '$lib/utils/paypal.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -92,6 +93,35 @@ describe('startTip', () => {
 		expect(body.items[0].unit_price).toBe(2000);
 		expect(body).not.toHaveProperty('payer');
 		expect(findPost).toHaveBeenCalledWith('material', 'guia');
+	});
+
+	it('con PayPal: cobra los dólares con el recargo de la comisión (como las entradas)', async () => {
+		const quote = { base: 1250, adjustmentPct: 0, feeBasisPoints: 540, fixedCents: 30 };
+		/** @type {any[]} */
+		const orders = [];
+		const gateway = /** @type {any} */ ({
+			createOrder: async (/** @type {any} */ body) => {
+				orders.push(body);
+				return {
+					id: 'PP1',
+					links: [{ rel: 'payer-action', href: 'https://www.paypal.com/checkoutnow?token=PP1' }]
+				};
+			}
+		});
+		const res = await run({ values: values({ method: 'paypal' }), paypal: { gateway, quote } });
+		expect(res).toMatchObject({ ok: true });
+		if (!res.ok) throw new Error('esperaba ok');
+		const { surcharge, usdCents } = paypalCharge(2000, quote);
+		expect(surcharge).toBeGreaterThan(0);
+		// El monto de la propina queda en pesos, sin el recargo; los dólares, con el recargo.
+		expect(await getTip(t.db, res.tipId)).toMatchObject({
+			amount: 2000,
+			provider: 'paypal',
+			usd_gross_cents: usdCents
+		});
+		expect(usdCents).toBeGreaterThan(/** @type {number} */ (usdCentsForArs(2000, 1250, 0)));
+		const cents = /** @type {number} */ (usdCents);
+		expect(orders[0].purchase_units[0].amount.value).toBe((cents / 100).toFixed(2));
 	});
 
 	it('"otro monto" se valida en el servidor: fuera de rango no crea nada', async () => {

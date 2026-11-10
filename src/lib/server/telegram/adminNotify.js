@@ -238,6 +238,7 @@ export const TELEGRAM_TEXT_MAX = 4096;
 export function saleDetail(order, type, { extras = [], answers = [] } = {}) {
 	const summary = orderSummary(order, type);
 	const mp = order.payment_method === 'mercadopago';
+	const fee = mp || order.payment_method === 'paypal';
 	return {
 		name: String(order.buyer_name ?? ''),
 		pronouns: String(order.buyer_pronouns ?? ''),
@@ -259,7 +260,7 @@ export function saleDetail(order, type, { extras = [], answers = [] } = {}) {
 		method: String(order.payment_method ?? ''),
 		surcharge: mp ? Number(order.surcharge_amount) || 0 : 0,
 		mpFee: orderMpFee(order),
-		mpFeeEstimated: mp && (order.mp_fee_amount === null || order.mp_fee_amount === undefined),
+		mpFeeEstimated: fee && (order.mp_fee_amount === null || order.mp_fee_amount === undefined),
 		answers: answers.map((a) => ({ id: a.id, label: a.label, value: a.value, ticket: a.ticket }))
 	};
 }

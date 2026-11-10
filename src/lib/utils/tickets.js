@@ -2,6 +2,7 @@
  * Reglas de entradas que se usan en el servidor Y en el navegador (sin secretos ni base de
  * datos). El navegador las usa solo para mostrar; el servidor siempre recalcula.
  */
+import { paypalSurcharge } from './paypal.js';
 import { argDateParts, argDayMonth, argDeadline, argTime } from './dates.js';
 import { transferRuleText } from './transferDeadline.js';
 import { formatARS } from './money.js';
@@ -400,8 +401,11 @@ export function unitPrice(price, fondo, option) {
  *   discount?: { kind: DiscountKind, value: number } | null,
  *   method?: string,
  *   feeBasisPoints?: number,
+ *   paypalFee?: import('./paypal.js').PaypalFee | null,
  *   extras?: number
  * }} input
+ * `paypalFee`: con `method: 'paypal'`, la cotización y la comisión de PayPal para el recargo de
+ * PayPal (`paypalSurcharge`, docs/paypal.md), que va igual que el de Mercado Pago.
  */
 export function computePrice({
 	price,
@@ -411,6 +415,7 @@ export function computePrice({
 	discount,
 	method,
 	feeBasisPoints = 0,
+	paypalFee = null,
 	extras = 0
 }) {
 	if (!Number.isSafeInteger(extras) || extras < 0) throw new RangeError('Extras inválidos');
@@ -424,7 +429,12 @@ export function computePrice({
 	const fondoAmount = unit.fondo * quantity;
 	const contribution = unit.contribution * quantity;
 	const d = applyDiscount(list - fondoAmount + contribution, gorra ? null : discount);
-	const surcharge = method === 'mercadopago' ? mpSurcharge(d.total + extras, feeBasisPoints) : 0;
+	const surcharge =
+		method === 'mercadopago'
+			? mpSurcharge(d.total + extras, feeBasisPoints)
+			: method === 'paypal' && paypalFee
+				? paypalSurcharge(d.total + extras, paypalFee)
+				: 0;
 	return {
 		option: chosen,
 		unit: unit.price,
@@ -537,7 +547,11 @@ export function purchaseConditions({
 	/** @type {string[]} */
 	const holds = [];
 	if (methods.includes('mercadopago')) {
-		holds.push('Con Mercado Pago te reservamos el lugar 20 minutos mientras pagás.');
+		holds.push(
+			methods.includes('paypal')
+				? 'Con Mercado Pago o PayPal te reservamos el lugar 20 minutos mientras pagás.'
+				: 'Con Mercado Pago te reservamos el lugar 20 minutos mientras pagás.'
+		);
 	}
 	if (methods.includes('transferencia')) {
 		holds.push(

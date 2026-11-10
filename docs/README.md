@@ -18,6 +18,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |
 | [tickets.md](tickets.md)                       | Venta de entradas: referencia completa (precios, Fondo, Mercado Pago, variables, pendientes)                        |
 | [propinas.md](propinas.md)                     | Propinas con Mercado Pago al pie de las publicaciones de KinkyVibe (en lugar del cafecito)                          |
+| [paypal.md](paypal.md)                         | Pagar con PayPal (propinas y entradas): cómo funciona y la lista para prenderlo                                     |
 | [contenido.md](contenido.md)                   | Eventos, material, amigues y wiki: todo en la base (D1), cómo se editan, la semilla local y «Descargar todo»        |
 | [imagenes.md](imagenes.md)                     | La biblioteca en R2: imágenes, documentos y video, cómo se suben y cómo se sirven                                   |
 | [publicar-contenido.md](publicar-contenido.md) | Cómo se publica lo que se guarda en el panel: en la base, al momento (antes, un PR por cambio)                      |

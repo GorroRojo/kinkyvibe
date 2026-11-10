@@ -62,6 +62,7 @@ import { formatARS as fmtARS } from '$lib/utils/money.js';
 
 const SOURCE_LABELS = /** @type {Record<string, string>} */ ({
 	mercadopago: 'Mercado Pago (online)',
+	paypal: 'PayPal (online)',
 	transferencia: 'Transferencias (online)',
 	'puerta-efectivo': 'Puerta: efectivo',
 	'puerta-transferencia': 'Puerta: transferencia',
@@ -155,7 +156,11 @@ export function eventIncome(orders, extrasByOrder = new Map()) {
 			extras: 0,
 			mpFee: 0
 		};
-		const fee = o.payment_method === 'mercadopago' ? int(o.surcharge_amount) : 0;
+		// El recargo (de MP o de PayPal) no es plata del evento: es la comisión del medio de pago.
+		const fee =
+			o.payment_method === 'mercadopago' || o.payment_method === 'paypal'
+				? int(o.surcharge_amount)
+				: 0;
 		const contribution = int(o.fondo_contribution);
 		const quantity = int(o.quantity);
 		row.orders += 1;

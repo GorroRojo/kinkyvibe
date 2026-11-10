@@ -23,6 +23,7 @@
 
 	const METHOD = /** @type {Record<string, string>} */ ({
 		mercadopago: 'Mercado Pago',
+		paypal: 'PayPal',
 		transferencia: 'Transferencia',
 		gratis: 'Sin cargo',
 		efectivo: 'Efectivo',

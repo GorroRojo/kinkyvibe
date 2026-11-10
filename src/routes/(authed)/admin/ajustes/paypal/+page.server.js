@@ -10,14 +10,17 @@ import { getDB, logDBError } from '$lib/server/db';
 import { paypalEnabled } from '$lib/server/flags.js';
 import {
 	ADJUSTMENT_SETTING,
+	FEE_SETTINGS,
 	addWithdrawal,
 	deleteWithdrawal,
 	getAdjustment,
+	getPaypalFee,
 	loadPaypalPanel,
 	setAdjustment,
+	setPaypalFee,
 	validateWithdrawal
 } from '$lib/server/paypal/index.js';
-import { parseAdjustmentPct } from '$lib/utils/paypal.js';
+import { parseAdjustmentPct, parsePaypalFee } from '$lib/utils/paypal.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -70,6 +73,49 @@ export const actions = {
 			detail: { from: before, to: pct }
 		});
 		return { form: 'ajuste', ok: true, message: 'Ajuste guardado: las estimaciones ya lo usan.' };
+	},
+
+	/** La comisión de PayPal con la que se calcula el recargo de las entradas (docs/paypal.md). */
+	comision: async (event) => {
+		const { admin, db } = await paypalAction(event);
+		const data = await event.request.formData();
+		const values = {
+			pct: String(data.get('pct') ?? '').slice(0, 10),
+			fixed: String(data.get('fixed') ?? '').slice(0, 10)
+		};
+		const fee = parsePaypalFee(values.pct, values.fixed);
+		if (!fee) {
+			return fail(400, {
+				form: 'comision',
+				error:
+					'Poné un porcentaje menor a 50 (por ejemplo 5,4) y un fijo en dólares de hasta 10 (por ejemplo 0,30).',
+				values
+			});
+		}
+		if (!db) return fail(503, { form: 'comision', error: 'Sin base de datos.', values });
+		let before;
+		try {
+			before = await getPaypalFee(db);
+			await setPaypalFee(db, fee, { by: admin.login });
+		} catch (e) {
+			logDBError('guardar comisión paypal', e);
+			return fail(500, { form: 'comision', error: 'No se pudo guardar. Probá de nuevo.', values });
+		}
+		/** @param {{ basisPoints: number, fixedCents: number }} f */
+		const text = (f) =>
+			`${(f.basisPoints / 100).toLocaleString('es-AR')} % + US$ ${(f.fixedCents / 100).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+		await logAdminAction(db, event.locals, {
+			action: 'settings.save',
+			targetType: 'settings',
+			targetId: FEE_SETTINGS.basisPoints,
+			summary: `Cambió la comisión de PayPal de ${text(before)} a ${text(fee)}`,
+			detail: { from: before, to: fee }
+		});
+		return {
+			form: 'comision',
+			ok: true,
+			message: 'Comisión guardada: el recargo de las compras nuevas ya la usa.'
+		};
 	},
 
 	retiro: async (event) => {

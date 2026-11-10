@@ -8,9 +8,13 @@
 	 * servidor, para volver a mostrar el formulario), `heading` (h2 por defecto; h1 en /propinas).
 	 * `fondo`: la versión de `/propinas?de=fondo` (desde fondo.kinkyvibe.ar), sin publicación: manda
 	 * `source=fondo` en lugar de `category` y `slug`.
+	 * PayPal (docs/paypal.md): con JavaScript, si /api/paypal/oferta dice que se puede, se elige
+	 * entre Mercado Pago y PayPal, y con PayPal se ven los dólares del monto elegido antes de pagar.
 	 */
+	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
-	import { FONDO_SITE_URL, TIP_MESSAGE_MAX } from '$lib/utils/propinas.js';
+	import { FONDO_SITE_URL, TIP_MESSAGE_MAX, parseTipAmount } from '$lib/utils/propinas.js';
+	import { formatUSD, paypalCharge } from '$lib/utils/paypal.js';
 	import TipAmountPicker from './TipAmountPicker.svelte';
 
 	/** @type {import('$lib/utils/propinas.js').TipCategory | null} */
@@ -28,6 +32,33 @@
 
 	let message = values.message ?? '';
 	let busy = false;
+	let selected = values.amount || undefined;
+	let custom = values.custom ?? '';
+	let method = values.method === 'paypal' ? 'paypal' : 'mp';
+	/** @type {import('$lib/utils/paypal.js').PaypalFee | null} */
+	let paypal = null;
+
+	onMount(async () => {
+		try {
+			const res = await fetch('/api/paypal/oferta');
+			const offer = res.ok ? await res.json() : null;
+			if (offer?.available) {
+				paypal = {
+					base: offer.base,
+					adjustmentPct: offer.adjustmentPct,
+					feeBasisPoints: offer.feeBasisPoints,
+					fixedCents: offer.fixedCents
+				};
+			}
+		} catch {
+			// Sin PayPal: queda Mercado Pago, como siempre.
+		}
+	});
+
+	$: chosen = parseTipAmount(selected === 'otro' || !selected ? custom : selected);
+	// Con el recargo de PayPal, como las entradas (la misma cuenta que el servidor).
+	$: charge = paypal && chosen.ok ? paypalCharge(chosen.amount, paypal) : null;
+	$: if (!paypal) method = 'mp';
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const submit = () => {
@@ -71,11 +102,7 @@
 			<input type="hidden" name="category" value={category} />
 			<input type="hidden" name="slug" value={slug} />
 		{/if}
-		<TipAmountPicker
-			selected={values.amount || undefined}
-			custom={values.custom ?? ''}
-			error={errors.amount ?? ''}
-		/>
+		<TipAmountPicker bind:selected bind:custom error={errors.amount ?? ''} />
 		<details open={Boolean(message || errors.message)}>
 			<summary>Sumar un mensaje (opcional)</summary>
 			<label class="message">
@@ -90,12 +117,35 @@
 			</label>
 			{#if errors.message}<p class="error" role="alert">{errors.message}</p>{/if}
 		</details>
+		{#if paypal}
+			<fieldset class="method">
+				<legend>¿Cómo pagás?</legend>
+				<label class="chip">
+					<input type="radio" name="method" value="mp" bind:group={method} />
+					<span>Mercado Pago</span>
+				</label>
+				<label class="chip">
+					<input type="radio" name="method" value="paypal" bind:group={method} />
+					<span>PayPal (en dólares)</span>
+				</label>
+				{#if method === 'paypal'}
+					<p class="usd" aria-live="polite">
+						{#if charge?.usdCents}Con PayPal pagás <strong>{formatUSD(charge.usdCents)}</strong
+							>.{:else}Elegí un monto para ver cuánto es en dólares.{/if}
+					</p>
+				{/if}
+			</fieldset>
+		{/if}
 		{#if errors.post}<p class="error" role="alert">{errors.post}</p>{/if}
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
 		<button class="pill-btn" type="submit" disabled={busy}>
 			{busy ? 'Un momento…' : 'Dejá una propina'}
 		</button>
-		<p class="hint">Pagás con Mercado Pago. No hace falta tener cuenta.</p>
+		<p class="hint">
+			{method === 'paypal'
+				? 'Pagás con PayPal, con tu cuenta o con tarjeta.'
+				: 'Pagás con Mercado Pago. No hace falta tener cuenta.'}
+		</p>
 	</form>
 </section>
 
@@ -173,6 +223,37 @@
 		button {
 			justify-self: stretch;
 		}
+	}
+	.method {
+		border: 0;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		min-width: 0;
+	}
+	.method legend {
+		font-weight: 700;
+		margin-bottom: 0.4em;
+	}
+	.method .chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4em;
+		min-height: var(--tap);
+		padding: 0 0.9em;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		cursor: pointer;
+	}
+	.method .chip:has(input:checked) {
+		border-color: var(--2-dark);
+		font-weight: 700;
+	}
+	.usd {
+		flex-basis: 100%;
+		margin: 0;
 	}
 	.sr-only {
 		position: absolute;

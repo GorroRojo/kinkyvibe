@@ -30,6 +30,7 @@ import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.j
 import { MP_FEE_ESTIMATED_SQL, MP_FEE_SQL, REVENUE_SQL } from '$lib/utils/salesGoal.js';
 import { foldText } from '$lib/utils/text.js';
 import { extrasAmount, orderPaid } from '$lib/utils/extras.js';
+import { estimateArs } from '$lib/utils/paypal.js';
 import { extrasStatements, isExtrasStockError } from './extras.js';
 
 // El código corto se normaliza también en el navegador (modo puerta sin conexión).
@@ -37,7 +38,7 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'pending' | 'awaiting_transfer' | 'approved' | 'rejected' | 'cancelled' | 'refunded' | 'expired'} OrderStatus */
-/** @typedef {'mercadopago' | 'transferencia' | 'gratis' | 'efectivo' | 'otro'} OrderPaymentMethod */
+/** @typedef {'mercadopago' | 'transferencia' | 'gratis' | 'efectivo' | 'otro' | 'paypal'} OrderPaymentMethod */
 /** @typedef {import('./config.js').Holder} Holder */
 /**
  * @typedef {{
@@ -59,8 +60,13 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   admin_note?: string | null, ticket_tier?: string | null,
  *   client_sale_id?: string | null, offline_review?: string | null,
  *   door_list_price?: number | null, extras_amount?: number,
- *   invoiced_at?: number | null, invoiced_by?: string | null
+ *   invoiced_at?: number | null, invoiced_by?: string | null,
+ *   paypal_order_id?: string | null, paypal_capture_id?: string | null,
+ *   usd_amount_cents?: number | null, usd_fee_cents?: number | null,
+ *   rate_base?: number | null, rate_adjustment_pct?: number | null
  * }} Order
+ * Las columnas `paypal_*`, `usd_*` y `rate_*` (migración 0082) son solo de las órdenes de PayPal
+ * (docs/paypal.md): `paypal_capture_id` es el cobro, como `mp_payment_id` en las de MP.
  */
 /**
  * @typedef {{
@@ -157,6 +163,7 @@ export function newToken() {
  *   unitPrice?: number,
  *   fondoPercent?: number | null,
  *   feeBasisPoints?: number,
+ *   paypalFee?: import('$lib/utils/paypal.js').PaypalFee | null,
  *   method?: OrderPaymentMethod,
  *   discount?: { code: string, kind: 'percent' | 'fixed', value: number } | null,
  *   now?: number,
@@ -222,6 +229,7 @@ export async function reserveOrder(db, input) {
 		discount,
 		method,
 		feeBasisPoints: input.feeBasisPoints ?? 0,
+		paypalFee: method === 'paypal' ? (input.paypalFee ?? null) : null,
 		extras: extrasAmount(extraLines)
 	});
 	// El medio "gratis" es solo para lo pagado 0 (entradas y extras), y 0 solo puede ser "gratis".
@@ -759,7 +767,58 @@ export async function setPreference(db, id, preferenceId) {
 }
 
 /**
- * Libera la reserva de una orden que nunca llegó a Mercado Pago (p. ej. falló la preferencia).
+ * Guarda en una orden de PayPal recién reservada lo que se va a cobrar: los dólares, la cotización
+ * base y el ajuste con que se calcularon (docs/paypal.md).
+ *
+ * @param {D1Database} db
+ * @param {string} id
+ * @param {{ usdCents: number, base: number, adjustmentPct: number }} charge
+ */
+export async function setPaypalCharge(db, id, { usdCents, base, adjustmentPct }) {
+	await db
+		.prepare(
+			`UPDATE orders SET usd_amount_cents = ?2, rate_base = ?3, rate_adjustment_pct = ?4
+			WHERE id = ?1 AND payment_method = 'paypal' AND status = 'pending'`
+		)
+		.bind(id, usdCents, base, adjustmentPct)
+		.run();
+}
+
+/**
+ * @param {D1Database} db
+ * @param {string} id
+ * @param {string} paypalOrderId
+ */
+export async function setPaypalOrder(db, id, paypalOrderId) {
+	await db
+		.prepare('UPDATE orders SET paypal_order_id = ?2, updated_at = ?3 WHERE id = ?1')
+		.bind(id, paypalOrderId, Date.now())
+		.run();
+}
+
+/**
+ * Quien compraba canceló en PayPal (la `cancel_url`): se cancela la orden pendiente de esa orden de
+ * PayPal, si todavía no se cobró nada, y se libera el lugar. Devuelve si cambió.
+ *
+ * @param {D1Database} db
+ * @param {string} id
+ * @param {string} paypalOrderId
+ */
+export async function cancelPaypalOrder(db, id, paypalOrderId) {
+	const res = await db
+		.prepare(
+			`UPDATE orders SET status = 'cancelled', updated_at = ?3 WHERE id = ?1
+				AND payment_method = 'paypal' AND paypal_order_id = ?2 AND status = 'pending'
+				AND paypal_capture_id IS NULL`
+		)
+		.bind(id, paypalOrderId, Date.now())
+		.run();
+	return res.meta.changes === 1;
+}
+
+/**
+ * Libera la reserva de una orden que nunca llegó a Mercado Pago o a PayPal (p. ej. falló la
+ * preferencia o la orden de PayPal).
  *
  * @param {D1Database} db
  * @param {string} id
@@ -767,7 +826,8 @@ export async function setPreference(db, id, preferenceId) {
 export async function cancelPendingOrder(db, id) {
 	await db
 		.prepare(
-			"UPDATE orders SET status = 'cancelled', updated_at = ?2 WHERE id = ?1 AND status = 'pending' AND mp_payment_id IS NULL"
+			`UPDATE orders SET status = 'cancelled', updated_at = ?2 WHERE id = ?1 AND status = 'pending'
+				AND mp_payment_id IS NULL AND paypal_capture_id IS NULL`
 		)
 		.bind(id, Date.now())
 		.run();
@@ -840,10 +900,17 @@ export function nextStatus(current, currentPaymentId, incoming, paymentId) {
  *   status: string,
  *   external_reference?: string | null,
  *   transaction_amount?: number,
- *   currency_id?: string,
+ *   currency_id?: string | null,
  *   transaction_amount_refunded?: number,
- *   fee_details?: { type?: string, fee_payer?: string, amount?: number }[]
+ *   fee_details?: { type?: string, fee_payer?: string, amount?: number }[],
+ *   provider?: 'paypal', amountCents?: number | null, feeCents?: number | null,
+ *   netCents?: number | null, paypalOrderId?: string, captureId?: string | null
  * }} MPPayment
+ *
+ * Un pago de PayPal (`provider: 'paypal'`, `paymentFromPaypalOrder` en
+ * $lib/server/paypal/payments.js) entra por el mismo camino: `id` es la captura, el monto se
+ * compara en centavos de dólar (`amountCents` contra `usd_amount_cents`) y el cobro se guarda en
+ * `paypal_capture_id` en lugar de `mp_payment_id`.
  *
  * `transaction_amount_refunded` y `fee_details` son campos del pago de `GET /v1/payments/{id}`
  * (verificados en la documentación de MP con su búsqueda de documentación, 2026-10-26: ejemplo de
@@ -926,6 +993,36 @@ export async function recordPaymentAmounts(db, orderId, payment) {
 }
 
 /**
+ * Guarda en una orden de PayPal aprobada la comisión que informó PayPal: en dólares
+ * (`usd_fee_cents`) y en pesos estimados con la cotización de la orden (`mp_fee_amount`, la columna
+ * que suman los reportes como comisión del medio de pago). Solo reportes; idempotente; nunca tira.
+ *
+ * @param {D1Database} db
+ * @param {Order} order
+ * @param {MPPayment} payment
+ */
+export async function recordPaypalFee(db, order, payment) {
+	try {
+		const fee = payment.feeCents;
+		if (fee === null || fee === undefined || !order.rate_base) return false;
+		const ars = estimateArs(fee, Number(order.rate_base), Number(order.rate_adjustment_pct ?? 0));
+		const res = await db
+			.prepare(
+				`UPDATE orders SET usd_fee_cents = ?3, mp_fee_amount = ?4
+				WHERE id = ?1 AND paypal_capture_id = ?2 AND status = 'approved'
+					AND payment_method = 'paypal'
+					AND (usd_fee_cents IS NOT ?3 OR mp_fee_amount IS NOT ?4)`
+			)
+			.bind(order.id, String(payment.id), fee, ars)
+			.run();
+		return res.meta.changes === 1;
+	} catch (error) {
+		console.error(`[tickets] no se pudo guardar la comisión de PayPal de ${order.id}:`, error);
+		return false;
+	}
+}
+
+/**
  * Aplica un pago (ya obtenido de la API de MP, nunca del body del webhook) a su orden.
  *
  * Casos para revisar a mano (quedan marcados en `needs_review` y se ven en el admin):
@@ -951,7 +1048,8 @@ export async function applyPayment(db, payment, options = {}) {
 	const result = await applyPaymentStatus(db, payment, options);
 	// Solo reportes (comisión real y reembolso parcial): no cambia el resultado ni el estado.
 	if (result.order && (result.outcome === 'updated' || result.outcome === 'unchanged')) {
-		await recordPaymentAmounts(db, result.order.id, payment);
+		if (payment.provider === 'paypal') await recordPaypalFee(db, result.order, payment);
+		else await recordPaymentAmounts(db, result.order.id, payment);
 	}
 	return result;
 }
@@ -967,34 +1065,60 @@ async function applyPaymentStatus(db, payment, { now = Date.now(), capacityOf } 
 	const paymentId = String(payment.id);
 	const order = await getOrder(db, String(payment.external_reference ?? ''));
 	if (!order) return { outcome: 'unknown-order', order: null, newlyApproved: false, tickets: [] };
-	if (order.payment_method !== 'mercadopago') {
+	const paypal = payment.provider === 'paypal';
+	// El cobro de la orden: `mp_payment_id` (MP) o `paypal_capture_id` (PayPal, migración 0082).
+	const idCol = paypal ? 'paypal_capture_id' : 'mp_payment_id';
+	/** @param {Order} o */
+	const paidWith = (o) => (paypal ? (o.paypal_capture_id ?? null) : o.mp_payment_id);
+	if (order.payment_method !== (paypal ? 'paypal' : 'mercadopago')) {
 		console.error(
-			`[tickets] pago ${paymentId} para la orden ${order.id}, que no es de Mercado Pago`
+			`[tickets] pago ${paymentId} para la orden ${order.id}, que no es de ${paypal ? 'PayPal' : 'Mercado Pago'}`
 		);
 		return { outcome: 'mismatch', order, newlyApproved: false, tickets: [] };
 	}
 
-	// El monto y la moneda tienen que coincidir con lo que calculamos nosotres al crear la orden.
-	// Con extras (migración 0077), lo que se paga es `total + extras_amount` (`orderPaid`).
-	const due = orderPaid(order);
-	if (payment.currency_id !== 'ARS' || Number(payment.transaction_amount) !== due) {
-		console.error(
-			`[tickets] pago ${paymentId} no coincide con la orden ${order.id}: ` +
-				`${payment.transaction_amount} ${payment.currency_id} ≠ ${due} ARS`
-		);
-		return { outcome: 'mismatch', order, newlyApproved: false, tickets: [] };
+	if (paypal) {
+		// La orden de PayPal tiene que ser la de esta orden, y los dólares los que calculamos al
+		// reservar (`usd_amount_cents`).
+		if (
+			payment.paypalOrderId !== order.paypal_order_id ||
+			payment.currency_id !== 'USD' ||
+			!order.usd_amount_cents ||
+			payment.amountCents !== order.usd_amount_cents
+		) {
+			console.error(
+				`[tickets] pago de PayPal ${paymentId} no coincide con la orden ${order.id}: ` +
+					`${payment.amountCents} ${payment.currency_id} ≠ ${order.usd_amount_cents} USD (centavos)`
+			);
+			return { outcome: 'mismatch', order, newlyApproved: false, tickets: [] };
+		}
+		// Sin captura todavía (aprobada pero sin cobrar, o creada): nada que aplicar.
+		if (!payment.captureId) {
+			return { outcome: 'unchanged', order, newlyApproved: false, tickets: [] };
+		}
+	} else {
+		// El monto y la moneda tienen que coincidir con lo que calculamos nosotres al crear la
+		// orden. Con extras (migración 0077), lo que se paga es `total + extras_amount` (`orderPaid`).
+		const due = orderPaid(order);
+		if (payment.currency_id !== 'ARS' || Number(payment.transaction_amount) !== due) {
+			console.error(
+				`[tickets] pago ${paymentId} no coincide con la orden ${order.id}: ` +
+					`${payment.transaction_amount} ${payment.currency_id} ≠ ${due} ARS`
+			);
+			return { outcome: 'mismatch', order, newlyApproved: false, tickets: [] };
+		}
 	}
 
 	const incoming = mapPaymentStatus(payment.status);
 	if (
 		incoming === 'approved' &&
 		order.status === 'approved' &&
-		order.mp_payment_id &&
-		order.mp_payment_id !== paymentId
+		paidWith(order) &&
+		paidWith(order) !== paymentId
 	) {
 		// Un segundo cobro para la misma orden: no se toca la orden, se marca para revisar.
 		console.error(
-			`[tickets] otro pago aprobado (${paymentId}) para la orden ${order.id}, ya pagada con ${order.mp_payment_id}: revisar posible cobro doble`
+			`[tickets] otro pago aprobado (${paymentId}) para la orden ${order.id}, ya pagada con ${paidWith(order)}: revisar posible cobro doble`
 		);
 		const flagged = await flagOrder(db, order.id, 'duplicate_payment', paymentId, now);
 		return {
@@ -1007,12 +1131,12 @@ async function applyPaymentStatus(db, payment, { now = Date.now(), capacityOf } 
 	let current = order;
 	// Reintento corto por si otra notificación del mismo pago cambia la orden en paralelo.
 	for (let attempt = 0; attempt < 3; attempt++) {
-		const next = incoming && nextStatus(current.status, current.mp_payment_id, incoming, paymentId);
+		const next = incoming && nextStatus(current.status, paidWith(current), incoming, paymentId);
 		if (!next) return { outcome: 'unchanged', order: current, newlyApproved: false, tickets: [] };
 
 		const update = db
 			.prepare(
-				`UPDATE orders SET status = ?3, mp_payment_id = ?4, updated_at = ?5
+				`UPDATE orders SET status = ?3, ${idCol} = ?4, updated_at = ?5
 				WHERE id = ?1 AND status = ?2`
 			)
 			.bind(order.id, current.status, next, paymentId, now);
@@ -1023,7 +1147,7 @@ async function applyPaymentStatus(db, payment, { now = Date.now(), capacityOf } 
 				next === 'refunded'
 					? db
 							.prepare(
-								`UPDATE orders SET status = ?3, mp_payment_id = ?4, updated_at = ?5,
+								`UPDATE orders SET status = ?3, ${idCol} = ?4, updated_at = ?5,
 								refunded_at = COALESCE(refunded_at, ?5) WHERE id = ?1 AND status = ?2`
 							)
 							.bind(order.id, current.status, next, paymentId, now)
@@ -1037,7 +1161,7 @@ async function applyPaymentStatus(db, payment, { now = Date.now(), capacityOf } 
 			// Aprobar y emitir las entradas en la misma transacción.
 			const [res] = await db.batch([update, ...issueTicketsStatements(db, order)]);
 			if (res.meta.changes === 1) {
-				return afterApproval(db, current, { paymentId, now, capacityOf });
+				return afterApproval(db, current, { paymentId, now, capacityOf, idCol });
 			}
 		}
 		const fresh = await getOrder(db, order.id);
@@ -1058,13 +1182,17 @@ async function applyPaymentStatus(db, payment, { now = Date.now(), capacityOf } 
  *
  * @param {D1Database} db
  * @param {Order} previous la orden como estaba antes de aprobarla
- * @param {{ paymentId: string, now: number, capacityOf?: (order: Order) => Promise<number | null> }} options
+ * @param {{ paymentId: string, now: number, capacityOf?: (order: Order) => Promise<number | null>, idCol?: 'mp_payment_id' | 'paypal_capture_id' }} options
  * @returns {Promise<{ outcome: 'updated', order: Order, newlyApproved: true, tickets: Ticket[] }>}
  */
-async function afterApproval(db, previous, { paymentId, now, capacityOf }) {
+async function afterApproval(
+	db,
+	previous,
+	{ paymentId, now, capacityOf, idCol = 'mp_payment_id' }
+) {
 	const id = previous.id;
 	/** @type {Order} */
-	let updated = { ...previous, status: 'approved', mp_payment_id: paymentId, updated_at: now };
+	let updated = { ...previous, status: 'approved', [idCol]: paymentId, updated_at: now };
 	try {
 		updated = (await getOrder(db, id)) ?? updated;
 	} catch (error) {

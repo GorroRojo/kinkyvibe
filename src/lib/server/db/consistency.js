@@ -72,7 +72,8 @@ const CHECKS = Object.freeze([
 		code: 'db_surcharge_not_mp',
 		what: 'orden',
 		sql: `SELECT id, event_slug, payment_method || ', recargo ' || surcharge_amount AS detail
-			FROM orders WHERE surcharge_amount > 0 AND payment_method <> 'mercadopago'`,
+			FROM orders WHERE surcharge_amount > 0
+				AND payment_method NOT IN ('mercadopago', 'paypal')`,
 		message: (r) => `La orden ${r.id} tiene recargo de Mercado Pago sin ser de MP (${r.detail}).`
 	},
 	{
