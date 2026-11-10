@@ -50,7 +50,11 @@ export const mockPaypalGateway = {
 	mock: true,
 	env: 'sandbox',
 	async createOrder(/** @type {any} */ body) {
-		const id = `MOCK${String(store.next++).padStart(6, '0')}${crypto.randomUUID().slice(0, 6).toUpperCase().replace(/[^A-Z0-9]/g, '0')}`;
+		const id = `MOCK${String(store.next++).padStart(6, '0')}${crypto
+			.randomUUID()
+			.slice(0, 6)
+			.toUpperCase()
+			.replace(/[^A-Z0-9]/g, '0')}`;
 		const ctx = body.payment_source.paypal.experience_context;
 		const origin = new URL(ctx.return_url).origin;
 		const order = {
