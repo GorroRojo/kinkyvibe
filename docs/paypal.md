@@ -16,16 +16,25 @@ Todo el código está listo y probado con el PayPal simulado. Falta solo lo que 
 
 ### 1. Migraciones
 
-Antes de nada, en producción (decisión 0028): **0082** (`0082_paypal_entradas.sql`). La 0071 ya
-está aplicada (vino con `paypal-base`).
+**Hecho el 10/11** en `kinkyvibe-preview` y en `kinkyvibe` (mismas filas antes y después, sin
+foreign keys rotas): **0082** (`0082_paypal_entradas.sql`). La 0071 ya estaba aplicada (vino con
+`paypal-base`).
 
 La 0082 **reconstruye la tabla `orders`** (para aceptar `payment_method = 'paypal'`), como la 0005
 y la 0010. Copia antes y vuelve a cargar después lo que el `DROP TABLE` borraría en cascada
 (`order_answers`, `free_order_choices`); está probado en `migration0082.test.js`. Igual:
 
+Ojo en D1 remoto: `wrangler d1 execute --file` (la importación) **no** respeta
+`PRAGMA defer_foreign_keys` y falla con «FOREIGN KEY constraint failed» (D1 vuelve todo atrás). Por
+`--command` (una sola tanda) sí anda; y la tabla nueva se crea ya con el nombre `orders` para que
+las filas que se vuelven a cargar cierren las foreign keys de `tickets`, `order_extras`, etc. Así se
+aplicó:
+
 ```sh
 npx wrangler d1 time-travel info kinkyvibe   # anotar el marcador de antes, por las dudas
-npm run db:migrate:remote
+npx wrangler d1 execute kinkyvibe --remote -y --command "$(grep -v '^--' migrations/0082_paypal_entradas.sql)"
+npx wrangler d1 execute kinkyvibe --remote --command "PRAGMA foreign_key_check"   # tiene que dar vacío
+# y anotarla: INSERT INTO d1_migrations (name) VALUES ('0082_paypal_entradas.sql')
 ```
 
 ### 2. La app de PayPal (sandbox primero)

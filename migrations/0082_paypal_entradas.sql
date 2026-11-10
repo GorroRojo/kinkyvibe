@@ -16,15 +16,24 @@
 --   Las demás tablas que apuntan a `orders` (`tickets`, `order_extras`, la lista de espera…) no
 --   tienen acciones: con las foreign keys diferidas, quedan bien al renombrar.
 --
+-- - El orden importa en D1 remoto: copiar a `orders_new` y renombrarla no anda, porque el DROP
+--   deja contadas como rotas las foreign keys de `tickets`, `order_extras`, etc. y el RENAME no las
+--   descuenta (el commit falla con «FOREIGN KEY constraint failed»). Por eso se copia `orders` a
+--   `kv_bak_orders`, se borra, se crea la nueva con el mismo nombre y se vuelve a cargar: las filas
+--   que entran a `orders` sí cierran esas foreign keys.
+--
 -- Anda con el código de `main` (decisión 0028): solo agrega un valor posible y columnas vacías.
 -- Antes de aplicarla en producción: un marcador de Time Travel (`wrangler d1 time-travel info`).
 
 PRAGMA defer_foreign_keys = on;
 
+CREATE TABLE IF NOT EXISTS kv_bak_orders AS SELECT * FROM orders;
 CREATE TABLE IF NOT EXISTS kv_bak_order_answers AS SELECT * FROM order_answers;
 CREATE TABLE IF NOT EXISTS kv_bak_free_order_choices AS SELECT * FROM free_order_choices;
 
-CREATE TABLE orders_new (
+DROP TABLE orders;
+
+CREATE TABLE orders (
 	id TEXT PRIMARY KEY NOT NULL,
 	event_slug TEXT NOT NULL,
 	ticket_type TEXT NOT NULL,
@@ -98,7 +107,7 @@ CREATE TABLE orders_new (
 	CHECK (payment_method != 'paypal' OR channel = 'online')
 );
 
-INSERT INTO orders_new (id, event_slug, ticket_type, quantity, unit_price, fondo_option,
+INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, fondo_option,
 	fondo_percent, fondo_amount, fondo_contribution, subtotal, discount_code, discount_amount,
 	surcharge_amount, total, payment_method, buyer_name, buyer_pronouns, buyer_email, buyer_dni,
 	holders, status, mp_preference_id, mp_payment_id, confirmed_by, refunded_at, refunded_by,
@@ -114,15 +123,13 @@ SELECT id, event_slug, ticket_type, quantity, unit_price, fondo_option,
 	channel, admin_note, account_id, ticket_tier, client_sale_id, offline_review, door_list_price,
 	email_id, email_problem, email_problem_at, mp_fee_amount, refunded_amount, invoiced_at,
 	invoiced_by, extras_amount
-FROM orders;
+FROM kv_bak_orders;
 
-DROP TABLE orders;
-
-ALTER TABLE orders_new RENAME TO orders;
 
 -- Lo que borró la cascada del DROP, de vuelta.
 INSERT OR IGNORE INTO order_answers SELECT * FROM kv_bak_order_answers;
 INSERT OR IGNORE INTO free_order_choices SELECT * FROM kv_bak_free_order_choices;
+DROP TABLE kv_bak_orders;
 DROP TABLE kv_bak_order_answers;
 DROP TABLE kv_bak_free_order_choices;
 
