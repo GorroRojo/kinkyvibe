@@ -69,8 +69,13 @@ gorrite. Lo que dice «desde el panel» lo puede hacer cualquier admin.
   el bot sin recibir mensajes, eventos cancelados con algo por devolver.
 - **Issue «Producción no responde»** en GitHub, del vigilante, asignado al dueño del repo.
 - **Bot de Telegram para admins** (interruptor `telegram_admin`, en «🔔 Mis avisos»): resumen
-  diario, cada venta, cada transferencia y los cambios de Claude
+  diario, cada venta, cada transferencia, los cambios de Claude, las fallas y cada deploy
   ([telegram.md](telegram.md#estado-y-avisos-para-admins-0041)).
+- **Cada deploy**: cuando un push a `main` termina de publicarse (o falla), el workflow
+  `aviso-deploy.yml` le pide al sitio el aviso por el bot. Necesita **dos secretos con el mismo
+  valor**: `DEPLOY_NOTIFY_SECRET` en GitHub (Settings → Secrets and variables → Actions) y
+  `DEPLOY_NOTIFY_SECRET` en el Worker (Settings → Variables and Secrets → Production, tipo Secret).
+  Detalle en [telegram.md](telegram.md#cada-deploy).
 - **Errores de la aplicación**: cada error que no es un 404 deja una línea JSON en los logs con un
   código corto, que la página de error muestra. Cuando esté el aviso automático de errores
   (`errores-alertas` en el [plan](plan.md)), va a llegar por el bot de admins; hasta entonces, se
@@ -230,7 +235,8 @@ propia, usá esos backups: `wrangler d1 export` falla con las tablas virtuales F
    [inventario de variables y secretos](workers-migracion.md#3-variables-y-secretos-de-producción).
    Los casos con trampa: `MP_WEBHOOK_SECRET` (cambiar en MP a la vez), `FONDO_MAIL_SECRET` (el
    mismo valor en el Worker del Fondo), `TELEGRAM_*` (después, `npm run telegram:webhook`),
-   `GITHUB_CLIENT_SECRET` (generar otro en la OAuth App y borrar el viejo).
+   `GITHUB_CLIENT_SECRET` (generar otro en la OAuth App y borrar el viejo),
+   `DEPLOY_NOTIFY_SECRET` (el mismo valor en el secreto de GitHub Actions).
 2. Tokens de API de Cloudflare: Mi perfil → API Tokens → revocar. Secretos de GitHub Actions:
    Settings del repo → Secrets.
 3. Conector de Claude: Ajustes → Admins → «Cerrar las de todes»

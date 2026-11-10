@@ -79,7 +79,7 @@ const linkIcon = {
 /**
  * Plugin to add `id`s to headings.
  *
- * @type {import('unified').Plugin<[import('rehype-slug').Options?]|Array<void>, import('rehype-slug').Root>}
+ * @type {import('unified').Plugin<[import('rehype-slug').Options?]|Array<void>, import('hast').Root>}
  */
 export default function customRehype() {
 	return (tree) => {

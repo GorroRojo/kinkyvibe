@@ -4,7 +4,9 @@
  * serie (`?serie=`). Solo admins. Sale solo de las órdenes (una consulta, filtrada por fecha en
  * SQL); nunca llama a Analytics Engine (eso es la pestaña Visitas al sitio). «Fondo y finanzas»
  * suma las suscripciones del mes (fondo.kinkyvibe.ar, `fondoMonth.js`) y las propinas de esos
- * mismos meses; si alguna de las dos falla, esa parte queda vacía y lo demás anda.
+ * mismos meses; si alguna de las dos falla, esa parte queda vacía y lo demás anda. Con el
+ * interruptor `gastos_reparto`, además la ganancia de las cuentas cerradas (Gastos y reparto):
+ * «Ganancia por mes» y los totales de «Fondo y finanzas».
  */
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
@@ -13,6 +15,8 @@ import { salesPage } from '$lib/server/admin/statsPages.js';
 import { tipsByMonth } from '$lib/server/admin/charts.js';
 import { tipsByMonthDestination } from '$lib/server/propinas/index.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
+import { gastosRepartoEnabled } from '$lib/server/flags.js';
+import { accountsReady, listClosingsBetween } from '$lib/server/tickets/cuentas.js';
 import { arMidnight } from '$lib/utils/dates.js';
 import {
 	SALES_DEFAULT_PERIOD,
@@ -39,6 +43,22 @@ async function loadTips(db, months) {
 	}
 }
 
+/**
+ * Las cuentas cerradas (todas: es una fila por evento), o `null` con el interruptor apagado, sin
+ * la migración 0078 o si falla la lectura (la página sigue sin la ganancia).
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {App.Platform | undefined} platform
+ */
+async function loadClosings(db, platform) {
+	try {
+		if (!(await gastosRepartoEnabled(platform)) || !(await accountsReady(db))) return null;
+		return await listClosingsBetween(db, null, null);
+	} catch (error) {
+		logDBError('estadísticas: cuentas cerradas', error);
+		return null;
+	}
+}
+
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
 	requireAdmin(locals, url);
@@ -59,9 +79,11 @@ export async function load({ locals, url, platform, setHeaders }) {
 		const now = Date.now();
 		// El período y el anterior (para comparar los números de arriba); con «todo», todas.
 		const { prevFrom } = periodRange(period, now);
+		const closingsP = loadClosings(db, platform);
 		const orders = await loadPeopleOrders(db, { since: prevFrom });
 		const events = await loadEventInfo(orders);
-		const sales = salesPage(orders, events, { period, serie, now });
+		const closings = await closingsP;
+		const sales = salesPage(orders, events, { period, serie, now, closings });
 		const [fondoMonth, tips] = await Promise.all([
 			resolveFondoMonth({ db, fetch, now }),
 			loadTips(

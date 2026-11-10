@@ -95,7 +95,7 @@ export function resolveMediaImports(body, resolveMedia) {
 /**
  * Los procesadores (se arman una vez): el de los textos en general y el de la página de un perfil,
  * que pide primero la primera imagen (./sanitize.js).
- * @param {import('unified').Preset} preset
+ * @param {any} preset un preset de ./sanitize.js (ver el `any` ahí)
  */
 const makeProcessor = (preset) =>
 	rehype()

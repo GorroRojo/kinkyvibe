@@ -143,7 +143,9 @@ export const PREVIEW_SCREENS = Object.freeze([
 		label: 'Tarjeta de un evento',
 		keys: [
 			'eventos.ver_todo',
-			'eventos.boton_comprar',
+			'eventos.boton_abrir',
+			'eventos.boton_lista_espera',
+			'eventos.boton_avisame',
 			'eventos.boton_calendario',
 			'eventos.boton_mapa',
 			'seguir.boton',
@@ -154,7 +156,9 @@ export const PREVIEW_SCREENS = Object.freeze([
 				`<b>Taller de ejemplo</b>\n📅 vie 10 ene · 21:00\n📍 Lugar de ejemplo\n\n` +
 				`<a href="https://kinkyvibe.ar">${escapeTelegramHtml(t('eventos.ver_todo'))}</a>`,
 			buttons: [
-				[{ text: t('eventos.boton_comprar'), success: true, link: true }],
+				[{ text: t('eventos.boton_abrir'), link: true }],
+				[{ text: t('eventos.boton_lista_espera'), link: true }],
+				[{ text: t('eventos.boton_avisame'), link: true }],
 				[
 					{ text: t('eventos.boton_calendario'), link: true },
 					{ text: t('eventos.boton_mapa'), link: true }
@@ -281,10 +285,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 			].join(''),
 			rich: true,
 			buttons: [
-				[
-					{ text: t('sitio.boton_ver'), link: true },
-					{ text: t('sitio.boton_entradas'), link: true }
-				],
+				[{ text: t('sitio.boton_ver'), link: true }],
 				[{ text: t('compartir.boton_calendario'), link: true }]
 			]
 		})
@@ -779,7 +780,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'admin.aviso_recordatorios',
 			'admin.aviso_conector',
 			'admin.aviso_fallas',
-			'admin.aviso_fallas_sitio'
+			'admin.aviso_fallas_sitio',
+			'admin.aviso_deploy'
 		],
 		build: (t) => ({
 			html: t('admin.avisos'),
@@ -792,6 +794,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[{ text: `⬜ ${t('admin.aviso_conector')}` }],
 				[{ text: `⬜ ${t('admin.aviso_fallas')}` }],
 				[{ text: `⬜ ${t('admin.aviso_fallas_sitio')}` }],
+				[{ text: `⬜ ${t('admin.aviso_deploy')}` }],
 				[{ text: t('admin.boton_estado') }, { text: t('inicio.boton_inicio') }]
 			]
 		})

@@ -757,12 +757,18 @@ function closeSelfClosing(html) {
  * @returns {import('micromark-util-types').HtmlExtension}
  */
 function holdRawHtml(held) {
-	/** @this {import('micromark-util-types').CompileContext} */
+	/**
+	 * @this {import('micromark-util-types').CompileContext}
+	 * @returns {undefined}
+	 */
 	function enter() {
 		this.buffer();
 		this.setData('ignoreEncode', true);
 	}
-	/** @this {import('micromark-util-types').CompileContext} */
+	/**
+	 * @this {import('micromark-util-types').CompileContext}
+	 * @returns {undefined}
+	 */
 	function exit() {
 		this.setData('ignoreEncode');
 		const html = closeSelfClosing(this.resume().replaceAll(ESC_AT, '\\@'));
@@ -771,6 +777,7 @@ function holdRawHtml(held) {
 	}
 	return {
 		enter: {
+			/** @this {import('micromark-util-types').CompileContext} */
 			htmlFlow() {
 				this.lineEndingIfNeeded();
 				enter.call(this);
@@ -941,11 +948,11 @@ export async function renderFreeBody(body, { resolveMedia = () => undefined, var
 		allowDangerousHtml: true,
 		extensions: [gfm()],
 		htmlExtensions: [
-			gfmAutolinkLiteralHtml,
+			gfmAutolinkLiteralHtml(),
 			gfmFootnoteHtml(),
-			gfmStrikethroughHtml,
-			gfmTableHtml,
-			gfmTaskListItemHtml,
+			gfmStrikethroughHtml(),
+			gfmTableHtml(),
+			gfmTaskListItemHtml(),
 			codeTextEntities,
 			holdRawHtml(held)
 		]

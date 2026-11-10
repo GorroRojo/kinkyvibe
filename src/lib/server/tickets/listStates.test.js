@@ -196,6 +196,12 @@ describe('lista de espera (interruptor `lista_espera`)', () => {
 		expect(summarizeTickets(/** @type {any} */ (view))).toMatchObject({ open: false });
 	});
 
+	it('agotadas con lista de espera prendida: `waitlist` (la tarjeta ofrece anotarse)', async () => {
+		await waiting('00000000-0000-4000-8000-000000000003');
+		const states = await getListTicketStates(t.db, ['con-fila'], { cacheMs: 0 });
+		expect(states['con-fila']).toMatchObject({ reason: 'soldout', waitlist: true });
+	});
+
 	it('con el interruptor apagado, la fila no cambia nada', async () => {
 		await waiting('00000000-0000-4000-8000-000000000002');
 		flag.on = false;

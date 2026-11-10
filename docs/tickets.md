@@ -704,7 +704,22 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   borra el cierre. Todo queda en Actividad (`event_account.save`, `.close`, `.reopen`,
   `venue.cost_rule`).
 - **Cuentas del año:** los cierres de un año por el mes del evento, con el renglón del año y la
-  lista de eventos. La columna «Extras» va después de «Fondo neto».
+  lista de eventos. La columna «Extras» va después de «Fondo neto». **Descargar CSV** baja una fila
+  por cierre (fecha, evento, ingresos, gastos, ganancia, Caja KV; `CLOSINGS_CSV_COLUMNS`), sin nada
+  de las partes. **Lo que le tocó a cada parte** suma el año por parte (`yearShares`): la Caja KV
+  con su columna del cierre y cada parte de afuera del equipo por nombre (sin distinguir
+  mayúsculas), con la cuenta vuelta a hacer desde la foto; con pérdida, lo que puso resta. Tiene
+  nombres de personas: solo en esta página de admins, nunca en un CSV.
+- **La ganancia en otras páginas** (gorrite, 6/11; `estadisticas-ganancia` en el plan), solo con
+  el interruptor prendido:
+  - la ficha del evento › **Resumen**, tarjeta «La cuenta» (si vende entradas): «Ingresos de la
+    cuenta», «Gastos» y «Ganancia o pérdida» de la cuenta cerrada; empezada y sin cerrar dice «sin
+    cerrar», y sin cuenta, «—» (nunca $ 0). Lee `accountState` (`cuentas.js`);
+  - Estadísticas › Ventas › **Fondo y finanzas**: los mismos tres totales de los eventos del período
+    (y la serie) con la cuenta cerrada, con «X de Y eventos con cuenta cerrada», y el gráfico y la
+    tabla **Ganancia por mes** (`profitByMonth` en `statsPages.js`, por el mes del evento; un mes sin
+    cierres queda vacío). «Ingresos de la cuenta» no es «Cobrado»: no tiene el recargo de MP y suma
+    lo cargado a mano.
 - **La página** (gorrite, Mesa 5/11: más compacta): arriba, ingresos, gastos, ganancia o pérdida y
   Caja KV; abajo, cuatro tarjetas: **Ingresos** (lo que entró y otros ingresos), **Gastos** (lugar,
   contrataciones y otros gastos), **Reparto** (cada parte: nombre y lo suyo; su regla; sus marcas,
@@ -819,6 +834,16 @@ apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `li
 - La página del evento (botón «Comprar entradas») también resta la fila. Las tarjetas de las
   listas de eventos no llevan botón de compra (gorrite, 5/11: se compra desde la página del
   evento, después del texto); solo «Agotadas» o «Venta cerrada».
+- **«Agotadas» no pierde a la persona** (gorrite, 6/11). Donde se ve «Agotadas» (tarjetas
+  `PostListItem`, carrusel del inicio, tarjeta del bot, inline y Mini App) hay un link a la
+  **página del evento**, nunca directo a comprar: con la lista de espera prendida (interruptor
+  `lista_espera` y `waitlist` en el evento; `waitlist: true` en el estado de la lista,
+  `listStates.js`) lleva a `#entradas` con «Anotate en la lista de espera»; sin lista, a `#seguir`
+  (el «Seguir la serie» de la página, ver [lo-que-sigo.md](lo-que-sigo.md)) con «Avisame la
+  próxima». Sale de `ticketCta` (`followUp`, `soldOutFollowUp`). El estado de las listas no mira
+  si todavía queda un alcance donde anotarse (sería una consulta por evento): si ya no, la página
+  dice «Agotadas.» sin formulario. En las tarjetas del sitio el link se suma recién al montar (un
+  `<a>` dentro del `<a>` de la tarjeta no es HTML válido); «Agotadas» queda siempre como aviso.
 
 **Ya está (parte 4, el motor).** Con el interruptor apagado no corre nada (ni la pasada del cron,
 ni los mails, ni los empujones).

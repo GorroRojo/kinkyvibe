@@ -216,16 +216,72 @@ export async function reopenAccount(db, slug) {
  * @param {number} year
  * @returns {Promise<ClosingRow[]>}
  */
-export async function listClosings(db, year) {
+export function listClosings(db, year) {
+	return listClosingsBetween(db, `${year}-01-01`, `${year + 1}-01-01`);
+}
+
+/**
+ * Los cierres con el día del evento en `[from, to)` (`YYYY-MM-DD`; `null`, sin límite), del más
+ * viejo al más nuevo. Una fila por evento: la tabla es chica.
+ * @param {D1Database} db
+ * @param {string | null} from
+ * @param {string | null} to
+ * @returns {Promise<ClosingRow[]>}
+ */
+export async function listClosingsBetween(db, from, to) {
 	const { results } = await db
 		.prepare(
 			`SELECT ${['event_slug', 'event_title', 'event_date', ...SUMMARY_COLUMNS, 'closed_at', 'closed_by', EXTRAS_SQL].join(', ')}
 			FROM event_account_closings WHERE event_date >= ?1 AND event_date < ?2
 			ORDER BY event_date, event_slug`
 		)
-		.bind(`${year}-01-01`, `${year + 1}-01-01`)
+		.bind(from ?? '0000', to ?? '9999')
 		.all();
 	return results.map((r) => closingRow(/** @type {Record<string, unknown>} */ (r)));
+}
+
+/**
+ * Las fotos de los cierres de un año (lo que hace falta para sumar lo de cada parte del reparto,
+ * `yearShares`). Con nombres de personas: solo para la página de admins, nunca para un CSV.
+ * @param {D1Database} db
+ * @param {number} year
+ * @returns {Promise<{ event_slug: string, caja: number, snapshot: unknown }[]>}
+ */
+export async function listClosingSnapshots(db, year) {
+	const { results } = await db
+		.prepare(
+			`SELECT event_slug, caja, snapshot FROM event_account_closings
+			WHERE event_date >= ?1 AND event_date < ?2 ORDER BY event_date, event_slug`
+		)
+		.bind(`${year}-01-01`, `${year + 1}-01-01`)
+		.all();
+	return results.map((r) => ({
+		event_slug: String(r.event_slug),
+		caja: Number(r.caja) || 0,
+		snapshot: parse(String(r.snapshot))
+	}));
+}
+
+/**
+ * En qué está la cuenta de un evento: `none` (nadie la empezó), `open` (guardada, sin cerrar) o
+ * `closed` (con el resumen del cierre).
+ * @param {D1Database} db
+ * @param {string} slug
+ * @returns {Promise<{ state: 'none' | 'open' } | { state: 'closed', closing: ClosingRow }>}
+ */
+export async function accountState(db, slug) {
+	const [closed, saved] = await Promise.all([
+		db
+			.prepare(
+				`SELECT ${['event_slug', 'event_title', 'event_date', ...SUMMARY_COLUMNS, 'closed_at', 'closed_by', EXTRAS_SQL].join(', ')}
+				FROM event_account_closings WHERE event_slug = ?1`
+			)
+			.bind(slug)
+			.first(),
+		db.prepare('SELECT 1 AS ok FROM event_accounts WHERE event_slug = ?1').bind(slug).first()
+	]);
+	if (closed) return { state: 'closed', closing: closingRow(closed) };
+	return { state: saved ? 'open' : 'none' };
 }
 
 /**

@@ -32,9 +32,13 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
   castellano para las apps viejas); el lugar **solo como lo muestra la página pública del evento**
   (`feedVenues` + `eventPlace`: un lugar oculto dice «Lugar a confirmar», nunca la dirección) y
   los botones:
-  - «🎟 Comprar en el sitio» (verde, Bot API 9.4) a `/calendario/<evento>/entradas`, o el estado de
-    la venta deshabilitado («Agotadas», «Abre el 5/10»), igual que las tarjetas del calendario;
-    sin entradas acá, «Abrir en el sitio»;
+  - «Abrir en el sitio» a `/calendario/<evento>` (la compra se hace desde la página del evento,
+    después de leer el texto: ningún botón del bot lleva directo a `/entradas`), o el estado de
+    la venta deshabilitado («Agotadas», «Abre el 5/10»), igual que las tarjetas del calendario.
+    Con «Agotadas», un botón más con link a la página del evento (nunca a comprar): «Anotate en
+    la lista de espera» (`#entradas`, si el evento tiene la lista prendida) o «Avisame la
+    próxima» (`#seguir`, «Seguir la serie»); textos `eventos.boton_lista_espera` y
+    `eventos.boton_avisame`, y lo mismo en la tarjeta inline y en la Mini App;
   - «📅 Agregar al calendario» (link de Google Calendar con título, fecha, link y el lugar público;
     sin fin cargado, 2 horas);
   - «🗺 Cómo llegar», solo si la página muestra el mapa (`googleMapsLink` del lugar o el
@@ -302,7 +306,8 @@ funciones que `/calendario`).
   pedido (`miniAppTexts` en `miniapp.js`); la página no se guarda (`private, no-store`): una
   copia guardada nombraba los archivos JS de un deploy anterior, que ya no existen, y la Mini App
   no cargaba («Failed to load», 5/11). Los estados de la venta («Agotadas»…) son
-  los del sitio (`ticketCta`).
+  los del sitio (`ticketCta`). El botón del evento dice «Ver en el sitio» (clave
+  `miniapp.boton_comprar`, se llama así por cómo empezó; un texto ya cambiado en el panel se mantiene).
 - Con `telegram_enriquecido`: «📤 Mandar a un chat» en cada evento y el link directo a un evento
   (abajo, «Mensajes enriquecidos y compartir»).
 
@@ -884,10 +889,11 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
 - **Solo cantidades**: las consultas son `SUM`/`COUNT` sobre `orders` (y la lista de espera); nunca
   leen nombres, mails, DNI, titulares, códigos ni tokens (`admin-privacy.test.js` llena la base con
   todo eso y revisa que no aparezca en ninguna pantalla). Lo de cada compra, en el panel.
-- **🔔 Mis avisos**: siete tipos (resumen diario, cada venta, cada transferencia, día del evento,
-  recordatorios, cambios de Claude y fallas en compras), **todos apagados al empezar**; tocar uno lo
-  prende o lo apaga (✅/⬜). Se guarda por id de GitHub en `telegram_admin_notices` (migración
-  `0054`, sin fila = apagado): volver a vincular no borra lo elegido. Salen los siete (abajo).
+- **🔔 Mis avisos**: nueve tipos (resumen diario, cada venta, cada transferencia, día del evento,
+  recordatorios, cambios de Claude, fallas en compras, fallas del sitio y cada deploy), **todos
+  apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda por id de GitHub en
+  `telegram_admin_notices` (migración `0054`, sin fila = apagado): volver a vincular no borra lo
+  elegido. Salen los nueve (abajo).
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con sus pantallas en
   la vista previa.
 
@@ -1074,6 +1080,48 @@ DO NOTHING`: dos fallas a la vez no mandan dos avisos. Las ventanas son fijas (:
   los errores, no solo los de una compra. Avisar desde el mismo código usa lo que ya está (el bot,
   «Mis avisos», `telegram_admin_sent`). Ver [workers-migracion.md](workers-migracion.md).
 
+### Cada deploy
+
+Pedido de gorrite (5/11): «message me on telegram every time something's merged to prod», con una
+descripción corta. **Cada deploy** (`cada_deploy`, letra `p`), apagado por defecto como todos: se
+prende en «🔔 Mis avisos».
+
+- **Cómo llega**: el workflow `.github/workflows/aviso-deploy.yml` corre en cada push a `main`
+  (no en PRs, no está en `ci-ok`). Busca el PR de cada commit del push (`commits/{sha}/pulls`,
+  solo los mergeados a `main`), espera que termine el check «Workers Builds: kinkyvibe» del último
+  commit (el build de producción; hasta 20 minutos) y le manda `POST /api/interno/deploy` al sitio
+  con el header `x-deploy-secret`. La lógica del workflow está en `scripts/aviso-deploy.js`; la del
+  sitio, en `src/lib/server/deploy/` (con tests).
+- **El endpoint** compara el header con `DEPLOY_NOTIFY_SECRET` en tiempo constante (sobre los
+  SHA-256): sin el secreto (o de menos de 32 caracteres) contesta 503; con otro, 401. Arma los
+  links con el número del PR o el SHA (no acepta URLs de afuera) y manda el aviso por el mismo
+  camino que los demás (`noticeRecipients`, `deliverOnce`): una sola vez por commit y resultado
+  (`deploy:<sha>:<resultado>` en `telegram_admin_sent`), así volver a correr el workflow no lo
+  repite. De noche, sin sonido.
+- **El texto** (fijo, no está en «Textos del bot»: sale de los PRs, no de la base):
+  - uno: «🚀 En producción: <título del PR> (#N)», la descripción en itálica y «Commit abc1234»
+    (link al commit en GitHub);
+  - varios PRs en un push: «🚀 En producción, 3 cambios:» y una viñeta por PR (hasta 10, después
+    «y N más»); un commit sin PR va con su primera línea;
+  - si el build falló: «⚠️ Falló el deploy de …» y «Producción sigue con la versión anterior.»;
+  - si el check no terminó en 20 minutos: «⏳ El deploy de … no terminó en 20 minutos.» y «Mirá el
+    build en Cloudflare.»;
+  - si el build se canceló (Workers Builds lo cancela cuando llega un push más nuevo), no sale
+    nada: avisa el push siguiente, que publica todo junto. Ese aviso lista solo los PRs de su push.
+- **La descripción** (`resumen.js`, hasta 200 caracteres, texto plano): una línea `Aviso: …` del
+  cuerpo del PR, si hay (convención opcional: una o dos líneas cortas en castellano, para
+  gorrite); si no, una línea `Resumen: …` o `Qué cambia: …` (o el párrafo debajo de un título
+  `## Resumen` o `## Qué cambia`); si no, el primer párrafo del cuerpo (sin títulos, sin la línea
+  `Plan:`, sin código ni tablas; de una lista, el primer ítem); si no, el cuerpo del mensaje del
+  commit. Si es largo, la primera oración; si igual no entra, cortada con «…».
+- **Puesta en marcha** (gorrite): generar un secreto largo al azar (por ejemplo
+  `openssl rand -hex 32`) y cargar **el mismo valor** en dos lados: en Cloudflare (Worker
+  kinkyvibe → Settings → Variables and Secrets → Production, tipo Secret, `DEPLOY_NOTIFY_SECRET`,
+  o `npx wrangler secret put DEPLOY_NOTIFY_SECRET`) y en GitHub (repo → Settings → Secrets and
+  variables → Actions → New repository secret, `DEPLOY_NOTIFY_SECRET`). Después, prender «Cada
+  deploy» en «🔔 Mis avisos». Sin el secreto en GitHub, el workflow no hace nada; sin el del
+  Worker, el workflow falla con 503 (se ve en Actions).
+
 ### Puesta en marcha del estado y los avisos (la hace gorrite)
 
 1. **Aplicar la migración `0054_telegram_admin_avisos.sql` en producción y en preview antes de
@@ -1093,6 +1141,8 @@ DO NOTHING`: dos fallas a la vez no mandan dos avisos. Las ventanas son fijas (:
 6. «Fallas del sitio»: **aplicar la migración `0074_vigilancia.sql` en producción y en preview antes
    de mergear** (0028; solo crea dos tablas). Después, prenderlo en «🔔 Mis avisos». Ver
    [workers-migracion.md](workers-migracion.md#avisos-de-fallas-por-telegram).
+7. «Cada deploy» (sin migración): cargar el secreto `DEPLOY_NOTIFY_SECRET` en el Worker y en
+   GitHub Actions (el mismo valor) y prenderlo en «🔔 Mis avisos». Ver [Cada deploy](#cada-deploy).
 
 ## Estadísticas de uso (0045)
 

@@ -992,9 +992,8 @@
 		"keyboard": [
 			[
 				{
-					"text": "🎟 Comprar en el sitio",
-					"url": "https://ejemplo.test/calendario/taller-de-cuerdas/entradas",
-					"style": "success"
+					"text": "Abrir en el sitio",
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 				}
 			],
 			[
@@ -2191,10 +2190,6 @@
 				{
 					"text": "Ver en el sitio",
 					"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
-				},
-				{
-					"text": "🎟 Entradas",
-					"url": "https://ejemplo.test/calendario/taller-de-cuerdas/entradas"
 				}
 			]
 		]
@@ -2562,7 +2557,7 @@
 		]
 	},
 	"admin: mis avisos": {
-		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• <b>Fallas del sitio</b>: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras y las fallas del sitio, en el momento.",
+		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• <b>Fallas del sitio</b>: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n• <b>Cada deploy</b>: cuando un cambio llega a producción (o si falla la publicación), con el PR y una descripción corta.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras, las fallas del sitio y cada deploy, en el momento.",
 		"keyboard": [
 			[
 				{
@@ -2610,6 +2605,12 @@
 				{
 					"text": "⬜ Fallas del sitio",
 					"callback_data": "an:s"
+				}
+			],
+			[
+				{
+					"text": "⬜ Cada deploy",
+					"callback_data": "an:p"
 				}
 			],
 			[
@@ -3088,9 +3089,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -3130,9 +3130,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -3178,9 +3177,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -4134,9 +4132,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -4199,9 +4196,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -5705,9 +5701,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -5750,9 +5745,8 @@
 					"inline_keyboard": [
 						[
 							{
-								"text": "🎟 Comprar en el sitio",
-								"url": "https://ejemplo.test/calendario/x/entradas",
-								"style": "success"
+								"text": "Abrir en el sitio",
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
 							}
 						],
 						[
@@ -7731,7 +7725,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• <b>Fallas del sitio</b>: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras y las fallas del sitio, en el momento.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• <b>Fallas del sitio</b>: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n• <b>Cada deploy</b>: cuando un cambio llega a producción (o si falla la publicación), con el PR y una descripción corta.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras, las fallas del sitio y cada deploy, en el momento.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7784,6 +7778,12 @@
 							{
 								"text": "⬜ Fallas del sitio",
 								"callback_data": "an:s"
+							}
+						],
+						[
+							{
+								"text": "⬜ Cada deploy",
+								"callback_data": "an:p"
 							}
 						],
 						[
@@ -8042,7 +8042,7 @@
 				"method": "editMessageText",
 				"chat_id": 77,
 				"message_id": 9,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• <b>Fallas del sitio</b>: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras y las fallas del sitio, en el momento.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• <b>Fallas del sitio</b>: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n• <b>Cada deploy</b>: cuando un cambio llega a producción (o si falla la publicación), con el PR y una descripción corta.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras, las fallas del sitio y cada deploy, en el momento.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -8095,6 +8095,12 @@
 							{
 								"text": "⬜ Fallas del sitio",
 								"callback_data": "an:s"
+							}
+						],
+						[
+							{
+								"text": "⬜ Cada deploy",
+								"callback_data": "an:p"
 							}
 						],
 						[
@@ -8115,7 +8121,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• <b>Fallas del sitio</b>: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras y las fallas del sitio, en el momento.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n• <b>Cambios de Claude</b>: si el conector de Claude aplica muchos cambios en una hora.\n• <b>Fallas en compras</b>: si algo de una compra falla (Mercado Pago, un pago o el mail de las entradas); como mucho uno por falla cada media hora.\n• <b>Fallas del sitio</b>: si el sitio da muchos errores, si puede haber fallado una compra o si una tarea programada deja de andar.\n• <b>Cada deploy</b>: cuando un cambio llega a producción (o si falla la publicación), con el PR y una descripción corta.\n\nEl resumen diario, el día del evento y los recordatorios salen a las 9 (hora de Argentina); cada venta, cada transferencia, los cambios de Claude, las fallas en compras, las fallas del sitio y cada deploy, en el momento.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -8168,6 +8174,12 @@
 							{
 								"text": "⬜ Fallas del sitio",
 								"callback_data": "an:s"
+							}
+						],
+						[
+							{
+								"text": "⬜ Cada deploy",
+								"callback_data": "an:p"
 							}
 						],
 						[
@@ -9387,7 +9399,86 @@
 		"agregada": "Listo: quedó en tu pantalla de inicio.",
 		"vacio": "Por ahora no hay eventos próximos.",
 		"cancelado": "Cancelado",
-		"comprar": "Comprar en el sitio",
+		"comprar": "Ver en el sitio",
+		"listaEspera": "Anotate en la lista de espera",
+		"avisame": "Avisame la próxima",
 		"verTodo": "Ver el calendario completo en el sitio ↗"
+	},
+	"tarjeta agotadas con lista de espera": {
+		"text": "<b>Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</b>\n📅 <tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n🎟 Agotadas\n\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Ver todo en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🎟 Agotadas",
+					"disabled": {}
+				}
+			],
+			[
+				{
+					"text": "Anotate en la lista de espera",
+					"url": "https://ejemplo.test/calendario/fiesta-inventada#entradas"
+				}
+			],
+			[
+				{
+					"text": "📅 Agregar al calendario",
+					"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Fiesta+%3Cinventada%3E+%26+%22m%C3%A1s%22&dates=20310112T020000Z%2F20310112T040000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ffiesta-inventada"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		],
+		"preview": "https://ejemplo.test/calendario/fiesta-inventada"
+	},
+	"tarjeta agotadas sin lista de espera": {
+		"text": "<b>Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</b>\n📅 <tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n🎟 Agotadas\n\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Ver todo en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🎟 Agotadas",
+					"disabled": {}
+				}
+			],
+			[
+				{
+					"text": "Avisame la próxima",
+					"url": "https://ejemplo.test/calendario/fiesta-inventada#seguir"
+				}
+			],
+			[
+				{
+					"text": "📅 Agregar al calendario",
+					"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Fiesta+%3Cinventada%3E+%26+%22m%C3%A1s%22&dates=20310112T020000Z%2F20310112T040000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ffiesta-inventada"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		],
+		"preview": "https://ejemplo.test/calendario/fiesta-inventada"
+	},
+	"inline: tarjeta evento agotado con lista de espera": {
+		"text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n🎟 Agotadas",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
+				}
+			],
+			[
+				{
+					"text": "Anotate en la lista de espera",
+					"url": "https://ejemplo.test/calendario/x#entradas"
+				}
+			]
+		]
 	}
 }

@@ -93,6 +93,12 @@ primera vez que abre el issue si todavía no existe (también se puede crear a m
 Labels). La lógica está en `scripts/repaso-vigilante.js` (la decisión es una función pura, con
 pruebas en `scripts/repaso-vigilante.test.js`).
 
+**Aviso de deploy** (`.github/workflows/aviso-deploy.yml`, ítem `avisos-deploy` de
+[plan.md](plan.md)): no corre en PRs ni está en los `needs` de `ci-ok`. En cada push a `main`
+espera el check «Workers Builds: kinkyvibe» y le pide al sitio el aviso «Cada deploy» por Telegram
+([telegram.md](telegram.md#cada-deploy)). Permisos: `contents: read`, `checks: read`,
+`pull-requests: read`. Sin el secreto `DEPLOY_NOTIFY_SECRET`, no hace nada.
+
 **Vigilante de producción** (`.github/workflows/vigilante-produccion.yml`, ítem
 `vigilante-produccion` de [plan.md](plan.md)): tampoco corre en PRs ni está en los `needs` de
 `ci-ok`. Cada 30 minutos (a los 17 y 47 de cada hora, UTC), sin Claude ni Cloudflare, pide a
