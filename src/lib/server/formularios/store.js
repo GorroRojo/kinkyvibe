@@ -221,7 +221,10 @@ export async function slugTaken(db, slug, exceptId = 0) {
 async function freeSlug(db, base) {
 	const root = uniqueSlug(base, () => false);
 	const { results } = await db
-		.prepare("SELECT slug FROM forms WHERE slug = ?1 OR slug LIKE ?1 || '-%'")
+		// Sin `LIKE`: D1 no acepta patrones de más de 50 bytes (y `_` en el slug sería comodín).
+		.prepare(
+			"SELECT slug FROM forms WHERE slug = ?1 OR substr(slug, 1, length(?1) + 1) = ?1 || '-'"
+		)
 		.bind(root)
 		.all();
 	const taken = new Set(results.map((r) => String(r.slug)));

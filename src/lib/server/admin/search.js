@@ -62,6 +62,9 @@ const STATUS_LABEL = /** @type {Record<string, string>} */ ({
 	expired: 'vencida'
 });
 
+/** Largo máximo de un patrón `LIKE`/`GLOB` en D1 (developers.cloudflare.com/d1/platform/limits). */
+export const LIKE_MAX_BYTES = 50;
+
 /**
  * Patrón LIKE que busca `text` en cualquier parte (con `%` y `_` escapados; usar `ESCAPE '\'`).
  * @param {string} text
@@ -109,8 +112,12 @@ export function withoutSigns(col) {
 export function looseLike(folded) {
 	let out = '';
 	for (const c of folded) {
-		if (LOOSE_LETTERS.test(c) || c.charCodeAt(0) > 0x7f) out += '_';
-		else out += /[\\%_]/.test(c) ? '\\' + c : c;
+		const piece =
+			LOOSE_LETTERS.test(c) || c.charCodeAt(0) > 0x7f ? '_' : /[\\%_]/.test(c) ? '\\' + c : c;
+		// D1 no acepta patrones de más de 50 bytes («LIKE or GLOB pattern too complex»): se corta
+		// (todo ASCII, más los dos `%`). Es solo el filtro flojo: lo que vuelve se compara acá entero.
+		if (out.length + piece.length > LIKE_MAX_BYTES - 2) break;
+		out += piece;
 	}
 	return `%${out}%`;
 }
@@ -414,7 +421,8 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 	const query = pq.text.slice(0, MAX_QUERY);
 	const idPrefix = orderIdPrefix(query);
 	const digits = query.replace(/[.\s-]/g, '');
-	const dniLike = /^\d{6,}$/.test(digits) ? likeContains(digits) : '';
+	// Con `instr` y no `LIKE`: un número largo pasaría el límite de 50 bytes de D1.
+	const dni = /^\d{6,}$/.test(digits) ? digits : '';
 	const code = query ? normalizeTicketCode(query) : null;
 	/** @param {string} slug */
 	const title = (slug) => titles.get(slug) ?? slug;
@@ -433,16 +441,16 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 			const { results } = await db
 				.prepare(
 					`SELECT id, event_slug, status, buyer_name, buyer_email, quantity, created_at,
-						CASE WHEN ?3 != '' AND buyer_dni LIKE ?3 ESCAPE '\\' THEN substr(buyer_dni, -3) END AS dni_tail,
-						((?1 != '' AND id LIKE ?1 || '%') OR (?3 != '' AND buyer_dni LIKE ?3 ESCAPE '\\')) AS key_hit
+						CASE WHEN ?3 != '' AND instr(buyer_dni, ?3) > 0 THEN substr(buyer_dni, -3) END AS dni_tail,
+						((?1 != '' AND id LIKE ?1 || '%') OR (?3 != '' AND instr(buyer_dni, ?3) > 0)) AS key_hit
 					FROM orders
 					WHERE (?5 = '' OR status = ?5) AND (
 						(?1 != '' AND id LIKE ?1 || '%')
 						OR ${withoutSigns('buyer_name')} LIKE ?2 ESCAPE '\\' OR buyer_email LIKE ?2 ESCAPE '\\'
-						OR (?3 != '' AND buyer_dni LIKE ?3 ESCAPE '\\'))
+						OR (?3 != '' AND instr(buyer_dni, ?3) > 0))
 					ORDER BY key_hit DESC, created_at DESC LIMIT ?4`
 				)
-				.bind(idPrefix ?? '', like, dniLike, MAX_CANDIDATES, status)
+				.bind(idPrefix ?? '', like, dni, MAX_CANDIDATES, status)
 				.all();
 			const found = [];
 			for (const r of results) {

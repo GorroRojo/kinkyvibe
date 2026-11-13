@@ -729,11 +729,11 @@ export async function panelParts(db, slug) {
 			.prepare(
 				`SELECT ${eventCols('ev', 'cs')} FROM objects ev ${eventJoin('ev', 'cs')}
 				WHERE ev.type = ?1 AND ev.deleted_at IS NULL
-				AND coalesce(cs.legacy_slug, ev.slug) LIKE ?2 ESCAPE '\\'
+				AND substr(coalesce(cs.legacy_slug, ev.slug), 1, length(?2)) = ?2
 				AND NOT EXISTS (SELECT 1 FROM edges x WHERE x.kind = ?3 AND x.to_id = ev.id)
 				ORDER BY json_extract(ev.data, '$.start') LIMIT 20`
 			)
-			.bind(EVENT_TYPE, `${slug.replace(/[\\%_]/g, (c) => `\\${c}`)}-parte-%`, PARTE_EDGE)
+			.bind(EVENT_TYPE, `${slug}-parte-`, PARTE_EDGE)
 			.all();
 		suggestions = results
 			.map((r) => rowOf(r, 'ev'))
