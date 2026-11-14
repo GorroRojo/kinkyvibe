@@ -83,7 +83,7 @@
 
 <svelte:head>
 	<link rel="icon" href="/favicon-32x32.png" />
-	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
+	<meta name="theme-color" content="hsl(262, 90%, 60%)" />
 </svelte:head>
 
 <!-- Mientras carga la página siguiente (si tarda más de 150 ms), una barrita arriba. -->
