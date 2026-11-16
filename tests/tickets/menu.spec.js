@@ -111,7 +111,7 @@ test('Ajustes: una portada con 4 grupos de tarjetas, sin pestañas, y «← Ajus
 		'Equipo',
 		'Sistema'
 	]);
-	await expect(landing.getByRole('link')).toHaveCount(9);
+	await expect(landing.getByRole('link')).toHaveCount(10);
 	// Cada tarjeta: nombre, qué hay y su línea de estado (Admins siempre la tiene).
 	const admins = landing.getByRole('link', { name: /Admins/ });
 	await expect(admins).toContainText('Quiénes entran al panel');
@@ -298,14 +298,15 @@ test('/admin/estadisticas (una de las dos redirecciones del panel, gorrite 11/10
 	expect(landed.pathname).toBe('/admin/estadisticas/ventas');
 	expect(landed.searchParams.get('periodo')).toBe('30d');
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ventas en el tiempo');
-	// Las cuatro pestañas de Estadísticas (la del bot de Telegram se sumó en nav.js), con la actual
-	// marcada.
+	// Las cinco pestañas de Estadísticas (la del bot de Telegram se sumó en nav.js; Propinas pasó
+	// de Ajustes a Estadísticas en #646), con la actual marcada.
 	const tabs = page.getByRole('navigation', { name: 'Secciones de Estadísticas' });
 	await expect(tabs.getByRole('link')).toHaveText([
 		'Ventas en el tiempo',
 		'Asistencia',
 		'Visitas al sitio',
-		'Bot de Telegram'
+		'Bot de Telegram',
+		'Propinas'
 	]);
 	await expect(tabs.getByRole('link', { name: 'Ventas en el tiempo' })).toHaveAttribute(
 		'aria-current',
