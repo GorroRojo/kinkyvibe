@@ -60,9 +60,6 @@ export function adminViewer(user) {
 /** Viewer de admin para las consultas (el id no cambia nada en `visibleWhere` de admins). */
 const ADMIN = /** @type {Viewer} */ ({ role: 'admin', id: 'panel' });
 
-/** @param {string} s */
-const likeEscape = (s) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
-
 /** ¿Parece el id de una cuenta (UUID)? */
 export function isAccountId(/** @type {unknown} */ id) {
 	return typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id);
@@ -115,13 +112,14 @@ const ACCOUNT_SELECT = `a.id, a.email, a.email_verified_at, a.password_hash IS N
 export async function listAccounts(db, { q = '', limit = LIST_LIMIT, sort } = {}) {
 	const needle = q.trim().toLowerCase().slice(0, 254);
 	const count = liveProfilesCount();
-	const where = needle ? "WHERE a.email LIKE ? ESCAPE '\\'" : '';
+	// `instr` y no `LIKE`: D1 no acepta patrones de más de 50 bytes y un mail puede ser más largo.
+	const where = needle ? 'WHERE instr(lower(a.email), ?) > 0' : '';
 	const { results } = await db
 		.prepare(
 			`SELECT ${ACCOUNT_SELECT}, ${count.sql} AS profiles FROM accounts a ${where}
 			ORDER BY ${accountOrderBy(sort)} LIMIT ?`
 		)
-		.bind(...count.params, ...(needle ? [`%${likeEscape(needle)}%`] : []), limit)
+		.bind(...count.params, ...(needle ? [needle] : []), limit)
 		.all();
 	const totals = await db
 		.prepare(
@@ -311,9 +309,9 @@ export async function listProfiles(
 	const params = [PROFILE_TYPE, ...vis.params];
 	const needle = q.trim().toLowerCase().slice(0, 200);
 	if (needle) {
-		where.push("(lower(o.title) LIKE ? ESCAPE '\\' OR o.slug LIKE ? ESCAPE '\\')");
-		const like = `%${likeEscape(needle)}%`;
-		params.push(like, like);
+		// `instr` y no `LIKE`: D1 no acepta patrones de más de 50 bytes.
+		where.push('(instr(lower(o.title), ?) > 0 OR instr(lower(o.slug), ?) > 0)');
+		params.push(needle, needle);
 	}
 	if (Object.hasOwn(STATE_SQL, state)) where.push(STATE_SQL[state]);
 	if (Object.hasOwn(ORIGIN_SQL, origin)) where.push(ORIGIN_SQL[origin]);

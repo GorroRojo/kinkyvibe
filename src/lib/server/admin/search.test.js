@@ -7,6 +7,7 @@ import {
 	groupResults,
 	likeContains,
 	looseLike,
+	LIKE_MAX_BYTES,
 	withoutSigns,
 	orderIdPrefix,
 	searchDatabase,
@@ -49,6 +50,14 @@ describe('helpers', () => {
 		expect(looseLike('munoz')).toBe('%m___z%');
 		expect(looseLike('50%_x')).toBe('%50\\%\\_x%');
 		expect(looseLike('ł')).toBe('%_%');
+	});
+	it('looseLike no pasa los 50 bytes de D1 (corta sin partir un escape)', () => {
+		const long = looseLike('x'.repeat(100));
+		expect(long).toBe(`%${'x'.repeat(48)}%`);
+		expect(new TextEncoder().encode(long).length).toBeLessThanOrEqual(LIKE_MAX_BYTES);
+		const escapes = looseLike('%'.repeat(40));
+		expect(escapes.length).toBeLessThanOrEqual(LIKE_MAX_BYTES);
+		expect(escapes).toBe(`%${'\\%'.repeat(24)}%`);
 	});
 	it('foldedMatch: igual, al comienzo, al comienzo de una palabra, en el medio', () => {
 		expect(foldedMatch('jose', 'JOSÉ')).toBe(0);
