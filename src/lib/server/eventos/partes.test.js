@@ -268,6 +268,15 @@ describe('parte nueva y entradas', () => {
 			suggestions: []
 		});
 	});
+
+	it('con un slug largo (más de 50 bytes con «-parte-») también sugiere las partes', async () => {
+		// D1 no acepta patrones LIKE de más de 50 bytes: la búsqueda de partes no puede usar LIKE.
+		const base = 'bdsm-y-neurodivergencias-en-encuentro-diversualidad-2026';
+		await event(base, '2026-11-12T21:00-03:00');
+		await event(`${base}-parte-2`, '2026-11-19T21:00-03:00');
+		const state = await panelParts(t.db, base);
+		expect(state?.suggestions.map((s) => s.slug)).toEqual([`${base}-parte-2`]);
+	});
 });
 
 describe('con entradas vendidas, pregunta antes', () => {

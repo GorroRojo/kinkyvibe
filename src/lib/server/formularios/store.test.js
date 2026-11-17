@@ -84,6 +84,19 @@ describe('plantillas y copias', () => {
 		const id2 = /** @type {number} */ (await copyForm(t.db, /** @type {any} */ (beca).id, by));
 		expect((await getForm(t.db, id2))?.slug).toBe('pedido-de-beca-2');
 	});
+
+	it('copiar un formulario de dirección larga no choca con el límite de LIKE de D1', async () => {
+		await ensureTemplates(t.db);
+		const beca = /** @type {any} */ (
+			(await listForms(t.db)).find((f) => f.slug === 'plantilla-beca')
+		);
+		const long = 'formulario-de-inscripcion-para-el-taller-de-cuerdas-nivel-inicial';
+		await t.db.prepare('UPDATE forms SET title = ?1 WHERE id = ?2').bind(long, beca.id).run();
+		const id = /** @type {number} */ (await copyForm(t.db, beca.id, by));
+		const id2 = /** @type {number} */ (await copyForm(t.db, beca.id, by));
+		const slugs = [(await getForm(t.db, id))?.slug, (await getForm(t.db, id2))?.slug];
+		expect(new Set(slugs).size).toBe(2);
+	});
 });
 
 describe('direcciones únicas', () => {
