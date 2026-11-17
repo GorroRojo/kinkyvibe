@@ -208,7 +208,8 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	await order.getByRole('button', { name: /Mostrar/ }).click();
 	await expect(order.getByText(`DNI ${dotted(buyer.dni)}`)).toBeVisible();
 	for (const p of people) await expect(order.getByRole('cell', { name: p.name })).toBeVisible();
-	await expect(order).toContainText(`recargo MP +${ars(prices.surcharge)}`);
+	// La línea de plata de la orden (#644): «recargo MP $ 490», sin el «+».
+	await expect(order).toContainText(`recargo MP ${ars(prices.surcharge)}`);
 	// El buscador encuentra la orden por DNI (se busca en el servidor).
 	await page.reload();
 	await page.getByRole('searchbox').fill(buyer.dni.slice(0, 5));
@@ -958,7 +959,10 @@ test('tres pasos: indicador, validación por paso, foco, volver sin perder nada 
 
 	// «Pagar» sin la casilla de +18: no envía (sigue en la dirección del paso 3, `?paso=3`).
 	await block.locator('.pay button[type="submit"]').click();
-	await expect(block.getByText(/Tenés que confirmar que tenés 18 años/)).toBeVisible();
+	// El texto cambió a propósito (gorrite, 26/10): cubre a la persona de cada entrada.
+	await expect(
+		block.getByText(/Tenés que confirmar que la persona de la entrada tiene 18 años/)
+	).toBeVisible();
 	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=3$`));
 
 	// Volver (con el botón y con el indicador) no pierde nada.
