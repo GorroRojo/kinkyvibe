@@ -197,13 +197,13 @@
 		};
 	};
 	/**
-	 * Compras y entradas de una lista de órdenes, para el filtro («🧾 3 · 🎟️ 5»).
+	 * Compras y personas (entradas) de una lista de órdenes, para el filtro («🧾 3 · 👥 5»).
 	 * @param {typeof data.orders} list
-	 * @param {(o: (typeof data.orders)[number]) => number} [tickets] entradas de cada orden que cuentan
+	 * @param {(o: (typeof data.orders)[number]) => number} [tickets] personas de cada orden que cuentan
 	 */
 	function tally(list, tickets = (o) => o.quantity) {
 		const n = list.reduce((sum, o) => sum + tickets(o), 0);
-		return `🧾 ${list.length} · 🎟️ ${n}`;
+		return `🧾 ${list.length} · 👥 ${n}`;
 	}
 	$: counts = {
 		approved: tally(data.orders.filter((o) => o.status === 'approved')),
@@ -390,7 +390,7 @@
 	<div class="tools">
 		<label class="filter">
 			<span>Mostrar</span>
-			<select bind:value={filter} title="🧾 compras · 🎟️ entradas">
+			<select bind:value={filter} title="🧾 compras · 👥 personas">
 				<option value="approved">Aprobadas · {counts.approved}</option>
 				<option value="pending">Pendientes · {counts.pending}</option>
 				<option value="refunded">Reembolsadas · {counts.refunded}</option>
