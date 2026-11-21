@@ -39,12 +39,22 @@
 	$: errors = save && !save.ok ? (save.errors ?? {}) : {};
 	$: texts = form?.texts ?? d;
 	$: preview = form?.preview ?? null;
-	/** @param {'survey' | 'form'} kind */
-	const previewOf = (kind) => (preview?.kind === kind ? (preview.mail ?? null) : null);
-	/** @param {'survey' | 'form'} kind @param {'subject' | 'body'} part */
-	const errorOf = (kind, part) =>
-		(preview?.kind === kind ? preview.errors?.[part] : '') ||
-		errors[`${kind}Mail${part === 'subject' ? 'Subject' : 'Body'}`] ||
+	// Con `preview` y `errors` como argumentos: así Svelte (modo legacy) vuelve a dibujar cuando
+	// cambian. Una función que los lee de afuera no avisa, y «Ver cómo queda» no mostraba nada.
+	/**
+	 * @param {typeof preview} p
+	 * @param {'survey' | 'form'} kind
+	 */
+	const previewOf = (p, kind) => (p?.kind === kind ? (p.mail ?? null) : null);
+	/**
+	 * @param {typeof preview} p
+	 * @param {Record<string, string>} errs
+	 * @param {'survey' | 'form'} kind
+	 * @param {'subject' | 'body'} part
+	 */
+	const errorOf = (p, errs, kind, part) =>
+		(p?.kind === kind ? p.errors?.[part] : '') ||
+		errs[`${kind}Mail${part === 'subject' ? 'Subject' : 'Body'}`] ||
 		'';
 	const newFormAccess = /** @type {const} */ (['link', 'account']);
 </script>
@@ -142,8 +152,11 @@
 			body={texts.surveyMailBody}
 			fallbackSubject={data.fallback.survey.subject}
 			fallbackBody={data.fallback.survey.body}
-			preview={previewOf('survey')}
-			errors={{ subject: errorOf('survey', 'subject'), body: errorOf('survey', 'body') }}
+			preview={previewOf(preview, 'survey')}
+			errors={{
+				subject: errorOf(preview, errors, 'survey', 'subject'),
+				body: errorOf(preview, errors, 'survey', 'body')
+			}}
 		/>
 	</Card>
 
@@ -192,8 +205,11 @@
 			body={texts.formMailBody}
 			fallbackSubject={data.fallback.form.subject}
 			fallbackBody={data.fallback.form.body}
-			preview={previewOf('form')}
-			errors={{ subject: errorOf('form', 'subject'), body: errorOf('form', 'body') }}
+			preview={previewOf(preview, 'form')}
+			errors={{
+				subject: errorOf(preview, errors, 'form', 'subject'),
+				body: errorOf(preview, errors, 'form', 'body')
+			}}
 		/>
 	</Card>
 
