@@ -49,7 +49,14 @@
 				? data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
 				: filter === 'uninvoiced'
 					? data.orders.filter((o) => o.toInvoice && !o.invoicedAt)
-					: data.orders.filter((o) => o.status === filter);
+					: filter === 'first'
+						? data.orders.filter(hasFirstTimer)
+						: data.orders.filter((o) => o.status === filter);
+	/** Orden aprobada con alguna entrada de alguien que viene por primera vez a la serie. */
+	/** @param {(typeof data.orders)[number]} o */
+	function hasFirstTimer(o) {
+		return o.status === 'approved' && o.holders.some((h) => h.firstTime);
+	}
 	// El DNI completo no está en la página: las palabras que parecen un DNI se buscan en el
 	// servidor (`?/dniSearch`, devuelve los ids de las órdenes que coinciden). Nombre, email,
 	// referencia y personas se buscan acá.
@@ -195,6 +202,9 @@
 			.length,
 		refunded: data.orders.filter((o) => o.status === 'refunded').length,
 		uninvoiced: data.orders.filter((o) => o.toInvoice && !o.invoicedAt).length,
+		first: data.orders
+			.filter((o) => o.status === 'approved')
+			.reduce((n, o) => n + o.holders.filter((h) => h.firstTime).length, 0),
 		all: data.orders.length
 	};
 </script>
@@ -373,6 +383,8 @@
 				<option value="pending">Pendientes ({counts.pending})</option>
 				<option value="refunded">Reembolsadas ({counts.refunded})</option>
 				<option value="uninvoiced">Sin facturar ({counts.uninvoiced})</option>
+				{#if data.series}<option value="first">Primera vez en {data.series} ({counts.first})</option
+					>{/if}
 				<option value="all">Todas ({counts.all})</option>
 			</select>
 		</label>
@@ -446,7 +458,9 @@
 													size={15}
 													class="in"
 													aria-label="ingresó"
-												/>{/if}</td
+												/>{/if}{#if h.firstTime && data.series}&nbsp;<Badge tone="info"
+													>primera vez</Badge
+												>{/if}</td
 										>
 										<td>{h.pronouns || '—'}</td>
 									</tr>
