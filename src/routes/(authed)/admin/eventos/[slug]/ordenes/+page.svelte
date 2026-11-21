@@ -196,16 +196,28 @@
 			refunding = '';
 		};
 	};
+	/**
+	 * Compras y personas (entradas) de una lista de órdenes, para el filtro («🧾 3 · 👥 5»).
+	 * @param {typeof data.orders} list
+	 * @param {(o: (typeof data.orders)[number]) => number} [tickets] personas de cada orden que cuentan
+	 */
+	function tally(list, tickets = (o) => o.quantity) {
+		const n = list.reduce((sum, o) => sum + tickets(o), 0);
+		return `🧾 ${list.length} · 👥 ${n}`;
+	}
 	$: counts = {
-		approved: data.orders.filter((o) => o.status === 'approved').length,
-		pending: data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
-			.length,
-		refunded: data.orders.filter((o) => o.status === 'refunded').length,
-		uninvoiced: data.orders.filter((o) => o.toInvoice && !o.invoicedAt).length,
-		first: data.orders
-			.filter((o) => o.status === 'approved')
-			.reduce((n, o) => n + o.holders.filter((h) => h.firstTime).length, 0),
-		all: data.orders.length
+		approved: tally(data.orders.filter((o) => o.status === 'approved')),
+		pending: tally(
+			data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
+		),
+		refunded: tally(data.orders.filter((o) => o.status === 'refunded')),
+		uninvoiced: tally(data.orders.filter((o) => o.toInvoice && !o.invoicedAt)),
+		// Solo las entradas de quienes vienen por primera vez, no toda la compra.
+		first: tally(
+			data.orders.filter(hasFirstTimer),
+			(o) => o.holders.filter((h) => h.firstTime).length
+		),
+		all: tally(data.orders)
 	};
 </script>
 
@@ -378,15 +390,15 @@
 	<div class="tools">
 		<label class="filter">
 			<span>Mostrar</span>
-			<select bind:value={filter}>
-				<option value="approved">Aprobadas ({counts.approved})</option>
-				<option value="pending">Pendientes ({counts.pending})</option>
-				<option value="refunded">Reembolsadas ({counts.refunded})</option>
-				<option value="uninvoiced">Sin facturar ({counts.uninvoiced})</option>
+			<select bind:value={filter} title="🧾 compras · 👥 personas">
+				<option value="approved">Aprobadas · {counts.approved}</option>
+				<option value="pending">Pendientes · {counts.pending}</option>
+				<option value="refunded">Reembolsadas · {counts.refunded}</option>
+				<option value="uninvoiced">Sin facturar · {counts.uninvoiced}</option>
 				{#if data.firstKnown}<option value="first"
-						>Primera vez{data.series ? ` en ${data.series}` : ''} ({counts.first})</option
+						>Primera vez{data.series ? ` en ${data.series}` : ''} · {counts.first}</option
 					>{/if}
-				<option value="all">Todas ({counts.all})</option>
+				<option value="all">Todas · {counts.all}</option>
 			</select>
 		</label>
 		<label class="filter">
