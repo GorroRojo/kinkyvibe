@@ -52,7 +52,7 @@
 					: filter === 'first'
 						? data.orders.filter(hasFirstTimer)
 						: data.orders.filter((o) => o.status === filter);
-	/** Orden aprobada con alguna entrada de alguien que viene por primera vez a la serie. */
+	/** Orden aprobada con alguna entrada de alguien que viene por primera vez (formulario o historia). */
 	/** @param {(typeof data.orders)[number]} o */
 	function hasFirstTimer(o) {
 		return o.status === 'approved' && o.holders.some((h) => h.firstTime);
@@ -383,7 +383,8 @@
 				<option value="pending">Pendientes ({counts.pending})</option>
 				<option value="refunded">Reembolsadas ({counts.refunded})</option>
 				<option value="uninvoiced">Sin facturar ({counts.uninvoiced})</option>
-				{#if data.series}<option value="first">Primera vez en {data.series} ({counts.first})</option
+				{#if data.firstKnown}<option value="first"
+						>Primera vez{data.series ? ` en ${data.series}` : ''} ({counts.first})</option
 					>{/if}
 				<option value="all">Todas ({counts.all})</option>
 			</select>
@@ -458,8 +459,11 @@
 													size={15}
 													class="in"
 													aria-label="ingresó"
-												/>{/if}{#if h.firstTime && data.series}&nbsp;<Badge tone="info"
-													>primera vez</Badge
+												/>{/if}{#if h.firstTime}&nbsp;<span
+													title={h.firstFrom === 'form'
+														? 'Lo dijo en el formulario de compra'
+														: 'No tiene entradas en ediciones anteriores'}
+													><Badge tone="info">primera vez</Badge></span
 												>{/if}</td
 										>
 										<td>{h.pronouns || '—'}</td>

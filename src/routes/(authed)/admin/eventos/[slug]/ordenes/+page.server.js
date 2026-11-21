@@ -12,10 +12,11 @@
  * Evento cancelado (decisión 0051): arriba, «Reembolsar todas» con la cantidad y el total exactos
  * de las órdenes de Mercado Pago (`refundAllPreview`) y la lista de las que se devuelven a mano.
  *
- * Primera vez en la serie: cada entrada lleva `firstTime` (true/false; null si no se sabe), con la
- * misma regla que el modo puerta ($lib/server/tickets/series.js). `series` es el nombre para
- * mostrar ("Picantearla"); vacío si el evento no tiene serie o no hay ediciones anteriores con
- * entradas.
+ * Primera vez: cada entrada lleva `firstTime` (true/false; null si no se sabe) y de dónde sale
+ * (`firstFrom`): lo que contestó en la pregunta de inscripción «¿primera vez…?» si el evento la
+ * tiene (`answeredFirstTime`) y, si no, la misma regla que el modo puerta (entradas en ediciones
+ * anteriores de la serie; $lib/server/tickets/series.js). `series` es el nombre para mostrar
+ * ("Picantearla"); vacío si el evento no tiene serie.
  */
 import { error } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -26,7 +27,7 @@ import { REFUND_ALL_BATCH, REFUND_ALL_WORD, refundAllPreview } from '$lib/server
 import { orderReference } from '$lib/utils/tickets.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { cachedPrior } from '$lib/server/tickets/doorContext.js';
-import { isFirstTime } from '$lib/server/tickets/series.js';
+import { answeredFirstTime, isFirstTime } from '$lib/server/tickets/series.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, setHeaders }) {
@@ -44,15 +45,23 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	const known = Boolean(prior?.known);
 	const orders = rows.map((r) => ({
 		...r,
-		holders: r.holders.map((h) => ({
-			...h,
-			/** @type {boolean | null} */
-			firstTime:
+		holders: r.holders.map((h, i) => {
+			// Lo que dijo en el formulario gana; si no contestó, la historia de entradas.
+			const said = answeredFirstTime(r.answers, i, r.holders.length);
+			const history =
 				known && prior
 					? isFirstTime({ holder: h.name, buyerName: r.name, buyerEmail: r.email }, prior)
-					: null
-		}))
+					: null;
+			return {
+				...h,
+				/** @type {boolean | null} */
+				firstTime: said ?? history,
+				/** @type {'form' | 'history' | null} */
+				firstFrom: said !== null ? 'form' : history !== null ? 'history' : null
+			};
+		})
 	}));
+	const anyKnown = orders.some((o) => o.holders.some((h) => h.firstTime !== null));
 	return {
 		refundAll: preview
 			? {
@@ -63,7 +72,9 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 				}
 			: null,
 		orders,
-		series: known && prior ? prior.series.label : '',
+		// `firstTime` se puede usar (filtro y etiqueta) si hay alguna respuesta o historia.
+		firstKnown: anyKnown,
+		series: prior?.series?.label ?? '',
 		// Órdenes para revisar a mano (pago tardío sin cupo, pago duplicado).
 		review: orders.filter((r) => r.needsReview)
 	};

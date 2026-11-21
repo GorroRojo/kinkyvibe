@@ -129,3 +129,28 @@ export function isFirstTime({ holder, buyerName, buyerEmail }, prior) {
 	if (email && name && name === foldText(buyerName) && prior.emails.has(email)) return false;
 	return true;
 }
+
+/** La pregunta de inscripción «¿Es tu primera vez…?» (la arma cada evento, con su texto). */
+const FIRST_QUESTION = /primera\s+vez/i;
+
+/**
+ * Lo que la persona contestó en la pregunta de inscripción de primera vez, para la entrada
+ * `index` (desde 0) de una compra de `quantity`. Gana la respuesta por entrada (`ticket`); una
+ * respuesta por compra vale para la compra de una sola entrada y, si son varias, solo para la
+ * primera. `null` si no hay pregunta, no la contestó o la respuesta no es sí ni no.
+ *
+ * @param {readonly import('$lib/utils/signupFields.js').Answer[]} answers
+ * @param {number} index
+ * @param {number} quantity
+ * @returns {boolean | null}
+ */
+export function answeredFirstTime(answers, index, quantity) {
+	const asked = answers.filter((a) => FIRST_QUESTION.test(a.label));
+	const answer =
+		asked.find((a) => a.ticket === index + 1) ??
+		(quantity === 1 || index === 0 ? asked.find((a) => !a.ticket) : undefined);
+	const value = foldText(answer?.value ?? '');
+	if (/^(si|yes)\b/.test(value)) return true;
+	if (/^no\b/.test(value)) return false;
+	return null;
+}

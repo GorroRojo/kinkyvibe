@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import tagsFactory from '$lib/utils/tags';
 import { fakeEvent } from '$lib/server/series/fixtures.js';
-import { doorSeries, isFirstTime, priorAttendance } from './series.js';
+import { answeredFirstTime, doorSeries, isFirstTime, priorAttendance } from './series.js';
 import { sellAtDoor } from './door.js';
 
 // La serie de un evento son sus etiquetas hijas (o nietas) de «evento recurrente», ya no el
@@ -217,5 +217,30 @@ describe('priorAttendance (D1)', () => {
 		expect(
 			isFirstTime({ holder: 'Nueve', buyerName: 'Nueve', buyerEmail: 'n@example.com' }, prior)
 		).toBeNull();
+	});
+});
+
+describe('answeredFirstTime (la pregunta del formulario)', () => {
+	const q = '¿Es tu primera vez en Picantearla?';
+	it('sí / no, con o sin tilde', () => {
+		expect(answeredFirstTime([{ id: 1, label: q, value: 'Sí' }], 0, 1)).toBe(true);
+		expect(answeredFirstTime([{ id: 1, label: q, value: 'si, re' }], 0, 1)).toBe(true);
+		expect(answeredFirstTime([{ id: 1, label: q, value: 'No' }], 0, 1)).toBe(false);
+	});
+	it('sin pregunta, sin respuesta o respuesta rara: null', () => {
+		expect(answeredFirstTime([], 0, 1)).toBeNull();
+		expect(answeredFirstTime([{ id: 1, label: 'Pronombres', value: 'Sí' }], 0, 1)).toBeNull();
+		expect(answeredFirstTime([{ id: 1, label: q, value: 'Tal vez' }], 0, 1)).toBeNull();
+	});
+	it('por entrada gana; por compra solo vale para la primera de varias', () => {
+		const answers = [
+			{ id: 1, label: q, value: 'No', ticket: 1 },
+			{ id: 1, label: q, value: 'Sí', ticket: 2 }
+		];
+		expect(answeredFirstTime(answers, 0, 2)).toBe(false);
+		expect(answeredFirstTime(answers, 1, 2)).toBe(true);
+		const perOrder = [{ id: 1, label: q, value: 'Sí' }];
+		expect(answeredFirstTime(perOrder, 0, 2)).toBe(true);
+		expect(answeredFirstTime(perOrder, 1, 2)).toBeNull();
 	});
 });
