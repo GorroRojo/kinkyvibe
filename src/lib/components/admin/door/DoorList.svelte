@@ -11,6 +11,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { CircleCheck, Sparkles } from '@lucide/svelte';
 	import { localSearch } from '$lib/admin/doorOffline.js';
+	import { argTime } from '$lib/utils/dates.js';
 	import { foldText } from '$lib/utils/text.js';
 
 	/** @type {import('$lib/admin/doorOffline.js').OfflineTicket[]} */
@@ -32,8 +33,7 @@
 		.sort((a, b) => foldText(a.holder).localeCompare(foldText(b.holder)));
 
 	/** @param {number | null} at */
-	const time = (at) =>
-		at ? new Date(at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
+	const time = (at) => (at ? argTime(at) : '');
 </script>
 
 <aside class="door-list" aria-label="Entradas del evento">
