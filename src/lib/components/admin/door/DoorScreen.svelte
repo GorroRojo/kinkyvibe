@@ -35,6 +35,7 @@
 		X
 	} from '@lucide/svelte';
 	import DoorScanner from '$lib/components/admin/door/DoorScanner.svelte';
+	import DoorList from '$lib/components/admin/door/DoorList.svelte';
 	import DoorResult from '$lib/components/admin/door/DoorResult.svelte';
 	import DoorGuide from '$lib/components/admin/door/DoorGuide.svelte';
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
@@ -841,6 +842,15 @@
 	let timer;
 	/** @type {ReturnType<typeof setInterval> | undefined} */
 	let linkTimer;
+	// En la compu (pantalla ancha), la lista de entradas al costado (DoorList).
+	let wide = false;
+	onMount(() => {
+		const mq = window.matchMedia('(min-width: 1100px)');
+		const onWide = () => (wide = mq.matches);
+		onWide();
+		mq.addEventListener('change', onWide);
+		return () => mq.removeEventListener('change', onWide);
+	});
 	onMount(() => {
 		online = navigator.onLine;
 		door = loadDoorState(storage(), data.slug, storageOpts());
@@ -1549,6 +1559,15 @@
 		{#if toast}<p class="toast" role="status">{toast}</p>{/if}
 	</div>
 
+	{#if wide}
+		<DoorList
+			list={door.list}
+			{busy}
+			on:details={(e) => openDetails(e)}
+			on:mark={(e) => submitScan(e.detail)}
+		/>
+	{/if}
+
 	<!-- Escribir código -->
 	<Sheet bind:open={codeOpen} title="Escribir código">
 		<form method="POST" action="?/checkin" class="stack" on:submit|preventDefault={submitCode}>
@@ -2093,6 +2112,24 @@
 		.door {
 			position: static;
 			min-height: 100dvh;
+		}
+	}
+	/* En la compu: la Puerta y, al costado, la lista de entradas (DoorList). */
+	@media (min-width: 1100px) {
+		.door-root {
+			display: grid;
+			grid-template-columns: minmax(0, 40rem) minmax(20rem, 28rem);
+			justify-content: center;
+			gap: var(--space-m);
+		}
+		.door {
+			margin: 0;
+		}
+		.door-root > :global(.door-list) {
+			position: sticky;
+			top: 0;
+			height: calc(100dvh - 1.6rem);
+			margin-block: 0.8rem;
 		}
 	}
 	:global(html:has(.door)),
