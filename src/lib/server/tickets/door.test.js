@@ -474,25 +474,25 @@ describe('primera vez: la respuesta del formulario y el contador de la puerta', 
 			{ value: 'Sí', ticket: 3 }
 		]);
 		// Las tres entraron (venta en la puerta): dos por primera vez.
-		expect(await firstInsideCount(t.db, EVENT, null)).toBe(2);
+		expect(await firstInsideCount(t.db, EVENT, null)).toEqual({ inside: 2, total: 2 });
 		const list = await offlineList(t.db, { slug: EVENT, typeNames: names, prior: null });
 		expect(list.map((x) => x.firstTime)).toEqual([true, false, true]);
 		expect(await saidFirstTime(t.db, r.tickets[1])).toBe(false);
 		expect(await saidFirstTime(t.db, r.tickets[2])).toBe(true);
-		// La tercera sale: ya no cuenta.
+		// La tercera sale: sigue en el total, ya no adentro.
 		await t.db
 			.prepare('UPDATE tickets SET checked_in_at = NULL WHERE id = ?1')
 			.bind(r.tickets[2].id)
 			.run();
-		expect(await firstInsideCount(t.db, EVENT, null)).toBe(1);
+		expect(await firstInsideCount(t.db, EVENT, null)).toEqual({ inside: 1, total: 2 });
 	});
 
 	it('una compra anulada no cuenta aunque haya entrado', async () => {
 		const r = await sell();
 		if (!r.ok) throw new Error('sin cupo');
 		await answer(r.order.id, [{ value: 'Sí' }]);
-		expect(await firstInsideCount(t.db, EVENT, null)).toBe(1);
+		expect(await firstInsideCount(t.db, EVENT, null)).toEqual({ inside: 1, total: 1 });
 		await t.db.prepare("UPDATE orders SET status = 'refunded'").run();
-		expect(await firstInsideCount(t.db, EVENT, null)).toBe(0);
+		expect(await firstInsideCount(t.db, EVENT, null)).toEqual({ inside: 0, total: 0 });
 	});
 });

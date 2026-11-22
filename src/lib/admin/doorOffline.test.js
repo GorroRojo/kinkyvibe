@@ -111,18 +111,18 @@ describe('validar y marcar sin conexión', () => {
 			total: 2,
 			inside: 2,
 			byType: { general: { total: 2, inside: 2 } },
-			first: 2
+			first: { inside: 2, total: 2 }
 		});
 	});
 
-	it('localCounts: quienes vienen por primera vez y ya entraron (null si no se sabe)', () => {
+	it('localCounts: quienes vienen por primera vez, adentro y en total (null si no se sabe)', () => {
 		const list = [
 			ticket({ ticketId: 'a', at: 1, firstTime: true }),
 			ticket({ ticketId: 'b', at: null, firstTime: true }),
 			ticket({ ticketId: 'c', at: 1, firstTime: false }),
 			ticket({ ticketId: 'd', at: 1, firstTime: true, valid: false })
 		];
-		expect(localCounts(list).first).toBe(1);
+		expect(localCounts(list).first).toEqual({ inside: 1, total: 2 });
 		expect(localCounts([ticket({ at: 1, firstTime: null })]).first).toBeNull();
 	});
 
