@@ -8,7 +8,9 @@ import {
 	dniTail,
 	doorSalesOpen,
 	doorCounts,
+	firstInsideCount,
 	offlineList,
+	saidFirstTime,
 	orderRef,
 	parseQueue,
 	purchaseDetails,
@@ -21,6 +23,7 @@ import {
 	ticketWithBuyer
 } from './door.js';
 import { checkIn, normalizeTicketCode, reserveOrder, tokenByCode } from './orders.js';
+import { answersStatement } from './signupFields.js';
 import { parseTicketConfig } from './config.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
@@ -441,5 +444,55 @@ describe('checkinGroup', () => {
 		expect(checkinGroup(Date.parse('2026-09-01T20:00:00-03:00'), now)).toBe('recientes');
 		expect(checkinGroup(Date.parse('2026-06-01T20:00:00-03:00'), now)).toBeNull();
 		expect(checkinGroup(null, now)).toBeNull();
+	});
+});
+
+describe('primera vez: la respuesta del formulario y el contador de la puerta', () => {
+	const Q = 'Es la primera vez que voy a un Picantearla';
+	/** @param {string} orderId @param {{ value: string, ticket?: number }[]} a */
+	const answer = (orderId, a) =>
+		answersStatement(
+			t.db,
+			orderId,
+			a.map((x) => ({ id: 1, label: Q, ...x })),
+			NOW
+		).run();
+
+	it('sin pregunta ni historia no se sabe: null', async () => {
+		await sell({ quantity: 2 });
+		expect(await firstInsideCount(t.db, EVENT, null)).toBeNull();
+		const list = await offlineList(t.db, { slug: EVENT, typeNames: names, prior: null });
+		expect(list.map((r) => r.firstTime)).toEqual([null, null]);
+	});
+
+	it('cuenta a quienes dijeron «Sí» y ya entraron; cada entrada con su respuesta', async () => {
+		const r = await sell({ quantity: 3 });
+		if (!r.ok) throw new Error('sin cupo');
+		await answer(r.order.id, [
+			{ value: 'Sí', ticket: 1 },
+			{ value: 'No, ya fui a un Picantearla común antes.', ticket: 2 },
+			{ value: 'Sí', ticket: 3 }
+		]);
+		// Las tres entraron (venta en la puerta): dos por primera vez.
+		expect(await firstInsideCount(t.db, EVENT, null)).toBe(2);
+		const list = await offlineList(t.db, { slug: EVENT, typeNames: names, prior: null });
+		expect(list.map((x) => x.firstTime)).toEqual([true, false, true]);
+		expect(await saidFirstTime(t.db, r.tickets[1])).toBe(false);
+		expect(await saidFirstTime(t.db, r.tickets[2])).toBe(true);
+		// La tercera sale: ya no cuenta.
+		await t.db
+			.prepare('UPDATE tickets SET checked_in_at = NULL WHERE id = ?1')
+			.bind(r.tickets[2].id)
+			.run();
+		expect(await firstInsideCount(t.db, EVENT, null)).toBe(1);
+	});
+
+	it('una compra anulada no cuenta aunque haya entrado', async () => {
+		const r = await sell();
+		if (!r.ok) throw new Error('sin cupo');
+		await answer(r.order.id, [{ value: 'Sí' }]);
+		expect(await firstInsideCount(t.db, EVENT, null)).toBe(1);
+		await t.db.prepare("UPDATE orders SET status = 'refunded'").run();
+		expect(await firstInsideCount(t.db, EVENT, null)).toBe(0);
 	});
 });
