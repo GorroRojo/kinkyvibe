@@ -608,6 +608,21 @@
 		}
 	}
 
+	/** Las entradas de la compra abierta que todavía no entraron (y no están anuladas). */
+	$: purchaseMissing = (purchase?.tickets ?? []).filter(
+		(/** @type {any} */ t) => !t.at && door.list.some((x) => x.ticketId === t.id && x.valid)
+	);
+	/**
+	 * «Marcar ingreso» desde «Ver compra»: cierra la hoja y marca cada una como un escaneo (con su
+	 * código o `ticket:<id>`, como el buscador), así vale lo mismo con y sin conexión y se puede
+	 * deshacer. Con varias, una detrás de la otra; el resultado grande muestra la última.
+	 * @param {{ id: string, code?: string }[]} tickets
+	 */
+	async function markFromPurchase(tickets) {
+		purchaseOpen = false;
+		for (const t of tickets) await submitScan(t.code || `ticket:${t.id}`);
+	}
+
 	// --- Descartar una venta sin conexión que todavía no se mandó (UX V12) ---
 	/**
 	 * Solo saca la venta de la cola de este celu: no toca el servidor ni la plata. Pregunta antes en
@@ -1951,18 +1966,36 @@
 			<h3 class="sub">Entradas de esta compra</h3>
 			<ul class="order-tickets">
 				{#each purchase.tickets as t (t.id)}
+					{@const known = door.list.find((x) => x.ticketId === t.id)}
 					<li class:inside={t.at}>
 						<span>
 							<strong>{t.holder}</strong>{#if t.pronouns}&nbsp;({t.pronouns}){/if}
+							{#if known?.firstTime}<span class="s-first"><Sparkles size={14} /> primera vez</span
+								>{/if}
 							{#if t.code}<span class="s-code">{t.code}</span>{/if}
 						</span>
 						<span class="state">
 							{#if t.at}<CircleCheck size={16} /> adentro {hhmm(t.at)}{#if t.by}&nbsp;· {t.by}{/if}
+							{:else if known?.valid}<button
+									type="button"
+									class="mark-btn"
+									disabled={busy}
+									on:click={() => markFromPurchase([t])}>Marcar ingreso</button
+								>
 							{:else}sin ingresar{/if}
 						</span>
 					</li>
 				{/each}
 			</ul>
+			{#if purchaseMissing.length > 1}
+				<button
+					type="button"
+					class="link-btn"
+					disabled={busy}
+					on:click={() => markFromPurchase(purchaseMissing)}
+					>Marcar a las {purchaseMissing.length} que faltan</button
+				>
+			{/if}
 			{#if !linkMode && !purchase.offline && orderHref(ordersHref, purchase.id)}
 				<a class="link-btn" href={orderHref(ordersHref, purchase.id)}
 					>Ver la orden en la ficha del evento</a
@@ -2646,6 +2679,23 @@
 		gap: var(--space-3xs);
 		color: var(--muted);
 		font-size: var(--text-sm);
+	}
+	.s-first {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+		color: var(--accent);
+		font-size: var(--text-sm);
+		margin-inline: 0.3rem;
+	}
+	.mark-btn {
+		font: inherit;
+		color: var(--text);
+		background: var(--accent-dark);
+		border: 0;
+		border-radius: 2em;
+		padding: 0.25rem 0.8rem;
+		cursor: pointer;
 	}
 	.order-tickets li.inside .state {
 		color: var(--ok);
