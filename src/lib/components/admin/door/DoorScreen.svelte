@@ -35,6 +35,7 @@
 		X
 	} from '@lucide/svelte';
 	import DoorScanner from '$lib/components/admin/door/DoorScanner.svelte';
+	import DoorList from '$lib/components/admin/door/DoorList.svelte';
 	import DoorResult from '$lib/components/admin/door/DoorResult.svelte';
 	import DoorGuide from '$lib/components/admin/door/DoorGuide.svelte';
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
@@ -607,6 +608,21 @@
 		}
 	}
 
+	/** Las entradas de la compra abierta que todavía no entraron (y no están anuladas). */
+	$: purchaseMissing = (purchase?.tickets ?? []).filter(
+		(/** @type {any} */ t) => !t.at && door.list.some((x) => x.ticketId === t.id && x.valid)
+	);
+	/**
+	 * «Marcar ingreso» desde «Ver compra»: cierra la hoja y marca cada una como un escaneo (con su
+	 * código o `ticket:<id>`, como el buscador), así vale lo mismo con y sin conexión y se puede
+	 * deshacer. Con varias, una detrás de la otra; el resultado grande muestra la última.
+	 * @param {{ id: string, code?: string }[]} tickets
+	 */
+	async function markFromPurchase(tickets) {
+		purchaseOpen = false;
+		for (const t of tickets) await submitScan(t.code || `ticket:${t.id}`);
+	}
+
 	// --- Descartar una venta sin conexión que todavía no se mandó (UX V12) ---
 	/**
 	 * Solo saca la venta de la cola de este celu: no toca el servidor ni la plata. Pregunta antes en
@@ -841,6 +857,15 @@
 	let timer;
 	/** @type {ReturnType<typeof setInterval> | undefined} */
 	let linkTimer;
+	// En la compu (pantalla ancha), la lista de entradas al costado (DoorList).
+	let wide = false;
+	onMount(() => {
+		const mq = window.matchMedia('(min-width: 1100px)');
+		const onWide = () => (wide = mq.matches);
+		onWide();
+		mq.addEventListener('change', onWide);
+		return () => mq.removeEventListener('change', onWide);
+	});
 	onMount(() => {
 		online = navigator.onLine;
 		door = loadDoorState(storage(), data.slug, storageOpts());
@@ -1549,6 +1574,15 @@
 		{#if toast}<p class="toast" role="status">{toast}</p>{/if}
 	</div>
 
+	{#if wide}
+		<DoorList
+			list={door.list}
+			{busy}
+			on:details={(e) => openDetails(e)}
+			on:mark={(e) => submitScan(e.detail)}
+		/>
+	{/if}
+
 	<!-- Escribir código -->
 	<Sheet bind:open={codeOpen} title="Escribir código">
 		<form method="POST" action="?/checkin" class="stack" on:submit|preventDefault={submitCode}>
@@ -1932,18 +1966,36 @@
 			<h3 class="sub">Entradas de esta compra</h3>
 			<ul class="order-tickets">
 				{#each purchase.tickets as t (t.id)}
+					{@const known = door.list.find((x) => x.ticketId === t.id)}
 					<li class:inside={t.at}>
 						<span>
 							<strong>{t.holder}</strong>{#if t.pronouns}&nbsp;({t.pronouns}){/if}
+							{#if known?.firstTime}<span class="s-first"><Sparkles size={14} /> primera vez</span
+								>{/if}
 							{#if t.code}<span class="s-code">{t.code}</span>{/if}
 						</span>
 						<span class="state">
 							{#if t.at}<CircleCheck size={16} /> adentro {hhmm(t.at)}{#if t.by}&nbsp;· {t.by}{/if}
+							{:else if known?.valid}<button
+									type="button"
+									class="mark-btn"
+									disabled={busy}
+									on:click={() => markFromPurchase([t])}>Marcar ingreso</button
+								>
 							{:else}sin ingresar{/if}
 						</span>
 					</li>
 				{/each}
 			</ul>
+			{#if purchaseMissing.length > 1}
+				<button
+					type="button"
+					class="link-btn"
+					disabled={busy}
+					on:click={() => markFromPurchase(purchaseMissing)}
+					>Marcar a las {purchaseMissing.length} que faltan</button
+				>
+			{/if}
 			{#if !linkMode && !purchase.offline && orderHref(ordersHref, purchase.id)}
 				<a class="link-btn" href={orderHref(ordersHref, purchase.id)}
 					>Ver la orden en la ficha del evento</a
@@ -2093,6 +2145,24 @@
 		.door {
 			position: static;
 			min-height: 100dvh;
+		}
+	}
+	/* En la compu: la Puerta y, al costado, la lista de entradas (DoorList). */
+	@media (min-width: 1100px) {
+		.door-root {
+			display: grid;
+			grid-template-columns: minmax(0, 40rem) minmax(20rem, 28rem);
+			justify-content: center;
+			gap: var(--space-m);
+		}
+		.door {
+			margin: 0;
+		}
+		.door-root > :global(.door-list) {
+			position: sticky;
+			top: 0;
+			height: calc(100dvh - 1.6rem);
+			margin-block: 0.8rem;
 		}
 	}
 	:global(html:has(.door)),
@@ -2609,6 +2679,23 @@
 		gap: var(--space-3xs);
 		color: var(--muted);
 		font-size: var(--text-sm);
+	}
+	.s-first {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+		color: var(--accent);
+		font-size: var(--text-sm);
+		margin-inline: 0.3rem;
+	}
+	.mark-btn {
+		font: inherit;
+		color: var(--text);
+		background: var(--accent-dark);
+		border: 0;
+		border-radius: 2em;
+		padding: 0.25rem 0.8rem;
+		cursor: pointer;
 	}
 	.order-tickets li.inside .state {
 		color: var(--ok);

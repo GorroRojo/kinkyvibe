@@ -25,6 +25,8 @@
 	/** `null` hasta montar en el navegador (en el servidor no se sabe). */
 	/** @type {boolean | null} */
 	let supported = null;
+	// Compu (mouse): sin cámara que lea QRs, el aviso es corto y no ocupa el lugar del visor.
+	let desktop = false;
 	let torchSupported = false;
 	let torchOn = false;
 	let canSwitch = false;
@@ -41,6 +43,7 @@
 
 	onMount(async () => {
 		supported = 'BarcodeDetector' in window && Boolean(navigator.mediaDevices?.getUserMedia);
+		desktop = window.matchMedia('(pointer: fine)').matches;
 		if (!supported) return;
 		// Si ya dio permiso antes, la cámara se prende sola al entrar.
 		try {
@@ -136,14 +139,16 @@
 	onDestroy(stop);
 </script>
 
-<div class="scanner" class:running>
+<div class="scanner" class:running class:compact={supported === false}>
 	{#if running}
 		<video bind:this={video} playsinline muted></video>
 		<span class="frame" aria-hidden="true"></span>
 	{/if}
 	<div class="top">
 		<p class="hint">
-			{#if supported === false}
+			{#if supported === false && desktop}
+				Acá no se leen QRs: usá «Escribir código» o «Buscar persona».
+			{:else if supported === false}
 				{#if cameraApp}
 					Este navegador no lee QRs (pasa en iPhone). Abrí la app Cámara del celu y apuntá al QR: se
 					abre la entrada con «Marcar ingreso». También podés usar «Escribir código» o «Buscar
@@ -300,6 +305,20 @@
 		border-radius: var(--radius-m);
 		background: var(--bad-bg);
 		color: var(--bad);
+	}
+	/* Sin lector de QR: solo el aviso, sin el recuadro grande del visor (pedido de gorrite). */
+	.scanner.compact {
+		min-height: 0;
+		background: none;
+		overflow: visible;
+	}
+	.scanner.compact .top {
+		padding: 0;
+	}
+	.scanner.compact .hint {
+		color: var(--muted);
+		text-shadow: none;
+		font-size: var(--text-sm);
 	}
 	.overlay {
 		position: relative;
