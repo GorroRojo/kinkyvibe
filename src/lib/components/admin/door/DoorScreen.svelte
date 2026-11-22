@@ -1449,7 +1449,7 @@
 				<p class="first-in">
 					<Sparkles size={16} aria-hidden="true" />
 					<span class="num">{counts.first.inside} / {counts.first.total}</span>
-					por primera vez{data.series ? ` en ${data.series}` : ''}
+					primerices ya llegaron
 				</p>
 			{/if}
 		</section>
