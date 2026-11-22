@@ -208,8 +208,13 @@ describe('modo puerta, escaneo: consultas a D1', () => {
  * (antes 13 en 13: la venta de la parte se lee por las dudas y no se usa, a cambio de no esperar a
  * las partes). Se admite una ola más: lo de la primera vez en la serie puede salir en la misma ola
  * que los contadores o no, según qué vuelve antes.
+ *
+ * Desde el contador «N por primera vez» de la puerta (pedido de Pau, 22/11): +1 consulta en los
+ * dos casos (la respuesta «¿primera vez…?» de la compra, para la tarjeta) y, en el evento suelto,
+ * +1 más (las entradas adentro con sus respuestas, para el contador; en una parte no va). Las dos
+ * salen en la misma ola que el resto: no suma vueltas a la base.
  */
 const BOUNDS = {
-	suelto: { queries: 8, waves: 5 },
-	parte: { queries: 13, waves: 6 }
+	suelto: { queries: 10, waves: 5 },
+	parte: { queries: 14, waves: 6 }
 };

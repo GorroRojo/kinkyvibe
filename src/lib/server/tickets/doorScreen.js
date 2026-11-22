@@ -77,6 +77,8 @@ import {
 	purchaseDetails,
 	revealDni,
 	sellAtDoor,
+	firstInsideCount,
+	saidFirstTime,
 	ticketCard,
 	ticketWithBuyer
 } from '$lib/server/tickets/door.js';
@@ -154,12 +156,16 @@ function withoutNotice({ notice: _notice, ...rest }) {
  *
  * @param {DoorActor} actor
  * @param {import('./door.js').TicketWithBuyer} full
+ * `said`: la respuesta «¿primera vez…?» de la compra (`saidFirstTime`), si se leyó; gana sobre la
+ * historia (`prior`).
+ *
  * @param {{ typeNames: Record<string, string>, prior: import('./door.js').PriorAttendance | null,
- *   notices: import('./doorNotices.js').DoorNoticeMatcher | null, scanCard?: boolean }} ctx
+ *   notices: import('./doorNotices.js').DoorNoticeMatcher | null, scanCard?: boolean,
+ *   said?: boolean | null }} ctx
  */
-async function doorCard(actor, full, { typeNames, prior, notices, scanCard = false }) {
+async function doorCard(actor, full, { typeNames, prior, notices, scanCard = false, said = null }) {
 	const notice = notices ? await notices(full) : false;
-	const card = ticketCard(full, { typeNames, prior, notice });
+	const card = ticketCard(full, { typeNames, prior, notice, said });
 	return actor.link && !scanCard ? withoutNotice(card) : card;
 }
 
@@ -199,13 +205,29 @@ function hideLogins(actor, rows, key) {
 }
 
 /**
- * Contadores de la pantalla: los del evento o, en una parte de un taller, los de esa parte.
+ * Contadores de la pantalla: los del evento o, en una parte de un taller, los de esa parte. Los
+ * del evento llevan `first`: cuántas personas que vienen por primera vez ya entraron (`null` si
+ * no se sabe; ver `firstInsideCount`). Si eso falla, los contadores salen igual, sin `first`.
  *
  * @param {import('@cloudflare/workers-types').D1Database} db
- * @param {{ ticketSlug: string, part: { slug: string } | null }} scope
+ * `prior`: la historia ya pedida en este mismo pedido (así no se lee dos veces a la vez).
+ *
+ * @param {{ ticketSlug: string, part: { slug: string } | null, platform?: App.Platform,
+ *   prior?: Promise<import('./door.js').PriorAttendance | null> }} scope
  */
-function countsFor(db, { ticketSlug, part }) {
-	return part ? partDoorCounts(db, ticketSlug, part.slug) : doorCounts(db, ticketSlug);
+async function countsFor(db, { ticketSlug, part, platform, prior }) {
+	// En una parte de un taller no se cuenta (el ingreso es a la parte, no a la serie).
+	if (part) return { ...(await partDoorCounts(db, ticketSlug, part.slug)), first: null };
+	const [counts, first] = await Promise.all([
+		doorCounts(db, ticketSlug),
+		(prior ?? cachedPrior(db, ticketSlug, platform))
+			.then((prior) => firstInsideCount(db, ticketSlug, prior))
+			.catch((e) => {
+				console.error('[puerta] primera vez adentro:', e);
+				return null;
+			})
+	]);
+	return { ...counts, first };
 }
 
 /**
@@ -227,7 +249,7 @@ export async function doorLoad(event, actor) {
 	event.setHeaders(NO_STORE);
 	const { db, config, ticketSlug, part } = await doorContext(event, { fondo: true });
 	const [counts, sales, series, waitlist, extrasOn] = await Promise.all([
-		countsFor(db, { ticketSlug, part }),
+		countsFor(db, { ticketSlug, part, platform: event.platform }),
 		getCounts(db, ticketSlug),
 		doorSeriesLabel(ticketSlug, event.platform),
 		// La nota de la lista de espera en «Vender en puerta» (no frena la venta).
@@ -347,7 +369,8 @@ async function checkinAction(event, actor) {
 	}
 	// La entrada con quien compró, la primera vez en la serie, los avisos de puerta (también con un
 	// link: es la tarjeta de un escaneo, decisión 0053) y los contadores, juntos.
-	const [full, prior, notices, counts, extras] = await Promise.all([
+	const priorRead = cachedPrior(db, slug, event.platform);
+	const [full, prior, notices, counts, extras, said] = await Promise.all([
 		r.ticket
 			? ticketWithBuyer(db, { id: r.ticket.id }).then(async (found) =>
 					found && part
@@ -361,19 +384,21 @@ async function checkinAction(event, actor) {
 						: found
 				)
 			: null,
-		cachedPrior(db, slug, event.platform),
+		priorRead,
 		noticesFor(db, actor, config, { scanCard: true }),
-		countsFor(db, { ticketSlug, part }),
+		countsFor(db, { ticketSlug, part, platform: event.platform, prior: priorRead }),
 		// Extras de la compra (interruptor `extras`, decisión 0056): «2 × Trago · 0 entregados» con
 		// «Entregar 1». Solo en una compra aprobada y no en una parte de un taller.
 		r.ticket && !part && config.extras.length
 			? isFlagOn(db, 'extras').then((on) =>
 					on && r.ticket ? orderExtras(db, r.ticket.order_id) : null
 				)
-			: null
+			: null,
+		// La respuesta «¿primera vez…?» de la compra; con un error, queda la historia.
+		r.ticket ? saidFirstTime(db, r.ticket).catch(() => null) : null
 	]);
 	const card = full
-		? await doorCard(actor, full, { typeNames, prior, notices, scanCard: true })
+		? await doorCard(actor, full, { typeNames, prior, notices, scanCard: true, said })
 		: null;
 	const shown = card ? hideLogins(actor, [card], 'by')[0] : null;
 	return {
@@ -422,7 +447,10 @@ export function doorActions(getActor) {
 					}
 				});
 			}
-			return { undo: { ok, ticketId }, counts: await countsFor(db, { ticketSlug, part }) };
+			return {
+				undo: { ok, ticketId },
+				counts: await countsFor(db, { ticketSlug, part, platform: event.platform })
+			};
 		},
 
 		/**
@@ -486,7 +514,7 @@ export function doorActions(getActor) {
 			}
 			return {
 				sync: { ok: true, results: hideLogins(actor, results, 'by') },
-				counts: await countsFor(db, { ticketSlug, part })
+				counts: await countsFor(db, { ticketSlug, part, platform: event.platform })
 			};
 		},
 
@@ -543,7 +571,10 @@ export function doorActions(getActor) {
 					);
 				}
 			});
-			return { syncSales: { ok: true, results }, counts: await doorCounts(db, slug) };
+			return {
+				syncSales: { ok: true, results },
+				counts: await countsFor(db, { ticketSlug: slug, part: null, platform: event.platform })
+			};
 		},
 
 		/** @param {any} event */
@@ -691,7 +722,7 @@ export function doorActions(getActor) {
 					priceChange: orderPriceChangeText(r.order),
 					tickets: hideLogins(actor, cards, 'by')
 				},
-				counts: await doorCounts(db, slug)
+				counts: await countsFor(db, { ticketSlug: slug, part: null, platform: event.platform })
 			};
 		}
 	};
@@ -796,7 +827,12 @@ export async function doorList(event, actor) {
 	]);
 	const [all, counts] = await Promise.all([
 		offlineList(db, { slug, typeNames, prior, notices: notices ?? undefined }),
-		part ? partDoorCounts(db, slug, part.slug) : doorCounts(db, slug)
+		countsFor(db, {
+			ticketSlug: slug,
+			part,
+			platform: event.platform,
+			prior: Promise.resolve(prior)
+		})
 	]);
 	const rows = part
 		? await overlayPartCheckins(db, part.slug, all, { id: 'ticketId', at: 'at', by: 'by' })

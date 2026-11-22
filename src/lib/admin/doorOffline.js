@@ -244,7 +244,12 @@ export function localCounts(list) {
 	const byType = {};
 	let total = 0;
 	let inside = 0;
+	// Quienes vienen por primera vez y ya entraron (null si de nadie se sabe), como `first` del
+	// servidor (firstInsideCount).
+	let first = 0;
+	let known = false;
 	for (const t of list) {
+		if (t.firstTime !== null && t.firstTime !== undefined) known = true;
 		if (!t.valid) continue;
 		const c = (byType[t.typeId] ??= { total: 0, inside: 0 });
 		c.total++;
@@ -252,9 +257,10 @@ export function localCounts(list) {
 		if (t.at) {
 			c.inside++;
 			inside++;
+			if (t.firstTime === true) first++;
 		}
 	}
-	return { total, inside, byType };
+	return { total, inside, byType, first: known ? first : null };
 }
 
 /**

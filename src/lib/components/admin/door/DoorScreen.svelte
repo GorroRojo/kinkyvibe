@@ -25,6 +25,7 @@
 		NotebookPen,
 		RefreshCw,
 		Search,
+		Sparkles,
 		Store,
 		TriangleAlert,
 		Undo2,
@@ -1436,6 +1437,12 @@
 				<span class="num">{counts.inside}</span>
 				<span class="of">de {counts.total} adentro</span>
 			</div>
+			{#if typeof counts.first === 'number'}
+				<p class="first-in">
+					<Sparkles size={16} aria-hidden="true" />
+					{counts.first} por primera vez{data.series ? ` en ${data.series}` : ''}
+				</p>
+			{/if}
 			<ul class="types">
 				{#each data.types as t (t.id)}
 					{@const c = counts.byType[t.id]}
@@ -2202,6 +2209,12 @@
 		cursor: pointer;
 		padding: 0;
 		font-size: inherit;
+	}
+	.first-in {
+		display: flex;
+		align-items: center;
+		gap: 0.35em;
+		margin: 0;
 	}
 	.counter {
 		display: grid;

@@ -49,7 +49,9 @@ import {
 } from './overrides.js';
 import { parseDoorPrice } from './config.js';
 import { getCounts, isValidToken, issueTicketsStatements } from './orders.js';
-import { isFirstTime } from './series.js';
+import { answeredFirstTime, isFirstTime } from './series.js';
+import { answersByOrder } from './signupFields.js';
+import { parseStoredAnswers } from '$lib/utils/signupFields.js';
 import { extrasStatements, isExtrasStockError } from './extras.js';
 import { extrasAmount } from '$lib/utils/extras.js';
 
@@ -137,9 +139,13 @@ export async function ticketWithBuyer(db, { token, id }) {
  * nunca el motivo ni nada más del aviso, y el ingreso no se frena.
  *
  * @param {TicketWithBuyer} t
- * @param {{ typeNames: Record<string, string>, prior: PriorAttendance | null, notice?: boolean }} ctx
+ * `said`: lo que contestó en la pregunta de inscripción «¿primera vez…?» (`answeredFirstTime`);
+ * si contestó, gana sobre la historia de entradas (`prior`).
+ *
+ * @param {{ typeNames: Record<string, string>, prior: PriorAttendance | null, notice?: boolean,
+ *   said?: boolean | null }} ctx
  */
-export function ticketCard(t, { typeNames, prior, notice = false }) {
+export function ticketCard(t, { typeNames, prior, notice = false, said = null }) {
 	return {
 		ticketId: t.id,
 		orderId: t.order_id,
@@ -155,16 +161,50 @@ export function ticketCard(t, { typeNames, prior, notice = false }) {
 		at: t.checked_in_at,
 		by: t.checked_in_by,
 		notice: notice === true,
-		firstTime: prior
-			? isFirstTime(
-					{ holder: t.holder_name, buyerName: t.buyer_name, buyerEmail: t.buyer_email },
-					prior
-				)
-			: null
+		firstTime:
+			said ??
+			(prior
+				? isFirstTime(
+						{ holder: t.holder_name, buyerName: t.buyer_name, buyerEmail: t.buyer_email },
+						prior
+					)
+				: null)
 	};
 }
 
 /** @typedef {ReturnType<typeof ticketCard>} TicketCard */
+
+/**
+ * Lo que contestó la persona de esta entrada en la pregunta «¿primera vez…?» de la compra (null
+ * si no hay pregunta o no contestó). Para la tarjeta de un escaneo; la lista entera usa
+ * {@link offlineList}, que lee todas las respuestas de una vez.
+ *
+ * @param {D1Database} db
+ * @param {Pick<Ticket, 'id' | 'order_id'>} t
+ * @returns {Promise<boolean | null>}
+ */
+export async function saidFirstTime(db, t) {
+	// Una sola consulta (la puerta cuenta sus idas a la base): las respuestas y los ids de las
+	// entradas de la compra, en el orden en que se crearon.
+	const row = await db
+		.prepare(
+			`SELECT a.answers, (SELECT json_group_array(id) FROM
+				(SELECT id FROM tickets WHERE order_id = ?1 ORDER BY rowid)) AS ids
+			FROM order_answers a WHERE a.order_id = ?1`
+		)
+		.bind(t.order_id)
+		.first();
+	if (!row) return null;
+	const answers = parseStoredAnswers(row.answers);
+	/** @type {string[]} */
+	let ids = [];
+	try {
+		ids = JSON.parse(String(row.ids ?? '[]')).map(String);
+	} catch {
+		ids = [];
+	}
+	return answeredFirstTime(answers, Math.max(0, ids.indexOf(t.id)), Math.max(1, ids.length));
+}
 
 /**
  * Detalle completo de la compra de una entrada del evento (hoja "Ver compra"). Sin el DNI
@@ -301,20 +341,24 @@ export async function revealDni(db, locals, { slug, ticketId }) {
  *   notices?: import('./doorNotices.js').DoorNoticeMatcher }} input
  */
 export async function offlineList(db, { slug, typeNames, prior, notices }) {
-	const { results } = await db
-		.prepare(
-			`SELECT t.*, o.status AS order_status, o.buyer_name, o.buyer_email, o.buyer_dni,
+	const [{ results }, answers] = await Promise.all([
+		db
+			.prepare(
+				`SELECT t.*, o.status AS order_status, o.buyer_name, o.buyer_email, o.buyer_dni,
 				o.buyer_pronouns, o.account_id AS buyer_account_id
 			FROM tickets t JOIN orders o ON o.id = t.order_id WHERE t.event_slug = ?1
 			ORDER BY t.rowid`
-		)
-		.bind(slug)
-		.all();
+			)
+			.bind(slug)
+			.all(),
+		answersByOrder(db, slug)
+	]);
 	const rows = /** @type {TicketWithBuyer[]} */ (results);
+	const firsts = firstTimes(rows, answers, prior);
 	return Promise.all(
-		rows.map(async (t) => {
+		rows.map(async (t, i) => {
 			const notice = notices ? await notices(t) : false;
-			const card = ticketCard(t, { typeNames, prior, notice });
+			const card = ticketCard(t, { typeNames, prior, notice, said: firsts[i].said });
 			return {
 				...card,
 				hash: await sha256Hex(t.token),
@@ -322,6 +366,80 @@ export async function offlineList(db, { slug, typeNames, prior, notices }) {
 			};
 		})
 	);
+}
+
+/**
+ * «¿Primera vez?» de cada entrada de una lista (en el orden en que se crearon): lo que contestó en
+ * la pregunta de inscripción si la contestó; si no, la historia de entradas (`prior`). `null` si no
+ * se sabe.
+ *
+ * @param {readonly { id: string, order_id: string, holder_name: string, buyer_name: string,
+ *   buyer_email: string }[]} rows
+ * @param {Map<string, import('$lib/utils/signupFields.js').Answer[]>} answers por orden
+ * @param {PriorAttendance | null} prior
+ * @returns {{ said: boolean | null, first: boolean | null }[]}
+ */
+export function firstTimes(rows, answers, prior) {
+	// Lugar de cada entrada en su compra (como las respuestas «una vez por entrada») y cuántas
+	// tiene la compra.
+	/** @type {Map<string, number>} */
+	const perOrder = new Map();
+	const slot = rows.map((t) => {
+		const n = perOrder.get(t.order_id) ?? 0;
+		perOrder.set(t.order_id, n + 1);
+		return n;
+	});
+	return rows.map((t, i) => {
+		const said = answeredFirstTime(
+			answers.get(t.order_id) ?? [],
+			slot[i],
+			perOrder.get(t.order_id) ?? 1
+		);
+		const history = prior
+			? isFirstTime(
+					{ holder: t.holder_name, buyerName: t.buyer_name, buyerEmail: t.buyer_email },
+					prior
+				)
+			: null;
+		return { said, first: said ?? history };
+	});
+}
+
+/**
+ * Cuántas personas que vienen por primera vez ya entraron (entradas aprobadas con ingreso), para
+ * el contador de la puerta. `null` si no se sabe de nadie (sin pregunta de primera vez ni
+ * ediciones anteriores con entradas).
+ *
+ * @param {D1Database} db
+ * @param {string} slug
+ * @param {PriorAttendance | null} prior
+ * @returns {Promise<number | null>}
+ */
+export async function firstInsideCount(db, slug, prior) {
+	// Una sola consulta, con las respuestas de cada compra al lado de cada entrada.
+	const { results } = await db
+		.prepare(
+			`SELECT t.id, t.order_id, t.holder_name, t.checked_in_at, o.status AS order_status,
+				o.buyer_name, o.buyer_email, a.answers
+			FROM tickets t JOIN orders o ON o.id = t.order_id
+			LEFT JOIN order_answers a ON a.order_id = t.order_id
+			WHERE t.event_slug = ?1 ORDER BY t.rowid`
+		)
+		.bind(slug)
+		.all();
+	const rows = /** @type {any[]} */ (results);
+	/** @type {Map<string, import('$lib/utils/signupFields.js').Answer[]>} */
+	const answers = new Map();
+	for (const r of rows) {
+		if (r.answers && !answers.has(r.order_id)) {
+			answers.set(r.order_id, parseStoredAnswers(r.answers));
+		}
+	}
+	const firsts = firstTimes(rows, answers, prior);
+	if (firsts.every((f) => f.first === null)) return null;
+	return rows.filter(
+		(t, i) => t.order_status === 'approved' && t.checked_in_at && firsts[i].first === true
+	).length;
 }
 
 /** @typedef {Awaited<ReturnType<typeof offlineList>>[number]} OfflineTicket */
