@@ -6,7 +6,12 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
-	import OrderAnswers from '$lib/components/admin/OrderAnswers.svelte';
+	import {
+		answerTallies,
+		orderAnswers,
+		ticketAnswer,
+		ticketQuestions
+	} from '$lib/utils/answersView.js';
 	import DniReveal from '$lib/components/admin/DniReveal.svelte';
 	import InvoicedCheck from '$lib/components/admin/InvoicedCheck.svelte';
 	import { announce, announceResult } from '$lib/admin/announce.js';
@@ -104,14 +109,27 @@
 		return Boolean(digits && dniHits[digits]?.includes(id));
 	};
 	$: searchingDni = dniWords.some((d) => dniPending.has(d) || !(d in dniHits));
+	// Resumen de las respuestas (de las aprobadas) y el filtro que se prende tocando una opción.
+	$: tallies = answerTallies(
+		data.orders.filter((o) => o.status === 'approved').map((o) => o.answers)
+	);
+	/** @type {{ id: number, value: string } | null} */
+	let answerFilter = null;
+	$: byAnswer = answerFilter
+		? byStatus.filter((o) =>
+				o.answers.some(
+					(a) => a.id === answerFilter?.id && String(a.value).trim() === answerFilter?.value
+				)
+			)
+		: byStatus;
 	$: visible = words.length
-		? byStatus.filter((o) => {
+		? byAnswer.filter((o) => {
 				const hay = foldSearch(
 					`${o.reference} ${o.name} ${o.email} ${o.holders.map((h) => h.name).join(' ')}`
 				);
 				return words.every((w) => matches(w, hay, o.id));
 			})
-		: byStatus;
+		: byAnswer;
 	// «Ordenar» (tarjetas, no una tabla): llegan todas las órdenes del evento, así que se ordenan
 	// acá. Queda en la URL (`?orden=total`) sin volver a cargar la página; se lee al montar.
 	let orderBy = DEFAULT_ORDER_SORT;
@@ -419,6 +437,29 @@
 		</label>
 	</div>
 
+	{#if tallies.length}
+		<!-- Respuestas de las aprobadas: tocar una opción muestra solo esas compras. -->
+		<div class="tallies" aria-label="Respuestas">
+			{#each tallies as q (q.id)}
+				<div class="tally">
+					<span class="q">{q.label}</span>
+					<span class="opts">
+						{#each q.counts as c (c.value)}
+							{@const on = answerFilter?.id === q.id && answerFilter?.value === c.value}
+							<button
+								type="button"
+								class="opt"
+								aria-pressed={on}
+								on:click={() => (answerFilter = on ? null : { id: q.id, value: c.value })}
+								>{c.value} <span class="n">{c.n}</span></button
+							>
+						{/each}
+					</span>
+				</div>
+			{/each}
+		</div>
+	{/if}
+
 	{#if searchingDni}
 		<p class="searching" role="status">Buscando por DNI…</p>
 	{:else if visible.length === 0}
@@ -460,7 +501,12 @@
 					<div class="kv-table-wrap">
 						<table class="kv-table holders">
 							<thead>
-								<tr><th>#</th><th>Entrada a nombre de</th><th>Pronombres</th></tr>
+								<tr
+									><th>#</th><th>Entrada a nombre de</th><th>Pronombres</th
+									>{#each ticketQuestions(o.answers) as q (q.id)}<th class="q" title={q.label}
+											>{q.label}</th
+										>{/each}</tr
+								>
 							</thead>
 							<tbody>
 								{#each o.holders as h, i (i)}
@@ -479,13 +525,26 @@
 												>{/if}</td
 										>
 										<td>{h.pronouns || '—'}</td>
+										{#each ticketQuestions(o.answers) as q (q.id)}
+											<td class="a">{ticketAnswer(o.answers, q.id, i) || '—'}</td>
+										{/each}
 									</tr>
 								{/each}
 							</tbody>
 						</table>
 					</div>
 				{/if}
-				<OrderAnswers answers={o.answers} />
+				{#if orderAnswers(o.answers).length}
+					<!-- Las preguntas de una vez por compra (las de cada entrada van en la tabla). -->
+					<dl class="order-answers">
+						{#each orderAnswers(o.answers) as a (a.id)}
+							<div>
+								<dt>{a.label}</dt>
+								<dd>{a.value}</dd>
+							</div>
+						{/each}
+					</dl>
+				{/if}
 				<div class="meta">
 					<span class="ref">{o.reference}</span> · {shortTime(o.createdAt)}{#if o.paymentId}{' '}
 						· {o.method === 'paypal' ? 'cobro PayPal' : 'pago MP'}
@@ -803,6 +862,75 @@
 	}
 	.holders {
 		font-size: var(--text-xs);
+	}
+	.holders th.q {
+		max-width: 14rem;
+		font-weight: 600;
+	}
+	.holders td.a {
+		white-space: pre-line;
+		overflow-wrap: anywhere;
+		max-width: 20rem;
+	}
+	.order-answers {
+		margin: 0.4rem 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-3xs) var(--space-s);
+		font-size: var(--text-sm);
+	}
+	.order-answers div {
+		display: flex;
+		gap: 0.4em;
+		min-width: 0;
+	}
+	.order-answers dt {
+		color: var(--muted);
+	}
+	.order-answers dd {
+		margin: 0;
+		font-weight: 600;
+		white-space: pre-line;
+		overflow-wrap: anywhere;
+	}
+	.tallies {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
+		margin-block: var(--space-xs);
+		font-size: var(--text-sm);
+	}
+	.tally {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3xs) var(--space-2xs);
+	}
+	.tally .q {
+		color: var(--muted);
+	}
+	.opts {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.3rem;
+	}
+	.opt {
+		font: inherit;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: inherit;
+		border-radius: 2em;
+		padding: 0.1rem 0.6rem;
+		cursor: pointer;
+	}
+	.opt[aria-pressed='true'] {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: #fff;
+	}
+	.opt .n {
+		font-variant-numeric: tabular-nums;
+		font-weight: 700;
 	}
 	.holders :global(.in) {
 		color: var(--ok);
