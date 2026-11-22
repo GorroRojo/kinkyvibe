@@ -406,14 +406,14 @@ export function firstTimes(rows, answers, prior) {
 }
 
 /**
- * Cuántas personas que vienen por primera vez ya entraron (entradas aprobadas con ingreso), para
- * el contador de la puerta. `null` si no se sabe de nadie (sin pregunta de primera vez ni
- * ediciones anteriores con entradas).
+ * Las personas que vienen por primera vez, para el contador de la puerta («2 / 3 por primera
+ * vez»): cuántas ya entraron (`inside`) de cuántas tienen entrada aprobada (`total`). `null` si
+ * no se sabe de nadie (sin pregunta de primera vez ni ediciones anteriores con entradas).
  *
  * @param {D1Database} db
  * @param {string} slug
  * @param {PriorAttendance | null} prior
- * @returns {Promise<number | null>}
+ * @returns {Promise<{ inside: number, total: number } | null>}
  */
 export async function firstInsideCount(db, slug, prior) {
 	// Una sola consulta, con las respuestas de cada compra al lado de cada entrada.
@@ -437,9 +437,14 @@ export async function firstInsideCount(db, slug, prior) {
 	}
 	const firsts = firstTimes(rows, answers, prior);
 	if (firsts.every((f) => f.first === null)) return null;
-	return rows.filter(
-		(t, i) => t.order_status === 'approved' && t.checked_in_at && firsts[i].first === true
-	).length;
+	let inside = 0;
+	let total = 0;
+	rows.forEach((t, i) => {
+		if (t.order_status !== 'approved' || firsts[i].first !== true) return;
+		total++;
+		if (t.checked_in_at) inside++;
+	});
+	return { inside, total };
 }
 
 /** @typedef {Awaited<ReturnType<typeof offlineList>>[number]} OfflineTicket */

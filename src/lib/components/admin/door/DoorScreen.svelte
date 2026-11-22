@@ -1437,12 +1437,6 @@
 				<span class="num">{counts.inside}</span>
 				<span class="of">de {counts.total} adentro</span>
 			</div>
-			{#if typeof counts.first === 'number'}
-				<p class="first-in">
-					<Sparkles size={16} aria-hidden="true" />
-					{counts.first} por primera vez{data.series ? ` en ${data.series}` : ''}
-				</p>
-			{/if}
 			<ul class="types">
 				{#each data.types as t (t.id)}
 					{@const c = counts.byType[t.id]}
@@ -1450,6 +1444,14 @@
 				{/each}
 			</ul>
 			<div class="track" aria-hidden="true"><span style="width: {pct}%"></span></div>
+			{#if counts.first}
+				<!-- Quienes vienen por primera vez: adentro / con entrada (pedido de Pau). -->
+				<p class="first-in">
+					<Sparkles size={16} aria-hidden="true" />
+					<span class="num">{counts.first.inside} / {counts.first.total}</span>
+					por primera vez{data.series ? ` en ${data.series}` : ''}
+				</p>
+			{/if}
 		</section>
 
 		<DoorScanner onscan={submitScan} cameraApp={!linkMode}>
@@ -2211,6 +2213,7 @@
 		font-size: inherit;
 	}
 	.first-in {
+		grid-column: 1 / -1;
 		display: flex;
 		align-items: center;
 		gap: 0.35em;
