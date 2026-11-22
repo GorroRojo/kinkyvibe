@@ -74,6 +74,8 @@ const ALLOWED = {
 	'src/lib/components/admin/content/ContentEditor.svelte': 2,
 	'src/lib/components/admin/content/ContentList.svelte': 1,
 	// +1: la cantidad de cada extra en la venta en la puerta (#632), como los campos de al lado.
+	// El buscador de la lista al costado de la Puerta en la compu (#670), con el CSS oscuro de la Puerta.
+	'src/lib/components/admin/door/DoorList.svelte': 1,
 	'src/lib/components/admin/door/DoorScreen.svelte': 14,
 	'src/lib/components/admin/event-form/BodySection.svelte': 1,
 	'src/lib/components/admin/event-form/FieldGrid.svelte': 8,
