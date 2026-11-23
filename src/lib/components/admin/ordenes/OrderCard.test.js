@@ -79,6 +79,7 @@ describe('OrderCard', () => {
 		expect(body).toContain('Vegana');
 		// Una pregunta que ya no está en el formulario: con el texto guardado.
 		expect(body).toContain('Talle de remera:');
+		expect(body).not.toContain('alimentaria?:');
 		// Solo las de opciones se pueden usar para filtrar.
 		expect(body.match(/ver quiénes respondieron igual/g)).toHaveLength(1);
 	});

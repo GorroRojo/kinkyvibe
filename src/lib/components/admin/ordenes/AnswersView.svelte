@@ -111,9 +111,8 @@
 								<span class="who"
 									><a href="#orden-{e.orderId}" on:click|preventDefault={() => onReveal(e.orderId)}
 										>{e.name}</a
-									>{#if e.pronouns}
-										<span class="muted">({e.pronouns})</span>{/if}{#if e.firstTime}
-										<Badge tone="info">primera vez</Badge>{/if}</span
+									>{#if e.pronouns}{' '}<span class="muted">({e.pronouns})</span
+										>{/if}{#if e.firstTime}{' '}<Badge tone="info">primera vez</Badge>{/if}</span
 								>
 								<span class="text">{e.value}</span>
 							</li>

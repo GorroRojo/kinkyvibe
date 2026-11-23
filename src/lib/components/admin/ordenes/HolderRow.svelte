@@ -24,8 +24,9 @@
 	<div class="who">
 		<span class="n" aria-hidden="true">{index + 1}</span>
 		<span
-			><strong>{holder.name}</strong>{#if holder.pronouns}
-				<span class="muted">({holder.pronouns})</span>{/if}</span
+			><strong>{holder.name}</strong>{#if holder.pronouns}{' '}<span class="muted"
+					>({holder.pronouns})</span
+				>{/if}</span
 		>
 		{#if holder.checkedIn}<span class="in"
 				><CircleCheck size={15} aria-hidden="true" /> ingresó</span
@@ -37,7 +38,7 @@
 				><Badge tone="info">primera vez</Badge></span
 			>{/if}
 	</div>
-	<AnswerList {answers} {onFilter} />
+	<AnswerList {answers} {onFilter} showTicket={false} />
 </li>
 
 <style>

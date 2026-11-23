@@ -8,7 +8,8 @@
 	 * - La de opciones o casilla lleva «ver quiénes respondieron igual», que filtra las compras por
 	 *   esa respuesta (`onFilter`).
 	 *
-	 * Props: `answers` (ShownAnswer[] de $lib/admin/ordersView.js), `onFilter(answer)`.
+	 * Props: `answers` (ShownAnswer[] de $lib/admin/ordersView.js), `onFilter(answer)` y
+	 * `showTicket`.
 	 */
 	import { answerTicketLabel } from '$lib/utils/signupFields.js';
 	import { isLongAnswer } from '$lib/admin/ordersView.js';
@@ -17,6 +18,10 @@
 	export let answers = [];
 	/** @type {(answer: import('$lib/admin/ordersView.js').ShownAnswer) => void} */
 	export let onFilter = () => {};
+	/** «Pregunta:» (sin repetir: «¿Cómo te enteraste?» no lleva los dos puntos). @param {string} label */
+	const withColon = (label) => (/[?:]$/.test(label) ? label : `${label}:`);
+	/** «Entrada 2 · …» (no hace falta debajo de la persona de esa entrada). */
+	export let showTicket = true;
 
 	/** Las respuestas largas abiertas (`clave|entrada`). @type {Set<string>} */
 	let open = new Set();
@@ -34,8 +39,9 @@
 			{@const id = `${a.key}|${a.ticket ?? 0}`}
 			<li>
 				<span class="q" title={a.fullLabel !== a.label ? a.fullLabel : undefined}
-					>{#if a.ticket}{answerTicketLabel(a.ticket)} ·
-					{/if}{a.label}:</span
+					>{#if showTicket && a.ticket}{`${answerTicketLabel(a.ticket)} · `}{/if}{withColon(
+						a.label
+					)}</span
 				>
 				{#if !a.choice && isLongAnswer(a.value)}
 					<button
