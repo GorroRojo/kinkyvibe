@@ -16,6 +16,7 @@ import {
 	parseTicketTypes,
 	scopeText,
 	validateAnswers,
+	SHORT_LABEL_MAX,
 	validateFieldDef,
 	validateFieldScope
 } from './signupFields.js';
@@ -35,6 +36,17 @@ const FIELDS = [
 ];
 
 describe('preguntas (lo que arma le admin)', () => {
+	it('etiqueta corta: opcional, se recorta y tiene tope', () => {
+		const ok = validateFieldDef({ label: '¿Qué rol querés?', shortLabel: '  Rol ', kind: 'text' });
+		expect(ok.ok && ok.field.shortLabel).toBe('Rol');
+		const empty = validateFieldDef({ label: '¿Qué rol querés?', shortLabel: '   ', kind: 'text' });
+		expect(empty.ok && 'shortLabel' in empty.field).toBe(false);
+		const max = 'x'.repeat(SHORT_LABEL_MAX);
+		expect(validateFieldDef({ label: 'Pregunta', shortLabel: max, kind: 'text' }).ok).toBe(true);
+		const long = validateFieldDef({ label: 'Pregunta', shortLabel: max + 'x', kind: 'text' });
+		expect(!long.ok && long.errors.shortLabel).toBe('La etiqueta corta, hasta 24 letras.');
+	});
+
 	it('valida texto, tipo y opciones', () => {
 		expect(validateFieldDef({ label: '  ¿Algo  más? ', kind: 'text', required: 'on' })).toEqual({
 			ok: true,

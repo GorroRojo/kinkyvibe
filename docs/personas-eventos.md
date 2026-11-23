@@ -158,6 +158,13 @@ Topes: 10 preguntas propias por evento, 30 generales, 12 opciones por pregunta, 
 pregunta y 500 por respuesta. En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
 solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de siempre.
 
+**Etiqueta corta** (migración 0083, `signup_fields.short_label`, opcional, hasta 24 letras). Un
+nombre breve para el panel de Órdenes, donde varias respuestas tienen que entrar en un renglón
+(«Rol» para «¿Qué rol querés tener en el encuentro?»). Vacía, se usa la pregunta entera. Se edita
+en el editor de preguntas (propias y generales); quien compra sigue viendo la pregunta entera.
+`fieldsForEvent(db, slug)` (`src/lib/server/tickets/signupFields.js`) la devuelve como `shortLabel`
+(ausente si está vacía); copiar un evento la copia.
+
 **Editor compartido** (gorrite, 5/11: siempre, sin interruptor). Las preguntas propias de un
 evento y las generales se editan con el mismo editor que los formularios
 ([formularios.md](formularios.md)): una tarjeta por pregunta, ↑ ↓ (y arrastrar en la compu),

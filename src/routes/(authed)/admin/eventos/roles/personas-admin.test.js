@@ -122,6 +122,7 @@ const audit = async (action) =>
 const asItem = (f) => ({
 	id: f.id,
 	label: f.label,
+	shortLabel: f.shortLabel ?? '',
 	kind: f.kind,
 	required: f.required,
 	options: f.options,
@@ -132,6 +133,7 @@ const asItem = (f) => ({
 /** @param {Record<string, string | string[]>} form lo que mandaba el formulario de una pregunta */
 const formItem = (form) => ({
 	label: String(form.label ?? ''),
+	shortLabel: String(form.shortLabel ?? ''),
 	kind: String(form.kind ?? 'text'),
 	required: form.required === 'on',
 	options: String(form.options ?? '')
@@ -282,6 +284,27 @@ describe('Eventos › Roles y preguntas', () => {
 		expect((await audit('signup_field.save')).at(-1)?.summary).toBe(
 			'Guardó las preguntas generales (1 borrada)'
 		);
+	});
+
+	it('etiqueta corta: se valida, se guarda, se lee y se puede sacar', async () => {
+		const tooLong = await saveFieldList(null, (l) => [
+			...l,
+			formItem({ label: '¿Qué rol querés tener?', shortLabel: 'x'.repeat(25) })
+		]);
+		expect(tooLong.status).toBe(400);
+		expect(Object.keys(tooLong.data.fields.errors[0])).toEqual(['shortLabel']);
+		await saveFieldList(null, (l) => [
+			...l,
+			formItem({ label: '¿Qué rol querés tener?', shortLabel: '  Rol ' })
+		]);
+		const saved = /** @type {any} */ (await ajustes.load(fakeEvent())).fields;
+		expect(saved[0].shortLabel).toBe('Rol');
+		// Cambiar solo la etiqueta cuenta como cambio; vaciarla vuelve a usar la pregunta entera.
+		await saveFieldList(null, (l) => l.map((f) => ({ ...f, shortLabel: '' })));
+		const cleared = /** @type {any} */ (await ajustes.load(fakeEvent())).fields;
+		expect(cleared[0].label).toBe('¿Qué rol querés tener?');
+		expect(cleared[0].shortLabel).toBeUndefined();
+		await saveFieldList(null, () => []);
 	});
 
 	// Decisión 0033: sacar un rol y borrar una pregunta dejan «Recuperar» en Actividad, a nombre de
