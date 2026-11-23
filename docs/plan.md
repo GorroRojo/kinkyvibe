@@ -4,7 +4,7 @@ El plan de kinkyvibe en un solo archivo: lo que está en curso, lo que sigue, lo
 gorrite, lo de algún día y lo descartado. Reemplaza a la vieja `docs/hoja-de-ruta.md`, al issue
 #70 y a los artifacts de plan. Si algo no está acá, no está en el plan.
 
-Último repaso: 2026-11-16
+Último repaso: 2026-11-23
 
 ## Reglas
 
@@ -318,7 +318,7 @@ CI) va en la fase 0.
 - `perf-calendar-button` · fase 1 · hecho · infra · «Añadir al calendario» en las tarjetas de las listas: un botón común del servidor que baja la librería del menú (`add-to-calendar-button`, 59 KB gz) recién al tocarlo, en vez de bajarla al montar cada tarjeta de un evento abierto · #399
 - `perf-panel-esperas` · fase 1 · hecho · infra · El panel de admin lee la base en menos tandas en fila: las lecturas compartidas (layout de /admin, ficha de un evento) y las propias de los editores, ventas, series y perfiles van a la par (en caliente, de 4 tandas en fila a 2 en casi todas las páginas, de 6 a 2 en las pestañas de un evento y de 10 a 3 al editar un evento). La medición a pedido `npm run medir:panel` (fuera de la CI) cuenta las idas y tandas de cada página · #461, #462, #463, [pruebas-y-ci.md](pruebas-y-ci.md#unitarias-vitest), [panel.md](panel.md)
 - `perf-material-olas` · fase 1 · hecho · infra · La página de un material lee la base en menos tandas en fila: la lista de publicaciones a la par del material, el material con su dirección y si es una parte oculta en una consulta, les autores a la par de los vínculos públicos, y "Más cosas de…", su venta, los pronombres y las personas a la par (de 14 tandas en fila a 6 en frío; de 9 a 4 en caliente) · #413, [contenido.md](contenido.md#lo-que-nunca-se-tiene-que-romper)
-- `sveltekit-3` · fase 1 · sigue · infra · Revisar qué pide SvelteKit 3 (rutina del 9/11; gorrite: esperar, sin parches antes)
+- `sveltekit-3` · fase 1 · sigue · infra · Revisar qué pide SvelteKit 3 (rutina del 9/11; gorrite: esperar, sin parches antes); se pasa después de PayPal (gorrite, 22/11) (depende de: paypal-entradas)
 - `rss-aviso-sacar` · fase 1 · hecho · infra · Sacar el aviso del RSS el 27/10 (rutina): ya no salía en /rss y se borró su código (`FEED_ONLY_ITEMS`)
 - `push-pwa` · fase 1 · sigue · infra · Notificaciones push y PWA (gorrite, 12/10) · #16, #43, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `vigilante-produccion` · fase 1 · hecho · infra · Vigilante de producción: una GitHub Action, cada 30 minutos y sin Claude, pide la portada, `/calendario`, `/calendario.ics` y `/api/health` (si existe); si fallan dos veces seguidas abre el issue «Producción no responde» asignado al dueño del repo y lo cierra cuando vuelve · [pruebas-y-ci.md](pruebas-y-ci.md) · #410
