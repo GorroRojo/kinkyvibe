@@ -279,8 +279,10 @@ test('agotado → anotarse y confirmar → reembolso → oferta → terminar y p
 	await expect(row(page, second)).toContainText('2.º en la fila');
 
 	// Se libera el lugar: reembolso desde el panel.
-	await page.goto(`/admin/eventos/${slug}/ordenes`, { waitUntil: 'networkidle' });
+	await page.goto(`/admin/eventos/${slug}/ordenes?estado=aprobadas`, { waitUntil: 'networkidle' });
 	const order = page.locator('.order', { hasText: buyer });
+	// Lo raro (corregir el mail, reembolsar) está en «Más».
+	await order.getByText('Más', { exact: true }).click();
 	await order.getByText('Reembolsar…').click();
 	await order
 		.locator('.refund-panel')

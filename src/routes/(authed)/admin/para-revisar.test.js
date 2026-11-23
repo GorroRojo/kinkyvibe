@@ -460,7 +460,7 @@ describe('«Para revisar»: el botón del menú cuenta las filas de la tarjeta d
 			expect(rows.find((r) => r.id === 'cancelled-cancelada')).toMatchObject({
 				title: 'Evento Inventado cancelada está cancelado: 1 transferencia pendiente',
 				text: 'Cancelá las transferencias que esperan comprobante',
-				href: '/admin/eventos/cancelada/transferencias'
+				href: '/admin/eventos/cancelada/ordenes?estado=transferencias'
 			});
 		});
 

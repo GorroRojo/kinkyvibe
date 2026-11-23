@@ -710,9 +710,10 @@ describe('links a la ficha del evento', () => {
 		expect(eventHref('x', 'lista-espera')).toBe('/admin/eventos/x/lista-espera');
 	});
 	it('las direcciones de las pestañas que se juntaron siguen siendo las mismas', () => {
-		// Ventas junta Órdenes y Transferencias; Mails junta el aviso y las plantillas (11/10).
+		// Ventas junta Totales y Órdenes; Mails junta el aviso y las plantillas (11/10).
+		// Transferencias ya no es una vista: se confirman en Órdenes.
 		expect(eventHref('x', 'ventas')).toBe('/admin/eventos/x/ventas');
-		expect(eventHref('x', 'transferencias')).toBe('/admin/eventos/x/transferencias');
+		expect(eventHref('x', 'transferencias')).toBe('/admin/eventos/x');
 		expect(eventHref('x', 'mail')).toBe('/admin/eventos/x/mail');
 		expect(eventHref('x', 'mails')).toBe('/admin/eventos/x/mails');
 		expect(eventHref('x', 'no-existe')).toBe('/admin/eventos/x');
@@ -737,7 +738,6 @@ describe('links a la ficha del evento', () => {
 		expect(views('ventas')).toEqual([
 			'/ventas',
 			'/ordenes',
-			'/transferencias',
 			'/lista-espera',
 			'/gastos'
 		]);
@@ -754,7 +754,8 @@ describe('links a la ficha del evento', () => {
 		expect(of('/admin/eventos/x/ventas')).toEqual(['ventas', 'ventas']);
 		expect(of('/admin/eventos/x/ordenes')).toEqual(['ventas', 'ordenes']);
 		expect(of('/admin/eventos/x/ordenes/cargar')).toEqual(['ventas', 'ordenes']);
-		expect(of('/admin/eventos/x/transferencias')).toEqual(['ventas', 'transferencias']);
+		// La vieja dirección redirige a Órdenes: ya no es una pestaña.
+		expect(of('/admin/eventos/x/transferencias')).toBeNull();
 		expect(of('/admin/eventos/x/lista-espera')).toEqual(['ventas', 'lista-espera']);
 		expect(of('/admin/eventos/x/ingreso')).toEqual(['ingreso', null]);
 		expect(of('/admin/eventos/x/mail')).toEqual(['mails', 'mail']);

@@ -274,7 +274,6 @@ test('la ficha de un evento con entradas tiene «Lista de espera» como vista de
 	await expect(views.getByRole('link')).toHaveText([
 		'Totales',
 		/^Órdenes/,
-		/^Transferencias/,
 		/^Lista de espera/
 	]);
 	const view = views.getByRole('link', { name: /^Lista de espera/ });
@@ -563,7 +562,7 @@ test('ficha del evento en el celu: la pestaña ▾ arriba y las acciones, más c
 	page
 }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
-	await page.goto(`/admin/eventos/${EVENT}/transferencias`, {
+	await page.goto(`/admin/eventos/${EVENT}/ordenes`, {
 		waitUntil: 'networkidle'
 	});
 	const toggle = page.getByRole('navigation', { name: 'Pestañas' }).getByRole('button', {
@@ -608,8 +607,12 @@ test('ficha del evento: 7 pestañas, Ventas y Mails con sus vistas, y la lista �
 		'aria-current',
 		'page'
 	);
-	await views.getByRole('link', { name: /^Transferencias/ }).click();
-	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/transferencias$`));
+	// Transferencias ya no es una vista: se confirman en Órdenes y la dirección vieja lleva ahí.
+	await expect(views.getByRole('link', { name: /^Transferencias/ })).toHaveCount(0);
+	await page.goto(`/admin/eventos/${EVENT}/transferencias`, { waitUntil: 'networkidle' });
+	await expect(page).toHaveURL(
+		new RegExp(`/admin/eventos/${EVENT}/ordenes\\?estado=transferencias$`)
+	);
 
 	// Las direcciones de siempre de Mails siguen andando, cada una en su vista.
 	await page.goto(`/admin/eventos/${EVENT}/mails`, { waitUntil: 'networkidle' });

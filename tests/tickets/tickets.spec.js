@@ -199,7 +199,7 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 
 	// La pestaña Órdenes de la ficha muestra cada entrada y, del DNI de quien compró, solo los
 	// últimos 3 dígitos: el completo con «Mostrar» (queda registrado), nunca en el HTML de entrada.
-	await page.goto(`/admin/eventos/${EVENT}/ordenes`);
+	await page.goto(`/admin/eventos/${EVENT}/ordenes?estado=aprobadas`);
 	const order = page.locator('.order', { hasText: buyer.email });
 	await expect(order.getByText(`DNI •••.${buyer.dni.slice(-3)}`)).toBeVisible();
 	const ordersHtml = await page.content();
@@ -207,7 +207,7 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	expect(ordersHtml).not.toContain(dotted(buyer.dni));
 	await order.getByRole('button', { name: /Mostrar/ }).click();
 	await expect(order.getByText(`DNI ${dotted(buyer.dni)}`)).toBeVisible();
-	for (const p of people) await expect(order.getByRole('cell', { name: p.name })).toBeVisible();
+	for (const p of people) await expect(order.locator('.holder', { hasText: p.name })).toBeVisible();
 	// La línea de plata de la orden (#644): «recargo MP $ 490», sin el «+».
 	await expect(order).toContainText(`recargo MP ${ars(prices.surcharge)}`);
 	// El buscador encuentra la orden por DNI (se busca en el servidor).
@@ -586,12 +586,15 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	expect(reference).toMatch(/^KV-[0-9A-F]{8}$/);
 	const statusUrl = page.url();
 
-	// Con la página ya hidratada: si se hace clic antes, «Confirmar pago» manda el formulario sin
-	// JavaScript (confirma de una, sin la pregunta) y el diálogo nunca aparece.
+	// Las transferencias se confirman en Órdenes; la vieja pestaña lleva al filtro.
+	// Con la página ya hidratada: si se hace clic antes, «Llegó la transferencia ✓» manda el
+	// formulario sin JavaScript (confirma de una, sin la pregunta) y el diálogo nunca aparece.
 	await page.goto(`/admin/eventos/${EVENT}/transferencias`, { waitUntil: 'networkidle' });
-	const pending = page.locator('.transfers .order', { hasText: reference });
+	await expect(page).toHaveURL(/\/ordenes\?estado=transferencias$/);
+	const pending = page.locator('.order', { hasText: reference });
+	const confirmButton = pending.getByRole('button', { name: 'Llegó la transferencia ✓' });
 	await expect(pending).toBeVisible();
-	await pending.getByRole('button', { name: 'Confirmar pago' }).click();
+	await confirmButton.click();
 	// Antes de emitir, una pregunta corta con el nombre y el monto.
 	const ask = page.getByRole('dialog', { name: /¿Confirmar el pago de/ });
 	await expect(ask).toContainText(ars(16000));
@@ -599,13 +602,13 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	await ask.getByRole('button', { name: 'Sí, confirmar pago' }).click();
 	// El resultado queda en la misma fila (no arriba de la página) y ya no se puede confirmar.
 	await expect(pending.getByText(`Pago de ${reference} confirmado`)).toBeVisible();
-	await expect(pending.getByRole('button', { name: 'Confirmar pago' })).toHaveCount(0);
-	// Al recargar, ya no está entre las pendientes.
+	await expect(confirmButton).toHaveCount(0);
+	// Al recargar, ya no está entre las pendientes (en un evento chico se ven todas: está, aprobada).
 	await page.reload();
-	await expect(page.locator('.transfers .order', { hasText: reference })).toHaveCount(0);
+	await expect(confirmButton).toHaveCount(0);
 
 	// Confirmar de nuevo (p. ej. desde otra pestaña): no emite nada.
-	const res = await page.request.post(`/admin/eventos/${EVENT}/transferencias?/confirm`, {
+	const res = await page.request.post(`/admin/eventos/${EVENT}/ordenes?/confirm`, {
 		form: { order: statusUrl.split('/').at(-2) ?? '' },
 		headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' }
 	});
@@ -890,8 +893,10 @@ test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente
 	await expect(page).toHaveURL(/\/entradas\/t\/[A-Za-z0-9_-]{43}$/);
 	const ticketUrl = page.url();
 
-	await page.goto(`/admin/eventos/${EVENT}/ordenes`, { waitUntil: 'networkidle' });
+	await page.goto(`/admin/eventos/${EVENT}/ordenes?estado=aprobadas`, { waitUntil: 'networkidle' });
 	const order = page.locator('.order', { hasText: buyer.email });
+	// Lo raro (corregir el mail, reembolsar) está en «Más».
+	await order.getByText('Más', { exact: true }).click();
 	await order.getByText('Reembolsar…').click();
 	const panel = order.locator('.refund-panel');
 	await expect(panel).toContainText(buyer.name);

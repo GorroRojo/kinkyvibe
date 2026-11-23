@@ -81,7 +81,7 @@ test('PayPal: ver los dólares → aprobar en PayPal → compra aprobada → el 
 	await expect(page.getByText(`(${usd} con PayPal)`)).toBeVisible();
 	await shot(page, '3-compra-aprobada');
 
-	await page.goto(`/admin/eventos/${EVENT}/ordenes`);
+	await page.goto(`/admin/eventos/${EVENT}/ordenes?estado=aprobadas`);
 	const row = page.locator('li.order', { hasText: `Persona PayPal ${id}` }).first();
 	await expect(row).toContainText('cobro PayPal');
 	await expect(row).toContainText(usd);
