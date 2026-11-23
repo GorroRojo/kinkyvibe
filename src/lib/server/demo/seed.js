@@ -1597,6 +1597,7 @@ export const SECTIONS = [
 					id: 910001,
 					event_slug: null,
 					label: '¿Cómo te enteraste?',
+					short_label: 'Origen',
 					kind: 'choice',
 					required: 1,
 					options: '["Instagram","Una amistad","Otro"]',

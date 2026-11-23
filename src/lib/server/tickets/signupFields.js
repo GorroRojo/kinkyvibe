@@ -36,7 +36,7 @@ import { fieldDeletionPath, softDeletionStatement } from '$lib/server/admin/dele
 /** @typedef {SignupField & { eventSlug: string | null, position: number, updatedAt: number, updatedBy: string }} StoredField */
 
 const BASE_COLUMNS =
-	'f.id, f.event_slug, f.label, f.kind, f.required, f.options, f.position, f.updated_at, f.updated_by, f.per_ticket';
+	'f.id, f.event_slug, f.label, f.kind, f.required, f.options, f.position, f.updated_at, f.updated_by, f.per_ticket, f.short_label';
 /** Las de la pregunta, con sus propios tipos de entrada. */
 const COLUMNS = `${BASE_COLUMNS}, f.ticket_types`;
 
@@ -56,6 +56,7 @@ function rowToField(r) {
 		id: Number(r.id),
 		eventSlug: r.event_slug == null ? null : String(r.event_slug),
 		label: String(r.label),
+		...(r.short_label ? { shortLabel: String(r.short_label) } : {}),
 		kind: isFieldKind(r.kind) ? r.kind : 'text',
 		required: Number(r.required) === 1,
 		options,
@@ -224,10 +225,10 @@ export async function createField(db, eventSlug, field, { by, now = Date.now() }
 	const row = await db
 		.prepare(
 			`INSERT INTO signup_fields (event_slug, label, kind, required, options, position,
-				created_at, updated_at, updated_by, per_ticket, ticket_types)
+				created_at, updated_at, updated_by, per_ticket, ticket_types, short_label)
 			SELECT ?1, ?2, ?3, ?4, ?5,
 				(SELECT COALESCE(MAX(position), -1) + 1 FROM signup_fields WHERE event_slug IS ?1),
-				?6, ?6, ?7, ?9, ?10
+				?6, ?6, ?7, ?9, ?10, ?11
 			WHERE (SELECT COUNT(*) FROM signup_fields WHERE event_slug IS ?1 AND deleted_at IS NULL) < ?8
 			RETURNING id`
 		)
@@ -241,7 +242,8 @@ export async function createField(db, eventSlug, field, { by, now = Date.now() }
 			by,
 			max,
 			field.perTicket ? 1 : 0,
-			JSON.stringify(eventSlug === null ? [] : (field.ticketTypes ?? []))
+			JSON.stringify(eventSlug === null ? [] : (field.ticketTypes ?? [])),
+			field.shortLabel || null
 		)
 		.first();
 	if (!row) {
@@ -279,7 +281,7 @@ export async function updateField(db, id, eventSlug, field, { by, now = Date.now
 	const res = await db
 		.prepare(
 			`UPDATE signup_fields SET label = ?3, kind = ?4, required = ?5, options = ?6,
-				per_ticket = ?7, ticket_types = ?8, updated_at = ?9, updated_by = ?10
+				per_ticket = ?7, ticket_types = ?8, updated_at = ?9, updated_by = ?10, short_label = ?11
 			WHERE id = ?1 AND event_slug IS ?2 AND deleted_at IS NULL`
 		)
 		.bind(
@@ -292,7 +294,8 @@ export async function updateField(db, id, eventSlug, field, { by, now = Date.now
 			field.perTicket ? 1 : 0,
 			JSON.stringify(eventSlug === null ? [] : (field.ticketTypes ?? [])),
 			now,
-			by
+			by,
+			field.shortLabel || null
 		)
 		.run();
 	return res.meta.changes === 1 ? String(before.label) : null;
@@ -489,8 +492,8 @@ export async function copyEventSignupFields(db, fromSlug, toSlug, { by, now = Da
 		db
 			.prepare(
 				`INSERT INTO signup_fields (event_slug, label, kind, required, options, position, per_ticket,
-					ticket_types, created_at, updated_at, updated_by)
-				SELECT ?2, label, kind, required, options, position, per_ticket, ticket_types, ?3, ?3, ?4
+					ticket_types, short_label, created_at, updated_at, updated_by)
+				SELECT ?2, label, kind, required, options, position, per_ticket, ticket_types, short_label, ?3, ?3, ?4
 				FROM signup_fields
 				WHERE event_slug = ?1 AND deleted_at IS NULL
 					AND NOT EXISTS (SELECT 1 FROM signup_fields WHERE event_slug = ?2)
