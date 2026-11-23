@@ -57,9 +57,9 @@
 	$: e = data.event;
 	/** @typedef {(typeof data.orders)[number]} Order */
 
-	// Lo que no cambia sin recargar: si el evento es chico y si hay preguntas.
-	const small = data.orders.length <= SMALL_EVENT_MAX;
-	const hasQuestions = data.fields.length > 0 || data.orders.some((o) => o.answers.length > 0);
+	// Un evento chico (hasta 5 compras) no tiene filtros; sin preguntas no hay «Respuestas».
+	$: small = data.orders.length <= SMALL_EVENT_MAX;
+	$: hasQuestions = data.fields.length > 0 || data.orders.some((o) => o.answers.length > 0);
 
 	/** La orden de la que habla la respuesta de una acción sin JavaScript (para no esconderla). */
 	function formOrder() {
@@ -70,17 +70,34 @@
 	}
 
 	/** @type {'compras' | 'respuestas'} */
-	let view = data.initial?.view === 'respuestas' && hasQuestions ? 'respuestas' : 'compras';
-	let status = small ? 'todas' : statusFilterOf(data.initial?.status) || defaultStatus(data.orders);
-	{
-		const o = formOrder();
-		if (o) status = orderFilterFor(status, o);
-	}
+	let view = 'compras';
+	let status = 'todas';
 	/** @type {string[]} */
 	let toggles = [];
 	/** @type {import('$lib/admin/ordersView.js').AnswerFilter | null} */
 	let answerFilter = null;
 	let query = '';
+	/**
+	 * Cómo arranca la página (y otra vez si se pasa a otro evento sin recargar): la vista y el
+	 * estado de la URL, o los de siempre; sin otros filtros.
+	 */
+	function start() {
+		const isSmall = data.orders.length <= SMALL_EVENT_MAX;
+		const questions = data.fields.length > 0 || data.orders.some((o) => o.answers.length > 0);
+		view = data.initial?.view === 'respuestas' && questions ? 'respuestas' : 'compras';
+		status = isSmall ? 'todas' : statusFilterOf(data.initial?.status) || defaultStatus(data.orders);
+		const o = formOrder();
+		if (o) status = orderFilterFor(status, o);
+		toggles = [];
+		answerFilter = null;
+		query = '';
+	}
+	start();
+	let startedFor = data.event.slug;
+	$: if (data.event.slug !== startedFor) {
+		startedFor = data.event.slug;
+		start();
+	}
 	$: words = foldSearch(query).split(/\s+/).filter(Boolean);
 	$: fieldIds = new Set(data.fields.map((f) => f.id));
 
