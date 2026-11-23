@@ -210,8 +210,9 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	for (const p of people) await expect(order.locator('.holder', { hasText: p.name })).toBeVisible();
 	// La línea de plata de la orden (#644): «recargo MP $ 490», sin el «+».
 	await expect(order).toContainText(`recargo MP ${ars(prices.surcharge)}`);
-	// El buscador encuentra la orden por DNI (se busca en el servidor).
-	await page.reload();
+	// El buscador encuentra la orden por DNI (se busca en el servidor). Otra vez en «Aprobadas»: si
+	// «Mostrar» se tocó antes de que cargara el JavaScript, la página quedó en `?/dni`.
+	await page.goto(`/admin/eventos/${EVENT}/ordenes?estado=aprobadas`, { waitUntil: 'networkidle' });
 	await page.getByRole('searchbox').fill(buyer.dni.slice(0, 5));
 	await expect(page.locator('.order', { hasText: buyer.email })).toBeVisible();
 	await page.getByRole('searchbox').fill('99999999999');

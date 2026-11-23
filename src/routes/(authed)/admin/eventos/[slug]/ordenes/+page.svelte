@@ -161,6 +161,19 @@
 				return words.every((w) => matches(w, hay, o.id));
 			})
 		: filtered;
+	// Una búsqueda sin nada en este estado: cuántas hay en los demás (para ofrecer «Todas»).
+	$: elsewhere =
+		words.length && visible.length === 0 && status !== 'todas'
+			? filterOrders(data.orders, {
+					status: 'todas',
+					toggles: small ? [] : toggles,
+					answer: answerFilter,
+					fieldIds
+				}).filter((o) => {
+					const hay = orderSearchText(o);
+					return words.every((w) => matches(w, hay, o.id));
+				}).length
+			: 0;
 	// «Ordenar» (tarjetas, no una tabla): llegan todas las órdenes del evento, así que se ordenan
 	// acá. Queda en la URL (`?orden=total`) sin volver a cargar la página; se lee al montar.
 	let orderBy = DEFAULT_ORDER_SORT;
@@ -461,6 +474,15 @@
 			<p class="searching" role="status">Buscando por DNI…</p>
 		{:else if rows.length === 0}
 			<EmptyState icon={ReceiptText} title="No hay órdenes para mostrar" />
+			{#if elsewhere}
+				<p class="elsewhere">
+					<button type="button" class="kv-btn ghost small" on:click={() => (status = 'todas')}
+						>{elsewhere === 1
+							? 'Hay 1 en otro estado: ver en «Todas»'
+							: `Hay ${elsewhere} en otros estados: ver en «Todas»`}</button
+					>
+				</p>
+			{/if}
 		{/if}
 		<ul class="orders" id="lista-ordenes">
 			{#each rows as { row: o, result }, i (o.id)}
@@ -528,6 +550,10 @@
 		margin: 0 0 var(--space-2xs);
 		font-size: var(--text-xs);
 		color: var(--muted);
+	}
+	.elsewhere {
+		margin: 0;
+		text-align: center;
 	}
 	.searching {
 		margin: var(--space-2xs) 0;
