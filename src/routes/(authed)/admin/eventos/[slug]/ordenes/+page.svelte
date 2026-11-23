@@ -1,37 +1,53 @@
 <script>
+	/**
+	 * Ventas › Órdenes del evento (+page.server.js). Dos vistas, con un interruptor arriba que queda
+	 * en la URL (`?vista=respuestas`):
+	 *
+	 * - «Compras»: una tarjeta por compra con todo a la vista (OrderCard). Filtros: el estado
+	 *   (`?estado=`; arranca en «Transferencias por confirmar» si hay, si no en «Aprobadas»), los
+	 *   interruptores de «Filtros», una respuesta (desde «Respuestas» o «ver quiénes respondieron
+	 *   igual») y el buscador (también por DNI, en el servidor, y por respuesta). «Ordenar» en
+	 *   `?orden=`. Un evento chico (hasta 5 compras) las muestra todas, sin filtros ni «Ordenar».
+	 * - «Respuestas»: una tarjeta por pregunta, con las compras aprobadas (AnswersView).
+	 *
+	 * Lógica pura en $lib/admin/ordersView.js.
+	 */
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { deserialize, enhance } from '$app/forms';
-	import { CircleCheck, ReceiptText, Search, TicketPlus, TriangleAlert } from '@lucide/svelte';
+	import { invalidateAll, replaceState } from '$app/navigation';
+	import { ReceiptText, TicketPlus, TriangleAlert } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
-	import OrderAnswers from '$lib/components/admin/OrderAnswers.svelte';
-	import DniReveal from '$lib/components/admin/DniReveal.svelte';
-	import InvoicedCheck from '$lib/components/admin/InvoicedCheck.svelte';
-	import { announce, announceResult } from '$lib/admin/announce.js';
+	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
+	import Segmented from '$lib/components/ui/Segmented.svelte';
+	import OrderCard from '$lib/components/admin/ordenes/OrderCard.svelte';
+	import OrderFilters from '$lib/components/admin/ordenes/OrderFilters.svelte';
+	import AnswersView from '$lib/components/admin/ordenes/AnswersView.svelte';
+	import RefundAllPanel from '$lib/components/admin/ordenes/RefundAllPanel.svelte';
+	import { askConfirm } from '$lib/admin/confirm.js';
+	import { announceResult } from '$lib/admin/announce.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { foldSearch } from '$lib/admin/eventFormat.js';
+	import { confirmPaymentSubmit, keepRows } from '$lib/admin/transferConfirm.js';
+	import { dniQueryDigits, orderFilterFor, orderIdFromHash } from '$lib/admin/orderFormat.js';
 	import {
-		EMAIL_PROBLEM,
-		ORDER_STATUS,
-		ORDER_STATUS_TONE,
-		PAYMENT_METHOD,
-		dniQueryDigits,
-		orderFilterFor,
-		orderIdFromHash,
-		orderMoneyLines,
-		shortTime
-	} from '$lib/admin/orderFormat.js';
+		ORDER_TOGGLES,
+		SMALL_EVENT_MAX,
+		STATUS_FILTERS,
+		defaultStatus,
+		filterOrders,
+		matchesAnswer,
+		matchesStatus,
+		matchesToggle,
+		orderSearchText,
+		questionCards,
+		statusFilterOf,
+		tally
+	} from '$lib/admin/ordersView.js';
 	import { formatARS } from '$lib/utils/money.js';
-	import { formatUSD } from '$lib/utils/paypal.js';
-	import { replaceState } from '$app/navigation';
-	import {
-		DEFAULT_ORDER_SORT,
-		ORDER_SORTS,
-		orderSortOf,
-		sortOrders
-	} from '$lib/admin/orderSort.js';
+	import { transferRuleText } from '$lib/utils/transferDeadline.js';
+	import { DEFAULT_ORDER_SORT, orderSortOf, sortOrders } from '$lib/admin/orderSort.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -39,27 +55,38 @@
 	export let form;
 
 	$: e = data.event;
-	let filter = 'approved';
+	/** @typedef {(typeof data.orders)[number]} Order */
+
+	// Lo que no cambia sin recargar: si el evento es chico y si hay preguntas.
+	const small = data.orders.length <= SMALL_EVENT_MAX;
+	const hasQuestions = data.fields.length > 0 || data.orders.some((o) => o.answers.length > 0);
+
+	/** La orden de la que habla la respuesta de una acción sin JavaScript (para no esconderla). */
+	function formOrder() {
+		const f = /** @type {any} */ (form);
+		const dniKey = typeof f?.dni?.key === 'string' ? f.dni.key.replace(/^orden:/, '') : '';
+		const id = f?.emailFix?.order || f?.transfer?.order || dniKey;
+		return id ? data.orders.find((o) => o.id === id) : undefined;
+	}
+
+	/** @type {'compras' | 'respuestas'} */
+	let view = data.initial?.view === 'respuestas' && hasQuestions ? 'respuestas' : 'compras';
+	let status = small ? 'todas' : statusFilterOf(data.initial?.status) || defaultStatus(data.orders);
+	{
+		const o = formOrder();
+		if (o) status = orderFilterFor(status, o);
+	}
+	/** @type {string[]} */
+	let toggles = [];
+	/** @type {import('$lib/admin/ordersView.js').AnswerFilter | null} */
+	let answerFilter = null;
 	let query = '';
 	$: words = foldSearch(query).split(/\s+/).filter(Boolean);
-	$: byStatus =
-		filter === 'all'
-			? data.orders
-			: filter === 'pending'
-				? data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
-				: filter === 'uninvoiced'
-					? data.orders.filter((o) => o.toInvoice && !o.invoicedAt)
-					: filter === 'first'
-						? data.orders.filter(hasFirstTimer)
-						: data.orders.filter((o) => o.status === filter);
-	/** Orden aprobada con alguna entrada de alguien que viene por primera vez (formulario o historia). */
-	/** @param {(typeof data.orders)[number]} o */
-	function hasFirstTimer(o) {
-		return o.status === 'approved' && o.holders.some((h) => h.firstTime);
-	}
+	$: fieldIds = new Set(data.fields.map((f) => f.id));
+
 	// El DNI completo no está en la página: las palabras que parecen un DNI se buscan en el
 	// servidor (`?/dniSearch`, devuelve los ids de las órdenes que coinciden). Nombre, email,
-	// referencia y personas se buscan acá.
+	// referencia, personas y respuestas se buscan acá.
 	/** @type {Record<string, string[]>} dígitos → ids de las órdenes con ese DNI (o que empieza así) */
 	let dniHits = {};
 	/** @type {Set<string>} */
@@ -104,52 +131,189 @@
 		return Boolean(digits && dniHits[digits]?.includes(id));
 	};
 	$: searchingDni = dniWords.some((d) => dniPending.has(d) || !(d in dniHits));
+
+	$: filtered = filterOrders(data.orders, {
+		status,
+		toggles: small ? [] : toggles,
+		answer: answerFilter,
+		fieldIds
+	});
 	$: visible = words.length
-		? byStatus.filter((o) => {
-				const hay = foldSearch(
-					`${o.reference} ${o.name} ${o.email} ${o.holders.map((h) => h.name).join(' ')}`
-				);
+		? filtered.filter((o) => {
+				const hay = orderSearchText(o);
 				return words.every((w) => matches(w, hay, o.id));
 			})
-		: byStatus;
+		: filtered;
 	// «Ordenar» (tarjetas, no una tabla): llegan todas las órdenes del evento, así que se ordenan
 	// acá. Queda en la URL (`?orden=total`) sin volver a cargar la página; se lee al montar.
 	let orderBy = DEFAULT_ORDER_SORT;
-	onMount(() => (orderBy = orderSortOf(new URL(location.href).searchParams.get('orden'))));
-	$: shown = sortOrders(visible, orderBy);
-	function writeSortUrl() {
+	$: shown = sortOrders(visible, small ? DEFAULT_ORDER_SORT : orderBy);
+
+	// Los filtros, con «🧾 compras · 👥 personas»: los estados sobre todas las órdenes, los
+	// interruptores dentro del estado elegido. Sin las que no tienen nada (salvo la elegida).
+	$: statuses = STATUS_FILTERS.map((s) => {
+		const list = data.orders.filter((o) => matchesStatus(o, s.id));
+		return { ...s, count: list.length, tally: tally(list) };
+	}).filter((s) => s.count || s.id === status || s.id === 'todas');
+	$: inStatus = data.orders.filter((o) => matchesStatus(o, status));
+	$: toggleOptions = ORDER_TOGGLES.filter((t) => t.id !== 'primera-vez' || data.firstKnown)
+		.map((t) => {
+			const list = inStatus.filter((o) => matchesToggle(o, t.id));
+			return {
+				...t,
+				label: t.id === 'primera-vez' && data.series ? `Primera vez en ${data.series}` : t.label,
+				count: list.length,
+				tally: tally(list, t.id)
+			};
+		})
+		.filter((t) => t.count || toggles.includes(t.id));
+
+	// «Respuestas»: con las compras aprobadas (las de la gente que viene).
+	$: approved = data.orders.filter((o) => o.status === 'approved');
+	$: cards = questionCards(data.fields, approved);
+	$: answersScope = `Compras aprobadas · ${tally(approved)}`;
+
+	// La URL dice la vista, el estado y el orden (sin recargar la página).
+	let mounted = false;
+	/**
+	 * @param {string} v
+	 * @param {string} s
+	 * @param {string} sort
+	 */
+	function writeUrl(v, s, sort) {
 		const url = new URL(location.href);
-		if (orderBy === DEFAULT_ORDER_SORT) url.searchParams.delete('orden');
-		else url.searchParams.set('orden', orderBy);
-		replaceState(url, {});
+		const set = (/** @type {string} */ key, /** @type {string} */ value) =>
+			value ? url.searchParams.set(key, value) : url.searchParams.delete(key);
+		set('vista', v === 'respuestas' ? 'respuestas' : '');
+		// El estado: el de siempre no se escribe, salvo que el link ya lo trajera; un evento chico
+		// no tiene filtro y deja la URL como vino.
+		if (!small) set('estado', s === defaultStatus(data.orders) && !data.initial?.status ? '' : s);
+		set('orden', sort === DEFAULT_ORDER_SORT ? '' : sort);
+		if (url.href !== location.href) replaceState(url, {});
 	}
-	// Link a una orden (`#orden-<id>`, por ejemplo «¿Te equivocaste? Ver la orden» de la Puerta):
-	// si el filtro la esconde, pasa a «Todas»; baja hasta ella y la marca (`:target` no siempre se
-	// aplica después de una navegación del lado del cliente).
+	$: if (mounted) writeUrl(view, status, orderBy);
+
+	// Link a una orden (`#orden-<id>`: «¿Te equivocaste? Ver la orden» de la Puerta, un nombre de
+	// «Respuestas», la lista de «Reembolsar todas»): pasa a Compras, saca los filtros que la
+	// esconden, baja hasta ella y la marca (`:target` no siempre se aplica después de una
+	// navegación del lado del cliente).
 	let linked = '';
-	onMount(async () => {
-		const id = orderIdFromHash(location.hash);
-		const o = id ? data.orders.find((x) => x.id === id) : null;
+	/** @param {string} id */
+	async function revealOrder(id) {
+		const o = data.orders.find((x) => x.id === id);
 		if (!o) return;
-		filter = orderFilterFor(filter, o.status);
+		view = 'compras';
+		if (!small) status = orderFilterFor(status, o);
+		if (!toggles.every((t) => matchesToggle(o, t))) toggles = [];
+		if (answerFilter && !matchesAnswer(o, answerFilter, fieldIds)) answerFilter = null;
+		const hay = orderSearchText(o);
+		if (!words.every((w) => matches(w, hay, o.id))) query = '';
 		linked = o.id;
+		if (mounted && location.hash !== `#orden-${encodeURIComponent(o.id)}`) {
+			const url = new URL(location.href);
+			url.hash = `orden-${encodeURIComponent(o.id)}`;
+			replaceState(url, {});
+		}
 		await tick();
 		document.getElementById(`orden-${o.id}`)?.scrollIntoView({ block: 'start' });
+	}
+	const onHash = () => {
+		const id = orderIdFromHash(location.hash);
+		if (id) revealOrder(id);
+	};
+	onMount(() => {
+		orderBy = orderSortOf(new URL(location.href).searchParams.get('orden'));
+		mounted = true;
+		onHash();
+		addEventListener('hashchange', onHash);
+		return () => removeEventListener('hashchange', onHash);
 	});
-	// «Reembolsar todas» (evento cancelado): se abre, se escribe la palabra y recién ahí se manda.
-	let confirmingAll = false;
-	let typedAll = '';
-	let sendingAll = false;
-	$: ra = data.refundAll;
-	// Las respuestas con error de `?/refundAll` no traen `results`: se lee sin el tipo de la unión.
-	/** @type {any} */
-	$: rr = /** @type {any} */ (form)?.refundAll;
-	$: rrDone = rr?.results ? rr.results.filter((/** @type {any} */ r) => r.ok) : [];
-	$: rrFailed = rr?.results ? rr.results.filter((/** @type {any} */ r) => !r.ok) : [];
+
 	/**
-	 * `use:enhance` que, al volver, lee en voz alta el mensaje de la acción (`form[key].message`):
-	 * el `role="status"` de cada aviso nace junto con su texto y no siempre se lee.
-	 *
+	 * Filtrar las compras por una respuesta (una barra de «Respuestas» o «ver quiénes respondieron
+	 * igual»). Desde «Respuestas», con las aprobadas (las que cuenta) y sin los demás filtros.
+	 * @param {import('$lib/admin/ordersView.js').AnswerFilter} filter
+	 * @param {boolean} fromAnswers
+	 */
+	async function filterByAnswer(filter, fromAnswers) {
+		answerFilter = filter;
+		query = '';
+		if (fromAnswers) {
+			view = 'compras';
+			toggles = [];
+			if (!small) status = 'aprobadas';
+		}
+		await tick();
+		document.getElementById('lista-ordenes')?.scrollIntoView({ block: 'start' });
+	}
+
+	// Transferencias: «Llegó la transferencia ✓» (pregunta corta, límites con OverrideDialog) y
+	// «Cancelar»; el resultado queda en la tarjeta, que se sigue viendo aunque el filtro ya no la
+	// muestre (ver transferConfirm.js). Cambiar los filtros lo limpia.
+	/** @type {OverrideDialog} */
+	let overrideDialog;
+	/** @type {string | null} */
+	let busy = null;
+	/** @type {import('$lib/admin/transferConfirm.js').KeptRow<Order>[]} */
+	let kept = [];
+	/** @param {import('$lib/admin/transferConfirm.js').KeptRow<Order>} k */
+	const keep = (k) => (kept = [...kept.filter((x) => x.row.id !== k.row.id), k]);
+	$: (status, toggles, answerFilter, view, (kept = []));
+	/**
+	 * @param {Order} row
+	 * @param {number} index
+	 */
+	const confirmPayment = (row, index) =>
+		confirmPaymentSubmit({
+			row,
+			index,
+			overrideDialog: () => overrideDialog,
+			setBusy: (id) => (busy = id),
+			onResult: keep,
+			refresh: invalidateAll
+		});
+	/**
+	 * @param {Order} row
+	 * @param {number} index
+	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const cancelTransfer =
+		(row, index) =>
+		async ({ cancel }) => {
+			const ok = await askConfirm({
+				title: `¿Cancelar ${row.reference}?`,
+				text: 'Se libera el cupo.',
+				confirmLabel: 'Cancelar la orden',
+				cancelLabel: 'Volver',
+				tone: 'danger'
+			});
+			if (!ok) return cancel();
+			busy = row.id;
+			return async ({ result }) => {
+				busy = null;
+				announceResult(result, 'transfer');
+				const body = /** @type {any} */ (
+					result.type === 'success' || result.type === 'failure' ? result.data : null
+				);
+				keep({
+					row,
+					index,
+					ok: result.type === 'success',
+					message: body?.transfer?.message ?? 'No se pudo cancelar: probá de nuevo.'
+				});
+				await invalidateAll();
+			};
+		};
+	// La tarjeta muestra la orden como quedó (confirmada, cancelada) con su aviso.
+	$: byId = new Map(data.orders.map((o) => [o.id, o]));
+	$: rows = keepRows(
+		[...shown],
+		kept.map((k) => ({ ...k, row: byId.get(k.row.id) ?? k.row }))
+	);
+	$: anyWaiting = rows.some(({ row }) => row.transferPending);
+
+	/**
+	 * `use:enhance` que, al volver, lee en voz alta el mensaje de la acción (`form[key].message`).
 	 * @param {string} key
 	 * @returns {import('@sveltejs/kit').SubmitFunction}
 	 */
@@ -160,65 +324,6 @@
 			await update();
 			announceResult(result, key);
 		};
-	/** @type {import('@sveltejs/kit').SubmitFunction} */
-	const submitAll = () => {
-		sendingAll = true;
-		return async ({ result, update }) => {
-			await update();
-			announceResult(result, 'refundAll');
-			// La tanda que salió bien no trae mensaje: se lee el resumen.
-			const done = /** @type {any} */ (result).data?.refundAll?.results;
-			if (result.type === 'success' && Array.isArray(done)) {
-				const failed = done.filter((/** @type {any} */ r) => !r.ok).length;
-				announce(
-					`Reembolsadas: ${done.length - failed}${failed ? `. Sin reembolsar: ${failed}` : ''}.`,
-					{ force: true }
-				);
-			}
-			sendingAll = false;
-			confirmingAll = false;
-			typedAll = '';
-		};
-	};
-	// «Reembolsar…» de una orden: mientras se pide, el botón queda apagado y dice «Reembolsando…»
-	// (como «Reembolsar todas»), para que un segundo toque no mande otro pedido.
-	let refunding = '';
-	/**
-	 * @param {string} id
-	 * @returns {import('@sveltejs/kit').SubmitFunction}
-	 */
-	const submitRefund = (id) => () => {
-		refunding = id;
-		return async ({ result, update }) => {
-			await update();
-			// Y lee en voz alta el resultado, como `announced('refund')`.
-			announceResult(result, 'refund');
-			refunding = '';
-		};
-	};
-	/**
-	 * Compras y personas (entradas) de una lista de órdenes, para el filtro («🧾 3 · 👥 5»).
-	 * @param {typeof data.orders} list
-	 * @param {(o: (typeof data.orders)[number]) => number} [tickets] personas de cada orden que cuentan
-	 */
-	function tally(list, tickets = (o) => o.quantity) {
-		const n = list.reduce((sum, o) => sum + tickets(o), 0);
-		return `🧾 ${list.length} · 👥 ${n}`;
-	}
-	$: counts = {
-		approved: tally(data.orders.filter((o) => o.status === 'approved')),
-		pending: tally(
-			data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
-		),
-		refunded: tally(data.orders.filter((o) => o.status === 'refunded')),
-		uninvoiced: tally(data.orders.filter((o) => o.toInvoice && !o.invoicedAt)),
-		// Solo las entradas de quienes vienen por primera vez, no toda la compra.
-		first: tally(
-			data.orders.filter(hasFirstTimer),
-			(o) => o.holders.filter((h) => h.firstTime).length
-		),
-		all: tally(data.orders)
-	};
 </script>
 
 <svelte:head><title>Órdenes · {e.title} · Panel</title></svelte:head>
@@ -255,129 +360,34 @@
 	</section>
 {/if}
 
-{#if form?.resend}
-	<p class="flash" class:error={!form.resend.ok} role="status">{form.resend.message}</p>
-{/if}
-{#if form?.emailFix}
-	<p class="flash" class:error={!form.emailFix.ok} role="status">{form.emailFix.message}</p>
-{/if}
-{#if form?.refund}
-	<p class="flash" class:error={!form.refund.ok} role="status">{form.refund.message}</p>
+{#each ['resend', 'emailFix', 'refund'] as key (key)}
+	{@const f = /** @type {any} */ (form)?.[key]}
+	{#if f?.message}<p class="flash" class:error={!f.ok} role="status">{f.message}</p>{/if}
+{/each}
+{#if form?.transfer}
+	<p class="flash" class:error={!form.transfer.ok} role="status">{form.transfer.message}</p>
+	{#if 'needsConfirmation' in form.transfer && form.transfer.needsConfirmation}
+		<!-- Sin JavaScript: la confirmación en la página (por eso la página es same-origin). -->
+		<form
+			class="flash error"
+			method="POST"
+			action={'action' in form.transfer && form.transfer.action === 'reopen'
+				? '?/reopen'
+				: '?/confirm'}
+		>
+			{#each form.transfer.needsConfirmation.limits as l}<p>{l.message}</p>{/each}
+			<input type="hidden" name="order" value={form.transfer.order} />
+			<button
+				class="kv-btn small"
+				type="submit"
+				name="override"
+				value={form.transfer.needsConfirmation.key}>Sí, confirmar igual</button
+			>
+		</form>
+	{/if}
 {/if}
 
-{#if ra && (ra.mp.count || ra.manual.length || ra.free || rr)}
-	<section class="refund-all" aria-labelledby="reembolsar-todas">
-		<h2 id="reembolsar-todas">El evento está cancelado: devolver lo vendido</h2>
-		{#if rr?.message}
-			<p class="flash" class:error={!rr.ok} role="status">{rr.message}</p>
-		{/if}
-		{#if rr?.results}
-			<div class="refund-summary" role="status">
-				<p>
-					<strong>Reembolsadas: {rrDone.length}</strong>{#if rrFailed.length}
-						· <strong class="bad">Sin reembolsar: {rrFailed.length}</strong> (quedaron como estaban; antes
-						de devolverlas a mano, revisá cada pago en Mercado Pago: si figura reembolsado, no lo devuelvas
-						de nuevo){/if}{#if rr.remaining}
-						· faltan {rr.remaining}{/if}.
-				</p>
-				{#if rr.results.length}
-					<ul>
-						{#each rr.results as r (r.id)}
-							<li class:bad={!r.ok}>
-								<span class="ref">{r.reference}</span> · {r.name} · {formatARS(r.total)} · {r.reason}
-							</li>
-						{/each}
-					</ul>
-				{/if}
-				{#if rr.remaining !== 0 && rr.after}
-					<form method="POST" action="?/refundAll" use:enhance={submitAll}>
-						<input type="hidden" name="after" value={rr.after} />
-						<input type="hidden" name="confirm" value={ra.word} />
-						<button type="submit" class="refund-confirm" disabled={sendingAll}>
-							{sendingAll
-								? 'Reembolsando…'
-								: rr.remaining
-									? `Seguir con las ${rr.remaining} que faltan`
-									: 'Seguir con las que falten'}
-						</button>
-					</form>
-				{/if}
-			</div>
-		{/if}
-		{#if ra.mp.count}
-			<p>
-				<strong
-					>{ra.mp.count} {ra.mp.count === 1 ? 'orden' : 'órdenes'} de Mercado Pago o PayPal</strong
-				>
-				sin reembolsar, por <strong>{formatARS(ra.mp.total)}</strong> en total.
-			</p>
-			{#if !confirmingAll}
-				<button type="button" class="kv-btn small" on:click={() => (confirmingAll = true)}
-					>Reembolsar todas…</button
-				>
-			{:else}
-				<form method="POST" action="?/refundAll" class="refund-panel" use:enhance={submitAll}>
-					<input type="hidden" name="count" value={ra.mp.count} />
-					<input type="hidden" name="total" value={ra.mp.total} />
-					<p>
-						Se le pide a Mercado Pago el reembolso TOTAL de cada una, de a {ra.batch} por vez (si son
-						más, después aparece «Seguir»). Cada orden reembolsada queda anulada, sale de los totales
-						y le avisamos a quien compró por mail, como con «Reembolsar…». Las que Mercado Pago no acepte
-						quedan como están, para hacerlas a mano. Lo ya reembolsado no se vuelve a pedir.
-					</p>
-					<label class="confirm-word">
-						<span>Para confirmar, escribí <strong>{ra.word}</strong></span>
-						<input name="confirm" bind:value={typedAll} autocomplete="off" spellcheck="false" />
-					</label>
-					<div class="refund-actions">
-						<button
-							type="submit"
-							class="refund-confirm"
-							disabled={sendingAll || typedAll.trim().toUpperCase() !== ra.word}
-						>
-							{sendingAll
-								? 'Reembolsando…'
-								: `Reembolsar ${ra.mp.count} ${ra.mp.count === 1 ? 'orden' : 'órdenes'} por ${formatARS(ra.mp.total)}`}
-						</button>
-						<button
-							type="button"
-							class="kv-btn ghost small"
-							on:click={() => ((confirmingAll = false), (typedAll = ''))}>Cancelar</button
-						>
-					</div>
-				</form>
-			{/if}
-		{:else}
-			<p>No queda ninguna orden de Mercado Pago o PayPal para reembolsar.</p>
-		{/if}
-		{#if ra.manual.length}
-			<h3>Para devolver a mano</h3>
-			<p class="note">
-				No pasan por Mercado Pago (puerta, carga a mano o transferencia): devolvé la plata por fuera
-				y después marcá cada una con «Reembolsar…» en su orden.
-			</p>
-			<ul>
-				{#each ra.manual as o (o.id)}
-					<li>
-						<a href="#orden-{o.id}" class="ref">{o.reference}</a> · {o.name} · {PAYMENT_METHOD[
-							o.method
-						] ?? o.method}{o.channel === 'puerta'
-							? ' (puerta)'
-							: o.channel === 'manual'
-								? ' (carga a mano)'
-								: ''} · {formatARS(o.total)}
-					</li>
-				{/each}
-			</ul>
-		{/if}
-		{#if ra.free}
-			<p class="note">
-				{ra.free === 1 ? '1 orden sin cargo' : `${ra.free} órdenes sin cargo`}: no hay plata que
-				devolver; si hace falta, anulalas desde su orden.
-			</p>
-		{/if}
-	</section>
-{/if}
+<RefundAllPanel ra={data.refundAll} {form} onReveal={revealOrder} />
 
 <Card title="Órdenes">
 	<svelte:fragment slot="actions">
@@ -387,218 +397,73 @@
 		>
 		<CsvButton href="{eventHref(e.slug)}/ordenes.csv" label="CSV (una fila por entrada)" />
 	</svelte:fragment>
-	<div class="tools">
-		<label class="filter">
-			<span>Mostrar</span>
-			<select bind:value={filter} title="🧾 compras · 👥 personas">
-				<option value="approved">Aprobadas · {counts.approved}</option>
-				<option value="pending">Pendientes · {counts.pending}</option>
-				<option value="refunded">Reembolsadas · {counts.refunded}</option>
-				<option value="uninvoiced">Sin facturar · {counts.uninvoiced}</option>
-				{#if data.firstKnown}<option value="first"
-						>Primera vez{data.series ? ` en ${data.series}` : ''} · {counts.first}</option
-					>{/if}
-				<option value="all">Todas · {counts.all}</option>
-			</select>
-		</label>
-		<label class="filter">
-			<span>Ordenar</span>
-			<select bind:value={orderBy} on:change={writeSortUrl}>
-				{#each ORDER_SORTS as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
-			</select>
-		</label>
-		<label class="search">
-			<Search size={16} aria-hidden="true" />
-			<span class="sr-only">Buscar una orden</span>
-			<input
-				type="search"
-				bind:value={query}
-				placeholder="Nombre, email, DNI o KV-…"
-				autocomplete="off"
+	{#if hasQuestions}
+		<div class="view">
+			<Segmented
+				label="Ver"
+				options={[
+					{ value: 'compras', label: 'Compras' },
+					{ value: 'respuestas', label: 'Respuestas' }
+				]}
+				bind:value={view}
 			/>
-		</label>
-	</div>
-
-	{#if searchingDni}
-		<p class="searching" role="status">Buscando por DNI…</p>
-	{:else if visible.length === 0}
-		<EmptyState icon={ReceiptText} title="No hay órdenes para mostrar" />
+		</div>
 	{/if}
-	<ul class="orders">
-		{#each shown as o (o.id)}
-			{@const money = orderMoneyLines(o)}
-			<li class="order status-{o.status}" class:linked={o.id === linked} id="orden-{o.id}">
-				<div class="who">
-					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}
-					<DniReveal orderId={o.id} tail={o.dniTail} {form} />
-					<a href="mailto:{o.email}">{o.email}</a>
-					<Badge tone={ORDER_STATUS_TONE[o.status] ?? 'neutral'}
-						><span class="status">{ORDER_STATUS[o.status]}</span></Badge
-					>
-				</div>
-				<!-- Lo pagado y lo que queda arriba; el desglose (Fondo, recargo, comisión, extras) abajo,
-				     chico (opción A de gorrite). -->
-				<div class="what">
-					{money.main}
-					· {PAYMENT_METHOD[o.method]}
-					{#if o.status === 'approved'}
-						· ingresaron {o.checkedIn}/{o.quantity}
-					{/if}
-				</div>
-				{#if money.detail}<p class="what-detail">{money.detail}</p>{/if}
-				{#if o.refundedAmount}<p class="admin-note">
-						Reembolso parcial en Mercado Pago: {formatARS(o.refundedAmount)} (quedan {formatARS(
-							Math.max(0, o.total - o.refundedAmount)
-						)})
-					</p>{/if}
-				{#if o.priceChange}<p class="admin-note">{o.priceChange}</p>{/if}
-				{#if o.note}
-					<!-- Nota de la carga a mano o de la venta en la puerta (solo en el panel). -->
-					<p class="admin-note"><strong>Nota:</strong> <span class="pre">{o.note}</span></p>
-				{/if}
-				{#if o.holders.length}
-					<div class="kv-table-wrap">
-						<table class="kv-table holders">
-							<thead>
-								<tr><th>#</th><th>Entrada a nombre de</th><th>Pronombres</th></tr>
-							</thead>
-							<tbody>
-								{#each o.holders as h, i (i)}
-									<tr class:inside={h.checkedIn}>
-										<td>{i + 1}</td>
-										<td
-											>{h.name}{#if h.checkedIn}&nbsp;<CircleCheck
-													size={15}
-													class="in"
-													aria-label="ingresó"
-												/>{/if}{#if h.firstTime}&nbsp;<span
-													title={h.firstFrom === 'form'
-														? 'Lo dijo en el formulario de compra'
-														: 'No tiene entradas en ediciones anteriores'}
-													><Badge tone="info">primera vez</Badge></span
-												>{/if}</td
-										>
-										<td>{h.pronouns || '—'}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				{/if}
-				<OrderAnswers answers={o.answers} />
-				<div class="meta">
-					<span class="ref">{o.reference}</span> · {shortTime(o.createdAt)}{#if o.paymentId}{' '}
-						· {o.method === 'paypal' ? 'cobro PayPal' : 'pago MP'}
-						{o.paymentId}{/if}{#if o.usdCents}{' '}· {formatUSD(
-							o.usdCents
-						)}{#if o.usdFeeCents}{' '}(comisión
-							{formatUSD(o.usdFeeCents)}){/if}{/if}{#if o.confirmedBy}
-						· {o.status === 'cancelled' ? 'canceló' : 'confirmó'} {o.confirmedBy}{/if}
-					{#if o.status === 'approved'}
-						· {#if o.emailProblem}<strong class="mail-problem"
-								>{EMAIL_PROBLEM[o.emailProblem] ?? 'mail enviado'}</strong
-							>{:else}{o.emailSent ? 'mail enviado' : 'mail NO enviado'}{/if}
-						<form method="POST" action="?/resend" use:enhance={announced('resend')}>
-							<input type="hidden" name="order" value={o.id} />
-							<button type="submit" class="kv-btn ghost small">Reenviar mail</button>
-						</form>
-					{/if}
-					{#if o.status === 'refunded'}
-						· reembolsada {o.refundedAt ? shortTime(o.refundedAt) : ''}{o.refundedBy
-							? ` por ${o.refundedBy}`
-							: ' (desde Mercado Pago)'}
-					{/if}
-				</div>
-				{#if o.toInvoice || o.invoicedAt}
-					<!-- Ya se facturó esta compra (solo admins). -->
-					<InvoicedCheck
-						orderId={o.id}
-						bind:invoicedAt={o.invoicedAt}
-						bind:invoicedBy={o.invoicedBy}
-					/>
-				{/if}
-				{#if o.status === 'approved'}
-					<!-- Quien compró escribió mal su mail: se corrige y las entradas salen a la nueva. -->
-					<details class="email-fix" open={form?.emailFix?.order === o.id && !form.emailFix.ok}>
-						<summary>Corregir el mail…</summary>
-						<form
-							method="POST"
-							action="?/email"
-							use:enhance={announced('emailFix')}
-							class="email-fix-form"
-						>
-							<input type="hidden" name="order" value={o.id} />
-							<label>
-								<span>Mail nuevo</span>
-								<input
-									type="email"
-									name="email"
-									required
-									maxlength="254"
-									autocomplete="off"
-									spellcheck="false"
-								/>
-							</label>
-							<button type="submit" class="kv-btn small">Corregir el mail y reenviar</button>
-						</form>
-						<p class="note">
-							Las entradas salen a la dirección nueva; a la anterior no le mandamos nada más.
-						</p>
-					</details>
-				{/if}
-				{#if o.status === 'approved'}
-					<!-- Paso de confirmación: se abre, se revisa y recién ahí se reembolsa. -->
-					<details class="refund">
-						<summary>Reembolsar…</summary>
-						<div class="refund-panel">
-							<p>
-								<strong>{formatARS(Math.max(0, o.total - o.refundedAmount))}</strong> a
-								<strong>{o.name}</strong> ({o.email}) ·
-								{o.quantity}
-								{o.quantity === 1 ? 'entrada' : 'entradas'}{#if o.holders.length}:
-									{o.holders.map((h) => h.name).join(', ')}{/if}.
-							</p>
-							<p class="note">
-								{#if o.method === 'mercadopago'}
-									Se pide a Mercado Pago el reembolso TOTAL del pago {o.paymentId} (tiene que haber saldo
-									en la cuenta; hasta 180 días desde el pago).
-								{:else if o.method === 'paypal'}
-									Se pide a PayPal el reembolso TOTAL del cobro {o.paymentId}{#if o.usdCents}{' '}({formatUSD(
-											o.usdCents
-										)}){/if} (tiene que haber saldo en la cuenta de PayPal; hasta 180 días desde el pago).
-								{:else if o.method === 'transferencia'}
-									No hay devolución automática: primero devolvé la transferencia a mano, después
-									marcala acá.
-								{:else}
-									Compra sin cargo: solo se anulan las entradas.
-								{/if}
-								Las entradas quedan anuladas (el control de ingreso las rechaza), se libera el cupo y
-								el uso del código, sale de los totales y le avisamos por mail.
-							</p>
-							<form method="POST" action="?/refund" use:enhance={submitRefund(o.id)}>
-								<input type="hidden" name="order" value={o.id} />
-								<button
-									type="submit"
-									class="refund-confirm"
-									disabled={refunding === o.id}
-									aria-busy={refunding === o.id}
-								>
-									{refunding === o.id
-										? 'Reembolsando…'
-										: o.method === 'mercadopago' || o.method === 'paypal'
-											? `Confirmar reembolso de ${formatARS(Math.max(0, o.total - o.refundedAmount))}`
-											: o.method === 'transferencia'
-												? 'Marcar como reembolsada (transferencia devuelta a mano)'
-												: 'Anular las entradas'}
-								</button>
-							</form>
-						</div>
-					</details>
-				{/if}
-			</li>
-		{/each}
-	</ul>
+
+	{#if view === 'respuestas'}
+		<AnswersView
+			{cards}
+			scope={answersScope}
+			questionsHref={eventHref(e.slug, 'preguntas')}
+			onFilter={(card, value) =>
+				filterByAnswer({ key: card.key, value, label: `${card.label}: ${value}` }, true)}
+			onReveal={revealOrder}
+		/>
+	{:else}
+		<OrderFilters
+			bind:status
+			bind:toggles
+			bind:orderBy
+			bind:query
+			{statuses}
+			{toggleOptions}
+			{small}
+			answer={answerFilter}
+			onClearAnswer={() => (answerFilter = null)}
+		/>
+		{#if anyWaiting}
+			<p class="rule">
+				Buscá la referencia en el concepto de la transferencia y el comprobante que mandó la
+				persona. Confirmá solo cuando la plata esté en la cuenta. Cada reserva dura {transferRuleText()},
+				o hasta que empiece el evento si es antes.
+			</p>
+		{/if}
+		{#if searchingDni}
+			<p class="searching" role="status">Buscando por DNI…</p>
+		{:else if rows.length === 0}
+			<EmptyState icon={ReceiptText} title="No hay órdenes para mostrar" />
+		{/if}
+		<ul class="orders" id="lista-ordenes">
+			{#each rows as { row: o, result }, i (o.id)}
+				<OrderCard
+					{o}
+					{form}
+					{result}
+					fields={data.fields}
+					busy={busy === o.id}
+					linked={o.id === linked}
+					{overrideDialog}
+					confirmSubmit={confirmPayment(o, i)}
+					cancelSubmit={cancelTransfer(o, i)}
+					onFilter={(a) =>
+						filterByAnswer({ key: a.key, value: a.value, label: `${a.label}: ${a.value}` }, false)}
+				/>
+			{/each}
+		</ul>
+	{/if}
 </Card>
+
+<OverrideDialog bind:this={overrideDialog} confirmLabel="Sí, confirmar igual" />
 
 <style>
 	.flash {
@@ -610,59 +475,6 @@
 	.flash.error {
 		background: var(--error-bg);
 		color: var(--error);
-	}
-	.refund-all {
-		border: 2px solid var(--bad);
-		border-radius: var(--radius-m);
-		padding: var(--space-2xs) var(--space-s);
-		margin: 0 0 1rem;
-		font-size: var(--text-sm);
-	}
-	.refund-all h2 {
-		font-size: var(--text-sm);
-		margin: 0.3rem 0;
-	}
-	.refund-all h3 {
-		font-size: var(--text-sm);
-		margin: 0.8rem 0 0.2rem;
-	}
-	.refund-all ul {
-		padding-left: 1.2em;
-		overflow-wrap: anywhere;
-	}
-	.refund-all .bad {
-		color: var(--bad);
-	}
-	.refund-summary {
-		background: var(--surface);
-		border-radius: var(--radius-m);
-		padding: var(--space-3xs) var(--space-xs);
-		margin-bottom: 0.6rem;
-	}
-	.confirm-word {
-		display: flex;
-		flex-direction: column;
-		gap: 0.2rem;
-		max-width: 20rem;
-		margin-bottom: 0.6rem;
-	}
-	.confirm-word input {
-		min-height: 2.5rem;
-		padding: 0 var(--space-2xs);
-		border: 1px solid var(--field);
-		border-radius: var(--radius-m);
-		background: var(--surface);
-		color: var(--text);
-	}
-	.refund-actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2xs);
-		align-items: center;
-	}
-	.refund-confirm:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 	.review {
 		background: var(--warn-bg);
@@ -686,58 +498,21 @@
 	.review form {
 		display: inline;
 	}
-	.tools {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2xs);
-		align-items: center;
+	.small {
+		padding: var(--space-3xs) var(--space-2xs);
+		font-size: var(--text-xs);
 	}
-	.filter {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
+	.view {
+		margin-bottom: var(--space-2xs);
 	}
-	.filter select {
-		padding: 0.45rem var(--space-2xs);
-		min-height: 2.5rem;
-		border-radius: 3em;
-		border: 1px solid var(--field);
-		background: var(--surface);
-	}
-	.search {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		border: 1px solid var(--field);
-		border-radius: 3em;
-		padding: 0 var(--space-xs);
-		flex: 1 1 14rem;
-		max-width: 22rem;
+	.rule {
+		margin: 0 0 var(--space-2xs);
+		font-size: var(--text-xs);
 		color: var(--muted);
-		background: var(--surface);
 	}
-	.search input {
-		border: 0;
-		background: transparent;
-		min-height: 2.5rem;
-		width: 100%;
-		min-width: 0;
-		color: var(--text);
-	}
-	.search input:focus {
-		outline: none;
-	}
-	.search:focus-within {
-		outline: 2px solid var(--link);
-		outline-offset: 2px;
-	}
-	.order {
-		/* 5rem en total: en el celu, parte la pone el scroll-padding del panel. */
-		scroll-margin-top: calc(5rem - var(--panel-scroll-top, 0px));
-	}
-	.order:target,
-	.order.linked {
-		box-shadow: 0 0 0 3px var(--link);
+	.searching {
+		margin: var(--space-2xs) 0;
+		color: var(--muted);
 	}
 	.orders {
 		list-style: none;
@@ -746,145 +521,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2xs);
-	}
-	.order {
-		border: 1px solid var(--line);
-		border-left: 4px solid var(--line);
-		border-radius: var(--card-round);
-		padding: var(--space-2xs) var(--space-xs);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3xs);
-	}
-	.status-approved {
-		border-left-color: var(--3);
-	}
-	.status-pending,
-	.status-awaiting_transfer {
-		border-left-color: var(--4);
-	}
-	.who {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.2rem var(--space-xs);
-		align-items: center;
-		overflow-wrap: anywhere;
-	}
-	.searching {
-		margin: var(--space-2xs) 0;
-		color: var(--muted);
-	}
-	.ref {
-		font-family: ui-monospace, monospace;
-		white-space: nowrap;
-	}
-	.what,
-	.meta {
-		font-size: var(--text-sm);
-	}
-	.meta {
-		color: var(--muted);
-	}
-	/* El desglose de la plata, debajo de «Pagó … · te quedan …»: chico y gris. */
-	.what-detail {
-		margin: 0;
-		font-size: var(--text-xs);
-		color: var(--muted);
-	}
-	.meta form {
-		display: inline;
-	}
-	.mail-problem {
-		color: var(--bad);
-	}
-	.small {
-		padding: var(--space-3xs) var(--space-2xs);
-		font-size: var(--text-xs);
-	}
-	.holders {
-		font-size: var(--text-xs);
-	}
-	.holders :global(.in) {
-		color: var(--ok);
-		vertical-align: -0.15em;
-	}
-	.holders .inside {
-		background: var(--ok-bg);
-	}
-	.email-fix,
-	.refund {
-		font-size: var(--text-sm);
-	}
-	.email-fix summary {
-		cursor: pointer;
-		font-weight: 700;
-	}
-	.email-fix-form {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2xs);
-		align-items: end;
-		margin-top: 0.4rem;
-	}
-	.email-fix-form label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.2rem;
-		flex: 1 1 14rem;
-		max-width: 22rem;
-	}
-	.email-fix-form input {
-		min-height: 2.5rem;
-		padding: 0 var(--space-2xs);
-		border: 1px solid var(--field);
-		border-radius: var(--radius-m);
-		background: var(--surface);
-		color: var(--text);
-	}
-	.email-fix .note {
-		margin: 0.3em 0 0;
-	}
-	.refund summary {
-		cursor: pointer;
-		color: var(--bad);
-		font-weight: 700;
-	}
-	.refund-panel {
-		margin-top: 0.4rem;
-		padding: var(--space-2xs) var(--space-xs);
-		border-radius: var(--radius-m);
-		background: var(--bad-bg);
-	}
-	.refund-panel p {
-		margin: 0.2em 0 0.5em;
-	}
-	.admin-note {
-		margin: 0;
-		font-size: var(--text-sm);
-	}
-	.admin-note .pre {
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-	}
-	.note {
-		color: var(--muted);
-	}
-	.refund-confirm {
-		font-weight: 700;
-		border: 0;
-		border-radius: 2em;
-		padding: var(--space-2xs) var(--space-s);
-		min-height: 2.75rem;
-		cursor: pointer;
-		background: var(--bad);
-		color: var(--surface);
-	}
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
-		white-space: nowrap;
+		scroll-margin-top: calc(5rem - var(--panel-scroll-top, 0px));
 	}
 </style>

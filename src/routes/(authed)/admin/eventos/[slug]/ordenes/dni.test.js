@@ -1,5 +1,5 @@
 /**
- * Ficha del evento, pestañas Órdenes y Transferencias: el DNI de quien compra no va a la página
+ * Ficha del evento, Ventas › Órdenes (también con las transferencias por confirmar): el DNI de quien compra no va a la página
  * (solo los últimos 3 dígitos). «Mostrar» lo pide de a una orden y queda en el registro de
  * actividad (sin el DNI); el buscador encuentra órdenes por DNI en el servidor.
  */
@@ -24,11 +24,6 @@ const TRANSFER_HOLD_MS = 48 * 60 * 60 * 1000;
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 import { actions, load } from './+page.server.js';
 import Page from './+page.svelte';
-import {
-	actions as transferActions,
-	load as transferLoad
-} from '../transferencias/+page.server.js';
-import TransferPage from '../transferencias/+page.svelte';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -151,8 +146,9 @@ describe('Órdenes: el DNI completo no va a la página', () => {
 		const data = await loadAs(load, 'ordenes');
 		const { body } = render(Page, { props: { data: { ...data, event }, form: null } });
 		expectNoFullDni(body);
-		// La lista arranca en «Aprobadas»: la transferencia pendiente (•••.333) no se dibuja.
+		// Un evento chico (hasta 5 compras) muestra todas: la aprobada y la transferencia.
 		expect(body).toContain('DNI •••.957');
+		expect(body).toContain('DNI •••.333');
 		expect(body).toContain('Mostrar');
 		expect(body).toContain('action="?/dni"');
 	});
@@ -240,17 +236,23 @@ describe('Órdenes: buscar por DNI (en el servidor)', () => {
 	});
 });
 
-describe('Transferencias: lo mismo', () => {
+describe('Transferencias por confirmar: lo mismo', () => {
 	it('los datos y el HTML solo traen los últimos 3 dígitos; «Mostrar» anda y queda registrado', async () => {
 		const { b } = await seed();
-		const data = await loadAs(transferLoad, 'transferencias');
-		expect(data.transfers.map((/** @type {any} */ o) => o.id)).toEqual([b.id]);
+		const data = await loadAs(load, 'ordenes?estado=transferencias');
+		expect(data.initial.status).toBe('transferencias');
+		expect(
+			data.orders
+				.filter((/** @type {any} */ o) => o.transferPending)
+				.map((/** @type {any} */ o) => o.id)
+		).toEqual([b.id]);
 		expectNoFullDni(JSON.stringify(data));
-		const { body } = render(TransferPage, { props: { data: { ...data, event }, form: null } });
+		const { body } = render(Page, { props: { data: { ...data, event }, form: null } });
 		expectNoFullDni(body);
 		expect(body).toContain('DNI •••.333');
+		expect(body).toContain('Llegó la transferencia ✓');
 
-		const r = await act(transferActions, 'dni', { orden: b.id }, admin, 'transferencias');
+		const r = await act(actions, 'dni', { orden: b.id });
 		expect(r.dni).toMatchObject({ ok: true, value: DNI_B });
 		expect((await listAudit(t.db)).map((e) => e.action)).toEqual(['person.dni.reveal']);
 	});
