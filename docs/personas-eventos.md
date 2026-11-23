@@ -14,7 +14,9 @@ Sin base, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes cam
 2. **Preguntas de inscripción (B8).** Preguntas extra al comprar o inscribirse (texto, opciones
    o casilla; obligatorias u opcionales): propias de un evento (pestaña **Preguntas** de su
    ficha) y generales, que se definen una vez (Eventos → **Roles y preguntas**) y cada evento
-   elige. Las respuestas se guardan con la orden y se ven en la pestaña **Órdenes** y en su CSV.
+   elige. Las respuestas se guardan con la orden y se ven en la pestaña **Órdenes** (en cada
+   compra y, en la vista «Respuestas», una tarjeta por pregunta con barras o la lista de quienes
+   escribieron; ver [tickets.md](tickets.md#ventas--órdenes-compras-y-respuestas)) y en su CSV.
 
 ## Lo que nunca se tiene que romper
 
@@ -144,7 +146,8 @@ como se respondieron (con la pregunta copiada como estaba). Y cada pregunta elig
 - **cuántas veces se pregunta**: una vez por compra (lo de siempre) o **una vez por entrada**
   (`signup_fields.per_ticket`): si alguien compra 3, responde 3 veces, dentro de cada entrada del
   formulario (campo `campo_<id>_<entrada>`). Se guarda con `ticket` (1, 2, 3…) en el JSON de
-  `order_answers`; en Órdenes cada respuesta dice de qué entrada es y en los CSV (Órdenes y el de
+  `order_answers`; en Órdenes cada respuesta va con la persona de esa entrada (👥 en la vista
+  «Respuestas») y en los CSV (Órdenes y el de
   les organizadores) van juntas en la columna de la pregunta: «Entrada 1: … | Entrada 2: …».
 
 Las reglas puras (qué preguntas aplican a cada tipo, cuántas respuestas pide una compra, validar

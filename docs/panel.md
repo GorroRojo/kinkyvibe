@@ -95,9 +95,9 @@ sigue cobrando ese (auditoría de confiabilidad, O36). Ajustes **no lleva pesta�
   «Crear: …» (`createCommands` en `paletteActions.js`).
 - **Pestañas con contadores**: cada pestaña de sección lleva el contador «a revisar» de su sección
   (`sectionTabs(path, { counts })`, el mismo de la barra lateral y de «Para revisar»); en la ficha
-  del evento, Órdenes muestra las órdenes a revisar y Transferencias las que esperan confirmación
-  (antes Órdenes mostraba el total de órdenes). Lo que viene va al final de las pestañas, gris y
-  sin link, salvo con «Ocultar lo que viene» (sin pasar `hideSoon`, `sectionTabs` sigue sin
+  del evento, Órdenes muestra las órdenes a revisar más las transferencias que esperan
+  confirmación (antes Órdenes mostraba el total de órdenes). Lo que viene va al final de las
+  pestañas, gris y sin link, salvo con «Ocultar lo que viene» (sin pasar `hideSoon`, `sectionTabs` sigue sin
   mostrarlo).
 - **Pestañas en el celu** (< 600 px): todas las barras del panel usan `Tabs` con `menu` (la de
   sección, la de la ficha del evento y los filtros de Ventas, Perfiles y Propinas): un botón
@@ -145,19 +145,21 @@ junta lo que eran tres pestañas y **Mails** lo que eran dos: cada parte es una 
 pestaña (`views`), con su URL de siempre, y la ficha las muestra como botones (`.kv-segmented`)
 debajo de las pestañas:
 
-| Pestaña | Vistas (URL)                                                                                                                                                                                                                                                                    |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo), Gastos y reparto (`/gastos`, con el interruptor `gastos_reparto`; las cuentas cerradas, en Ventas › Cuentas del año, ver [tickets.md](tickets.md)) |
-| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`), Encuesta (`/encuesta`, interruptor `formularios`)                                                                                                                                               |
+| Pestaña | Vistas (URL)                                                                                                                                                                                                                                                                                                                                        |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`, que también confirma las transferencias: `/transferencias` redirige a `/ordenes?estado=transferencias`), Lista de espera (`/lista-espera`, ver abajo), Gastos y reparto (`/gastos`, con el interruptor `gastos_reparto`; las cuentas cerradas, en Ventas › Cuentas del año, ver [tickets.md](tickets.md)) |
+| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`), Encuesta (`/encuesta`, interruptor `formularios`)                                                                                                                                                                                                                   |
 
 Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
 y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). Una orden
 tiene su link: `/ordenes#orden-<id>` (`orderHref` en `src/lib/admin/orderFormat.js`, que usa la
-Puerta); la página baja hasta ella, la marca y, si el filtro «Mostrar» la escondía, pasa a
-«Todas». La pestaña
-Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes,
-Transferencias y Lista de espera, los suyos (en la lista, las anotaciones vivas). En el celu,
+Puerta); la página pasa a Compras, saca los filtros que la esconden, baja hasta ella y la marca
+(ver «Ventas › Órdenes: Compras y Respuestas» en [tickets.md](tickets.md)). La pestaña
+Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes (las
+órdenes a revisar más las transferencias) y Lista de espera, los suyos (en la lista, las
+anotaciones vivas). Fuera de Órdenes, la ficha avisa «Hay N transferencias esperando
+confirmación» con «Revisar», que lleva a Órdenes filtrada. En el celu,
 con 4 vistas (Ventas con la lista de espera) los botones no entran en una fila: son una grilla de
 dos columnas iguales, sin deslizarse de costado; con 2 o 3, la píldora de siempre.
 
@@ -440,7 +442,7 @@ revisar" del Inicio.
 [tickets.md](tickets.md#lista-de-espera-en-construcción)):
 
 - **Ventas › Lista de espera, en la ficha del evento** (`/admin/eventos/<slug>/lista-espera`, la
-  última vista de Ventas, después de Transferencias; se ve con el interruptor prendido, o si el
+  vista de Ventas después de Órdenes; se ve con el interruptor prendido, o si el
   evento tiene lista o gente anotada; su número son las anotaciones vivas y el Resumen muestra
   «Lista de espera: N»).
   Cuentas por alcance, la fila en orden, lo terminado y el CSV (con los mails: dato personal).
