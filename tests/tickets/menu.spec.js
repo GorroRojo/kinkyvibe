@@ -271,11 +271,7 @@ test('la ficha de un evento con entradas tiene «Lista de espera» como vista de
 }) => {
 	await page.goto(`/admin/eventos/${EVENT}/ventas`, { waitUntil: 'networkidle' });
 	const views = page.getByRole('navigation', { name: 'Vistas de Ventas' });
-	await expect(views.getByRole('link')).toHaveText([
-		'Totales',
-		/^Órdenes/,
-		/^Lista de espera/
-	]);
+	await expect(views.getByRole('link')).toHaveText(['Totales', /^Órdenes/, /^Lista de espera/]);
 	const view = views.getByRole('link', { name: /^Lista de espera/ });
 	await expect(view).toHaveAttribute('href', `/admin/eventos/${EVENT}/lista-espera`);
 	await view.click();
