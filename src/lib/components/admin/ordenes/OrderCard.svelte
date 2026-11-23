@@ -208,6 +208,7 @@
 							<label>
 								<span>Mail nuevo</span>
 								<input
+									class="kv-input"
 									type="email"
 									name="email"
 									required
@@ -442,14 +443,6 @@
 		gap: 0.2rem;
 		flex: 1 1 14rem;
 		max-width: 22rem;
-	}
-	.email-fix-form input {
-		min-height: 2.5rem;
-		padding: 0 var(--space-2xs);
-		border: 1px solid var(--field);
-		border-radius: var(--radius-m);
-		background: var(--surface);
-		color: var(--text);
 	}
 	.email-fix .note {
 		margin: 0.3em 0 0;

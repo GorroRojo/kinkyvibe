@@ -111,7 +111,13 @@
 					</p>
 					<label class="confirm-word">
 						<span>Para confirmar, escribí <strong>{ra.word}</strong></span>
-						<input name="confirm" bind:value={typedAll} autocomplete="off" spellcheck="false" />
+						<input
+							class="kv-input"
+							name="confirm"
+							bind:value={typedAll}
+							autocomplete="off"
+							spellcheck="false"
+						/>
 					</label>
 					<div class="refund-actions">
 						<button
@@ -199,14 +205,6 @@
 		gap: 0.2rem;
 		max-width: 20rem;
 		margin-bottom: 0.6rem;
-	}
-	.confirm-word input {
-		min-height: 2.5rem;
-		padding: 0 var(--space-2xs);
-		border: 1px solid var(--field);
-		border-radius: var(--radius-m);
-		background: var(--surface);
-		color: var(--text);
 	}
 	.refund-actions {
 		display: flex;

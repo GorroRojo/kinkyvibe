@@ -65,7 +65,7 @@
 		{#if !small}
 			<label class="sort">
 				<span>Ordenar</span>
-				<select bind:value={orderBy} on:change={onSortChange}>
+				<select class="kv-input" bind:value={orderBy} on:change={onSortChange}>
 					{#each ORDER_SORTS as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
 				</select>
 			</label>
@@ -140,13 +140,6 @@
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-	}
-	.sort select {
-		padding: 0.45rem var(--space-2xs);
-		min-height: 2.5rem;
-		border-radius: 3em;
-		border: 1px solid var(--field);
-		background: var(--surface);
 	}
 	.search {
 		display: flex;

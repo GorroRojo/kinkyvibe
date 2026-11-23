@@ -97,7 +97,7 @@
 			{#if c.kind === 'text'}
 				{#if fallback === c.key}
 					<textarea
-						class="copy-area"
+						class="kv-input copy-area"
 						readonly
 						rows="4"
 						aria-label="Texto para copiar"
@@ -197,13 +197,7 @@
 	}
 	.copy-area {
 		width: 100%;
-		font: inherit;
 		font-size: var(--text-sm);
-		padding: var(--space-3xs) var(--space-2xs);
-		border: 1px solid var(--field);
-		border-radius: var(--radius-m);
-		background: var(--surface);
-		color: var(--text);
 	}
 	.bars,
 	.entries {

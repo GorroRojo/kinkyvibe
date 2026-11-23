@@ -367,10 +367,12 @@
 {#if form?.transfer}
 	<p class="flash" class:error={!form.transfer.ok} role="status">{form.transfer.message}</p>
 	{#if 'needsConfirmation' in form.transfer && form.transfer.needsConfirmation}
-		<!-- Sin JavaScript: la confirmación en la página (por eso la página es same-origin). -->
+		<!-- Sin JavaScript: la confirmación en la página (por eso la página es same-origin). Con
+		     JavaScript no aparece (la pregunta es el diálogo), pero si aparece también anda. -->
 		<form
 			class="flash error"
 			method="POST"
+			use:enhance
 			action={'action' in form.transfer && form.transfer.action === 'reopen'
 				? '?/reopen'
 				: '?/confirm'}
