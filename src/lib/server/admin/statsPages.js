@@ -87,38 +87,60 @@ function monthEnd(now) {
  */
 
 /**
+ * Una ganancia estimada para «Ganancia por mes»: un evento que ya pasó, con la cuenta sin cerrar
+ * ($lib/admin/ganancia.js), en el mes del evento.
+ * @typedef {{ slug: string, month: string, profit: import('$lib/admin/ganancia.js').EventProfit }} ProfitEstimate
+ */
+
+/**
  * «Ganancia por mes» (interruptor `gastos_reparto`): las cuentas cerradas (Gastos y reparto) de los
- * eventos de esos meses, por el mes del evento (como el resto de la pestaña). Un mes sin cierres
- * queda vacío (`null`, no $ 0). `events` son los eventos del período (con ventas o cerrados); el
- * total dice cuántos tienen la cuenta cerrada.
+ * eventos de esos meses y, de los que ya pasaron sin cerrar, la ganancia estimada
+ * (`estimates`; Mesa 24/11: «Ganancia en todo el panel»), por el mes del evento (como el resto de
+ * la pestaña). Un mes sin cierres ni estimadas queda vacío (`null`, no $ 0). `events` son los
+ * eventos del período (con ventas o cerrados); el total dice cuántos tienen la cuenta cerrada y
+ * cuántos suman su ganancia estimada.
  *
  * @param {ClosingLike[]} closings ya filtrados por serie
  * @param {{ month: string, label: string }[]} months de la más vieja a la más nueva
  * @param {Iterable<string>} events los slugs de los eventos del período que ya pasaron
+ * @param {ProfitEstimate[]} [estimates] ya filtradas por serie, sin los cerrados
  */
-export function profitByMonth(closings, months, events) {
+export function profitByMonth(closings, months, events, estimates = []) {
 	const keys = new Set(months.map((m) => m.month));
 	const inPeriod = closings.filter((c) => keys.has(String(c.event_date).slice(0, 7)));
+	const closedSlugs = new Set(inPeriod.map((c) => c.event_slug));
+	const open = estimates.filter((e) => keys.has(e.month) && !closedSlugs.has(e.slug));
 	const rows = months.map(({ month, label }) => {
 		const here = inPeriod.filter((c) => c.event_date.startsWith(month));
-		/** @param {'income_total' | 'expenses_total' | 'profit'} k */
-		const sum = (k) => (here.length ? here.reduce((t, c) => t + (Number(c[k]) || 0), 0) : null);
+		const est = open.filter((e) => e.month === month);
+		/**
+		 * @param {'income_total' | 'expenses_total' | 'profit'} k
+		 * @param {'income' | 'expenses' | 'amount'} ek
+		 */
+		const sum = (k, ek) =>
+			here.length || est.length
+				? here.reduce((t, c) => t + (Number(c[k]) || 0), 0) +
+					est.reduce((t, e) => t + (Number(e.profit[ek]) || 0), 0)
+				: null;
 		return {
 			month,
 			label,
 			closed: here.length,
-			income: sum('income_total'),
-			expenses: sum('expenses_total'),
-			profit: sum('profit')
+			estimated: est.length,
+			income: sum('income_total', 'income'),
+			expenses: sum('expenses_total', 'expenses'),
+			profit: sum('profit', 'amount')
 		};
 	});
 	/** @param {'income' | 'expenses' | 'profit'} k */
-	const total = (k) => (inPeriod.length ? rows.reduce((t, r) => t + (r[k] ?? 0), 0) : null);
+	const total = (k) =>
+		inPeriod.length || open.length ? rows.reduce((t, r) => t + (r[k] ?? 0), 0) : null;
 	const all = new Set([...events, ...inPeriod.map((c) => c.event_slug)]);
 	return {
 		rows,
 		totals: { income: total('income'), expenses: total('expenses'), profit: total('profit') },
 		closed: inPeriod.length,
+		estimated: open.length,
 		events: all.size
 	};
 }
@@ -136,13 +158,16 @@ export function profitByMonth(closings, months, events) {
  *
  * @param {PersonOrder[]} orders aprobadas y reembolsadas
  * @param {Map<string, EventInfo>} events
- * @param {{ period: Period, serie?: string, now?: number, closings?: ClosingLike[] | null }} opts
- *   `closings`: las cuentas cerradas (con `gastos_reparto` prendido); sin ellas, `profit` es `null`
+ * @param {{ period: Period, serie?: string, now?: number, closings?: ClosingLike[] | null,
+ *   profits?: Map<string, import('$lib/admin/ganancia.js').EventProfit> | null }} opts
+ *   `closings`: las cuentas cerradas (con `gastos_reparto` prendido); sin ellas, `profit` es `null`.
+ *   `profits`: la ganancia de cada evento ($lib/server/tickets/ganancia.js), para sumar la
+ *   estimada de los que pasaron sin cerrar la cuenta.
  */
 export function salesPage(
 	orders,
 	events,
-	{ period, serie = '', now = Date.now(), closings = null }
+	{ period, serie = '', now = Date.now(), closings = null, profits = null }
 ) {
 	const range = periodRange(period, now);
 	/** @param {PersonOrder} o */
@@ -181,6 +206,16 @@ export function salesPage(
 	const fondo = fondoByMonth(current, { now, months });
 	// Los eventos del período que ya empezaron (los de este mes que todavía no, no cuentan).
 	const pastEvents = new Set(current.filter((o) => saleAt(o) < now).map((o) => o.event_slug));
+	// Su mes (el del evento) y, si la cuenta sigue abierta, su ganancia estimada.
+	/** @type {Map<string, string>} */
+	const pastMonth = new Map();
+	for (const o of current) if (saleAt(o) < now) pastMonth.set(o.event_slug, monthKey(saleAt(o)));
+	/** @type {ProfitEstimate[]} */
+	const estimates = [];
+	for (const [slug, month] of pastMonth) {
+		const p = profits?.get(slug);
+		if (p && !p.closed) estimates.push({ slug, month, profit: p });
+	}
 	return {
 		period: period.id,
 		serie,
@@ -203,7 +238,8 @@ export function salesPage(
 			? profitByMonth(
 					closings.filter((c) => !serie || seriesOf(c.event_slug) === serie),
 					fondo.rows,
-					pastEvents
+					pastEvents,
+					estimates
 				)
 			: null
 	};
