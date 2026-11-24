@@ -1,6 +1,6 @@
 /**
- * Las series en la página de un evento, render del servidor: una sola tarjeta «No te pierdas la
- * próxima de <serie>» (gorrite, «A: una tarjeta») en vez de tres bloques. Sin cuenta, el mail de
+ * Las series en la página de un evento, render del servidor: una sola tarjeta «Próximas fechas
+ * de <serie>» (gorrite, «A: una tarjeta») en vez de tres bloques. Sin cuenta, el mail de
  * «Avisame si se repite» y, en chico, el calendario de la serie; con cuenta y «Lo que sigo»,
  * «Seguir la serie» sin el .ics (seguir ya pone las fechas en tu calendario, pedido de gorrite).
  * Datos inventados.
@@ -49,9 +49,9 @@ describe('EventSeries (después del contenido): una tarjeta', () => {
 		]) {
 			const h = html(account);
 			expect(count(h, 'surface-card')).toBe(1);
-			expect(count(h, 'No te pierdas la próxima de Serie de prueba')).toBe(1);
+			expect(count(h, 'Próximas fechas de Serie de prueba')).toBe(1);
 			expect(h).toMatch(/<input[^>]*type="email"/);
-			expect(h).toContain('Agregar las fechas a tu calendario:');
+			expect(h).toContain('Sumalas a tu calendario:');
 			expect(h).toContain('webcal://kinkyvibe.ar/');
 			expect(h).toContain('Copiar link');
 			expect(h).not.toContain('Avisame si se repite');
@@ -62,27 +62,27 @@ describe('EventSeries (después del contenido): una tarjeta', () => {
 
 	it('vale igual para un evento que todavía no pasó', () => {
 		const h = html({ member: false }, [serie({ past: false })]);
-		expect(h).toContain('No te pierdas la próxima de Serie de prueba');
+		expect(h).toContain('Próximas fechas de Serie de prueba');
 		expect(h).toMatch(/<input[^>]*type="email"/);
 	});
 
 	it('con cuenta y «Lo que sigo»: sin el mail ni el .ics de la serie', () => {
 		const h = html({ member: true, sigo: true });
-		expect(h).toContain('No te pierdas la próxima de Serie de prueba');
+		expect(h).toContain('Próximas fechas de Serie de prueba');
 		expect(h).not.toMatch(/<input[^>]*type="email"/);
-		expect(h).not.toContain('Agregar las fechas a tu calendario');
+		expect(h).not.toContain('Sumalas a tu calendario');
 	});
 
 	it('con cuenta sin «Lo que sigo»: «Avisame» con la cuenta y el calendario', () => {
 		const h = html({ member: true });
 		expect(h).toMatch(/<input[^>]*name="cuenta"[^>]*value="1"/);
-		expect(h).toContain('Agregar las fechas a tu calendario:');
+		expect(h).toContain('Sumalas a tu calendario:');
 	});
 
 	it('el ancla #seguir va una sola vez, en la tarjeta de la primera serie', () => {
 		const h = html({ member: false }, [serie(), serie({ id: 'Otra', name: 'Otra' })]);
 		expect(count(h, 'id="seguir"')).toBe(1);
-		expect(h.indexOf('id="seguir"')).toBeLessThan(h.indexOf('No te pierdas la próxima de Otra'));
+		expect(h.indexOf('id="seguir"')).toBeLessThan(h.indexOf('Próximas fechas de Otra'));
 	});
 
 	it('si ya se anunció la próxima edición, lo dice arriba de la tarjeta', () => {
@@ -94,6 +94,6 @@ describe('EventSeries (después del contenido): una tarjeta', () => {
 		};
 		const h = html({ member: false }, [serie({ nextUpcoming })]);
 		expect(h).toContain('Ya se anunció la próxima edición de Serie de prueba');
-		expect(h.indexOf('Ya se anunció')).toBeLessThan(h.indexOf('No te pierdas'));
+		expect(h.indexOf('Ya se anunció')).toBeLessThan(h.indexOf('Próximas fechas de'));
 	});
 });

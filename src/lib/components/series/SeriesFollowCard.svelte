@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * «No te pierdas la próxima de <serie>»: una sola tarjeta en la página de un evento de una serie
+	 * «Próximas fechas de <serie>» (sin artículo: cada serie tiene el suyo): una sola tarjeta en la página de un evento de una serie
 	 * (gorrite eligió «A: una tarjeta» en la Mesa). Junta lo que antes eran tres bloques: «Seguir la
 	 * serie», «Avisame si se repite» y el calendario de la serie. Adentro:
 	 * - con cuenta y «Lo que sigo» (`account.sigo`): «Seguir la serie» (FollowButton);
@@ -35,7 +35,7 @@
 	aria-labelledby={headingId}
 >
 	<h2 id={headingId}>
-		<BellRing size={20} aria-hidden="true" /> No te pierdas la próxima de {serie.name}
+		<BellRing size={20} aria-hidden="true" /> Próximas fechas de {serie.name}
 	</h2>
 	{#if follows}
 		<FollowButton kind="etiqueta" key={serie.id} name={serie.name} label="Seguir la serie" inline />
@@ -51,7 +51,7 @@
 		<CalendarSubscribe
 			compact
 			url={origin + tagFeedPath(serie.id)}
-			label="Agregar las fechas a tu calendario"
+			label="Sumalas a tu calendario"
 		/>
 	{/if}
 </section>

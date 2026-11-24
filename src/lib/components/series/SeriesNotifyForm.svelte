@@ -10,8 +10,9 @@
 	 * - `sigo`: con cuenta, «Avisame» es seguir la serie en «Lo que sigo» (los textos lo dicen y
 	 *   llevan a Mi rincón → Lo que sigo).
 	 * - `heading`: título del bloque.
-	 * - `bare`: sin tarjeta ni título propios, para ir dentro de otra tarjeta (la de la serie en la
-	 *   página de un evento, SeriesFollowCard.svelte).
+	 * - `bare`: sin tarjeta ni título propios y con el texto corto («Te avisamos por mail cuando
+	 *   haya fecha nueva.»), para ir dentro de otra tarjeta (la de la serie en la página de un
+	 *   evento, SeriesFollowCard.svelte).
 	 */
 	import { enhance } from '$app/forms';
 	import { BellRing } from '@lucide/svelte';
@@ -84,7 +85,11 @@
 				<a href="/mi-rincon/sigo">Elegí qué recibís en Lo que sigo</a>.
 			</p>
 		{:else}
-			<p>Te vamos a avisar por mail cuando haya una nueva edición de {seriesName}.</p>
+			<p>
+				{bare
+					? 'Te avisamos por mail cuando haya fecha nueva.'
+					: `Te vamos a avisar por mail cuando haya una nueva edición de ${seriesName}.`}
+			</p>
 		{/if}
 		<form method="POST" action="/avisos?/baja" use:enhance={submit}>
 			<input type="hidden" name="serie" value={seriesId} />
@@ -93,7 +98,9 @@
 	{:else if member}
 		{#if !message}
 			<p>
-				{#if sigo}
+				{#if bare}
+					Te avisamos por mail cuando haya fecha nueva.
+				{:else if sigo}
 					Seguí {seriesName} con tu cuenta: te mandamos un mail cada vez que se anuncie una nueva edición
 					y sus fechas van a tu calendario.
 				{:else}
@@ -108,8 +115,12 @@
 		</form>
 	{:else if !message}
 		<p>
-			Dejanos tu mail y te escribimos una vez cuando se anuncie la próxima edición de {seriesName}.
-			Te vamos a pedir que lo confirmes, y cada mail trae un link para darte de baja.
+			{#if bare}
+				Te avisamos por mail cuando haya fecha nueva.
+			{:else}
+				Dejanos tu mail y te escribimos una vez cuando se anuncie la próxima edición de {seriesName}.
+				Te vamos a pedir que lo confirmes, y cada mail trae un link para darte de baja.
+			{/if}
 		</p>
 		<form method="POST" action="/avisos?/suscribir" use:enhance={submit} class="row">
 			<input type="hidden" name="serie" value={seriesId} />

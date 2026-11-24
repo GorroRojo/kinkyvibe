@@ -56,6 +56,15 @@ describe('SeriesNotifyForm `bare` (dentro de la tarjeta de la serie)', () => {
 		expect(h).toContain('action="/avisos?/suscribir"');
 	});
 
+	it('con `bare`, el texto corto: sin cuenta y con cuenta', () => {
+		for (const member of [false, true]) {
+			const h = html({ member, bare: true });
+			expect(h).toContain('Te avisamos por mail cuando haya fecha nueva.');
+			expect(h).not.toContain('Dejanos tu mail');
+			expect(h).not.toContain('Te mandamos un solo mail');
+		}
+	});
+
 	it('sin `bare`, como siempre: tarjeta y título', () => {
 		const h = html({ member: false });
 		expect(h).toContain('surface-card');

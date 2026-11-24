@@ -779,7 +779,7 @@ describe('/calendario/<evento>: los estados de la maqueta final', () => {
 		const rest = block(body, 'serie');
 		expect(text(rest)).toMatch(/^Edición 2 de/);
 		// Una sola tarjeta (gorrite, «A: una tarjeta»), con el ancla de «Agotadas · Avisame la próxima».
-		expect(rest.split('No te pierdas la próxima de Serie Inventada').length).toBe(2);
+		expect(rest.split('Próximas fechas de Serie Inventada').length).toBe(2);
 		expect(rest).toContain('id="seguir"');
 		expect(rest).toMatch(/<input[^>]*type="email"/);
 	});

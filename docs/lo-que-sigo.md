@@ -273,7 +273,7 @@ que se vuelva a prender.
 
 ### Desde «Agotadas»
 
-La tarjeta «No te pierdas la próxima de <serie>» de la página del evento (ver «En la página de un
+La tarjeta «Próximas fechas de <serie>» de la página del evento (ver «En la página de un
 evento» más abajo) tiene el ancla `#seguir` (la de la primera serie, si el evento tiene varias). Las
 tarjetas de un evento agotado sin lista de espera (sitio, carrusel, bot, inline y Mini App) llevan
 ahí con «Avisame la próxima» (ver [tickets.md](tickets.md)). Un evento sin serie no tiene esa
@@ -284,7 +284,7 @@ tarjeta: el link llega a la página igual.
 gorrite eligió «A: una tarjeta» (Mesa): antes había tres bloques que hacían casi lo mismo, cada uno
 con su diseño («Seguir la serie», «Avisame si se repite» y «Suscribite a las fechas de…», que
 además repetía «Entrá con tu mail y seguí…»). Ahora, en un evento de una serie (pasado o por
-venir), una sola tarjeta por serie, «No te pierdas la próxima de <serie>»
+venir), una sola tarjeta por serie, «Próximas fechas de <serie>»
 (`src/lib/components/series/SeriesFollowCard.svelte`, desde `EventSeries.svelte` `after`):
 
 - **con cuenta y `lo_que_sigo` prendido**: el botón «Seguir la serie» (`FollowButton`, pregunta a
@@ -294,7 +294,7 @@ venir), una sola tarjeta por serie, «No te pierdas la próxima de <serie>»
 - **sin cuenta**: el mail de «Avisame si se repite» (`SeriesNotifyForm` con `bare`, doble
   confirmación, a `/avisos`).
 
-Abajo, en chico (menos con cuenta y «Lo que sigo»): «Agregar las fechas a tu calendario: Google ·
+Abajo, en chico (menos con cuenta y «Lo que sigo»): «Sumalas a tu calendario: Google ·
 Apple/Outlook · Copiar link» (`CalendarSubscribe` con `compact`, el `.ics` de la serie). Si el
 evento ya pasó y la próxima edición ya se anunció, arriba de la tarjeta va «Ya se anunció la
 próxima edición de…». Los endpoints son los de siempre; un evento sin serie no muestra nada de

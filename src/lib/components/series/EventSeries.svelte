@@ -2,7 +2,7 @@
 	/**
 	 * Las series de un evento en su página: arriba "Edición N de <serie>"
 	 * con anterior y siguiente (`part="nav"`); después del contenido (`part="after"`), si el evento
-	 * ya pasó, la próxima edición (si hay), y la tarjeta «No te pierdas la próxima de <serie>»
+	 * ya pasó, la próxima edición (si hay), y la tarjeta «Próximas fechas de <serie>»
 	 * (SeriesFollowCard: seguir la serie o «Avisame si se repite», y el calendario de la serie).
 	 * Props:
 	 * - `series`: { list, account } de loadSeries en calendario/[event]/+page.server.js.
