@@ -72,13 +72,15 @@ const QUESTIONS = [
 ];
 
 /**
- * @param {{ path: string, params: Record<string, string>, form?: Record<string, string>,
- *   member?: any, ip?: string }} o
+ * `form`: una lista repite el `name` (como las casillas de «Varias opciones»).
+ * @param {{ path: string, params: Record<string, string>,
+ *   form?: Record<string, string | string[]>, member?: any, ip?: string }} o
  */
 function fakeEvent({ path, params, form, member, ip = '203.0.113.9' }) {
 	const url = new URL(path, 'https://kinkyvibe.ar');
 	const body = new FormData();
-	for (const [k, v] of Object.entries(form ?? {})) body.append(k, v);
+	for (const [k, v] of Object.entries(form ?? {}))
+		for (const one of Array.isArray(v) ? v : [v]) body.append(k, one);
 	/** @type {any} */
 	const event = {
 		url,
@@ -111,7 +113,7 @@ async function openForm(over = {}) {
 	return /** @type {any} */ (await getForm(t.db, id));
 }
 
-/** @param {any} form @param {Record<string, string>} values @param {any} [o] */
+/** @param {any} form @param {Record<string, string | string[]>} values @param {any} [o] */
 const submit = (form, values, o = {}) =>
 	page.actions.send(
 		fakeEvent({
@@ -151,6 +153,33 @@ describe('acciones', () => {
 });
 
 describe('formulario abierto a cualquiera', () => {
+	it('varias opciones: junta las casillas del mismo name (sin JavaScript) y vuelven si hay error', async () => {
+		const form = await openForm({
+			privacy: 'anonymous',
+			questions: [
+				{
+					id: 'm1',
+					kind: 'multi',
+					label: 'Intereses',
+					required: true,
+					options: ['Cuerdas', 'Cera', 'Impacto']
+				},
+				{ id: 'p1', kind: 'text', label: 'Contanos', required: true, options: [] }
+			]
+		});
+		const bad = /** @type {any} */ (await submit(form, { p_m1: ['Impacto', 'Cuerdas'] }));
+		expect(bad.status).toBe(400);
+		expect(bad.data.values).toMatchObject({ m1: 'Impacto | Cuerdas' });
+		expect(await submit(form, { p_m1: ['Impacto', 'Cuerdas'], p_p1: 'Hola' })).toEqual({
+			sent: true
+		});
+		const [row] = /** @type {any[]} */ (await rows());
+		expect(JSON.parse(row.answers)).toEqual([
+			{ id: 'm1', label: 'Intereses', value: 'Cuerdas | Impacto' },
+			{ id: 'p1', label: 'Contanos', value: 'Hola' }
+		]);
+	});
+
 	it('con el interruptor apagado, 404', async () => {
 		const form = await openForm();
 		env.value.FORMULARIOS_ENABLED = '0';

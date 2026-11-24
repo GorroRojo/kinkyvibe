@@ -236,6 +236,10 @@ npx vitest run src/lib/utils/formularios.test.js src/lib/admin/questionEditor.te
 
 A mano: `FORMULARIOS_ENABLED=1 npm run dev:admin`, Comunidad › Formularios.
 
+E2E de «Varias opciones» (editor → página pública → resumen):
+`npx playwright test -c playwright.tickets.config.js formularios-varias-opciones` (con
+`MULTI_SHOTS_DIR=<carpeta>` guarda capturas a 390 y 1280 px).
+
 ## Lo que confirmó gorrite (5/11)
 
 - La encuesta sale siempre, aunque sea tarde (sin el corte de 3 días).
