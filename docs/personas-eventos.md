@@ -152,7 +152,8 @@ el alcance) están en `src/lib/utils/signupFields.js` (`fieldsForTicketType`, `a
 `answerSetCount`, `validateFieldScope`).
 
 Topes: 10 preguntas propias por evento, 30 generales, 12 opciones por pregunta, 120 letras por
-pregunta y 500 por respuesta. En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
+pregunta y 500 por respuesta. «Varias opciones» y el puntaje son solo de los formularios
+([formularios.md](formularios.md#tipos-de-pregunta)). En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
 solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de siempre.
 
 **Editor compartido** (gorrite, 5/11: siempre, sin interruptor). Las preguntas propias de un

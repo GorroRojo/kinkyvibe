@@ -73,6 +73,18 @@
 									value: q.distribution?.[n - 1] ?? 0
 								}))}
 							/>
+						{:else if q.counts && q.kind === 'multi'}
+							<!-- Varias opciones: cada respuesta cuenta en todas las que eligió. -->
+							<p class="kv-note">Se podían elegir varias.</p>
+							<BarList
+								label="Opciones de «{q.label}»"
+								max={Math.max(1, q.answered)}
+								items={q.counts.map((/** @type {any} */ c) => ({
+									label: c.option,
+									value: c.count,
+									text: `${c.count} de ${q.answered}`
+								}))}
+							/>
 						{:else if q.counts}
 							<BarList
 								label="Opciones de «{q.label}»"

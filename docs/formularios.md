@@ -185,6 +185,22 @@ En los formularios sin link personal: un campo trampa invisible (`sitio_web`: si
 contesta «gracias» y no se guarda nada) y hasta 10 respuestas por hora por conexión (hash, sin la
 IP) y por cuenta (`FORM_RATE_LIMIT`).
 
+### Tipos de pregunta
+
+Texto, «Opciones (elegir una)», «Varias opciones (elegir las que quieras)», «Casilla (sí / no)» y
+«Puntaje de 1 a 5» (`QUESTION_KINDS`). Las de inscripción tienen solo texto, opciones y casilla.
+
+**Varias opciones** (`multi`, 24/11, para el formulario de un evento): casillas, se marcan las que
+se quiera; obligatoria = al menos una. De 2 a 40 opciones (`MAX_MULTI_OPTIONS`; las de una sola,
+hasta 12) y ninguna puede tener «|». Se guarda como las demás (`{ id, label, value }`): `value` son
+las elegidas en el orden de la lista, separadas por « | » (`MULTI_SEPARATOR`), así el CSV y «Cada
+respuesta» muestran ese texto. El servidor junta todas las casillas del mismo `name` (anda sin
+JavaScript), descarta repetidas y rechaza lo que no es una opción. En la página pública van en
+columnas en pantallas anchas (una o dos en el celu). En el resumen, cada respuesta cuenta en cada
+opción que eligió («n de m»). No es de las preguntas de inscripción: `signup_fields.kind` tiene un
+CHECK con los tres tipos (migración 0018) y las respuestas «una vez por entrada» ya se juntan con
+« | » en Órdenes.
+
 ### El editor de preguntas compartido
 
 `QuestionEditor.svelte` (una tarjeta por pregunta, ↑ ↓ y arrastrar, «Duplicar», «Sacar», vista

@@ -4,7 +4,9 @@
 	 * pública (/formularios/<dirección> y /calendario/<evento>/encuesta) y la vista previa del
 	 * editor del panel. Campos comunes (`name` = `answerName(id)`): andan sin JavaScript.
 	 *
-	 * Piezas del sitio público: opciones con `ChoiceCard` (`.kv-choice`), el puntaje con cinco
+	 * Piezas del sitio público: opciones con `ChoiceCard` (`.kv-choice`); «Varias opciones» con una
+	 * casilla por opción, todas con el mismo `name` (en columnas en pantallas anchas: pueden ser
+	 * hasta 40); el puntaje con cinco
 	 * botones iguales (radios nativos: las flechas recorren el grupo; gorrite, 5/11: «el 1 a 5 se ve
 	 * mal, como estirado») y los textos y casillas con el estilo de las preguntas
 	 * de inscripción del flujo de compra (SignupFieldInputs.svelte).
@@ -13,7 +15,7 @@
 	 * id), `idPrefix`, `preview` (en el panel: sin `name`, así no se manda nada).
 	 */
 	import ChoiceCard from '$lib/components/ui/ChoiceCard.svelte';
-	import { FORM_ANSWER_MAX, answerName } from '$lib/utils/formularios.js';
+	import { FORM_ANSWER_MAX, answerName, splitMulti } from '$lib/utils/formularios.js';
 
 	/** @type {import('$lib/utils/formularios.js').Question[]} */
 	export let questions = [];
@@ -36,6 +38,12 @@
 	 */
 	/** @param {string} id @param {string} v */
 	const picked = (id, v) => (values[id] === v ? { checked: true } : {});
+	/**
+	 * Lo mismo para «Varias opciones» (lo que volvió son las elegidas juntas, con « | »). Recibe
+	 * `values` para que la plantilla se actualice cuando cambia.
+	 * @param {Record<string, string>} vals @param {string} id @param {string} v
+	 */
+	const pickedMulti = (vals, id, v) => (splitMulti(vals[id]).includes(v) ? { checked: true } : {});
 </script>
 
 <div class="form-questions">
@@ -84,6 +92,26 @@
 							title={o}
 							bind:group={chosen[q.id]}
 						/>
+					{/each}
+				</div>
+				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
+			</fieldset>
+		{:else if q.kind === 'multi'}
+			<fieldset aria-describedby={err ? `${id}-error` : q.help ? `${id}-help` : undefined}>
+				<legend
+					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</legend
+				>
+				<small class="hint">Elegí las que quieras.</small>
+				<div class="multi">
+					{#each q.options as o (o)}
+						<label class="multi-option"
+							><input
+								type="checkbox"
+								name={nameOf(q.id) ?? `${id}-vista`}
+								value={o}
+								{...pickedMulti(values, q.id, o)}
+							/><span>{o}</span></label
+						>
 					{/each}
 				</div>
 				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
@@ -204,6 +232,32 @@
 	.choices {
 		display: grid;
 		gap: 0.5em;
+	}
+	/* «Varias opciones»: casillas compactas, en tantas columnas como entren (pueden ser 40). */
+	.multi {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+		gap: 0.35em 1em;
+	}
+	.multi-option {
+		display: flex;
+		gap: 0.5em;
+		align-items: flex-start;
+		min-width: 0;
+		padding: 0.2em 0;
+		overflow-wrap: anywhere;
+		cursor: pointer;
+	}
+	.multi-option input {
+		width: 1.2em;
+		height: 1.2em;
+		margin: 0.1em 0 0;
+		flex: none;
+		accent-color: var(--2-dark, var(--2));
+	}
+	.hint {
+		color: var(--muted);
+		margin-top: -0.35em;
 	}
 	.field {
 		display: flex;

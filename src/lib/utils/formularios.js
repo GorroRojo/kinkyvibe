@@ -4,8 +4,10 @@
  * de preguntas (también el de las preguntas de inscripción) y la página de respuestas del panel.
  *
  * Un formulario tiene una lista de preguntas en su orden. Los tipos son los de las preguntas de
- * inscripción (texto, opciones, casilla: src/lib/utils/signupFields.js) más «Puntaje de 1 a 5».
- * Cada respuesta guarda la pregunta como estaba (`{ id, label, value }`), como las de inscripción.
+ * inscripción (texto, opciones, casilla: src/lib/utils/signupFields.js) más «Varias opciones» y
+ * «Puntaje de 1 a 5» (solo de los formularios). Cada respuesta guarda la pregunta como estaba
+ * (`{ id, label, value }`), como las de inscripción; la de «Varias opciones» es un solo texto con
+ * las elegidas en el orden de la lista, separadas por « | » (`MULTI_SEPARATOR`).
  */
 import { slugify } from './text.js';
 import {
@@ -20,14 +22,46 @@ import {
 
 export { CHECKBOX_YES, LABEL_MAX, MAX_OPTIONS, OPTION_MAX };
 
-export const QUESTION_KINDS = /** @type {const} */ (['text', 'choice', 'checkbox', 'rating']);
+export const QUESTION_KINDS = /** @type {const} */ ([
+	'text',
+	'choice',
+	'multi',
+	'checkbox',
+	'rating'
+]);
 /** @typedef {typeof QUESTION_KINDS[number]} QuestionKind */
 
-/** Nombres para el panel (los tres de inscripción y el puntaje). */
+/** Nombres para el panel (los tres de inscripción, varias opciones y el puntaje). */
 export const QUESTION_KIND_LABELS = Object.freeze({
-	...FIELD_KIND_LABELS,
+	text: FIELD_KIND_LABELS.text,
+	choice: FIELD_KIND_LABELS.choice,
+	multi: 'Varias opciones (elegir las que quieras)',
+	checkbox: FIELD_KIND_LABELS.checkbox,
 	rating: 'Puntaje de 1 a 5'
 });
+
+/** Opciones de una pregunta de «Varias opciones» (las de «Opciones», hasta `MAX_OPTIONS`). */
+export const MAX_MULTI_OPTIONS = 40;
+/**
+ * Lo que separa las opciones elegidas en la respuesta guardada de «Varias opciones». Por eso
+ * ninguna opción de esas preguntas puede tener «|»: así la respuesta se lee sin dudas.
+ */
+export const MULTI_SEPARATOR = ' | ';
+
+/** ¿El tipo lleva una lista de opciones? @param {unknown} kind */
+export const hasOptions = (kind) => kind === 'choice' || kind === 'multi';
+
+/** Cuántas opciones acepta el tipo. @param {unknown} kind */
+export const maxOptionsFor = (kind) => (kind === 'multi' ? MAX_MULTI_OPTIONS : MAX_OPTIONS);
+
+/**
+ * Las opciones elegidas en una respuesta de «Varias opciones» (lo guardado).
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+export function splitMulti(value) {
+	return typeof value === 'string' && value ? value.split(MULTI_SEPARATOR) : [];
+}
 
 /** Preguntas por formulario. */
 export const MAX_QUESTIONS = 30;
@@ -178,12 +212,15 @@ export function validateQuestion(raw, kinds = QUESTION_KINDS) {
 	if (!isQuestionKind(kind) || !kinds.includes(kind)) errors.kind = 'Elegí el tipo de pregunta.';
 	/** @type {string[]} */
 	let options = [];
-	if (kind === 'choice') {
+	if (hasOptions(kind)) {
 		options = parseOptions(raw?.options);
+		const max = maxOptionsFor(kind);
 		if (options.length < 2) errors.options = 'Poné al menos dos opciones.';
-		else if (options.length > MAX_OPTIONS) errors.options = `Hasta ${MAX_OPTIONS} opciones.`;
+		else if (options.length > max) errors.options = `Hasta ${max} opciones.`;
 		else if (options.some((o) => o.length > OPTION_MAX))
 			errors.options = `Cada opción, hasta ${OPTION_MAX} letras.`;
+		else if (kind === 'multi' && options.some((o) => o.includes('|')))
+			errors.options = 'Las opciones no pueden tener «|» (separa las elegidas en las respuestas).';
 	}
 	const help = oneLine(raw?.help);
 	if (help.length > HELP_MAX) errors.help = `La ayuda, hasta ${HELP_MAX} letras.`;
@@ -302,11 +339,25 @@ export function parseStoredQuestions(json) {
 export const answerName = (id) => `p_${id}`;
 
 /**
+ * Todos los valores que llegaron con un `name` (las casillas de «Varias opciones» repiten el
+ * `name`): `getAll` de un FormData; de un Map, el valor (o la lista) que tenga.
+ * @param {{ get(name: string): unknown, getAll?: (name: string) => unknown[] }} form
+ * @param {string} name
+ * @returns {unknown[]}
+ */
+function allValues(form, name) {
+	if (typeof form.getAll === 'function') return form.getAll(name);
+	const v = form.get(name);
+	return Array.isArray(v) ? v : v === undefined || v === null ? [] : [v];
+}
+
+/**
  * Valida una respuesta contra las preguntas. Las vacías de preguntas opcionales no se guardan; si
  * todas quedaron vacías, error (no se guarda una respuesta en blanco).
  *
  * @param {readonly Question[]} questions
- * @param {{ get(name: string): unknown }} form FormData o un Map
+ * @param {{ get(name: string): unknown, getAll?: (name: string) => unknown[] }} form FormData o
+ *   un Map
  * @returns {{ ok: true, answers: FormAnswer[] }
  *   | { ok: false, message: string, errors: Record<string, string> }}
  */
@@ -329,6 +380,14 @@ export function validateFormAnswers(questions, form) {
 				if (q.required) errors[q.id] = 'Elegí una opción.';
 			} else if (!q.options.includes(chosen)) errors[q.id] = 'Elegí una de las opciones.';
 			else value = chosen;
+		} else if (q.kind === 'multi') {
+			const chosen = new Set(allValues(form, answerName(q.id)).map(oneLine).filter(Boolean));
+			if (!chosen.size) {
+				if (q.required) errors[q.id] = 'Elegí al menos una opción.';
+			} else if ([...chosen].some((o) => !q.options.includes(o)))
+				errors[q.id] = 'Elegí entre las opciones de la lista.';
+			// En el orden de la lista, sin repetidas.
+			else value = q.options.filter((o) => chosen.has(o)).join(MULTI_SEPARATOR);
 		} else if (q.kind === 'rating') {
 			const v = oneLine(raw);
 			const n = Number(v);
@@ -494,7 +553,8 @@ export function shuffled(list, random = Math.random) {
 /**
  * El resumen de la página de respuestas, por pregunta (las de hoy en su orden; después las que solo
  * están en respuestas viejas): promedio y distribución de un puntaje, cuántas veces se eligió cada
- * opción (y cuántas se marcó una casilla), y la lista de textos.
+ * opción (y cuántas se marcó una casilla; en «Varias opciones», cada respuesta cuenta en todas las
+ * que eligió), y la lista de textos.
  *
  * @typedef {{ id: string, label: string, kind: QuestionKind, answered: number,
  *   average?: number | null, distribution?: number[], low?: string, high?: string,
@@ -535,6 +595,19 @@ export function summarize(questions, responses) {
 				distribution: [1, 2, 3, 4, 5].map((n) => nums.filter((x) => x === n).length),
 				low: c.low || DEFAULT_LOW,
 				high: c.high || DEFAULT_HIGH
+			};
+		}
+		if (c.kind === 'multi') {
+			// Cada respuesta cuenta en cada opción que eligió.
+			const picks = values.map(splitMulti);
+			const options = [...c.options];
+			for (const p of picks) for (const o of p) if (!options.includes(o)) options.push(o);
+			return {
+				...base,
+				counts: options.map((o) => ({
+					option: o,
+					count: picks.filter((p) => p.includes(o)).length
+				}))
 			};
 		}
 		if (c.kind === 'choice' || c.kind === 'checkbox') {
