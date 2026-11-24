@@ -816,7 +816,9 @@ describe('el resumen diario (cron)', () => {
 		expect(text).toMatch(/💰 Ganancia estimada: <b>\+\$\s[\d.]+<\/b> · falta cerrar la cuenta/);
 		expectNoSecrets(text);
 		// Una vez por día.
-		expect((await run({ send: tg.send, list: listAyer, now: MORNING + 900_000 })).sent).toBe(0);
+		expect(await run({ send: tg.send, list: listAyer, now: MORNING + 900_000 })).toMatchObject({
+			sent: 0
+		});
 	});
 
 	it('no se repite en el día (ni en la corrida siguiente), y al otro día sí', async () => {

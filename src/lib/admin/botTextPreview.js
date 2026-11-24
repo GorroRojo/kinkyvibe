@@ -992,6 +992,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'admin_ayer',
 		label: 'Avisos (admins): el día después de un evento (con Gastos y reparto)',
 		keys: [
 			'admin.ayer_titulo',

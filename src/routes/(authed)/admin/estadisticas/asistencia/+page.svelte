@@ -51,6 +51,17 @@
 
 	/** @param {string} key @param {string} label */
 	const col = (key, label) => ({ key, label });
+
+	/** @typedef {{ profit: import('$lib/admin/ganancia.js').EventProfit | null }} WithProfit */
+	/** Las columnas de la ganancia en el CSV (con Gastos y reparto). */
+	const profitColumns = [
+		{ label: 'ganancia', value: (/** @type {WithProfit} */ e) => e.profit?.amount ?? '' },
+		{
+			label: 'ganancia_es',
+			value: (/** @type {WithProfit} */ e) => (e.profit ? profitLabel(e.profit).toLowerCase() : '')
+		},
+		col('profitPerPerson', 'ganancia_por_persona')
+	];
 </script>
 
 <PageHeader
@@ -200,16 +211,7 @@
 						col('rate', 'porcentaje'),
 						col('attendees', 'personas'),
 						col('firstTimers', 'primera_vez_en_la_serie'),
-						...(data.profits
-							? [
-									{ label: 'ganancia', value: (e) => e.profit?.amount ?? '' },
-									{
-										label: 'ganancia_es',
-										value: (e) => (e.profit ? profitLabel(e.profit).toLowerCase() : '')
-									},
-									col('profitPerPerson', 'ganancia_por_persona')
-								]
-							: [])
+						...(data.profits ? profitColumns : [])
 					]}
 					filename={csvFilename('asistencia-por-evento')}
 				/>

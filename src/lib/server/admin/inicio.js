@@ -2179,7 +2179,10 @@ export function monthTicketedSlugs({ events, ticketed, now, skip = () => false }
  */
 export function monthProfit(slugs, profits) {
 	if (!profits) return null;
-	const list = slugs.map((s) => profits.get(s)).filter((p) => p !== undefined);
+	const list = slugs.flatMap((s) => {
+		const p = profits.get(s);
+		return p ? [p] : [];
+	});
 	if (!list.length) return null;
 	return {
 		amount: list.reduce((s, p) => s + p.amount, 0),

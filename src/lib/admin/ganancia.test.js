@@ -10,7 +10,7 @@ import {
 	profitText
 } from './ganancia.js';
 
-const orders = [
+const orders = /** @type {any[]} */ ([
 	{
 		status: 'approved',
 		quantity: 2,
@@ -31,7 +31,7 @@ const orders = [
 		fondo_amount: 0,
 		fondo_contribution: 0
 	}
-];
+]);
 
 describe('eventProfit', () => {
 	it('sin cuenta guardada: lo que entró, sin gastos (ni la regla por defecto del lugar)', () => {
