@@ -87,13 +87,15 @@ export async function getAllCounts(db, now = Date.now()) {
  *   upcoming: boolean, fondoEnabled: boolean, online: boolean, review: number,
  *   types: TypeSales[], sold: number, held: number, capacity: number | null, revenue: number,
  *   fondoUsed: number, contribution: number, fondoNet: number, surcharge: number, net: number,
- *   progress: import('$lib/utils/salesGoal.js').GoalProgress | null
+ *   progress: import('$lib/utils/salesGoal.js').GoalProgress | null,
+ *   profit: import('$lib/admin/ganancia.js').EventProfit | null
  * }} EventSales
  *
  * `capacity` del evento: la suma de los cupos, o `null` si algún tipo no tiene cupo.
  * `net`: lo recaudado menos la comisión de Mercado Pago (`netRevenue`, $lib/utils/salesGoal.js).
- * `progress`: el avance contra la meta de venta (`meta_venta`; la de plata, contra `net`), o
- * `null` sin meta.
+ * `progress`: el avance contra la meta de venta (`meta_venta`; la de plata, contra `net`; la de
+ * ganancia, contra `profit`), o `null` sin meta. `profit`: la ganancia (estimada hasta cerrar la
+ * cuenta; $lib/admin/ganancia.js), con Gastos y reparto prendido; si no, `null`.
  */
 
 /**
@@ -101,10 +103,15 @@ export async function getAllCounts(db, now = Date.now()) {
  *
  * @param {{ slug: string, config: import('$lib/server/tickets/config.js').EventTickets }} event
  * @param {Map<string, TypeCounts> | undefined} counts
- * @param {{ now?: number, review?: number }} [opts]
+ * @param {{ now?: number, review?: number,
+ *   profit?: import('$lib/admin/ganancia.js').EventProfit | null }} [opts]
  * @returns {EventSales}
  */
-export function summarizeEvent({ slug, config }, counts, { now = Date.now(), review = 0 } = {}) {
+export function summarizeEvent(
+	{ slug, config },
+	counts,
+	{ now = Date.now(), review = 0, profit = null } = {}
+) {
 	const types = config.types.map((t) => {
 		const c = counts?.get(t.id);
 		const sold = c?.sold ?? 0;
@@ -158,7 +165,8 @@ export function summarizeEvent({ slug, config }, counts, { now = Date.now(), rev
 		fondoNet: sum((t) => t.contribution - t.fondoUsed),
 		surcharge: sum((t) => t.surcharge),
 		net: netRevenue({ revenue, mpFee }),
-		progress: goalProgress(config.goal, { sold, revenue, mpFee, mpFeeEstimated })
+		progress: goalProgress(config.goal, { sold, revenue, mpFee, mpFeeEstimated, profit }),
+		profit
 	};
 }
 
