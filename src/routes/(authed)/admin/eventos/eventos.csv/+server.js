@@ -9,6 +9,7 @@ import { listedRows, panelEventRows, withSales } from '$lib/server/eventos/panel
 import { CSV_COLUMNS, filterId } from '$lib/admin/eventList.js';
 import { csvResponse, toCsv } from '$lib/admin/csv.js';
 import { todayInArgentina } from '$lib/utils/eventDraft.js';
+import { profitsEnabled } from '$lib/server/tickets/ganancia.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ locals, url, platform }) {
@@ -16,11 +17,12 @@ export async function GET({ locals, url, platform }) {
 	const now = Date.now();
 	const filter = filterId(url.searchParams.get('filtro'));
 	const db = getDB(platform);
-	const rows = listedRows(await panelEventRows(db), {
+	const [all, profits] = await Promise.all([panelEventRows(db), profitsEnabled(platform)]);
+	const rows = listedRows(all, {
 		query: (url.searchParams.get('q') ?? '').slice(0, 200),
 		filter,
 		today: todayInArgentina(new Date(now))
 	});
-	const events = await withSales(db, rows, now);
+	const events = await withSales(db, rows, now, { profits });
 	return csvResponse(toCsv(events, CSV_COLUMNS), `eventos-${filter}.csv`);
 }

@@ -349,6 +349,40 @@ describe('profitByMonth y la ganancia de salesPage', async () => {
 		expect([r.closed, r.events]).toEqual([3, 4]);
 	});
 
+	it('suma la ganancia estimada de los que pasaron sin cerrar (Mesa 24/11)', () => {
+		/** @param {string} slug @param {string} month @param {number} amount */
+		const est = (slug, month, amount) => ({
+			slug,
+			month,
+			profit: {
+				amount,
+				closed: false,
+				noExpenses: false,
+				venueDefault: false,
+				income: amount + 10000,
+				expenses: 10000
+			}
+		});
+		const r = profitByMonth(
+			[closing('fiesta-2026-08', '2026-08-20', 100000)],
+			months,
+			['fiesta-2026-08', 'fiesta-2026-09'],
+			[
+				est('fiesta-2026-09', '2026-09', 25000),
+				// Un cerrado que llegó también como estimado: cuenta una vez, el cierre.
+				est('fiesta-2026-08', '2026-08', 1),
+				est('fiesta-2025-06', '2025-06', 999)
+			]
+		);
+		expect(r.rows.map((x) => [x.month, x.closed, x.estimated, x.profit])).toEqual([
+			['2026-08', 1, 0, 100000],
+			['2026-09', 0, 1, 25000],
+			['2026-10', 0, 0, null]
+		]);
+		expect(r.totals).toEqual({ income: 185000, expenses: 60000, profit: 125000 });
+		expect([r.closed, r.estimated, r.events]).toEqual([1, 1, 2]);
+	});
+
 	it('sin cierres en el período, los totales son null', () => {
 		const r = profitByMonth([], months, ['fiesta-2026-08']);
 		expect(r.totals).toEqual({ income: null, expenses: null, profit: null });

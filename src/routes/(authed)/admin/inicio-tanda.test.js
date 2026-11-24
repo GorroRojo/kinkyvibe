@@ -672,6 +672,8 @@ const NEW_ROWS = new Set(['tags-review']);
 /**
  * El resultado del load sin las filas nuevas de «Para revisar» ni `unreadable` (lo que no se pudo
  * leer, auditoría de confiabilidad O18: el load viejo no lo tenía), para compararlo con el de antes.
+ * Tampoco `pastProfits` ni `monthProfit` (la ganancia, Mesa 24/11): son nuevas y, con Gastos y
+ * reparto apagado como acá, `null` (se comprueba); `upcoming[].profit` ya sale `null` en los dos.
  * @template {{ todo: { id: string }[] }} T
  * @param {T} data
  * @returns {T}
@@ -679,6 +681,12 @@ const NEW_ROWS = new Set(['tags-review']);
 const withoutNewRows = (data) => {
 	const rest = /** @type {any} */ ({ ...data });
 	delete rest.unreadable;
+	if ('pastProfits' in rest || 'monthProfit' in rest) {
+		expect(rest.pastProfits).toBeNull();
+		expect(rest.monthProfit).toBeNull();
+	}
+	delete rest.pastProfits;
+	delete rest.monthProfit;
 	return { ...rest, todo: data.todo.filter((r) => !NEW_ROWS.has(r.id)) };
 };
 

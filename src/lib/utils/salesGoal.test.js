@@ -172,3 +172,54 @@ describe('goalProgress', () => {
 		expect(goalProgress('plata:0', totals)).toBeNull();
 	});
 });
+
+describe('meta de ganancia', () => {
+	const totals = { sold: 10, revenue: 200000, mpFee: 4000 };
+	it('se guarda y se lee como las otras (sin migración: es texto)', () => {
+		expect(parseSalesGoal('ganancia:150000')).toEqual({ kind: 'ganancia', value: 150000 });
+		expect(storedSalesGoal({ kind: 'ganancia', value: 150000 })).toBe('ganancia:150000');
+		expect(describeSalesGoal({ kind: 'ganancia', value: 150000 })).toBe(
+			`${formatARS(150000)} de ganancia`
+		);
+		expect(goalFromForm('ganancia', '').error).toBe(
+			'Meta: escribí cuánta ganancia querés, en pesos enteros (mayor a 0).'
+		);
+	});
+
+	it('estimada mientras la cuenta está abierta; con pérdida, la barra en 0', () => {
+		const p = goalProgress('ganancia:150000', {
+			...totals,
+			profit: { amount: 80000, closed: false, noExpenses: false }
+		});
+		expect(p).toMatchObject({ kind: 'ganancia', current: 80000, pct: 53, estimate: 'all' });
+		expect(p?.text).toBe(`${formatARS(80000)} de ganancia estimada de ${formatARS(150000)} (53 %)`);
+		expect(p?.estimateText).toMatch(/gastos cargados/);
+		const loss = goalProgress('ganancia:150000', {
+			...totals,
+			profit: { amount: -5000, closed: false, noExpenses: false }
+		});
+		expect(loss?.pct).toBe(0);
+		expect(loss?.text.startsWith('−')).toBe(true);
+	});
+
+	it('sin la cuenta guardada: lo que cobra el lugar con su regla por defecto', () => {
+		const p = goalProgress('ganancia:150000', {
+			...totals,
+			profit: { amount: 70000, closed: false, noExpenses: false, venueDefault: true }
+		});
+		expect(p?.estimateText).toMatch(/regla por defecto/);
+	});
+
+	it('cerrada: la ganancia del cierre, sin «estimada»', () => {
+		const p = goalProgress('ganancia:150000', {
+			...totals,
+			profit: { amount: 160000, closed: true, noExpenses: false }
+		});
+		expect(p).toMatchObject({ reached: true, estimate: null, estimateText: '' });
+		expect(p?.text).toBe(`${formatARS(160000)} de ganancia de ${formatARS(150000)} (107 %)`);
+	});
+
+	it('sin la ganancia (Gastos y reparto apagado): null, como sin meta', () => {
+		expect(goalProgress('ganancia:150000', totals)).toBeNull();
+	});
+});

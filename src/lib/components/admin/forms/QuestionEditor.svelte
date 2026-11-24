@@ -33,11 +33,13 @@
 		toPayload
 	} from '$lib/admin/questionEditor.js';
 	import {
-		MAX_OPTIONS,
 		MAX_QUESTIONS,
 		QUESTION_KINDS,
-		QUESTION_KIND_LABELS
+		QUESTION_KIND_LABELS,
+		hasOptions,
+		maxOptionsFor
 	} from '$lib/utils/formularios.js';
+	import { SHORT_LABEL_MAX } from '$lib/utils/signupFields.js';
 
 	/** @type {readonly Record<string, any>[]} */
 	export let questions = [];
@@ -220,6 +222,16 @@
 						placeholder="Ej.: ¿Qué te gustó?"
 						error={err.label ?? ''}
 					/>
+					{#if signup}
+						<Field
+							id="{idPrefix}-{q.key}-short"
+							label="Etiqueta corta (opcional)"
+							help="Para el panel, por ejemplo «Rol». Si la dejás vacía, se usa la pregunta entera."
+							maxlength={SHORT_LABEL_MAX}
+							bind:value={q.shortLabel}
+							error={err.shortLabel ?? ''}
+						/>
+					{/if}
 					<div class="kind">
 						<span class="kv-label">Tipo</span>
 						<Segmented
@@ -229,11 +241,11 @@
 						/>
 						{#if err.kind}<small class="kv-error">{err.kind}</small>{/if}
 					</div>
-					{#if q.kind === 'choice'}
+					{#if hasOptions(q.kind)}
 						<Field
 							type="textarea"
-							rows={4}
-							label="Opciones (una por renglón, hasta {MAX_OPTIONS})"
+							rows={q.kind === 'multi' ? 6 : 4}
+							label="Opciones (una por renglón, hasta {maxOptionsFor(q.kind)})"
 							bind:value={q.optionsText}
 							error={err.options ?? ''}
 						/>

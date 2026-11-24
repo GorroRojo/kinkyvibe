@@ -96,6 +96,7 @@ export async function saveFieldsAction(event, eventSlug) {
 		const item = raw && typeof raw === 'object' ? /** @type {Record<string, unknown>} */ (raw) : {};
 		const def = validateFieldDef({
 			label: typeof item.label === 'string' ? item.label.slice(0, 500) : '',
+			shortLabel: typeof item.shortLabel === 'string' ? item.shortLabel.slice(0, 200) : '',
 			kind: item.kind,
 			required: item.required === true,
 			options: Array.isArray(item.options) ? item.options.slice(0, 50).map(String) : []
@@ -148,6 +149,7 @@ export async function saveFieldsAction(event, eventSlug) {
 			if (before && w.id !== null) {
 				const same =
 					before.label === w.field.label &&
+					(before.shortLabel ?? '') === (w.field.shortLabel ?? '') &&
 					before.kind === w.field.kind &&
 					before.required === w.field.required &&
 					JSON.stringify(before.options) === JSON.stringify(w.field.options) &&

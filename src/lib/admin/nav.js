@@ -798,8 +798,9 @@ export const NAV = Object.freeze([
  * Cada una lleva su ícono: si es la misma cosa que una sección del menú (`section`, el id de un
  * {@link NavItem}), el de esa sección; si no, uno propio del mismo juego (Lucide), con su emoji.
  *
- * Son 7 (gorrite, 11/10): Ventas junta Órdenes y Transferencias, y Mails junta «Mail a
- * compradores» y las plantillas del evento. Cada una de esas partes es una vista (`views`) de la
+ * Son 7 (gorrite, 11/10): Ventas junta Totales y Órdenes (que también confirma las
+ * transferencias: la vieja vista Transferencias lleva ahí), y Mails junta «Mail a compradores» y
+ * las plantillas del evento. Cada una de esas partes es una vista (`views`) de la
  * pestaña, con su propia URL de siempre (los links viejos, los mails y los tests siguen andando);
  * la ficha las muestra como botones arriba de la página. La primera vista es la de la pestaña.
  * @type {readonly { id: string, suffix: string, label: string, soon: boolean, section?: string, icon: NavItem['icon'], emoji: string, views?: readonly { id: string, suffix: string, label: string }[] }[]}
@@ -825,7 +826,6 @@ export const EVENT_TABS = Object.freeze(
 			views: [
 				{ id: 'ventas', suffix: '/ventas', label: 'Totales' },
 				{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes' },
-				{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias' },
 				// Lista de espera (interruptor `lista_espera`): la ficha la muestra con la lista
 				// prendida, o si el evento ya tiene lista o gente anotada.
 				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' },
@@ -881,7 +881,7 @@ export const EVENT_TABS = Object.freeze(
 
 /**
  * URL de la ficha de un evento (o de una de sus pestañas o vistas). `tab` es el id de una vista
- * (`ordenes`, `transferencias`, `mail`, `mails`…) o de una pestaña de {@link EVENT_TABS}; si es
+ * (`ordenes`, `mail`, `mails`…) o de una pestaña de {@link EVENT_TABS}; si es
  * las dos cosas, gana la vista (`mails` son las plantillas, como antes de juntar las pestañas).
  * @param {string} slug
  * @param {string} [tab]

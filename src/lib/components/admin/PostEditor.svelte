@@ -555,6 +555,7 @@
 					waitlistEnabled={data.waitlistEnabled ?? null}
 					waitlistLive={data.waitlistLive ?? null}
 					extrasEnabled={data.extrasEnabled ?? false}
+					profitGoal={data.profitGoal ?? false}
 					extrasSales={data.extrasSales ?? null}
 					errors={ticketsCheck.errors}
 					bind:touched={ticketsTouched}

@@ -160,7 +160,7 @@ export { isOnlineEvent };
  * @prop {boolean} doorSet el archivo ya tiene `puerta: true | false` (si no, al guardar se escribe)
  * @prop {string} doorPrice nota sobre la puerta para la página (`puerta_precio`), texto libre
  *   ('' = no se muestra). Solo se muestra: lo que se cobra es el `doorPrice` de cada tipo.
- * @prop {'' | 'plata' | 'entradas'} goalKind meta de venta (`meta_venta`): '' = sin meta (el
+ * @prop {'' | 'plata' | 'entradas' | 'ganancia'} goalKind meta de venta (`meta_venta`): '' = sin meta (el
  *   panel muestra el avance contra el cupo)
  * @prop {string} goalValue pesos o cantidad de entradas
  * @prop {'' | 'evento' | 'tipo'} waitlistScope lista de espera (`lista_espera`): '' = sin lista

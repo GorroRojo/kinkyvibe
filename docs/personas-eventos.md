@@ -14,7 +14,9 @@ Sin base, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes cam
 2. **Preguntas de inscripción (B8).** Preguntas extra al comprar o inscribirse (texto, opciones
    o casilla; obligatorias u opcionales): propias de un evento (pestaña **Preguntas** de su
    ficha) y generales, que se definen una vez (Eventos → **Roles y preguntas**) y cada evento
-   elige. Las respuestas se guardan con la orden y se ven en la pestaña **Órdenes** y en su CSV.
+   elige. Las respuestas se guardan con la orden y se ven en la pestaña **Órdenes** (en cada
+   compra y, en la vista «Respuestas», una tarjeta por pregunta con barras o la lista de quienes
+   escribieron; ver [tickets.md](tickets.md#ventas--órdenes-compras-y-respuestas)) y en su CSV.
 
 ## Lo que nunca se tiene que romper
 
@@ -144,7 +146,8 @@ como se respondieron (con la pregunta copiada como estaba). Y cada pregunta elig
 - **cuántas veces se pregunta**: una vez por compra (lo de siempre) o **una vez por entrada**
   (`signup_fields.per_ticket`): si alguien compra 3, responde 3 veces, dentro de cada entrada del
   formulario (campo `campo_<id>_<entrada>`). Se guarda con `ticket` (1, 2, 3…) en el JSON de
-  `order_answers`; en Órdenes cada respuesta dice de qué entrada es y en los CSV (Órdenes y el de
+  `order_answers`; en Órdenes cada respuesta va con la persona de esa entrada (👥 en la vista
+  «Respuestas») y en los CSV (Órdenes y el de
   les organizadores) van juntas en la columna de la pregunta: «Entrada 1: … | Entrada 2: …».
 
 Las reglas puras (qué preguntas aplican a cada tipo, cuántas respuestas pide una compra, validar
@@ -152,8 +155,16 @@ el alcance) están en `src/lib/utils/signupFields.js` (`fieldsForTicketType`, `a
 `answerSetCount`, `validateFieldScope`).
 
 Topes: 10 preguntas propias por evento, 30 generales, 12 opciones por pregunta, 120 letras por
-pregunta y 500 por respuesta. En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
+pregunta y 500 por respuesta. «Varias opciones» y el puntaje son solo de los formularios
+([formularios.md](formularios.md#tipos-de-pregunta)). En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
 solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de siempre.
+
+**Etiqueta corta** (migración 0083, `signup_fields.short_label`, opcional, hasta 24 letras). Un
+nombre breve para el panel de Órdenes, donde varias respuestas tienen que entrar en un renglón
+(«Rol» para «¿Qué rol querés tener en el encuentro?»). Vacía, se usa la pregunta entera. Se edita
+en el editor de preguntas (propias y generales); quien compra sigue viendo la pregunta entera.
+`fieldsForEvent(db, slug)` (`src/lib/server/tickets/signupFields.js`) la devuelve como `shortLabel`
+(ausente si está vacía); copiar un evento la copia.
 
 **Editor compartido** (gorrite, 5/11: siempre, sin interruptor). Las preguntas propias de un
 evento y las generales se editan con el mismo editor que los formularios

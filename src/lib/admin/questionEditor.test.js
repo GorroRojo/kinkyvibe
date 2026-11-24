@@ -69,6 +69,7 @@ describe('lo que se manda', () => {
 				id: 4,
 				kind: 'text',
 				label: 'Dieta',
+				shortLabel: 'Comida',
 				required: false,
 				options: [],
 				perTicket: true,
@@ -80,6 +81,7 @@ describe('lo que se manda', () => {
 				id: 4,
 				kind: 'text',
 				label: 'Dieta',
+				shortLabel: 'Comida',
 				required: false,
 				options: [],
 				perTicket: true,
@@ -87,6 +89,15 @@ describe('lo que se manda', () => {
 				ticketTypes: ['vip']
 			}
 		]);
+	});
+
+	it('varias opciones: manda y muestra sus opciones como las de una sola', () => {
+		const items = toEditorItems([
+			{ id: 'p9', kind: 'multi', label: 'Intereses', required: true, options: ['A', 'B'] }
+		]);
+		expect(toPayload(items)[0]).toMatchObject({ kind: 'multi', options: ['A', 'B'] });
+		items[0].optionsText = 'A\n\nB\nA';
+		expect(previewQuestions(items)[0].options).toEqual(['A', 'B']);
 	});
 
 	it('la vista previa limpia las opciones y pone los extremos por defecto', () => {

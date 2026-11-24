@@ -15,6 +15,9 @@ import {
 	expiringTransfersQuery,
 	monthMoneyQuery,
 	recentActivityRowsQuery,
+	recentPastTicketed,
+	monthProfit,
+	monthTicketedSlugs,
 	salesFocus,
 	salesFocusSlugs,
 	salesSummary,
@@ -40,6 +43,7 @@ import {
 import { cleanAlt } from '$lib/utils/imageAlt.js';
 import { listEvents } from '$lib/server/eventos/index.js';
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
+import { profitsEnabled, profitsQuery } from '$lib/server/tickets/ganancia.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
@@ -77,6 +81,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		},
 		{ failed }
 	);
+	// La ganancia (Gastos y reparto): si está prendido, va en la segunda tanda.
+	const profitsOn = profitsEnabled(platform);
 	const others = Promise.all([
 		resolveFondoMonth({ db, fetch, now }),
 		// El uso de las etiquetas (para lo que Etiquetas tiene para revisar).
@@ -105,9 +111,21 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	// su tendencia va en la segunda tanda, con los totales.
 	const upcomingList = upcomingEvents({ events, ticketed, now, skip });
 	const focusSlugs = salesFocusSlugs(upcomingList);
+	// Los que ya pasaron (últimos días), con su ganancia o «falta cerrar la cuenta».
+	const pastList = recentPastTicketed({ events, ticketed, now, skip });
+	// Y los de este mes, para la ganancia del mes junto a «Entradas este mes».
+	const monthSlugs = monthTicketedSlugs({ events, ticketed, now, skip });
+	const profitSlugs = [
+		...new Set([
+			...upcomingList.filter((e) => e.ticketed).map((e) => e.slug),
+			...pastList.map((e) => e.slug),
+			...monthSlugs
+		])
+	];
 
 	// fondo.kinkyvibe.ar y el uso de las etiquetas no frenan la segunda tanda: se esperan al final.
 	const s1 = await first;
+	const withProfits = await profitsOn;
 	const reminderList = s1.settings ? parseReminders(s1.settings.reminders) : [];
 	// Segunda: lo que depende de la lista de eventos o de la primera tanda (la última visita, los
 	// ajustes de los recordatorios).
@@ -129,13 +147,14 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			since: s1.seen
 				? sinceLastVisitQuery({ since: s1.seen.since, login: user.login, titles })
 				: noQuery(null),
+			profits: withProfits ? profitsQuery(profitSlugs) : noQuery(null),
 			...Object.fromEntries(
 				focusSlugs.map((slug) => [`trend:${slug}`, eventSalesTrendQuery(slug, now)])
 			)
 		},
 		{ failed }
 	);
-	const { totals, checkins, streamLinks, stuck, reminders, since, cancelled, venues } = s2;
+	const { totals, checkins, streamLinks, stuck, reminders, since, cancelled, venues, profits } = s2;
 	const { transfers, review, money, seen, expiring } = s1;
 	const [fondo, outside] = await others;
 
@@ -150,6 +169,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		reminders,
 		stuck,
 		venues,
+		profits,
 		now,
 		skip
 	});
@@ -203,6 +223,12 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		todayEvents: upcoming.filter((e) => e.today && !e.draft),
 		todo,
 		money,
+		// Con Gastos y reparto: los últimos eventos que pasaron, con su ganancia (o sin, si no
+		// vendieron nada ni tienen la cuenta cerrada).
+		pastProfits: profits
+			? pastList.map((e) => ({ ...e, profit: profits.get(e.slug) ?? null }))
+			: null,
+		monthProfit: monthProfit(monthSlugs, profits),
 		fondo,
 		activity: activityItems(s1.activity, { limit: 10, titles }),
 		since: since ? { ...since, first: seen?.first ?? false } : null

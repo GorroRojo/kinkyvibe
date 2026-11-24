@@ -1,6 +1,6 @@
 /**
- * Órdenes de un evento tal como las muestran las pestañas de la ficha del panel (Órdenes,
- * Transferencias, Ventas). Es lo que antes armaba la vieja página por evento de Entradas, repartido.
+ * Órdenes de un evento tal como las muestran las pestañas de la ficha del panel (Órdenes, que
+ * también confirma las transferencias, y Ventas). Es lo que antes armaba la vieja página por evento de Entradas, repartido.
  */
 import { listEventTickets, listOrders, orderHolders } from '$lib/server/tickets/orders.js';
 import { orderReference } from '$lib/utils/tickets.js';
@@ -55,6 +55,8 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		// por orden, con `revealOrderDni` (y queda en el registro de actividad).
 		dniTail: dniTail(o.buyer_dni),
 		type: names[o.ticket_type] ?? o.ticket_type,
+		// El id del tipo: qué preguntas de inscripción aplican a la compra (Órdenes › Respuestas).
+		typeId: o.ticket_type,
 		quantity: o.quantity,
 		pronouns: o.buyer_pronouns ?? '',
 		gorra: o.fondo_option === 'gorra' ? o.unit_price : null,
@@ -161,7 +163,7 @@ export async function orderIdsByDni(db, slug, query) {
 }
 
 /**
- * «Mostrar» el DNI completo de una orden del evento (pestañas Órdenes y Transferencias). Como en
+ * «Mostrar» el DNI completo de una orden del evento (Ventas › Órdenes). Como en
  * la ficha de la persona, cada vez queda en el registro de actividad (`person.dni.reveal`), sin
  * el DNI. `null` si la orden no es de este evento o no tiene DNI (y entonces no se registra).
  *

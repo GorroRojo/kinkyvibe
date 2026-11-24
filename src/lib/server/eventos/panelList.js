@@ -5,6 +5,8 @@
  * consultan solo para los eventos que se mandan. Filtros, búsqueda y columnas: $lib/admin/eventList.js.
  */
 import { logDBError } from '$lib/server/db';
+import { runQuery } from '$lib/server/db/batch.js';
+import { profitsQuery } from '$lib/server/tickets/ganancia.js';
 import { listPanelEventsWithMeta } from './panel.js';
 import { listEventVenues } from '$lib/server/amigues/venues.js';
 import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
@@ -108,14 +110,19 @@ export async function panelEventRows(db) {
  * Las filas con sus ventas (entradas vendidas, lo recaudado, la comisión de Mercado Pago de eso y
  * transferencias esperando confirmación, vigentes),
  * en UNA consulta y solo para esos eventos. Sin base de datos o con un error, en 0 (la lista se
- * ve igual, sin números).
+ * ve igual, sin números). Con `profits` (el interruptor `gastos_reparto`), además la ganancia de
+ * los que venden entradas ($lib/server/tickets/ganancia.js), en otra consulta que sale a la par
+ * (la misma tanda).
  * @param {D1Database | null | undefined} db
  * @param {EventRow[]} rows
  * @param {number} now
+ * @param {{ profits?: boolean }} [opts]
  * @returns {Promise<EventRow[]>}
  */
-export async function withSales(db, rows, now) {
+export async function withSales(db, rows, now, { profits = false } = {}) {
 	if (!db || !rows.length) return rows;
+	const ticketed = rows.filter((r) => r.sellsTickets).map((r) => r.slug);
+	const profitsP = profits && ticketed.length ? runQuery(db, profitsQuery(ticketed)) : null;
 	/** @type {Map<string, { sold: number, revenue: number, mpFee: number, mpFeeEstimated: number, transfers: number }>} */
 	const sales = new Map();
 	try {
@@ -144,8 +151,10 @@ export async function withSales(db, rows, now) {
 	} catch (error) {
 		logDBError('lista de eventos del panel', error);
 	}
+	const profitMap = await profitsP;
 	return rows.map((r) => ({
 		...r,
+		...(profitMap ? { profit: (r.sellsTickets && profitMap.get(r.slug)) || null } : {}),
 		sold: sales.get(r.slug)?.sold ?? 0,
 		revenue: sales.get(r.slug)?.revenue ?? 0,
 		mpFee: sales.get(r.slug)?.mpFee ?? 0,

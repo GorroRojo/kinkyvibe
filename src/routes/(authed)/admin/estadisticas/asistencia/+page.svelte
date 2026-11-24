@@ -10,6 +10,8 @@
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { eventPanelLink } from '$lib/admin/nav.js';
 	import { fmtDate } from '$lib/admin/format.js';
+	import { formatSignedARS } from '$lib/utils/money.js';
+	import { profitLabel } from '$lib/admin/ganancia.js';
 	import {
 		SALES_DEFAULT_PERIOD,
 		SALES_PERIODS,
@@ -49,6 +51,17 @@
 
 	/** @param {string} key @param {string} label */
 	const col = (key, label) => ({ key, label });
+
+	/** @typedef {{ profit: import('$lib/admin/ganancia.js').EventProfit | null }} WithProfit */
+	/** Las columnas de la ganancia en el CSV (con Gastos y reparto). */
+	const profitColumns = [
+		{ label: 'ganancia', value: (/** @type {WithProfit} */ e) => e.profit?.amount ?? '' },
+		{
+			label: 'ganancia_es',
+			value: (/** @type {WithProfit} */ e) => (e.profit ? profitLabel(e.profit).toLowerCase() : '')
+		},
+		col('profitPerPerson', 'ganancia_por_persona')
+	];
 </script>
 
 <PageHeader
@@ -197,7 +210,8 @@
 						col('checked', 'entraron'),
 						col('rate', 'porcentaje'),
 						col('attendees', 'personas'),
-						col('firstTimers', 'primera_vez_en_la_serie')
+						col('firstTimers', 'primera_vez_en_la_serie'),
+						...(data.profits ? profitColumns : [])
 					]}
 					filename={csvFilename('asistencia-por-evento')}
 				/>
@@ -213,6 +227,7 @@
 								<th class="r">Entraron</th>
 								<th class="rate-col">Check-in</th>
 								<th class="r">Primera vez</th>
+								{#if data.profits}<th class="r">Ganancia</th>{/if}
 							</tr>
 						</thead>
 						<tbody>
@@ -232,6 +247,20 @@
 									<td class="r num" title="Personas que vinieron por primera vez a esta serie"
 										>{e.firstTimers} de {e.attendees}</td
 									>
+									{#if data.profits}
+										{@const p = e.profit}
+										{@const per = e.profitPerPerson}
+										<td class="r num">
+											{#if p}
+												<span class:neg={p.amount < 0} title={profitLabel(p)}
+													>{formatSignedARS(p.amount)}{p.closed ? '' : ' (est.)'}</span
+												>
+												{#if per !== null}<small class="muted"
+														>{formatSignedARS(per)} por persona que entró</small
+													>{/if}
+											{:else}—{/if}
+										</td>
+									{/if}
 								</tr>
 							{/each}
 						</tbody>
@@ -244,7 +273,9 @@
 		</Card>
 		<p class="kv-note">
 			Por fecha del evento: cuentan los eventos que ya pasaron y empezaron en el período. Solo
-			compras aprobadas.
+			compras aprobadas.{#if data.profits}
+				La ganancia sale de Gastos y reparto: la de la cuenta cerrada o, si no se cerró, la estimada
+				(est.: lo que entró menos los gastos cargados hasta ahora).{/if}
 		</p>
 	</div>
 {/if}
@@ -252,6 +283,9 @@
 <style>
 	td small {
 		display: block;
+	}
+	.neg {
+		color: var(--bad);
 	}
 	.rate-col {
 		min-width: 7rem;

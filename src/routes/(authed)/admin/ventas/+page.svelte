@@ -18,6 +18,7 @@
 	import { fmtDate } from '$lib/admin/format.js';
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
+	import { pastProfitHint, profitHint, profitLabel } from '$lib/admin/ganancia.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
@@ -153,6 +154,16 @@
 					<GoalProgress progress={e.progress} />
 				</div>
 			{/if}
+			{#if e.profit}
+				<!-- Gastos y reparto: la ganancia (estimada hasta cerrar la cuenta). -->
+				<p class="profit">
+					<a href="/admin/eventos/{e.slug}/gastos">{profitLabel(e.profit)}</a>:
+					<b class="num" class:neg={e.profit.amount < 0}>{formatSignedARS(e.profit.amount)}</b>
+					{#if e.upcoming ? profitHint(e.profit) : pastProfitHint(e.profit)}<small class="muted"
+							>· {e.upcoming ? profitHint(e.profit) : pastProfitHint(e.profit)}</small
+						>{/if}
+				</p>
+			{/if}
 			<div class="kv-table-wrap">
 				<table class="kv-table">
 					<thead>
@@ -225,6 +236,12 @@
 </div>
 
 <style>
+	.profit {
+		margin: 0.4rem 0 0.2rem;
+	}
+	.profit .neg {
+		color: var(--bad);
+	}
 	.goal {
 		margin: 0.5rem 0 0.2rem;
 		max-width: 28rem;

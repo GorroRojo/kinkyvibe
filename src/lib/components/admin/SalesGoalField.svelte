@@ -1,15 +1,17 @@
 <!--
-	«Meta de venta»: ninguna, plata (pesos netos) o entradas, y el número ($lib/utils/salesGoal.js).
-	La usa el editor de eventos, dentro de «Entradas» (TicketsEditor: `bind:kind` y `bind:value`).
+	«Meta de venta»: ninguna, plata (pesos netos), entradas o ganancia, y el número
+	($lib/utils/salesGoal.js). La usa el editor de eventos, dentro de «Entradas» (TicketsEditor:
+	`bind:kind` y `bind:value`).
 
-	Props: `kind` ('' | 'plata' | 'entradas'), `value`, `idPrefix`, `legend`, `help` (texto debajo),
-	`error`.
+	Props: `kind` ('' | 'plata' | 'entradas' | 'ganancia'), `value`, `idPrefix`, `legend`, `help`
+	(texto debajo), `error`, `profitGoal` (ofrece «Ganancia»: con el interruptor `gastos_reparto`;
+	una meta de ganancia ya guardada se sigue viendo).
 -->
 <script>
 	import { formatARS } from '$lib/utils/money.js';
 	import { goalFromForm } from '$lib/utils/salesGoal.js';
 
-	/** @type {'' | 'plata' | 'entradas'} */
+	/** @type {'' | 'plata' | 'entradas' | 'ganancia'} */
 	export let kind = '';
 	export let value = '';
 	export let idPrefix = 'ev';
@@ -17,14 +19,17 @@
 	export let help =
 		'El panel muestra el avance contra la meta. Sin meta, contra el cupo (vender todas las entradas).';
 	export let error = '';
+	export let profitGoal = false;
 
 	$: parsed = goalFromForm(kind, value);
 	$: preview =
 		parsed.goal?.kind === 'plata'
 			? formatARS(parsed.goal.value)
-			: parsed.goal
-				? `${parsed.goal.value} ${parsed.goal.value === 1 ? 'entrada' : 'entradas'}`
-				: '';
+			: parsed.goal?.kind === 'ganancia'
+				? `${formatARS(parsed.goal.value)} de ganancia`
+				: parsed.goal
+					? `${parsed.goal.value} ${parsed.goal.value === 1 ? 'entrada' : 'entradas'}`
+					: '';
 </script>
 
 <fieldset class="goal" id="{idPrefix}-goal">
@@ -36,16 +41,25 @@
 				<option value="">Sin meta</option>
 				<option value="plata">Plata (pesos)</option>
 				<option value="entradas">Entradas</option>
+				{#if profitGoal || kind === 'ganancia'}
+					<option value="ganancia">Ganancia (pesos)</option>
+				{/if}
 			</select>
 		</label>
 		{#if kind}
 			<label class="part amount">
-				<span>{kind === 'plata' ? '¿Cuánta plata?' : '¿Cuántas entradas?'}</span>
+				<span
+					>{kind === 'plata'
+						? '¿Cuánta plata?'
+						: kind === 'ganancia'
+							? '¿Cuánta ganancia?'
+							: '¿Cuántas entradas?'}</span
+				>
 				<input
 					id="{idPrefix}-goal-value"
 					bind:value
 					inputmode="numeric"
-					placeholder={kind === 'plata' ? '250.000' : '30'}
+					placeholder={kind === 'plata' ? '250.000' : kind === 'ganancia' ? '150.000' : '30'}
 					aria-invalid={error ? 'true' : undefined}
 				/>
 			</label>
@@ -54,7 +68,9 @@
 	{#if preview}<small class="preview">Meta: {preview}</small>{/if}
 	<small id="{idPrefix}-goal-help"
 		>{help}{#if kind === 'plata'}{' '}Cuenta lo neto: lo cobrado menos la comisión de Mercado Pago
-			(las compras con transferencia, en la puerta o cargadas a mano no tienen comisión).{/if}</small
+			(las compras con transferencia, en la puerta o cargadas a mano no tienen comisión).{:else if kind === 'ganancia'}{' '}Cuenta
+			la ganancia de Gastos y reparto: estimada (lo que entró menos los gastos cargados hasta ahora)
+			mientras la cuenta está abierta, y la del cierre cuando la cerrás.{/if}</small
 	>
 	{#if error}<small class="error" role="alert">{error}</small>{/if}
 </fieldset>

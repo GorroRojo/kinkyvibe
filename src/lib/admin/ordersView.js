@@ -1,0 +1,363 @@
+/**
+ * Ventas › Órdenes del evento: lo que se calcula en el navegador para las dos vistas de la página
+ * («Compras» y «Respuestas»). Todo puro (sin Svelte), para probarlo aparte.
+ *
+ * - Filtros de «Compras»: un estado (una sola opción, `?estado=` en la URL) más interruptores
+ *   que se suman («Sin facturar», «Con nota», «Primera vez», «Usó el Fondo», «Aportó al Fondo»),
+ *   el filtro por una respuesta (tocar una barra de «Respuestas») y el buscador.
+ * - «Respuestas»: una tarjeta por pregunta, en el orden del formulario, armada con las
+ *   definiciones de las preguntas (las respuestas guardadas solo traen id, texto de la pregunta,
+ *   valor y entrada). Las de opciones o casilla se cuentan con todas sus opciones (las que nadie
+ *   eligió, al final); las de texto listan a quienes escribieron algo. Las respuestas a preguntas
+ *   que ya no están en el formulario van al final, juntas por el texto con que se guardaron.
+ */
+import { CHECKBOX_YES, fieldAppliesTo } from '$lib/utils/signupFields.js';
+import { foldText } from '$lib/utils/text.js';
+
+/**
+ * @typedef {import('$lib/utils/signupFields.js').Answer} Answer
+ * @typedef {{ id: number, label: string, shortLabel?: string | null,
+ *   kind: import('$lib/utils/signupFields.js').FieldKind, options: string[], perTicket?: boolean,
+ *   ticketTypes?: string[] }} ViewField
+ * @typedef {{ name: string, pronouns: string, checkedIn?: boolean, firstTime?: boolean | null,
+ *   firstFrom?: string | null }} ViewHolder
+ * @typedef {{ id: string, reference: string, name: string, email: string, pronouns: string,
+ *   status: string, quantity: number, typeId?: string, note?: string, toInvoice?: boolean,
+ *   invoicedAt?: number | null, fondo?: number | null, contribution?: number | null,
+ *   transferPending?: boolean, holders: ViewHolder[], answers: Answer[] }} ViewOrder
+ * @typedef {{ key: string, value: string, label: string }} AnswerFilter
+ */
+
+/** Hasta cuántas compras es un evento chico: sin filtros ni «Ordenar», se ven todas. */
+export const SMALL_EVENT_MAX = 5;
+
+/**
+ * Los estados del filtro, en el orden en que se muestran (`id` es el valor de `?estado=`).
+ * «Transferencias por confirmar»: esperando el pago o vencidas hace menos de 7 días
+ * (`transferPending`, lo calcula el servidor con `pendingTransfers`).
+ * @type {readonly { id: string, label: string }[]}
+ */
+export const STATUS_FILTERS = Object.freeze([
+	{ id: 'transferencias', label: 'Transferencias por confirmar' },
+	{ id: 'aprobadas', label: 'Aprobadas' },
+	{ id: 'pendientes', label: 'Pendientes MP' },
+	{ id: 'reembolsadas', label: 'Reembolsadas' },
+	{ id: 'todas', label: 'Todas' }
+]);
+
+/**
+ * El estado de `?estado=` si es uno de la lista; si no, ''.
+ * @param {string | null | undefined} value
+ */
+export function statusFilterOf(value) {
+	return STATUS_FILTERS.some((s) => s.id === value) ? String(value) : '';
+}
+
+/**
+ * ¿La orden entra en ese estado?
+ * @param {Pick<ViewOrder, 'status' | 'transferPending'>} o
+ * @param {string} id
+ */
+export function matchesStatus(o, id) {
+	switch (id) {
+		case 'transferencias':
+			return Boolean(o.transferPending);
+		case 'aprobadas':
+			return o.status === 'approved';
+		case 'pendientes':
+			return o.status === 'pending';
+		case 'reembolsadas':
+			return o.status === 'refunded';
+		default:
+			return true;
+	}
+}
+
+/**
+ * Con qué estado arranca la lista: las transferencias por confirmar si hay alguna (es lo que
+ * toca hacer), si no las aprobadas. Un evento chico muestra todas.
+ * @param {readonly ViewOrder[]} orders
+ */
+export function defaultStatus(orders) {
+	if (orders.length <= SMALL_EVENT_MAX) return 'todas';
+	return orders.some((o) => o.transferPending) ? 'transferencias' : 'aprobadas';
+}
+
+/**
+ * Los interruptores de «Filtros» (se suman al estado). La etiqueta de «Primera vez» lleva la
+ * serie si hay («Primera vez en Picantearla»).
+ * @type {readonly { id: string, label: string }[]}
+ */
+export const ORDER_TOGGLES = Object.freeze([
+	{ id: 'sin-facturar', label: 'Sin facturar' },
+	{ id: 'con-nota', label: 'Con nota' },
+	{ id: 'primera-vez', label: 'Primera vez' },
+	{ id: 'uso-fondo', label: 'Usó el Fondo' },
+	{ id: 'aporto-fondo', label: 'Aportó al Fondo' }
+]);
+
+/**
+ * @param {Pick<ViewOrder, 'toInvoice' | 'invoicedAt' | 'note' | 'holders' | 'fondo' | 'contribution'>} o
+ * @param {string} id
+ */
+export function matchesToggle(o, id) {
+	switch (id) {
+		case 'sin-facturar':
+			return Boolean(o.toInvoice && !o.invoicedAt);
+		case 'con-nota':
+			return Boolean(o.note?.trim());
+		case 'primera-vez':
+			return o.holders.some((h) => h.firstTime);
+		case 'uso-fondo':
+			return Number(o.fondo ?? 0) > 0;
+		case 'aporto-fondo':
+			return Number(o.contribution ?? 0) > 0;
+		default:
+			return true;
+	}
+}
+
+/**
+ * Compras y personas de una lista, para los filtros («🧾 3 · 👥 5»). Con «Primera vez» cuentan
+ * solo las entradas de quienes vienen por primera vez, no toda la compra.
+ * @param {readonly ViewOrder[]} list
+ * @param {string} [toggle]
+ */
+export function tally(list, toggle = '') {
+	const people = list.reduce(
+		(n, o) =>
+			n + (toggle === 'primera-vez' ? o.holders.filter((h) => h.firstTime).length : o.quantity),
+		0
+	);
+	return `🧾 ${list.length} · 👥 ${people}`;
+}
+
+/** El nombre corto de una pregunta si tiene, si no el texto entero. @param {Pick<ViewField, 'label' | 'shortLabel'>} f */
+export function fieldLabel(f) {
+	return f.shortLabel || f.label;
+}
+
+/**
+ * La clave de la pregunta de una respuesta: `f<id>` si la pregunta sigue en el formulario; si no,
+ * `l:<texto con que se guardó>` (una pregunta borrada).
+ * @param {Pick<Answer, 'id' | 'label'>} a
+ * @param {ReadonlySet<number>} fieldIds
+ */
+export function answerKey(a, fieldIds) {
+	return fieldIds.has(a.id) ? `f${a.id}` : `l:${a.label}`;
+}
+
+/**
+ * ¿Alguna respuesta de la compra (de una entrada o de la compra) es esa?
+ * @param {Pick<ViewOrder, 'answers'>} o
+ * @param {AnswerFilter} filter
+ * @param {ReadonlySet<number>} fieldIds
+ */
+export function matchesAnswer(o, filter, fieldIds) {
+	return o.answers.some((a) => a.value === filter.value && answerKey(a, fieldIds) === filter.key);
+}
+
+/**
+ * Todo lo que encuentra el buscador en una compra (sin acentos ni mayúsculas): referencia,
+ * nombre, mail, las personas y las respuestas. El DNI se busca aparte, en el servidor.
+ * @param {ViewOrder} o
+ */
+export function orderSearchText(o) {
+	return foldText(
+		[
+			o.reference,
+			o.name,
+			o.email,
+			...o.holders.map((h) => h.name),
+			...o.answers.map((a) => a.value)
+		].join(' ')
+	);
+}
+
+/**
+ * Las compras que pasan el estado, los interruptores y el filtro por respuesta.
+ * @template {ViewOrder} T
+ * @param {readonly T[]} orders
+ * @param {{ status: string, toggles?: readonly string[], answer?: AnswerFilter | null,
+ *   fieldIds?: ReadonlySet<number> }} f
+ * @returns {T[]}
+ */
+export function filterOrders(
+	orders,
+	{ status, toggles = [], answer = null, fieldIds = new Set() }
+) {
+	return orders.filter(
+		(o) =>
+			matchesStatus(o, status) &&
+			toggles.every((t) => matchesToggle(o, t)) &&
+			(!answer || matchesAnswer(o, answer, fieldIds))
+	);
+}
+
+/**
+ * @typedef {{ key: string, label: string, fullLabel: string, value: string, choice: boolean,
+ *   ticket: number | null }} ShownAnswer
+ */
+
+/**
+ * Las respuestas de una compra para la tarjeta: las de cada entrada (por persona, en el orden del
+ * formulario) y las de la compra. Una respuesta de una entrada que no está en la lista de
+ * personas va con las de la compra (con «Entrada N»). `choice`: es de opciones o casilla (se
+ * puede filtrar por esa respuesta).
+ * @param {Pick<ViewOrder, 'answers' | 'holders'>} o
+ * @param {readonly ViewField[]} fields
+ * @returns {{ holders: ShownAnswer[][], order: ShownAnswer[] }}
+ */
+export function orderAnswerGroups(o, fields) {
+	const byId = new Map(fields.map((f, i) => [f.id, { f, i }]));
+	const ids = new Set(byId.keys());
+	/** @param {Answer} a */
+	const rank = (a) => byId.get(a.id)?.i ?? fields.length;
+	/** @type {ShownAnswer[][]} */
+	const holders = o.holders.map(() => []);
+	/** @type {ShownAnswer[]} */
+	const order = [];
+	for (const a of [...o.answers].sort((x, y) => rank(x) - rank(y))) {
+		if (!String(a.value ?? '').trim()) continue;
+		const f = byId.get(a.id)?.f;
+		/** @type {ShownAnswer} */
+		const shown = {
+			key: answerKey(a, ids),
+			label: f ? fieldLabel(f) : a.label,
+			fullLabel: f?.label ?? a.label,
+			value: a.value,
+			choice: f ? f.kind !== 'text' : false,
+			ticket: a.ticket ?? null
+		};
+		const slot = a.ticket ? holders[a.ticket - 1] : undefined;
+		if (slot) slot.push(shown);
+		else order.push(shown);
+	}
+	return { holders, order };
+}
+
+/**
+ * @typedef {{ orderId: string, name: string, pronouns: string, firstTime: boolean | null,
+ *   value: string }} TextEntry
+ * @typedef {{ key: string, label: string, fullLabel: string, kind: 'text' | 'choice' | 'checkbox',
+ *   perTicket: boolean, answered: number, asked: number, removed: boolean,
+ *   bars: { value: string, n: number, defined: boolean }[], entries: TextEntry[] }} QuestionCard
+ */
+
+/**
+ * Quién respondió (la persona de esa entrada; en las de una vez por compra, quien compró).
+ * @param {ViewOrder} o
+ * @param {Answer} a
+ */
+function whoAnswered(o, a) {
+	const h = a.ticket ? o.holders[a.ticket - 1] : null;
+	if (h) return { name: h.name, pronouns: h.pronouns, firstTime: h.firstTime ?? null };
+	const same = o.holders.find((x) => foldText(x.name) === foldText(o.name));
+	return {
+		name: a.ticket ? `${o.name} (entrada ${a.ticket})` : o.name,
+		pronouns: a.ticket ? '' : o.pronouns,
+		firstTime: a.ticket ? null : (same?.firstTime ?? null)
+	};
+}
+
+/**
+ * Las tarjetas de «Respuestas», con las compras que se pasen (la página pasa las aprobadas).
+ *
+ * - Una por pregunta del formulario, en su orden; la de opciones con todas las opciones (más
+ *   elegida primero, las que nadie eligió al final; un valor que ya no es una opción también
+ *   cuenta); la casilla, con «Sí»; la de texto, con quienes escribieron.
+ * - `answered`: cuántas respuestas (personas en las de por entrada, compras en las de por compra);
+ *   `asked`: a cuántas se les preguntó (las compras de los tipos de entrada a los que aplica).
+ * - Al final, las respuestas a preguntas que ya no están, juntas por el texto guardado (como
+ *   texto, con quienes respondieron).
+ *
+ * @param {readonly ViewField[]} fields
+ * @param {readonly ViewOrder[]} orders
+ * @returns {QuestionCard[]}
+ */
+export function questionCards(fields, orders) {
+	const ids = new Set(fields.map((f) => f.id));
+	/** @type {Map<string, QuestionCard>} */
+	const cards = new Map();
+	for (const f of fields) {
+		const kind = f.kind;
+		const options = kind === 'checkbox' ? [CHECKBOX_YES] : kind === 'choice' ? f.options : [];
+		cards.set(`f${f.id}`, {
+			key: `f${f.id}`,
+			label: fieldLabel(f),
+			fullLabel: f.label,
+			kind,
+			perTicket: Boolean(f.perTicket),
+			answered: 0,
+			asked: orders
+				.filter((o) => fieldAppliesTo(f, o.typeId ?? ''))
+				.reduce((n, o) => n + (f.perTicket ? Math.max(1, o.quantity) : 1), 0),
+			removed: false,
+			bars: options.map((value) => ({ value, n: 0, defined: true })),
+			entries: []
+		});
+	}
+	for (const o of orders) {
+		for (const a of o.answers) {
+			const value = String(a.value ?? '').trim();
+			if (!value) continue;
+			const key = answerKey(a, ids);
+			let card = cards.get(key);
+			if (!card) {
+				card = {
+					key,
+					label: a.label,
+					fullLabel: a.label,
+					kind: 'text',
+					perTicket: Boolean(a.ticket),
+					answered: 0,
+					asked: 0,
+					removed: true,
+					bars: [],
+					entries: []
+				};
+				cards.set(key, card);
+			}
+			card.answered++;
+			if (card.kind === 'text') {
+				card.entries.push({ orderId: o.id, ...whoAnswered(o, a), value: a.value });
+				continue;
+			}
+			const bar = card.bars.find((b) => b.value === a.value);
+			if (bar) bar.n++;
+			else card.bars.push({ value: a.value, n: 1, defined: false });
+		}
+	}
+	return [...cards.values()].map((c) => ({
+		...c,
+		asked: c.removed ? c.answered : c.asked,
+		// La más elegida primero; a igual cantidad, el orden del formulario (las que ya no son
+		// opciones, después). Las que nadie eligió quedan al final.
+		bars: c.bars
+			.map((b, i) => ({ b, i }))
+			.sort((x, y) => y.b.n - x.b.n || Number(y.b.defined) - Number(x.b.defined) || x.i - y.i)
+			.map(({ b }) => b)
+	}));
+}
+
+/**
+ * «Copiar para el equipo»: una línea por respuesta, «Nombre (pronombres): respuesta», en texto
+ * común (las respuestas de varias líneas, en una).
+ * @param {Pick<QuestionCard, 'entries'>} card
+ */
+export function copyText(card) {
+	return card.entries
+		.map(
+			(e) =>
+				`${e.name}${e.pronouns ? ` (${e.pronouns})` : ''}: ${e.value.replace(/\s*\n\s*/g, ' / ')}`
+		)
+		.join('\n');
+}
+
+/** Desde cuántas letras una respuesta de texto se muestra cortada (se abre al tocarla). */
+export const LONG_ANSWER = 60;
+
+/** ¿La respuesta va cortada, con «tocá para leer entera»? @param {string} value */
+export function isLongAnswer(value) {
+	return value.length > LONG_ANSWER || value.includes('\n');
+}

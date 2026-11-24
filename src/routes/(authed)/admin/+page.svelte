@@ -28,6 +28,12 @@
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import { netEstimate, netEstimateText, netRevenue } from '$lib/utils/salesGoal.js';
 	import {
+		PROFIT_NOT_CLOSED,
+		pastProfitHint,
+		profitHint,
+		profitLabel
+	} from '$lib/admin/ganancia.js';
+	import {
 		Activity,
 		ArrowLeftRight,
 		Bell,
@@ -47,6 +53,7 @@
 		ScanLine,
 		History,
 		Inbox,
+		PiggyBank,
 		Sparkles,
 		Tag,
 		TriangleAlert,
@@ -145,6 +152,7 @@
 		{ label: 'Reservadas', key: 'held' },
 		{ label: 'Cupo', key: 'capacity' },
 		{ label: 'Recaudado', key: 'revenue' },
+		{ label: 'Ganancia estimada', value: (e) => (e.profit ? e.profit.amount : '') },
 		{ label: 'Meta', value: (e) => e.progress?.text ?? '' },
 		{ label: 'Neto del fondo', value: (e) => (e.fondoEnabled ? e.fondoNet : '') }
 	];
@@ -257,6 +265,18 @@
 								)}{kind === 'part'
 									? ` (comisión estimada en parte: ${formatARS(data.money.mpFeeEstimated)} de ${formatARS(data.money.mpFee)})`
 									: ''}</small
+							>
+						{/if}
+						{#if data.monthProfit}
+							{@const mp = data.monthProfit}
+							<small
+								class="net-line"
+								title="La ganancia de los eventos de este mes que vendieron entradas: la del cierre si la cuenta está cerrada; si no, lo que entró menos los gastos cargados en Gastos y reparto."
+								>{mp.closed === mp.events ? 'Ganancia' : 'Ganancia estimada'}: {formatSignedARS(
+									mp.amount
+								)}{mp.closed === mp.events
+									? ''
+									: ` · ${mp.closed} de ${plural(mp.events, 'cuenta cerrada', 'cuentas cerradas')}`}</small
 							>
 						{/if}
 					</Stat>
@@ -572,6 +592,16 @@
 												>💜 {formatSignedARS(e.fondoNet)}</small
 											>
 										{/if}
+										{#if e.profit}
+											<small
+												class:neg={e.profit.amount < 0}
+												title="{profitLabel(e.profit)}{profitHint(e.profit)
+													? ` (${profitHint(e.profit)})`
+													: ''}: lo que entró menos los gastos cargados en Gastos y reparto"
+												>{e.profit.closed ? 'Ganancia' : 'Ganancia est.'}
+												{formatSignedARS(e.profit.amount)}</small
+											>
+										{/if}
 									</div>
 								{/if}
 							</li>
@@ -592,6 +622,32 @@
 		<aside class="side-col" aria-label="Ventas, agenda y actividad">
 			{#if data.sales}
 				<SalesCard sales={data.sales} />
+			{/if}
+
+			{#if data.pastProfits?.length}
+				<!-- Gastos y reparto: la ganancia de los últimos eventos, o que falta cerrar la cuenta. -->
+				<Card title="Ganancia de los últimos eventos" icon={PiggyBank}>
+					<ul class="past-profits">
+						{#each data.pastProfits as p (p.slug)}
+							<li>
+								<a href={eventLink(p.slug, { tickets: true })}>{p.title}</a>
+								<small class="muted">{argDateLong(p.start)}</small>
+								{#if p.profit}
+									<span class="num" class:neg={p.profit.amount < 0}
+										>{profitLabel(p.profit)}: {formatSignedARS(p.profit.amount)}</span
+									>
+									{#if pastProfitHint(p.profit)}
+										<a class="hint" href="/admin/eventos/{p.slug}/gastos"
+											>{pastProfitHint(p.profit)}</a
+										>
+									{/if}
+								{:else}
+									<a class="hint" href="/admin/eventos/{p.slug}/gastos">{PROFIT_NOT_CLOSED}</a>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</Card>
 			{/if}
 
 			<Card title="Agenda" icon={CalendarDays}>
@@ -1050,6 +1106,26 @@
 	}
 	.net-line {
 		display: block;
+		font-size: var(--text-xs);
+		color: var(--muted);
+	}
+	.past-profits {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
+	}
+	.past-profits li {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+	.past-profits .neg {
+		color: var(--bad);
+	}
+	.past-profits .hint {
 		font-size: var(--text-xs);
 		color: var(--muted);
 	}

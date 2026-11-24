@@ -26,6 +26,8 @@ export const FIELD_KIND_LABELS = Object.freeze({
 
 export const LABEL_MIN = 2;
 export const LABEL_MAX = 120;
+/** Etiqueta corta opcional (para el panel de Órdenes). */
+export const SHORT_LABEL_MAX = 24;
 export const OPTION_MAX = 80;
 export const MAX_OPTIONS = 12;
 /** Largo máximo de una respuesta de texto. */
@@ -44,7 +46,9 @@ const TYPE_ID_MAX = 60;
  * tipos (como antes de la migración 0026).
  *
  * @typedef {{ id: number, label: string, kind: FieldKind, required: boolean, options: string[],
- *   perTicket?: boolean, ticketTypes?: string[] }} SignupField
+ *   perTicket?: boolean, ticketTypes?: string[], shortLabel?: string }} SignupField
+ *   `shortLabel`: etiqueta corta opcional (migración 0083) para el panel de Órdenes; sin ella se
+ *   usa `label`. Quien compra siempre ve `label`.
  * @typedef {{ id: number, label: string, value: string, ticket?: number }} Answer
  *   `ticket`: en las preguntas "una vez por entrada", qué entrada de la compra (1, 2, 3…)
  */
@@ -225,16 +229,21 @@ export function parseOptions(raw) {
 /**
  * Valida una pregunta que arma le admin.
  *
- * @param {{ label?: unknown, kind?: unknown, required?: unknown, options?: unknown }} raw
+ * @param {{ label?: unknown, shortLabel?: unknown, kind?: unknown, required?: unknown,
+ *   options?: unknown }} raw
  * @returns {{ ok: true, field: Omit<SignupField, 'id'> }
- *   | { ok: false, errors: { label?: string, kind?: string, options?: string } }}
+ *   | { ok: false, errors: { label?: string, shortLabel?: string, kind?: string, options?: string } }}
  */
 export function validateFieldDef(raw) {
-	/** @type {{ label?: string, kind?: string, options?: string }} */
+	/** @type {{ label?: string, shortLabel?: string, kind?: string, options?: string }} */
 	const errors = {};
 	const label = line(raw.label);
 	if (label.length < LABEL_MIN || label.length > LABEL_MAX) {
 		errors.label = `Escribí la pregunta (entre ${LABEL_MIN} y ${LABEL_MAX} letras).`;
+	}
+	const shortLabel = line(raw.shortLabel);
+	if (shortLabel.length > SHORT_LABEL_MAX) {
+		errors.shortLabel = `La etiqueta corta, hasta ${SHORT_LABEL_MAX} letras.`;
 	}
 	const kind = raw.kind;
 	if (!isFieldKind(kind)) errors.kind = 'Elegí el tipo de pregunta.';
@@ -249,7 +258,10 @@ export function validateFieldDef(raw) {
 	}
 	const required = raw.required === true || raw.required === 'on' || raw.required === '1';
 	if (Object.keys(errors).length || !isFieldKind(kind)) return { ok: false, errors };
-	return { ok: true, field: { label, kind, required, options } };
+	return {
+		ok: true,
+		field: { label, kind, required, options, ...(shortLabel ? { shortLabel } : {}) }
+	};
 }
 
 /**
