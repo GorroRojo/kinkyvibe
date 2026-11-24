@@ -56,12 +56,11 @@ describe('SeriesNotifyForm `bare` (dentro de la tarjeta de la serie)', () => {
 		expect(h).toContain('action="/avisos?/suscribir"');
 	});
 
-	it('con `bare`, el texto corto: sin cuenta y con cuenta', () => {
-		for (const member of [false, true]) {
-			const h = html({ member, bare: true });
-			expect(h).toContain('Te avisamos por mail cuando haya fecha nueva.');
-			expect(h).not.toContain('Dejanos tu mail');
-			expect(h).not.toContain('Te mandamos un solo mail');
+	it('con `bare`, sin texto explicativo: solo el formulario (sin cuenta, con cuenta y ya anotade)', () => {
+		for (const props of [{ member: false }, { member: true }, { member: true, subscribed: true }]) {
+			const h = html({ ...props, bare: true });
+			expect(h).not.toContain('<p');
+			expect(h).toContain('<form');
 		}
 	});
 
