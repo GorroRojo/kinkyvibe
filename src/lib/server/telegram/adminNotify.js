@@ -43,7 +43,11 @@ import { escapeHtml } from './format.js';
 import { isHttps, tgTime } from './screens.js';
 import { callTelegramApi } from './send.js';
 import { botText, botTextOverrides } from './texts.js';
-import { formatARS } from '$lib/utils/money.js';
+import { formatARS, formatSignedARS } from '$lib/utils/money.js';
+import { isFlagOn } from '$lib/server/flags.js';
+import { runQuery } from '$lib/server/db/batch.js';
+import { profitsQuery } from '$lib/server/tickets/ganancia.js';
+import { toTime } from '$lib/server/tickets/config.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { argentinaHour, isQuietHour } from './quiet.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
@@ -609,6 +613,25 @@ export function dailySummaryText(
 }
 
 /**
+ * El resumen del día después de un evento (con Gastos y reparto; Mesa 24/11): las vendidas y la
+ * ganancia, la del cierre si la cuenta está cerrada o, si no, la estimada y que falta cerrarla.
+ *
+ * @param {{ title: string, sold: number, capacity: number | null,
+ *   profit: import('$lib/admin/ganancia.js').EventProfit }} input
+ * @param {BotTexts | null} [overrides]
+ */
+export function dayAfterText({ title, sold, capacity, profit }, overrides) {
+	const monto = formatSignedARS(profit.amount);
+	return [
+		botText('admin.ayer_titulo', { evento: title }, overrides),
+		botText('admin.ayer_vendidas', { vendidas: soldOf(sold, capacity) }, overrides),
+		profit.closed
+			? botText('admin.ayer_ganancia', { monto }, overrides)
+			: botText('admin.ayer_falta_cerrar', { monto }, overrides)
+	].join('\n');
+}
+
+/**
  * El link al evento en el panel (solo con un origen https: Telegram no acepta otros botones).
  *
  * @param {string} origin
@@ -1018,14 +1041,7 @@ export async function runAdminNoticesCron({
 		if (budget <= 0) break;
 		const key = `resumen:${window.date}:${choice.slug}`;
 		// Si ya les llegó a todes, no hace falta consultar nada más.
-		const pendingFor = [];
-		for (const r of recipients) {
-			const done = await db
-				.prepare('SELECT 1 AS ok FROM telegram_admin_sent WHERE github_id = ?1 AND notice_key = ?2')
-				.bind(r.githubId, key)
-				.first();
-			if (!done) pendingFor.push(r);
-		}
+		const pendingFor = await notSentYet(db, recipients, key);
 		if (pendingFor.length === 0) continue;
 		const activity = await dailyActivity(db, choice.slug, window);
 		if (activity.soldSince === 0 && activity.newTransfers === 0) continue;
@@ -1051,6 +1067,67 @@ export async function runAdminNoticesCron({
 		budget -= r.sent + r.failed;
 		out.sent += r.sent;
 		out.failed += r.failed;
+	}
+	// El día después de cada evento (con Gastos y reparto prendido): su ganancia, o la estimada y
+	// que falta cerrar la cuenta. Solo los que vendieron algo (o tienen la cuenta cerrada).
+	if (budget > 0 && (await isFlagOn(db, 'gastos_reparto'))) {
+		const yesterday = argentinaDate(now - DAY_MS);
+		const past = all.filter((e) => {
+			const ms = toTime(e.config.start);
+			return ms !== null && e.config.status !== 'cancelado' && argentinaDate(ms) === yesterday;
+		});
+		const profits = past.length
+			? await runQuery(db, profitsQuery(past.map((e) => e.slug)))
+			: new Map();
+		for (const e of past) {
+			const profit = profits.get(e.slug);
+			if (budget <= 0 || !profit) continue;
+			const key = `ayer:${window.date}:${e.slug}`;
+			const pendingFor = await notSentYet(db, recipients, key);
+			if (pendingFor.length === 0) continue;
+			const status = await eventStatus(db, e.slug, e.config, now);
+			out.events += 1;
+			const text = dayAfterText(
+				{
+					title: String(e.config.title || e.slug),
+					sold: status.sold,
+					capacity: status.capacity,
+					profit
+				},
+				overrides
+			);
+			const r = await deliverOnce({
+				db,
+				send: sender,
+				key,
+				message: { text, panelUrl: panelUrl(origin, e.slug) },
+				now,
+				recipients: pendingFor.slice(0, budget)
+			});
+			budget -= r.sent + r.failed;
+			out.sent += r.sent;
+			out.failed += r.failed;
+		}
+	}
+	return out;
+}
+
+/**
+ * Les destinataries a quienes todavía no les llegó el aviso `key`.
+ * @template {{ githubId: number }} R
+ * @param {D1Database} db
+ * @param {R[]} recipients
+ * @param {string} key
+ * @returns {Promise<R[]>}
+ */
+async function notSentYet(db, recipients, key) {
+	const out = [];
+	for (const r of recipients) {
+		const done = await db
+			.prepare('SELECT 1 AS ok FROM telegram_admin_sent WHERE github_id = ?1 AND notice_key = ?2')
+			.bind(r.githubId, key)
+			.first();
+		if (!done) out.push(r);
 	}
 	return out;
 }

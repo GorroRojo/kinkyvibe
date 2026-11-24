@@ -793,6 +793,32 @@ describe('el resumen diario (cron)', () => {
 		expectNoSecrets(text);
 	});
 
+	it('el día después, con Gastos y reparto: la ganancia estimada y que falta cerrar la cuenta', async () => {
+		const ayer = { ...CONFIG, start: '2031-01-07T18:00:00-03:00' };
+		const listAyer = async () => [{ slug: SLUG, config: /** @type {any} */ (ayer) }];
+		const tg = telegram();
+		// Apagado: nada (y el evento de ayer ya no tiene resumen diario).
+		expect(await run({ send: tg.send, list: listAyer })).toEqual({
+			sent: 0,
+			failed: 0,
+			events: 0
+		});
+		await setFlag(t.db, 'gastos_reparto', true, { by: 'prueba' });
+		clearFlagCache();
+		expect(await run({ send: tg.send, list: listAyer })).toEqual({
+			sent: 1,
+			failed: 0,
+			events: 1
+		});
+		const text = tg.sent[0].text;
+		expect(text).toContain('🌙 <b>Ayer · Fiesta inventada</b>');
+		expect(text).toContain('🎟 Vendidas: 4\n');
+		expect(text).toMatch(/💰 Ganancia estimada: <b>\+\$\s[\d.]+<\/b> · falta cerrar la cuenta/);
+		expectNoSecrets(text);
+		// Una vez por día.
+		expect((await run({ send: tg.send, list: listAyer, now: MORNING + 900_000 })).sent).toBe(0);
+	});
+
 	it('no se repite en el día (ni en la corrida siguiente), y al otro día sí', async () => {
 		const tg = telegram();
 		await run({ send: tg.send });
