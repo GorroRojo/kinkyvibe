@@ -13,7 +13,8 @@
 	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import { eventLink, orderHref } from '$lib/admin/links.js';
-	import { formatARS } from '$lib/utils/money.js';
+	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
+	import { profitHint, profitLabel } from '$lib/admin/ganancia.js';
 	import { SALE_CHANNELS, SALE_CHANNEL_LABELS } from '$lib/utils/saleChannel.js';
 	import { ChartColumn, ChevronRight } from '@lucide/svelte';
 
@@ -56,6 +57,13 @@
 		</p>
 		<p class="side num">
 			<b>{formatARS(e.revenue)}</b>
+			{#if e.profit}
+				<small title="Lo que entró menos los gastos cargados en Gastos y reparto"
+					>{profitLabel(e.profit)}: {formatSignedARS(e.profit.amount)}{profitHint(e.profit)
+						? ` · ${profitHint(e.profit)}`
+						: ''}</small
+				>
+			{/if}
 			{#if e.today && e.issued}<small>{e.checkedIn} de {e.issued} ingresaron</small>{/if}
 			{#if e.held}<small>{e.held} reservadas</small>{/if}
 		</p>

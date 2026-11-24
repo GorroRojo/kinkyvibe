@@ -980,6 +980,7 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
  *   fondoNet: number,
  *   oversold: { type: string, sold: number, capacity: number }[],
  *   progress: import('$lib/utils/salesGoal.js').GoalProgress | null,
+ *   profit: import('$lib/admin/ganancia.js').EventProfit | null,
  *   transfers: number,
  *   review: number,
  *   missingStream: boolean,
@@ -1007,10 +1008,12 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
  *   reminders?: Map<string, number>,
  *   stuck?: { reminders: Map<string, number>, streamLinks: Map<string, number> },
  *   venues?: Map<string, import('$lib/admin/eventFormat.js').PanelVenue>,
+ *   profits?: Map<string, import('$lib/admin/ganancia.js').EventProfit> | null,
  *   now: number,
  *   skip?: (slug: string) => boolean
  * }} input `venues`: el lugar vinculado de cada evento ({@link eventVenuesQuery}); manda sobre
- *   el «Dónde» en texto libre en `location`.
+ *   el «Dónde» en texto libre en `location`. `profits`: la ganancia de cada evento
+ *   ($lib/server/tickets/ganancia.js; `null` con Gastos y reparto apagado).
  * @returns {UpcomingEvent[]}
  */
 export function upcomingEvents({
@@ -1024,6 +1027,7 @@ export function upcomingEvents({
 	reminders = new Map(),
 	stuck = { reminders: new Map(), streamLinks: new Map() },
 	venues = new Map(),
+	profits = null,
 	now,
 	skip = () => false
 }) {
@@ -1068,6 +1072,8 @@ export function upcomingEvents({
 			fondoNet += c.contribution - c.fondo;
 		}
 		const ci = checkins.get(e.slug);
+		// La ganancia (estimada hasta cerrar la cuenta), solo de los que venden entradas.
+		const profit = (config && profits?.get(e.slug)) || null;
 		out.push({
 			slug: e.slug,
 			title: e.title,
@@ -1102,7 +1108,10 @@ export function upcomingEvents({
 			oversold,
 			// Avance contra la meta de venta (`meta_venta`; la de plata, neta de la comisión de MP);
 			// sin meta, null (se muestra el cupo).
-			progress: config ? goalProgress(config.goal, { sold, revenue, mpFee, mpFeeEstimated }) : null,
+			progress: config
+				? goalProgress(config.goal, { sold, revenue, mpFee, mpFeeEstimated, profit })
+				: null,
+			profit,
 			transfers: transferBy.get(e.slug) ?? 0,
 			review: reviewBy.get(e.slug) ?? 0,
 			missingStream: Boolean(config?.online && sold > 0 && !streamLinks.has(e.slug)),
@@ -2103,5 +2112,78 @@ export function salesSummary({ focus, config, totals, trend, now }) {
 		trend: trend
 			? { ...trend, days: trend.days.map((d) => ({ ...d, label: dayLabel(d.day, today) })) }
 			: null
+	};
+}
+
+/** Cuántos días para atrás mira «Ganancia de los últimos eventos» del Inicio. */
+export const PAST_PROFIT_DAYS = 30;
+
+/**
+ * Los eventos con entradas que ya pasaron en los últimos {@link PAST_PROFIT_DAYS} días (antes de
+ * hoy, hora de Argentina), del más nuevo al más viejo, hasta `limit`: el Inicio muestra su
+ * ganancia o «falta cerrar la cuenta» (Gastos y reparto). Sin los no publicados ni los de prueba
+ * (`skip`).
+ *
+ * @param {{
+ *   events: EventSummary[],
+ *   ticketed: Map<string, EventTickets>,
+ *   now: number,
+ *   skip?: (slug: string) => boolean,
+ *   limit?: number
+ * }} input
+ * @returns {{ slug: string, title: string, start: string }[]}
+ */
+export function recentPastTicketed({ events, ticketed, now, skip = () => false, limit = 5 }) {
+	const today = arDay(now);
+	const since = arDay(now - PAST_PROFIT_DAYS * 24 * 60 * 60 * 1000);
+	return events
+		.filter((e) => {
+			if (e.unpublished || !e.start || skip(e.slug) || !ticketed.has(e.slug)) return false;
+			const day = arDay(e.start);
+			return Boolean(day) && day < today && day >= since;
+		})
+		.sort((a, b) => b.start.localeCompare(a.start))
+		.slice(0, limit)
+		.map((e) => ({ slug: e.slug, title: e.title, start: e.start }));
+}
+
+/**
+ * Los eventos con entradas de este mes (el mes del evento, hora de Argentina, como «Entradas este
+ * mes»), pasados y próximos.
+ *
+ * @param {{ events: EventSummary[], ticketed: Map<string, EventTickets>, now: number,
+ *   skip?: (slug: string) => boolean }} input
+ * @returns {string[]}
+ */
+export function monthTicketedSlugs({ events, ticketed, now, skip = () => false }) {
+	const month = arDay(now).slice(0, 7);
+	return events
+		.filter(
+			(e) =>
+				!e.unpublished &&
+				e.start &&
+				!skip(e.slug) &&
+				ticketed.has(e.slug) &&
+				arDay(e.start).slice(0, 7) === month
+		)
+		.map((e) => e.slug);
+}
+
+/**
+ * La ganancia de los eventos de este mes, sumada: `closed` cuántos tienen la cuenta cerrada (el
+ * resto suma su ganancia estimada). `null` sin ninguno con ganancia.
+ *
+ * @param {string[]} slugs {@link monthTicketedSlugs}
+ * @param {Map<string, import('$lib/admin/ganancia.js').EventProfit> | null} profits
+ * @returns {{ amount: number, events: number, closed: number } | null}
+ */
+export function monthProfit(slugs, profits) {
+	if (!profits) return null;
+	const list = slugs.map((s) => profits.get(s)).filter((p) => p !== undefined);
+	if (!list.length) return null;
+	return {
+		amount: list.reduce((s, p) => s + p.amount, 0),
+		events: list.length,
+		closed: list.filter((p) => p.closed).length
 	};
 }
