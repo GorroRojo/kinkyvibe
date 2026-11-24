@@ -78,14 +78,20 @@ describe('crear', () => {
 describe('verificar', () => {
 	it('una llave buena vale como su admin, y anota el último uso', async () => {
 		const token = tokenOf(await createLlave(t.db, ana, 'rutinas', NOW));
-		expect(await llaveAdmin(t.db, token, NOW + 1000)).toEqual({ id: ana.id, login: ana.login });
+		const llave = { id: expect.any(Number), name: 'rutinas' };
+		expect(await llaveAdmin(t.db, token, NOW + 1000)).toEqual({
+			id: ana.id,
+			login: ana.login,
+			llave
+		});
 		expect((await listLlaves(t.db, ana.id))[0].lastUsedAt).toBe(NOW + 1000);
 		expect(await mcpAdmin(t.db, bearer(token), 'https://ejemplo.test', NOW + 2000)).toEqual({
 			id: ana.id,
 			login: ana.login,
 			// Una llave cuenta como con permiso de cambiar: le admin la creó para una rutina.
 			canEdit: true,
-			via: 'llave'
+			via: 'llave',
+			llave
 		});
 	});
 

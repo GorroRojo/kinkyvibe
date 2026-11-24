@@ -8,14 +8,19 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { readJsonCapped } from '$lib/server/http/body.js';
 import { connectorDB, noStoreJson } from '$lib/server/mcp/http.js';
 import { mcpAdmin } from '$lib/server/mcp/llaves.js';
+import { MAX_MESSAGE_BYTES } from '$lib/server/mcp/biblioteca.js';
 import { wwwAuthenticate } from '$lib/server/mcp/oauth.js';
 import { PROTOCOL_VERSIONS, RPC, handleMessage, rpcError } from '$lib/server/mcp/rpc.js';
 
 /** Pedidos por admin por minuto (Claude hace unos pocos por pregunta). */
 const MCP_RATE_LIMIT = { limit: 60, windowSeconds: 60 };
 
-/** Tope del cuerpo de un mensaje (los pedidos son chicos). */
-const MAX_BODY = 64 * 1024;
+/**
+ * Tope del cuerpo de un mensaje. Casi todos son chicos; los de `subir_imagen` y `subir_archivo`
+ * traen el archivo en base64 (hasta 1 MB, más sus copias chicas). Lo más grande va por
+ * `pedir_subida` ($lib/server/mcp/biblioteca.js).
+ */
+const MAX_BODY = MAX_MESSAGE_BYTES;
 
 /**
  * Orígenes de navegador aceptados (la especificación pide mirar `Origin` contra el DNS rebinding).
@@ -80,7 +85,9 @@ export async function POST(event) {
 			rpcError(
 				null,
 				body.reason === 'too-large' ? RPC.INVALID_REQUEST : RPC.PARSE,
-				body.reason === 'too-large' ? 'Mensaje demasiado grande.' : 'JSON inválido.'
+				body.reason === 'too-large'
+					? `Mensaje demasiado grande (hasta ${MAX_MESSAGE_BYTES / 1024 / 1024} MB). Para subir un archivo más grande, usá \`pedir_subida\`.`
+					: 'JSON inválido.'
 			),
 			400
 		);
@@ -95,6 +102,8 @@ export async function POST(event) {
 		db,
 		user: { id: user.id, login: user.login },
 		canEdit: user.canEdit,
+		via: user.via,
+		llave: user.llave ?? null,
 		fetch,
 		now: Date.now(),
 		platform,

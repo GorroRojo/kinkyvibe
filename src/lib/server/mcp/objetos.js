@@ -13,6 +13,7 @@ import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { findImage, searchImages, slugOfKey } from '$lib/server/media/library.js';
 import { foldText } from '$lib/utils/text.js';
 import { ToolInputError, resolveEvent } from './tools.js';
+import { libraryRef } from './biblioteca.js';
 
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
 /** @typedef {import('./tools.js').ToolContext} ToolContext */
@@ -240,8 +241,9 @@ export const isFail = (r) =>
 	Boolean(r && typeof r === 'object' && typeof r.status === 'number' && 'data' in r);
 
 /**
- * La imagen de la biblioteca que se pide (`imagen`): '' la saca; si no, se busca por su dirección o
- * su nombre (una sola). `{ id: null }` = sacarla.
+ * La imagen de la biblioteca que se pide (`imagen`): '' la saca; si no, se busca por su id (el que
+ * da `subir_imagen`), su slug (el SHA-256), su dirección (`/media/img/…`) o su nombre (una sola).
+ * `{ id: null }` = sacarla.
  *
  * @param {ToolContext} ctx
  * @param {unknown} raw
@@ -251,7 +253,16 @@ export async function resolveImage(ctx, raw) {
 	const q = oneLine(raw, 200);
 	if (!q) return { id: null, title: 'sin imagen' };
 	const viewer = adminViewer(ctx);
-	const bySlug = await getObject(ctx.db, { type: 'imagen', slug: q }, viewer);
+	const ref = libraryRef(q);
+	if (ref && 'id' in ref) {
+		const byId = await findImage(ctx.db, ref.id, viewer);
+		if (byId) return { id: byId.id, title: byId.title };
+	}
+	const bySlug = await getObject(
+		ctx.db,
+		{ type: 'imagen', slug: ref && 'slug' in ref ? ref.slug : q },
+		viewer
+	);
 	if (bySlug) return { id: bySlug.id, title: bySlug.title };
 	const found = await searchImages(ctx.db, { q, viewer, limit: 10 });
 	const f = foldText(q);
@@ -262,9 +273,9 @@ export async function resolveImage(ctx, raw) {
 		found.length
 			? `Hay varias imágenes que coinciden con «${q}»: ${found
 					.slice(0, 8)
-					.map((i) => `${i.title} (${slugOfKey(i.key) ?? i.id})`)
-					.join(', ')}. Volvé a pedir con la dirección (slug) de la imagen.`
-			: `No encontré ninguna imagen «${q}» en la biblioteca. Las imágenes se suben desde el panel (Contenido → Biblioteca).`
+					.map((i) => `${i.title} (id ${i.id}, ${slugOfKey(i.key) ?? ''})`)
+					.join(', ')}. Volvé a pedir con el id o la dirección (slug) de la imagen.`
+			: `No encontré ninguna imagen «${q}» en la biblioteca. Subila con \`subir_imagen\` (o desde el panel, Contenido → Biblioteca).`
 	);
 }
 
