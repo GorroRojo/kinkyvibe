@@ -24,8 +24,10 @@ import {
 	ANONYMOUS_FIELD,
 	EMAIL_MAX,
 	HONEYPOT_FIELD,
+	MULTI_SEPARATOR,
 	NAME_MAX,
 	PRONOUNS_MAX,
+	answerName,
 	isAnonymousResponse,
 	oneLine,
 	validateFormAnswers
@@ -147,8 +149,15 @@ export async function submitPublicForm(event, form) {
 	/** @type {Record<string, string>} */
 	const values = {};
 	for (const q of form.questions) {
-		const v = data.get(`p_${q.id}`);
-		if (typeof v === 'string') values[q.id] = v.slice(0, 2000);
+		// «Varias opciones»: una casilla por opción con el mismo `name`; vuelven juntas.
+		const v =
+			q.kind === 'multi'
+				? data
+						.getAll(answerName(q.id))
+						.filter((x) => typeof x === 'string')
+						.join(MULTI_SEPARATOR)
+				: data.get(answerName(q.id));
+		if (typeof v === 'string') values[q.id] = v.slice(0, 4000);
 	}
 	const typed = {
 		name: oneLine(data.get('nombre')).slice(0, NAME_MAX),

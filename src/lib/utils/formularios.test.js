@@ -6,7 +6,10 @@
 import { describe, expect, it } from 'vitest';
 import {
 	CHECKBOX_YES,
+	MAX_MULTI_OPTIONS,
+	MAX_OPTIONS,
 	MAX_QUESTIONS,
+	MULTI_SEPARATOR,
 	answerName,
 	formPath,
 	formSlug,
@@ -35,17 +38,62 @@ const q = (/** @type {Record<string, unknown>} */ extra = {}) => ({
 });
 
 describe('validateQuestion', () => {
-	it('acepta los cuatro tipos y pone los extremos del puntaje por defecto', () => {
+	it('acepta los cinco tipos y pone los extremos del puntaje por defecto', () => {
 		expect(validateQuestion(q())).toMatchObject({ ok: true, question: { kind: 'text' } });
 		expect(validateQuestion(q({ kind: 'checkbox' }))).toMatchObject({ ok: true });
 		expect(validateQuestion(q({ kind: 'choice', options: ['Sí', 'No'] }))).toMatchObject({
 			ok: true,
 			question: { options: ['Sí', 'No'] }
 		});
+		expect(validateQuestion(q({ kind: 'multi', options: ['A', 'B'] }))).toMatchObject({
+			ok: true,
+			question: { kind: 'multi', options: ['A', 'B'] }
+		});
 		expect(validateQuestion(q({ kind: 'rating' }))).toMatchObject({
 			ok: true,
 			question: { low: 'Mal', high: 'Re bien' }
 		});
+	});
+
+	it(`varias opciones: hasta ${MAX_MULTI_OPTIONS} opciones (las de una sola, hasta ${MAX_OPTIONS})`, () => {
+		const opts = (/** @type {number} */ n) =>
+			Array.from({ length: n }, (_, i) => `Opción ${i + 1}`);
+		expect(validateQuestion(q({ kind: 'multi', options: opts(MAX_MULTI_OPTIONS) }))).toMatchObject({
+			ok: true
+		});
+		expect(
+			validateQuestion(q({ kind: 'multi', options: opts(MAX_MULTI_OPTIONS + 1) }))
+		).toMatchObject({ ok: false, errors: { options: `Hasta ${MAX_MULTI_OPTIONS} opciones.` } });
+		expect(validateQuestion(q({ kind: 'choice', options: opts(MAX_OPTIONS + 1) }))).toMatchObject({
+			ok: false,
+			errors: { options: `Hasta ${MAX_OPTIONS} opciones.` }
+		});
+		expect(validateQuestion(q({ kind: 'multi', options: ['Sola'] }))).toMatchObject({
+			ok: false,
+			errors: { options: expect.any(String) }
+		});
+	});
+
+	it('varias opciones: ninguna opción puede tener «|» (separa las elegidas)', () => {
+		for (const bad of ['Cuerdas | nudos', 'A|B', '| suelta']) {
+			expect(validateQuestion(q({ kind: 'multi', options: [bad, 'Otra'] }))).toMatchObject({
+				ok: false,
+				errors: { options: expect.stringContaining('|') }
+			});
+		}
+		// En las de una sola opción no molesta (la respuesta es una sola).
+		expect(validateQuestion(q({ kind: 'choice', options: ['A | B', 'C'] }))).toMatchObject({
+			ok: true
+		});
+	});
+
+	it('las preguntas de inscripción no aceptan varias opciones', () => {
+		const r = validateQuestion(q({ kind: 'multi', options: ['A', 'B'] }), [
+			'text',
+			'choice',
+			'checkbox'
+		]);
+		expect(r).toMatchObject({ ok: false, errors: { kind: expect.any(String) } });
 	});
 
 	it('las preguntas de inscripción no aceptan puntaje', () => {
@@ -149,6 +197,56 @@ describe('validateFormAnswers', () => {
 			errors: { p1: 'Elegí un puntaje.', p2: expect.any(String) }
 		});
 		expect(validateFormAnswers(questions, form({ p1: '7' }))).toMatchObject({ ok: false });
+	});
+
+	describe('varias opciones', () => {
+		const multi = /** @type {import('./formularios.js').Question} */ ({
+			id: 'm1',
+			kind: 'multi',
+			label: '¿Qué te interesa?',
+			required: true,
+			options: ['Cuerdas', 'Cera', 'Impacto', 'Charlas']
+		});
+		/** Como un FormData: el mismo `name` repetido (una casilla por opción). */
+		const picks = (/** @type {string[]} */ list) => {
+			const fd = new FormData();
+			for (const v of list) fd.append(answerName('m1'), v);
+			return fd;
+		};
+
+		it('junta las elegidas en el orden de la lista, sin repetidas', () => {
+			const r = validateFormAnswers([multi], picks(['Charlas', 'Cuerdas', ' Charlas ']));
+			expect(r).toEqual({
+				ok: true,
+				answers: [
+					{ id: 'm1', label: '¿Qué te interesa?', value: `Cuerdas${MULTI_SEPARATOR}Charlas` }
+				]
+			});
+		});
+
+		it('una sola elegida (también desde un Map) y lo que no es una opción', () => {
+			expect(validateFormAnswers([multi], new Map([[answerName('m1'), 'Cera']]))).toMatchObject({
+				ok: true,
+				answers: [{ value: 'Cera' }]
+			});
+			expect(validateFormAnswers([multi], picks(['Cera', 'Inventada']))).toMatchObject({
+				ok: false,
+				errors: { m1: 'Elegí entre las opciones de la lista.' }
+			});
+		});
+
+		it('obligatoria: al menos una; opcional: vacía no se guarda', () => {
+			expect(validateFormAnswers([multi], picks([]))).toMatchObject({
+				ok: false,
+				errors: { m1: 'Elegí al menos una opción.' }
+			});
+			const optional = { ...multi, required: false };
+			const r = validateFormAnswers([optional, questions[3]], picks(['']));
+			expect(r).toMatchObject({
+				ok: false,
+				message: 'Contestá al menos una pregunta para mandarlo.'
+			});
+		});
 	});
 
 	it('no guarda una respuesta en blanco', () => {
@@ -276,6 +374,33 @@ describe('respuestas en el panel', () => {
 		expect(anon[0]).not.toContain('pronombres');
 		expect(anon.flat()).not.toContain('Persona Demo');
 		expect(anon.flat()).not.toContain('elle');
+	});
+
+	it('varias opciones: cada respuesta cuenta en cada opción que eligió; el CSV, juntas', () => {
+		const multi = /** @type {import('./formularios.js').Question[]} */ ([
+			{ id: 'm1', kind: 'multi', label: 'Intereses', required: false, options: ['A', 'B', 'C'] }
+		]);
+		const day = '2099-01-02';
+		const resp = [
+			{ answers: [{ id: 'm1', label: 'Intereses', value: 'A | C' }], anonymous: true, day },
+			{ answers: [{ id: 'm1', label: 'Intereses', value: 'A' }], anonymous: true, day },
+			// Una opción que después se sacó de la lista sigue contando.
+			{ answers: [{ id: 'm1', label: 'Intereses', value: 'B | Vieja' }], anonymous: true, day },
+			{ answers: [], anonymous: true, day }
+		];
+		const [s] = summarize(multi, resp);
+		expect(s).toMatchObject({
+			kind: 'multi',
+			answered: 3,
+			counts: [
+				{ option: 'A', count: 2 },
+				{ option: 'B', count: 1 },
+				{ option: 'C', count: 1 },
+				{ option: 'Vieja', count: 1 }
+			]
+		});
+		const csv = responsesCsvRows(multi, resp, 'anonymous');
+		expect(csv.map((r) => r[1])).toEqual(['Intereses', 'A | C', 'A', 'B | Vieja', '']);
 	});
 
 	it('shuffled mezcla sin perder nada', () => {

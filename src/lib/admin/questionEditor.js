@@ -6,6 +6,7 @@
  * Cada pregunta del editor lleva una `key` propia (para el `#each` y el arrastre) además de su
  * `id` guardado (string en los formularios, número en las de inscripción; vacío si es nueva).
  */
+import { hasOptions } from '$lib/utils/formularios.js';
 
 /**
  * @typedef {{
@@ -116,7 +117,7 @@ export function duplicateItem(list, index) {
  */
 export function toPayload(list, { signup = false } = {}) {
 	return list.map((q) => {
-		const options = q.kind === 'choice' ? q.optionsText.split('\n') : [];
+		const options = hasOptions(q.kind) ? q.optionsText.split('\n') : [];
 		if (signup) {
 			return {
 				id: q.id,
@@ -153,10 +154,9 @@ export function previewQuestions(list) {
 		kind: /** @type {any} */ (q.kind),
 		label: q.label,
 		required: q.required,
-		options:
-			q.kind === 'choice'
-				? [...new Set(q.optionsText.split('\n').map((o) => o.trim()))].filter(Boolean)
-				: [],
+		options: hasOptions(q.kind)
+			? [...new Set(q.optionsText.split('\n').map((o) => o.trim()))].filter(Boolean)
+			: [],
 		...(q.help ? { help: q.help } : {}),
 		...(q.kind === 'rating' ? { low: q.low || 'Mal', high: q.high || 'Re bien' } : {})
 	}));

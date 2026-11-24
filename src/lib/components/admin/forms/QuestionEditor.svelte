@@ -33,10 +33,11 @@
 		toPayload
 	} from '$lib/admin/questionEditor.js';
 	import {
-		MAX_OPTIONS,
 		MAX_QUESTIONS,
 		QUESTION_KINDS,
-		QUESTION_KIND_LABELS
+		QUESTION_KIND_LABELS,
+		hasOptions,
+		maxOptionsFor
 	} from '$lib/utils/formularios.js';
 
 	/** @type {readonly Record<string, any>[]} */
@@ -229,11 +230,11 @@
 						/>
 						{#if err.kind}<small class="kv-error">{err.kind}</small>{/if}
 					</div>
-					{#if q.kind === 'choice'}
+					{#if hasOptions(q.kind)}
 						<Field
 							type="textarea"
-							rows={4}
-							label="Opciones (una por renglón, hasta {MAX_OPTIONS})"
+							rows={q.kind === 'multi' ? 6 : 4}
+							label="Opciones (una por renglón, hasta {maxOptionsFor(q.kind)})"
 							bind:value={q.optionsText}
 							error={err.options ?? ''}
 						/>
