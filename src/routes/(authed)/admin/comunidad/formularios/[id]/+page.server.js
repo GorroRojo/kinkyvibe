@@ -9,6 +9,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logDBError } from '$lib/server/db';
 import {
+	checkFormSave,
 	formOr404,
 	requireFormsAdmin,
 	ticketedEventChoices
@@ -25,13 +26,7 @@ import {
 	sendStats,
 	setFormOpen
 } from '$lib/server/formularios/store.js';
-import { getEventMeta, getEventTickets } from '$lib/server/tickets/events.js';
-import {
-	PRIVACY_LABELS,
-	formPath,
-	validateFormSettings,
-	validateQuestions
-} from '$lib/utils/formularios.js';
+import { PRIVACY_LABELS, formPath } from '$lib/utils/formularios.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
@@ -115,35 +110,28 @@ export const actions = {
 			audience: data.get('audience'),
 			eventSlug: String(data.get('eventSlug') ?? '').slice(0, 200)
 		};
-		const settings = validateFormSettings(raw, { kind: form.kind });
-		const questions = validateQuestions(String(data.get('questions') ?? '[]').slice(0, 300_000));
-		/** @type {Record<string, string>} */
-		const errors = settings.ok ? {} : { ...settings.errors };
-		if (settings.ok && settings.settings.eventSlug) {
-			const evt = settings.settings.eventSlug;
-			const exists =
-				settings.settings.access === 'ticket' || form.kind === 'survey'
-					? Boolean(await getEventTickets(evt))
-					: Boolean(await getEventMeta(evt));
-			if (!exists) errors.eventSlug = 'Ese evento no existe o no vende entradas.';
-		}
-		if (!settings.ok || !questions.ok || Object.keys(errors).length) {
+		const checked = await checkFormSave(
+			form,
+			raw,
+			String(data.get('questions') ?? '[]').slice(0, 300_000)
+		);
+		if (!checked.ok) {
 			return fail(400, {
 				save: {
 					ok: false,
-					message: !questions.ok ? questions.message : 'Revisá lo marcado.',
-					errors,
-					questionErrors: questions.ok ? {} : questions.errors
+					message: checked.message,
+					errors: checked.errors,
+					questionErrors: checked.questionErrors
 				}
 			});
 		}
-		const s = settings.settings;
+		const s = checked.settings;
 		let result;
 		try {
 			result = await saveForm(
 				db,
 				form.id,
-				{ ...s, questions: questions.questions },
+				{ ...s, questions: checked.questions },
 				{ by: admin.login }
 			);
 		} catch (e) {
@@ -173,7 +161,7 @@ export const actions = {
 				privacy: s.privacy,
 				audience: s.audience,
 				eventSlug: s.eventSlug,
-				questions: questions.questions.length
+				questions: checked.questions.length
 			}
 		});
 		return { save: { ok: true, message: 'Guardado.' } };

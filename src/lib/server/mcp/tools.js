@@ -117,6 +117,20 @@ function intIn(v, min, max, fallback) {
 	return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
 }
 
+/**
+ * ./formularios.js si el interruptor `formularios` está prendido; si no, `null`. (Se carga acá
+ * adentro porque ./formularios.js usa este módulo.)
+ * @param {ToolContext} ctx
+ */
+async function formsModule(ctx) {
+	const forms = await import('./formularios.js');
+	return (await forms.formsOn(ctx)) ? forms : null;
+}
+
+/** El error de un `tipo` que no existe. @param {boolean} forms */
+const typeError = (forms) =>
+	`\`tipo\` es uno de: ${[...OBJECT_TYPES, ...(forms ? ['formulario'] : [])].join(', ')}.`;
+
 /** @param {unknown} t */
 const objectType = (t) =>
 	typeof t === 'string' && OBJECT_TYPES.includes(t) ? t : t == null || t === '' ? null : false;
@@ -307,19 +321,27 @@ export const TOOLS = {
 				});
 			}
 			const texto = cleanText(args.texto, 100);
-			const tipo = objectType(args.tipo);
+			const forms = await formsModule(ctx);
+			const tipo = forms && args.tipo === forms.FORM_TYPE ? forms.FORM_TYPE : objectType(args.tipo);
 			if (!texto) throw new ToolInputError('Falta `texto`.');
-			if (tipo === false)
-				throw new ToolInputError(`\`tipo\` es uno de: ${OBJECT_TYPES.join(', ')}.`);
+			if (tipo === false) throw new ToolInputError(typeError(Boolean(forms)));
 			const limite = intIn(args.limite, 1, 50, 20);
-			const found = await searchObjects(ctx.db, texto, viewerOf(ctx), {
-				type: tipo ?? undefined,
-				limit: tipo ? limite : 100
-			});
-			const items = found
-				.filter((o) => OBJECT_TYPES.includes(o.type))
-				.slice(0, limite)
-				.map(brief);
+			const found =
+				tipo === forms?.FORM_TYPE
+					? []
+					: await searchObjects(ctx.db, texto, viewerOf(ctx), {
+							type: tipo ?? undefined,
+							limit: tipo ? limite : 100
+						});
+			// Los formularios (con su interruptor): sin respuestas, solo cuántas tiene cada uno.
+			const formRows =
+				forms && (tipo === null || tipo === forms.FORM_TYPE)
+					? (await forms.searchForms(ctx, texto)).map(forms.formBrief)
+					: [];
+			const items = [
+				...found.filter((o) => OBJECT_TYPES.includes(o.type)).map(brief),
+				...formRows
+			].slice(0, limite);
 			return {
 				result: { resultados: items, total: items.length },
 				log: {
@@ -361,10 +383,22 @@ export const TOOLS = {
 				return library.readLibraryForClaude(ctx, nombre, args.tipo);
 			}
 			const nombre = cleanText(args.nombre, 200);
-			const tipo = objectType(args.tipo);
+			const forms = await formsModule(ctx);
+			const tipo = forms && args.tipo === forms.FORM_TYPE ? forms.FORM_TYPE : objectType(args.tipo);
 			if (!nombre) throw new ToolInputError('Falta `nombre`.');
-			if (tipo === false)
-				throw new ToolInputError(`\`tipo\` es uno de: ${OBJECT_TYPES.join(', ')}.`);
+			if (tipo === false) throw new ToolInputError(typeError(Boolean(forms)));
+			if (forms && tipo === forms.FORM_TYPE) {
+				// La definición y cuántas respuestas tiene; nunca las respuestas ni quién respondió.
+				const f = await forms.findForm(ctx, nombre);
+				return {
+					result: await forms.formForClaude(ctx, f),
+					log: {
+						summary: `Claude: leyó el formulario «${f.title}»`,
+						targetType: 'form',
+						targetId: String(f.id)
+					}
+				};
+			}
 			const r = await resolveObject(ctx, nombre, tipo);
 			if (!r.object) {
 				return {

@@ -15,6 +15,7 @@ import { EDIT_TOOLS } from './edicion.js';
 import { HISTORY_TOOL } from './historial.js';
 import { editingOn } from './cambios.js';
 import { queueBurstAlert } from './avisoCambios.js';
+import { formsInstructions, formsOn, withForms } from './formularios.js';
 
 /** Versiones del protocolo que entiende el servidor, la más nueva primero. */
 export const PROTOCOL_VERSIONS = Object.freeze(['2025-11-25', '2025-06-18', '2025-03-26']);
@@ -52,20 +53,30 @@ const EDIT_INSTRUCTIONS =
 /** Las de lectura: las de ./tools.js y `historial` (./historial.js). */
 const READ_TOOLS = { ...TOOLS, historial: HISTORY_TOOL };
 
-/** La lista de las de lectura para `tools/list`, todas marcadas como de solo lectura. */
-function readToolList() {
+/**
+ * La lista de las de lectura para `tools/list`, todas marcadas como de solo lectura. Con los
+ * formularios prendidos, `buscar` y `leer` los nombran (./formularios.js).
+ * @param {boolean} [forms]
+ */
+function readToolList(forms = false) {
 	const [first] = toolList();
-	return [...toolList(), { ...HISTORY_TOOL.definition, annotations: first.annotations }];
+	return [...toolList(), { ...HISTORY_TOOL.definition, annotations: first.annotations }].map((t) =>
+		forms ? withForms(t) : t
+	);
 }
 
 /**
  * Las herramientas que se pueden usar ahora: las de lectura y, con los cambios prendidos y una
- * conexión con permiso de cambiar (`edicion` o una llave), las de cambios.
+ * conexión con permiso de cambiar (`edicion` o una llave), las de cambios. `forms`: el
+ * interruptor `formularios` (los formularios solo aparecen con él prendido).
  * @param {import('./tools.js').ToolContext} ctx
  */
 async function availableTools(ctx) {
-	const edit = ctx.canEdit === true && (await editingOn(ctx.db).catch(() => false));
-	return { edit, tools: edit ? { ...READ_TOOLS, ...EDIT_TOOLS } : READ_TOOLS };
+	const [edit, forms] = await Promise.all([
+		ctx.canEdit === true && editingOn(ctx.db).catch(() => false),
+		formsOn(ctx)
+	]);
+	return { edit, forms, tools: edit ? { ...READ_TOOLS, ...EDIT_TOOLS } : READ_TOOLS };
 }
 
 /**
@@ -108,7 +119,7 @@ export async function handleMessage(msg, ctx) {
 	switch (m.method) {
 		case 'initialize': {
 			const asked = typeof params.protocolVersion === 'string' ? params.protocolVersion : '';
-			const { edit } = await availableTools(ctx);
+			const { edit, forms } = await availableTools(ctx);
 			return rpcResult(id, {
 				protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
 				capabilities: { tools: { listChanged: false } },
@@ -117,15 +128,17 @@ export async function handleMessage(msg, ctx) {
 					title: edit ? 'KinkyVibe' : 'KinkyVibe (solo lectura)',
 					version: '1.2.0'
 				},
-				instructions: edit ? INSTRUCTIONS + EDIT_INSTRUCTIONS : INSTRUCTIONS
+				instructions:
+					(edit ? INSTRUCTIONS + EDIT_INSTRUCTIONS : INSTRUCTIONS) +
+					(forms ? formsInstructions(edit) : '')
 			});
 		}
 		case 'ping':
 			return rpcResult(id, {});
 		case 'tools/list': {
-			const { edit } = await availableTools(ctx);
+			const { edit, forms } = await availableTools(ctx);
 			return rpcResult(id, {
-				tools: edit ? [...readToolList(), ...editToolList()] : readToolList()
+				tools: edit ? [...readToolList(forms), ...editToolList(forms)] : readToolList(forms)
 			});
 		}
 		case 'tools/call':
@@ -190,9 +203,15 @@ async function callTool(params, ctx) {
 	}
 }
 
-/** La lista de las de cambios para `tools/list`, cada una con sus anotaciones. */
-export function editToolList() {
-	return Object.values(EDIT_TOOLS).map((t) => ({ ...t.definition, annotations: t.annotations }));
+/**
+ * La lista de las de cambios para `tools/list`, cada una con sus anotaciones.
+ * @param {boolean} [forms] con los formularios prendidos (./formularios.js)
+ */
+export function editToolList(forms = false) {
+	return Object.values(EDIT_TOOLS).map((t) => ({
+		...(forms ? withForms(t.definition) : t.definition),
+		annotations: t.annotations
+	}));
 }
 
 /** Para Actividad: qué no se hizo cuando una herramienta de cambios no pasó la validación. @param {string} name */
