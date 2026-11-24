@@ -18,6 +18,9 @@ por la dirección (slug).
   Kinkipedia), crear borradores sin publicar y **deshacer** cualquier cambio, siempre en dos pasos
   (ver [Cambios](#cambios) y [Deshacer](#deshacer)). gorrite, 3/11: «editar todo, siempre que se
   pueda deshacer».
+- Con el interruptor `formularios` prendido también, Claude lee los **formularios** (con cuántas
+  respuestas tienen, nunca las respuestas) y, con los cambios, los crea (cerrados) y los edita (ver
+  [Formularios](#formularios)).
 - Es la parte 1 y 2 de tres (plan: `conector-claude-lectura`, `conector-claude-edicion`,
   `conector-claude-borradores`); lo de plata (`proto-conector-claude`) va después. Decisión [0003](decisiones/0003-superadmins-y-permisos.md):
   «Claude puede operar el panel con un conector, siempre con permiso».
@@ -103,6 +106,10 @@ usa en 20 horas, también (el token de renovación vence).
 | `ventas`           | `evento` (slug o nombre); opcional `estado` (todas, aprobadas, pendientes, reembolsadas, vencidas, canceladas) y `limite` (hasta 500) | el resumen de la pestaña Ventas (vendidas, reservadas, cupo, recaudado, neto sin la comisión de MP, Fondo, por tipo, órdenes por estado) y las órdenes como en la pestaña Órdenes: referencia, nombre, últimos 3 del DNI, mail, montos, su estado, pago MP, nota y respuestas. |
 | `eventos_proximos` | opcional `dias` (hasta 365) y `limite`                                                                                                | los eventos desde hoy: slug, título, fechas, lugar, si está oculto, sin publicar o es borrador, y si vende entradas, vendidas, reservadas y cupo.                                                                                                                              |
 | `historial`        | `tipo` (evento, material, perfil, lugar, etiqueta, kinkipedia), `objeto` (slug o nombre); opcional `limite` (hasta 50)                | `version_actual` y `versiones`: `[{ version, cuando, quien, origen, cambios, es_la_actual?, deshacer_vuelve_aca?, sin_relaciones_guardadas? }]`. `cambios` son los nombres de los campos que cambiaron, no los valores.                                                        |
+
+Con el interruptor `formularios` prendido, `buscar` también encuentra formularios (sin `tipo` o con
+`tipo: formulario`) y `leer` con `tipo: formulario` da uno (ver [Formularios](#formularios)).
+Apagado, `formulario` ni aparece en las herramientas.
 
 Fuera de `vite dev`, los eventos de prueba de la venta (`prueba-entradas-*`) no aparecen, como en
 el buscador del panel. Cada herramienta anota en Actividad `conector.<herramienta>` con un resumen
@@ -236,6 +243,59 @@ el control de que nadie guardó en el medio y lo que sigue a un guardado). Lo qu
   etiquetas no tienen borrador: queda publicada al toque. No se deshace desde acá (es su primera
   versión): se borra desde el panel, como renombrar, mover o fusionar.
 
+## Formularios
+
+Solo con el interruptor `formularios` prendido (además de los del conector; para cambiar, los de
+cambios y una conexión con `edicion`). Apagado, `formulario` no está en el `tipo` de ninguna
+herramienta, ni en las descripciones ni en las instrucciones (`withForms` en
+`src/lib/server/mcp/formularios.js`), y pedirlo da «Los formularios están apagados…».
+Docs del área: [formularios.md](formularios.md).
+
+- **Leer**: `buscar` da tipo `formulario`, `clase` (formulario, encuesta o plantilla), slug, nombre,
+  `abierto` y `cantidad_de_respuestas`. `leer` (`tipo: formulario`, por dirección o nombre) da
+  además el texto de arriba, quién responde, el evento, la privacidad, quién ve las respuestas, las
+  preguntas (con su `id`), `url_publica` y los enlaces. **Nunca** las respuestas, los nombres ni los
+  mails de quien respondió: solo cuántas respuestas hay (el resumen y el CSV, desde el panel).
+- **Crear**: `crear_borrador` con `tipo: formulario`. Va por «Formulario nuevo» del panel y,
+  enseguida, por el «Guardar» del editor con lo que se pidió. **Nace cerrado** (no recibe
+  respuestas): `abierto: true` al crear se rechaza; abrirlo es una edición aparte. Lo que no se
+  manda sale como en «Cómo salen por defecto» (quién responde y privacidad) y «Solo admins».
+- **Editar**: `editar_objeto` con `tipo: formulario` y `objeto` (dirección o nombre). Por el
+  «Guardar» del editor y, si cambia `abierto`, por «Recibe respuestas». Las encuestas de los eventos
+  y las plantillas también, con las reglas del panel (una encuesta no cambia de dirección, de quién
+  responde ni de evento; una plantilla no se abre). La **versión** es la fecha del último guardado
+  del formulario.
+- **Las reglas son las del panel**: `checkFormSave` (`src/lib/server/formularios/admin.js`, la
+  usan el editor y el conector), que valida con `validateFormSettings` y `validateQuestions`
+  (`src/lib/utils/formularios.js`; «Varias opciones»: de 2 a 40 opciones y ninguna con «|») y que
+  el evento exista. Cada guardado queda en Actividad como en el panel (`form.create`, `form.save`,
+  `form.open`, `form.close`, a nombre de le admin), además de `conector.aplicar`.
+- **Los avisos**: si cambia la privacidad, el del editor (`privacyChangeWarning`); si cambian las
+  preguntas de uno que ya tiene respuestas, que lo que llegó no cambia (cada respuesta guarda las
+  preguntas como estaban; una pregunta sacada sigue en el resumen con lo que ya respondieron).
+- **Las preguntas** van enteras y en orden. Una que viene sin `id` toma el de una de ahora con el
+  mismo texto (así sigue siendo «la misma» en el resumen); si no, una nueva.
+- **Sin historial ni deshacer**: los formularios viven en su tabla (`forms`), no en `objects`, y
+  no guardan versiones. Cubrirlos pediría una migración (una tabla de versiones), así que
+  `historial` no los muestra y `deshacer` con `tipo: formulario` dice que no se puede. Para volver
+  atrás, otra edición.
+- **Nada de mails**: «Mandar el link a quienes tienen entrada», borrar y recuperar, el mail propio
+  y «Cómo salen por defecto», desde el panel.
+
+`cambios` de un formulario:
+
+| Campo            | Qué es                                                                                                                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `nombre`         | el nombre (de 2 a 120 letras)                                                                                                                                                                                |
+| `direccion`      | la dirección en `/formularios/…` (sin ella, sale del nombre)                                                                                                                                                 |
+| `texto`          | el texto de arriba                                                                                                                                                                                           |
+| `quien_responde` | `link` (cualquiera con el link), `cuenta` (con cuenta) o `entrada` (quienes tenían entrada para `evento`)                                                                                                    |
+| `evento`         | slug o nombre del evento; vacío, sin evento                                                                                                                                                                  |
+| `privacidad`     | `con_nombre`, `anonimo` o `que_elija`                                                                                                                                                                        |
+| `quien_ve`       | `organizadores` (admins y les organizadores del evento) o `admins`                                                                                                                                           |
+| `abierto`        | `true` (recibe respuestas) o `false`; solo al editar                                                                                                                                                         |
+| `preguntas`      | la lista entera, en orden: `[{ id?, pregunta, tipo, obligatoria?, opciones?, ayuda?, bajo?, alto? }]`; `tipo`: `texto`, `opciones`, `varias_opciones`, `casilla` o `puntaje` (`bajo` y `alto`, sus extremos) |
+
 ## Lo que no hace
 
 Nada que mande mails ni mueva plata (gorrite, 3/11): ni ventas, ni reembolsos, ni envíos, ni
@@ -327,6 +387,7 @@ claude.ai ──POST /mcp/token (code + code_verifier)           ──▶ token
 | Protocolo MCP (JSON-RPC)              | `src/lib/server/mcp/rpc.js`                                                                                                                                                                     |
 | Herramientas de lectura               | `src/lib/server/mcp/tools.js`                                                                                                                                                                   |
 | Cambios (vista previa y aplicar)      | `src/lib/server/mcp/edicion.js`, `cambios.js`, `objetos.js`, `editarPost.js`, `editarEvento.js`, `editarMaterial.js`, `editarPerfil.js`, `editarEtiqueta.js`, `borradores.js`, `crearCodigo.js` |
+| Formularios                           | `src/lib/server/mcp/formularios.js`; la validación, `checkFormSave` en `src/lib/server/formularios/admin.js`                                                                                    |
 | Historial y deshacer                  | `src/lib/server/mcp/historial.js`; la versión con relaciones en `src/lib/server/contenido/revisions.js`                                                                                         |
 | Llaves para rutinas                   | `src/lib/server/mcp/llaves.js`, Ajustes → Admins                                                                                                                                                |
 | Rutas                                 | `src/routes/mcp/` (`+server.js`, `token`, `registro`, `autorizar`) y `src/routes/.well-known/`                                                                                                  |
@@ -353,8 +414,10 @@ prueba en un preview.
 Los cambios: con `CONECTOR_CLAUDE_EDICION_ENABLED=1` también, `vista_previa` y `aplicar` sobre un
 evento de la semilla; después, la pestaña Editar muestra «Claude, confirmado por …». Deshacer:
 `historial` del mismo evento, `vista_previa` con `operacion: deshacer` y `aplicar`; el texto
-vuelve a ser el de antes. Las pruebas: `src/lib/server/mcp/*.test.js` (`deshacer.test.js`: deshacer,
-cada tipo, los borradores y lo que no se hace) y `src/lib/server/db/migration0073.test.js`.
+vuelve a ser el de antes. Formularios: con `FORMULARIOS_ENABLED=1` también, `crear_borrador` con
+`tipo: formulario`, `leer` y `editar_objeto` con `abierto: true`. Las pruebas:
+`src/lib/server/mcp/*.test.js` (`deshacer.test.js`: deshacer, cada tipo, los borradores y lo que no
+se hace; `formularios.test.js`: los formularios) y `src/lib/server/db/migration0073.test.js`.
 
 ## Lo que viene
 

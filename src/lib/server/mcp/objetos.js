@@ -37,7 +37,8 @@ export const TYPE_TEXT = /** @type {Record<string, string>} */ ({
 	perfil: 'el perfil',
 	lugar: 'el lugar',
 	etiqueta: 'la etiqueta',
-	kinkipedia: 'la entrada de la Kinkipedia de'
+	kinkipedia: 'la entrada de la Kinkipedia de',
+	formulario: 'el formulario'
 });
 
 /** El `targetType` de Actividad de cada tipo. */
@@ -47,7 +48,8 @@ export const LOG_TYPE = /** @type {Record<string, string>} */ ({
 	perfil: 'profile',
 	lugar: 'profile',
 	etiqueta: 'tag',
-	kinkipedia: 'tag'
+	kinkipedia: 'tag',
+	formulario: 'form'
 });
 
 /** El tipo de objeto de la base de cada tipo del conector. */

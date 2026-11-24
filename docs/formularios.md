@@ -38,6 +38,10 @@ gorrite: [0057](decisiones/0057-formularios.md).
   se borró).
 - **Les organizadores** ven las respuestas de los formularios de sus eventos en Mi rincón, como las
   de inscripción.
+- **El conector de Claude** ([conector-claude.md](conector-claude.md#formularios)), con este
+  interruptor prendido: busca y lee formularios (con cuántas respuestas tienen, nunca las
+  respuestas), los crea cerrados y los edita, con vista previa y por las mismas acciones del editor
+  (`checkFormSave`).
 
 Apagado, nada de esto se ve: las páginas públicas y las del panel dan 404 y el cron no manda nada.
 Las preguntas de inscripción se editan con el editor nuevo igual.

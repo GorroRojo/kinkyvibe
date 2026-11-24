@@ -87,6 +87,7 @@ import { DRAFT_TYPES, planDraft } from './borradores.js';
 import { linksFor, planUndo } from './historial.js';
 import { EDIT_TYPES, LOG_TYPE, TYPE_TEXT, editType, findTarget } from './objetos.js';
 import { ToolInputError, resolveEvent } from './tools.js';
+import { FORM_TYPE, planFormCreate, planFormEdit } from './formularios.js';
 
 /** @typedef {import('./tools.js').ToolContext} ToolContext */
 /** @typedef {import('./tools.js').ToolOutput} ToolOutput */
@@ -357,17 +358,28 @@ export async function planChange(ctx, args) {
 			if (!eventQuery) throw new ToolInputError('Falta `evento` (slug o nombre).');
 			return await planEdit(ctx, operation, 'evento', eventQuery, args.cambios);
 		}
+		if (operation === 'editar_objeto' && args.tipo === FORM_TYPE) {
+			const query = typeof args.objeto === 'string' ? args.objeto : '';
+			return await planFormEdit(ctx, operation, query, args.cambios);
+		}
 		if (operation === 'editar_objeto') {
 			const tipo = editType(args.tipo);
 			const query =
 				typeof args.objeto === 'string' ? args.objeto : tipo === 'evento' ? eventQuery : '';
 			return await planEdit(ctx, operation, tipo, query, args.cambios);
 		}
+		if (operation === 'crear_borrador' && args.tipo === FORM_TYPE) {
+			return await planFormCreate(ctx, args.cambios);
+		}
 		if (operation === 'crear_borrador') {
 			if (!DRAFT_TYPES.includes(String(args.tipo)))
 				throw new ToolInputError(`\`tipo\` de un borrador es uno de: ${DRAFT_TYPES.join(', ')}.`);
 			return await planDraft(ctx, args);
 		}
+		if (operation === 'deshacer' && args.tipo === FORM_TYPE)
+			throw new ToolInputError(
+				'Los formularios no guardan versiones (no tienen historial): no se deshacen. Para volver atrás, cambialo con `editar_objeto`.'
+			);
 		if (operation === 'deshacer') return await planUndo(ctx, args);
 		// crear_codigo
 		/** Resuelve el evento por slug o nombre (como `ventas`). */
@@ -437,6 +449,7 @@ function whatOf(p) {
 		case 'crear_codigo':
 			return `el código de descuento ${p.target}`;
 		case 'crear_borrador':
+			if (p.tipo === FORM_TYPE) return `el formulario nuevo «${p.targetTitle}»`;
 			return p.tipo === 'etiqueta'
 				? `la etiqueta nueva «${p.targetTitle}»`
 				: `un borrador de ${p.tipo} «${p.targetTitle}»`;
@@ -453,6 +466,7 @@ function doneOf(p) {
 		case 'crear_codigo':
 			return `creó el código de descuento ${p.target}`;
 		case 'crear_borrador':
+			if (p.tipo === FORM_TYPE) return `creó el formulario «${p.targetTitle}» (cerrado)`;
 			return p.tipo === 'etiqueta'
 				? `creó la etiqueta «${p.targetTitle}»`
 				: `creó un borrador de ${p.tipo} «${p.targetTitle}»`;
