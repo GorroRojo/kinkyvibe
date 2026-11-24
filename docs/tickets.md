@@ -553,16 +553,23 @@ que casi nunca pasa. Ahora cada evento puede tener **una** meta (decisión de go
 
 - **`meta_venta: entradas:30`**: entradas vendidas (órdenes aprobadas, sin las reservadas). La
   comisión no cuenta.
+- **`meta_venta: ganancia:150000`** (Mesa 24/11): la ganancia del evento ([Gastos y
+  reparto](#gastos-y-reparto), `eventProfit`): la estimada mientras la cuenta está abierta («$
+  80.000 de ganancia estimada de $ 150.000 (53 %)», con el detalle al pasar el mouse) y la del
+  cierre después. Con pérdida, la barra queda en 0 y el texto dice el monto con signo. Solo con el
+  interruptor `gastos_reparto`: el editor ofrece «Ganancia (pesos)» solo prendido (una meta ya
+  guardada se sigue viendo para poder cambiarla) y, apagado, una meta de ganancia se ve como «sin
+  meta» (el cupo). Es texto, como las otras: sin migración.
 - Sin `meta_venta`: como siempre, contra el cupo.
 - También se acepta, escrita a mano, la forma de mapa (`meta_venta: { entradas: 30 }`, una sola
   clave). Una meta que no se entiende es «sin meta»: nunca frena la venta ni el panel. El número es
-  un entero mayor a 0 (topes: $ 1.000.000.000 y 100.000 entradas).
+  un entero mayor a 0 (topes: $ 1.000.000.000 en plata y en ganancia, y 100.000 entradas).
 - Con `contenido_db` es la misma clave dentro de `extra` del objeto `evento` (como `tickets`).
   No hay migración.
 
 **Dónde se edita.** En el editor del evento (crear, duplicar y editar), sección **Entradas** ›
-**Meta de venta**: «Sin meta», «Plata (pesos)» o «Entradas» y el número. Solo con la venta
-prendida; se escribe solo si cambió (`applyTicketsForm`, `SalesGoalField.svelte`). **Duplicar** un
+**Meta de venta**: «Sin meta», «Plata (pesos)», «Entradas» o «Ganancia (pesos)» (con
+`gastos_reparto`) y el número. Solo con la venta prendida; se escribe solo si cambió (`applyTicketsForm`, `SalesGoalField.svelte`). **Duplicar** un
 evento (el formulario, la carga rápida de la agenda o la importación de la planilla) copia la meta
 del original como cualquier otro campo; en el formulario se puede cambiar antes de guardar.
 
@@ -711,16 +718,43 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   con su columna del cierre y cada parte de afuera del equipo por nombre (sin distinguir
   mayúsculas), con la cuenta vuelta a hacer desde la foto; con pérdida, lo que puso resta. Tiene
   nombres de personas: solo en esta página de admins, nunca en un CSV.
-- **La ganancia en otras páginas** (gorrite, 6/11; `estadisticas-ganancia` en el plan), solo con
-  el interruptor prendido:
-  - la ficha del evento › **Resumen**, tarjeta «La cuenta» (si vende entradas): «Ingresos de la
-    cuenta», «Gastos» y «Ganancia o pérdida» de la cuenta cerrada; empezada y sin cerrar dice «sin
-    cerrar», y sin cuenta, «—» (nunca $ 0). Lee `accountState` (`cuentas.js`);
-  - Estadísticas › Ventas › **Fondo y finanzas**: los mismos tres totales de los eventos del período
-    (y la serie) con la cuenta cerrada, con «X de Y eventos con cuenta cerrada», y el gráfico y la
-    tabla **Ganancia por mes** (`profitByMonth` en `statsPages.js`, por el mes del evento; un mes sin
-    cierres queda vacío). «Ingresos de la cuenta» no es «Cobrado»: no tiene el recargo de MP y suma
-    lo cargado a mano.
+- **La ganancia en todo el panel** (gorrite, 6/11 y Mesa 24/11: «Ganancia en todo el panel: Todo,
+  con ganancia estimada antes de cerrar»; `estadisticas-ganancia` en el plan), solo con el
+  interruptor prendido. **Un solo número** para todas las páginas: `eventProfit` en
+  `src/lib/admin/ganancia.js`.
+  - **Cuenta cerrada:** la ganancia del cierre, «Ganancia».
+  - **Cuenta abierta o sin empezar:** «Ganancia estimada» = la misma cuenta de esta página
+    (`computeAccount`) con lo que entró hasta ahora (`eventIncome`: sin el recargo de MP, el Fondo
+    orden por orden, los extras) y **lo guardado** de la cuenta (lugar, contrataciones, otros
+    gastos, otros ingresos). Sin nada guardado, sin gastos (tampoco la regla por defecto del lugar,
+    que es solo lo que precarga esta página) y con la pista «sin gastos cargados»; de un evento
+    que ya pasó, «falta cerrar la cuenta».
+  - Para las listas, `src/lib/server/tickets/ganancia.js` (`profitsQuery`): **una** consulta de tres
+    sentencias para todos los eventos (las órdenes sumadas en SQL por evento, canal y medio de
+    pago, que dan lo mismo que una por una; `event_accounts`; `event_account_closings`), que sale
+    en la misma tanda que las otras lecturas de la página. Sin el interruptor no consulta nada.
+  - **Dónde se ve:** la ficha › **Resumen**, tarjeta «La cuenta» (cerrada, sus números; abierta,
+    «Gastos cargados» y «Ganancia estimada»; sin ventas, «—»); la ficha › **Ventas**, la tarjeta
+    «Ganancia estimada» / «Ganancia» junto a «Recaudado» (lleva a esta página); el **Inicio**: en
+    cada próximo con entradas («Ganancia est.» bajo lo recaudado, y en su CSV), en la tarjeta de
+    ventas, una línea en «Entradas este mes» con la ganancia de los eventos del mes y la tarjeta
+    «Ganancia de los últimos eventos» (los que vendieron entradas en los últimos 30 días, con su
+    ganancia o «falta cerrar la cuenta»); **Panel › Eventos**: la de los que ya pasaron (y las
+    columnas «ganancia» y «ganancia es» del CSV); **Ventas › Todas las ventas**: debajo de cada
+    evento; **Estadísticas › Asistencia** › «Asistencia por evento»: la ganancia y la ganancia por
+    persona que entró (y en su CSV); el **conector** de Claude (`ventas`: `resumen.ganancia`); el
+    **bot**: el resumen del día después ([telegram.md](telegram.md)); y la **meta de ganancia**
+    ([Meta de venta](#meta-de-venta)).
+  - Estadísticas › Ventas › **Fondo y finanzas**: «Ingresos de la cuenta», «Gastos» y «Ganancia o
+    pérdida» de los eventos del período (y la serie): los cerrados con su cierre y los que ya
+    pasaron sin cerrar con su ganancia estimada (entonces la tarjeta dice «Ganancia estimada» y
+    «X de Y eventos con cuenta cerrada · Z suman su ganancia estimada»), y el gráfico y la tabla
+    **Ganancia por mes** (`profitByMonth` en `statsPages.js`, por el mes del evento; un mes sin
+    cierres ni estimadas queda vacío; el CSV suma la columna «estimadas»). «Ingresos de la cuenta»
+    no es «Cobrado»: no tiene el recargo de MP y suma lo cargado a mano.
+  - Lo que no cambió, a propósito: «Recaudado» / «Cobrado» siguen siendo lo cobrado (son ventas, no
+    ganancia), los avisos de cada venta del bot dicen lo neto de esa venta, y **Cuentas del año**
+    sigue siendo de las cuentas cerradas (es el libro de los cierres).
 - **La página** (gorrite, Mesa 5/11: más compacta): arriba, ingresos, gastos, ganancia o pérdida y
   Caja KV; abajo, cuatro tarjetas: **Ingresos** (lo que entró y otros ingresos), **Gastos** (lugar,
   contrataciones y otros gastos), **Reparto** (cada parte: nombre y lo suyo; su regla; sus marcas,

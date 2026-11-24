@@ -214,8 +214,10 @@ se puede compartir:
   (además de lo de las entradas: las suscripciones al Fondo del mes en curso, leídas de
   fondo.kinkyvibe.ar, y las propinas de Mercado Pago de esos meses con su reparto Kinky Vibe / Fondo;
   el historial mensual de suscripciones espera un endpoint de kv-fondo, #265; con el interruptor
-  `gastos_reparto`, la ganancia de las cuentas cerradas y «Ganancia por mes», ver
-  [tickets.md](tickets.md#gastos-y-reparto)).
+  `gastos_reparto`, la ganancia de las cuentas cerradas y la estimada de las que siguen abiertas, y
+  «Ganancia por mes», ver [tickets.md](tickets.md#gastos-y-reparto)). Con el mismo interruptor, la
+  ganancia (estimada hasta cerrar la cuenta) se ve también en el Inicio, Panel › Eventos, Ventas,
+  la ficha de cada evento y Asistencia (la lista, en tickets.md).
   Períodos 30 días / 90 días / **12 meses** (por defecto) / Todo, y filtro de serie (`?serie=`,
   el slug sin la fecha, como «Por serie»). Los números, «Por serie», «Cómo pagan», las opciones del
   fondo y «Fondo y finanzas» cuentan por el **mes del evento** (ver «Ventas por mes» abajo): las
