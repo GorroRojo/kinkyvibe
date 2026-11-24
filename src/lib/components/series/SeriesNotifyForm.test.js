@@ -45,3 +45,20 @@ describe('SeriesNotifyForm', () => {
 		expect(h).not.toContain('/mi-rincon/sigo');
 	});
 });
+
+describe('SeriesNotifyForm `bare` (dentro de la tarjeta de la serie)', () => {
+	it('sin tarjeta ni título propios, con el mismo formulario', () => {
+		const h = html({ member: false, bare: true });
+		expect(h).not.toContain('surface-card');
+		expect(h).not.toContain('<h2');
+		expect(h).not.toContain('Avisame si se repite');
+		expect(h).toMatch(/<input[^>]*type="email"/);
+		expect(h).toContain('action="/avisos?/suscribir"');
+	});
+
+	it('sin `bare`, como siempre: tarjeta y título', () => {
+		const h = html({ member: false });
+		expect(h).toContain('surface-card');
+		expect(h).toContain('Avisame si se repite');
+	});
+});

@@ -10,6 +10,8 @@
 	 * - `sigo`: con cuenta, «Avisame» es seguir la serie en «Lo que sigo» (los textos lo dicen y
 	 *   llevan a Mi rincón → Lo que sigo).
 	 * - `heading`: título del bloque.
+	 * - `bare`: sin tarjeta ni título propios, para ir dentro de otra tarjeta (la de la serie en la
+	 *   página de un evento, SeriesFollowCard.svelte).
 	 */
 	import { enhance } from '$app/forms';
 	import { BellRing } from '@lucide/svelte';
@@ -22,6 +24,7 @@
 	export let subscribed = false;
 	export let sigo = false;
 	export let heading = 'Avisame si se repite';
+	export let bare = false;
 
 	let busy = false;
 	let message = '';
@@ -60,8 +63,14 @@
 	};
 </script>
 
-<section class="series-notify surface-card" aria-label={heading}>
-	<h2><BellRing size={20} aria-hidden="true" /> {heading}</h2>
+<svelte:element
+	this={bare ? 'div' : 'section'}
+	class="series-notify"
+	class:surface-card={!bare}
+	class:bare
+	aria-label={bare ? undefined : heading}
+>
+	{#if !bare}<h2><BellRing size={20} aria-hidden="true" /> {heading}</h2>{/if}
 	{#if message}
 		<p class="ok" role="status">{message}</p>
 	{/if}
@@ -118,7 +127,7 @@
 			<button class="pill-btn" type="submit" disabled={busy}>Avisame</button>
 		</form>
 	{/if}
-</section>
+</svelte:element>
 
 <style>
 	.series-notify {
@@ -127,6 +136,11 @@
 		width: min(40rem, 100%);
 		margin: 1.5em auto 0;
 		border-top: 0.3rem solid var(--2);
+	}
+	.series-notify.bare {
+		width: auto;
+		margin: 0;
+		border-top: 0;
 	}
 	h2 {
 		display: flex;

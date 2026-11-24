@@ -920,7 +920,7 @@ apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `li
   **página del evento**, nunca directo a comprar: con la lista de espera prendida (interruptor
   `lista_espera` y `waitlist` en el evento; `waitlist: true` en el estado de la lista,
   `listStates.js`) lleva a `#entradas` con «Anotate en la lista de espera»; sin lista, a `#seguir`
-  (el «Seguir la serie» de la página, ver [lo-que-sigo.md](lo-que-sigo.md)) con «Avisame la
+  (la tarjeta de la serie en la página, ver [lo-que-sigo.md](lo-que-sigo.md)) con «Avisame la
   próxima». Sale de `ticketCta` (`followUp`, `soldOutFollowUp`). El estado de las listas no mira
   si todavía queda un alcance donde anotarse (sería una consulta por evento): si ya no, la página
   dice «Agotadas.» sin formulario. En las tarjetas del sitio el link se suma recién al montar (un

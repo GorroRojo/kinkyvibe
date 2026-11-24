@@ -299,7 +299,7 @@
 
 	<Quienes groups={data.personas} tags={data.meta.tags ?? []} wikiTags={data.wikiTags ?? []} />
 
-	{#if data.series}<Serie series={data.series} {past} origin={$page.url.origin} />{/if}
+	{#if data.series}<Serie series={data.series} origin={$page.url.origin} />{/if}
 
 	<!-- La propina solo en eventos gratis de KinkyVibe (decisión de gorrite). -->
 	{#if showEventTip(data.meta)}
