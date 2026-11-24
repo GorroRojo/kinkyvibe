@@ -194,6 +194,8 @@ export async function load({ locals, url, platform, fetch }) {
 	return {
 		// «Extras» en la sección Entradas (interruptor `extras`, decisión 0056).
 		extrasEnabled: await isFlagOn(getDB(platform), 'extras'),
+		// La meta de ganancia, con Gastos y reparto (interruptor `gastos_reparto`).
+		profitGoal: await isFlagOn(getDB(platform), 'gastos_reparto'),
 		source,
 		seriesPrompt,
 		...editor,

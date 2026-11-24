@@ -86,6 +86,8 @@
 	export let waitlistLive = null;
 	/** «Extras» (interruptor `extras`, decisión 0056): apagado, la sección no se ve. */
 	export let extrasEnabled = false;
+	/** Ofrece la meta de ganancia (interruptor `gastos_reparto`). */
+	export let profitGoal = false;
 	/**
 	 * Vendidos y reservados por extra (al editar; `null` = evento nuevo o sin datos). Un extra que ya
 	 * vendió no se puede sacar, como un tipo de entrada (se deja de vender con el tope en 0).
@@ -456,7 +458,12 @@
 				on:click={addType}>+ Agregar tipo de entrada</button
 			>
 
-			<SalesGoalField bind:kind={state.goalKind} bind:value={state.goalValue} {idPrefix} />
+			<SalesGoalField
+				bind:kind={state.goalKind}
+				bind:value={state.goalValue}
+				{idPrefix}
+				{profitGoal}
+			/>
 
 			<WaitlistField
 				bind:scope={state.waitlistScope}

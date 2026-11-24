@@ -16,6 +16,8 @@
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
 	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
 	import { goalProgress } from '$lib/utils/salesGoal.js';
+	import { formatSignedARS } from '$lib/utils/money.js';
+	import { pastProfitHint, profitLabel } from '$lib/admin/ganancia.js';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { eventHref, eventPanelLink } from '$lib/admin/nav.js';
@@ -277,6 +279,16 @@
 								>
 								<CapacityBar sold={e.sold} capacity={e.capacity} />
 							{/if}
+							{#if e.profit && !upcoming(e)}
+								<!-- Gastos y reparto: la ganancia de los que ya pasaron. -->
+								<small class="profit num" class:neg={e.profit.amount < 0}
+									>{profitLabel(e.profit)}: {formatSignedARS(
+										e.profit.amount
+									)}{#if pastProfitHint(e.profit)}<span class="muted">
+											· {pastProfitHint(e.profit)}</span
+										>{/if}</small
+								>
+							{/if}
 						{/if}
 					</div>
 					<div class="actions">
@@ -325,6 +337,12 @@
 </Card>
 
 <style>
+	.profit {
+		font-size: var(--text-xs);
+	}
+	.profit.neg {
+		color: var(--bad);
+	}
 	.tools {
 		display: flex;
 		flex-wrap: wrap;

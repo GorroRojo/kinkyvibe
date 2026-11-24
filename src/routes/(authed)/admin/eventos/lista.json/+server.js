@@ -10,6 +10,7 @@ import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { listedRows, olderPage, panelEventRows, withSales } from '$lib/server/eventos/panelList.js';
 import { todayInArgentina } from '$lib/utils/eventDraft.js';
+import { profitsEnabled } from '$lib/server/tickets/ganancia.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ locals, url, platform }) {
@@ -21,7 +22,7 @@ export async function GET({ locals, url, platform }) {
 	if (q === null && offset === null) error(400, 'Falta `q` o `anteriores`.');
 	const db = getDB(platform);
 	// Con la base, como la página: así «Ver anteriores» no repite ni pierde ninguno.
-	const rows = await panelEventRows(db);
+	const [rows, profits] = await Promise.all([panelEventRows(db), profitsEnabled(platform)]);
 	const page =
 		q !== null
 			? {
@@ -29,7 +30,7 @@ export async function GET({ locals, url, platform }) {
 					remaining: 0
 				}
 			: olderPage(rows, today, { offset: Number(offset) });
-	const events = await withSales(db, page.events, now);
+	const events = await withSales(db, page.events, now, { profits });
 	return json(
 		{ events, remaining: page.remaining },
 		{ headers: { 'cache-control': 'private, no-store' } }

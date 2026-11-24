@@ -992,6 +992,26 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'admin_ayer',
+		label: 'Avisos (admins): el día después de un evento (con Gastos y reparto)',
+		keys: [
+			'admin.ayer_titulo',
+			'admin.ayer_vendidas',
+			'admin.ayer_ganancia',
+			'admin.ayer_falta_cerrar'
+		],
+		build: (t) => ({
+			html: [
+				t('admin.ayer_titulo', { evento: 'Fiesta de ejemplo' }),
+				t('admin.ayer_vendidas', { vendidas: '48/50' }),
+				t('admin.ayer_falta_cerrar', { monto: '+$ 95.000' }),
+				'',
+				t('admin.ayer_ganancia', { monto: '+$ 120.000' })
+			].join('\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
 		id: 'admin_dia',
 		label: 'Avisos (admins): el día del evento',
 		keys: ['admin.dia_titulo', 'admin.falta_lugar'],

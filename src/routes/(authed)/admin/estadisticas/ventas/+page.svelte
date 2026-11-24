@@ -42,9 +42,13 @@
 		[when, s?.previous ? changeText(cur, prev, period) : ''].filter(Boolean).join(' · ');
 
 	$: pr = s?.profit ?? null;
-	/** «X de Y eventos con cuenta cerrada». */
+	/** «X de Y eventos con cuenta cerrada» (y cuántos suman su ganancia estimada). */
 	$: closedText = pr
-		? `${pr.closed} de ${pr.events} ${pr.events === 1 ? 'evento' : 'eventos'} con cuenta cerrada`
+		? `${pr.closed} de ${pr.events} ${pr.events === 1 ? 'evento' : 'eventos'} con cuenta cerrada${
+				pr.estimated
+					? ` · ${pr.estimated} ${pr.estimated === 1 ? 'suma su ganancia estimada' : 'suman su ganancia estimada'}`
+					: ''
+			}`
 		: '';
 	/** @param {number | null} v */
 	const money = (v) => (v === null ? '—' : formatARS(v));
@@ -245,9 +249,15 @@
 				{/if}
 				{#if pr}
 					<Stat label="Ingresos de la cuenta" value={money(pr.totals.income)} sub={closedText} />
-					<Stat label="Gastos" value={money(pr.totals.expenses)} sub="de las cuentas cerradas" />
 					<Stat
-						label="Ganancia o pérdida"
+						label="Gastos"
+						value={money(pr.totals.expenses)}
+						sub={pr.estimated
+							? 'de las cuentas cerradas y los cargados hasta ahora'
+							: 'de las cuentas cerradas'}
+					/>
+					<Stat
+						label={pr.estimated ? 'Ganancia estimada' : 'Ganancia o pérdida'}
 						value={pr.totals.profit === null ? '—' : formatSignedARS(pr.totals.profit)}
 						sub="ingresos de la cuenta − gastos"
 						tone={pr.totals.profit === null
@@ -310,8 +320,12 @@
 							]}
 							format={formatARS}
 							csv="ganancia-por-mes"
-							csvColumns={[col('month', 'clave'), col('closed', 'cuentas cerradas')]}
-							empty="Ninguna cuenta cerrada en este período."
+							csvColumns={[
+								col('month', 'clave'),
+								col('closed', 'cuentas cerradas'),
+								col('estimated', 'estimadas')
+							]}
+							empty="Ninguna cuenta cerrada ni ganancia estimada en este período."
 						/>
 					</div>
 				{/if}
@@ -343,10 +357,11 @@
 					href="/admin/estadisticas/propinas">Propinas</a
 				>.
 				{#if pr}
-					«Ingresos de la cuenta», «Gastos» y «Ganancia» salen de las cuentas cerradas de cada
-					evento (Gastos y reparto, en su ficha): no incluyen el recargo de Mercado Pago y suman lo
+					«Ingresos de la cuenta», «Gastos» y «Ganancia» salen de la cuenta de cada evento (Gastos y
+					reparto, en su ficha): la cerrada o, si todavía no se cerró, la estimada (lo que entró
+					menos los gastos cargados hasta ahora). No incluyen el recargo de Mercado Pago y suman lo
 					que se cargó a mano (otros ingresos), por eso no coinciden con «Cobrado». Un mes sin
-					cuentas cerradas queda vacío; el detalle por evento, en
+					eventos con cuenta queda vacío; el detalle por evento, en
 					<a href="/admin/ventas/cuentas">Cuentas del año</a>.
 				{/if}
 			</p>

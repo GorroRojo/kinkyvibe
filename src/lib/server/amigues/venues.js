@@ -166,6 +166,28 @@ export async function eventsWithVenueAmong(db, slugs) {
 }
 
 /**
+ * La regla por defecto del lugar (`venue_cost_rules`, migración 0078) de varios eventos a la vez,
+ * o de todos (`null`), como UNA sentencia para ir en tanda ($lib/server/db/batch.js): filas
+ * `event_slug`, `rule` (el JSON guardado). Los mismos lugares que {@link eventVenue} (existe, no
+ * está borrado y es un lugar); sin lugar o sin regla, el evento no sale. Para la ganancia estimada
+ * de las listas (src/lib/server/tickets/ganancia.js), igual que `getVenueRule` en Gastos y reparto.
+ *
+ * @param {D1Database} db
+ * @param {string[] | null} slugs
+ */
+export function eventVenueRulesStatement(db, slugs) {
+	const where = `?1 IS NULL OR ${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`;
+	return db
+		.prepare(
+			`SELECT l.event_slug, r.rule FROM (${lugarLinksSql(where)}) l
+			JOIN objects o ON o.id = l.venue_id
+			JOIN venue_cost_rules r ON r.venue_id = o.id
+			WHERE o.type = ?2 AND o.deleted_at IS NULL AND json_extract(o.data, '$.kind') = 'lugar'`
+		)
+		.bind(slugs === null ? null : JSON.stringify(slugs), PROFILE_TYPE);
+}
+
+/**
  * Lo que la página pública de un evento puede mostrar de su lugar. `null` si el evento no tiene
  * lugar (la página muestra lo de su .md, como siempre). Si quien mira no puede ver el lugar (oculto,
  * solo con cuenta o sin aprobar), es como el nivel "oculto".

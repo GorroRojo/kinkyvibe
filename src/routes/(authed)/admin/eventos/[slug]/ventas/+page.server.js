@@ -1,6 +1,7 @@
 /**
  * Ficha del evento, pestaña Ventas: números (y la meta de venta, si tiene), por tipo, por día,
- * cómo pagaron, Fondo y códigos.
+ * cómo pagaron, Fondo y códigos. Con el interruptor `gastos_reparto`, arriba la ganancia
+ * (estimada hasta cerrar la cuenta; $lib/admin/ganancia.js).
  */
 import { error, redirect } from '@sveltejs/kit';
 import { eventHref } from '$lib/admin/nav.js';
@@ -17,6 +18,7 @@ import { previousEditionSales } from '$lib/server/tickets/salesHistory.js';
 import { goalProgress } from '$lib/utils/salesGoal.js';
 import { extrasEnabled } from '$lib/server/flags.js';
 import { extrasSummary } from '$lib/server/tickets/extras.js';
+import { eventProfits } from '$lib/server/tickets/ganancia.js';
 import {
 	codesUsed,
 	fondoBreakdown,
@@ -39,13 +41,17 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 	if (!db) error(503, 'No hay base de datos disponible.');
 	const now = Date.now();
 	const eventStart = toTime(config.start);
-	const [orders, counts, previous, extras] = await Promise.all([
+	const [orders, counts, previous, extras, profits] = await Promise.all([
 		listOrders(db, params.slug),
 		getCounts(db, params.slug, now),
 		previousSales(db, params.slug, eventStart),
 		// Extras de la compra (interruptor `extras`, decisión 0056): aparte de lo de las entradas.
-		extrasEnabled(platform).then((on) => (on ? extrasSummary(db, params.slug) : null))
+		extrasEnabled(platform).then((on) => (on ? extrasSummary(db, params.slug) : null)),
+		// La ganancia (Gastos y reparto): `null` con el interruptor apagado.
+		eventProfits(db, platform, [params.slug])
 	]);
+	// Sin ventas ni cierre (o si no se pudo leer), la ganancia no se muestra.
+	const profit = profits?.get(params.slug) ?? null;
 	const types = config.types.map((t) => {
 		const c = counts.get(t.id);
 		return {
@@ -107,7 +113,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		},
 		// Avance contra la meta de venta (`meta_venta`; la de plata, neta de la comisión de MP), o
 		// null: entonces, contra el cupo.
-		progress: goalProgress(config.goal, { sold, revenue, mpFee, mpFeeEstimated }),
+		progress: goalProgress(config.goal, { sold, revenue, mpFee, mpFeeEstimated, profit }),
+		profit,
 		perDay: salesPerDay(orders, { now }),
 		closes,
 		payments: paymentSplit(orders),

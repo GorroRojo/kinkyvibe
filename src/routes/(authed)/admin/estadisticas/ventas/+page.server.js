@@ -17,6 +17,7 @@ import { tipsByMonthDestination } from '$lib/server/propinas/index.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { gastosRepartoEnabled } from '$lib/server/flags.js';
 import { accountsReady, listClosingsBetween } from '$lib/server/tickets/cuentas.js';
+import { eventProfits } from '$lib/server/tickets/ganancia.js';
 import { arMidnight } from '$lib/utils/dates.js';
 import {
 	SALES_DEFAULT_PERIOD,
@@ -80,10 +81,12 @@ export async function load({ locals, url, platform, setHeaders }) {
 		// El período y el anterior (para comparar los números de arriba); con «todo», todas.
 		const { prevFrom } = periodRange(period, now);
 		const closingsP = loadClosings(db, platform);
+		// La ganancia estimada de los eventos sin cerrar (con el mismo interruptor).
+		const profitsP = eventProfits(db, platform, null);
 		const orders = await loadPeopleOrders(db, { since: prevFrom });
 		const events = await loadEventInfo(orders);
-		const closings = await closingsP;
-		const sales = salesPage(orders, events, { period, serie, now, closings });
+		const [closings, profits] = await Promise.all([closingsP, profitsP]);
+		const sales = salesPage(orders, events, { period, serie, now, closings, profits });
 		const [fondoMonth, tips] = await Promise.all([
 			resolveFondoMonth({ db, fetch, now }),
 			loadTips(

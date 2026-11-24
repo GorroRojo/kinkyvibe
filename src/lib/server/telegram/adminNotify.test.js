@@ -793,6 +793,95 @@ describe('el resumen diario (cron)', () => {
 		expectNoSecrets(text);
 	});
 
+	it('el día después, con Gastos y reparto: la ganancia estimada y que falta cerrar la cuenta', async () => {
+		const ayer = { ...CONFIG, start: '2031-01-07T18:00:00-03:00' };
+		const listAyer = async () => [{ slug: SLUG, config: /** @type {any} */ (ayer) }];
+		const tg = telegram();
+		// Apagado: nada (y el evento de ayer ya no tiene resumen diario).
+		expect(await run({ send: tg.send, list: listAyer })).toEqual({
+			sent: 0,
+			failed: 0,
+			events: 0
+		});
+		await setFlag(t.db, 'gastos_reparto', true, { by: 'prueba' });
+		clearFlagCache();
+		expect(await run({ send: tg.send, list: listAyer })).toEqual({
+			sent: 1,
+			failed: 0,
+			events: 1
+		});
+		const text = tg.sent[0].text;
+		expect(text).toContain('🌙 <b>Ayer · Fiesta inventada</b>');
+		expect(text).toContain('🎟 Vendidas: 4\n');
+		expect(text).toMatch(/💰 Ganancia estimada: <b>\+\$\s[\d.]+<\/b> · falta cerrar la cuenta/);
+		expectNoSecrets(text);
+		// Una vez por día.
+		expect(await run({ send: tg.send, list: listAyer, now: MORNING + 900_000 })).toMatchObject({
+			sent: 0
+		});
+		expect(tg.sent).toHaveLength(1);
+		expect(tg.sent[0].text).not.toContain('Resumen diario');
+	});
+
+	describe('un evento de ayer que todavía cuenta como de hoy (terminó a la madrugada)', () => {
+		const tarde = { ...CONFIG, start: '2031-01-07T23:00:00-03:00' };
+		const listTarde = async () => [{ slug: SLUG, config: /** @type {any} */ (tarde) }];
+		beforeEach(async () => {
+			await setFlag(t.db, 'gastos_reparto', true, { by: 'prueba' });
+			clearFlagCache();
+		});
+
+		it('con movimiento: un solo mensaje, el resumen diario con la ganancia, y no se repite', async () => {
+			const tg = telegram();
+			expect(await run({ send: tg.send, list: listTarde })).toEqual({
+				sent: 1,
+				failed: 0,
+				events: 1
+			});
+			const text = tg.sent[0].text;
+			expect(text).toContain('☀️ <b>Resumen diario · Fiesta inventada</b>');
+			expect(text).toContain('🎟 Desde ayer a las 9:00: 3 vendidas · en total: 4');
+			expect(text).toMatch(/💰 Ganancia estimada: <b>\+\$\s[\d.]+<\/b> · falta cerrar la cuenta/);
+			expect(text).not.toContain('🌙');
+			expectNoSecrets(text);
+			// Ni en la corrida siguiente (todavía «hoy») ni a la tarde (ya no): ningún «Ayer» aparte.
+			await run({ send: tg.send, list: listTarde, now: MORNING + 900_000 });
+			await run({ send: tg.send, list: listTarde, now: AFTERNOON });
+			expect(tg.sent).toHaveLength(1);
+		});
+
+		it('sin movimiento desde ayer: el «Ayer» aparte, una sola vez', async () => {
+			await t.db.prepare('DELETE FROM orders').run();
+			await order({ tier: 'p1', status: 'approved', at: MORNING - 3 * 86_400_000 });
+			const tg = telegram();
+			expect(await run({ send: tg.send, list: listTarde })).toEqual({
+				sent: 1,
+				failed: 0,
+				events: 1
+			});
+			expect(tg.sent[0].text).toContain('🌙 <b>Ayer · Fiesta inventada</b>');
+			await run({ send: tg.send, list: listTarde, now: MORNING + 900_000 });
+			await run({ send: tg.send, list: listTarde, now: AFTERNOON });
+			expect(tg.sent).toHaveLength(1);
+		});
+
+		it('si el resumen con la ganancia falla, no sale el «Ayer» en la misma corrida', async () => {
+			const failed = telegram('failed');
+			expect(await run({ send: failed.send, list: listTarde })).toEqual({
+				sent: 0,
+				failed: 1,
+				events: 1
+			});
+			expect(failed.sent).toHaveLength(1);
+			// Ya no es «hoy»: le llega el «Ayer» (una vez).
+			const tg = telegram();
+			await run({ send: tg.send, list: listTarde, now: AFTERNOON });
+			await run({ send: tg.send, list: listTarde, now: AFTERNOON + 900_000 });
+			expect(tg.sent).toHaveLength(1);
+			expect(tg.sent[0].text).toContain('🌙 <b>Ayer · Fiesta inventada</b>');
+		});
+	});
+
 	it('no se repite en el día (ni en la corrida siguiente), y al otro día sí', async () => {
 		const tg = telegram();
 		await run({ send: tg.send });

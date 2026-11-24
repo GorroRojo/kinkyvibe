@@ -28,6 +28,9 @@ import {
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { getCounts, foldText } from '$lib/server/tickets/orders.js';
 import { fondoOptionLabel } from '$lib/utils/tickets.js';
+import { isFlagOn } from '$lib/server/flags.js';
+import { runQuery } from '$lib/server/db/batch.js';
+import { profitsQuery } from '$lib/server/tickets/ganancia.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -390,7 +393,8 @@ export const TOOLS = {
 			title: 'Ventas de un evento',
 			description:
 				'Resumen de la venta de entradas de un evento (vendidas, reservadas, cupo, recaudado, ' +
-				'neto, Fondo, por tipo de entrada) y la lista de sus órdenes (referencia, nombre, mail, ' +
+				'neto, Fondo, ganancia si Gastos y reparto está prendido, por tipo de entrada) y la ' +
+				'lista de sus órdenes (referencia, nombre, mail, ' +
 				'tipo, cantidad, total, medio de pago, estado, fecha, cuántes ingresaron y lo demás que ' +
 				'muestra la pestaña Órdenes del panel: últimos 3 del DNI, pago de Mercado Pago, entradas, ' +
 				'respuestas, nota). El evento va por slug o nombre.',
@@ -453,11 +457,12 @@ export const TOOLS = {
 					log
 				};
 			}
-			const [counts, { rows }] = await Promise.all([
+			const [counts, { rows }, profit] = await Promise.all([
 				getCounts(ctx.db, slug, ctx.now),
-				eventOrderRows(ctx.db, slug, config, ctx.now)
+				eventOrderRows(ctx.db, slug, config, ctx.now),
+				ventasProfit(ctx.db, slug)
 			]);
-			const s = summarizeEvent({ slug, config }, counts, { now: ctx.now });
+			const s = summarizeEvent({ slug, config }, counts, { now: ctx.now, profit });
 			const wanted = STATUS_FILTER[estado];
 			const filtered = rows.filter((o) => !wanted || wanted.includes(o.status));
 			/** @type {Record<string, number>} */
@@ -482,6 +487,13 @@ export const TOOLS = {
 						fondo_usado: s.fondoUsed,
 						aportes_al_fondo: s.contribution,
 						recargos: s.surcharge,
+						// Gastos y reparto: la del cierre o la estimada (lo que entró − gastos cargados).
+						ganancia: profit && {
+							monto: profit.amount,
+							es: profit.closed ? 'la de la cuenta cerrada' : 'estimada (cuenta sin cerrar)',
+							sin_gastos_cargados: !profit.closed && profit.noExpenses,
+							con_regla_del_lugar: !profit.closed && profit.venueDefault
+						},
 						meta: s.progress,
 						por_tipo: s.types.map((t) => ({
 							tipo: t.name,
@@ -577,4 +589,19 @@ export function toolList() {
 			openWorldHint: false
 		}
 	}));
+}
+
+/**
+ * La ganancia de un evento para `ventas` (Gastos y reparto; $lib/admin/ganancia.js), o `null`
+ * con el interruptor apagado, sin ventas ni cierre, o si no se puede leer.
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function ventasProfit(db, slug) {
+	try {
+		if (!(await isFlagOn(db, 'gastos_reparto'))) return null;
+		return (await runQuery(db, profitsQuery([slug]))).get(slug) ?? null;
+	} catch {
+		return null;
+	}
 }

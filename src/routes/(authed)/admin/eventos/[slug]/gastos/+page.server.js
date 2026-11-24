@@ -13,8 +13,8 @@ import {
 	cleanVenueRule,
 	closingSummary,
 	computeAccount,
-	emptyAccount,
-	eventIncome
+	eventIncome,
+	shownAccount
 } from '$lib/admin/reparto.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { eventVenue } from '$lib/server/amigues/venues.js';
@@ -109,7 +109,7 @@ export async function load(event) {
 	return {
 		missingMigration: ready ? null : MISSING_MIGRATION,
 		income,
-		account: saved?.data ?? emptyAccount(venue?.rule ?? null),
+		account: shownAccount(saved?.data, venue?.rule ?? null),
 		version: saved?.version ?? 0,
 		updatedAt: saved?.updatedAt ?? null,
 		updatedBy: saved?.updatedBy ?? null,

@@ -6,6 +6,7 @@ import { listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { ordersNeedingReview } from '$lib/server/tickets/orders.js';
 import { countUninvoicedOrders } from '$lib/server/admin/invoiced.js';
+import { eventProfits } from '$lib/server/tickets/ganancia.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders, fetch }) {
@@ -19,6 +20,8 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 		? [ordersNeedingReview(db), getAllCounts(db, now)]
 		: [Promise.resolve([]), Promise.resolve(new Map())];
 	const settled = Promise.allSettled([toReview, allCounts]);
+	// La ganancia de cada evento (con Gastos y reparto; `null` apagado), a la par.
+	const profitsP = eventProfits(db, platform, null);
 	// Compras para facturar (el número del botón): si falla, el botón va sin número.
 	const toInvoice = db
 		? countUninvoicedOrders(db).catch((e) => {
@@ -42,8 +45,13 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 			else counts = c.value;
 		}
 	}
+	const profits = await profitsP;
 	const rows = events.map((e) =>
-		summarizeEvent(e, counts.get(e.slug), { now, review: review.get(e.slug) ?? 0 })
+		summarizeEvent(e, counts.get(e.slug), {
+			now,
+			review: review.get(e.slug) ?? 0,
+			profit: profits?.get(e.slug) ?? null
+		})
 	);
 	// Próximos: el más cercano primero. Pasados: el más reciente primero (ya vienen así).
 	const upcoming = rows.filter((e) => e.upcoming).reverse();

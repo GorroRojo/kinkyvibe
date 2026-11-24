@@ -25,6 +25,8 @@ import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { formulariosEnabled, gastosRepartoEnabled } from '$lib/server/flags.js';
 import { accountState, accountsReady } from '$lib/server/tickets/cuentas.js';
+import { profitsQuery } from '$lib/server/tickets/ganancia.js';
+import { runQuery } from '$lib/server/db/batch.js';
 import { eventForms } from '$lib/server/formularios/store.js';
 import {
 	DOOR_LINK_MIN_MS,
@@ -107,7 +109,8 @@ async function formsFor(db, platform, slug) {
 
 /**
  * «La cuenta» del evento (Gastos y reparto): `null` con el interruptor apagado, sin entradas, sin
- * base, sin la migración 0078 o si falla (la tarjeta no se ve). Si no está cerrada, sin números.
+ * base, sin la migración 0078 o si falla (la tarjeta no se ve). Si no está cerrada, los números
+ * estimados (lo que entró y los gastos cargados hasta ahora; $lib/admin/ganancia.js).
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
  * @param {App.Platform | undefined} platform
  * @param {string} slug
@@ -117,13 +120,29 @@ async function accountFor(db, platform, slug, sellsTickets) {
 	if (!db || !sellsTickets || !(await gastosRepartoEnabled(platform))) return null;
 	try {
 		if (!(await accountsReady(db))) return null;
-		const a = await accountState(db, slug);
-		if (a.state !== 'closed') return { state: a.state, income: null, expenses: null, profit: null };
+		const [a, profits] = await Promise.all([
+			accountState(db, slug),
+			runQuery(db, profitsQuery([slug]))
+		]);
+		if (a.state === 'closed') {
+			return {
+				state: a.state,
+				income: a.closing.income_total,
+				expenses: a.closing.expenses_total,
+				profit: a.closing.profit,
+				noExpenses: false,
+				venueDefault: false
+			};
+		}
+		// Abierta o sin empezar: lo estimado (sin ventas, sin números).
+		const p = profits.get(slug);
 		return {
 			state: a.state,
-			income: a.closing.income_total,
-			expenses: a.closing.expenses_total,
-			profit: a.closing.profit
+			income: p?.income ?? null,
+			expenses: p?.expenses ?? null,
+			profit: p?.amount ?? null,
+			noExpenses: p?.noExpenses ?? false,
+			venueDefault: p?.venueDefault ?? false
 		};
 	} catch (e) {
 		logDBError('la cuenta en la ficha', e);
