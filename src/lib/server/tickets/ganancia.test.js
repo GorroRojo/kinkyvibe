@@ -12,6 +12,7 @@ import { listOrders } from './orders.js';
 import { closeAccount, saveAccount } from './cuentas.js';
 import { profitsQuery } from './ganancia.js';
 import { runQuery } from '$lib/server/db/batch.js';
+import { withSales } from '$lib/server/eventos/panelList.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -115,5 +116,20 @@ describe('profitsQuery', () => {
 		const q = profitsQuery([]);
 		expect(q.statements(t.db)).toEqual([]);
 		expect(await runQuery(t.db, q)).toEqual(new Map());
+	});
+});
+
+describe('Panel → Eventos (withSales)', () => {
+	/** @param {string} slug @param {boolean} sellsTickets */
+	const row = (slug, sellsTickets) => /** @type {any} */ ({ slug, sellsTickets, i: 0 });
+
+	it('con Gastos y reparto, la ganancia de los que venden entradas; apagado, nada', async () => {
+		await seed('uno');
+		const rows = [row('uno', true), row('sin-entradas', false), row('sin-ventas', true)];
+		const on = await withSales(t.db, rows, 1, { profits: true });
+		const expected = (await runQuery(t.db, profitsQuery(['uno']))).get('uno');
+		expect(on.map((e) => e.profit)).toEqual([expected, null, null]);
+		const off = await withSales(t.db, rows, 1);
+		expect(off.some((e) => 'profit' in e)).toBe(false);
 	});
 });
