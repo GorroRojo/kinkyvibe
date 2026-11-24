@@ -173,7 +173,10 @@ export async function revokeAllLlaves(db, adminId, now = Date.now()) {
  * @param {D1Database} db
  * @param {unknown} token
  * @param {number} [now]
- * @returns {Promise<{ id: number, login: string } | null>}
+ * `llave`: cuál (su id y su nombre), para el tope de subidas por llave y para anotar qué rutina
+ * subió algo a la biblioteca (./biblioteca.js).
+ *
+ * @returns {Promise<{ id: number, login: string, llave: { id: number, name: string } } | null>}
  */
 export async function llaveAdmin(db, token, now = Date.now()) {
 	if (!looksLikeLlave(token)) return null;
@@ -198,7 +201,7 @@ export async function llaveAdmin(db, token, now = Date.now()) {
 			.bind(llave.id, now)
 			.run();
 	}
-	return { id: admin.id, login: admin.login };
+	return { id: admin.id, login: admin.login, llave: { id: llave.id, name: llave.name } };
 }
 
 /**
@@ -212,7 +215,8 @@ export async function llaveAdmin(db, token, now = Date.now()) {
  * Una llave cuenta como con permiso de cambiar (`canEdit`): le admin la crea a propósito para una
  * rutina. Un token de OAuth, solo si se dio con `edicion` (./oauth.js).
  *
- * @returns {Promise<{ id: number, login: string, canEdit: boolean, via: 'llave' | 'oauth' } | null>}
+ * @returns {Promise<{ id: number, login: string, canEdit: boolean, via: 'llave' | 'oauth',
+ *   llave?: { id: number, name: string } } | null>}
  */
 export async function mcpAdmin(db, request, origin, now = Date.now()) {
 	const m = /^Bearer (kvc1_[A-Za-z0-9_-]+)$/.exec(request.headers.get('authorization') ?? '');
