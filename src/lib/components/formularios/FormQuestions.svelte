@@ -111,7 +111,6 @@
 					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</legend
 				>
 				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
-				<small class="hint">Elegí las que quieras.</small>
 				<div class="multi">
 					{#each q.options as o (o)}
 						<label class="multi-option"
@@ -323,10 +322,6 @@
 		margin: 0.1em 0 0;
 		flex: none;
 		accent-color: var(--2-dark, var(--2));
-	}
-	.hint {
-		color: var(--muted);
-		margin-top: -0.35em;
 	}
 	.field {
 		display: flex;
