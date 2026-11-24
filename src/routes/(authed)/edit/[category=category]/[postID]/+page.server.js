@@ -100,6 +100,8 @@ export async function _editLoad({ locals, params, url, platform, fetch: fetchFn 
 		// «Extras» en la sección Entradas (interruptor `extras`, decisión 0056).
 		isEvent ? isFlagOn(db, 'extras') : false,
 		isEvent ? extrasSalesFor(db, params.postID) : null,
+		// La meta de ganancia, con Gastos y reparto (interruptor `gastos_reparto`).
+		isEvent ? isFlagOn(db, 'gastos_reparto') : false,
 		// «Lugar» del formulario: los lugares y el elegido (edge `lugar` del evento, no en el archivo).
 		isEvent ? venuePickerData(db, params.postID) : null,
 		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
@@ -122,6 +124,7 @@ export async function _editLoad({ locals, params, url, platform, fetch: fetchFn 
 		waitlistLive,
 		extrasEnabled,
 		extrasSales,
+		profitGoal,
 		venuePicker,
 		transfer,
 		editor,
@@ -135,6 +138,7 @@ export async function _editLoad({ locals, params, url, platform, fetch: fetchFn 
 		waitlistLive,
 		extrasEnabled,
 		extrasSales,
+		profitGoal,
 		venuePicker,
 		salesUnavailable: isEvent && sales === null,
 		transferReady: transfer,

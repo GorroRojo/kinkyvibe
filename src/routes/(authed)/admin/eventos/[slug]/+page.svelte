@@ -16,13 +16,11 @@
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 
 	/**
-	 * Un número de «La cuenta»: con la cuenta cerrada, el monto; si no, «sin cerrar» o «—» (nunca
-	 * $ 0, que diría otra cosa).
-	 * @param {{ state: string }} account
+	 * Un número de «La cuenta»: el monto (estimado si la cuenta no está cerrada); sin ventas, «—»
+	 * (nunca $ 0, que diría otra cosa).
 	 * @param {number | null} value
 	 */
-	const accountText = (account, value) =>
-		value !== null ? formatARS(value) : account.state === 'open' ? 'sin cerrar' : '—';
+	const accountText = (value) => (value !== null ? formatARS(value) : '—');
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -148,26 +146,24 @@
 	</Card>
 
 	{#if data.account}
-		<!-- La cuenta (Gastos y reparto): los números, solo con la cuenta cerrada. -->
+		<!-- La cuenta (Gastos y reparto): cerrada, sus números; abierta, los estimados. -->
 		<Card title="La cuenta">
 			<dl class="kv" id="la-cuenta">
 				<dt>Ingresos de la cuenta</dt>
-				<dd class="num">{accountText(data.account, data.account.income)}</dd>
-				<dt>Gastos</dt>
-				<dd class="num">{accountText(data.account, data.account.expenses)}</dd>
-				<dt>Ganancia o pérdida</dt>
+				<dd class="num">{accountText(data.account.income)}</dd>
+				<dt>{data.account.state === 'closed' ? 'Gastos' : 'Gastos cargados'}</dt>
+				<dd class="num">{accountText(data.account.expenses)}</dd>
+				<dt>{data.account.state === 'closed' ? 'Ganancia o pérdida' : 'Ganancia estimada'}</dt>
 				<dd class="num">
-					{data.account.profit === null
-						? accountText(data.account, null)
-						: formatSignedARS(data.account.profit)}
+					{data.account.profit === null ? '—' : formatSignedARS(data.account.profit)}
 				</dd>
 			</dl>
 			<p class="muted small">
 				{data.account.state === 'closed'
 					? 'De la cuenta cerrada. No incluye el recargo de Mercado Pago.'
 					: data.account.state === 'open'
-						? 'La cuenta está empezada pero sin cerrar: los números salen cuando la cierres.'
-						: 'Todavía nadie empezó la cuenta de este evento.'}
+						? 'Estimada: la cuenta está empezada pero sin cerrar. No incluye el recargo de Mercado Pago.'
+						: 'Estimada: todavía nadie empezó la cuenta de este evento (sin gastos cargados).'}
 				<a href={eventHref(e.slug, 'gastos')}>Gastos y reparto</a>
 			</p>
 		</Card>
