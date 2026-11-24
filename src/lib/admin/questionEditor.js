@@ -6,7 +6,7 @@
  * Cada pregunta del editor lleva una `key` propia (para el `#each` y el arrastre) además de su
  * `id` guardado (string en los formularios, número en las de inscripción; vacío si es nueva).
  */
-import { hasOptions } from '$lib/utils/formularios.js';
+import { hasOptions, parseNumber } from '$lib/utils/formularios.js';
 
 /**
  * @typedef {{
@@ -20,6 +20,8 @@ import { hasOptions } from '$lib/utils/formularios.js';
  *   help: string,
  *   low: string,
  *   high: string,
+ *   min: string,
+ *   max: string,
  *   perTicket: boolean,
  *   scope: 'all' | 'some',
  *   ticketTypes: string[]
@@ -48,6 +50,8 @@ export function toEditorItems(questions) {
 		help: String(q.help ?? ''),
 		low: String(q.low ?? ''),
 		high: String(q.high ?? ''),
+		min: q.min === undefined || q.min === null ? '' : String(q.min),
+		max: q.max === undefined || q.max === null ? '' : String(q.max),
 		perTicket: Boolean(q.perTicket),
 		scope: q.ticketTypes?.length ? 'some' : 'all',
 		ticketTypes: Array.isArray(q.ticketTypes) ? [...q.ticketTypes] : []
@@ -67,6 +71,8 @@ export function blankItem() {
 		help: '',
 		low: '',
 		high: '',
+		min: '',
+		max: '',
 		perTicket: false,
 		scope: 'all',
 		ticketTypes: []
@@ -113,7 +119,8 @@ export function duplicateItem(list, index) {
 
 /**
  * Lo que se manda al guardar (JSON en el campo `questions`), en el orden de la lista. Las de
- * inscripción llevan también su alcance; las de formularios, ayuda y extremos del puntaje.
+ * inscripción llevan también su alcance; las de formularios, ayuda, extremos del puntaje y el
+ * mínimo y el máximo de un número.
  *
  * @param {readonly EditorQuestion[]} list
  * @param {{ signup?: boolean }} [opts]
@@ -141,7 +148,8 @@ export function toPayload(list, { signup = false } = {}) {
 			required: q.required,
 			options,
 			help: q.help,
-			...(q.kind === 'rating' ? { low: q.low, high: q.high } : {})
+			...(q.kind === 'rating' ? { low: q.low, high: q.high } : {}),
+			...(q.kind === 'number' ? { min: q.min, max: q.max } : {})
 		};
 	});
 }
@@ -162,6 +170,30 @@ export function previewQuestions(list) {
 			? [...new Set(q.optionsText.split('\n').map((o) => o.trim()))].filter(Boolean)
 			: [],
 		...(q.help ? { help: q.help } : {}),
-		...(q.kind === 'rating' ? { low: q.low || 'Mal', high: q.high || 'Re bien' } : {})
+		...(q.kind === 'rating' ? { low: q.low || 'Mal', high: q.high || 'Re bien' } : {}),
+		...(q.kind === 'number' ? numberRange(q) : {})
 	}));
+}
+
+/**
+ * El mínimo y el máximo de la vista previa (los que se pueden leer).
+ * @param {EditorQuestion} q
+ */
+function numberRange(q) {
+	const min = parseNumber(q.min);
+	const max = parseNumber(q.max);
+	return {
+		...(typeof min === 'number' && !Number.isNaN(min) ? { min } : {}),
+		...(typeof max === 'number' && !Number.isNaN(max) ? { max } : {})
+	};
+}
+
+/**
+ * Cuántos renglones muestra la caja de opciones: tantos como opciones (más uno para la próxima),
+ * entre 4 y 12; con más, se desplaza adentro.
+ * @param {string} optionsText
+ */
+export function optionRows(optionsText) {
+	const lines = optionsText ? optionsText.split('\n').length : 0;
+	return Math.min(12, Math.max(4, lines + 1));
 }

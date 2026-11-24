@@ -14,11 +14,14 @@ import {
 	formPath,
 	formSlug,
 	isAnonymousResponse,
+	isIsoDate,
 	newQuestionId,
 	organizersSee,
+	parseNumber,
 	parseStoredQuestions,
 	privacyChangeWarning,
 	responsesCsvRows,
+	showAnswer,
 	showsIdentity,
 	shuffled,
 	summarize,
@@ -38,7 +41,7 @@ const q = (/** @type {Record<string, unknown>} */ extra = {}) => ({
 });
 
 describe('validateQuestion', () => {
-	it('acepta los cinco tipos y pone los extremos del puntaje por defecto', () => {
+	it('acepta los tipos y pone los extremos del puntaje por defecto', () => {
 		expect(validateQuestion(q())).toMatchObject({ ok: true, question: { kind: 'text' } });
 		expect(validateQuestion(q({ kind: 'checkbox' }))).toMatchObject({ ok: true });
 		expect(validateQuestion(q({ kind: 'choice', options: ['Sí', 'No'] }))).toMatchObject({
@@ -408,5 +411,152 @@ describe('respuestas en el panel', () => {
 		const seq = [0.1, 0.9, 0.5];
 		const out = shuffled([1, 2, 3, 4], () => seq[i++ % seq.length]);
 		expect([...out].sort()).toEqual([1, 2, 3, 4]);
+	});
+});
+
+describe('texto corto, número, fecha y lista desplegable (24/11)', () => {
+	it('validateQuestion: la lista lleva de 2 a 40 opciones; el número, mínimo y máximo opcionales', () => {
+		const opts = (/** @type {number} */ n) => Array.from({ length: n }, (_, i) => `Opción ${i}`);
+		expect(validateQuestion(q({ kind: 'short' }))).toMatchObject({ ok: true });
+		expect(validateQuestion(q({ kind: 'date' }))).toMatchObject({ ok: true });
+		expect(validateQuestion(q({ kind: 'select', options: opts(MAX_MULTI_OPTIONS) }))).toMatchObject(
+			{ ok: true }
+		);
+		expect(
+			validateQuestion(q({ kind: 'select', options: opts(MAX_MULTI_OPTIONS + 1) }))
+		).toMatchObject({ ok: false, errors: { options: `Hasta ${MAX_MULTI_OPTIONS} opciones.` } });
+		expect(validateQuestion(q({ kind: 'select', options: ['Sola'] }))).toMatchObject({
+			ok: false
+		});
+		const n = validateQuestion(q({ kind: 'number', min: '0', max: '2,5' }));
+		expect(n).toMatchObject({ ok: true, question: { kind: 'number', min: 0, max: 2.5 } });
+		const free = validateQuestion(q({ kind: 'number', min: '', max: '' }));
+		expect(free.ok && 'min' in free.question).toBe(false);
+		expect(validateQuestion(q({ kind: 'number', min: 'diez' }))).toMatchObject({
+			ok: false,
+			errors: { range: 'El mínimo y el máximo, números.' }
+		});
+		expect(validateQuestion(q({ kind: 'number', min: 5, max: 1 }))).toMatchObject({
+			ok: false,
+			errors: { range: 'El mínimo no puede ser más que el máximo.' }
+		});
+		// Los límites solo son del número.
+		const text = validateQuestion(q({ kind: 'text', min: 1 }));
+		expect(text.ok && 'min' in text.question).toBe(false);
+		// Las de inscripción no los aceptan.
+		expect(validateQuestion(q({ kind: 'short' }), ['text', 'choice', 'checkbox'])).toMatchObject({
+			ok: false
+		});
+	});
+
+	it('parseStoredQuestions conserva el mínimo y el máximo del número', () => {
+		expect(
+			parseStoredQuestions(
+				'[{"id":"n1","kind":"number","label":"x","min":1,"max":"9"},{"id":"d1","kind":"date","label":"y"}]'
+			)
+		).toEqual([
+			{ id: 'n1', kind: 'number', label: 'x', required: false, options: [], min: 1 },
+			{ id: 'd1', kind: 'date', label: 'y', required: false, options: [] }
+		]);
+	});
+
+	it('parseNumber e isIsoDate', () => {
+		expect(parseNumber(' 3,5 ')).toBe(3.5);
+		expect(parseNumber('-2')).toBe(-2);
+		expect(parseNumber('')).toBe(null);
+		expect(parseNumber('1e5')).toBeNaN();
+		expect(parseNumber('12 personas')).toBeNaN();
+		expect(parseNumber('9'.repeat(14))).toBeNaN();
+		expect(isIsoDate('2026-02-28')).toBe(true);
+		expect(isIsoDate('2026-02-30')).toBe(false);
+		expect(isIsoDate('28/02/2026')).toBe(false);
+	});
+
+	const questions = /** @type {import('./formularios.js').Question[]} */ ([
+		{ id: 's1', kind: 'short', label: 'Apodo', required: true, options: [] },
+		{ id: 'n1', kind: 'number', label: 'Cuántas', required: false, options: [], min: 0, max: 10 },
+		{ id: 'd1', kind: 'date', label: 'Cuándo', required: false, options: [] },
+		{ id: 'l1', kind: 'select', label: 'Barrio', required: false, options: ['Uno', 'Dos'] }
+	]);
+	/** @param {Record<string, string>} v */
+	const form = (v) => new Map(Object.entries(v).map(([k, x]) => [answerName(k), x]));
+
+	it('validateFormAnswers: guarda texto de una línea, el número, la fecha ISO y la opción', () => {
+		const r = validateFormAnswers(
+			questions,
+			form({ s1: '  Un\napodo ', n1: '7,5', d1: '2026-03-01', l1: 'Dos' })
+		);
+		expect(r).toEqual({
+			ok: true,
+			answers: [
+				{ id: 's1', label: 'Apodo', value: 'Un apodo' },
+				{ id: 'n1', label: 'Cuántas', value: '7.5' },
+				{ id: 'd1', label: 'Cuándo', value: '2026-03-01' },
+				{ id: 'l1', label: 'Barrio', value: 'Dos' }
+			]
+		});
+	});
+
+	it('validateFormAnswers: rechaza lo que no vale', () => {
+		const r = validateFormAnswers(
+			questions,
+			form({ s1: '', n1: '11', d1: '2026-13-01', l1: 'Tres' })
+		);
+		expect(r).toMatchObject({
+			ok: false,
+			errors: {
+				s1: 'Completá esta respuesta.',
+				n1: 'Tiene que ser entre 0 y 10.',
+				d1: 'Elegí una fecha válida.',
+				l1: 'Elegí una de las opciones.'
+			}
+		});
+		const only = (/** @type {Partial<import('./formularios.js').Question>} */ extra) =>
+			validateFormAnswers(
+				[{ id: 'n1', kind: 'number', label: 'N', required: true, options: [], ...extra }],
+				form({ n1: '-1' })
+			);
+		expect(only({ min: 0 })).toMatchObject({ errors: { n1: 'Tiene que ser 0 o más.' } });
+		expect(only({ max: -2.5 })).toMatchObject({ errors: { n1: 'Tiene que ser -2,5 o menos.' } });
+		expect(only({})).toMatchObject({ ok: true });
+		expect(validateFormAnswers(questions.slice(1, 2), form({ n1: 'muchas' }))).toMatchObject({
+			errors: { n1: 'Escribí solo un número (por ejemplo 12 o 3,5).' }
+		});
+	});
+
+	it('el resumen: la lista cuenta como las opciones; número y fecha, la lista de lo respondido', () => {
+		const day = '2099-01-02';
+		const resp = [
+			{
+				answers: [
+					{ id: 'n1', label: 'Cuántas', value: '2.5' },
+					{ id: 'd1', label: 'Cuándo', value: '2026-03-01' },
+					{ id: 'l1', label: 'Barrio', value: 'Dos' }
+				],
+				anonymous: true,
+				day
+			}
+		];
+		const s = summarize(questions, resp);
+		expect(s[1]).toMatchObject({ kind: 'number', texts: ['2.5'] });
+		expect(s[2]).toMatchObject({ kind: 'date', texts: ['2026-03-01'] });
+		expect(s[3]).toMatchObject({
+			kind: 'select',
+			counts: [
+				{ option: 'Uno', count: 0 },
+				{ option: 'Dos', count: 1 }
+			]
+		});
+		// El CSV lleva lo guardado; el panel lo muestra con coma y la fecha al revés.
+		expect(responsesCsvRows(questions, resp, 'anonymous')[1]).toEqual([
+			day,
+			'',
+			'2.5',
+			'2026-03-01',
+			'Dos'
+		]);
+		expect(showAnswer('number', '2.5')).toBe('2,5');
+		expect(showAnswer('date', '2026-03-01')).toBe('01/03/2026');
+		expect(showAnswer('text', '2.5')).toBe('2.5');
 	});
 });

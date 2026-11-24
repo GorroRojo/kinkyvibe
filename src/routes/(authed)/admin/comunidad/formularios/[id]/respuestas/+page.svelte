@@ -8,7 +8,7 @@
 	import BarList from '$lib/components/admin/panel/BarList.svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import { Badge, Button, Card, EmptyState } from '$lib/components/ui';
-	import { PRIVACY_LABELS } from '$lib/utils/formularios.js';
+	import { PRIVACY_LABELS, showAnswer } from '$lib/utils/formularios.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -17,6 +17,10 @@
 	$: title = f.kind === 'survey' ? `Encuesta: ${data.eventTitle}` : f.title;
 	/** @param {number} n @param {string} one @param {string} many */
 	const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	/** El tipo de cada pregunta (para mostrar números y fechas). */
+	$: kindOf = /** @type {Record<string, string>} */ (
+		Object.fromEntries(data.summary.map((/** @type {any} */ q) => [q.id, q.kind]))
+	);
 	/** @param {string} day AAAA-MM-DD */
 	const dayText = (day) => {
 		const [y, m, d] = day.split('-');
@@ -96,10 +100,10 @@
 						{:else if q.texts}
 							{#if q.texts.length}
 								<ul class="texts">
-									{#each q.texts as text, i (i)}<li>{text}</li>{/each}
+									{#each q.texts as text, i (i)}<li>{showAnswer(q.kind, text)}</li>{/each}
 								</ul>
 							{:else}
-								<p class="kv-note">Sin respuestas de texto.</p>
+								<p class="kv-note">Sin respuestas.</p>
 							{/if}
 						{/if}
 					</section>
@@ -130,7 +134,7 @@
 						<dl>
 							{#each r.answers as a (a.id)}
 								<dt>{a.label}</dt>
-								<dd>{a.value}</dd>
+								<dd>{showAnswer(kindOf[a.id], a.value)}</dd>
 							{/each}
 						</dl>
 					</li>

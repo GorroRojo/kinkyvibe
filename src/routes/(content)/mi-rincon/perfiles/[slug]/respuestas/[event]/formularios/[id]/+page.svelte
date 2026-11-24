@@ -1,6 +1,7 @@
 <script>
 	import Button from '$lib/components/ui/Button.svelte';
 	import { argDateLong } from '$lib/utils/dates.js';
+	import { showAnswer } from '$lib/utils/formularios.js';
 
 	export let data;
 
@@ -8,6 +9,10 @@
 	$: title = data.form.kind === 'survey' ? 'Encuesta de después del evento' : data.form.title;
 	/** @param {number} n @param {string} one @param {string} many */
 	const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	/** El tipo de cada pregunta (para mostrar números y fechas). */
+	$: kindOf = /** @type {Record<string, string>} */ (
+		Object.fromEntries(data.summary.map((/** @type {any} */ q) => [q.id, q.kind]))
+	);
 </script>
 
 <svelte:head>
@@ -62,10 +67,10 @@
 						</ul>
 					{:else if q.texts?.length}
 						<ul class="texts">
-							{#each q.texts as text, i (i)}<li>{text}</li>{/each}
+							{#each q.texts as text, i (i)}<li>{showAnswer(q.kind, text)}</li>{/each}
 						</ul>
 					{:else}
-						<p class="hint">Sin respuestas de texto.</p>
+						<p class="hint">Sin respuestas.</p>
 					{/if}
 				</div>
 			{/each}
@@ -87,7 +92,7 @@
 						<dl>
 							{#each r.answers as a (a.id)}
 								<dt>{a.label}</dt>
-								<dd>{a.value}</dd>
+								<dd>{showAnswer(kindOf[a.id], a.value)}</dd>
 							{/each}
 						</dl>
 					</li>

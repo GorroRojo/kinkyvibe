@@ -180,6 +180,31 @@ describe('formulario abierto a cualquiera', () => {
 		]);
 	});
 
+	it('texto corto, número, fecha y lista: como los manda el formulario sin JavaScript', async () => {
+		const form = await openForm({
+			privacy: 'anonymous',
+			questions: [
+				{ id: 's1', kind: 'short', label: 'Apodo', required: true, options: [] },
+				{ id: 'n1', kind: 'number', label: 'Veces', required: true, options: [], min: 0, max: 20 },
+				{ id: 'd1', kind: 'date', label: 'Desde', required: false, options: [] },
+				{ id: 'l1', kind: 'select', label: 'Barrio', required: true, options: ['Uno', 'Dos'] }
+			]
+		});
+		const fields = { p_s1: 'Apodo inventado', p_d1: '2025-12-31', p_l1: 'Dos' };
+		const bad = /** @type {any} */ (await submit(form, { ...fields, p_n1: '21' }));
+		expect(bad.status).toBe(400);
+		expect(bad.data.errors).toEqual({ n1: 'Tiene que ser entre 0 y 20.' });
+		expect(bad.data.values).toMatchObject({ n1: '21', d1: '2025-12-31', l1: 'Dos' });
+		expect(await submit(form, { ...fields, p_n1: '3.5' })).toEqual({ sent: true });
+		const [row] = /** @type {any[]} */ (await rows());
+		expect(JSON.parse(row.answers)).toEqual([
+			{ id: 's1', label: 'Apodo', value: 'Apodo inventado' },
+			{ id: 'n1', label: 'Veces', value: '3.5' },
+			{ id: 'd1', label: 'Desde', value: '2025-12-31' },
+			{ id: 'l1', label: 'Barrio', value: 'Dos' }
+		]);
+	});
+
 	it('con el interruptor apagado, 404', async () => {
 		const form = await openForm();
 		env.value.FORMULARIOS_ENABLED = '0';

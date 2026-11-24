@@ -302,6 +302,45 @@ describe('«Varias opciones»', () => {
 	});
 });
 
+describe('texto corto, número, fecha y lista', () => {
+	it('se crean y se leen con sus nombres; el número con su mínimo y máximo', async () => {
+		const barrios = Array.from({ length: 25 }, (_, i) => `Barrio ${i + 1}`);
+		const form = await createForm({
+			preguntas: [
+				{ pregunta: 'Tu apodo', tipo: 'texto_corto' },
+				{ pregunta: '¿Cuántas veces viniste?', tipo: 'numero', minimo: 0, maximo: 50 },
+				{ pregunta: '¿Desde cuándo?', tipo: 'fecha' },
+				{ pregunta: '¿De dónde venís?', tipo: 'lista', opciones: barrios }
+			]
+		});
+		expect(form.questions.map((q) => q.kind)).toEqual(['short', 'number', 'date', 'select']);
+		expect(form.questions[1]).toMatchObject({ min: 0, max: 50 });
+		const read = await call('leer', { nombre: form.slug, tipo: 'formulario' });
+		expect(read.structuredContent.preguntas.map((/** @type {any} */ q) => q.tipo)).toEqual([
+			'texto_corto',
+			'numero',
+			'fecha',
+			'lista'
+		]);
+		expect(read.structuredContent.preguntas[1]).toMatchObject({ minimo: 0, maximo: 50 });
+	});
+
+	it('rechaza un mínimo mayor que el máximo o que no es un número', async () => {
+		const prev = (/** @type {Record<string, unknown>} */ q) =>
+			call('vista_previa', {
+				operacion: 'crear_borrador',
+				tipo: 'formulario',
+				cambios: { nombre: 'Números', preguntas: [{ pregunta: '¿Cuántas?', tipo: 'numero', ...q }] }
+			});
+		const over = await prev({ minimo: 5, maximo: 1 });
+		expect(over.isError).toBe(true);
+		expect(over.content[0].text).toMatch(/El mínimo no puede ser más que el máximo/);
+		const text = await prev({ minimo: 'cinco' });
+		expect(text.isError).toBe(true);
+		expect(text.content[0].text).toMatch(/`minimo` \(pregunta 1\) va como número/);
+	});
+});
+
 describe('editar', () => {
 	it('abrirlo es una edición; aplicar con otra huella o versión no guarda', async () => {
 		const form = await createForm();

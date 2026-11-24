@@ -9,7 +9,10 @@
 	 * hasta 40); el puntaje con cinco
 	 * botones iguales (radios nativos: las flechas recorren el grupo; gorrite, 5/11: «el 1 a 5 se ve
 	 * mal, como estirado») y los textos y casillas con el estilo de las preguntas
-	 * de inscripción del flujo de compra (SignupFieldInputs.svelte).
+	 * de inscripción del flujo de compra (SignupFieldInputs.svelte). «Texto corto», «Número» y
+	 * «Fecha» son inputs nativos (`text`, `number` con `step="any"`, `date`: manda `aaaa-mm-dd`) y
+	 * «Lista desplegable» un `<select>`. La ayuda de cada pregunta va debajo de su título, antes de
+	 * lo que se contesta (gorrite, 24/11).
 	 *
 	 * Props: `questions` (Question[]), `values` (lo que se mandó, por id de pregunta), `errors` (por
 	 * id), `idPrefix`, `preview` (en el panel: sin `name`, así no se manda nada).
@@ -44,6 +47,12 @@
 	 * @param {Record<string, string>} vals @param {string} id @param {string} v
 	 */
 	const pickedMulti = (vals, id, v) => (splitMulti(vals[id]).includes(v) ? { checked: true } : {});
+	/**
+	 * Lo que describe el campo: el error (si hay) y la ayuda.
+	 * @param {string} id @param {{ help?: string }} q @param {string | undefined} err
+	 */
+	const describedBy = (id, q, err) =>
+		[err ? `${id}-error` : '', q.help ? `${id}-help` : ''].filter(Boolean).join(' ') || undefined;
 </script>
 
 <div class="form-questions">
@@ -51,10 +60,11 @@
 		{@const id = `${idPrefix}-${q.id}`}
 		{@const err = errors[q.id]}
 		{#if q.kind === 'rating'}
-			<fieldset aria-describedby={err ? `${id}-error` : q.help ? `${id}-help` : undefined}>
+			<fieldset aria-describedby={describedBy(id, q, err)}>
 				<legend
 					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</legend
 				>
+				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
 				<div class="rating">
 					<div
 						class="rating-options"
@@ -77,13 +87,13 @@
 						><span>1 = {q.low}</span><span>5 = {q.high}</span></small
 					>
 				</div>
-				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
 			</fieldset>
 		{:else if q.kind === 'choice'}
-			<fieldset aria-describedby={err ? `${id}-error` : q.help ? `${id}-help` : undefined}>
+			<fieldset aria-describedby={describedBy(id, q, err)}>
 				<legend
 					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</legend
 				>
+				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
 				<div class="choices">
 					{#each q.options as o (o)}
 						<ChoiceCard
@@ -94,13 +104,13 @@
 						/>
 					{/each}
 				</div>
-				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
 			</fieldset>
 		{:else if q.kind === 'multi'}
-			<fieldset aria-describedby={err ? `${id}-error` : q.help ? `${id}-help` : undefined}>
+			<fieldset aria-describedby={describedBy(id, q, err)}>
 				<legend
 					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</legend
 				>
+				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
 				<small class="hint">Elegí las que quieras.</small>
 				<div class="multi">
 					{#each q.options as o (o)}
@@ -114,7 +124,6 @@
 						>
 					{/each}
 				</div>
-				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
 			</fieldset>
 		{:else if q.kind === 'checkbox'}
 			<label class="check">
@@ -124,28 +133,88 @@
 					name={nameOf(q.id)}
 					{...values[q.id] === 'on' ? { checked: true } : {}}
 					aria-invalid={err ? 'true' : undefined}
-					aria-describedby={err ? `${id}-error` : q.help ? `${id}-help` : undefined}
+					aria-describedby={describedBy(id, q, err)}
 				/>
 				<span
 					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</span
 				>
 			</label>
-			{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
+			{#if q.help}<small class="help check-help" id="{id}-help">{q.help}</small>{/if}
+		{:else if q.kind === 'select'}
+			<label class="field" for={id}>
+				<span
+					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</span
+				>
+				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
+				<select
+					{id}
+					name={nameOf(q.id)}
+					aria-invalid={err ? 'true' : undefined}
+					aria-describedby={describedBy(id, q, err)}
+				>
+					<option value="">Elegí una opción</option>
+					{#each q.options as o (o)}
+						<option value={o} {...values[q.id] === o ? { selected: true } : {}}>{o}</option>
+					{/each}
+				</select>
+			</label>
+		{:else if q.kind === 'short' || q.kind === 'number' || q.kind === 'date'}
+			<label class="field" for={id}>
+				<span
+					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</span
+				>
+				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
+				{#if q.kind === 'number'}
+					<input
+						{id}
+						class="number"
+						type="number"
+						name={nameOf(q.id)}
+						step="any"
+						min={q.min}
+						max={q.max}
+						inputmode="decimal"
+						aria-invalid={err ? 'true' : undefined}
+						aria-describedby={describedBy(id, q, err)}
+						{...values[q.id] ? { value: values[q.id] } : {}}
+					/>
+				{:else if q.kind === 'date'}
+					<input
+						{id}
+						class="date"
+						type="date"
+						name={nameOf(q.id)}
+						aria-invalid={err ? 'true' : undefined}
+						aria-describedby={describedBy(id, q, err)}
+						{...values[q.id] ? { value: values[q.id] } : {}}
+					/>
+				{:else}
+					<input
+						{id}
+						type="text"
+						name={nameOf(q.id)}
+						maxlength={FORM_ANSWER_MAX}
+						aria-invalid={err ? 'true' : undefined}
+						aria-describedby={describedBy(id, q, err)}
+						{...values[q.id] ? { value: values[q.id] } : {}}
+					/>
+				{/if}
+			</label>
 		{:else}
 			<label class="field" for={id}>
 				<span
 					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</span
 				>
+				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
 				<textarea
 					{id}
 					name={nameOf(q.id)}
 					rows="3"
 					maxlength={FORM_ANSWER_MAX}
 					aria-invalid={err ? 'true' : undefined}
-					aria-describedby={err ? `${id}-error` : q.help ? `${id}-help` : undefined}
+					aria-describedby={describedBy(id, q, err)}
 					{...values[q.id] ? { value: values[q.id] } : {}}></textarea>
 			</label>
-			{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
 		{/if}
 		{#if err}<span class="field-error" id="{id}-error">{err}</span>{/if}
 	{/each}
@@ -277,7 +346,9 @@
 		margin-top: 0.15em;
 		flex: none;
 	}
-	textarea {
+	textarea,
+	input:is([type='text'], [type='number'], [type='date']),
+	select {
 		font: inherit;
 		font-size: max(1rem, 16px);
 		padding: 0.55em 0.7em;
@@ -288,7 +359,18 @@
 		min-height: 2.8em;
 		width: 100%;
 		box-sizing: border-box;
+	}
+	textarea {
 		resize: vertical;
+	}
+	/* Un número o una fecha no necesitan todo el ancho. */
+	input.number,
+	input.date {
+		max-width: 14rem;
+	}
+	.check-help {
+		margin-top: -0.6em;
+		padding-left: 1.7em;
 	}
 	.help {
 		color: var(--muted);

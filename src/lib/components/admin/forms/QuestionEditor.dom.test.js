@@ -61,6 +61,32 @@ describe('QuestionEditor', () => {
 		expect(r.queryAllByText('Puntaje de 1 a 5')).toHaveLength(0);
 		expect(r.getAllByText('Una vez por entrada (si compran 3, responden 3 veces)')).toHaveLength(2);
 	});
+
+	it('el tipo se elige en un desplegable; «Número» manda su mínimo y su máximo', async () => {
+		const r = render(QuestionEditor, { props: { questions: [saved[0]] } });
+		const kind = /** @type {HTMLSelectElement} */ (r.getByLabelText('Tipo'));
+		expect(kind.tagName).toBe('SELECT');
+		expect([...kind.options].map((o) => o.value)).toEqual([
+			'text',
+			'short',
+			'choice',
+			'multi',
+			'select',
+			'checkbox',
+			'rating',
+			'number',
+			'date'
+		]);
+		await fireEvent.change(kind, { target: { value: 'number' } });
+		await fireEvent.input(r.getByLabelText('Mínimo (opcional)'), { target: { value: '1' } });
+		await fireEvent.input(r.getByLabelText('Máximo (opcional)'), { target: { value: '9,5' } });
+		expect(payload()[0]).toMatchObject({ kind: 'number', min: '1', max: '9,5' });
+		// La vista previa ya muestra el campo de número con sus límites.
+		const preview = /** @type {HTMLInputElement} */ (
+			document.querySelector('.q-preview input[type="number"]')
+		);
+		expect([preview.min, preview.max]).toEqual(['1', '9.5']);
+	});
 });
 
 describe('guarda: sin inputs a mano en el panel de formularios', () => {
