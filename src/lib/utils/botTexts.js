@@ -1529,7 +1529,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin.ayer_ganancia',
 			'admin',
 			'line',
-			'Resumen del día después: la ganancia, con la cuenta cerrada',
+			'Resumen del día después (y el resumen diario de un evento de ayer): la ganancia, con la cuenta cerrada',
 			'💰 Ganancia: **{monto}**',
 			{
 				vars: [{ name: 'monto', label: 'la ganancia (con signo)', sample: '+$ 120.000' }],
@@ -1540,7 +1540,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin.ayer_falta_cerrar',
 			'admin',
 			'line',
-			'Resumen del día después: la ganancia estimada, con la cuenta sin cerrar',
+			'Resumen del día después (y el resumen diario de un evento de ayer): la ganancia estimada, con la cuenta sin cerrar',
 			'💰 Ganancia estimada: **{monto}** · falta cerrar la cuenta',
 			{
 				vars: [

@@ -941,6 +941,14 @@ vendidas contra el cupo y la ganancia, la del cierre si la cuenta está cerrada 
 si no, la estimada y «falta cerrar la cuenta» (`dayAfterText`; el número es el mismo que el del
 panel, `src/lib/admin/ganancia.js`). Una vez por día y evento (`ayer:<día>:<evento>`). Textos:
 `admin.ayer_titulo`, `admin.ayer_vendidas`, `admin.ayer_ganancia` y `admin.ayer_falta_cerrar`.
+Un solo mensaje por evento: si el de ayer todavía cuenta como «hoy» para el resumen diario (empezó
+hace menos de 12 horas, como una fiesta que terminó a la madrugada) y tiene resumen, la línea de la
+ganancia (`admin.ayer_ganancia` o `admin.ayer_falta_cerrar`) va al final de las ventas de ese
+resumen y no sale el «Ayer» aparte. Las marcas se miran cruzadas: el «Ayer» no sale a quien ya
+recibió el `resumen:<día>:<evento>` (ni en la corrida en que se le manda el resumen con la
+ganancia, aunque falle), y el resumen no sale a quien ya recibió el `ayer:<día>:<evento>`. Si el
+resumen con la ganancia falla y en la corrida siguiente el evento ya no es «hoy», le llega el
+«Ayer».
 
 **Cada venta** y **cada transferencia**: en el momento, desde los flujos de compra
 (`queueOrderNotice`, en segundo plano con `waitUntil`; **nunca traba ni hace fallar** una compra o

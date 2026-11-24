@@ -557,15 +557,17 @@ export function mailQuotaNoticeText({ pending }, overrides) {
 /**
  * El resumen diario de un evento: lo vendido desde ayer contra el cupo, las transferencias nuevas
  * y lo pendiente (reservas sin pagar y las que vencen en 24 horas, transferencias por confirmar,
- * órdenes para revisar, la lista de espera). Solo cantidades.
+ * órdenes para revisar, la lista de espera). Solo cantidades. Con `profit` (un evento de ayer que
+ * todavía cuenta como de hoy, como una fiesta que terminó a la madrugada), suma la línea de la
+ * ganancia del día después: así les llega un solo mensaje y no dos.
  *
  * @param {{ title: string, start: string, soldSince: number, newTransfers: number,
- *   status: EventStatus }} input
+ *   status: EventStatus, profit?: import('$lib/admin/ganancia.js').EventProfit | null }} input
  * @param {number} now
  * @param {BotTexts | null} [overrides]
  */
 export function dailySummaryText(
-	{ title, start, soldSince, newTransfers, status },
+	{ title, start, soldSince, newTransfers, status, profit },
 	now,
 	overrides
 ) {
@@ -586,7 +588,8 @@ export function dailySummaryText(
 		),
 		...(newTransfers > 0
 			? [botText('admin.resumen_transferencias', { cantidad: newTransfers }, overrides)]
-			: [])
+			: []),
+		...(profit ? [profitLine(profit, overrides)] : [])
 	];
 	/** @type {string[]} */
 	const pending = [];
@@ -621,14 +624,25 @@ export function dailySummaryText(
  * @param {BotTexts | null} [overrides]
  */
 export function dayAfterText({ title, sold, capacity, profit }, overrides) {
-	const monto = formatSignedARS(profit.amount);
 	return [
 		botText('admin.ayer_titulo', { evento: title }, overrides),
 		botText('admin.ayer_vendidas', { vendidas: soldOf(sold, capacity) }, overrides),
-		profit.closed
-			? botText('admin.ayer_ganancia', { monto }, overrides)
-			: botText('admin.ayer_falta_cerrar', { monto }, overrides)
+		profitLine(profit, overrides)
 	].join('\n');
+}
+
+/**
+ * La línea de la ganancia del día después: la del cierre o la estimada y que falta cerrar la
+ * cuenta. La usan el aviso «Ayer» y el resumen diario que lo reemplaza.
+ *
+ * @param {import('$lib/admin/ganancia.js').EventProfit} profit
+ * @param {BotTexts | null} [overrides]
+ */
+function profitLine(profit, overrides) {
+	const monto = formatSignedARS(profit.amount);
+	return profit.closed
+		? botText('admin.ayer_ganancia', { monto }, overrides)
+		: botText('admin.ayer_falta_cerrar', { monto }, overrides);
 }
 
 /**
@@ -1037,11 +1051,24 @@ export async function runAdminNoticesCron({
 	const configs = new Map(all.map((e) => [e.slug, e.config]));
 	const out = { sent: 0, failed: 0, events: 0 };
 	let budget = ADMIN_NOTICE_BATCH;
+	// Los eventos de ayer con su ganancia, para el aviso del día después (con Gastos y reparto).
+	const past = (await isFlagOn(db, 'gastos_reparto')) ? yesterdayEvents(all, now) : [];
+	const profits = past.length
+		? await runQuery(db, profitsQuery(past.map((e) => e.slug)))
+		: new Map();
+	// Los de ayer que todavía cuentan como de hoy (una fiesta que terminó a la madrugada) y tienen
+	// resumen diario: la ganancia va en ese resumen y no sale aparte el «Ayer» (un solo mensaje).
+	/** @type {Set<string>} */
+	const inSummary = new Set();
 	for (const choice of adminEventChoices(all, now)) {
 		if (budget <= 0) break;
 		const key = `resumen:${window.date}:${choice.slug}`;
-		// Si ya les llegó a todes, no hace falta consultar nada más.
-		const pendingFor = await notSentYet(db, recipients, key);
+		const profit = profits.get(choice.slug) ?? null;
+		// Si ya les llegó a todes (el resumen o, de un evento de ayer, el «Ayer»), nada más.
+		let pendingFor = await notSentYet(db, recipients, key);
+		if (profit) {
+			pendingFor = await notSentYet(db, pendingFor, dayAfterKey(window.date, choice.slug));
+		}
 		if (pendingFor.length === 0) continue;
 		const activity = await dailyActivity(db, choice.slug, window);
 		if (activity.soldSince === 0 && activity.newTransfers === 0) continue;
@@ -1051,8 +1078,9 @@ export async function runAdminNoticesCron({
 			expiringMs: DAILY_EXPIRING_MS
 		});
 		out.events += 1;
+		if (profit) inSummary.add(choice.slug);
 		const text = dailySummaryText(
-			{ title: choice.title, start: choice.start, ...activity, status },
+			{ title: choice.title, start: choice.start, ...activity, status, profit },
 			now,
 			overrides
 		);
@@ -1069,47 +1097,64 @@ export async function runAdminNoticesCron({
 		out.failed += r.failed;
 	}
 	// El día después de cada evento (con Gastos y reparto prendido): su ganancia, o la estimada y
-	// que falta cerrar la cuenta. Solo los que vendieron algo (o tienen la cuenta cerrada).
-	if (budget > 0 && (await isFlagOn(db, 'gastos_reparto'))) {
-		const yesterday = argentinaDate(now - DAY_MS);
-		const past = all.filter((e) => {
-			const ms = toTime(e.config.start);
-			return ms !== null && e.config.status !== 'cancelado' && argentinaDate(ms) === yesterday;
+	// que falta cerrar la cuenta. Solo los que vendieron algo (o tienen la cuenta cerrada) y no la
+	// recibieron (ni la reciben en esta corrida) dentro del resumen diario.
+	for (const e of past) {
+		const profit = profits.get(e.slug);
+		if (budget <= 0 || !profit || inSummary.has(e.slug)) continue;
+		const key = dayAfterKey(window.date, e.slug);
+		const pendingFor = await notSentYet(
+			db,
+			await notSentYet(db, recipients, key),
+			`resumen:${window.date}:${e.slug}`
+		);
+		if (pendingFor.length === 0) continue;
+		const status = await eventStatus(db, e.slug, e.config, now);
+		out.events += 1;
+		const text = dayAfterText(
+			{
+				title: String(e.config.title || e.slug),
+				sold: status.sold,
+				capacity: status.capacity,
+				profit
+			},
+			overrides
+		);
+		const r = await deliverOnce({
+			db,
+			send: sender,
+			key,
+			message: { text, panelUrl: panelUrl(origin, e.slug) },
+			now,
+			recipients: pendingFor.slice(0, budget)
 		});
-		const profits = past.length
-			? await runQuery(db, profitsQuery(past.map((e) => e.slug)))
-			: new Map();
-		for (const e of past) {
-			const profit = profits.get(e.slug);
-			if (budget <= 0 || !profit) continue;
-			const key = `ayer:${window.date}:${e.slug}`;
-			const pendingFor = await notSentYet(db, recipients, key);
-			if (pendingFor.length === 0) continue;
-			const status = await eventStatus(db, e.slug, e.config, now);
-			out.events += 1;
-			const text = dayAfterText(
-				{
-					title: String(e.config.title || e.slug),
-					sold: status.sold,
-					capacity: status.capacity,
-					profit
-				},
-				overrides
-			);
-			const r = await deliverOnce({
-				db,
-				send: sender,
-				key,
-				message: { text, panelUrl: panelUrl(origin, e.slug) },
-				now,
-				recipients: pendingFor.slice(0, budget)
-			});
-			budget -= r.sent + r.failed;
-			out.sent += r.sent;
-			out.failed += r.failed;
-		}
+		budget -= r.sent + r.failed;
+		out.sent += r.sent;
+		out.failed += r.failed;
 	}
 	return out;
+}
+
+/**
+ * La marca del aviso del día después de un evento (una vez por día y evento).
+ * @param {string} date
+ * @param {string} slug
+ */
+const dayAfterKey = (date, slug) => `ayer:${date}:${slug}`;
+
+/**
+ * Los eventos con entradas que fueron ayer (día de Argentina) y no se cancelaron.
+ * @template {{ slug: string, config: { start?: unknown, status?: unknown } }} E
+ * @param {E[]} events
+ * @param {number} now
+ * @returns {E[]}
+ */
+function yesterdayEvents(events, now) {
+	const yesterday = argentinaDate(now - DAY_MS);
+	return events.filter((e) => {
+		const ms = toTime(e.config.start);
+		return ms !== null && e.config.status !== 'cancelado' && argentinaDate(ms) === yesterday;
+	});
 }
 
 /**
