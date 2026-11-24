@@ -37,7 +37,7 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
     la venta deshabilitado («Agotadas», «Abre el 5/10»), igual que las tarjetas del calendario.
     Con «Agotadas», un botón más con link a la página del evento (nunca a comprar): «Anotate en
     la lista de espera» (`#entradas`, si el evento tiene la lista prendida) o «Avisame la
-    próxima» (`#seguir`, «Seguir la serie»); textos `eventos.boton_lista_espera` y
+    próxima» (`#seguir`, la tarjeta de la serie); textos `eventos.boton_lista_espera` y
     `eventos.boton_avisame`, y lo mismo en la tarjeta inline y en la Mini App;
   - «📅 Agregar al calendario» (link de Google Calendar con título, fecha, link y el lugar público;
     sin fin cargado, 2 horas);
@@ -933,6 +933,22 @@ hoy: entradas aprobadas o transferencias nuevas. Sin movimiento, no sale nada. L
 
 «Desde ayer» se cuenta con `updated_at` de las órdenes aprobadas (la tabla no guarda aparte cuándo
 se aprobó): es cuando se aprobó, salvo que algo la haya vuelto a tocar después.
+
+**El día después de un evento** («🌙 Ayer · <evento>»; Mesa 24/11, solo con el interruptor
+`gastos_reparto`): en la misma corrida y a las mismas personas que el resumen diario, uno por cada
+evento con entradas que fue ayer (día de Argentina) y vendió algo (o tiene la cuenta cerrada): las
+vendidas contra el cupo y la ganancia, la del cierre si la cuenta está cerrada («💰 Ganancia») o,
+si no, la estimada y «falta cerrar la cuenta» (`dayAfterText`; el número es el mismo que el del
+panel, `src/lib/admin/ganancia.js`). Una vez por día y evento (`ayer:<día>:<evento>`). Textos:
+`admin.ayer_titulo`, `admin.ayer_vendidas`, `admin.ayer_ganancia` y `admin.ayer_falta_cerrar`.
+Un solo mensaje por evento: si el de ayer todavía cuenta como «hoy» para el resumen diario (empezó
+hace menos de 12 horas, como una fiesta que terminó a la madrugada) y tiene resumen, la línea de la
+ganancia (`admin.ayer_ganancia` o `admin.ayer_falta_cerrar`) va al final de las ventas de ese
+resumen y no sale el «Ayer» aparte. Las marcas se miran cruzadas: el «Ayer» no sale a quien ya
+recibió el `resumen:<día>:<evento>` (ni en la corrida en que se le manda el resumen con la
+ganancia, aunque falle), y el resumen no sale a quien ya recibió el `ayer:<día>:<evento>`. Si el
+resumen con la ganancia falla y en la corrida siguiente el evento ya no es «hoy», le llega el
+«Ayer».
 
 **Cada venta** y **cada transferencia**: en el momento, desde los flujos de compra
 (`queueOrderNotice`, en segundo plano con `waitUntil`; **nunca traba ni hace fallar** una compra o

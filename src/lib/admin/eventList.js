@@ -9,6 +9,7 @@
  */
 import { foldSearch } from './eventFormat.js';
 import { goalProgress } from '$lib/utils/salesGoal.js';
+import { profitLabel } from './ganancia.js';
 
 /**
  * @typedef {{
@@ -17,7 +18,8 @@ import { goalProgress } from '$lib/utils/salesGoal.js';
  *   unpublished: boolean, online: boolean, onlineMismatch: boolean, thumb: string,
  *   sellsTickets: boolean,
  *   capacity: number | null, goal: string, sold: number, revenue: number, mpFee: number,
- *   mpFeeEstimated?: number, transfers: number, i: number
+ *   mpFeeEstimated?: number, transfers: number, i: number,
+ *   profit?: import('./ganancia.js').EventProfit | null
  * }} EventRow
  *   Una fila de la lista. `i`: su lugar en la lista completa (del más nuevo al más viejo), para
  *   mezclar lo que llega después sin desordenar. `goal`: la meta de venta como se guarda
@@ -25,6 +27,8 @@ import { goalProgress } from '$lib/utils/salesGoal.js';
  *   `mpFee`: la comisión de Mercado Pago de eso (la meta en plata cuenta lo neto);
  *   `mpFeeEstimated`: la parte estimada de esa comisión (MP no la informó). `venueName`: el
  *   nombre del lugar vinculado ('' o ausente sin lugar), que manda sobre `locationName`.
+ *   `profit`: la ganancia (estimada hasta cerrar la cuenta; $lib/admin/ganancia.js), solo con
+ *   Gastos y reparto prendido (si no, ausente).
  */
 
 /** Cuántos días de eventos pasados manda la página de entrada (unos tres meses). */
@@ -176,5 +180,8 @@ export const CSV_COLUMNS = [
 	{ label: 'vendidas', value: (e) => (e.sellsTickets ? e.sold : '') },
 	{ label: 'cupo', value: (e) => e.capacity ?? '' },
 	{ label: 'meta', value: (e) => goalProgress(e.goal, e)?.text ?? '' },
+	// Con Gastos y reparto: la ganancia y si es la del cierre o estimada.
+	{ label: 'ganancia', value: (e) => (e.profit ? e.profit.amount : '') },
+	{ label: 'ganancia es', value: (e) => (e.profit ? profitLabel(e.profit).toLowerCase() : '') },
 	{ label: 'transferencias pendientes', value: (e) => e.transfers || '' }
 ];

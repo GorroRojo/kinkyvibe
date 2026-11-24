@@ -20,6 +20,7 @@ import { isFlagOn } from '$lib/server/flags.js';
 import { storedSecret } from '$lib/server/signedLinks.js';
 import { timingSafeEqual } from '$lib/server/hash.js';
 import { toBase64url } from '$lib/utils/base64.js';
+import { ToolInputError } from './tools.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -41,6 +42,24 @@ export async function editingOn(db, envValues = {}) {
 		isFlagOn(db, 'conector_claude_edicion', { envValue: envValues.edit })
 	]);
 	return read && edit;
+}
+
+/**
+ * Sin permiso de cambiar o sin el interruptor de cambios: un error claro (las herramientas de
+ * cambios, ./edicion.js, y las de subir a la biblioteca, ./biblioteca.js).
+ * @param {import('./tools.js').ToolContext} ctx
+ */
+export async function requireEditing(ctx) {
+	if (ctx.canEdit !== true) {
+		throw new ToolInputError(
+			'Esta conexión solo tiene permiso de lectura. Para cambiar, volvé a conectar el conector en Claude y permití también los cambios.'
+		);
+	}
+	if (!(await editingOn(ctx.db))) {
+		throw new ToolInputError(
+			'Los cambios del conector están apagados (Ajustes → Interruptores → «Conector de Claude: cambios»). Claude solo puede leer.'
+		);
+	}
 }
 
 /** Texto en una línea, sin caracteres de control. @param {unknown} v @param {number} max */

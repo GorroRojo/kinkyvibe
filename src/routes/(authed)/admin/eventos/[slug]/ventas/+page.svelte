@@ -10,6 +10,7 @@
 	import { eventHref } from '$lib/admin/nav.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import { netEstimate, netEstimateText, netRevenue } from '$lib/utils/salesGoal.js';
+	import { profitHint, profitLabel } from '$lib/admin/ganancia.js';
 	import { fondoOptionLabel, formatSaleTime } from '$lib/utils/tickets.js';
 	import { dayLabel as argentinaDayLabel } from '$lib/admin/eventFormat.js';
 
@@ -85,7 +86,11 @@
 <div class="stats">
 	{#if data.progress}
 		<Stat
-			label={data.progress.kind === 'plata' ? 'Meta de plata' : 'Meta de entradas'}
+			label={data.progress.kind === 'plata'
+				? 'Meta de plata'
+				: data.progress.kind === 'ganancia'
+					? 'Meta de ganancia'
+					: 'Meta de entradas'}
 			value="{data.progress.pct} %"
 			tone={data.progress.reached ? 'ok' : ''}
 		>
@@ -129,6 +134,18 @@
 			>
 		{/if}
 	</Stat>
+	{#if data.profit}
+		<!-- La ganancia (Gastos y reparto): estimada hasta cerrar la cuenta. -->
+		<Stat
+			label={profitLabel(data.profit)}
+			value={formatSignedARS(data.profit.amount)}
+			tone={data.profit.amount < 0 ? 'bad' : ''}
+			sub={data.profit.closed
+				? 'de la cuenta cerrada'
+				: `lo que entró − gastos cargados hasta ahora${profitHint(data.profit) ? ` · ${profitHint(data.profit)}` : ''}`}
+			href={eventHref(e.slug, 'gastos')}
+		/>
+	{/if}
 	{#if data.extras}
 		<Stat
 			label="Extras"

@@ -17,6 +17,7 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 | Tipo real y medidas      | `src/lib/server/media/sniff.js` (por los bytes, nunca por el nombre)                                      |
 | Quién puede              | `src/lib/server/media/access.js`                                                                          |
 | Subir y buscar (JSON)    | `src/routes/imagenes/+server.js`, `src/routes/imagenes/[id]/+server.js`                                   |
+| Subir desde Claude       | `src/lib/server/mcp/biblioteca.js` (conector: `subir_imagen`, `pedir_subida`…; ver abajo)                 |
 | Servir                   | `src/routes/media/[...key]/+server.js` → `/media/img/…`, `/media/file/…`; rangos en `media/range.js`      |
 | Selector de los editores | `src/lib/components/admin/ImagePicker.svelte`                                                             |
 | Enlazar un archivo       | `src/lib/components/admin/LibraryLinkPicker.svelte`, `src/lib/utils/libraryFiles.js` (editor de material) |
@@ -323,10 +324,33 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 4. Deshacer: el aviso con **«Deshacer»** y, después, **Actividad › Recuperar**.
 5. **Busca mientras escribís**, y la búsqueda queda en la dirección (`?q=&tipo=`) para compartirla.
 
+## Subir desde el conector de Claude
+
+Desde el 24/11 (gorrite: «que puedas subir imágenes y eso vos también»), el asistente del equipo
+sube imágenes, documentos y videos sin abrir el panel, con el conector de Claude
+([conector-claude.md](conector-claude.md#subir-a-la-biblioteca)): `subir_imagen` y `subir_archivo`
+(los bytes en base64, hasta 1 MB) o, para lo más grande y los videos, `pedir_subida` (un PUT a
+una dirección firmada) y `confirmar_subida`. Lo encuentra con `buscar`/`leer` y `tipo: imagen` o
+`archivo`, y lo usa con `editar_objeto` (`imagen: <id>`), con vista previa.
+
+- **El mismo camino que el panel**: `storeImage`/`storeFile`, el tipo por los bytes, sin
+  metadatos, clave por contenido (los mismos bytes son la misma imagen) y los mismos pesos (10 MB,
+  25 MB). Una imagen, además, hasta **2000 px de lado largo** (el Worker no achica: se rechaza con
+  un mensaje claro).
+- **Copias chicas**: el Worker no las hace (sin el cupo de transformaciones, como decidió
+  gorrite). Las manda quien sube y se validan como las del navegador (`validCopy`); si no vienen,
+  la respuesta lo avisa y las tarjetas usan la original (la copia redirige) hasta la pasada de
+  `scripts/copias-chicas.js`.
+- **Solo suma**: nada público cambia hasta que algo la usa. Sin vista previa, pero cada subida
+  queda en Actividad (`conector.subir_imagen`…, con quién la pidió) y en `created_by` («rutina «…»
+  (@login) · pedido por Mel»). Nunca se baja nada de otra dirección. Borrar, desde el panel.
+- **Tope**: 30 subidas y 200 MB por día por llave (o por admin), con `uploadCap.js`.
+
 ## Quién puede
 
 - **Admins**: subir (imágenes, documentos y video), buscar en toda la biblioteca, elegir
-  cualquiera y sacar imágenes y archivos.
+  cualquiera y sacar imágenes y archivos. Desde el conector de Claude (una llave para rutinas o
+  una conexión con permiso de cambiar), subir y buscar, con un tope por día (arriba).
 - **Cuentas que gestionan un perfil** (Mi rincón, con el permiso «puede tener perfiles»; sin él,
   `/imagenes` da 404 como a cualquiera): subir y buscar **solo entre las que subieron**;
   en su perfil solo pueden poner una imagen que subieron o la que el perfil ya tenía. **Borran una
@@ -573,7 +597,7 @@ Con un bloqueo puesto, un bucket no se puede vaciar ni borrar hasta sacar las re
 ## Cómo probar
 
 ```sh
-npx vitest run src/lib/server/media src/routes/imagenes src/lib/utils/imageResize.test.js src/lib/utils/libraryFiles.test.js src/lib/utils/mediaCopies.test.js src/lib/components/CardRow.test.js src/lib/components/PostListItem.test.js
+npx vitest run src/lib/server/media src/lib/server/mcp/biblioteca.test.js src/routes/imagenes src/lib/utils/imageResize.test.js src/lib/utils/libraryFiles.test.js src/lib/utils/mediaCopies.test.js src/lib/components/CardRow.test.js src/lib/components/PostListItem.test.js
 npm run dev:admin   # el bucket MEDIA local lo simula miniflare (.wrangler/state)
 ```
 

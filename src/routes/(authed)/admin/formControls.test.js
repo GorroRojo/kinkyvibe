@@ -60,6 +60,8 @@ const ALLOWED = {
 	'src/lib/components/admin/DayPicker.svelte': 2,
 	'src/lib/components/admin/DuplicateChooser.svelte': 1,
 	'src/lib/components/admin/ImagePicker.svelte': 3,
+	// El buscador de Órdenes: ícono adentro de la píldora (era de ordenes/+page.svelte, que tenía 5).
+	'src/lib/components/admin/ordenes/OrderFilters.svelte': 1,
 	'src/lib/components/admin/LibraryLinkPicker.svelte': 3,
 	'src/lib/components/admin/PartesEditor.svelte': 3,
 	'src/lib/components/admin/PostEditor.svelte': 1,
@@ -91,7 +93,6 @@ const ALLOWED = {
 	'src/routes/(authed)/admin/eventos/[slug]/codigos/+page.svelte': 6,
 	'src/routes/(authed)/admin/eventos/[slug]/mail/+page.svelte': 2,
 	'src/routes/(authed)/admin/eventos/[slug]/mails/[id]/+page.svelte': 1,
-	'src/routes/(authed)/admin/eventos/[slug]/ordenes/+page.svelte': 5,
 	'src/routes/(authed)/admin/eventos/importar/+page.svelte': 8,
 	'src/routes/(authed)/admin/eventos/nuevo/+page.svelte': 3
 };

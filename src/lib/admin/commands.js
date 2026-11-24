@@ -80,16 +80,17 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'eventos-series': 'series ediciones recurrente repetir avisame',
 	'ajustes-personas': 'personas roles preguntas inscripcion organiza facilita campos',
 	checkin: 'check-in ingreso puerta qr escanear',
-	entradas: 'ventas entradas plata recaudado ordenes reembolso reembolsar devolver',
+	entradas:
+		'ventas entradas plata recaudado ganancia gastos reparto cuentas del año ordenes reembolso reembolsar devolver',
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
 	'entradas-codigos': 'codigos descuento cupon',
 	propinas: 'propinas cafecito aportes donaciones',
 	'ajustes-paypal': 'paypal dolar cotizacion ajuste retiros propinas',
 	personas: 'personas clientes compradores gente ficha nota notas internas',
 	estadisticas:
-		'estadisticas graficos tendencias ventas en el tiempo vendidas cobrado por serie medios de pago fondo finanzas',
+		'estadisticas graficos tendencias ventas en el tiempo vendidas cobrado ganancia por serie medios de pago fondo finanzas',
 	'estadisticas-asistencia':
-		'estadisticas asistencia check-in vinieron primera vez vuelven retorno no vinieron por evento',
+		'estadisticas asistencia check-in vinieron primera vez vuelven retorno no vinieron por evento ganancia por persona',
 	'estadisticas-visitas':
 		'estadisticas visitas al sitio analytics trafico paginas mas vistas paises dispositivos origen embudo conversion',
 	'estadisticas-bot':

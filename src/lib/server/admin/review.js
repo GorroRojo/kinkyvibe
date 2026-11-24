@@ -463,7 +463,8 @@ export function waitlistFailedItem(failed, titles) {
 /**
  * «Para revisar»: una fila por evento cancelado al que le queda algo por devolver (decisión 0044:
  * se devuelve todo desde el panel, orden por orden). Solo avisa: no reembolsa ni cancela nada.
- * Lleva a la pestaña Órdenes del evento (a Transferencias si solo quedan transferencias). Se va sola cuando no queda ninguna orden aprobada ni
+ * Lleva a la pestaña Órdenes del evento (filtrada en las transferencias por confirmar si solo
+ * quedan transferencias). Se va sola cuando no queda ninguna orden aprobada ni
  * transferencia vigente (también si llega un pago después de cancelar, vuelve a aparecer).
  *
  * @param {import('./inicio.js').CancelledLeftovers[]} cancelled

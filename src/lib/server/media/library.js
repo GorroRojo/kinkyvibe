@@ -523,7 +523,9 @@ const KIND_TYPES = Object.freeze({
 	todo: [IMAGE_TYPE, FILE_TYPE],
 	imagen: [IMAGE_TYPE],
 	documento: [FILE_TYPE],
-	video: [FILE_TYPE]
+	video: [FILE_TYPE],
+	/** Documentos y videos juntos (el conector de Claude, `buscar` con `tipo: archivo`). */
+	archivo: [FILE_TYPE]
 });
 
 /**
@@ -533,8 +535,8 @@ const KIND_TYPES = Object.freeze({
  * (Contenido › Biblioteca).
  *
  * @param {D1Database} db
- * @param {{ q?: string, kind?: 'todo' | 'imagen' | 'documento' | 'video', viewer: Viewer,
- *   createdBy?: string, limit?: number, offset?: number }} opts
+ * @param {{ q?: string, kind?: 'todo' | 'imagen' | 'documento' | 'video' | 'archivo',
+ *   viewer: Viewer, createdBy?: string, limit?: number, offset?: number }} opts
  * @returns {Promise<LibraryItem[]>}
  */
 export async function searchLibrary(
@@ -555,8 +557,8 @@ export async function searchLibrary(
  * y si hay más.
  *
  * @param {D1Database} db
- * @param {{ q?: string, kind?: 'todo' | 'imagen' | 'documento' | 'video', viewer: Viewer,
- *   limit?: number, offset?: number }} opts
+ * @param {{ q?: string, kind?: 'todo' | 'imagen' | 'documento' | 'video' | 'archivo',
+ *   viewer: Viewer, limit?: number, offset?: number }} opts
  * @returns {Promise<{ items: (LibraryItem & { usedIn: string[], uses: LibraryUse[] })[],
  *   more: boolean }>}
  */

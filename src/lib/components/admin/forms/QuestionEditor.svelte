@@ -39,6 +39,7 @@
 		hasOptions,
 		maxOptionsFor
 	} from '$lib/utils/formularios.js';
+	import { SHORT_LABEL_MAX } from '$lib/utils/signupFields.js';
 
 	/** @type {readonly Record<string, any>[]} */
 	export let questions = [];
@@ -221,6 +222,16 @@
 						placeholder="Ej.: ¿Qué te gustó?"
 						error={err.label ?? ''}
 					/>
+					{#if signup}
+						<Field
+							id="{idPrefix}-{q.key}-short"
+							label="Etiqueta corta (opcional)"
+							help="Para el panel, por ejemplo «Rol». Si la dejás vacía, se usa la pregunta entera."
+							maxlength={SHORT_LABEL_MAX}
+							bind:value={q.shortLabel}
+							error={err.shortLabel ?? ''}
+						/>
+					{/if}
 					<div class="kind">
 						<span class="kv-label">Tipo</span>
 						<Segmented

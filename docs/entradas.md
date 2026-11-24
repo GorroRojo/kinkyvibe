@@ -110,7 +110,8 @@ agote o cierre «…»".
 **Cortar la venta.** Estado "Agotadas" o una fecha de cierre. Con ventas hechas, el editor no deja
 borrar un tipo vendido ni apagar la venta.
 
-**Confirmar una transferencia.** Ventas › Transferencias → Confirmar pago. Si la reserva venció
+**Confirmar una transferencia.** Ventas › Transferencias → Confirmar pago, o en la ficha del
+evento, Ventas › Órdenes («Transferencias por confirmar») → «Llegó la transferencia ✓». Si la reserva venció
 y no hay cupo, pide confirmar el pase de límite.
 
 **Cuánto dura una reserva por transferencia.** Hasta las 20:00 (hora de Argentina) del segundo

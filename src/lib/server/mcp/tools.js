@@ -28,6 +28,9 @@ import {
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { getCounts, foldText } from '$lib/server/tickets/orders.js';
 import { fondoOptionLabel } from '$lib/utils/tickets.js';
+import { isFlagOn } from '$lib/server/flags.js';
+import { runQuery } from '$lib/server/db/batch.js';
+import { profitsQuery } from '$lib/server/tickets/ganancia.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -37,6 +40,8 @@ import { fondoOptionLabel } from '$lib/utils/tickets.js';
  *   db: D1Database,
  *   user: { id: number, login: string },
  *   canEdit?: boolean,
+ *   via?: 'llave' | 'oauth',
+ *   llave?: { id: number, name: string } | null,
  *   fetch: typeof fetch,
  *   now: number,
  *   platform?: App.Platform,
@@ -44,7 +49,8 @@ import { fondoOptionLabel } from '$lib/utils/tickets.js';
  * }} ToolContext
  *
  * `canEdit`: la conexión tiene el permiso `edicion` (o es una llave para rutinas); sin él, ni
- * aparecen las herramientas de cambios.
+ * aparecen las herramientas de cambios. `via` y `llave`: si llegó con una llave para rutinas y
+ * cuál (el tope de subidas a la biblioteca es por llave, ./biblioteca.js).
  *
  * @typedef {{
  *   result: Record<string, unknown>,
@@ -53,8 +59,17 @@ import { fondoOptionLabel } from '$lib/utils/tickets.js';
  * }} ToolOutput
  */
 
-/** Los tipos de objeto que se pueden buscar y leer (las imágenes y archivos, no). */
+/** Los tipos de objeto que se pueden buscar y leer (las imágenes y archivos, aparte). */
 export const OBJECT_TYPES = Object.freeze(['evento', 'material', 'perfil', 'etiqueta', 'lugar']);
+
+/**
+ * La biblioteca: imágenes y archivos (documentos y video), que `buscar` y `leer` atienden aparte
+ * (./biblioteca.js, que se carga al usarla porque usa este módulo).
+ */
+const LIBRARY_TYPES = Object.freeze(['imagen', 'archivo']);
+
+/** @param {unknown} t @returns {t is 'imagen' | 'archivo'} */
+const isLibraryType = (t) => typeof t === 'string' && LIBRARY_TYPES.includes(t);
 
 /** Estados de una orden, como los dice el panel. */
 const STATUS_LABEL = /** @type {Record<string, string>} */ ({
@@ -275,7 +290,9 @@ export const TOOLS = {
 			description:
 				'Busca eventos, material, perfiles (amigues), lugares y etiquetas de KinkyVibe por texto ' +
 				'(sin mayúsculas ni tildes; cada palabra como comienzo). Incluye lo oculto, que ven les ' +
-				'admins. Devuelve tipo, slug, título y enlaces; para ver todo, usá `leer` con el slug.',
+				'admins. Devuelve tipo, slug, título y enlaces; para ver todo, usá `leer` con el slug. ' +
+				'Con `tipo: imagen` o `tipo: archivo` (documentos y video), busca en la biblioteca por ' +
+				'nombre (sin texto, lo más nuevo): cada resultado con su id, url, miniatura, peso y dónde se usa.',
 			inputSchema: {
 				type: 'object',
 				properties: {
@@ -283,7 +300,11 @@ export const TOOLS = {
 						type: 'string',
 						description: 'Lo que se busca, p. ej. «shibari» o «fiesta latex».'
 					},
-					tipo: { type: 'string', enum: [...OBJECT_TYPES], description: 'Solo este tipo.' },
+					tipo: {
+						type: 'string',
+						enum: [...OBJECT_TYPES, ...LIBRARY_TYPES],
+						description: 'Solo este tipo (`imagen` y `archivo`: la biblioteca).'
+					},
 					limite: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
 				},
 				required: ['texto'],
@@ -291,6 +312,14 @@ export const TOOLS = {
 			}
 		},
 		async run(ctx, args) {
+			if (isLibraryType(args.tipo)) {
+				const library = await import('./biblioteca.js');
+				return library.searchLibraryForClaude(ctx, {
+					texto: cleanText(args.texto, 100),
+					tipo: args.tipo,
+					limite: intIn(args.limite, 1, 50, 20)
+				});
+			}
 			const texto = cleanText(args.texto, 100);
 			const forms = await formsModule(ctx);
 			const tipo = forms && args.tipo === forms.FORM_TYPE ? forms.FORM_TYPE : objectType(args.tipo);
@@ -330,7 +359,9 @@ export const TOOLS = {
 			description:
 				'Lee un evento, material, perfil, lugar o etiqueta por su slug o su nombre: todos sus ' +
 				'campos (los públicos y los que ve el panel), quién y cuándo lo editó, sus relaciones y ' +
-				'sus enlaces. Si el nombre coincide con varios, devuelve las opciones para elegir por slug.',
+				'sus enlaces. Si el nombre coincide con varios, devuelve las opciones para elegir por slug. ' +
+				'Con `tipo: imagen` o `tipo: archivo`, una cosa de la biblioteca (por id, slug, dirección ' +
+				'o nombre): nombre, texto alternativo, peso, medidas, copias chicas, quién la subió y dónde se usa.',
 			inputSchema: {
 				type: 'object',
 				properties: {
@@ -338,13 +369,19 @@ export const TOOLS = {
 						type: 'string',
 						description: 'El slug (p. ej. «2026-11-07-fiesta») o el nombre.'
 					},
-					tipo: { type: 'string', enum: [...OBJECT_TYPES] }
+					tipo: { type: 'string', enum: [...OBJECT_TYPES, ...LIBRARY_TYPES] }
 				},
 				required: ['nombre'],
 				additionalProperties: false
 			}
 		},
 		async run(ctx, args) {
+			if (isLibraryType(args.tipo)) {
+				const nombre = cleanText(args.nombre, 200);
+				if (!nombre) throw new ToolInputError('Falta `nombre`.');
+				const library = await import('./biblioteca.js');
+				return library.readLibraryForClaude(ctx, nombre, args.tipo);
+			}
 			const nombre = cleanText(args.nombre, 200);
 			const forms = await formsModule(ctx);
 			const tipo = forms && args.tipo === forms.FORM_TYPE ? forms.FORM_TYPE : objectType(args.tipo);
@@ -424,7 +461,8 @@ export const TOOLS = {
 			title: 'Ventas de un evento',
 			description:
 				'Resumen de la venta de entradas de un evento (vendidas, reservadas, cupo, recaudado, ' +
-				'neto, Fondo, por tipo de entrada) y la lista de sus órdenes (referencia, nombre, mail, ' +
+				'neto, Fondo, ganancia si Gastos y reparto está prendido, por tipo de entrada) y la ' +
+				'lista de sus órdenes (referencia, nombre, mail, ' +
 				'tipo, cantidad, total, medio de pago, estado, fecha, cuántes ingresaron y lo demás que ' +
 				'muestra la pestaña Órdenes del panel: últimos 3 del DNI, pago de Mercado Pago, entradas, ' +
 				'respuestas, nota). El evento va por slug o nombre.',
@@ -487,11 +525,12 @@ export const TOOLS = {
 					log
 				};
 			}
-			const [counts, { rows }] = await Promise.all([
+			const [counts, { rows }, profit] = await Promise.all([
 				getCounts(ctx.db, slug, ctx.now),
-				eventOrderRows(ctx.db, slug, config, ctx.now)
+				eventOrderRows(ctx.db, slug, config, ctx.now),
+				ventasProfit(ctx.db, slug)
 			]);
-			const s = summarizeEvent({ slug, config }, counts, { now: ctx.now });
+			const s = summarizeEvent({ slug, config }, counts, { now: ctx.now, profit });
 			const wanted = STATUS_FILTER[estado];
 			const filtered = rows.filter((o) => !wanted || wanted.includes(o.status));
 			/** @type {Record<string, number>} */
@@ -516,6 +555,13 @@ export const TOOLS = {
 						fondo_usado: s.fondoUsed,
 						aportes_al_fondo: s.contribution,
 						recargos: s.surcharge,
+						// Gastos y reparto: la del cierre o la estimada (lo que entró − gastos cargados).
+						ganancia: profit && {
+							monto: profit.amount,
+							es: profit.closed ? 'la de la cuenta cerrada' : 'estimada (cuenta sin cerrar)',
+							sin_gastos_cargados: !profit.closed && profit.noExpenses,
+							con_regla_del_lugar: !profit.closed && profit.venueDefault
+						},
 						meta: s.progress,
 						por_tipo: s.types.map((t) => ({
 							tipo: t.name,
@@ -611,4 +657,19 @@ export function toolList() {
 			openWorldHint: false
 		}
 	}));
+}
+
+/**
+ * La ganancia de un evento para `ventas` (Gastos y reparto; $lib/admin/ganancia.js), o `null`
+ * con el interruptor apagado, sin ventas ni cierre, o si no se puede leer.
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function ventasProfit(db, slug) {
+	try {
+		if (!(await isFlagOn(db, 'gastos_reparto'))) return null;
+		return (await runQuery(db, profitsQuery([slug]))).get(slug) ?? null;
+	} catch {
+		return null;
+	}
 }

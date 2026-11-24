@@ -755,7 +755,7 @@ describe('/calendario/<evento>: los estados de la maqueta final', () => {
 		expect(page()).not.toContain('class="quienes');
 	});
 
-	it('la serie va al final, después de quiénes: «Edición N de…» y el lugar de «Seguir»', () => {
+	it('la serie va al final, después de quiénes: «Edición N de…» y una sola tarjeta con `#seguir`', () => {
 		const series = {
 			list: [
 				{
@@ -778,8 +778,10 @@ describe('/calendario/<evento>: los estados de la maqueta final', () => {
 		expect(serie).toBeGreaterThan(body.indexOf('class="quienes'));
 		const rest = block(body, 'serie');
 		expect(text(rest)).toMatch(/^Edición 2 de/);
-		// «Seguir» (FollowButton) se arma en el navegador, después de preguntar a /api/sigo.
-		expect(rest).toContain('class="seguir');
+		// Una sola tarjeta (gorrite, «A: una tarjeta»), con el ancla de «Agotadas · Avisame la próxima».
+		expect(rest.split('Próximas fechas de Serie Inventada').length).toBe(2);
+		expect(rest).toContain('id="seguir"');
+		expect(rest).toMatch(/<input[^>]*type="email"/);
 	});
 
 	it('cancelado: el aviso grande, sin venta, sin inscripción y sin mapa', () => {

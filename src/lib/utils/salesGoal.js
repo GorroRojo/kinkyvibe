@@ -1,29 +1,35 @@
 /**
  * Meta de venta de un evento (docs/tickets.md, «Meta de venta»): una sola por evento, en plata
  * (pesos NETOS: lo cobrado en las órdenes aprobadas menos la comisión de Mercado Pago, ver
- * {@link netRevenue}) o en entradas (vendidas, órdenes aprobadas). El panel muestra el avance
- * contra la meta; sin meta, contra el cupo (como siempre).
+ * {@link netRevenue}), en entradas (vendidas, órdenes aprobadas) o en ganancia (la ganancia
+ * estimada del evento, o la del cierre: $lib/admin/ganancia.js; solo con el interruptor
+ * `gastos_reparto`). El panel muestra el avance contra la meta; sin meta, contra el cupo (como
+ * siempre).
  *
- * Se guarda en el evento, en la clave `meta_venta` del frontmatter (`meta_venta: plata:250000` o
- * `meta_venta: entradas:30`); en la base, la misma clave dentro de `extra` del objeto
+ * Se guarda en el evento, en la clave `meta_venta` del frontmatter (`meta_venta: plata:250000`,
+ * `meta_venta: entradas:30` o `meta_venta: ganancia:150000`; sin migración: es texto); en la base, la misma clave dentro de `extra` del objeto
  * `evento`, como el resto de la configuración de entradas. Duplicar un evento la copia como
  * cualquier otro campo.
  *
  * Funciones puras (sin red ni SvelteKit): las usan el editor (navegador), el servidor y vitest.
  */
-import { formatARS } from './money.js';
+import { formatARS, formatSignedARS } from './money.js';
 import { parseAmount } from './tickets.js';
 
 /** La clave del frontmatter. */
 export const GOAL_KEY = 'meta_venta';
 
-export const GOAL_KINDS = /** @type {const} */ (['plata', 'entradas']);
+export const GOAL_KINDS = /** @type {const} */ (['plata', 'entradas', 'ganancia']);
 
 /** @typedef {(typeof GOAL_KINDS)[number]} GoalKind */
 /** @typedef {{ kind: GoalKind, value: number }} SalesGoal */
 
 /** Topes (para atajar un cero de más). */
-export const GOAL_MAX = /** @type {const} */ ({ plata: 1_000_000_000, entradas: 100_000 });
+export const GOAL_MAX = /** @type {const} */ ({
+	plata: 1_000_000_000,
+	entradas: 100_000,
+	ganancia: 1_000_000_000
+});
 
 /** @param {unknown} k @returns {k is GoalKind} */
 const isKind = (k) => GOAL_KINDS.includes(/** @type {any} */ (k));
@@ -73,7 +79,7 @@ export function salesGoalProblem(raw) {
 	if (raw === undefined || raw === null || raw === '') return null;
 	return parseSalesGoal(raw)
 		? null
-		: 'La meta de venta tiene que ser «plata:<pesos>» o «entradas:<cantidad>», con un número entero mayor a 0.';
+		: 'La meta de venta tiene que ser «plata:<pesos>», «entradas:<cantidad>» o «ganancia:<pesos>», con un número entero mayor a 0.';
 }
 
 /**
@@ -87,7 +93,7 @@ export function storedSalesGoal(goal) {
 /**
  * La meta escrita en el formulario («Meta»: ninguna, plata o entradas, y el número).
  *
- * @param {string} kind '' | 'plata' | 'entradas'
+ * @param {string} kind '' | 'plata' | 'entradas' | 'ganancia'
  * @param {string} value
  * @returns {{ goal: SalesGoal | null, error: string }}
  */
@@ -97,12 +103,14 @@ export function goalFromForm(kind, value) {
 	const n = goalValue(kind, raw);
 	if (n !== null) return { goal: { kind, value: n }, error: '' };
 	const tooBig = (parseAmount(raw) ?? 0) > GOAL_MAX[kind];
-	if (kind === 'plata')
+	if (kind === 'plata' || kind === 'ganancia')
 		return {
 			goal: null,
 			error: tooBig
 				? 'Meta: el monto es demasiado alto (¿sobra un cero?).'
-				: 'Meta: escribí cuánta plata querés juntar, en pesos enteros (mayor a 0).'
+				: kind === 'plata'
+					? 'Meta: escribí cuánta plata querés juntar, en pesos enteros (mayor a 0).'
+					: 'Meta: escribí cuánta ganancia querés, en pesos enteros (mayor a 0).'
 		};
 	return {
 		goal: null,
@@ -126,10 +134,11 @@ export function goalToForm(raw) {
 const entradas = (n) => `${n} ${n === 1 ? 'entrada' : 'entradas'}`;
 
 /**
- * La meta en palabras: «$ 250.000» o «30 entradas».
+ * La meta en palabras: «$ 250.000», «30 entradas» o «$ 150.000 de ganancia».
  * @param {SalesGoal} goal
  */
 export function describeSalesGoal(goal) {
+	if (goal.kind === 'ganancia') return `${formatARS(goal.value)} de ganancia`;
 	return goal.kind === 'plata' ? formatARS(goal.value) : entradas(goal.value);
 }
 
@@ -237,33 +246,40 @@ export function netEstimateText({ mpFee = 0, mpFeeEstimated = 0 }) {
 /**
  * @typedef {object} GoalProgress
  * @prop {GoalKind} kind
- * @prop {number} current lo vendido (entradas) o lo neto (pesos, {@link netRevenue})
+ * @prop {number} current lo vendido (entradas), lo neto (pesos, {@link netRevenue}) o la ganancia
+ *   (pesos; negativa si hay pérdida)
  * @prop {number} target la meta
  * @prop {number} pct porcentaje redondeado (puede pasar de 100)
  * @prop {boolean} reached se llegó a la meta
- * @prop {string} text «$ 180.000 netos de $ 250.000 (72 %)» o «23 de 30 entradas»; «netos
- *   estimados» si parte de la comisión de MP es estimada
- * @prop {null | 'all' | 'part'} [estimate] {@link netEstimate} (solo plata)
- * @prop {string} [estimateText] {@link netEstimateText}
+ * @prop {string} text «$ 180.000 netos de $ 250.000 (72 %)», «23 de 30 entradas» o «$ 80.000 de
+ *   ganancia estimada de $ 150.000 (53 %)»; «netos estimados» si parte de la comisión de MP es
+ *   estimada
+ * @prop {null | 'all' | 'part'} [estimate] {@link netEstimate} (plata); en ganancia, `'all'`
+ *   mientras la cuenta no está cerrada
+ * @prop {string} [estimateText] {@link netEstimateText}, o de dónde sale la ganancia estimada
  */
 
 /**
  * El avance contra la meta, o `null` sin meta (entonces se muestra el cupo, como siempre).
  * Plata: lo neto ({@link netRevenue}: `revenue` = lo recaudado, `mpFee` = la comisión de MP de
- * las órdenes aprobadas). Entradas: `sold` (vendidas, órdenes aprobadas).
+ * las órdenes aprobadas). Entradas: `sold` (vendidas, órdenes aprobadas). Ganancia: `profit`
+ * (`EventProfit` de $lib/admin/ganancia.js); sin ella (el interruptor `gastos_reparto` apagado o
+ * sin datos), `null`, como sin meta.
  *
  * @param {unknown} goal una meta (`SalesGoal`) o lo guardado (`'plata:250000'`)
- * @param {{ sold: number, revenue: number, mpFee: number, mpFeeEstimated?: number }} totals
+ * @param {{ sold: number, revenue: number, mpFee: number, mpFeeEstimated?: number,
+ *   profit?: { amount: number, closed: boolean, noExpenses: boolean, venueDefault?: boolean } | null }} totals
  *   `mpFeeEstimated`: la parte de `mpFee` que es estimada ({@link MP_FEE_ESTIMATED_SQL}): con algo
  *   estimado, el texto dice «netos estimados» y `estimateText` explica cuánto.
  * @returns {GoalProgress | null}
  */
-export function goalProgress(goal, { sold, revenue, mpFee, mpFeeEstimated = 0 }) {
+export function goalProgress(goal, { sold, revenue, mpFee, mpFeeEstimated = 0, profit = null }) {
 	const g =
 		goal && typeof goal === 'object' && 'kind' in goal && 'value' in goal
 			? parseSalesGoal(storedSalesGoal(/** @type {SalesGoal} */ (goal)))
 			: parseSalesGoal(goal);
 	if (!g) return null;
+	if (g.kind === 'ganancia') return profitGoalProgress(g.value, profit);
 	const current =
 		g.kind === 'plata' ? netRevenue({ revenue, mpFee }) : Math.max(0, Number(sold) || 0);
 	const pct = Math.round((current / g.value) * 100);
@@ -281,5 +297,36 @@ export function goalProgress(goal, { sold, revenue, mpFee, mpFeeEstimated = 0 })
 		text,
 		estimate,
 		estimateText: estimate ? netEstimateText({ mpFee, mpFeeEstimated }) : ''
+	};
+}
+
+/**
+ * El avance contra una meta de ganancia, o `null` sin la ganancia. La barra no baja de 0 con
+ * pérdida; el texto sí la dice.
+ * @param {number} target
+ * @param {{ amount: number, closed: boolean, noExpenses: boolean, venueDefault?: boolean } | null} profit
+ * @returns {GoalProgress | null}
+ */
+function profitGoalProgress(target, profit) {
+	if (!profit) return null;
+	const current = Math.round(Number(profit.amount) || 0);
+	const pct = Math.max(0, Math.round((current / target) * 100));
+	const what = profit.closed ? 'de ganancia' : 'de ganancia estimada';
+	const amount = current < 0 ? formatSignedARS(current) : formatARS(current);
+	return {
+		kind: 'ganancia',
+		current,
+		target,
+		pct,
+		reached: current >= target,
+		text: `${amount} ${what} de ${formatARS(target)} (${pct} %)`,
+		estimate: profit.closed ? null : 'all',
+		estimateText: profit.closed
+			? ''
+			: profit.noExpenses
+				? 'Ganancia estimada: lo que entró hasta ahora; todavía no hay gastos cargados en Gastos y reparto.'
+				: profit.venueDefault
+					? 'Ganancia estimada: lo que entró hasta ahora menos lo que cobra el lugar con su regla por defecto (la cuenta de Gastos y reparto todavía no se guardó).'
+					: 'Ganancia estimada: lo que entró hasta ahora menos los gastos cargados en Gastos y reparto (la cuenta sigue abierta).'
 	};
 }

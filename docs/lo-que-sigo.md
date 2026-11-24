@@ -221,7 +221,9 @@ Con `lo_que_sigo` prendido:
 
 En las páginas, con cuenta, «Avisame» dice que es seguir la serie y lleva a Lo que sigo
 (`seriesAccountState` devuelve `sigo`). En `/wiki/<serie>` no se muestra: el botón «Seguir» de la
-misma página hace lo mismo. Sin cuenta, el formulario con el mail sigue en los dos lados.
+misma página hace lo mismo; en la página de un evento, con cuenta, la tarjeta de la serie muestra
+solo «Seguir la serie» (ver [En la página de un evento](#en-la-página-de-un-evento-una-tarjeta)).
+Sin cuenta, el formulario con el mail sigue en los dos lados.
 
 Si se apaga `lo_que_sigo` después de prenderlo, lo que ya pasó a `follows` no recibe mails hasta
 que se vuelva a prender.
@@ -271,10 +273,32 @@ que se vuelva a prender.
 
 ### Desde «Agotadas»
 
-El bloque «Seguir la serie» de la página del evento (`Serie.svelte`) tiene el ancla `#seguir`. Las
+La tarjeta «Próximas fechas de <serie>» de la página del evento (ver «En la página de un
+evento» más abajo) tiene el ancla `#seguir` (la de la primera serie, si el evento tiene varias). Las
 tarjetas de un evento agotado sin lista de espera (sitio, carrusel, bot, inline y Mini App) llevan
-ahí con «Avisame la próxima» (ver [tickets.md](tickets.md)). Un evento sin serie no tiene ese
-bloque: el link llega a la página igual.
+ahí con «Avisame la próxima» (ver [tickets.md](tickets.md)). Un evento sin serie no tiene esa
+tarjeta: el link llega a la página igual.
+
+### En la página de un evento: una tarjeta
+
+gorrite eligió «A: una tarjeta» (Mesa): antes había tres bloques que hacían casi lo mismo, cada uno
+con su diseño («Seguir la serie», «Avisame si se repite» y «Suscribite a las fechas de…», que
+además repetía «Entrá con tu mail y seguí…»). Ahora, en un evento de una serie (pasado o por
+venir), una sola tarjeta por serie, «Próximas fechas de <serie>»
+(`src/lib/components/series/SeriesFollowCard.svelte`, desde `EventSeries.svelte` `after`):
+
+- **con cuenta y `lo_que_sigo` prendido**: el botón «Seguir la serie» (`FollowButton`, pregunta a
+  `/api/sigo` al cargar). Sin el calendario de la serie: seguir ya pone las fechas en tu
+  calendario (pedido de gorrite);
+- **con cuenta, interruptor apagado**: «Avisame» con la cuenta (`SeriesNotifyForm` con `bare`);
+- **sin cuenta**: el mail de «Avisame si se repite» (`SeriesNotifyForm` con `bare`, doble
+  confirmación, a `/avisos`).
+
+Abajo, en chico (menos con cuenta y «Lo que sigo»): «Sumalas a tu calendario: Google ·
+Apple/Outlook · Copiar link» (`CalendarSubscribe` con `compact`, el `.ics` de la serie). Si el
+evento ya pasó y la próxima edición ya se anunció, arriba de la tarjeta va «Ya se anunció la
+próxima edición de…». Los endpoints son los de siempre; un evento sin serie no muestra nada de
+esto. En `/wiki/<serie>` sigue como estaba (`SeriesTagBlock.svelte`).
 
 ### Límites
 

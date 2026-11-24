@@ -1501,6 +1501,59 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			}
 		),
 		f(
+			'admin.ayer_titulo',
+			'admin',
+			'line',
+			'Resumen del día después de un evento (con Gastos y reparto): el título',
+			'🌙 **Ayer · {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.ayer_vendidas',
+			'admin',
+			'line',
+			'Resumen del día después: las vendidas',
+			'🎟 Vendidas: {vendidas}',
+			{
+				vars: [
+					{
+						name: 'vendidas',
+						label: 'las vendidas del evento contra el cupo (o solo las vendidas, sin cupo)',
+						sample: '48/50'
+					}
+				],
+				required: ['vendidas']
+			}
+		),
+		f(
+			'admin.ayer_ganancia',
+			'admin',
+			'line',
+			'Resumen del día después (y el resumen diario de un evento de ayer): la ganancia, con la cuenta cerrada',
+			'💰 Ganancia: **{monto}**',
+			{
+				vars: [{ name: 'monto', label: 'la ganancia (con signo)', sample: '+$ 120.000' }],
+				required: ['monto']
+			}
+		),
+		f(
+			'admin.ayer_falta_cerrar',
+			'admin',
+			'line',
+			'Resumen del día después (y el resumen diario de un evento de ayer): la ganancia estimada, con la cuenta sin cerrar',
+			'💰 Ganancia estimada: **{monto}** · falta cerrar la cuenta',
+			{
+				vars: [
+					{
+						name: 'monto',
+						label: 'lo que entró menos los gastos cargados hasta ahora (con signo)',
+						sample: '+$ 95.000'
+					}
+				],
+				required: ['monto']
+			}
+		),
+		f(
 			'admin.resumen_transferencias',
 			'admin',
 			'line',

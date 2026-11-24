@@ -1,6 +1,6 @@
 /**
  * "Deshacer rechazo" de una transferencia cancelada, desde las dos puertas que lo ofrecen: la
- * bandeja de transferencias (Ventas) y la pestaña Transferencias de la ficha del evento. Solo
+ * bandeja de transferencias (Ventas) y Ventas › Órdenes de la ficha del evento. Solo
  * admins; solo si todavía hay lugar en su tipo (si no, el aviso para pasar el límite); queda en el
  * registro. Las mismas pruebas para las dos (eran dos archivos casi iguales).
  */
@@ -23,7 +23,7 @@ import { getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
 /** Una reserva fija de prueba (48 h): este test no depende de la regla de los días hábiles. */
 const TRANSFER_HOLD_MS = 48 * 60 * 60 * 1000;
 import { actions as inboxActions } from './+page.server.js';
-import { actions as eventActions } from '../../eventos/[slug]/transferencias/+page.server.js';
+import { actions as eventActions } from '../../eventos/[slug]/ordenes/+page.server.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -48,10 +48,10 @@ const DOORS = [
 		url: 'http://localhost/admin/ventas/transferencias'
 	},
 	{
-		door: 'ficha del evento, pestaña Transferencias',
+		door: 'ficha del evento, Ventas › Órdenes',
 		actions: eventActions,
 		params: { slug: SLUG },
-		url: `http://localhost/admin/eventos/${SLUG}/transferencias`
+		url: `http://localhost/admin/eventos/${SLUG}/ordenes`
 	}
 ];
 const admin = { user: { id: ADMINS[0].id, login: ADMINS[0].login }, user_token: 'prueba' };

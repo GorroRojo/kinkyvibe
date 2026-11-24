@@ -44,7 +44,11 @@ const EDIT_INSTRUCTIONS =
 	'lo que se mostró. `editar_objeto` cambia lo que edita el panel (eventos, material, perfiles, ' +
 	'lugares, etiquetas y la Kinkipedia), `crear_borrador` crea uno sin publicar (o una etiqueta nueva) y `deshacer` vuelve ' +
 	'un objeto a una versión anterior (también un deshacer se deshace). Nada de plata ni mails: ' +
-	'cancelar un evento, ventas, reembolsos y envíos se hacen desde el panel.';
+	'cancelar un evento, ventas, reembolsos y envíos se hacen desde el panel. Para subir una imagen ' +
+	'o un archivo a la biblioteca: `subir_imagen` o `subir_archivo` (los bytes en base64, hasta 1 ' +
+	'MB) o, más grande, `pedir_subida` (un PUT) y `confirmar_subida`; solo suma a la biblioteca, y ' +
+	'usarla es un cambio más (`editar_objeto` con `imagen`). El sitio nunca baja nada de otra ' +
+	'dirección: los bytes van en el pedido.';
 
 /** Las de lectura: las de ./tools.js y `historial` (./historial.js). */
 const READ_TOOLS = { ...TOOLS, historial: HISTORY_TOOL };
@@ -180,7 +184,7 @@ async function callTool(params, ctx) {
 				const op = typeof args.operacion === 'string' ? args.operacion.slice(0, 30) : '';
 				await logAdminAction(ctx.db, locals, {
 					action: `conector.${name}`,
-					summary: `Claude: ${name === 'aplicar' ? 'no se aplicó' : 'vista previa rechazada'}${op ? ` (${op})` : ''}: no pasó la validación`,
+					summary: `Claude: ${rejectedText(name)}${op ? ` (${op})` : ''}: no pasó la validación`,
 					detail: { operacion: op }
 				});
 			}
@@ -208,6 +212,14 @@ export function editToolList(forms = false) {
 		...(forms ? withForms(t.definition) : t.definition),
 		annotations: t.annotations
 	}));
+}
+
+/** Para Actividad: qué no se hizo cuando una herramienta de cambios no pasó la validación. @param {string} name */
+function rejectedText(name) {
+	if (name === 'aplicar') return 'no se aplicó';
+	if (name === 'vista_previa') return 'vista previa rechazada';
+	// Las de subir a la biblioteca (./biblioteca.js).
+	return `subida rechazada (${name})`;
 }
 
 /** @param {string} text */

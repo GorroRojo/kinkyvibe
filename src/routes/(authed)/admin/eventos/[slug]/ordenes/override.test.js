@@ -1,7 +1,7 @@
 /**
- * Ficha del evento, pestaña Transferencias: confirmar una transferencia que llegó tarde cuando ya no hay cupo
- * solo lo puede hacer une admin, y solo después de confirmar en el diálogo (la clave de
- * exactamente ese límite). Queda en el registro de actividad.
+ * Ficha del evento, Ventas › Órdenes («Llegó la transferencia ✓»): confirmar una transferencia
+ * que llegó tarde cuando ya no hay cupo solo lo puede hacer une admin, y solo después de
+ * confirmar en el diálogo (la clave de exactamente ese límite). Queda en el registro de actividad.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -77,7 +77,7 @@ async function confirm(fields, locals) {
 		locals,
 		platform: t.platform,
 		request: new Request('http://localhost/x', { method: 'POST', body }),
-		url: new URL(`http://localhost/admin/eventos/${SLUG}/transferencias`),
+		url: new URL(`http://localhost/admin/eventos/${SLUG}/ordenes`),
 		fetch: async () => new Response('{}', { status: 503 })
 	};
 	try {

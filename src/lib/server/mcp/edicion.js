@@ -17,6 +17,8 @@
  *   con las reglas de HTML de le admin que autorizó, como el panel (decisión 0004).
  * - Nada de plata ni mails: ni ventas, ni reembolsos, ni envíos, ni cancelar un evento
  *   (./editarEvento.js, `eventMailGuard`).
+ * - Con los mismos permisos, subir imágenes y archivos a la biblioteca (`subir_imagen`,
+ *   `subir_archivo`, `pedir_subida`, `confirmar_subida`; ./biblioteca.js).
  */
 import { isAdmin } from '$lib/server/auth';
 import { runAsPanelAuthor } from '$lib/server/contenido/author.js';
@@ -30,8 +32,8 @@ import {
 	claudeLabel,
 	cleanConfirmedBy,
 	cleanRequest,
-	editingOn,
-	hashMatches
+	hashMatches,
+	requireEditing
 } from './cambios.js';
 import {
 	EVENT_FIELDS,
@@ -84,6 +86,7 @@ import {
 	ticketedSlugs
 } from './crearCodigo.js';
 import { DRAFT_TYPES, planDraft } from './borradores.js';
+import { LIBRARY_TOOLS } from './biblioteca.js';
 import { linksFor, planUndo } from './historial.js';
 import { EDIT_TYPES, LOG_TYPE, TYPE_TEXT, editType, findTarget } from './objetos.js';
 import { ToolInputError, resolveEvent } from './tools.js';
@@ -480,20 +483,6 @@ function doneOf(p) {
 /** Para Actividad: qué campos cambian (sin los valores, que pueden ser largos). @param {Plan} p */
 const fieldsOf = (p) => p.changes.map((c) => c.campo).join(', ');
 
-/** Sin el interruptor de cambios: un error claro. @param {ToolContext} ctx */
-async function requireEditing(ctx) {
-	if (ctx.canEdit !== true) {
-		throw new ToolInputError(
-			'Esta conexión solo tiene permiso de lectura. Para cambiar, volvé a conectar el conector en Claude y permití también los cambios.'
-		);
-	}
-	if (!(await editingOn(ctx.db))) {
-		throw new ToolInputError(
-			'Los cambios del conector están apagados (Ajustes → Interruptores → «Conector de Claude: cambios»). Claude solo puede leer.'
-		);
-	}
-}
-
 /** @type {Record<string, { definition: Record<string, unknown>, annotations: Record<string, boolean>, run: (ctx: ToolContext, args: Record<string, unknown>) => Promise<ToolOutput> }>} */
 export const EDIT_TOOLS = {
 	vista_previa: {
@@ -657,7 +646,10 @@ export const EDIT_TOOLS = {
 				}
 			};
 		}
-	}
+	},
+
+	// Subir a la biblioteca (./biblioteca.js): sin vista previa (solo suma; usarla es otro cambio).
+	...LIBRARY_TOOLS
 };
 
 export { CODE_FIELDS, EVENT_FIELDS };

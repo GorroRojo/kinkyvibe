@@ -101,7 +101,7 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 5. **Email** (Resend): datos del evento y un QR por entrada (imagen GIF servida en `/entradas/t/<token>/qr.gif`, porque Gmail no muestra SVG) con su **código corto en grande al lado**, y link a `/entradas/t/<token>`. En eventos online, en lugar de QR: el link de la transmisión si ya está cargado, o el aviso de que llega antes del evento.
 6. **Entrada** (`/entradas/t/<token>`): QR con el **código corto** al lado, en grande (ver abajo), nombre, pronombres, tipo y estado (válida / ya usada / anulada). No muestra datos de otras personas, ni la hora del ingreso (solo a admins): quien compró para acompañantes no ve a qué hora entró cada une. En eventos online muestra el link de la transmisión cuando está (solo con la compra aprobada). La tarjeta de la entrada en «Mis entradas» del bot usa la misma regla y manda el link por el chat ([telegram.md](telegram.md)).
 7. **Código corto de cada entrada** (`tickets.code`): 6 caracteres de un alfabeto sin ambiguos (`23456789ABCDEFGHJKMNPQRSTUVWXYZ`: sin 0/O, 1/I/L), único por evento (índice único en la base), al azar (31⁶ ≈ 887 millones). Se elige dentro del mismo `INSERT` que emite la entrada entre tres candidatos al azar no usados en el evento, así que un choque nunca hace fallar la aprobación de un pago. Sirve para tipearlo en la puerta si el QR no se puede escanear: el control de ingreso lo acepta con o sin "KV-", espacios o guiones, y lee O como 0 e I/L como 1 (letras que los códigos no usan). No reemplaza al token del QR para ver la entrada: solo lo usan les admins en el control de ingreso.
-8. **Admin** (`/admin/ventas`): vendidas/cupo, reservas y recaudación bruta por tipo, y por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo**; por evento, la ficha `/admin/eventos/<slug>` con pestañas (Resumen, Editar, Ventas, Puerta, Códigos, Mails y Preguntas; Ventas tiene las vistas Totales con ventas por día y cómo pagaron, Órdenes y Transferencias, y Mails las vistas Mandar un aviso y Plantillas, ver [panel.md](panel.md)): la lista de órdenes, exportar CSV (`/admin/eventos/<slug>/ordenes.csv`) y reenviar el mail. El control de ingreso es el modo puerta (punto 9).
+8. **Admin** (`/admin/ventas`): vendidas/cupo, reservas y recaudación bruta por tipo, y por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo**; por evento, la ficha `/admin/eventos/<slug>` con pestañas (Resumen, Editar, Ventas, Puerta, Códigos, Mails y Preguntas; Ventas tiene las vistas Totales con ventas por día y cómo pagaron y Órdenes (que también confirma las transferencias), y Mails las vistas Mandar un aviso y Plantillas, ver [panel.md](panel.md)): la lista de órdenes, exportar CSV (`/admin/eventos/<slug>/ordenes.csv`) y reenviar el mail. El control de ingreso es el modo puerta (punto 9).
 9. **Modo puerta** (check-in): `/admin/checkin` elige el evento (hoy primero, después los próximos y los de los últimos 60 días, con cuántes entraron; con un solo evento hoy entra directo a ese, con «Otro evento» para volver a la lista, ver docs/panel.md) y abre `/admin/eventos/<slug>/ingreso`: pantalla completa y oscura, sin menús del panel (`bare: true`), con la pantalla siempre prendida (Screen Wake Lock, que se vuelve a pedir al volver a la pestaña). Arriba, el botón **?** abre la guía para quien está en la puerta ([Puerta: cómo hacerla](#puerta-cómo-hacerla)).
    - **En la compu, la lista al costado** (pantalla de 1100 px o más; pedido de gorrite, 22/11): todas las entradas del evento con buscador y «Faltan / Adentro / Todas», con ✨ en quienes vienen por primera vez y la hora de ingreso (`DoorList.svelte`). Sale de la lista que la Puerta ya guarda para sin conexión (`door.list`), así que no pide nada nuevo al servidor. Tocar una fila abre «Ver compra»; «Marcar» en una que falta la marca como un escaneo (con su código). En «Ver compra» (también en el celu), cada entrada que falta tiene «Marcar ingreso» y, si faltan varias, «Marcar a las N que faltan» (una detrás de la otra, como escaneos); las de quienes vienen por primera vez llevan ✨ «primera vez».
    - **Contador** "18 de 31 adentro" con el detalle por tipo y, abajo, «✨ 7 / 12 primerices ya llegaron»: cuántas personas que vienen por primera vez ya entraron, de cuántas tienen entrada aprobada (pedido de Pau, 22/11; `firstInsideCount` en `door.js`, `first` de los contadores; en una parte de un taller no va, y sin conexión lo cuenta el celu con su lista, `localCounts`). Solo aparece si de alguien se sabe; y **escáner** de QR con la cámara (API `BarcodeDetector`: Chrome en Android, Edge), con linterna y cambio de cámara si el celu los tiene. En iPhone (Safari no tiene `BarcodeDetector`) se puede escanear con la cámara del sistema: abre la página de la entrada, que a les admins les muestra el botón "Marcar ingreso" (a quien no es admin no: el form action llama a `requireAdmin`, hay tests).
@@ -113,7 +113,7 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
    - **Con señal pero el servidor caído** (auditoría de confiabilidad, OX1): si un escaneo no recibe respuesta en 8 segundos, o el servidor contesta con un error (500) o con «se cerró la sesión», y hay lista guardada, se valida con la lista igual que sin conexión y un cartel dice «El servidor no contesta: validando con la lista guardada de las HH:MM» (o «Se cerró la sesión (volvé a entrar para sincronizar)»), con «Sincronizar». Mientras tanto los escaneos van directo a la lista y cada 30 segundos uno vuelve a probar con el servidor; el cartel se va solo cuando el servidor contesta (un escaneo, «Sincronizar» o la sincronización de cada 2 minutos). Los ingresos quedan en la cola y se mandan solos (idempotente: lo que el servidor llegó a marcar no se duplica). Sin lista guardada, los mensajes de siempre. La decisión es una función pura, `scanFallback` en `src/lib/admin/doorFallback.js`. Antes, un error de red dejaba la puerta «sin conexión» hasta que el navegador avisara que volvió la red, cosa que no pasa si la red nunca se cortó.
    - **Colas largas** (auditoría de confiabilidad, OX2): la sincronización manda los ingresos en tandas de 500 y las ventas en tandas de 100 (lo más que acepta el servidor, `QUEUE_MAX_ITEMS` y `SALE_QUEUE_MAX_ITEMS` en `door.js`; antes una cola de más de 500 ingresos se rechazaba entera y no se sincronizaba nunca), en orden, aplicando el resultado de cada tanda al llegar. Si una tanda falla, se corta ahí, lo que queda sigue en la cola del celu y un aviso dice «No se pudo sincronizar: quedan N ingresos pendientes. Probá con «Sincronizar» o avisale a gorrite.» (`inBatches` en `src/lib/admin/doorFallback.js`).
    - **Vender en puerta** (en eventos con `puerta: false`, o pasando el cupo o las 10 entradas por venta, pide confirmar: ver [Pasar límites desde el panel](#pasar-límites-desde-el-panel)): tipo, cantidad (hasta 10 sin confirmar; tope técnico 100), **precio por entrada** (al lado de la cantidad, ya cargado con el de la puerta, `doorPrice`; se puede cambiar, ver abajo) y opción del fondo, o monto a la gorra (los montos se leen con `parseAmount`, como en la compra online: «5.000», «$ 5.000» o «5000,00» son $ 5.000, «5000.00» da error en vez de $ 500.000, y respetan el tope técnico de la compra), efectivo o transferencia ya recibida, nombre, y opcionales pronombres, DNI, email (y mandarle las entradas por mail), nombres de las otras personas y una **nota** («Agregar nota»). Crea una orden **ya aprobada** con `channel = 'puerta'` y `payment_method` `efectivo` o `transferencia` (quien vendió queda en `confirmed_by`), controla el **cupo en la misma sentencia** que la compra online (cuentan aprobadas y reservas vigentes: dos ventas a la vez no se pasan), emite las entradas y las marca adentro, todo en una transacción, y queda en el registro de actividad (`order.door_sale`). No aplica la ventana de venta, los topes por email ni códigos de descuento. Si se le mandan las entradas por mail y el evento tiene un combo, el mail lleva el código combo (ver [Códigos combo](#códigos-combo)).
-     - **Una venta errada** (auditoría de UX, V12; gorrite, 26/10: **en la Puerta no hay «Anular» ni reembolso**, eso queda en el panel con su confirmación): el resultado de cada venta registrada dice «¿Te equivocaste? Ver la orden», que lleva a esa orden en Ventas › Órdenes (`orderHref` en `src/lib/admin/orderFormat.js`: `…/ordenes#orden-<id>`; la página baja hasta la orden, la marca y, si el filtro «Mostrar» la escondía, pasa a «Todas»). Una venta sin conexión que todavía no se sincronizó no tiene orden: ver «Descartar» abajo.
+     - **Una venta errada** (auditoría de UX, V12; gorrite, 26/10: **en la Puerta no hay «Anular» ni reembolso**, eso queda en el panel con su confirmación): el resultado de cada venta registrada dice «¿Te equivocaste? Ver la orden», que lleva a esa orden en Ventas › Órdenes (`orderHref` en `src/lib/admin/orderFormat.js`: `…/ordenes#orden-<id>`; la página baja hasta la orden, la marca y, si el filtro de estado la escondía, pasa a «Todas»). Una venta sin conexión que todavía no se sincronizó no tiene orden: ver «Descartar» abajo.
      - **Otro precio y nota** (gorrite, 12/10, probando la puerta con celus): en un tipo con precio, el precio por entrada se puede cambiar por lo que se cobró de verdad: entero de 0 a $ 100.000.000 (el tope de `price`; se lee con `parseAmount` a través de `parseDoorAmount` en `src/lib/admin/doorSale.js`; negativos, centavos o texto se rechazan) y el total de la venta dentro del tope técnico de la compra (`exceedsOrderMax`, como a la gorra). Se cobra como si fuera el `door_price` de esa venta: el Fondo sale de `parseDoorPrice` con el mismo porcentaje y el total de `computePrice` (sin recargo de Mercado Pago: en la puerta no hay). Si es distinto del de la puerta, el de la puerta queda en `orders.door_list_price` (migración 0063) y el panel dice «Precio cambiado en la puerta: $ 5.000 en vez de $ 12.000» (Órdenes, la hoja «Ver compra» y el resultado de la venta); el registro lo anota (`priceChanged: { from, to }` y «precio cambiado» en el resumen). **0 queda «sin cargo»** (`gratis`) como en la carga a mano, y con canal `manual`: la base solo acepta precio 0 en las manuales y a la gorra (CHECK de la migración 0010), y cambiar ese CHECK exige reconstruir `orders`, que hoy borraría en cascada `order_answers` (ítem `puerta-precio-cero-canal` del plan). Las entradas quedan adentro igual y va al registro como `order.door_sale`. Un 0 tiene que escribirlo quien vende: un `door_price: 0` de la configuración (el editor ya no lo deja guardar) sin precio escrito sigue avisando «cargala a mano», como dice arriba. La nota es la de la carga a mano: `orders.admin_note`, hasta 300 caracteres, solo en el panel (Órdenes, «Ver compra» y el resultado de la venta; nunca en mails); el registro anota solo que tiene nota (`withNote`).
    - **Vender en puerta sin conexión** ([decisión 0035](decisiones/0035-vender-en-puerta-sin-conexion.md)): el mismo formulario (con el precio por entrada y la nota), sin el DNI (sin conexión no se guarda en el celu) y, con transferencia, con la casilla «Vi que llegó la transferencia». Si con lo que sabe el celu (cupo de cuando había conexión, menos lo vendido sin conexión; 10 por venta; solo anticipadas) se pasaría un límite, avisa con el mismo diálogo, pero se puede guardar igual. La venta queda en la cola del celu (`localStorage`, `queueOfflineSale` en `src/lib/admin/doorOffline.js`) con un id del celu; sus entradas cuentan como adentro en ese celu y se ven como «pendiente de sincronizar». Al volver la conexión (o con «Sincronizar») se mandan **antes que los ingresos y en el orden en que se vendieron** (acción `?/syncSales`, `applyQueuedSales` en `door.js`): cada una pasa por la misma validación (`parseDoorSale`) y la misma función (`sellAtDoor`) que la venta con conexión, con la hora del celu (acotada como la de los ingresos); el precio cambiado y la nota viajan en la venta (`amount` y `note`), se validan otra vez al sincronizar y dan la misma orden que con conexión. Cambiar el precio **no es un límite**: no la manda a «Para revisar». Una venta guardada antes de que existiera el campo (sin `amount`) cobra el precio de la puerta; un precio inválido no se registra y queda a la vista en el celu. Es **idempotente**: el id del celu queda en `orders.client_sale_id` (índice único, migración 0051), así que un reintento devuelve la orden que ya existe. **Un límite no frena la venta**: si al sincronizar se pasa el cupo, se agotó el tipo, son más de 10, el evento es solo anticipadas o se canceló, se guarda igual con esos límites en `orders.offline_review`, sale en «Para revisar» («Venta sin conexión de … para revisar», con «Marcar como revisada» en Órdenes) y el celu muestra un aviso. **El precio es el de cuando se sincroniza**: la venta se registra con el precio en la puerta (salvo que quien vendía haya escrito otro) y el % del Fondo de ese momento, no con los de cuando se vendió. Por eso el celu manda lo que cobró (`charged_total`, el total que vio quien vendía) y, si el servidor la registra con otro total, también queda en `offline_review` (`{ kind: 'price', charged, recorded }`) y en «Para revisar»: «Se cobró $ 16.800; quedó registrada en $ 16.500». No se corrige sola: quien organiza decide. Una venta de un celu con una versión anterior (sin `charged_total`) no se compara. Si el servidor no la puede registrar (por ejemplo, un tipo que ya no existe), el celu la deja a la vista con sus datos («Cargala a mano») hasta que alguien descarta el aviso: nunca se borra sola. **Descartar una venta que todavía no se mandó** (auditoría de UX, V12): mientras está en la cola del celu, se puede descartar desde el resultado de la venta («¿Te equivocaste? Descartar esta venta»), desde «Ver compra» o desde «Opciones» › «Ventas sin sincronizar». Siempre pregunta antes con un diálogo en la página (nunca `window.confirm`) y solo la saca de la cola y de la lista local de este celu (`discardQueuedSale` en `doorOffline.js`, que sin `confirmed` no hace nada); no toca el servidor ni la plata (si se cobró, se devuelve a mano). Mientras se pregunta no se sincroniza, y con una sincronización en curso no se ofrece. Una venta que ya se sincronizó no se descarta en la Puerta: es una orden, con su «Ver la orden». Queda en el registro como `order.door_sale` (con `offline: true`) y, si pasó límites, `tickets.override`.
 
@@ -512,6 +512,48 @@ El formulario muestra "Entradas (n × $X) · 💜 Ya descontado: el Fondo cubre 
 
 La orden guarda `unit_price` (precio completo), `fondo_option`, `fondo_amount` (fondo usado, ≥ 0, solo con `fondo`), `fondo_contribution` (aporte, ≥ 0, solo con las solidarias), `subtotal`, `discount_code`, `discount_amount`, `surcharge_amount` y `total` (con `CHECK` en la base que obligan a que cierren las cuentas: `migrations/0002_tickets.sql`). `/admin/ventas` muestra por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo** = aportes − fondo usado (solo órdenes aprobadas; con signo: verde "+" si entró más de lo que cubrió el fondo, rojo "−" si el fondo puso más); la página de cada evento, las tres columnas por tipo y en el total; el CSV, `opcion_fondo`, `fondo` y `aporte_fondo`. Si una compra solidaria usa además un código, el aporte guardado es el nominal (el código lo pone la organización: lo tomamos como un costo de la organización, no del fondo; decisión [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)). Con fondo, aporte, código o recargo, la preferencia de MP lleva un solo ítem por el total (MP no acepta ítems negativos) y el webhook compara lo pagado con `total`.
 
+#### Ventas › Órdenes: Compras y Respuestas
+
+`/admin/eventos/<slug>/ordenes` (gorrite, 22/11: «todo a la vista», sin filas que se abren). Un
+interruptor arriba elige la vista y queda en la URL (`?vista=respuestas`); las cuentas y los
+filtros son funciones puras en `src/lib/admin/ordersView.js` y las partes, componentes en
+`src/lib/components/admin/ordenes/`.
+
+- **Compras**: una tarjeta por compra (`OrderCard`) con quien compró (nombre, pronombres, mail,
+  DNI con «Mostrar»), el estado, la plata con su desglose (ver abajo), reembolso parcial, precio
+  cambiado en la puerta, la nota, las respuestas de la compra y **cada entrada** con su nombre,
+  pronombres, si ingresó (✓), «primera vez» y sus respuestas. Las respuestas largas van en una
+  línea y se abren al tocarlas (tocar no filtra); las de opciones llevan «ver quiénes respondieron
+  igual». Abajo, siempre la misma fila de botones con solo los que corresponden: «Llegó la
+  transferencia ✓» (resaltada) y «Cancelar» en una transferencia por confirmar, «Reenviar mail» en
+  una aprobada, «Deshacer rechazo» en una transferencia cancelada por une admin, la casilla
+  «Facturada» si la compra se factura y, en «Más», «Corregir el mail…» y «Reembolsar…» (con su paso
+  de confirmación).
+- **Filtros**: el estado, una sola opción con «🧾 compras · 👥 personas» (Transferencias por
+  confirmar, Aprobadas, Pendientes MP, Reembolsadas, Todas; en la URL, `?estado=`): arranca en
+  las transferencias por confirmar si hay, si no en las aprobadas. «Filtros» suma interruptores
+  (Sin facturar, Con nota, Primera vez si se sabe, Usó el Fondo, Aportó al Fondo). Las opciones
+  sin nada no se muestran. «Ordenar» (`?orden=`) y el buscador (nombre, mail, KV-…, personas,
+  respuestas y DNI, este en el servidor). Un evento chico (hasta 5 compras) muestra todas, sin
+  filtros ni «Ordenar».
+- **Respuestas**: una tarjeta por pregunta de inscripción, en el orden del formulario
+  (`fieldsForEvent`: las generales elegidas y después las del evento), con las compras aprobadas.
+  Las de opciones y casilla, con barras y todas sus opciones (las que nadie eligió, al final;
+  👥 si se pregunta por entrada, 🧾 si por compra): tocar una barra va a Compras filtrado por esa
+  respuesta, con un chip para sacarlo. Las de texto listan solo a quienes escribieron algo, con
+  nombre (lleva a su compra), pronombres y «primera vez», y «Copiar para el equipo» copia
+  «Nombre (pronombres): respuesta», una por línea. Las respuestas a preguntas que ya no están van
+  al final, juntas por el texto con que se guardaron. Si la pregunta tiene un nombre corto, se usa
+  ese.
+- **Transferencias** (antes una vista aparte, `/transferencias`, que ahora redirige a
+  `ordenes?estado=transferencias`): se confirman en su tarjeta. Las que esperan el pago o vencieron
+  hace menos de 7 días (`pendingTransfers`) dicen «reservada hasta …» o «reserva vencida el …»;
+  confirmar pregunta antes y, si pasa el cupo, abre el aviso de los límites (sin JavaScript, «Sí,
+  confirmar igual» arriba de la página: por eso la página manda `Referrer-Policy: same-origin`).
+  El resultado queda en la tarjeta aunque el filtro ya no la muestre.
+- **Link a una orden** (`#orden-<id>`): pasa a Compras, saca los filtros que la esconden, baja
+  hasta ella y la marca.
+
 #### La plata de cada orden en Órdenes
 
 En Ventas › Órdenes cada orden muestra la plata en dos líneas (opción A de gorrite;
@@ -553,16 +595,23 @@ que casi nunca pasa. Ahora cada evento puede tener **una** meta (decisión de go
 
 - **`meta_venta: entradas:30`**: entradas vendidas (órdenes aprobadas, sin las reservadas). La
   comisión no cuenta.
+- **`meta_venta: ganancia:150000`** (Mesa 24/11): la ganancia del evento ([Gastos y
+  reparto](#gastos-y-reparto), `eventProfit`): la estimada mientras la cuenta está abierta («$
+  80.000 de ganancia estimada de $ 150.000 (53 %)», con el detalle al pasar el mouse) y la del
+  cierre después. Con pérdida, la barra queda en 0 y el texto dice el monto con signo. Solo con el
+  interruptor `gastos_reparto`: el editor ofrece «Ganancia (pesos)» solo prendido (una meta ya
+  guardada se sigue viendo para poder cambiarla) y, apagado, una meta de ganancia se ve como «sin
+  meta» (el cupo). Es texto, como las otras: sin migración.
 - Sin `meta_venta`: como siempre, contra el cupo.
 - También se acepta, escrita a mano, la forma de mapa (`meta_venta: { entradas: 30 }`, una sola
   clave). Una meta que no se entiende es «sin meta»: nunca frena la venta ni el panel. El número es
-  un entero mayor a 0 (topes: $ 1.000.000.000 y 100.000 entradas).
+  un entero mayor a 0 (topes: $ 1.000.000.000 en plata y en ganancia, y 100.000 entradas).
 - Con `contenido_db` es la misma clave dentro de `extra` del objeto `evento` (como `tickets`).
   No hay migración.
 
 **Dónde se edita.** En el editor del evento (crear, duplicar y editar), sección **Entradas** ›
-**Meta de venta**: «Sin meta», «Plata (pesos)» o «Entradas» y el número. Solo con la venta
-prendida; se escribe solo si cambió (`applyTicketsForm`, `SalesGoalField.svelte`). **Duplicar** un
+**Meta de venta**: «Sin meta», «Plata (pesos)», «Entradas» o «Ganancia (pesos)» (con
+`gastos_reparto`) y el número. Solo con la venta prendida; se escribe solo si cambió (`applyTicketsForm`, `SalesGoalField.svelte`). **Duplicar** un
 evento (el formulario, la carga rápida de la agenda o la importación de la planilla) copia la meta
 del original como cualquier otro campo; en el formulario se puede cambiar antes de guardar.
 
@@ -711,16 +760,47 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   con su columna del cierre y cada parte de afuera del equipo por nombre (sin distinguir
   mayúsculas), con la cuenta vuelta a hacer desde la foto; con pérdida, lo que puso resta. Tiene
   nombres de personas: solo en esta página de admins, nunca en un CSV.
-- **La ganancia en otras páginas** (gorrite, 6/11; `estadisticas-ganancia` en el plan), solo con
-  el interruptor prendido:
-  - la ficha del evento › **Resumen**, tarjeta «La cuenta» (si vende entradas): «Ingresos de la
-    cuenta», «Gastos» y «Ganancia o pérdida» de la cuenta cerrada; empezada y sin cerrar dice «sin
-    cerrar», y sin cuenta, «—» (nunca $ 0). Lee `accountState` (`cuentas.js`);
-  - Estadísticas › Ventas › **Fondo y finanzas**: los mismos tres totales de los eventos del período
-    (y la serie) con la cuenta cerrada, con «X de Y eventos con cuenta cerrada», y el gráfico y la
-    tabla **Ganancia por mes** (`profitByMonth` en `statsPages.js`, por el mes del evento; un mes sin
-    cierres queda vacío). «Ingresos de la cuenta» no es «Cobrado»: no tiene el recargo de MP y suma
-    lo cargado a mano.
+- **La ganancia en todo el panel** (gorrite, 6/11 y Mesa 24/11: «Ganancia en todo el panel: Todo,
+  con ganancia estimada antes de cerrar»; `estadisticas-ganancia` en el plan), solo con el
+  interruptor prendido. **Un solo número** para todas las páginas: `eventProfit` en
+  `src/lib/admin/ganancia.js`.
+  - **Cuenta cerrada:** la ganancia del cierre, «Ganancia».
+  - **Cuenta abierta o sin empezar:** «Ganancia estimada» = la misma cuenta de esta página
+    (`computeAccount`) con lo que entró hasta ahora (`eventIncome`: sin el recargo de MP, el Fondo
+    orden por orden, los extras) y **lo guardado** de la cuenta (lugar, contrataciones, otros
+    gastos, otros ingresos). Sin nada guardado, **lo mismo que muestra esta página** para una
+    cuenta sin guardar (`shownAccount` en `reparto.js`: la regla por defecto del lugar del evento
+    o, si no tiene, la de talleres, 30 %; gorrite, 24/11), con la pista «con la regla del lugar»;
+    si ni así hay gastos (por ejemplo, una regla de monto fijo en $ 0), «sin gastos cargados». De
+    un evento que ya pasó, además, «falta cerrar la cuenta».
+  - Para las listas, `src/lib/server/tickets/ganancia.js` (`profitsQuery`): **una** consulta de
+    cuatro sentencias para todos los eventos (las órdenes sumadas en SQL por evento, canal y medio
+    de pago, que dan lo mismo que una por una; `event_accounts`; `event_account_closings`; la regla
+    por defecto del lugar de cada evento, `venue_cost_rules`, con `eventVenueRulesStatement` de
+    `amigues/venues.js`), que sale en la misma tanda que las otras lecturas de la página. Sin el
+    interruptor no consulta nada.
+  - **Dónde se ve:** la ficha › **Resumen**, tarjeta «La cuenta» (cerrada, sus números; abierta,
+    «Gastos cargados» y «Ganancia estimada»; sin ventas, «—»); la ficha › **Ventas**, la tarjeta
+    «Ganancia estimada» / «Ganancia» junto a «Recaudado» (lleva a esta página); el **Inicio**: en
+    cada próximo con entradas («Ganancia est.» bajo lo recaudado, y en su CSV), en la tarjeta de
+    ventas, una línea en «Entradas este mes» con la ganancia de los eventos del mes y la tarjeta
+    «Ganancia de los últimos eventos» (los que vendieron entradas en los últimos 30 días, con su
+    ganancia o «falta cerrar la cuenta»); **Panel › Eventos**: la de los que ya pasaron (y las
+    columnas «ganancia» y «ganancia es» del CSV); **Ventas › Todas las ventas**: debajo de cada
+    evento; **Estadísticas › Asistencia** › «Asistencia por evento»: la ganancia y la ganancia por
+    persona que entró (y en su CSV); el **conector** de Claude (`ventas`: `resumen.ganancia`); el
+    **bot**: el resumen del día después ([telegram.md](telegram.md)); y la **meta de ganancia**
+    ([Meta de venta](#meta-de-venta)).
+  - Estadísticas › Ventas › **Fondo y finanzas**: «Ingresos de la cuenta», «Gastos» y «Ganancia o
+    pérdida» de los eventos del período (y la serie): los cerrados con su cierre y los que ya
+    pasaron sin cerrar con su ganancia estimada (entonces la tarjeta dice «Ganancia estimada» y
+    «X de Y eventos con cuenta cerrada · Z suman su ganancia estimada»), y el gráfico y la tabla
+    **Ganancia por mes** (`profitByMonth` en `statsPages.js`, por el mes del evento; un mes sin
+    cierres ni estimadas queda vacío; el CSV suma la columna «estimadas»). «Ingresos de la cuenta»
+    no es «Cobrado»: no tiene el recargo de MP y suma lo cargado a mano.
+  - Lo que no cambió, a propósito: «Recaudado» / «Cobrado» siguen siendo lo cobrado (son ventas, no
+    ganancia), los avisos de cada venta del bot dicen lo neto de esa venta, y **Cuentas del año**
+    sigue siendo de las cuentas cerradas (es el libro de los cierres).
 - **La página** (gorrite, Mesa 5/11: más compacta): arriba, ingresos, gastos, ganancia o pérdida y
   Caja KV; abajo, cuatro tarjetas: **Ingresos** (lo que entró y otros ingresos), **Gastos** (lugar,
   contrataciones y otros gastos), **Reparto** (cada parte: nombre y lo suyo; su regla; sus marcas,
@@ -840,7 +920,7 @@ apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `li
   **página del evento**, nunca directo a comprar: con la lista de espera prendida (interruptor
   `lista_espera` y `waitlist` en el evento; `waitlist: true` en el estado de la lista,
   `listStates.js`) lleva a `#entradas` con «Anotate en la lista de espera»; sin lista, a `#seguir`
-  (el «Seguir la serie» de la página, ver [lo-que-sigo.md](lo-que-sigo.md)) con «Avisame la
+  (la tarjeta de la serie en la página, ver [lo-que-sigo.md](lo-que-sigo.md)) con «Avisame la
   próxima». Sale de `ticketCta` (`followUp`, `soldOutFollowUp`). El estado de las listas no mira
   si todavía queda un alcance donde anotarse (sería una consulta por evento): si ya no, la página
   dice «Agotadas.» sin formulario. En las tarjetas del sitio el link se suma recién al montar (un
@@ -1147,7 +1227,7 @@ Opt-in por evento (`payment_methods`) y requiere datos para transferir (Ajustes 
 
 1. La orden queda `awaiting_transfer` y **guarda el lugar hasta las 20:00 (hora de Argentina) del segundo día hábil después del día de la compra**, o hasta que empieza el evento si es antes ([decisión 0031](decisiones/0031-reserva-transferencia-dias-habiles.md)). Los días hábiles son de martes a sábado (de 14 a 20); el día de la compra nunca cuenta y los feriados no se tienen en cuenta. Ejemplos: domingo → miércoles 20:00; martes 15:00 → jueves 20:00; viernes → martes 20:00; sábado → miércoles 20:00; lunes → miércoles 20:00. La cuenta es `transferDeadline(creada, comienzo)` en `src/lib/utils/transferDeadline.js` (pura; los días y la hora de cierre son constantes de ese archivo); el comienzo es el mismo que cierra la venta por defecto (`start`). No hay paso de confirmar: el formulario (con la fecha exacta si se compra ahora), las condiciones de compra, la página de estado y el mail dicen hasta cuándo, con día y hora. Cuenta para el cupo y para los usos de códigos igual que las demás reservas; al vencer se libera. Los links «Confirmar mi reserva» de mails viejos (`/entradas/<orden>/confirmar?k=…`, firmados) siguen andando: muestran «Tu reserva ya está guardada hasta…» o «Tu reserva ya venció» y no cambian nada. Las reservas que ya existían quedan con su vencimiento.
 2. La persona ve (en `/entradas/<orden>/estado`) el monto, los datos para transferir, una **referencia** `KV-XXXXXXXX` para el concepto y cómo mandar el comprobante (respondiendo el mail o escribiendo a `TICKETS_REPLY_TO`/`TICKETS_CONTACT_EMAIL`). Se le manda un mail con lo mismo.
-3. En la bandeja **Ventas › Transferencias** (`/admin/ventas/transferencias`, las de todos los eventos, la que vence antes arriba, con filtro por evento) o en la pestaña **Transferencias** de la ficha (`/admin/eventos/<slug>/transferencias`), **Transferencias pendientes**: **Confirmar pago** aprueba, emite las entradas y las manda por mail, en una transacción idempotente (dos clicks o dos pestañas: se emite una vez). **Cancelar** libera el cupo. Se siguen mostrando 7 días las reservas vencidas: confirmar una vencida solo funciona si todavía hay cupo (comprobado en la misma sentencia); en ese caso no se vuelve a mirar el máximo de usos del código. **Deshacer rechazo** (solo admins): una transferencia cancelada en los últimos 7 días (bandeja: «Rechazadas en los últimos 7 días»; ficha: «Resueltas hace poco») vuelve a «esperando comprobante» con una reserva nueva contada desde ese momento con la misma regla (`transferDeadline`), solo si todavía hay lugar en su tipo y su tramo (`reopenLimits` + `reopenTransfer`, en la misma sentencia); si no, el mismo aviso para pasar el límite. Queda en el registro (`transfer.reopen`) y no le manda nada a quien compró.
+3. En la bandeja **Ventas › Transferencias** (`/admin/ventas/transferencias`, las de todos los eventos, la que vence antes arriba, con filtro por evento) o en Ventas › Órdenes de la ficha (`/admin/eventos/<slug>/ordenes?estado=transferencias`, filtro «Transferencias por confirmar»; la vieja dirección `/transferencias` lleva ahí): **Confirmar pago** (en la ficha, «Llegó la transferencia ✓») aprueba, emite las entradas y las manda por mail, en una transacción idempotente (dos clicks o dos pestañas: se emite una vez). **Cancelar** libera el cupo. Se siguen mostrando 7 días las reservas vencidas: confirmar una vencida solo funciona si todavía hay cupo (comprobado en la misma sentencia); en ese caso no se vuelve a mirar el máximo de usos del código. **Deshacer rechazo** (solo admins): una transferencia cancelada en los últimos 7 días (bandeja: «Rechazadas en los últimos 7 días»; ficha: en la tarjeta de la orden cancelada, filtro «Todas») vuelve a «esperando comprobante» con una reserva nueva contada desde ese momento con la misma regla (`transferDeadline`), solo si todavía hay lugar en su tipo y su tramo (`reopenLimits` + `reopenTransfer`, en la misma sentencia); si no, el mismo aviso para pasar el límite. Queda en el registro (`transfer.reopen`) y no le manda nada a quien compró.
 4. **No hay verificación automática:** no existe una API confiable y accesible para enterarse de transferencias entrantes a una cuenta bancaria o CVU común (los bancos no ofrecen webhooks a particulares/pequeñas organizaciones, y leer extractos o mails del banco sería frágil e inseguro). Alguien tiene que mirar la cuenta y confirmar a mano.
 
 ### Política de devoluciones
@@ -1177,7 +1257,7 @@ panel o, si la persona lo prefiere, un taller grabado. Cancelar no reembolsa ni 
    rechace (sin saldo, más de 180 días) quedan aprobadas: anotarlas y reintentar, o devolver a mano
    después de mirar el pago en MP. Las de la puerta, carga a mano o transferencia van en «Para
    devolver a mano». Quien eligió el taller grabado: no se reembolsa; anotarlo (por ejemplo, en una nota interna de la persona).
-4. **Transferencias pendientes:** Ventas › Transferencias → Cancelar cada una.
+4. **Transferencias pendientes:** Ventas › Transferencias (o Órdenes del evento, «Transferencias por confirmar») → Cancelar cada una.
 5. Mientras quede algo por devolver, el evento sale en «Para revisar» del Inicio.
 
 ### Evento de prueba
@@ -1394,7 +1474,7 @@ Idea: que otres productores vendan en el sitio y el dinero vaya directo a su cue
 
 Respondidas por gorrite el 12/10 (decisión [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)):
 
-- **Evento cancelado:** se le devuelve todo a todes desde el panel (Reembolsar en cada orden, o «Reembolsar todas» para las de Mercado Pago, decisión [0051](decisiones/0051-reembolsar-todas-evento-cancelado.md)), o, si la persona prefiere, un taller grabado, como dice la política de devoluciones. Cancelar el evento no reembolsa solo ni manda un aviso: cada reembolso manda su mail. Para que no quede nada sin devolver, mientras un evento cancelado tenga órdenes aprobadas (sin reembolsar) o transferencias esperando comprobante todavía vigentes, el **Inicio** del panel lo muestra en «Para revisar», una fila por evento: «‹evento› está cancelado: 1 orden aprobada ($ 10.000) y 1 transferencia pendiente», con link a Órdenes (a Transferencias si solo quedan transferencias). Aparece aunque la fecha del evento ya haya pasado y se va sola cuando no queda nada; también vuelve si entra un pago después de cancelar (`cancelledLeftoversQuery` en `src/lib/server/admin/inicio.js`, `cancelledEventItems` en `review.js`). Solo avisa: no reembolsa ni cancela nada. Confirmar una transferencia de un evento cancelado (bandeja o ficha) se puede, pero pregunta antes con el aviso de los límites («El evento está cancelado.», `cancelledLimit` en `overrides.js`); confirmarlo no pasa por encima del cupo, que si hace falta se confirma aparte en el mismo aviso.
+- **Evento cancelado:** se le devuelve todo a todes desde el panel (Reembolsar en cada orden, o «Reembolsar todas» para las de Mercado Pago, decisión [0051](decisiones/0051-reembolsar-todas-evento-cancelado.md)), o, si la persona prefiere, un taller grabado, como dice la política de devoluciones. Cancelar el evento no reembolsa solo ni manda un aviso: cada reembolso manda su mail. Para que no quede nada sin devolver, mientras un evento cancelado tenga órdenes aprobadas (sin reembolsar) o transferencias esperando comprobante todavía vigentes, el **Inicio** del panel lo muestra en «Para revisar», una fila por evento: «‹evento› está cancelado: 1 orden aprobada ($ 10.000) y 1 transferencia pendiente», con link a Órdenes (filtrada en las transferencias por confirmar si solo quedan transferencias). Aparece aunque la fecha del evento ya haya pasado y se va sola cuando no queda nada; también vuelve si entra un pago después de cancelar (`cancelledLeftoversQuery` en `src/lib/server/admin/inicio.js`, `cancelledEventItems` en `review.js`). Solo avisa: no reembolsa ni cancela nada. Confirmar una transferencia de un evento cancelado (bandeja o ficha) se puede, pero pregunta antes con el aviso de los límites («El evento está cancelado.», `cancelledLimit` en `overrides.js`); confirmarlo no pasa por encima del cupo, que si hace falta se confirma aparte en el mismo aviso.
 - **Evento reprogramado:** la entrada vale para la nueva fecha (es lo que dice el mail «Cambió la fecha»). Quien no pueda ir pide la devolución con el mismo plazo de siempre: hasta 5 días hábiles antes de la nueva fecha.
 - **Plazo de acreditación de MP:** el más largo que les sirva a les organizadores, para que el recargo de quien compra sea el más bajo. gorrite ya lo eligió en la cuenta y cargó esa comisión en Ajustes › Cobros (12/10).
 - **Tope del Fondo por evento:** sin tope, como hoy (cubre todas las entradas vendidas que elijan «con el descuento del fondo»). El panel muestra el Fondo usado en cada evento; si algún día hace falta un tope, se suma.

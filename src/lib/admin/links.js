@@ -32,11 +32,12 @@ export function orderHref(slug, orderId) {
 }
 
 /**
- * Transferencias pendientes de un evento.
+ * Transferencias pendientes de un evento: Ventas › Órdenes con el filtro «Transferencias por
+ * confirmar».
  * @param {string} slug
  */
 export function transfersHref(slug) {
-	return eventHref(slug, 'transferencias');
+	return `${eventHref(slug, 'ordenes')}?estado=transferencias`;
 }
 
 /**

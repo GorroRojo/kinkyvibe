@@ -53,6 +53,9 @@ por la dirección (slug).
   Mercado Pago, la nota, las entradas y las respuestas a las preguntas, como ahí. Un objeto, con
   todos sus datos, como el editor. Lo que el panel no muestra, el conector tampoco. Los mails de
   amigues son públicos a propósito (decisión 0010), como en el panel.
+- **Subir solo suma a la biblioteca** (ver [Subir a la biblioteca](#subir-a-la-biblioteca)):
+  nada público cambia hasta que algo la usa, y usarla es un cambio con vista previa. El sitio nunca
+  baja nada de otra dirección: los bytes llegan en el pedido.
 - **Dos migraciones**: `0072` (las llaves para rutinas y «confirmado por» en el historial) y
   `0073` (las relaciones de cada versión del historial, para deshacer). La lectura no las necesita.
 
@@ -99,13 +102,13 @@ usa en 20 horas, también (el token de renovación vence).
 
 ## Las herramientas
 
-| Herramienta        | Qué recibe                                                                                                                            | Qué devuelve                                                                                                                                                                                                                                                                   |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `buscar`           | `texto`; opcional `tipo` (evento, material, perfil, etiqueta, lugar) y `limite`                                                       | tipo, slug, título, visibilidad y enlaces (al sitio y al panel) de lo que coincide, también lo oculto. Usa el índice de búsqueda de la base (`searchObjects`, sin tildes, cada palabra como comienzo).                                                                         |
-| `leer`             | `nombre` (slug o nombre); opcional `tipo`                                                                                             | todos los datos del objeto, como el editor del panel, quién y cuándo lo creó y editó, sus relaciones y sus enlaces; o las opciones si hay varios.                                                                                                                              |
-| `ventas`           | `evento` (slug o nombre); opcional `estado` (todas, aprobadas, pendientes, reembolsadas, vencidas, canceladas) y `limite` (hasta 500) | el resumen de la pestaña Ventas (vendidas, reservadas, cupo, recaudado, neto sin la comisión de MP, Fondo, por tipo, órdenes por estado) y las órdenes como en la pestaña Órdenes: referencia, nombre, últimos 3 del DNI, mail, montos, su estado, pago MP, nota y respuestas. |
-| `eventos_proximos` | opcional `dias` (hasta 365) y `limite`                                                                                                | los eventos desde hoy: slug, título, fechas, lugar, si está oculto, sin publicar o es borrador, y si vende entradas, vendidas, reservadas y cupo.                                                                                                                              |
-| `historial`        | `tipo` (evento, material, perfil, lugar, etiqueta, kinkipedia), `objeto` (slug o nombre); opcional `limite` (hasta 50)                | `version_actual` y `versiones`: `[{ version, cuando, quien, origen, cambios, es_la_actual?, deshacer_vuelve_aca?, sin_relaciones_guardadas? }]`. `cambios` son los nombres de los campos que cambiaron, no los valores.                                                        |
+| Herramienta        | Qué recibe                                                                                                                            | Qué devuelve                                                                                                                                                                                                                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `buscar`           | `texto`; opcional `tipo` (evento, material, perfil, etiqueta, lugar) y `limite`                                                       | tipo, slug, título, visibilidad y enlaces (al sitio y al panel) de lo que coincide, también lo oculto. Usa el índice de búsqueda de la base (`searchObjects`, sin tildes, cada palabra como comienzo).                                                                                                                    |
+| `leer`             | `nombre` (slug o nombre); opcional `tipo`                                                                                             | todos los datos del objeto, como el editor del panel, quién y cuándo lo creó y editó, sus relaciones y sus enlaces; o las opciones si hay varios.                                                                                                                                                                         |
+| `ventas`           | `evento` (slug o nombre); opcional `estado` (todas, aprobadas, pendientes, reembolsadas, vencidas, canceladas) y `limite` (hasta 500) | el resumen de la pestaña Ventas (vendidas, reservadas, cupo, recaudado, neto sin la comisión de MP, Fondo, la ganancia con Gastos y reparto prendido, por tipo, órdenes por estado) y las órdenes como en la pestaña Órdenes: referencia, nombre, últimos 3 del DNI, mail, montos, su estado, pago MP, nota y respuestas. |
+| `eventos_proximos` | opcional `dias` (hasta 365) y `limite`                                                                                                | los eventos desde hoy: slug, título, fechas, lugar, si está oculto, sin publicar o es borrador, y si vende entradas, vendidas, reservadas y cupo.                                                                                                                                                                         |
+| `historial`        | `tipo` (evento, material, perfil, lugar, etiqueta, kinkipedia), `objeto` (slug o nombre); opcional `limite` (hasta 50)                | `version_actual` y `versiones`: `[{ version, cuando, quien, origen, cambios, es_la_actual?, deshacer_vuelve_aca?, sin_relaciones_guardadas? }]`. `cambios` son los nombres de los campos que cambiaron, no los valores.                                                                                                   |
 
 Con el interruptor `formularios` prendido, `buscar` también encuentra formularios (sin `tipo` o con
 `tipo: formulario`) y `leer` con `tipo: formulario` da uno (ver [Formularios](#formularios)).
@@ -221,6 +224,70 @@ el control de que nadie guardó en el medio y lo que sigue a un guardado). Lo qu
   `src/lib/server/contenido/author.js`).
 - **Lo mismo que una edición**: deshacer hasta un evento cancelado, o cambiar el cupo o el estado
   con gente en la lista de espera, tampoco se hace (ver abajo).
+
+## Subir a la biblioteca
+
+gorrite, 24/11: «que puedas subir imágenes y eso vos también». Con los mismos permisos que los
+cambios (una llave para rutinas o una conexión con `edicion`, y los dos interruptores), Claude
+pone imágenes, documentos y videos en la biblioteca ([imagenes.md](imagenes.md)) sin abrir el
+panel, y después los usa con `editar_objeto`. Sin migración.
+
+| Herramienta        | Qué recibe                                                                                                                         | Qué devuelve                                                                                                                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subir_imagen`     | `contenido` (base64, hasta 1 MB), `nombre`; opcional `alt`, `copia_360` y `copia_720` (WEBP en base64), `confirmado_por`, `pedido` | `id`, `slug` (el SHA-256), `titulo`, `alt`, `url`, `miniatura`, `medidas`, `peso`, `copias_chicas`, `nuevo`, `avisos` y cómo usarla (`para_usar`)    |
+| `subir_archivo`    | `contenido` (base64, hasta 1 MB), `nombre`; opcional `confirmado_por`, `pedido`                                                    | lo mismo (sin `alt` ni medidas), con `clase` («PDF», «Video MP4»…) y el enlace en markdown                                                           |
+| `pedir_subida`     | `tipo` (`imagen` o `archivo`), `nombre`; opcional `alt`, `confirmado_por`, `pedido`                                                | `subida`, `url` (firmada, vale 15 minutos) para un `PUT` con los bytes, las de las copias chicas (`?parte=360`, `?parte=720`) y el `curl` de ejemplo |
+| `confirmar_subida` | `subida`; opcional `pedido`                                                                                                        | lo mismo que `subir_imagen` o `subir_archivo`; confirmar otra vez devuelve lo mismo                                                                  |
+| `buscar`           | `tipo: imagen` o `tipo: archivo` y `texto` (el nombre; vacío, lo más nuevo)                                                        | cada cosa con su `id`, `url`, `miniatura` (la copia de 360 px), peso y dónde se usa                                                                  |
+| `leer`             | `tipo: imagen` o `tipo: archivo` y `nombre` (id, slug, dirección o nombre)                                                         | nombre, texto alternativo, peso, medidas, copias chicas, quién y cuándo la subió y dónde se usa                                                      |
+
+- **El mismo camino que el panel** (`storeImage` y `storeFile`, `src/lib/server/media/library.js`):
+  el tipo sale de los bytes (un `.png` que es HTML se rechaza), sin metadatos, clave por contenido
+  (los mismos bytes dos veces son la misma imagen: reintentar es seguro y devuelve `nuevo: false`
+  con el nombre de antes; si no tenía texto alternativo, toma el nuevo) y los mismos pesos máximos:
+  imágenes **10 MB**, documentos y video **25 MB**. Una imagen, además, **hasta 2000 px de lado
+  largo** (lo que hace el navegador del panel al subir): más grande se rechaza con «La imagen mide
+  … px…» (el Worker no achica).
+- **Las copias chicas** (360 y 720 px, para las tarjetas): el Worker no las hace (no tiene con qué
+  sin el cupo de transformaciones de Cloudflare, que gorrite descartó para esto). Las manda quien
+  sube (`copia_360`, `copia_720`, o el PUT con `?parte=`), WEBP calidad 80 con el lado más corto en
+  360 y 720 px, y se validan como las del navegador (`validCopy`). Sin ellas, la respuesta lo avisa
+  y las tarjetas usan la original (la dirección de la copia redirige) hasta la pasada de
+  `scripts/copias-chicas.js`.
+- **Tamaño de un mensaje**: `/mcp` aceptaba 64 KB por mensaje, poco para una imagen en base64 (una
+  de 2000 px pesa 200–800 KB). Ahora acepta hasta **2 MB** (`MAX_MESSAGE_BYTES`), con
+  `contenido` hasta **1 MB**. Lo más grande (y todo video) va en dos pasos: `pedir_subida`, el
+  `PUT` a `/mcp/subida/<subida>` (`src/routes/mcp/subida/[token]/+server.js`, con
+  `content-type: application/octet-stream`; mira la firma, el tipo y el peso antes de guardar nada)
+  y `confirmar_subida`. Lo que llega por el PUT espera en R2 en `subidas/` (fuera de `img/` y
+  `file/`: ni copia nocturna ni bloqueo) y se borra a la hora. La firma usa la clave
+  `mcp_subidas_clave` de `ticket_settings`, que se crea sola.
+- **Tope por día**: 30 subidas y 200 MB en 24 horas por llave (por admin, con una conexión de
+  claude.ai), en `rate_limits` (el mismo tope que las cuentas del público,
+  `src/lib/server/media/uploadCap.js`). Pasado eso: «Llegaste al tope de subidas del conector…».
+- **Quién subió**: `created_by` de la imagen dice la rutina (o Claude), le admin y quién lo pidió:
+  «rutina «Asistente» (@login) · pedido por Mel». En Actividad, `conector.subir_imagen` (o
+  `subir_archivo`, `pedir_subida`, `confirmar_subida`) con «Claude, confirmado por Mel: subió la
+  imagen «…» a la biblioteca», sin el texto del pedido.
+- **Usarla** sigue siendo un cambio en dos pasos: `editar_objeto` con `cambios.imagen` = el `id`
+  que dio la subida (también el slug, la dirección o el nombre; con el id no hay dos imágenes del
+  mismo nombre que se confundan). **Borrar**, desde el panel (Contenido → Biblioteca).
+
+Ejemplo (una rutina con su llave):
+
+```text
+subir_imagen { contenido: "iVBORw0KGgo…", nombre: "Flyer fiesta de diciembre",
+               alt: "Flyer violeta con el nombre de la fiesta", confirmado_por: "Mel" }
+  → { id: 812, url: "https://kinkyvibe.ar/media/img/3f…a1.webp", nuevo: true, … }
+vista_previa { operacion: "editar_objeto", tipo: "evento", objeto: "fiesta-de-diciembre",
+               cambios: { imagen: "812" } }
+  → «imagen: sin imagen → Flyer fiesta de diciembre» (la persona dice que sí)
+aplicar { …lo mismo, hash, version, confirmado_por: "Mel" }
+```
+
+Un video: `pedir_subida { tipo: "archivo", nombre: "Video del taller" }`, después
+`curl -T video.mp4 -H "content-type: application/octet-stream" "<url>"` y
+`confirmar_subida { subida }`.
 
 ## Borradores
 
@@ -375,7 +442,7 @@ claude.ai ──POST /mcp/token (code + code_verifier)           ──▶ token
 - **El POST de tokens** llega de los servidores de Claude como formulario, sin `Origin`: el Worker
   le pone el del sitio para que el chequeo CSRF de SvelteKit no lo rechace
   (`src/lib/server/mcp/tokenPost.js`, como la baja en un clic). Esa ruta no mira cookies.
-- **Límites**: 60 pedidos por minuto por admin en `/mcp`; 60 por minuto por conexión en
+- **Límites**: hasta 2 MB por mensaje (ver «Subir a la biblioteca»); 60 pedidos por minuto por admin en `/mcp`; 60 por minuto por conexión en
   `/mcp/token` y 30 por hora en `/mcp/registro` (todo Claude sale de pocas IPs de Anthropic,
   `160.79.104.0/21`, así que son generosos).
 
@@ -394,6 +461,7 @@ claude.ai ──POST /mcp/token (code + code_verifier)           ──▶ token
 | Interruptor, límites, respuestas      | `src/lib/server/mcp/http.js`, `conector_claude` en `src/lib/server/flags.js`                                                                                                                    |
 | Cortar conexiones                     | Ajustes → Admins (`src/routes/(authed)/admin/ajustes/admins/`)                                                                                                                                  |
 | POST de tokens sin `Origin`           | `src/lib/server/mcp/tokenPost.js`, `worker/index.js`                                                                                                                                            |
+| Subir a la biblioteca                 | `src/lib/server/mcp/biblioteca.js`, el PUT en `src/routes/mcp/subida/[token]/+server.js`; pruebas en `biblioteca.test.js`                                                                       |
 
 ## Cómo probar
 
