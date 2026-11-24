@@ -354,7 +354,14 @@ describe('profitByMonth y la ganancia de salesPage', async () => {
 		const est = (slug, month, amount) => ({
 			slug,
 			month,
-			profit: { amount, closed: false, noExpenses: false, income: amount + 10000, expenses: 10000 }
+			profit: {
+				amount,
+				closed: false,
+				noExpenses: false,
+				venueDefault: false,
+				income: amount + 10000,
+				expenses: 10000
+			}
 		});
 		const r = profitByMonth(
 			[closing('fiesta-2026-08', '2026-08-20', 100000)],

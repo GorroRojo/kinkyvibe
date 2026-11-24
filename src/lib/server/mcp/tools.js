@@ -491,7 +491,8 @@ export const TOOLS = {
 						ganancia: profit && {
 							monto: profit.amount,
 							es: profit.closed ? 'la de la cuenta cerrada' : 'estimada (cuenta sin cerrar)',
-							sin_gastos_cargados: !profit.closed && profit.noExpenses
+							sin_gastos_cargados: !profit.closed && profit.noExpenses,
+							con_regla_del_lugar: !profit.closed && profit.venueDefault
 						},
 						meta: s.progress,
 						por_tipo: s.types.map((t) => ({

@@ -726,13 +726,17 @@ decidió gorrite en la Mesa (3 y 4/11). Detrás del interruptor **`gastos_repart
   - **Cuenta abierta o sin empezar:** «Ganancia estimada» = la misma cuenta de esta página
     (`computeAccount`) con lo que entró hasta ahora (`eventIncome`: sin el recargo de MP, el Fondo
     orden por orden, los extras) y **lo guardado** de la cuenta (lugar, contrataciones, otros
-    gastos, otros ingresos). Sin nada guardado, sin gastos (tampoco la regla por defecto del lugar,
-    que es solo lo que precarga esta página) y con la pista «sin gastos cargados»; de un evento
-    que ya pasó, «falta cerrar la cuenta».
-  - Para las listas, `src/lib/server/tickets/ganancia.js` (`profitsQuery`): **una** consulta de tres
-    sentencias para todos los eventos (las órdenes sumadas en SQL por evento, canal y medio de
-    pago, que dan lo mismo que una por una; `event_accounts`; `event_account_closings`), que sale
-    en la misma tanda que las otras lecturas de la página. Sin el interruptor no consulta nada.
+    gastos, otros ingresos). Sin nada guardado, **lo mismo que muestra esta página** para una
+    cuenta sin guardar (`shownAccount` en `reparto.js`: la regla por defecto del lugar del evento
+    o, si no tiene, la de talleres, 30 %; gorrite, 24/11), con la pista «con la regla del lugar»;
+    si ni así hay gastos (por ejemplo, una regla de monto fijo en $ 0), «sin gastos cargados». De
+    un evento que ya pasó, además, «falta cerrar la cuenta».
+  - Para las listas, `src/lib/server/tickets/ganancia.js` (`profitsQuery`): **una** consulta de
+    cuatro sentencias para todos los eventos (las órdenes sumadas en SQL por evento, canal y medio
+    de pago, que dan lo mismo que una por una; `event_accounts`; `event_account_closings`; la regla
+    por defecto del lugar de cada evento, `venue_cost_rules`, con `eventVenueRulesStatement` de
+    `amigues/venues.js`), que sale en la misma tanda que las otras lecturas de la página. Sin el
+    interruptor no consulta nada.
   - **Dónde se ve:** la ficha › **Resumen**, tarjeta «La cuenta» (cerrada, sus números; abierta,
     «Gastos cargados» y «Ganancia estimada»; sin ventas, «—»); la ficha › **Ventas**, la tarjeta
     «Ganancia estimada» / «Ganancia» junto a «Recaudado» (lleva a esta página); el **Inicio**: en

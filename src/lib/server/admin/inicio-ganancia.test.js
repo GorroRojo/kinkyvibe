@@ -30,6 +30,7 @@ const profit = (amount, closed = false) => ({
 	amount,
 	closed,
 	noExpenses: !closed,
+	venueDefault: false,
 	income: amount,
 	expenses: 0
 });

@@ -6,13 +6,15 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { insertOrder } from '$lib/server/admin/testRows.js';
-import { computeAccount, emptyAccount, eventIncome } from '$lib/admin/reparto.js';
+import { computeAccount, emptyAccount, eventIncome, shownAccount } from '$lib/admin/reparto.js';
 import { eventProfit } from '$lib/admin/ganancia.js';
 import { listOrders } from './orders.js';
-import { closeAccount, saveAccount } from './cuentas.js';
+import { closeAccount, getVenueRule, saveAccount, saveVenueRule } from './cuentas.js';
 import { profitsQuery } from './ganancia.js';
 import { runQuery } from '$lib/server/db/batch.js';
 import { withSales } from '$lib/server/eventos/panelList.js';
+import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
+import { setEventVenue } from '$lib/server/amigues/venues.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -70,10 +72,14 @@ describe('profitsQuery', () => {
 		const income = eventIncome(await listOrders(t.db, 'uno'));
 		expect(uno?.amount).toBe(computeAccount(income, account).profit);
 		expect(uno?.noExpenses).toBe(false);
+		expect(uno?.venueDefault).toBe(false);
 		expect(uno?.closed).toBe(false);
-		// Sin cuenta guardada: sin gastos, la ganancia es lo que entró.
-		expect(profits.get('dos')?.noExpenses).toBe(true);
-		expect(profits.get('dos')?.amount).toBe(profits.get('dos')?.income);
+		// Sin cuenta guardada y sin lugar: lo que muestra Gastos y reparto (la regla de talleres).
+		const dos = profits.get('dos');
+		const dosIncome = eventIncome(await listOrders(t.db, 'dos'));
+		expect(dos?.amount).toBe(computeAccount(dosIncome, emptyAccount()).profit);
+		expect(dos?.noExpenses).toBe(false);
+		expect(dos?.venueDefault).toBe(true);
 		// Sin ventas ni cierre: nada.
 		expect(profits.has('nada')).toBe(false);
 	});
@@ -107,9 +113,58 @@ describe('profitsQuery', () => {
 			amount: 60000,
 			closed: true,
 			noExpenses: false,
+			venueDefault: false,
 			income: 90000,
 			expenses: 30000
 		});
+	});
+
+	it('sin cuenta guardada: la regla por defecto del lugar, como Gastos y reparto (en la misma tanda)', async () => {
+		await seed('con-lugar');
+		await seed('lugar-sin-regla');
+		const venue = await makeProfile(t.db, { title: 'Sala Inventada', kind: 'lugar' });
+		const bare = await makeProfile(t.db, { title: 'Patio Inventado', kind: 'lugar' });
+		/** @type {[string, number][]} */
+		const pairs = [
+			['con-lugar', venue.id],
+			['lugar-sin-regla', bare.id]
+		];
+		for (const [slug, venueId] of pairs) {
+			await makeEvent(t.db, slug);
+			const linked = await setEventVenue(t.db, {
+				eventSlug: slug,
+				venueId,
+				privacy: null,
+				by: 'admin'
+			});
+			expect(linked).toEqual({ ok: true });
+		}
+		await saveVenueRule(t.db, {
+			venueId: venue.id,
+			rule: { kind: 'fijo', amount: 20000 },
+			by: 'admin'
+		});
+
+		const q = profitsQuery(['con-lugar', 'lugar-sin-regla']);
+		expect(q.statements(t.db)).toHaveLength(4);
+		const profits = await runQuery(t.db, q);
+		for (const [slug, venueId] of pairs) {
+			const income = eventIncome(await listOrders(t.db, slug));
+			// Lo mismo que arma la página para una cuenta sin guardar.
+			const shown = shownAccount(null, await getVenueRule(t.db, venueId));
+			expect(profits.get(slug)?.amount).toBe(computeAccount(income, shown).profit);
+			expect(profits.get(slug)?.venueDefault).toBe(true);
+		}
+		const conLugar = profits.get('con-lugar');
+		expect(conLugar?.expenses).toBe(20000);
+		expect(conLugar?.amount).toBe((conLugar?.income ?? 0) - 20000);
+
+		// Con la cuenta guardada, manda lo guardado (no la regla del lugar).
+		const saved = { ...emptyAccount(), venue: { kind: /** @type {const} */ ('fijo'), amount: 0 } };
+		await saveAccount(t.db, { slug: 'con-lugar', data: saved, version: 0, by: 'admin' });
+		const after = (await runQuery(t.db, profitsQuery(['con-lugar']))).get('con-lugar');
+		expect(after).toMatchObject({ noExpenses: true, venueDefault: false, expenses: 0 });
+		expect(after?.amount).toBe(after?.income);
 	});
 
 	it('sin eventos, sin consultas', async () => {

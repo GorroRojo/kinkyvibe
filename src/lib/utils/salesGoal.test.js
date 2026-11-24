@@ -202,6 +202,14 @@ describe('meta de ganancia', () => {
 		expect(loss?.text.startsWith('−')).toBe(true);
 	});
 
+	it('sin la cuenta guardada: lo que cobra el lugar con su regla por defecto', () => {
+		const p = goalProgress('ganancia:150000', {
+			...totals,
+			profit: { amount: 70000, closed: false, noExpenses: false, venueDefault: true }
+		});
+		expect(p?.estimateText).toMatch(/regla por defecto/);
+	});
+
 	it('cerrada: la ganancia del cierre, sin «estimada»', () => {
 		const p = goalProgress('ganancia:150000', {
 			...totals,

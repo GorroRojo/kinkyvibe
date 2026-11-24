@@ -1,6 +1,6 @@
 /**
  * La ganancia de varios eventos a la vez, para las listas del panel (Inicio, Eventos,
- * Estadísticas, el bot): la cuenta de $lib/admin/ganancia.js con UNA consulta de tres sentencias,
+ * Estadísticas, el bot): la cuenta de $lib/admin/ganancia.js con UNA consulta de cuatro sentencias,
  * sea cual sea la cantidad de eventos (nada de una consulta por evento). Interruptor
  * `gastos_reparto` y migración 0078: sin ellos, nada (las páginas se ven como antes).
  *
@@ -8,10 +8,13 @@
  *   cada columna, así que sumar las órdenes antes de pasárselas da lo mismo que pasarlas una por
  *   una (lo que importa para la ganancia; la cantidad de órdenes por fuente no se usa);
  * - lo guardado de cada cuenta (`event_accounts`);
+ * - la regla por defecto del lugar de cada evento (`venue_cost_rules`): sin cuenta guardada, la
+ *   ganancia estimada usa la cuenta que muestra Gastos y reparto (`shownAccount`);
  * - el cierre de cada cuenta (`event_account_closings`).
  */
-import { cleanAccount, eventIncome } from '$lib/admin/reparto.js';
+import { cleanAccount, cleanVenueRule, eventIncome } from '$lib/admin/reparto.js';
 import { eventProfit } from '$lib/admin/ganancia.js';
+import { eventVenueRulesStatement } from '$lib/server/amigues/venues.js';
 import { rowsOf, runQuery } from '$lib/server/db/batch.js';
 import { gastosRepartoEnabled } from '$lib/server/flags.js';
 
@@ -58,9 +61,16 @@ export function profitsQuery(slugs) {
 								`SELECT event_slug, profit, income_total, expenses_total
 								FROM event_account_closings WHERE ${where}`
 							)
-							.bind(...bind)
+							.bind(...bind),
+						eventVenueRulesStatement(db, slugs)
 					],
-		read: (results) => profitsFromRows(rowsOf(results, 0), rowsOf(results, 1), rowsOf(results, 2))
+		read: (results) =>
+			profitsFromRows(
+				rowsOf(results, 0),
+				rowsOf(results, 1),
+				rowsOf(results, 2),
+				rowsOf(results, 3)
+			)
 	};
 }
 
@@ -69,9 +79,10 @@ export function profitsQuery(slugs) {
  * @param {Record<string, unknown>[]} orderRows
  * @param {Record<string, unknown>[]} accountRows
  * @param {Record<string, unknown>[]} closingRows
+ * @param {Record<string, unknown>[]} [venueRuleRows] `event_slug`, `rule` (la del lugar)
  * @returns {Map<string, EventProfit>}
  */
-export function profitsFromRows(orderRows, accountRows, closingRows) {
+export function profitsFromRows(orderRows, accountRows, closingRows, venueRuleRows = []) {
 	/** @type {Map<string, any[]>} */
 	const orders = new Map();
 	for (const r of orderRows) {
@@ -82,6 +93,13 @@ export function profitsFromRows(orderRows, accountRows, closingRows) {
 		accountRows.map((r) => [String(r.event_slug), cleanAccount(parse(String(r.data)))])
 	);
 	const closings = new Map(closingRows.map((r) => [String(r.event_slug), r]));
+	/** @type {Map<string, import('$lib/admin/reparto.js').VenueRule>} */
+	const venueRules = new Map();
+	for (const r of venueRuleRows) {
+		const slug = String(r.event_slug);
+		const rule = cleanVenueRule(parse(String(r.rule)));
+		if (rule && !venueRules.has(slug)) venueRules.set(slug, rule);
+	}
 	/** @type {Map<string, EventProfit>} */
 	const out = new Map();
 	for (const slug of new Set([...orders.keys(), ...closings.keys()])) {
@@ -89,6 +107,7 @@ export function profitsFromRows(orderRows, accountRows, closingRows) {
 		const p = eventProfit({
 			income: orders.has(slug) ? eventIncome(orders.get(slug) ?? []) : null,
 			account: accounts.get(slug) ?? null,
+			venueRule: venueRules.get(slug) ?? null,
 			closing: c
 				? {
 						profit: Number(c.profit),

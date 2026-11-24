@@ -163,7 +163,7 @@
 					? 'De la cuenta cerrada. No incluye el recargo de Mercado Pago.'
 					: data.account.state === 'open'
 						? 'Estimada: la cuenta está empezada pero sin cerrar. No incluye el recargo de Mercado Pago.'
-						: 'Estimada: todavía nadie empezó la cuenta de este evento (sin gastos cargados).'}
+						: `Estimada: todavía nadie empezó la cuenta de este evento (${data.account.venueDefault ? 'con la regla del lugar' : 'sin gastos cargados'}).`}
 				<a href={eventHref(e.slug, 'gastos')}>Gastos y reparto</a>
 			</p>
 		</Card>

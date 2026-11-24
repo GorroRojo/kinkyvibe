@@ -130,7 +130,8 @@ async function accountFor(db, platform, slug, sellsTickets) {
 				income: a.closing.income_total,
 				expenses: a.closing.expenses_total,
 				profit: a.closing.profit,
-				noExpenses: false
+				noExpenses: false,
+				venueDefault: false
 			};
 		}
 		// Abierta o sin empezar: lo estimado (sin ventas, sin números).
@@ -140,7 +141,8 @@ async function accountFor(db, platform, slug, sellsTickets) {
 			income: p?.income ?? null,
 			expenses: p?.expenses ?? null,
 			profit: p?.amount ?? null,
-			noExpenses: p?.noExpenses ?? false
+			noExpenses: p?.noExpenses ?? false,
+			venueDefault: p?.venueDefault ?? false
 		};
 	} catch (e) {
 		logDBError('la cuenta en la ficha', e);

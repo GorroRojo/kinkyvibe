@@ -469,6 +469,18 @@ export function emptyAccount(venueDefault = null) {
 	};
 }
 
+/**
+ * La cuenta que muestra Gastos y reparto: la guardada o, sin nada guardado, la vacía con la regla
+ * por defecto del lugar ({@link emptyAccount}: la del perfil del lugar, si tiene; si no, la de
+ * talleres). La misma para la página y para la ganancia estimada ($lib/admin/ganancia.js).
+ * @param {AccountData | null | undefined} saved
+ * @param {VenueRule | null} [venueDefault]
+ * @returns {AccountData}
+ */
+export function shownAccount(saved, venueDefault = null) {
+	return saved ?? emptyAccount(venueDefault);
+}
+
 const MAX_LINES = 100;
 const MAX_PARTS = 30;
 const MAX_TEXT = 120;

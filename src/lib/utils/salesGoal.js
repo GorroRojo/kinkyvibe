@@ -268,7 +268,7 @@ export function netEstimateText({ mpFee = 0, mpFeeEstimated = 0 }) {
  *
  * @param {unknown} goal una meta (`SalesGoal`) o lo guardado (`'plata:250000'`)
  * @param {{ sold: number, revenue: number, mpFee: number, mpFeeEstimated?: number,
- *   profit?: { amount: number, closed: boolean, noExpenses: boolean } | null }} totals
+ *   profit?: { amount: number, closed: boolean, noExpenses: boolean, venueDefault?: boolean } | null }} totals
  *   `mpFeeEstimated`: la parte de `mpFee` que es estimada ({@link MP_FEE_ESTIMATED_SQL}): con algo
  *   estimado, el texto dice «netos estimados» y `estimateText` explica cuánto.
  * @returns {GoalProgress | null}
@@ -304,7 +304,7 @@ export function goalProgress(goal, { sold, revenue, mpFee, mpFeeEstimated = 0, p
  * El avance contra una meta de ganancia, o `null` sin la ganancia. La barra no baja de 0 con
  * pérdida; el texto sí la dice.
  * @param {number} target
- * @param {{ amount: number, closed: boolean, noExpenses: boolean } | null} profit
+ * @param {{ amount: number, closed: boolean, noExpenses: boolean, venueDefault?: boolean } | null} profit
  * @returns {GoalProgress | null}
  */
 function profitGoalProgress(target, profit) {
@@ -325,6 +325,8 @@ function profitGoalProgress(target, profit) {
 			? ''
 			: profit.noExpenses
 				? 'Ganancia estimada: lo que entró hasta ahora; todavía no hay gastos cargados en Gastos y reparto.'
-				: 'Ganancia estimada: lo que entró hasta ahora menos los gastos cargados en Gastos y reparto (la cuenta sigue abierta).'
+				: profit.venueDefault
+					? 'Ganancia estimada: lo que entró hasta ahora menos lo que cobra el lugar con su regla por defecto (la cuenta de Gastos y reparto todavía no se guardó).'
+					: 'Ganancia estimada: lo que entró hasta ahora menos los gastos cargados en Gastos y reparto (la cuenta sigue abierta).'
 	};
 }

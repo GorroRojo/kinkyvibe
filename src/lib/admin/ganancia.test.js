@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeAccount, emptyAccount, eventIncome } from './reparto.js';
+import { computeAccount, emptyAccount, eventIncome, shownAccount } from './reparto.js';
 import { formatSignedARS } from '$lib/utils/money.js';
 import {
 	eventProfit,
@@ -34,16 +34,44 @@ const orders = /** @type {any[]} */ ([
 ]);
 
 describe('eventProfit', () => {
-	it('sin cuenta guardada: lo que entró, sin gastos (ni la regla por defecto del lugar)', () => {
-		const p = eventProfit({ income: eventIncome(orders) });
+	it('sin cuenta guardada y con regla del lugar: la cuenta que muestra Gastos y reparto', () => {
+		const income = eventIncome(orders);
+		const venueRule = { kind: /** @type {const} */ ('fijo'), amount: 5000 };
+		const p = eventProfit({ income, venueRule });
 		expect(p).toEqual({
-			amount: 32000,
+			amount: 27000,
 			closed: false,
-			noExpenses: true,
+			noExpenses: false,
+			venueDefault: true,
 			income: 32000,
-			expenses: 0
+			expenses: 5000
 		});
+		expect(p?.amount).toBe(computeAccount(income, shownAccount(null, venueRule)).profit);
 		expect(profitLabel(/** @type {any} */ (p))).toBe('Ganancia estimada');
+		expect(profitHint(/** @type {any} */ (p))).toBe('con la regla del lugar');
+		expect(pastProfitHint(/** @type {any} */ (p))).toBe(
+			'falta cerrar la cuenta, con la regla del lugar'
+		);
+		expect(profitText(/** @type {any} */ (p))).toBe(
+			`Ganancia estimada: ${formatSignedARS(27000)} (con la regla del lugar)`
+		);
+	});
+
+	it('sin cuenta guardada ni regla del lugar: la de talleres, como la página', () => {
+		const income = eventIncome(orders);
+		const p = eventProfit({ income });
+		expect(p?.amount).toBe(computeAccount(income, emptyAccount()).profit);
+		expect(p?.amount).toBe(32000 - 9600);
+		expect(p).toMatchObject({ noExpenses: false, venueDefault: true });
+		expect(profitHint(/** @type {any} */ (p))).toBe('con la regla del lugar');
+	});
+
+	it('sin cuenta guardada y una regla sin gastos: «sin gastos cargados»', () => {
+		const p = eventProfit({
+			income: eventIncome(orders),
+			venueRule: { kind: 'fijo', amount: 0 }
+		});
+		expect(p).toMatchObject({ amount: 32000, noExpenses: true, venueDefault: false, expenses: 0 });
 		expect(profitHint(/** @type {any} */ (p))).toBe('sin gastos cargados');
 		expect(pastProfitHint(/** @type {any} */ (p))).toBe(
 			'falta cerrar la cuenta, sin gastos cargados'
@@ -60,6 +88,7 @@ describe('eventProfit', () => {
 		expect(p?.amount).toBe(computeAccount(income, account).profit);
 		expect(p?.amount).toBe(32000 - 9600);
 		expect(p?.noExpenses).toBe(false);
+		expect(p?.venueDefault).toBe(false);
 		expect(profitHint(/** @type {any} */ (p))).toBe('');
 		expect(pastProfitHint(/** @type {any} */ (p))).toBe('falta cerrar la cuenta');
 	});
