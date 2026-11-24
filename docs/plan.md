@@ -122,8 +122,8 @@ CI) va en la fase 0.
 
 ### Legales
 
-- `legales-minimos` · fase 0 · espera gorrite · legales · Página `/legales` mínima en borrador (solo previews), después del piloto (gorrite, 12/10). Plan cuando gorrite lo retome: bajarla a lo mínimo con la leyenda de la AAIP y los 10 días de arrepentimiento por mail; falta definir quién figura como responsable; inscribir la base y el botón de arrepentimiento, por ahora no (depende de: lanzamiento-piloto) · #282 (borrador), [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
-- `legales-bot-estadisticas` · fase 0 · espera gorrite · legales · La página de privacidad (`/legales`, todavía en borrador) tiene que contar las estadísticas de uso del bot: quién lo usa y cuánto por día (180 días, con el nombre de Telegram) y, aparte, para qué, solo sumado por semana (depende de: legales-minimos, bot-estadisticas) · [telegram.md](telegram.md#estadísticas-de-uso-0045)
+- `legales-minimos` · fase 0 · algún día · legales · Página `/legales` mínima en borrador (solo previews), después del piloto (gorrite, 12/10). Plan cuando gorrite lo retome: bajarla a lo mínimo con la leyenda de la AAIP y los 10 días de arrepentimiento por mail; falta definir quién figura como responsable; inscribir la base y el botón de arrepentimiento, por ahora no (depende de: lanzamiento-piloto) · #282 (borrador), [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
+- `legales-bot-estadisticas` · fase 0 · algún día · legales · La página de privacidad (`/legales`, todavía en borrador) tiene que contar las estadísticas de uso del bot: quién lo usa y cuánto por día (180 días, con el nombre de Telegram) y, aparte, para qué, solo sumado por semana (depende de: legales-minimos, bot-estadisticas) · [telegram.md](telegram.md#estadísticas-de-uso-0045)
 
 ### Panel
 
@@ -231,7 +231,7 @@ CI) va en la fase 0.
 - `bot-busquedas-vacias-panel` · fase 0 · hecho · bot · Contar cuántas búsquedas del bot no encuentran nada, para el panel (sin guardar quién ni qué) (depende de: bot-busquedas-vacias) · #591, [telegram.md](telegram.md#estadísticas-de-uso-0045)
 - `bot-sin-resultados-grupo` · fase 0 · sigue · bot · Sin resultados en un grupo: «⭐ Seguir» la etiqueta buscada como link al chat privado (hoy no aparece; haría falta un deep link nuevo) (depende de: bot-busquedas-vacias)
 - `bot-sin-resultados-tildes` · fase 0 · hecho · bot · Sin resultados: las palabras sugeridas salen como las guarda el índice, sin tildes ni mayúsculas («guia», no «Guía»); mostrarlas como se escriben en el título (depende de: bot-busquedas-vacias) · #552
-- `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear); gorrite lo prueba en el próximo evento, sin bot de prueba (12/10) · [0037](decisiones/0037-puerta-por-telegram.md)
+- `bot-puerta-probar` · fase 0 · algún día · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear); gorrite lo prueba en el próximo evento, sin bot de prueba (12/10) · [0037](decisiones/0037-puerta-por-telegram.md)
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
 - `bot-kinkipedia-ramas-probar` · fase 0 · hecho · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
 - `bot-mis-entradas-partes` · fase 0 · hecho · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte · #329
@@ -410,7 +410,7 @@ CI) va en la fase 0.
 ## Fase 3
 
 - `lista-espera` · fase 3 · hecho · entradas · Lista de espera por evento o tipo de entrada, apagada · #310, [0040](decisiones/0040-lista-de-espera.md)
-- `lista-espera-prender` · fase 3 · espera gorrite · entradas · Prender `lista_espera` (ya prendido en producción y probado en un preview) y probarla en un evento real (anotarse, reembolso, oferta y compra con el link) (depende de: lista-espera)
+- `lista-espera-prender` · fase 3 · algún día · entradas · Prender `lista_espera` (ya prendido en producción y probado en un preview) y probarla en un evento real (anotarse, reembolso, oferta y compra con el link) (depende de: lista-espera)
 - `lista-espera-mail-terminar` · fase 3 · hecho · entradas · «Terminar la reserva y pasar a la siguiente» pregunta si le avisamos por mail («se terminó tu lugar», marcado de entrada) (depende de: lista-espera) · #339
 - `promos-varios-eventos` · fase 3 · hecho · entradas · Promociones de varios eventos, versión chica (gorrite, 12/10): código combo, la compra de un evento trae en su mail un código personal para otro; detrás de `combo_codigos`, migración 0056 · #340
 - `talleres-partes-mails-preview` · fase 3 · hecho · entradas · Vista previa de los mails de cada parte de un taller en el panel · #554
@@ -454,7 +454,7 @@ CI) va en la fase 0.
 
 - `videos` · fase 7 · algún día · contenido · Videos con Cloudflare Stream y links firmados; el cobro separado del proveedor de las entradas · nav: videos · [0009](decisiones/0009-infraestructura.md)
 - `proto-segundo-pago` · fase 7 · sigue · entradas · Prototipo de un segundo proveedor de pago (de reserva para las entradas, y para lo que no puede ir por Mercado Pago)
-- `negocio-2` · fase 7 · espera gorrite · plan · ver Mesa
+- `negocio-2` · fase 7 · algún día · plan · ver Mesa
 
 ## Fase 8
 
