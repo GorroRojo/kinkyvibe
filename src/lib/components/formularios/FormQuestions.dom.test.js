@@ -59,3 +59,38 @@ describe('FormQuestions: el puntaje', () => {
 		expect(checked.value).toBe('4');
 	});
 });
+
+describe('FormQuestions: varias opciones', () => {
+	const multi = {
+		id: 'm1',
+		kind: /** @type {const} */ ('multi'),
+		label: '¿Qué te interesa?',
+		required: false,
+		options: ['Cuerdas', 'Cera', 'Impacto']
+	};
+
+	it('una casilla por opción, con el mismo nombre, dentro de un fieldset con su legend', () => {
+		render(FormQuestions, { props: { questions: [multi], idPrefix: 'f' } });
+		const fieldset = /** @type {HTMLFieldSetElement} */ (document.querySelector('fieldset'));
+		expect(fieldset.querySelector('legend')?.textContent).toContain('¿Qué te interesa?');
+		const boxes = [...fieldset.querySelectorAll('input[type="checkbox"]')].map(
+			(b) => /** @type {HTMLInputElement} */ (b)
+		);
+		expect(boxes.map((b) => b.value)).toEqual(['Cuerdas', 'Cera', 'Impacto']);
+		expect(new Set(boxes.map((b) => b.name))).toEqual(new Set([answerName('m1')]));
+		// Cada casilla con su texto como etiqueta.
+		expect(boxes.map((b) => b.closest('label')?.textContent)).toEqual([
+			'Cuerdas',
+			'Cera',
+			'Impacto'
+		]);
+	});
+
+	it('vuelven marcadas las elegidas después de un error', () => {
+		render(FormQuestions, { props: { questions: [multi], values: { m1: 'Cuerdas | Impacto' } } });
+		const checked = [...document.querySelectorAll('input[type="checkbox"]:checked')].map(
+			(b) => /** @type {HTMLInputElement} */ (b).value
+		);
+		expect(checked).toEqual(['Cuerdas', 'Impacto']);
+	});
+});

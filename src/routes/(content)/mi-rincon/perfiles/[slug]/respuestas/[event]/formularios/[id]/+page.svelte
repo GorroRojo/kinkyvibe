@@ -56,7 +56,9 @@
 						</ul>
 					{:else if q.counts}
 						<ul class="bars">
-							{#each q.counts as c (c.option)}<li>{c.option}: {c.count}</li>{/each}
+							{#each q.counts as c (c.option)}<li>
+									{c.option}: {c.count}{#if q.kind === 'multi'}&nbsp;de {q.answered}{/if}
+								</li>{/each}
 						</ul>
 					{:else if q.texts?.length}
 						<ul class="texts">
