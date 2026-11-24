@@ -115,15 +115,24 @@ describe('orderIdFromHash', () => {
 });
 
 describe('orderFilterFor: el filtro de Órdenes no esconde la orden del link', () => {
+	const approved = { status: 'approved' };
+	const transfer = { status: 'awaiting_transfer', transferPending: true };
+	const expired = { status: 'expired', transferPending: true };
+	const refunded = { status: 'refunded' };
+
 	it('deja el filtro si ya la muestra', () => {
-		expect(orderFilterFor('approved', 'approved')).toBe('approved');
-		expect(orderFilterFor('pending', 'awaiting_transfer')).toBe('pending');
-		expect(orderFilterFor('all', 'refunded')).toBe('all');
+		expect(orderFilterFor('aprobadas', approved)).toBe('aprobadas');
+		expect(orderFilterFor('transferencias', transfer)).toBe('transferencias');
+		expect(orderFilterFor('transferencias', expired)).toBe('transferencias');
+		expect(orderFilterFor('pendientes', { status: 'pending' })).toBe('pendientes');
+		expect(orderFilterFor('todas', refunded)).toBe('todas');
 	});
 
 	it('si la esconde, pasa a «Todas»', () => {
-		expect(orderFilterFor('approved', 'refunded')).toBe('all');
-		expect(orderFilterFor('refunded', 'approved')).toBe('all');
-		expect(orderFilterFor('approved', 'cancelled')).toBe('all');
+		expect(orderFilterFor('aprobadas', refunded)).toBe('todas');
+		expect(orderFilterFor('reembolsadas', approved)).toBe('todas');
+		expect(orderFilterFor('aprobadas', { status: 'cancelled' })).toBe('todas');
+		expect(orderFilterFor('transferencias', { status: 'expired' })).toBe('todas');
+		expect(orderFilterFor('pendientes', transfer)).toBe('todas');
 	});
 });

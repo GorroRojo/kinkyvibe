@@ -200,11 +200,6 @@ const PAGES = [
 		page: () => import('./eventos/[slug]/ordenes/+page.server.js')
 	},
 	{
-		path: `/admin/eventos/${EVENT}/transferencias`,
-		event: true,
-		page: () => import('./eventos/[slug]/transferencias/+page.server.js')
-	},
-	{
 		path: `/admin/eventos/${EVENT}/ingreso`,
 		event: true,
 		page: () => import('./eventos/[slug]/ingreso/+page.server.js')
@@ -497,7 +492,6 @@ const BOUNDS = {
 	[`/admin/contenido/material/${MATERIAL}`]: { caliente: 2, nav: 2 }, // frío 4
 	[`/admin/eventos/${EVENT}/ventas`]: { caliente: 2, nav: 3 }, // frío 6
 	[`/admin/eventos/${EVENT}/ordenes`]: { caliente: 2, nav: 3 }, // frío 4
-	[`/admin/eventos/${EVENT}/transferencias`]: { caliente: 2, nav: 3 }, // frío 4
 	[`/admin/eventos/${EVENT}/preguntas`]: { caliente: 2, nav: 3 }, // frío 4
 	[`/admin/eventos/${EVENT}/codigos`]: { caliente: 2, nav: 3 }, // frío 4
 	[`/admin/eventos/${EVENT}/lista-espera`]: { caliente: 2, nav: 3 }, // frío 4

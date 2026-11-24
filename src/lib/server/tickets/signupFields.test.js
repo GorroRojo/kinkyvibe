@@ -15,6 +15,7 @@ import { reserveOrder } from './orders.js';
 import {
 	answersByOrder,
 	chosenGeneralIds,
+	copyEventSignupFields,
 	createField,
 	deleteField,
 	eventSignupFields,
@@ -53,6 +54,27 @@ const def = (label, o = {}) => ({
 	required: false,
 	options: [],
 	...o
+});
+
+it('la etiqueta corta se guarda, se lee, se cambia y se copia con el evento', async () => {
+	const made = await createField(
+		t.db,
+		EVENT,
+		def('¿Qué rol querés tener?', { shortLabel: 'Rol' }),
+		BY
+	);
+	expect(made.ok).toBe(true);
+	const id = made.ok ? made.id : 0;
+	expect((await fieldsForEvent(t.db, EVENT))[0]).toMatchObject({
+		label: '¿Qué rol querés tener?',
+		shortLabel: 'Rol'
+	});
+	await updateField(t.db, id, EVENT, def('¿Qué rol querés tener?', { shortLabel: 'Papel' }), BY);
+	expect((await fieldsForEvent(t.db, EVENT))[0].shortLabel).toBe('Papel');
+	await copyEventSignupFields(t.db, EVENT, 'copia-etiqueta', BY);
+	expect((await fieldsForEvent(t.db, 'copia-etiqueta'))[0].shortLabel).toBe('Papel');
+	await updateField(t.db, id, EVENT, def('¿Qué rol querés tener?'), BY);
+	expect((await fieldsForEvent(t.db, EVENT))[0].shortLabel).toBeUndefined();
 });
 
 /** Una general de opciones y una propia de texto obligatoria. */

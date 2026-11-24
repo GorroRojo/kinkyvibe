@@ -3,11 +3,11 @@
 	 * Ficha de un evento: encabezado (imagen, título, fecha, lugar, etiquetas y acciones) y las
 	 * pestañas de `EVENT_TABS` (en el celu, un botón con la pestaña actual que abre la lista, y las
 	 * acciones del encabezado, más chicas, debajo: Editar y «⋯ Acciones»; gorrite, 11/10). Las
-	 * pestañas con vistas (Ventas: Totales, Órdenes, Transferencias, Lista de espera; Mails: Mandar
+	 * pestañas con vistas (Ventas: Totales, Órdenes, Lista de espera; Mails: Mandar
 	 * un aviso, Plantillas) muestran sus vistas como botones debajo (la lista de espera, solo con el
 	 * interruptor prendido o si el evento ya la usa). Las pestañas muestran lo que hay para revisar:
 	 * Ventas, las órdenes a revisar más las transferencias que esperan confirmación (y cada vista, lo
-	 * suyo). Una página con `bare: true` en su load (modo puerta) se muestra sola, sin encabezado ni
+	 * suyo: las dos cosas están en Órdenes). Una página con `bare: true` en su load (modo puerta) se muestra sola, sin encabezado ni
 	 * pestañas.
 	 */
 	import { page } from '$app/stores';
@@ -19,6 +19,7 @@
 	import Tabs from '$lib/components/ui/Tabs.svelte';
 	import TagChip from '$lib/components/TagChip.svelte';
 	import { EVENT_TABS, eventHref, eventTabOf } from '$lib/admin/nav.js';
+	import { transfersHref } from '$lib/admin/links.js';
 	import { eventBadges, panelPlaceText, shortDate, timeRange } from '$lib/admin/eventFormat.js';
 
 	/** @type {import('./$types').LayoutData} */
@@ -74,8 +75,8 @@
 	$: currentTab = here ? eventHref(e.slug, here.tab.views?.[0].id ?? here.tab.id) : undefined;
 	/** @type {Record<string, number>} */
 	$: viewCounts = {
-		ordenes: data.tabCounts.review,
-		transferencias: data.tabCounts.transfers,
+		// Las transferencias se confirman en Órdenes.
+		ordenes: data.tabCounts.review + data.tabCounts.transfers,
 		'lista-espera': data.tabCounts.waitlist
 	};
 	// Lista de espera (una vista de Ventas): con el interruptor prendido, o si el evento ya tiene
@@ -149,7 +150,8 @@
 		</div>
 	</header>
 
-	{#if data.tabCounts.transfers && !$page.url.pathname.endsWith('/transferencias')}
+	<!-- En Órdenes no: ahí arranca en «Transferencias por confirmar». -->
+	{#if data.tabCounts.transfers && here?.view?.id !== 'ordenes'}
 		<div class="transfers-notice">
 			<Notice tone="warn">
 				<span
@@ -157,7 +159,7 @@
 						? 'Hay 1 transferencia esperando confirmación.'
 						: `Hay ${data.tabCounts.transfers} transferencias esperando confirmación.`}</span
 				>
-				<a class="kv-btn small push" href={eventHref(e.slug, 'transferencias')}>Revisar</a>
+				<a class="kv-btn small push" href={transfersHref(e.slug)}>Revisar</a>
 			</Notice>
 		</div>
 	{/if}

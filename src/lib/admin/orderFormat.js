@@ -1,7 +1,8 @@
-/** Textos de las órdenes en el panel (pestañas Órdenes y Transferencias de la ficha). */
+/** Textos de las órdenes en el panel (Ventas › Órdenes de la ficha y la bandeja de transferencias). */
 import { argDateLog } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel } from '$lib/utils/tickets.js';
+import { matchesStatus } from './ordersView.js';
 export const ORDER_STATUS = /** @type {Record<string, string>} */ ({
 	pending: 'Pendiente',
 	awaiting_transfer: 'Esperando transferencia',
@@ -110,16 +111,14 @@ export function orderIdFromHash(hash) {
 }
 
 /**
- * El filtro de Órdenes («Mostrar») que deja ver una orden de ese estado: el que está, si ya la
- * muestra; si no, «Todas» (un link a una orden reembolsada no cae en una lista que la esconde).
- * @param {string} current 'approved' | 'pending' | 'refunded' | 'all'
- * @param {string} status el de la orden
+ * El estado del filtro de Órdenes (`?estado=`, ver ordersView.js) que deja ver una orden: el que
+ * está, si ya la muestra; si no, «Todas» (un link a una orden reembolsada no cae en una lista que
+ * la esconde).
+ * @param {string} current 'transferencias' | 'aprobadas' | 'pendientes' | 'reembolsadas' | 'todas'
+ * @param {{ status: string, transferPending?: boolean }} order
  */
-export function orderFilterFor(current, status) {
-	if (current === 'all' || current === status) return current;
-	if (current === 'pending' && (status === 'pending' || status === 'awaiting_transfer'))
-		return current;
-	return 'all';
+export function orderFilterFor(current, order) {
+	return matchesStatus(order, current) ? current : 'todas';
 }
 
 /**
