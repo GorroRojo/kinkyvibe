@@ -57,7 +57,11 @@ describe('SeriesNotifyForm `bare` (dentro de la tarjeta de la serie)', () => {
 	});
 
 	it('con `bare`, sin texto explicativo: solo el formulario (sin cuenta, con cuenta y ya anotade)', () => {
-		for (const props of [{ member: false }, { member: true }, { member: true, subscribed: true }]) {
+		for (const props of [
+			{ member: false, subscribed: false },
+			{ member: true, subscribed: false },
+			{ member: true, subscribed: true }
+		]) {
 			const h = html({ ...props, bare: true });
 			expect(h).not.toContain('<p');
 			expect(h).toContain('<form');
