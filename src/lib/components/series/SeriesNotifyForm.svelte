@@ -10,6 +10,9 @@
 	 * - `sigo`: con cuenta, «Avisame» es seguir la serie en «Lo que sigo» (los textos lo dicen y
 	 *   llevan a Mi rincón → Lo que sigo).
 	 * - `heading`: título del bloque.
+	 * - `bare`: sin tarjeta, título ni texto explicativo (el título de la tarjeta de afuera ya lo
+	 *   dice), para ir dentro de otra tarjeta (la de la serie en la página de un
+	 *   evento, SeriesFollowCard.svelte).
 	 */
 	import { enhance } from '$app/forms';
 	import { BellRing } from '@lucide/svelte';
@@ -22,6 +25,7 @@
 	export let subscribed = false;
 	export let sigo = false;
 	export let heading = 'Avisame si se repite';
+	export let bare = false;
 
 	let busy = false;
 	let message = '';
@@ -60,8 +64,14 @@
 	};
 </script>
 
-<section class="series-notify surface-card" aria-label={heading}>
-	<h2><BellRing size={20} aria-hidden="true" /> {heading}</h2>
+<svelte:element
+	this={bare ? 'div' : 'section'}
+	class="series-notify"
+	class:surface-card={!bare}
+	class:bare
+	aria-label={bare ? undefined : heading}
+>
+	{#if !bare}<h2><BellRing size={20} aria-hidden="true" /> {heading}</h2>{/if}
 	{#if message}
 		<p class="ok" role="status">{message}</p>
 	{/if}
@@ -75,14 +85,16 @@
 				<a href="/mi-rincon/sigo">Elegí qué recibís en Lo que sigo</a>.
 			</p>
 		{:else}
-			<p>Te vamos a avisar por mail cuando haya una nueva edición de {seriesName}.</p>
+			{#if !bare}
+				<p>Te vamos a avisar por mail cuando haya una nueva edición de {seriesName}.</p>
+			{/if}
 		{/if}
 		<form method="POST" action="/avisos?/baja" use:enhance={submit}>
 			<input type="hidden" name="serie" value={seriesId} />
 			<button class="pill-btn ghost" type="submit" disabled={busy}>Dejar de avisarme</button>
 		</form>
 	{:else if member}
-		{#if !message}
+		{#if !message && !bare}
 			<p>
 				{#if sigo}
 					Seguí {seriesName} con tu cuenta: te mandamos un mail cada vez que se anuncie una nueva edición
@@ -98,10 +110,12 @@
 			<button class="pill-btn" type="submit" disabled={busy}>Avisame</button>
 		</form>
 	{:else if !message}
-		<p>
-			Dejanos tu mail y te escribimos una vez cuando se anuncie la próxima edición de {seriesName}.
-			Te vamos a pedir que lo confirmes, y cada mail trae un link para darte de baja.
-		</p>
+		{#if !bare}
+			<p>
+				Dejanos tu mail y te escribimos una vez cuando se anuncie la próxima edición de {seriesName}.
+				Te vamos a pedir que lo confirmes, y cada mail trae un link para darte de baja.
+			</p>
+		{/if}
 		<form method="POST" action="/avisos?/suscribir" use:enhance={submit} class="row">
 			<input type="hidden" name="serie" value={seriesId} />
 			<label>
@@ -118,7 +132,7 @@
 			<button class="pill-btn" type="submit" disabled={busy}>Avisame</button>
 		</form>
 	{/if}
-</section>
+</svelte:element>
 
 <style>
 	.series-notify {
@@ -127,6 +141,11 @@
 		width: min(40rem, 100%);
 		margin: 1.5em auto 0;
 		border-top: 0.3rem solid var(--2);
+	}
+	.series-notify.bare {
+		width: auto;
+		margin: 0;
+		border-top: 0;
 	}
 	h2 {
 		display: flex;

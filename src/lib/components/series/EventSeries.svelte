@@ -2,16 +2,16 @@
 	/**
 	 * Las series de un evento en su página: arriba "Edición N de <serie>"
 	 * con anterior y siguiente (`part="nav"`); después del contenido (`part="after"`), si el evento
-	 * ya pasó, la próxima edición (si hay) y "Avisame si se repite", y el calendario de la serie.
+	 * ya pasó, la próxima edición (si hay), y la tarjeta «Próximas fechas de <serie>»
+	 * (SeriesFollowCard: seguir la serie o «Avisame si se repite», y el calendario de la serie).
 	 * Props:
 	 * - `series`: { list, account } de loadSeries en calendario/[event]/+page.server.js.
 	 * - `part`: 'nav' (debajo del título) o 'after' (después del contenido).
 	 * - `origin`: origen del sitio, para el link del calendario.
 	 */
 	import SeriesEditionNav from './SeriesEditionNav.svelte';
-	import SeriesNotifyForm from './SeriesNotifyForm.svelte';
-	import CalendarSubscribe from './CalendarSubscribe.svelte';
-	import { editionDateLabel, tagFeedPath } from '$lib/utils/series.js';
+	import SeriesFollowCard from './SeriesFollowCard.svelte';
+	import { editionDateLabel } from '$lib/utils/series.js';
 
 	/** @type {{ list: Array<{ id: string, name: string, href: string, icon: string, number: number, total: number, prev: any, next: any, past: boolean, nextUpcoming: import('$lib/utils/series.js').Edition | null }>, account: { member: boolean, subscribed: string[], sigo?: boolean, invite?: boolean } }} */
 	export let series;
@@ -25,7 +25,7 @@
 		<SeriesEditionNav series={s} />
 	{/each}
 {:else}
-	{#each series.list as s (s.id)}
+	{#each series.list as s, i (s.id)}
 		<div class="event-series">
 			{#if s.past && s.nextUpcoming}
 				<p class="next surface-card">
@@ -34,54 +34,20 @@
 					· {editionDateLabel(s.nextUpcoming.start)}
 				</p>
 			{/if}
-			{#if s.past}
-				<SeriesNotifyForm
-					seriesId={s.id}
-					seriesName={s.name}
-					member={series.account.member}
-					subscribed={series.account.subscribed.includes(s.id)}
-					sigo={Boolean(series.account.sigo)}
-					heading={s.nextUpcoming ? `Avisame de las próximas ediciones` : 'Avisame si se repite'}
-				/>
-			{/if}
-			<!-- Con cuenta y «Lo que sigo», seguir ya pone las fechas en tu calendario: el .ics de la
-			     serie sería un segundo camino confuso (pedido de gorrite). Sin cuenta, sigue. -->
-			{#if !(series.account.member && series.account.sigo)}
-				<div class="cal surface-card">
-					<CalendarSubscribe url={origin + tagFeedPath(s.id)} label="las fechas de {s.name}" />
-					{#if !series.account.member && series.account.invite}
-						<p class="invite">
-							¿Querés que te avisemos y no perderte ninguna?
-							<a href="/ingresar?next={encodeURIComponent(s.href)}"
-								>Entrá con tu mail y seguí {s.name} →</a
-							>
-						</p>
-					{/if}
-				</div>
-			{/if}
+			<SeriesFollowCard serie={s} account={series.account} {origin} anchor={i === 0} />
 		</div>
 	{/each}
 {/if}
 
 <style>
-	.invite {
-		margin: 0.6em 0 0;
-		font-size: var(--step--1);
-	}
-	.invite a {
-		font-weight: 700;
-	}
 	.event-series {
 		display: grid;
 		gap: 0;
 		margin-top: 1em;
 	}
-	.next,
-	.cal {
+	.next {
 		width: min(40rem, 100%);
 		margin: 1.5em auto 0;
-	}
-	.next {
 		margin-bottom: 0;
 	}
 	.next a {
