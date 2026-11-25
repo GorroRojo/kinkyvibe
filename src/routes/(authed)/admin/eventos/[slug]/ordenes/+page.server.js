@@ -12,6 +12,9 @@
  * Dos vistas (`?vista=respuestas`): «Compras» y «Respuestas» (una tarjeta por pregunta). Las
  * preguntas (`fields`) son las del formulario de compra, en su orden ($lib/admin/ordersView.js).
  *
+ * «Editar» (`edit`, `undoEdit`; $lib/server/admin/orderEdits.js): cada compra trae su historial
+ * de cambios (`edits`).
+ *
  * DNI: la página solo trae los últimos 3 dígitos de cada orden. El completo sale de a uno con la
  * acción `dni` («Mostrar», queda en el registro de actividad) y el buscador encuentra órdenes por
  * DNI con `dniSearch` (devuelve solo ids). El CSV (`../ordenes.csv`) sí lleva el DNI completo: se
@@ -32,6 +35,7 @@ import { getDB, logDBError } from '$lib/server/db';
 import { pickActions } from '$lib/server/admin/eventActions.js';
 import { eventOrderRows, pendingTransfers } from '$lib/server/admin/eventOrders.js';
 import { fieldsForEvent } from '$lib/server/tickets/signupFields.js';
+import { editsByOrder } from '$lib/server/admin/orderEdits.js';
 import { REFUND_ALL_BATCH, REFUND_ALL_WORD, refundAllPreview } from '$lib/server/admin/refunds.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
@@ -50,17 +54,20 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
 	const now = Date.now();
-	const [{ rows }, preview, prior, fields] = await Promise.all([
+	const [{ rows }, preview, prior, fields, edits] = await Promise.all([
 		eventOrderRows(db, params.slug, config, now),
 		config.status === 'cancelado' ? refundAllPreview(db, params.slug) : null,
 		cachedPrior(db, params.slug, platform),
-		signupFields(db, params.slug)
+		signupFields(db, params.slug),
+		editsByOrder(db, params.slug)
 	]);
 	const known = Boolean(prior?.known);
 	const waiting = new Set(pendingTransfers(rows, now).map((r) => r.id));
 	const orders = rows.map((r) => ({
 		...r,
 		transferPending: waiting.has(r.id),
+		// «Editar»: los cambios guardados, del más nuevo al más viejo (orderEdits.js).
+		edits: edits.get(r.id) ?? [],
 		holders: r.holders.map((h, i) => {
 			// Lo que dijo en el formulario gana; si no contestó, la historia de entradas.
 			const said = answeredFirstTime(r.answers, i, r.holders.length);
@@ -104,7 +111,8 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 
 /**
  * Las preguntas del formulario de compra, en su orden (las generales elegidas, después las del
- * evento). `shortLabel`, si la pregunta tiene un nombre corto. Con un error, ninguna: la página
+ * evento). `shortLabel`, si la pregunta tiene un nombre corto; la ayuda, los extremos del puntaje
+ * y el mínimo y máximo de un número, si tienen. Con un error, ninguna: la página
  * sigue andando y las respuestas se agrupan por el texto guardado.
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string} slug
@@ -117,9 +125,16 @@ async function signupFields(db, slug) {
 			label: f.label,
 			shortLabel: String(/** @type {any} */ (f).shortLabel ?? ''),
 			kind: f.kind,
+			required: f.required,
 			options: f.options,
 			perTicket: f.perTicket,
-			ticketTypes: f.ticketTypes
+			ticketTypes: f.ticketTypes,
+			// Lo propio de cada tipo, para dibujarlas en «Editar» como en la compra.
+			...(f.help ? { help: f.help } : {}),
+			...(f.low ? { low: f.low } : {}),
+			...(f.high ? { high: f.high } : {}),
+			...(f.min !== undefined ? { min: f.min } : {}),
+			...(f.max !== undefined ? { max: f.max } : {})
 		}));
 	} catch (error) {
 		logDBError('preguntas de inscripción (Órdenes)', error);
@@ -138,5 +153,7 @@ export const actions = pickActions(
 	'dniSearch',
 	'confirm',
 	'cancel',
-	'reopen'
+	'reopen',
+	'edit',
+	'undoEdit'
 );

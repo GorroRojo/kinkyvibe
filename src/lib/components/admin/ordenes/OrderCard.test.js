@@ -114,6 +114,50 @@ describe('OrderCard', () => {
 		expect(body).toContain('canceló gorrite');
 		expect(body).not.toContain('Reenviar mail');
 	});
+
+	it('«Editar» en cualquier estado', () => {
+		for (const status of ['approved', 'pending', 'cancelled', 'refunded']) {
+			expect(html({ status })).toContain('Editar</summary>');
+		}
+	});
+
+	it('editada: «Editado por X el dd/mm» con cada cambio y «Deshacer» en lo que no se deshizo', () => {
+		const at = Date.UTC(2026, 10, 24, 15, 0);
+		const body = html({
+			edits: [
+				{
+					id: 2,
+					at,
+					by: 'admin-dos',
+					undoes: null,
+					undone: false,
+					changes: [
+						{ key: 'buyer.name', label: 'Nombre', before: 'Persona Un', after: 'Persona Uno' }
+					]
+				},
+				{
+					id: 1,
+					at: at - 1000,
+					by: 'admin-uno',
+					undoes: null,
+					undone: true,
+					changes: [{ key: 'answer.3', label: 'Talle', before: '', after: 'M' }]
+				}
+			]
+		});
+		expect(body).toContain('Editado por admin-dos el 24/11');
+		// Saca las etiquetas hasta que no quede ninguna (CodeQL pide la vuelta).
+		let text = body;
+		for (let prev = ''; prev !== text;) {
+			prev = text;
+			text = text.replace(/<[^>]+>/g, '');
+		}
+		expect(text).toContain('Nombre: Persona Un → Persona Uno');
+		expect(text).toContain('Talle: — → M');
+		expect(body.match(/action="\?\/undoEdit"/g)).toHaveLength(1);
+		expect(body).toContain('deshecho');
+		expect(html()).not.toContain('Editado por');
+	});
 });
 
 describe('AnswersView', () => {

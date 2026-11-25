@@ -12,7 +12,12 @@
  *   número o fecha listan a quienes escribieron algo. Las respuestas a preguntas
  *   que ya no están en el formulario van al final, juntas por el texto con que se guardaron.
  */
-import { fieldAppliesTo } from '$lib/utils/signupFields.js';
+import {
+	answerFormValue,
+	answerSlots,
+	fieldAppliesTo,
+	fieldInputName
+} from '$lib/utils/signupFields.js';
 import { isCountedKind, showAnswer, splitMulti, tallyOptions } from '$lib/utils/questions.js';
 import { foldText } from '$lib/utils/text.js';
 
@@ -20,7 +25,10 @@ import { foldText } from '$lib/utils/text.js';
  * @typedef {import('$lib/utils/signupFields.js').Answer} Answer
  * @typedef {{ id: number, label: string, shortLabel?: string | null,
  *   kind: import('$lib/utils/signupFields.js').FieldKind, options: string[], perTicket?: boolean,
- *   ticketTypes?: string[] }} ViewField
+ *   ticketTypes?: string[], required?: boolean, help?: string, low?: string, high?: string,
+ *   min?: number, max?: number }} ViewField
+ *   `help`, `low`/`high` y `min`/`max`: lo propio de cada tipo (para «Editar», que dibuja las
+ *   preguntas como la compra)
  * @typedef {{ name: string, pronouns: string, checkedIn?: boolean, firstTime?: boolean | null,
  *   firstFrom?: string | null }} ViewHolder
  * @typedef {{ id: string, reference: string, name: string, email: string, pronouns: string,
@@ -396,4 +404,40 @@ export const LONG_ANSWER = 60;
 /** ¿La respuesta va cortada, con «tocá para leer entera»? @param {string} value */
 export function isLongAnswer(value) {
 	return value.length > LONG_ANSWER || value.includes('\n');
+}
+
+/**
+ * «Editar» una compra: las preguntas que aplican (las de una vez por compra y las de una vez por
+ * entrada, aparte) y con qué arranca cada campo del formulario (los mismos `name` que la compra;
+ * el valor de cada respuesta, según su tipo, con `answerFormValue`).
+ *
+ * @param {Pick<ViewOrder, 'name' | 'pronouns' | 'email' | 'quantity' | 'typeId' | 'holders' | 'answers'>} o
+ * @param {readonly ViewField[]} fields
+ */
+export function orderEditForm(o, fields) {
+	const asked = fields.filter((f) => fieldAppliesTo(f, o.typeId ?? ''));
+	/** @type {Record<string, string | string[]>} en «Varias opciones», la lista de las elegidas */
+	const values = { name: o.name, pronouns: o.pronouns, email: o.email };
+	o.holders.forEach((h, i) => {
+		values[`holder_name_${i}`] = h.name;
+		values[`holder_pronouns_${i}`] = h.pronouns;
+	});
+	for (const f of asked) {
+		for (const slot of answerSlots(f, o.quantity)) {
+			const ticket = slot === null ? undefined : slot + 1;
+			const stored = o.answers.find((a) => a.id === f.id && a.ticket === ticket)?.value;
+			values[fieldInputName(f.id, slot)] = answerFormValue(f, stored);
+		}
+	}
+	/** @type {(f: ViewField) => import('$lib/utils/signupFields.js').SignupField} */
+	const asSignup = ({ shortLabel, ...f }) => ({
+		...f,
+		required: Boolean(f.required),
+		...(shortLabel ? { shortLabel } : {})
+	});
+	return {
+		values,
+		orderFields: asked.filter((f) => !f.perTicket).map(asSignup),
+		ticketFields: asked.filter((f) => f.perTicket).map(asSignup)
+	};
 }

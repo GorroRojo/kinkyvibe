@@ -9,6 +9,7 @@ import {
 	matchesStatus,
 	matchesToggle,
 	orderAnswerGroups,
+	orderEditForm,
 	orderSearchText,
 	questionCards,
 	statusFilterOf,
@@ -313,6 +314,63 @@ describe('Respuestas: una tarjeta por pregunta', () => {
 	});
 });
 
+describe('orderEditForm («Editar»)', () => {
+	const fields = [
+		{ id: 1, label: 'Alergias', kind: /** @type {const} */ ('text'), options: [] },
+		{
+			id: 2,
+			label: 'Comida',
+			kind: /** @type {const} */ ('choice'),
+			options: ['Vegana', 'Carnívora'],
+			perTicket: true,
+			required: true
+		},
+		{ id: 3, label: 'Reglas', kind: /** @type {const} */ ('checkbox'), options: [] },
+		{
+			id: 4,
+			label: 'Solo VIP',
+			kind: /** @type {const} */ ('text'),
+			options: [],
+			ticketTypes: ['vip']
+		}
+	];
+	const o = {
+		name: 'Ana',
+		pronouns: 'ella',
+		email: 'ana@example.com',
+		quantity: 2,
+		typeId: 'general',
+		holders: [
+			{ name: 'Ana', pronouns: 'ella' },
+			{ name: 'Bruno', pronouns: '' }
+		],
+		answers: [
+			{ id: 2, label: 'Comida', value: 'Vegana', ticket: 2 },
+			{ id: 3, label: 'Reglas', value: 'Sí' }
+		]
+	};
+
+	it('arranca con lo guardado, con los mismos campos que la compra', () => {
+		const { values, orderFields, ticketFields } = orderEditForm(o, fields);
+		expect(values).toEqual({
+			name: 'Ana',
+			pronouns: 'ella',
+			email: 'ana@example.com',
+			holder_name_0: 'Ana',
+			holder_pronouns_0: 'ella',
+			holder_name_1: 'Bruno',
+			holder_pronouns_1: '',
+			campo_1: '',
+			campo_2_0: '',
+			campo_2_1: 'Vegana',
+			campo_3: 'on'
+		});
+		// Solo las que aplican al tipo de entrada de la compra.
+		expect(orderFields.map((f) => f.id)).toEqual([1, 3]);
+		expect(ticketFields.map((f) => [f.id, f.required])).toEqual([[2, true]]);
+	});
+});
+
 describe('los tipos de los formularios en Respuestas y Compras', () => {
 	/** @type {import('./ordersView.js').ViewField[]} */
 	const fields = [
@@ -391,6 +449,51 @@ describe('los tipos de los formularios en Respuestas y Compras', () => {
 			['5', true],
 			['30,5', false],
 			['09/03/2024', false]
+		]);
+	});
+});
+
+describe('orderEditForm con los tipos nuevos', () => {
+	/** @type {import('./ordersView.js').ViewField[]} */
+	const fields = [
+		{ id: 10, label: 'Intereses', kind: 'multi', options: ['Sogas', 'Látex', 'Impacto'] },
+		{ id: 12, label: 'Puntaje', kind: 'rating', options: [], perTicket: true, low: 'Mal' },
+		{ id: 13, label: 'Edad', kind: 'number', options: [], min: 18, max: 99, help: 'En años' }
+	];
+
+	it('varias opciones arranca con la lista de las elegidas; número y puntaje, con lo guardado', () => {
+		const o = order({
+			quantity: 2,
+			holders: [
+				{ name: 'Persona Uno', pronouns: 'elle' },
+				{ name: 'Persona Dos', pronouns: 'ella' }
+			],
+			answers: [
+				{ id: 10, label: 'Intereses', value: 'Sogas | Impacto', kind: 'multi' },
+				{ id: 12, label: 'Puntaje', value: '4', ticket: 2, kind: 'rating' },
+				{ id: 13, label: 'Edad', value: '30.5', kind: 'number' }
+			]
+		});
+		const { values, orderFields, ticketFields } = orderEditForm(o, fields);
+		expect(values).toMatchObject({
+			campo_10: ['Sogas', 'Impacto'],
+			campo_12_0: '',
+			campo_12_1: '4',
+			campo_13: '30.5'
+		});
+		// Con lo propio de cada tipo, para dibujarlas como en la compra.
+		expect(orderFields.map((f) => f.id)).toEqual([10, 13]);
+		expect(orderFields[1]).toMatchObject({ min: 18, max: 99, help: 'En años', required: false });
+		expect(ticketFields).toEqual([
+			{
+				id: 12,
+				label: 'Puntaje',
+				kind: 'rating',
+				options: [],
+				perTicket: true,
+				low: 'Mal',
+				required: false
+			}
 		]);
 	});
 });

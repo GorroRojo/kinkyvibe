@@ -16,10 +16,12 @@
  */
 
 import {
+	CHECKBOX_YES,
 	QUESTION_KIND_LABELS,
 	SIGNUP_KINDS,
 	oneLine,
 	showAnswer,
+	splitMulti,
 	validateAnswerValue,
 	validateQuestion
 } from './questions.js';
@@ -243,7 +245,7 @@ export function validateAnswers(fields, raw, { typeId, quantity = 1 } = {}) {
 	for (const f of asked) {
 		for (const slot of answerSlots(f, quantity)) {
 			const name = fieldInputName(f.id, slot);
-			const r = validateAnswerValue(f, raw?.[name], { textMax: ANSWER_MAX });
+			const r = validateAnswer(f, raw?.[name]);
 			if ('error' in r) errors[name] = r.error;
 			else if (r.value !== null) {
 				answers.push({
@@ -251,12 +253,52 @@ export function validateAnswers(fields, raw, { typeId, quantity = 1 } = {}) {
 					label: f.label,
 					value: r.value,
 					...(slot === null ? {} : { ticket: slot + 1 }),
-					...(PLAIN_KINDS.includes(f.kind) ? {} : { kind: f.kind })
+					...answerKindTag(f.kind)
 				});
 			}
 		}
 	}
 	return Object.keys(errors).length ? { ok: false, errors } : { ok: true, answers };
+}
+
+/**
+/**
+ * Una respuesta: `{ value }` (o `null` si quedó vacía y es opcional) o `{ error }`, con la
+ * validación de los formularios (`validateAnswerValue`) y el largo de las de inscripción. La usan
+ * la compra (por {@link validateAnswers}) y «Editar» de Órdenes, de a una: así se valida igual.
+ * @param {Pick<SignupField, 'kind' | 'required' | 'options' | 'min' | 'max'>} f
+ * @param {unknown} value lo que mandó el formulario para ese campo (en «Varias opciones», la lista
+ *   de las marcadas)
+ * @returns {{ value: string | null } | { error: string }}
+ */
+export function validateAnswer(f, value) {
+	return validateAnswerValue(f, value, { textMax: ANSWER_MAX });
+}
+
+/**
+ * Lo que lleva una respuesta guardada de su tipo: `{ kind }` en los tipos nuevos, nada en los de
+ * antes (`PLAIN_KINDS`). La compra y «Editar» de Órdenes guardan igual.
+ * @param {unknown} kind
+ * @returns {{ kind?: FieldKind }}
+ */
+export function answerKindTag(kind) {
+	return isFieldKind(kind) && !PLAIN_KINDS.includes(kind) ? { kind } : {};
+}
+
+/**
+ * Lo que va en el campo del formulario para una respuesta guardada (lo contrario de
+ * {@link validateAnswer}): la casilla marcada es `on`; en «Varias opciones», la lista de las
+ * elegidas (una casilla por opción); lo demás, el texto guardado (un número con punto, una fecha
+ * `aaaa-mm-dd`: lo que usan los campos nativos). «Editar» de Órdenes arranca el formulario con
+ * esto y lo usa para saber qué cambió.
+ * @param {Pick<SignupField, 'kind'>} f
+ * @param {string | undefined} stored
+ * @returns {string | string[]}
+ */
+export function answerFormValue(f, stored) {
+	if (f.kind === 'checkbox') return stored === CHECKBOX_YES ? 'on' : '';
+	if (f.kind === 'multi') return splitMulti(stored ?? '');
+	return stored ?? '';
 }
 
 /**
@@ -279,7 +321,7 @@ export function parseStoredAnswers(json) {
 			label: String(a.label ?? ''),
 			value: String(a.value ?? ''),
 			...(Number.isSafeInteger(a.ticket) && a.ticket > 0 ? { ticket: Number(a.ticket) } : {}),
-			...(isFieldKind(a.kind) && !PLAIN_KINDS.includes(a.kind) ? { kind: a.kind } : {})
+			...answerKindTag(a.kind)
 		}));
 }
 

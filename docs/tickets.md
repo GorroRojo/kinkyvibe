@@ -553,8 +553,9 @@ filtros son funciones puras en `src/lib/admin/ordersView.js` y las partes, compo
   igual». Abajo, siempre la misma fila de botones con solo los que corresponden: «Llegó la
   transferencia ✓» (resaltada) y «Cancelar» en una transferencia por confirmar, «Reenviar mail» en
   una aprobada, «Deshacer rechazo» en una transferencia cancelada por une admin, la casilla
-  «Facturada» si la compra se factura y, en «Más», «Corregir el mail…» y «Reembolsar…» (con su paso
-  de confirmación).
+  «Facturada» si la compra se factura, «Editar» en todas (ver
+  [Editar una compra](#editar-una-compra)) y, en «Más», «Corregir el mail…» y «Reembolsar…» (con
+  su paso de confirmación).
 - **Filtros**: el estado, una sola opción con «🧾 compras · 👥 personas» (Transferencias por
   confirmar, Aprobadas, Pendientes MP, Reembolsadas, Todas; en la URL, `?estado=`): arranca en
   las transferencias por confirmar si hay, si no en las aprobadas. «Filtros» suma interruptores
@@ -580,6 +581,42 @@ filtros son funciones puras en `src/lib/admin/ordersView.js` y las partes, compo
   El resultado queda en la tarjeta aunque el filtro ya no la muestre.
 - **Link a una orden** (`#orden-<id>`): pasa a Compras, saca los filtros que la esconden, baja
   hasta ella y la marca.
+
+#### Editar una compra
+
+«Editar» en cada tarjeta de Compras (solo admins, como todo Órdenes; plan `ordenes-editar`) abre
+en la misma tarjeta (`OrderEditor`) los datos de quien compró (nombre, pronombres, mail), de cada
+entrada (nombre y pronombres) y las respuestas a las preguntas que aplican a la compra, una vez o
+una por entrada. Las preguntas usan los mismos campos que la compra (`SignupFieldInputs`, que
+dibuja `FormQuestions`): cada tipo de pregunta de inscripción se edita como se responde (en «Varias
+opciones», una casilla por opción, leídas con `getAll`), se valida con `validateAnswer` (la misma
+`validateAnswerValue` de la compra) y se guarda como en la compra, con `kind` en los tipos nuevos.
+Lo guardado vuelve al formulario con `answerFormValue`. Sirve en cualquier estado de la orden.
+
+- **Qué se valida** (A CONFIRMAR): solo lo que cambió, con las reglas de la compra (`checkName`,
+  `checkPronouns`, `normalizeBuyerEmail` y `validateAnswer` por tipo). Un dato viejo que hoy no
+  pasaría (una venta en la puerta sin pronombres, una obligatoria que se sumó después) no frena
+  corregir otro. Un mail que tocó «No fui yo» no se pone.
+- **Dónde se guarda:** en el mismo lugar que siempre (`orders`, `tickets` o, si todavía no se
+  emitieron, `orders.holders`, y `order_answers`), así lo corregido se ve en las dos vistas de
+  Órdenes (barras y cuentas incluidas), el CSV, la puerta, lo que ven les organizadores y la ficha
+  de la persona. (El resumen del bot del día después no lee respuestas; el aviso «Cada venta» ya
+  salió.) Las respuestas a preguntas que ya no están no se tocan.
+- **Mails:** editar no manda nada. Cambiar el mail no toca las entradas: sus links van por su
+  token y siguen andando; el mail que ya salió no se reenvía (para eso, «Corregir el mail…» o
+  «Reenviar mail») y los avisos que salgan después (recordatorios, cambios de fecha, el link de
+  la transmisión) van a la dirección nueva. El código combo que salió de la compra sigue al mail.
+  La compra aparece en Mi rincón de la cuenta con el mail nuevo (y sigue en la de antes si estaba
+  atada a esa cuenta).
+- **Historial** (tabla `order_edits`, migración 0085): cada guardado deja una fila con quién,
+  cuándo y cada dato con lo que había y lo que quedó (`orderEdits.js`). La tarjeta dice «Editado
+  por X el dd/mm» y, al tocarlo, la lista (`OrderHistory`). Va en una tabla propia y no en
+  Actividad porque guarda datos de quien compró; Actividad anota `order.edit` y
+  `order.edit_undo` con qué se cambió, sin los valores.
+- **Deshacer:** cada cambio todavía no deshecho tiene «Deshacer», que vuelve cada dato a lo que
+  había y queda como otro cambio (también se deshace). Si un dato cambió después, pide deshacer
+  primero lo más nuevo; un cambio se deshace una sola vez. Si otre admin guardó en el medio,
+  «Guardar» no lo pisa y pide volver a abrir «Editar».
 
 #### La plata de cada orden en Órdenes
 
