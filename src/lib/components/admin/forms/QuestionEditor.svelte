@@ -28,6 +28,7 @@
 		blankItem,
 		duplicateItem,
 		moveItem,
+		optionRows,
 		previewQuestions,
 		toEditorItems,
 		toPayload
@@ -232,19 +233,21 @@
 							error={err.shortLabel ?? ''}
 						/>
 					{/if}
+					<!-- Un desplegable: con nueve tipos, los botones ocupaban tres renglones desparejos. -->
 					<div class="kind">
-						<span class="kv-label">Tipo</span>
-						<Segmented
+						<Field
+							id="{idPrefix}-{q.key}-kind"
+							type="select"
+							label="Tipo"
 							options={kindOptions}
 							bind:value={q.kind}
-							label="Tipo de la pregunta {i + 1}"
+							error={err.kind ?? ''}
 						/>
-						{#if err.kind}<small class="kv-error">{err.kind}</small>{/if}
 					</div>
 					{#if hasOptions(q.kind)}
 						<Field
 							type="textarea"
-							rows={q.kind === 'multi' ? 6 : 4}
+							rows={optionRows(q.optionsText)}
 							label="Opciones (una por renglón, hasta {maxOptionsFor(q.kind)})"
 							bind:value={q.optionsText}
 							error={err.options ?? ''}
@@ -255,6 +258,12 @@
 							<Field label="Qué quiere decir 5" placeholder="Re bien" bind:value={q.high} />
 						</div>
 						{#if err.scale}<small class="kv-error">{err.scale}</small>{/if}
+					{:else if q.kind === 'number'}
+						<div class="kv-grid-2">
+							<Field label="Mínimo (opcional)" inputmode="decimal" bind:value={q.min} />
+							<Field label="Máximo (opcional)" inputmode="decimal" bind:value={q.max} />
+						</div>
+						{#if err.range}<small class="kv-error">{err.range}</small>{/if}
 					{/if}
 					{#if !signup}
 						<Field
@@ -330,9 +339,19 @@
 			grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
 			align-items: start;
 		}
+		/* Pegada al costado, debajo de la barra de arriba del panel y arriba de «Guardar»; si es más
+		   larga que la pantalla (muchas opciones), se desplaza adentro en vez de quedar cortada. */
 		.q-preview {
 			position: sticky;
-			top: var(--space-s);
+			top: calc(var(--form-sticky-top, 4.6rem) + var(--space-2xs));
+			max-height: calc(100vh - var(--form-sticky-top, 4.6rem) - 5.5rem);
+			display: flex;
+			flex-direction: column;
+		}
+		.preview-box {
+			overflow-y: auto;
+			overscroll-behavior: contain;
+			min-height: 0;
 		}
 	}
 	.q-list {
@@ -392,6 +411,10 @@
 		gap: 0.3rem;
 		align-items: flex-start;
 		min-width: 0;
+	}
+	/* El tipo: un desplegable del ancho de lo que dice, no de toda la tarjeta. */
+	.kind > :global(.kv-field) {
+		width: min(100%, 22rem);
 	}
 	.kv-label {
 		font-weight: 700;

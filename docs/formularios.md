@@ -191,8 +191,28 @@ IP) y por cuenta (`FORM_RATE_LIMIT`).
 
 ### Tipos de pregunta
 
-Texto, «Opciones (elegir una)», «Varias opciones (elegir las que quieras)», «Casilla (sí / no)» y
-«Puntaje de 1 a 5» (`QUESTION_KINDS`). Las de inscripción tienen solo texto, opciones y casilla.
+Texto, «Texto corto», «Opciones (elegir una)», «Varias opciones (elegir las que quieras)», «Lista
+desplegable», «Casilla (sí / no)», «Puntaje de 1 a 5», «Número» y «Fecha» (`QUESTION_KINDS`). Las
+de inscripción tienen solo texto, opciones y casilla. La ayuda de cada pregunta («Ayuda
+(opcional)») va debajo de su título, antes de lo que se contesta (gorrite, 24/11), y describe el
+campo (`aria-describedby`, junto con el error si hay).
+
+**Texto corto, número, fecha y lista desplegable** (24/11, gorrite: «¿podemos sumar más tipos?»).
+Solo de los formularios; las preguntas van en el JSON de `forms.questions`, sin migración. Todos
+andan sin JavaScript (campos nativos):
+
+| Tipo     | En la página                       | Se guarda (`value`)                                 |
+| -------- | ---------------------------------- | --------------------------------------------------- |
+| `short`  | `<input type="text">`, una línea   | el texto en una línea, hasta 1000 letras            |
+| `number` | `<input type="number" step="any">` | el número con punto (`3.5`); acepta coma al validar |
+| `date`   | `<input type="date">`              | `aaaa-mm-dd`, una fecha que existe                  |
+| `select` | `<select>` con «Elegí una opción»  | la opción, como «Opciones»                          |
+
+«Número» puede llevar mínimo y máximo (opcionales, `min` y `max` en la pregunta; el servidor los
+controla además del navegador). «Lista desplegable» lleva de 2 a 40 opciones, como «Varias
+opciones». En el resumen, la lista cuenta como las opciones (barras); número y fecha muestran la
+lista de lo respondido. El panel muestra el número con coma y la fecha `dd/mm/aaaa`
+(`showAnswer`); el CSV lleva lo guardado.
 
 **Varias opciones** (`multi`, 24/11, para el formulario de un evento): casillas, se marcan las que
 se quiera; obligatoria = al menos una. De 2 a 40 opciones (`MAX_MULTI_OPTIONS`; las de una sola,
@@ -211,6 +231,12 @@ CHECK con los tres tipos (migración 0018) y las respuestas «una vez por entrad
 previa con `FormQuestions.svelte`, el mismo componente de la página pública). Manda la lista entera
 como JSON. Solo usa piezas del panel (`Field`, `Segmented`, `Checkbox`, `Button`); una guarda en
 `QuestionEditor.dom.test.js` falla si un archivo del panel de formularios arma inputs a mano.
+
+El tipo se elige en un desplegable (`Field type="select"`): con nueve tipos, los botones de
+`Segmented` se partían en tres renglones desparejos (gorrite, 24/11: «se rompe con las opciones
+nuevas»). La caja de opciones crece con la lista (de 4 a 12 renglones, `optionRows`) y, en la compu,
+la vista previa queda pegada al costado debajo de la barra de arriba del panel, con su propio scroll
+si es más larga que la pantalla (antes quedaba tapada abajo con muchas opciones).
 
 En las preguntas de inscripción (con el interruptor prendido), `?/saveFields`
 (`saveFieldsAction`) guarda la lista en `signup_fields` como siempre: las que traen su id se

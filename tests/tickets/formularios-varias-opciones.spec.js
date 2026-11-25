@@ -48,7 +48,7 @@ test('varias opciones: del editor a la página pública y al resumen', async ({ 
 		.click();
 	await page.getByRole('button', { name: 'Agregar una pregunta' }).click();
 	await page.getByLabel('Pregunta', { exact: true }).fill('¿Qué te gustaría que haya?');
-	await page.getByRole('button', { name: 'Varias opciones (elegir las que quieras)' }).click();
+	await page.getByRole('combobox', { name: /^Tipo/ }).selectOption('multi');
 	await page.getByLabel('Opciones (una por renglón, hasta 40)').fill(OPTIONS.join('\n'));
 	await page.getByRole('button', { name: 'Guardar', exact: true }).click();
 	await expect(page.getByText('Guardado.', { exact: true })).toBeVisible();

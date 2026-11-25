@@ -7,6 +7,7 @@ import {
 	blankItem,
 	duplicateItem,
 	moveItem,
+	optionRows,
 	previewQuestions,
 	toEditorItems,
 	toPayload
@@ -106,5 +107,28 @@ describe('lo que se manda', () => {
 		const p = previewQuestions(items);
 		expect(p[1].options).toEqual(['Sí', 'No']);
 		expect(p[2]).toMatchObject({ low: 'Mal', high: 'Re bien' });
+	});
+});
+
+describe('número y lista desplegable', () => {
+	it('el número manda y muestra su mínimo y su máximo; la lista, sus opciones', () => {
+		const items = toEditorItems([
+			{ id: 'n1', kind: 'number', label: 'Cuántas', required: false, options: [], min: 1 },
+			{ id: 'l1', kind: 'select', label: 'Barrio', required: false, options: ['A', 'B'] }
+		]);
+		expect(items[0]).toMatchObject({ min: '1', max: '' });
+		items[0].max = '9,5';
+		expect(toPayload(items)[0]).toMatchObject({ kind: 'number', min: '1', max: '9,5' });
+		expect(toPayload(items)[1]).toMatchObject({ kind: 'select', options: ['A', 'B'] });
+		expect('min' in toPayload(items)[1]).toBe(false);
+		const p = previewQuestions(items);
+		expect(p[0]).toMatchObject({ min: 1, max: 9.5 });
+		expect(p[1].options).toEqual(['A', 'B']);
+	});
+
+	it('la caja de opciones crece con la lista, de 4 a 12 renglones', () => {
+		expect(optionRows('')).toBe(4);
+		expect(optionRows('a\nb\nc\nd\ne')).toBe(6);
+		expect(optionRows(Array.from({ length: 30 }, (_, i) => `o${i}`).join('\n'))).toBe(12);
 	});
 });

@@ -15,9 +15,9 @@
 	 *
 	 * Props: `label`, `help` (texto gris abajo), `error` (texto rojo abajo; marca el campo con
 	 * `aria-invalid`), `size`: 'normal' | 'large', `type` ('text', 'search', 'email', 'number',
-	 * 'tel', 'url', 'password', 'date', 'time' o 'textarea'), `value` (bind:value), `placeholder`,
-	 * `name`, `id`, `required`, `disabled`, `autocomplete`, `rows` (textarea), `inputmode`,
-	 * `maxlength`.
+	 * 'tel', 'url', 'password', 'date', 'time', 'textarea' o 'select'), `value` (bind:value),
+	 * `placeholder`, `name`, `id`, `required`, `disabled`, `autocomplete`, `rows` (textarea),
+	 * `inputmode`, `maxlength`, `options` (select: [{ value, label }]).
 	 * Slot default: un control propio (un <select>, un combobox…) en lugar del input; en ese caso
 	 * `value` y `type` no se usan y el control tiene que llevar el `id` (slot prop `id`).
 	 */
@@ -53,6 +53,8 @@
 	export let maxlength = undefined;
 	/** @type {'panel' | 'sitio'} */
 	export let surface = 'panel';
+	/** @type {ReadonlyArray<{ value: string, label: string }>} */
+	export let options = [];
 
 	$: helpId = help ? `${id}-help` : '';
 	$: errorId = error ? `${id}-error` : '';
@@ -73,6 +75,20 @@
 	<span>{label}</span>
 	{#if $$slots.default}
 		<slot {id} {describedBy} />
+	{:else if type === 'select'}
+		<select
+			{id}
+			{name}
+			{required}
+			{disabled}
+			bind:value
+			aria-invalid={error ? 'true' : undefined}
+			aria-describedby={describedBy}
+			on:change
+			on:blur
+		>
+			{#each options as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
+		</select>
 	{:else if type === 'textarea'}
 		<textarea
 			{id}

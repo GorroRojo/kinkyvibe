@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
- * El puntaje de 1 a 5 de un formulario (FormQuestions.svelte): cinco radios en un solo grupo
+ * Las preguntas de un formulario (FormQuestions.svelte). El puntaje: cinco radios en un solo grupo
  * (con nombre, así las flechas lo recorren y se elige uno), descriptos por «1 = …» y «5 = …», y
- * sin la pastilla estirada de `.kv-segmented` (gorrite, 5/11: «se ve mal, como estirado»).
+ * sin la pastilla estirada de `.kv-segmented` (gorrite, 5/11: «se ve mal, como estirado»). La
+ * ayuda de cada pregunta, antes de lo que se contesta (gorrite, 24/11), y los tipos nuevos.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render } from '@testing-library/svelte';
@@ -92,5 +93,78 @@ describe('FormQuestions: varias opciones', () => {
 			(b) => /** @type {HTMLInputElement} */ (b).value
 		);
 		expect(checked).toEqual(['Cuerdas', 'Impacto']);
+	});
+});
+
+describe('FormQuestions: la ayuda va debajo del título, antes de lo que se contesta', () => {
+	/** @param {string} kind */
+	const q = (kind) => ({
+		id: `q${kind}`,
+		kind: /** @type {any} */ (kind),
+		label: `Pregunta ${kind}`,
+		required: false,
+		options: ['A', 'B'],
+		help: `Ayuda ${kind}`
+	});
+	const kinds = ['text', 'short', 'choice', 'multi', 'select', 'rating', 'number', 'date'];
+
+	it.each(kinds)('%s: la ayuda está antes del primer campo y lo describe', (kind) => {
+		render(FormQuestions, { props: { questions: [q(kind)], idPrefix: 'f' } });
+		const help = /** @type {HTMLElement} */ (document.getElementById(`f-q${kind}-help`));
+		expect(help.textContent).toBe(`Ayuda ${kind}`);
+		const control = /** @type {HTMLElement} */ (
+			document.querySelector('input:not([type="hidden"]), select, textarea')
+		);
+		// La ayuda viene antes en el documento.
+		expect(help.compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+		const described =
+			control.closest('fieldset')?.getAttribute('aria-describedby') ??
+			control.getAttribute('aria-describedby');
+		expect(described?.split(' ')).toContain(`f-q${kind}-help`);
+	});
+
+	it('con un error, el campo queda descripto por el error y por la ayuda', () => {
+		render(FormQuestions, {
+			props: { questions: [q('short')], idPrefix: 'f', errors: { qshort: 'Completá esto.' } }
+		});
+		const input = /** @type {HTMLInputElement} */ (document.querySelector('input'));
+		expect(input.getAttribute('aria-describedby')).toBe('f-qshort-error f-qshort-help');
+	});
+});
+
+describe('FormQuestions: texto corto, número, fecha y lista desplegable', () => {
+	const questions = /** @type {import('$lib/utils/formularios.js').Question[]} */ ([
+		{ id: 's1', kind: 'short', label: 'Apodo', required: false, options: [] },
+		{ id: 'n1', kind: 'number', label: 'Cuántas', required: false, options: [], min: 0, max: 10 },
+		{ id: 'd1', kind: 'date', label: 'Cuándo', required: false, options: [] },
+		{ id: 'l1', kind: 'select', label: 'Barrio', required: true, options: ['Uno', 'Dos'] }
+	]);
+
+	it('son campos nativos con su nombre (andan sin JavaScript)', () => {
+		render(FormQuestions, { props: { questions, idPrefix: 'f' } });
+		const short = /** @type {HTMLInputElement} */ (document.getElementById('f-s1'));
+		expect([short.type, short.name, short.maxLength]).toEqual(['text', answerName('s1'), 1000]);
+		const num = /** @type {HTMLInputElement} */ (document.getElementById('f-n1'));
+		expect([num.type, num.name, num.step, num.min, num.max]).toEqual([
+			'number',
+			answerName('n1'),
+			'any',
+			'0',
+			'10'
+		]);
+		const date = /** @type {HTMLInputElement} */ (document.getElementById('f-d1'));
+		expect([date.type, date.name]).toEqual(['date', answerName('d1')]);
+		const select = /** @type {HTMLSelectElement} */ (document.getElementById('f-l1'));
+		expect(select.name).toBe(answerName('l1'));
+		expect([...select.options].map((o) => o.value)).toEqual(['', 'Uno', 'Dos']);
+	});
+
+	it('vuelve lo escrito y lo elegido después de un error', () => {
+		render(FormQuestions, {
+			props: { questions, values: { s1: 'Algo', n1: '3.5', d1: '2026-01-02', l1: 'Dos' } }
+		});
+		const inputs = [...document.querySelectorAll('input')].map((i) => i.value);
+		expect(inputs).toEqual(['Algo', '3.5', '2026-01-02']);
+		expect(/** @type {HTMLSelectElement} */ (document.querySelector('select')).value).toBe('Dos');
 	});
 });

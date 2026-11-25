@@ -64,7 +64,9 @@ const QUESTION_FIELDS = Object.freeze([
 	'opciones',
 	'ayuda',
 	'bajo',
-	'alto'
+	'alto',
+	'minimo',
+	'maximo'
 ]);
 
 /** Valores del conector → los del panel. */
@@ -84,10 +86,14 @@ const AUDIENCE_IN = /** @type {Record<string, string>} */ ({
 });
 const KIND_IN = /** @type {Record<string, string>} */ ({
 	texto: 'text',
+	texto_corto: 'short',
 	opciones: 'choice',
 	varias_opciones: 'multi',
+	lista: 'select',
 	casilla: 'checkbox',
-	puntaje: 'rating'
+	puntaje: 'rating',
+	numero: 'number',
+	fecha: 'date'
 });
 const CLASS_OF = /** @type {Record<string, string>} */ ({
 	form: 'formulario',
@@ -117,9 +123,11 @@ const CAMBIOS_TEXT =
 	'quien_responde (link, cuenta, entrada), evento (slug o nombre; vacío, sin evento), privacidad ' +
 	'(con_nombre, anonimo, que_elija), quien_ve (organizadores, admins), abierto (sí/no; uno nuevo ' +
 	'nace cerrado) y preguntas (la lista entera, en orden: `[{ id?, pregunta, tipo, obligatoria?, ' +
-	'opciones?, ayuda?, bajo?, alto? }]`; `tipo`: texto, opciones, varias_opciones, casilla, ' +
-	'puntaje; `id`: el que da `leer`, para mantener una pregunta; varias_opciones lleva de 2 a 40 ' +
-	'opciones, ninguna con «|»).';
+	'opciones?, ayuda?, bajo?, alto?, minimo?, maximo? }]`; `tipo`: texto (largo), texto_corto, ' +
+	'opciones, varias_opciones, lista (desplegable, elegir una), casilla, puntaje, numero, fecha; ' +
+	'`id`: el que da `leer`, para mantener una pregunta; varias_opciones y lista llevan de 2 a 40 ' +
+	'opciones, varias_opciones ninguna con «|»; numero puede llevar minimo y maximo; fecha se ' +
+	'responde aaaa-mm-dd).';
 
 /** Las instrucciones del servidor con los formularios prendidos. @param {boolean} edit */
 export const formsInstructions = (edit) =>
@@ -225,7 +233,9 @@ function questionOut(q) {
 		obligatoria: q.required,
 		...(q.options.length ? { opciones: q.options } : {}),
 		...(q.help ? { ayuda: q.help } : {}),
-		...(q.kind === 'rating' ? { bajo: q.low, alto: q.high } : {})
+		...(q.kind === 'rating' ? { bajo: q.low, alto: q.high } : {}),
+		...(q.min !== undefined ? { minimo: q.min } : {}),
+		...(q.max !== undefined ? { maximo: q.max } : {})
 	};
 }
 
@@ -329,7 +339,7 @@ async function readInputs(ctx, raw) {
 function questionsInput(raw) {
 	if (!Array.isArray(raw))
 		throw new ToolInputError(
-			'`preguntas` es la lista entera, en orden: `[{ id?, pregunta, tipo, obligatoria?, opciones?, ayuda?, bajo?, alto? }]`.'
+			'`preguntas` es la lista entera, en orden: `[{ id?, pregunta, tipo, obligatoria?, opciones?, ayuda?, bajo?, alto?, minimo?, maximo? }]`.'
 		);
 	return raw.map((item, i) => {
 		if (!item || typeof item !== 'object' || Array.isArray(item))
@@ -349,6 +359,9 @@ function questionsInput(raw) {
 			throw new ToolInputError(`\`obligatoria\` (pregunta ${i + 1}) va como \`true\` o \`false\`.`);
 		if (q.opciones !== undefined && !Array.isArray(q.opciones))
 			throw new ToolInputError(`\`opciones\` (pregunta ${i + 1}) es una lista de textos.`);
+		for (const k of /** @type {const} */ (['minimo', 'maximo']))
+			if (q[k] !== undefined && q[k] !== null && typeof q[k] !== 'number')
+				throw new ToolInputError(`\`${k}\` (pregunta ${i + 1}) va como número.`);
 		return {
 			...(typeof q.id === 'string' && q.id ? { id: q.id } : {}),
 			label: q.pregunta,
@@ -357,7 +370,9 @@ function questionsInput(raw) {
 			options: Array.isArray(q.opciones) ? q.opciones.map((o) => String(o ?? '')) : [],
 			help: q.ayuda,
 			low: q.bajo,
-			high: q.alto
+			high: q.alto,
+			min: q.minimo ?? undefined,
+			max: q.maximo ?? undefined
 		};
 	});
 }
@@ -398,7 +413,9 @@ function questionText(q) {
 		`«${q.label}» (${kind}${q.required ? ', obligatoria' : ''})`,
 		q.options.length ? `: ${q.options.join(' / ')}` : '',
 		q.help ? `; ayuda: ${q.help}` : '',
-		q.kind === 'rating' ? `; de «${q.low}» a «${q.high}»` : ''
+		q.kind === 'rating' ? `; de «${q.low}» a «${q.high}»` : '',
+		q.min !== undefined ? `; mínimo ${q.min}` : '',
+		q.max !== undefined ? `; máximo ${q.max}` : ''
 	].join('');
 }
 
