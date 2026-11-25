@@ -142,6 +142,12 @@
 
 	// --- Estado ---
 	let counts = data.counts;
+	/**
+	 * «Con la entrada abierta ahora»: quienes tienen la página de su entrada abierta en el celu
+	 * (llega con la lista, cada 2 minutos; no se guarda en el celu).
+	 * @type {{ ticketId: string, holder: string, type: string }[]}
+	 */
+	let openNow = [];
 	let online = true;
 	// Con red pero el servidor sin contestar (500, sesión cerrada o 8 s sin respuesta) y la lista
 	// guardada: se valida con la lista y lo dice un cartel (auditoría de confiabilidad, OX1). Se
@@ -189,6 +195,9 @@
 	let purchaseError = '';
 
 	$: pct = counts.total ? Math.round((counts.inside / counts.total) * 100) : 0;
+	// Sin quienes ya entraron en este celu desde la última lista. Sin conexión, nada: no es «ahora».
+	$: insideIds = new Set(door.list.filter((t) => t.at).map((t) => t.ticketId));
+	$: openNowShown = online && !serverDown ? openNow.filter((o) => !insideIds.has(o.ticketId)) : [];
 	$: pending = door.queue.length + door.sales.length;
 	$: pendingText = pendingNote({ checkins: door.queue.length, sales: door.sales.length });
 	$: connection = doorConnectionNote({
@@ -686,7 +695,10 @@
 		try {
 			const res = await fetch(`${base}/lista`, { headers: { accept: 'application/json' } });
 			linkRefused(res.status);
-			if (!res.ok) return;
+			if (!res.ok) {
+				openNow = [];
+				return;
+			}
 			const body = await res.json();
 			door = {
 				...door,
@@ -697,9 +709,11 @@
 				noticeUntil: Number(body.noticeUntil) || null
 			};
 			persist();
+			openNow = Array.isArray(body.openNow) ? body.openNow : [];
 			if (!door.queue.length && !door.sales.length) setCounts(body.counts);
 		} catch {
-			// sin red: queda la lista que había
+			// sin red: queda la lista que había (y «abierta ahora» ya no es ahora)
+			openNow = [];
 		}
 	}
 
@@ -1536,6 +1550,17 @@
 				</div>
 			{/if}
 		</div>
+
+		{#if openNowShown.length}
+			<section class="recent open-now" aria-labelledby="open-now-title">
+				<h2 id="open-now-title">Con la entrada abierta ahora ({openNowShown.length})</h2>
+				<ul>
+					{#each openNowShown as o (o.ticketId)}
+						<li><strong>{o.holder}</strong> <small>{o.type}</small></li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
 
 		<section class="recent" aria-labelledby="recent-title">
 			<h2 id="recent-title">Últimos escaneos</h2>
@@ -2416,6 +2441,13 @@
 	}
 	.recent li:last-child {
 		border-bottom: 0;
+	}
+	.open-now li {
+		gap: 0.5em;
+		padding: 0.35rem 0;
+	}
+	.open-now small {
+		color: var(--muted);
 	}
 	.dot {
 		flex: none;
