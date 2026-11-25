@@ -108,6 +108,8 @@ import {
 } from '$lib/server/tickets/partCheckins.js';
 import { DOOR_AUTO_PARAM } from '$lib/utils/doorEvents.js';
 import { NO_STORE, cachedPrior, doorContext, doorSeriesLabel } from './doorContext.js';
+import { openNowList, seenNow } from './presence.js';
+import { logDBError } from '$lib/server/db';
 import { deliverExtra, extrasAvailability, orderExtras } from './extras.js';
 import {
 	EXTRA_HARD_MAX,
@@ -825,28 +827,38 @@ export async function doorList(event, actor) {
 		cachedPrior(db, slug, event.platform),
 		noticesFor(db, actor, config)
 	]);
-	const [all, counts] = await Promise.all([
+	const now = Date.now();
+	const [all, counts, seen] = await Promise.all([
 		offlineList(db, { slug, typeNames, prior, notices: notices ?? undefined }),
 		countsFor(db, {
 			ticketSlug: slug,
 			part,
 			platform: event.platform,
 			prior: Promise.resolve(prior)
+		}),
+		// «Con la entrada abierta ahora» (presence.js), en la misma ida. Sin la columna todavía
+		// (migración 0086), nadie.
+		seenNow(db, slug, now).catch((error) => {
+			logDBError('puerta: entrada abierta', error);
+			return new Map();
 		})
 	]);
 	const rows = part
 		? await overlayPartCheckins(db, part.slug, all, { id: 'ticketId', at: 'at', by: 'by' })
 		: all;
 	const tickets = hideLogins(actor, actor.link ? rows.map(withoutNotice) : rows, 'by');
-	const now = Date.now();
+	// Quienes tienen la página de la entrada abierta ahora, sin las que ya entraron. Lo mismo con
+	// un link: solo nombre y tipo, que la lista ya trae. El celu no lo guarda.
+	const openNow = openNowList(rows, seen);
 	return json(
 		actor.link
-			? { at: now, tickets, counts }
+			? { at: now, tickets, counts, openNow }
 			: {
 					at: now,
 					noticeUntil: doorNoticeKeepUntil({ start: config.start, end: config.end, now }),
 					tickets,
-					counts
+					counts,
+					openNow
 				},
 		{ headers: NO_STORE }
 	);
