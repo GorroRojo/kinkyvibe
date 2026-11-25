@@ -19,6 +19,7 @@ import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { getEventInfo } from '$lib/server/tickets/events.js';
 import { cleanSavedBuyer } from '$lib/utils/savedBuyer.js';
+import { showAnswer } from '$lib/utils/questions.js';
 import { groupPeople, normalizeEmail, personId } from './people.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -178,7 +179,9 @@ function parseAnswers(raw) {
 			.filter((a) => a && typeof a === 'object')
 			.map((a) => ({
 				label: str(a.label),
-				value: Array.isArray(a.value) ? a.value.map(String).join(', ') : str(a.value)
+				value: Array.isArray(a.value)
+					? a.value.map(String).join(', ')
+					: showAnswer(typeof a.kind === 'string' ? a.kind : undefined, str(a.value))
 			}));
 	} catch {
 		return [];

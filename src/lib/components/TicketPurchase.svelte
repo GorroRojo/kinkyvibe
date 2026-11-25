@@ -76,7 +76,7 @@
 	 * @typedef {{
 	 *   error?: string | null,
 	 *   errors?: Record<string, string>,
-	 *   values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string>, accountForm?: boolean, remember?: boolean, rememberDni?: boolean, lista?: string, extras?: Record<string, string> },
+	 *   values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string | string[]>, accountForm?: boolean, remember?: boolean, rememberDni?: boolean, lista?: string, extras?: Record<string, string> },
 	 *   discount?: import('$lib/server/tickets/checkout.js').AppliedDiscount | null
 	 * } | null} BuyResult
 	 */
@@ -257,15 +257,18 @@
 
 	/**
 	 * Respuestas a las preguntas de inscripción, como están escritas en el formulario (esos campos
-	 * no se guardan en variables: ver SignupFieldInputs).
-	 * @returns {Record<string, string>}
+	 * no se guardan en variables: ver SignupFieldInputs). Un `name` repetido (las casillas de
+	 * «Varias opciones») junta todos sus valores en una lista.
+	 * @returns {Record<string, string | string[]>}
 	 */
 	function readAnswers() {
 		if (!formEl) return {};
-		/** @type {Record<string, string>} */
+		/** @type {Record<string, string | string[]>} */
 		const out = {};
 		for (const [name, value] of new FormData(formEl)) {
-			if (name.startsWith('campo_') && typeof value === 'string') out[name] = value;
+			if (!name.startsWith('campo_') || typeof value !== 'string') continue;
+			const before = out[name];
+			out[name] = before === undefined ? value : [...[before].flat(), value];
 		}
 		return out;
 	}

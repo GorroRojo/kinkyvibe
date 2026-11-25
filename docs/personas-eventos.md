@@ -11,8 +11,8 @@ Sin base, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes cam
    (Perfiles del panel, los mismos de /amigues: [amigues.md](amigues.md)). La
    página del evento muestra los roles con link al perfil, y la página de un perfil lista sus
    eventos y publicaciones por rol («Participa en»).
-2. **Preguntas de inscripción (B8).** Preguntas extra al comprar o inscribirse (texto, opciones
-   o casilla; obligatorias u opcionales): propias de un evento (pestaña **Preguntas** de su
+2. **Preguntas de inscripción (B8).** Preguntas extra al comprar o inscribirse (los tipos de los
+   formularios menos «Foto»; obligatorias u opcionales): propias de un evento (pestaña **Preguntas** de su
    ficha) y generales, que se definen una vez (Eventos → **Roles y preguntas**) y cada evento
    elige. Las respuestas se guardan con la orden y se ven en la pestaña **Órdenes** (en cada
    compra y, en la vista «Respuestas», una tarjeta por pregunta con barras o la lista de quienes
@@ -127,6 +127,33 @@ personas:
 | `event_signup_general` | qué generales usa cada evento                                              |
 | `order_answers`        | las respuestas de cada orden (JSON `[{ id, label, value }]`), con la orden |
 
+**Tipos (migración 0084; gorrite, 25/11: «que todos los sistemas de formularios estén completos
+entre sí»).** Los mismos que los formularios menos «Foto»: texto, texto corto, opciones, varias
+opciones, lista desplegable, casilla, puntaje de 1 a 5, número (con mínimo y máximo) y fecha
+(`SIGNUP_KINDS`). Una sola lista de tipos con sus nombres, una sola validación de cada pregunta y de
+cada respuesta, y el mismo componente para responder: `src/lib/utils/questions.js` y
+`FormQuestions.svelte` (`SignupFieldInputs.svelte` solo le pone el título, el aviso y el `name` de
+cada campo). Lo propio de cada tipo (la ayuda, que también tienen ahora estas preguntas, mínimo y
+máximo, extremos del puntaje) va en `signup_fields.settings` (JSON). La migración reconstruye
+`signup_fields` (el CHECK de `kind` solo dejaba tres tipos; ahora lo controla el código) como 0082
+con `orders`, con copia de `event_signup_general` (la borraría la cascada) y los mismos ids.
+
+- **En la compra:** campos nativos, andan sin JavaScript (con `required` del navegador, menos en
+  «Varias opciones»: las casillas repiten el `name` y el servidor las junta, `readAnswers`).
+  «Opciones» va con tarjetas, como en los formularios y en la vista previa del editor (antes era un
+  desplegable; el desplegable ahora es «Lista desplegable»).
+- **Lo guardado:** como en los formularios (`value` de texto: «Varias opciones» con « | », un
+  número con punto, una fecha `aaaa-mm-dd`). Las respuestas de los tipos nuevos llevan además su
+  `kind` en el JSON; las de texto, opciones y casilla quedan como siempre. Así el bot («Cada venta»),
+  la ficha de una persona y Mi rincón muestran el número con coma y la fecha `dd/mm/aaaa`
+  (`showAnswer`) aunque la pregunta ya no esté. Los CSV llevan lo guardado.
+- **Órdenes:** en «Respuestas», opciones, lista, varias opciones, casilla y puntaje van con barras
+  (en «Varias opciones» cada respuesta cuenta en cada opción que eligió, y tocar la barra filtra
+  las compras que la eligieron entre otras; el puntaje, del 1 al 5 en orden); texto, número y
+  fecha, con la lista de quienes respondieron. En el CSV, si una pregunta de «Varias opciones» se
+  hace una vez por entrada, las entradas se separan con « · » (« | » ya separa las elegidas).
+- **Foto no:** el formulario de compra no manda archivos y pasa por Mercado Pago o PayPal.
+
 **Borrar se recupera (migración 0049, decisión
 [0033](decisiones/0033-borrados-recuperables.md)).** «Borrar» pide confirmar y marca `deleted_at`:
 la pregunta deja de verse en las listas, en lo que pregunta la compra y en lo elegido por cada
@@ -154,9 +181,8 @@ Las reglas puras (qué preguntas aplican a cada tipo, cuántas respuestas pide u
 el alcance) están en `src/lib/utils/signupFields.js` (`fieldsForTicketType`, `answerSlots`,
 `answerSetCount`, `validateFieldScope`).
 
-Topes: 10 preguntas propias por evento, 30 generales, 12 opciones por pregunta, 120 letras por
-pregunta y 500 por respuesta. «Varias opciones» y el puntaje son solo de los formularios
-([formularios.md](formularios.md#tipos-de-pregunta)). En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
+Topes: 10 preguntas propias por evento, 30 generales, 12 opciones por pregunta (40 en «Varias
+opciones» y «Lista desplegable»), 120 letras por pregunta y 500 por respuesta de texto. En el CSV de Órdenes, una columna por pregunta (las de hoy y las que
 solo tienen respuestas viejas); sin preguntas ni respuestas, el CSV es el de siempre.
 
 **Etiqueta corta** (migración 0083, `signup_fields.short_label`, opcional, hasta 24 letras). Un
@@ -215,22 +241,24 @@ en el `personas:` de ese evento. Solo las de sus eventos.
 | Lista de roles                   | `src/lib/server/personas/roles.js`                                                                                                                         |
 | Respuestas para organizadores    | `src/lib/server/personas/organiza.js`, `src/routes/(content)/mi-rincon/perfiles/[slug]/respuestas/`                                                        |
 | Entrada y acciones del panel     | `src/lib/server/personas/admin.js`                                                                                                                         |
-| Reglas puras de preguntas        | `src/lib/utils/signupFields.js`                                                                                                                            |
+| Reglas puras de preguntas        | `src/lib/utils/signupFields.js`, `src/lib/utils/questions.js` (en común con los formularios)                                                               |
 | Preguntas y respuestas en D1     | `src/lib/server/tickets/signupFields.js`                                                                                                                   |
 | Componentes públicos             | `PersonasConRol.svelte`, `ParticipacionesPorRol.svelte`, `SignupFieldInputs.svelte`                                                                        |
 | Lista única (md ⇄ base)          | `src/lib/utils/personasList.js` (y `personasPicker.js`, el formulario)                                                                                     |
 | Componentes del panel            | `admin/event-form/PersonasSection.svelte`, `PersonasField.svelte`, `forms/SignupQuestionsEditor.svelte`, `OrderAnswers.svelte`, `GeneralFieldScope.svelte` |
-| Migración                        | `migrations/0018_personas_eventos.sql`, `migrations/0026_preguntas_alcance.sql`                                                                            |
+| Migración                        | `migrations/0018_personas_eventos.sql`, `0026_preguntas_alcance.sql`, `0083_preguntas_etiqueta_corta.sql`, `0084_preguntas_todos_los_tipos.sql`            |
 | Datos de demo (solo preview)     | `scripts/demo/n3-personas.sql`                                                                                                                             |
 
 ## Cómo probarlo
 
 ```sh
 npx vitest run src/lib/utils/personas.test.js src/lib/utils/personasList.test.js \
-  src/lib/utils/signupFields.test.js \
+  src/lib/utils/signupFields.test.js src/lib/utils/questions.test.js \
   src/lib/server/personas src/lib/server/tickets/signupFields.test.js \
   "src/routes/(authed)/admin/eventos/roles" scripts/demo/n3-personas.test.js \
-  "src/routes/(content)/mi-rincon/perfiles/respuestas-routes.test.js"
+  "src/routes/(content)/mi-rincon/perfiles/respuestas-routes.test.js" \
+  src/lib/components/SignupFieldInputs.test.js src/lib/admin/ordersView.test.js \
+  src/lib/server/db/migration0084.test.js
 ```
 
 A mano: `npm run dev`, cargar

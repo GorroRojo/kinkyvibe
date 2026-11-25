@@ -641,7 +641,7 @@ function readForm(form) {
 			pronouns: str(`holder_pronouns_${i}`, 100)
 		})),
 		// Respuestas a las preguntas de inscripción: las lee buyAction, que sabe cuáles hay.
-		answers: /** @type {Record<string, string>} */ ({}),
+		answers: /** @type {Record<string, string | string[]>} */ ({}),
 		// Datos guardados de la cuenta (docs/cuentas.md): las casillas de «Tus datos». `accountForm`
 		// dice que el formulario las mostró; sin eso, no se guarda ni se saca nada (por ejemplo, un
 		// formulario abierto antes de ingresar no borra lo guardado).

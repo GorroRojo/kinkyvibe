@@ -28,6 +28,7 @@ import { salePlaceText } from '$lib/utils/eventPlace.js';
 import { extrasEnabled } from '$lib/server/flags.js';
 import { orderExtras } from '$lib/server/tickets/extras.js';
 import { extrasShortText } from '$lib/utils/extras.js';
+import { inPresenceWindow } from '$lib/server/tickets/presence.js';
 
 /**
  * El texto del aviso de puerta si la entrada coincide y el evento es de Kinky Vibe; si no, `null`.
@@ -109,6 +110,12 @@ export async function load({ params, platform, url, locals }) {
 		streamLink,
 		qr: online ? null : qrSvg(`${siteOrigin(url)}/entradas/t/${params.token}`),
 		isAdmin: admin,
+		// «Con la entrada abierta ahora» en la Puerta ($lib/server/tickets/presence.js): la página
+		// avisa a `./visto` mientras está a la vista. Solo una entrada válida sin ingreso, el día de
+		// un evento presencial, y nunca si la abre une admin (escanear el QR no es «estar por
+		// llegar»). No suma consultas: la ventana sale del evento, que ya se leyó.
+		presence:
+			!admin && valid && !ticket.checked_in_at && !online && inPresenceWindow(config, Date.now()),
 		// Para quien no es admin, el campo no existe (la respuesta es la de siempre).
 		...(admin ? { adminNotice } : {})
 	};

@@ -44,7 +44,9 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
 - **Crons** (`src/lib/server/scheduled.js`, UTC):
   - `*/15 * * * *` → recordatorios: le pasa `POST /api/cron/recordatorios` (con `CRON_SECRET`)
     directo al fetch de SvelteKit, sin salir a internet. Es el mismo endpoint de siempre, así que
-    corre la misma función que corría con el Worker aparte.
+    corre la misma función que corría con el Worker aparte. Entre otras cosas, borra los avisos
+    de puerta vencidos y la «entrada abierta» de los eventos que terminaron
+    ([tickets.md](tickets.md#entrada-abierta)).
   - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos. Después,
     sin hacer fallar la corrida: el chequeo de integridad de los objetos, el resumen mensual de las
     visitas, la limpieza de las sesiones de cuentas que ya no tienen cookie
