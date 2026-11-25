@@ -20,6 +20,44 @@
 	function time(ms) {
 		return ms ? argDateLog(ms) : '';
 	}
+
+	// «Con la entrada abierta ahora» en la Puerta ($lib/server/tickets/presence.js): mientras la
+	// página está a la vista, avisa al servidor cada minuto (PRESENCE_PING_MS); oculta, no. El
+	// servidor decide si esta entrada se anota (`data.presence`); con 404 o 410 deja de avisar.
+	$effect(() => {
+		if (!data.presence) return;
+		const url = `${location.pathname.replace(/\/$/, '')}/visto`;
+		/** @type {ReturnType<typeof setInterval> | undefined} */
+		let timer;
+		let done = false;
+		const stop = () => {
+			clearInterval(timer);
+			timer = undefined;
+		};
+		const ping = async () => {
+			try {
+				const res = await fetch(url, { method: 'POST', cache: 'no-store' });
+				if (res.status === 404 || res.status === 410) {
+					done = true;
+					stop();
+				}
+			} catch {
+				// sin red: prueba en el próximo
+			}
+		};
+		const onVisibility = () => {
+			if (done || document.visibilityState !== 'visible') return stop();
+			if (timer) return;
+			ping();
+			timer = setInterval(ping, 60_000);
+		};
+		onVisibility();
+		document.addEventListener('visibilitychange', onVisibility);
+		return () => {
+			stop();
+			document.removeEventListener('visibilitychange', onVisibility);
+		};
+	});
 </script>
 
 <svelte:head>

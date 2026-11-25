@@ -1061,6 +1061,35 @@ describe('límites del link de puerta del lado del servidor', () => {
 		expect(r2.checkin.result).toBe('invalid');
 	});
 
+	it('la lista trae «con la entrada abierta ahora»: últimos 5 minutos, sin quienes ya entraron', async () => {
+		const open = await ticketFor();
+		const inside = await ticketFor();
+		const old = await ticketFor();
+		const now = Date.now();
+		const seen = t.db.prepare('UPDATE tickets SET last_seen_at = ?2 WHERE id = ?1');
+		await t.db.batch([
+			seen.bind(open.id, now - 60_000),
+			seen.bind(inside.id, now - 60_000),
+			seen.bind(old.id, now - 6 * 60_000)
+		]);
+		await call(adminDoor.actions.checkin, {
+			path: `/admin/eventos/${SLUG}/ingreso`,
+			fields: { token: inside.code },
+			locals: admin
+		});
+		const { jar: j } = await makeLink();
+		const l = await call(linkList.GET, { cookies: j.cookies });
+		const adminL = await call(adminList.GET, {
+			path: `/admin/eventos/${SLUG}/ingreso/lista`,
+			locals: admin
+		});
+		for (const body of [l.body, adminL.body]) {
+			expect(body.openNow).toEqual([
+				{ ticketId: open.id, holder: 'Persona Inventada', type: 'General', seenAt: now - 60_000 }
+			]);
+		}
+	});
+
 	it('no manda logins de GitHub de admins: buscar, lista, escanear', async () => {
 		const ticket = await ticketFor();
 		await call(adminDoor.actions.checkin, {

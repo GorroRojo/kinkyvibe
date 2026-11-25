@@ -88,6 +88,10 @@ bindings del Worker: [workers-migracion.md](workers-migracion.md).
 panel lo marca y escribe la fila de `panel_deletions` (0021) en la misma tanda, para «Recuperar» en
 Actividad; toda consulta de esas tablas lleva `deleted_at IS NULL`. No hay purga.
 
+**Entrada abierta (0086).** `tickets.last_seen_at`: la última vez que la página de la entrada
+avisó que estaba a la vista, solo el día del evento; el cron de cada 15 minutos la borra después del
+evento. Detalle en [tickets.md](tickets.md#entrada-abierta).
+
 **Lista de espera (0053, decisión [0040](decisiones/0040-lista-de-espera.md)).** Una fila de
 `waitlist_entries` por anotación; `ticket_type` NULL es la lista de todo el evento. Viva
 (`pending_confirmation`, `waiting`, `offered`) hay una sola por mail y alcance (índice único
