@@ -3,7 +3,8 @@
  * interruptor (si no, 404); crear y copiar una plantilla; guardar (dirección única, preguntas en
  * su orden, evento que exista); pasar un formulario con nombre a anónimo esconde los nombres de lo
  * que ya llegó (página y CSV); todo queda en Actividad; la encuesta de un evento se apaga desde su
- * ficha. D1 de miniflare; datos inventados (example.com).
+ * ficha; los links por entrada de un formulario «quienes tenían entrada». D1 de miniflare; datos
+ * inventados (example.com).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -43,6 +44,8 @@ import * as csv from './[id]/respuestas/respuestas.csv/+server.js';
 import * as encuesta from '../../eventos/[slug]/encuesta/+page.server.js';
 import * as porDefecto from './por-defecto/+page.server.js';
 import { getFormDefaults } from '$lib/server/formularios/defaults.js';
+import { checkInviteToken } from '$lib/server/formularios/invite.js';
+import { applyPayment, reserveOrder } from '$lib/server/tickets/orders.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -278,6 +281,78 @@ describe('encuesta del evento (ficha › Mails › Encuesta)', () => {
 		expect(surveys[0]).toMatchObject({ open: false, eventSlug: SLUG, privacy: 'anonymous' });
 		await encuesta.actions.setOpen(fakeEvent({ params: { slug: SLUG }, form: { open: 'on' } }));
 		expect((await getForm(t.db, surveys[0].id))?.open).toBe(true);
+	});
+});
+
+describe('links por entrada', () => {
+	it('el load trae un link por entrada de cada orden que ya recibió el mail, con si respondió', async () => {
+		const id = await create('Para quienes tienen entrada');
+		expect(await save(id, { access: 'ticket', eventSlug: SLUG, slug: 'con-entrada' })).toEqual({
+			save: { ok: true, message: 'Guardado.' }
+		});
+		/** @param {string[]} names */
+		const approved = async (names, n = 1) => {
+			const r = /** @type {any} */ (
+				await reserveOrder(t.db, {
+					eventSlug: SLUG,
+					type: { id: 'general', price: 8000, capacity: 10 },
+					quantity: names.length,
+					holders: names.map((name) => ({ name, pronouns: 'elle' })),
+					buyer: { name: names[0], pronouns: 'elle', email: 'compra@example.com', dni: '1' }
+				})
+			);
+			await applyPayment(t.db, {
+				id: n,
+				status: 'approved',
+				external_reference: r.order.id,
+				transaction_amount: 8000 * names.length,
+				currency_id: 'ARS'
+			});
+			return /** @type {string} */ (r.order.id);
+		};
+		const two = await approved(['Titular Uno', 'Titular Dos'], 1);
+		// Una orden sin el mail todavía: no aparece.
+		await approved(['Sin Mail'], 2);
+		await t.db
+			.prepare(
+				"INSERT INTO form_sends (order_id, form_id, sent_at, status, attempts) VALUES (?1, ?2, 1, 'sent', 1)"
+			)
+			.bind(two, id)
+			.run();
+		await saveResponse(t.db, {
+			formId: id,
+			answers: [],
+			identity: null,
+			invite: { orderId: two, ticket: 2 }
+		});
+		const data = /** @type {any} */ (
+			await editor.load(
+				fakeEvent({ path: `/admin/comunidad/formularios/${id}`, params: { id: String(id) } })
+			)
+		);
+		expect(
+			data.ticketLinks.map((/** @type {any} */ l) => [l.holderName, l.ticket, l.used])
+		).toEqual([
+			['Titular Uno', 1, false],
+			['Titular Dos', 2, true]
+		]);
+		for (const l of data.ticketLinks) {
+			const url = new URL(l.url);
+			expect(url.origin).toBe('https://kinkyvibe.ar');
+			expect(url.pathname).toBe('/formularios/con-entrada');
+			expect(await checkInviteToken(t.db, id, url.hash.slice(1))).toEqual({
+				orderId: two,
+				ticket: l.ticket
+			});
+		}
+		expect(data.stats.used).toBe(1);
+		// Un formulario abierto a cualquiera no tiene links.
+		const other = await create('Abierto');
+		await save(other, { slug: 'abierto' });
+		const plain = /** @type {any} */ (
+			await editor.load(fakeEvent({ params: { id: String(other) } }))
+		);
+		expect(plain.ticketLinks).toBeNull();
 	});
 });
 

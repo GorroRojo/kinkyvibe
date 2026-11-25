@@ -54,8 +54,11 @@ Las preguntas de inscripción se editan con el editor nuevo igual.
   (sin hora): ni nombre, ni pronombre, ni mail, ni cuenta, ni compra. `saveResponse` ni siquiera
   los manda, y los CHECK de `form_responses` (0079 y el de `pronouns` en 0080) lo impiden igual.
   Lo prueban `store.test.js`, `segunda-parte.test.js` y `formularios-publico.test.js`.
-- **El link personal sirve una vez.** La respuesta y la marca `form_sends.used` van en la misma
-  tanda, condicionadas a que el link no se haya usado: dos envíos a la vez guardan una sola.
+- **El link personal sirve una vez.** La respuesta y la marca (`form_sends.used` en la entrada 1,
+  una fila de `form_ticket_uses` en las demás) van en la misma tanda, condicionadas a que el link
+  de esa entrada no se haya usado: dos envíos a la vez guardan una sola.
+- **Los links que ya salieron siguen andando.** La entrada 1 usa la clave de siempre (mismo
+  formato y mismo mensaje firmado); cambiarla rompería los mails ya mandados.
 - **Quién ve las respuestas:** admins y, si el formulario es de un evento y no es «Solo admins»,
   les organizadores de ESE evento, con la regla de las respuestas de inscripción
   (`requireOrganizer`, decisión [0024](decisiones/0024-organizadores-ven-respuestas.md)). Si no
@@ -69,13 +72,14 @@ Las preguntas de inscripción se editan con el editor nuevo igual.
 
 ## Cómo funciona
 
-### Datos (migraciones 0079 y 0080, solo agregan)
+### Datos (migraciones 0079, 0080 y 0087, solo agregan)
 
-| Tabla            | Qué guarda                                                                                                                                                        |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `forms`          | cada formulario (`kind`: `form`, `survey` o `template`), sus preguntas en orden (JSON) y su configuración                                                         |
-| `form_responses` | cada respuesta: `answers` `[{ id, label, value }]` (la pregunta copiada como estaba), `day` y, si no es anónima, quién (nombre, `pronouns`, mail, cuenta u orden) |
-| `form_sends`     | el link personal de cada compra (estados como `reminder_sends`) y `used` (si ya se respondió)                                                                     |
+| Tabla              | Qué guarda                                                                                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `forms`            | cada formulario (`kind`: `form`, `survey` o `template`), sus preguntas en orden (JSON) y su configuración                                                         |
+| `form_responses`   | cada respuesta: `answers` `[{ id, label, value }]` (la pregunta copiada como estaba), `day` y, si no es anónima, quién (nombre, `pronouns`, mail, cuenta u orden) |
+| `form_sends`       | el link personal de cada compra (estados como `reminder_sends`) y `used` (si ya se respondió con el de la entrada 1)                                              |
+| `form_ticket_uses` | (0087) el link de la entrada 2, 3… de una orden ya se usó: una fila por formulario, orden y número de entrada                                                     |
 
 - `forms.access`: `link` (cualquiera con el link), `account` (con cuenta) o `ticket` (quienes
   tenían entrada para `event_slug`). `privacy`: `named`, `anonymous` o `choose`. `audience`:
@@ -85,6 +89,9 @@ Las preguntas de inscripción se editan con el editor nuevo igual.
 - `forms.mail_subject` y `forms.mail_body` (0080): el mail propio de una encuesta o un formulario
   «quienes tenían entrada» (vacío = el de «Cómo salen por defecto»). `forms.deleted_at` (0080):
   borrado suave.
+- `form_responses.ticket` (0087): en una respuesta con nombre que llegó por un link personal, el
+  número de entrada (1, 2…). Las con nombre de antes, con orden y sin número, se leen como la
+  entrada 1 (`listResponses`; no se completó la columna).
 - Una encuesta por evento (índice único, también con la borrada: borrar la encuesta de un evento
   la apaga para ese evento hasta que se recupere). Se crea copiando la plantilla «¿Cómo la pasaste?»
   cuando hace falta: cuando el cron la manda, al prenderla o apagarla, al tocar «Ver y editar las
@@ -95,11 +102,11 @@ Las preguntas de inscripción se editan con el editor nuevo igual.
 
 ### Privacidad
 
-| Modo                   | El formulario muestra                                                                                                                                | Se guarda                      |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| Con nombre             | nombre, pronombres (opcional) y mail con el link; con cuenta, nombre y pronombres (opcionales) y el mail de la cuenta; con entrada, los de la compra | quién respondió y la respuesta |
-| Anónimo                | «Es anónimo: no guardamos quién respondió.»                                                                                                          | solo la respuesta y el día     |
-| Que cada persona elija | la casilla «Responder anónimamente»                                                                                                                  | según la casilla               |
+| Modo                   | El formulario muestra                                                                                                                         | Se guarda                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| Con nombre             | nombre, pronombres (opcional) y mail con el link; con cuenta, nombre y pronombres (opcionales) y el mail de la cuenta; con entrada, ver abajo | quién respondió y la respuesta |
+| Anónimo                | «Es anónimo: no guardamos quién respondió.»                                                                                                   | solo la respuesta y el día     |
+| Que cada persona elija | la casilla «Responder anónimamente»                                                                                                           | según la casilla               |
 
 Se puede cambiar cuando se quiera; el editor avisa qué pasa con lo que ya llegó
 (`privacyChangeWarning`). Lo anónimo sigue anónimo. Pasar a «Anónimo» esconde los nombres de lo que
@@ -114,6 +121,28 @@ ningún token. El fragmento no viaja con el pedido de la página: `PublicForm.sv
 con `?/check` si sirve (`invalid`, `used` u `ok`) y lo manda con la respuesta. Sin clave: «Esta
 encuesta es para quienes fueron: buscala en tu mail».
 
+**Un link por entrada** (plan `formularios-link-por-entrada`): antes una orden de varias entradas
+tenía un solo link, así que la segunda persona no podía responder. Ahora cada entrada de la orden
+(en el orden de `tickets.rowid`, como la puerta) tiene el suyo:
+
+| Entrada | Clave                 | Mensaje firmado                 | Ya se usó                  |
+| ------- | --------------------- | ------------------------------- | -------------------------- |
+| 1       | `<orden>.<firma>`     | `formulario:<form>:<orden>`     | `form_sends.used`          |
+| n ≥ 2   | `<orden>.<n>.<firma>` | `formulario:<form>:<orden>:<n>` | fila en `form_ticket_uses` |
+
+- La entrada 1 es exactamente la clave de antes: los links ya mandados siguen andando y cuentan
+  como la entrada 1. `n` se lee estricto (entero sin ceros adelante, 2 o más); cualquier otra
+  forma es `invalid`.
+- `checkInvite` pide la orden aprobada del evento, el link mandado a la orden (`form_sends`) y,
+  para n ≥ 2, que la orden tenga esa entrada.
+- Con nombre, la entrada 1 responde con los datos de la compra (como siempre); la n ≥ 2 con el
+  nombre y los pronombres de su titular, y el mail de la compra (el único que hay).
+- En el panel, el editor de un formulario «quienes tenían entrada» (y de una encuesta) tiene
+  «Links por entrada» (cerrado): cada entrada de cada orden aprobada que ya recibió el mail, con su
+  titular, «Respondió» si ya lo usó y «Copiar link», para pasárselo a mano a quien no lo tiene. Si
+  el navegador no deja copiar, el link queda en un campo seleccionado. Los links se arman con el
+  origen de la página. «usados» cuenta los de todas las entradas.
+
 ### Envío (`send.js`)
 
 El cron de cada 15 minutos (`POST /api/cron/recordatorios`, con lo que sobra de la tanda; nunca con
@@ -125,7 +154,8 @@ El cron de cada 15 minutos (`POST /api/cron/recordatorios`, con lo que sobra de 
   que la prendieron;
 - los formularios `ticket` que une admin mandó, desde `send_at`;
 - a cada compra aprobada creada antes de que tocara, una vez (`form_sends`, con reintentos), con
-  `optOut` («No fui yo» y rebotes) y `Auto-Submitted`.
+  `optOut` («No fui yo» y rebotes) y `Auto-Submitted`. Un solo mail por compra, a quien compró
+  (la misma clave de idempotencia de siempre), con un link por entrada si tiene varias.
 
 A CONFIRMAR: para que al prender el interruptor no les llegue la encuesta de todos los eventos
 viejos a la vez, la primera vuelta del cron anota desde cuándo salen (`forms_surveys_since` en
@@ -140,7 +170,11 @@ la cola para la próxima vuelta del cron (`retryFailedFormSends`).
 
 `email.js`: asunto y texto en el formato seguro de los mails del panel (negrita, links, sin HTML),
 con `{{evento}}`, `{{formulario}}`, `{{preguntas}}` («Son 5 preguntas cortas y es anónima…») y
-`{{link}}` (el link personal; el botón va siempre). Vale el propio del formulario, si no el de
+`{{link}}` (el link personal; el botón va siempre). En una compra de 2 o más entradas, en lugar
+del botón va un link por entrada, «Entrada 1: <nombre>», «Entrada 2: <nombre>»… (el nombre de cada
+titular; sin nombre, «Entrada 2»), y la ayuda dice «Cada link sirve para contestar una vez. Pasale
+el suyo a cada persona.». Ahí `{{link}}` es el link de la entrada 1 (el de quien compró). Con una
+sola entrada, el mail es el de siempre. Vale el propio del formulario, si no el de
 «Cómo salen por defecto», si no el de siempre (los textos del prototipo; el asunto de siempre de
 la encuesta no lleva el título del evento, que se ve en la notificación del celu). Se edita con
 vista previa («Ver cómo queda», no guarda) en la ficha del evento › Mails › Encuesta, en el editor

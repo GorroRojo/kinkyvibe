@@ -3,7 +3,8 @@
  * encuesta de un evento en /calendario/<evento>/encuesta. Interruptor apagado → 404; con nombre
  * pide nombre y mail; anónimo y «Que cada persona elija» con la casilla marcada no guardan
  * identidad (aunque se manden nombre y mail); la trampa no guarda nada; el límite por persona;
- * con cuenta; cerrado; y la encuesta con el link personal: sin clave, inválida, una sola vez.
+ * con cuenta; cerrado; y la encuesta con el link personal: sin clave, inválida, una sola vez; un
+ * link por entrada (la 2 con los datos de su titular).
  * D1 de miniflare; datos inventados (example.com).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -344,13 +345,20 @@ describe('formulario abierto a cualquiera', () => {
 });
 
 let payment = 1;
-async function approvedOrder(email = 'a@example.com') {
+/**
+ * @param {string} [email]
+ * @param {{ name: string, pronouns: string }[]} [holders] una por entrada
+ */
+async function approvedOrder(
+	email = 'a@example.com',
+	holders = [{ name: 'Persona Demo', pronouns: 'elle' }]
+) {
 	const r = /** @type {any} */ (
 		await reserveOrder(t.db, {
 			eventSlug: SLUG,
 			type: { id: 'general', price: 8000, capacity: 10 },
-			quantity: 1,
-			holders: [{ name: 'Persona Demo', pronouns: 'elle' }],
+			quantity: holders.length,
+			holders,
 			buyer: { name: 'Persona Demo', pronouns: 'elle', email, dni: '30111222' }
 		})
 	);
@@ -358,7 +366,7 @@ async function approvedOrder(email = 'a@example.com') {
 		id: payment++,
 		status: 'approved',
 		external_reference: r.order.id,
-		transaction_amount: 8000,
+		transaction_amount: 8000 * holders.length,
 		currency_id: 'ARS'
 	});
 	return /** @type {string} */ (r.order.id);
@@ -423,5 +431,111 @@ describe('encuesta del evento con link personal', () => {
 			.bind(orderId, s.id)
 			.run();
 		expect(await check(await inviteToken(t.db, s.id + 1000, orderId))).toBe('invalid');
+	});
+});
+
+describe('un link por entrada', () => {
+	const HOLDERS = [
+		{ name: 'Titular Uno', pronouns: 'elle' },
+		{ name: 'Titular Dos', pronouns: 'ella' }
+	];
+
+	/** Un formulario «quienes tenían entrada» con nombre, con el link ya mandado a una orden de 2. */
+	async function setup() {
+		const form = await openForm({ access: 'ticket', eventSlug: SLUG, privacy: 'named' });
+		const orderId = await approvedOrder('compra@example.com', HOLDERS);
+		await t.db
+			.prepare(
+				"INSERT INTO form_sends (order_id, form_id, sent_at, status, attempts) VALUES (?1, ?2, 1, 'sent', 1)"
+			)
+			.bind(orderId, form.id)
+			.run();
+		return { form, orderId };
+	}
+
+	/** @param {any} form @param {string} clave */
+	const check = async (form, clave) =>
+		/** @type {any} */ (
+			await page.actions.check(
+				fakeEvent({
+					path: `/formularios/${form.slug}`,
+					params: { slug: form.slug },
+					form: { clave }
+				})
+			)
+		).check.state;
+
+	it('la entrada 2 responde una vez con los datos de su titular; la 1 con los de la compra', async () => {
+		const { form, orderId } = await setup();
+		const one = await inviteToken(t.db, form.id, orderId);
+		const two = await inviteToken(t.db, form.id, orderId, 2);
+		expect(await check(form, two)).toBe('ok');
+		expect(await submit(form, { clave: two, p_p1: 'Hola' })).toEqual({ sent: true });
+		expect(await check(form, two)).toBe('used');
+		expect(await submit(form, { clave: two, p_p1: 'Otra' })).toEqual({
+			sent: true,
+			repeated: true
+		});
+		// La 1 (la clave de siempre) sigue libre.
+		expect(await check(form, one)).toBe('ok');
+		expect(await submit(form, { clave: one, p_p1: 'Chau' })).toEqual({ sent: true });
+		expect(await check(form, one)).toBe('used');
+		const r = await t.db
+			.prepare('SELECT name, pronouns, email, order_id, ticket FROM form_responses ORDER BY id')
+			.all();
+		expect(r.results).toEqual([
+			{
+				name: 'Titular Dos',
+				pronouns: 'ella',
+				email: 'compra@example.com',
+				order_id: orderId,
+				ticket: 2
+			},
+			{
+				name: 'Persona Demo',
+				pronouns: 'elle',
+				email: 'compra@example.com',
+				order_id: orderId,
+				ticket: 1
+			}
+		]);
+	});
+
+	it('una entrada que la orden no tiene, o un número cambiado, no sirve', async () => {
+		const { form, orderId } = await setup();
+		expect(await check(form, await inviteToken(t.db, form.id, orderId, 3))).toBe('invalid');
+		const sig = (await inviteToken(t.db, form.id, orderId, 2)).split('.')[2];
+		expect(await check(form, `${orderId}.3.${sig}`)).toBe('invalid');
+		expect(await check(form, `${orderId}.02.${sig}`)).toBe('invalid');
+		const bad = /** @type {any} */ (
+			await submit(form, { clave: await inviteToken(t.db, form.id, orderId, 3), p_p1: 'Hola' })
+		);
+		expect(bad.status).toBe(400);
+		expect(await rows()).toHaveLength(0);
+	});
+
+	it('la encuesta del evento acepta la clave de la entrada 2 (anónima)', async () => {
+		const s = /** @type {any} */ (await ensureEventSurvey(t.db, SLUG, { by: 'x' }));
+		const orderId = await approvedOrder('compra@example.com', HOLDERS);
+		await t.db
+			.prepare(
+				"INSERT INTO form_sends (order_id, form_id, sent_at, status, attempts) VALUES (?1, ?2, 1, 'sent', 1)"
+			)
+			.bind(orderId, s.id)
+			.run();
+		const path = `/calendario/${SLUG}/encuesta`;
+		const clave = await inviteToken(t.db, s.id, orderId, 2);
+		const state = /** @type {any} */ (
+			await survey.actions.check(fakeEvent({ path, params: { event: SLUG }, form: { clave } }))
+		).check.state;
+		expect(state).toBe('ok');
+		expect(
+			await survey.actions.send(
+				fakeEvent({ path, params: { event: SLUG }, form: { clave, p_p1: '5' } })
+			)
+		).toEqual({ sent: true });
+		const r = await rows();
+		expect(r).toHaveLength(1);
+		expect(r[0]).toMatchObject({ anonymous: 1, order_id: null, name: null });
 	});
 });

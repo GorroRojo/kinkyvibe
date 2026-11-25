@@ -2,7 +2,8 @@
  * El cron de los formularios (runFormsCron, docs/formularios.md): la encuesta sale un día después
  * del fin de cada evento a cada orden aprobada, una vez; no sale si el evento la apagó, si pasaron
  * más de 3 días o con el interruptor apagado; el link lleva la clave en el fragmento; un formulario
- * «quienes tenían entrada» sale cuando une admin lo pide. Lo que se le manda a Resend se captura.
+ * «quienes tenían entrada» sale cuando une admin lo pide; una orden con varias entradas recibe un
+ * solo mail con un link por entrada. Lo que se le manda a Resend se captura.
  * D1 de miniflare; eventos y personas inventados.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -66,14 +67,17 @@ beforeEach(async () => {
 });
 
 let payment = 1;
-/** @param {string} eventSlug @param {string} email */
-async function order(eventSlug, email) {
+/**
+ * @param {string} eventSlug @param {string} email
+ * @param {{ name: string, pronouns: string }[]} [holders] una por entrada
+ */
+async function order(eventSlug, email, holders = [{ name: 'Persona Demo', pronouns: 'elle' }]) {
 	const r = /** @type {any} */ (
 		await reserveOrder(t.db, {
 			eventSlug,
 			type: { id: 'general', price: 8000, capacity: 10 },
-			quantity: 1,
-			holders: [{ name: 'Persona Demo', pronouns: 'elle' }],
+			quantity: holders.length,
+			holders,
 			buyer: { name: 'Persona Demo', pronouns: 'elle', email, dni: '30111222' }
 		})
 	);
@@ -81,7 +85,7 @@ async function order(eventSlug, email) {
 		id: payment++,
 		status: 'approved',
 		external_reference: r.order.id,
-		transaction_amount: 8000,
+		transaction_amount: 8000 * holders.length,
 		currency_id: 'ARS'
 	});
 	return /** @type {string} */ (r.order.id);
@@ -134,7 +138,9 @@ describe('encuesta después del evento', () => {
 		const url = new URL(link);
 		expect(url.pathname).toBe('/calendario/evento-de-prueba/encuesta');
 		const survey = await getEventSurvey(t.db, 'evento-de-prueba');
-		expect(await checkInviteToken(t.db, /** @type {any} */ (survey).id, url.hash.slice(1))).toBe(a);
+		expect(await checkInviteToken(t.db, /** @type {any} */ (survey).id, url.hash.slice(1))).toEqual(
+			{ orderId: a, ticket: 1 }
+		);
 		// La segunda corrida no repite.
 		expect(
 			await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now })
@@ -318,5 +324,73 @@ describe('formulario para quienes tienen entrada', () => {
 		expect(sent).toHaveLength(1);
 		expect(sent[0].subject).toBe('Qué música querés');
 		expect(String(sent[0].text)).toMatch(/\/formularios\/que-musica-queres#/);
+	});
+});
+
+describe('una orden con varias entradas', () => {
+	it('un solo mail a quien compró, con un link por entrada y su titular', async () => {
+		const id = await order('evento-de-prueba', 'a@example.com', [
+			{ name: 'Persona Uno', pronouns: 'elle' },
+			{ name: 'Persona <Dos>', pronouns: 'ella' }
+		]);
+		const { sent, fetch } = captureFetch();
+		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now: END });
+		await runFormsCron({
+			db: t.db,
+			platform: platform(),
+			origin: ORIGIN,
+			fetch,
+			now: END + 25 * HOUR
+		});
+		expect(sent).toHaveLength(1);
+		const [mail] = sent;
+		expect([mail.to].flat()).toEqual(['a@example.com']);
+		const text = String(mail.text);
+		expect(text).not.toContain('Contestar la encuesta:');
+		const survey = /** @type {any} */ (await getEventSurvey(t.db, 'evento-de-prueba'));
+		const one = text.match(/Entrada 1: Persona Uno\n(\S+)/)?.[1] ?? '';
+		const two = text.match(/Entrada 2: Persona <Dos>\n(\S+)/)?.[1] ?? '';
+		expect(await checkInviteToken(t.db, survey.id, new URL(one).hash.slice(1))).toEqual({
+			orderId: id,
+			ticket: 1
+		});
+		expect(await checkInviteToken(t.db, survey.id, new URL(two).hash.slice(1))).toEqual({
+			orderId: id,
+			ticket: 2
+		});
+		expect(text).toContain(
+			'Cada link sirve para contestar una vez. Pasale el suyo a cada persona.'
+		);
+		// El HTML: los dos links con sus nombres (escapados) y sin el botón.
+		const html = String(mail.html);
+		expect(html).toContain('Entrada 1: Persona Uno');
+		expect(html).toContain('Entrada 2: Persona &lt;Dos&gt;');
+		expect(html).not.toContain('Persona <Dos>');
+		expect(html).toContain(`href="${two}"`);
+		expect(html).not.toContain('Contestar la encuesta');
+	});
+
+	it('`{{link}}` en un texto propio es el link de la entrada 1', async () => {
+		const { ensureEventSurvey, saveFormMail } = await import('./store.js');
+		await order('evento-de-prueba', 'a@example.com', [
+			{ name: 'Persona Uno', pronouns: 'elle' },
+			{ name: 'Persona Dos', pronouns: 'elle' }
+		]);
+		const survey = /** @type {any} */ (
+			await ensureEventSurvey(t.db, 'evento-de-prueba', { by: 'x' })
+		);
+		await saveFormMail(t.db, survey.id, { subject: '', body: 'Tu link: {{link}}' }, { by: 'x' });
+		const { sent, fetch } = captureFetch();
+		await runFormsCron({ db: t.db, platform: platform(), origin: ORIGIN, fetch, now: END });
+		await runFormsCron({
+			db: t.db,
+			platform: platform(),
+			origin: ORIGIN,
+			fetch,
+			now: END + 25 * HOUR
+		});
+		const text = String(sent[0].text);
+		const inBody = text.match(/Tu link: (\S+)/)?.[1];
+		expect(inBody).toBe(text.match(/Entrada 1: Persona Uno\n(\S+)/)?.[1]);
 	});
 });

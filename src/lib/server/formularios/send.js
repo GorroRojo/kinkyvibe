@@ -14,7 +14,8 @@
  * - **Un formulario «quienes tenían entrada»** que une admin mandó («Mandar el link»): desde
  *   `send_at`.
  * - A cada orden aprobada (las mismas que reciben recordatorios) creada antes de que tocara, una
- *   vez: la reserva es `form_sends` (sendState.js), con sus reintentos.
+ *   vez: la reserva es `form_sends` (sendState.js), con sus reintentos. Un solo mail por orden, a
+ *   quien compró; con 2 o más entradas lleva un link por entrada (invite.js).
  * - Respeta «No fui yo» y los rebotes (`email_suppressions`): sale con `optOut`.
  */
 import { eventEnd } from '$lib/utils/dates.js';
@@ -25,6 +26,7 @@ import { listTicketedEvents } from '$lib/server/tickets/events.js';
 import { getSalesSettings } from '$lib/server/tickets/settings.js';
 import { mailBatchSize } from '$lib/server/tickets/batchSize.js';
 import { REMINDER_ORDER_SQL } from '$lib/server/tickets/reminders.js';
+import { getOrderTickets } from '$lib/server/tickets/orders.js';
 import {
 	STALE_CLAIM_MS,
 	expireStaleClaims,
@@ -33,7 +35,7 @@ import {
 } from '$lib/server/tickets/sendState.js';
 import { FORM_DEFAULTS, getFormDefaults, surveyDelayMs } from './defaults.js';
 import { buildFormEmail, mailTexts } from './email.js';
-import { inviteToken, inviteUrl } from './invite.js';
+import { inviteSigner, inviteUrl } from './invite.js';
 import { ensureEventSurvey, getEventSurvey, rowToForm } from './store.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -193,6 +195,9 @@ export async function runFormsCron({
 			items.push({ order, form: d.form, eventTitle: d.eventTitle });
 	}
 	const settings = await getSalesSettings(db);
+	// La clave de los links se lee una vez por vuelta (no una por link).
+	/** @type {Promise<Awaited<ReturnType<typeof inviteSigner>>> | null} */
+	let signer = null;
 	return sendBatch(db, 'form_sends', {
 		items,
 		limit: limit ?? mailBatchSize(settings.mail_batch_size),
@@ -200,7 +205,19 @@ export async function runFormsCron({
 		label: 'el link del formulario',
 		claim: ({ order, form }) => ({ orderId: order.id, key: form.id }),
 		send: async ({ order, form, eventTitle }) => {
-			const url = inviteUrl(origin, form, await inviteToken(db, form.id, order.id));
+			signer ??= inviteSigner(db);
+			const sign = await signer;
+			const url = inviteUrl(origin, form, await sign(form.id, order.id));
+			const holders = await getOrderTickets(db, order.id);
+			const tickets =
+				holders.length > 1
+					? await Promise.all(
+							holders.map(async (h, i) => ({
+								holder: h.holder_name ?? '',
+								url: i === 0 ? url : inviteUrl(origin, form, await sign(form.id, order.id, i + 1))
+							}))
+						)
+					: [];
 			const message = buildFormEmail({
 				...mailTexts(form, defaults),
 				survey: form.kind === 'survey',
@@ -210,7 +227,8 @@ export async function runFormsCron({
 				anonymous: form.privacy === 'anonymous',
 				url,
 				origin,
-				contactEmail: contactEmail()
+				contactEmail: contactEmail(),
+				tickets
 			});
 			const result = await deliverEmail({
 				db,
@@ -220,7 +238,7 @@ export async function runFormsCron({
 				idempotencyKey: `form-${form.id}-${order.id}`,
 				optOut: true,
 				// Solo se imprime en `vite dev` sin RESEND_API_KEY (deliver), para probar el link.
-				log: `link del formulario: ${url}`
+				log: `link del formulario: ${tickets.length ? tickets.map((t) => t.url).join(' ') : url}`
 			});
 			return result !== 'failed';
 		}

@@ -10,6 +10,7 @@
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { ExternalLink, Inbox, Send, Trash2 } from '@lucide/svelte';
 	import FormMailEditor from '$lib/components/admin/forms/FormMailEditor.svelte';
+	import TicketLinks from '$lib/components/admin/forms/TicketLinks.svelte';
 	import ChipCombobox from '$lib/components/admin/ChipCombobox.svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import QuestionEditor from '$lib/components/admin/forms/QuestionEditor.svelte';
@@ -136,6 +137,9 @@
 						· por salir: {data.stats.pending}{/if}{#if data.stats.failed}
 						· fallaron: {data.stats.failed}{/if} · usados: {data.stats.used}
 				</p>
+			{/if}
+			{#if data.ticketLinks?.length}
+				<TicketLinks links={data.ticketLinks} />
 			{/if}
 			{#if !survey && f.access === 'ticket'}
 				<form
