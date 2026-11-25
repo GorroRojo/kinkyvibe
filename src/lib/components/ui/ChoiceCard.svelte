@@ -4,7 +4,7 @@
 	 * lleva una descripción (como el medio de pago de la compra). Sin descripción, `Segmented`.
 	 *
 	 * Props: `group` (bind:group: el valor elegido), `value`, `name`, `title`, `text` (la línea
-	 * gris), `disabled`. Slot default: contenido extra debajo del texto.
+	 * gris), `disabled`, `required` (el del navegador: con uno del grupo alcanza). Slot default: contenido extra debajo del texto.
 	 */
 	/** @type {string} */
 	export let group = '';
@@ -17,6 +17,7 @@
 	/** @type {string} */
 	export let text = '';
 	export let disabled = false;
+	export let required = false;
 </script>
 
 <label class="kv-choice">
@@ -25,6 +26,7 @@
 		{name}
 		{value}
 		{disabled}
+		{required}
 		checked={group === value}
 		on:change={() => (group = value)}
 	/>

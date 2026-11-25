@@ -302,3 +302,74 @@ describe('alcance: a qué entradas aplica y cuántas veces se pregunta', () => {
 		expect(csv['tipos de entrada']).toBe('general');
 	});
 });
+
+describe('los tipos de los formularios (menos «Foto»)', () => {
+	it('arma preguntas de todos los tipos, con lo propio de cada uno', () => {
+		const n = validateFieldDef({
+			label: 'Edad',
+			kind: 'number',
+			min: '18',
+			max: '',
+			help: 'En años',
+			shortLabel: 'Edad'
+		});
+		expect(n).toEqual({
+			ok: true,
+			field: {
+				label: 'Edad',
+				kind: 'number',
+				required: false,
+				options: [],
+				min: 18,
+				help: 'En años',
+				shortLabel: 'Edad'
+			}
+		});
+		const m = validateFieldDef({ label: 'Intereses', kind: 'multi', options: 'A\nB|C' });
+		expect(!m.ok && m.errors.options).toMatch(/«\|»/);
+		const r = validateFieldDef({ label: 'Puntaje', kind: 'rating' });
+		expect(r.ok && r.field).toMatchObject({ low: 'Mal', high: 'Re bien' });
+		expect(validateFieldDef({ label: 'Tu cara', kind: 'photo' }).ok).toBe(false);
+	});
+
+	it('las respuestas de los tipos nuevos se guardan con su tipo; las de siempre, igual que antes', () => {
+		/** @type {import('./signupFields.js').SignupField[]} */
+		const fields = [
+			{ id: 1, label: 'Fecha', kind: 'date', required: true, options: [] },
+			{
+				id: 2,
+				label: 'Gustos',
+				kind: 'multi',
+				required: true,
+				options: ['A', 'B'],
+				perTicket: true
+			},
+			{ id: 3, label: 'Dieta', kind: 'text', required: true, options: [] }
+		];
+		const n = fieldInputName;
+		const r = validateAnswers(
+			fields,
+			{ [n(1)]: '2024-03-09', [n(2, 0)]: ['B', 'A'], [n(2, 1)]: 'B', [n(3)]: 'Vegana' },
+			{ quantity: 2 }
+		);
+		expect(r).toEqual({
+			ok: true,
+			answers: [
+				{ id: 1, label: 'Fecha', value: '2024-03-09', kind: 'date' },
+				{ id: 2, label: 'Gustos', value: 'A | B', ticket: 1, kind: 'multi' },
+				{ id: 2, label: 'Gustos', value: 'B', ticket: 2, kind: 'multi' },
+				{ id: 3, label: 'Dieta', value: 'Vegana' }
+			]
+		});
+		const answers = r.ok ? r.answers : [];
+		expect(parseStoredAnswers(JSON.stringify(answers))).toEqual(answers);
+		// Un tipo que no es de inscripción no se lee como tipo.
+		expect(parseStoredAnswers('[{"id":1,"label":"P","value":"x","kind":"photo"}]')).toEqual([
+			{ id: 1, label: 'P', value: 'x' }
+		]);
+		// CSV: lo guardado; en «Varias opciones» por entrada, las entradas con « · ».
+		expect(answerFor(answers, 1)).toBe('2024-03-09');
+		expect(answerFor(answers, 1, { show: true })).toBe('09/03/2024');
+		expect(answerFor(answers, 2)).toBe('Entrada 1: A | B · Entrada 2: B');
+	});
+});

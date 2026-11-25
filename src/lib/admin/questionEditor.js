@@ -118,38 +118,32 @@ export function duplicateItem(list, index) {
 }
 
 /**
- * Lo que se manda al guardar (JSON en el campo `questions`), en el orden de la lista. Las de
- * inscripción llevan también su alcance; las de formularios, ayuda, extremos del puntaje y el
- * mínimo y el máximo de un número.
+ * Lo que se manda al guardar (JSON en el campo `questions`), en el orden de la lista: la ayuda,
+ * los extremos del puntaje y el mínimo y el máximo de un número; las de inscripción, también su
+ * etiqueta corta y su alcance.
  *
  * @param {readonly EditorQuestion[]} list
  * @param {{ signup?: boolean }} [opts]
  */
 export function toPayload(list, { signup = false } = {}) {
 	return list.map((q) => {
-		const options = hasOptions(q.kind) ? q.optionsText.split('\n') : [];
-		if (signup) {
-			return {
-				id: q.id,
-				kind: q.kind,
-				label: q.label,
-				shortLabel: q.shortLabel,
-				required: q.required,
-				options,
-				perTicket: q.perTicket,
-				scope: q.scope,
-				ticketTypes: q.scope === 'some' ? q.ticketTypes : []
-			};
-		}
-		return {
+		const question = {
 			id: q.id,
 			kind: q.kind,
 			label: q.label,
 			required: q.required,
-			options,
+			options: hasOptions(q.kind) ? q.optionsText.split('\n') : [],
 			help: q.help,
 			...(q.kind === 'rating' ? { low: q.low, high: q.high } : {}),
 			...(q.kind === 'number' ? { min: q.min, max: q.max } : {})
+		};
+		if (!signup) return question;
+		return {
+			...question,
+			shortLabel: q.shortLabel,
+			perTicket: q.perTicket,
+			scope: q.scope,
+			ticketTypes: q.scope === 'some' ? q.ticketTypes : []
 		};
 	});
 }

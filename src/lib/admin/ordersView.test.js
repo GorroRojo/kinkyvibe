@@ -312,3 +312,85 @@ describe('Respuestas: una tarjeta por pregunta', () => {
 		expect(isLongAnswer('x'.repeat(61))).toBe(true);
 	});
 });
+
+describe('los tipos de los formularios en Respuestas y Compras', () => {
+	/** @type {import('./ordersView.js').ViewField[]} */
+	const fields = [
+		{ id: 10, label: 'Intereses', kind: 'multi', options: ['Sogas', 'Látex', 'Impacto'] },
+		{ id: 11, label: 'Talle', kind: 'select', options: ['S', 'M', 'L'] },
+		{ id: 12, label: 'Puntaje', kind: 'rating', options: [] },
+		{ id: 13, label: 'Edad', kind: 'number', options: [] },
+		{ id: 14, label: 'Desde', kind: 'date', options: [] }
+	];
+	const orders = [
+		order({
+			id: 'a',
+			answers: [
+				{ id: 10, label: 'Intereses', value: 'Sogas | Impacto', kind: 'multi' },
+				{ id: 11, label: 'Talle', value: 'M', kind: 'select' },
+				{ id: 12, label: 'Puntaje', value: '5', kind: 'rating' },
+				{ id: 13, label: 'Edad', value: '30.5', kind: 'number' },
+				{ id: 14, label: 'Desde', value: '2024-03-09', kind: 'date' }
+			]
+		}),
+		order({
+			id: 'b',
+			answers: [
+				{ id: 10, label: 'Intereses', value: 'Impacto', kind: 'multi' },
+				{ id: 11, label: 'Talle', value: 'M', kind: 'select' },
+				{ id: 12, label: 'Puntaje', value: '2', kind: 'rating' }
+			]
+		})
+	];
+
+	it('opciones, lista, varias opciones y puntaje van con barras; número y fecha, como se leen', () => {
+		const cards = questionCards(fields, orders);
+		expect(cards.map((c) => c.kind)).toEqual(['multi', 'select', 'rating', 'text', 'text']);
+		// Varias opciones: cada compra cuenta en cada opción que eligió.
+		expect(cards[0].answered).toBe(2);
+		expect(cards[0].bars.map((b) => [b.value, b.n])).toEqual([
+			['Impacto', 2],
+			['Sogas', 1],
+			['Látex', 0]
+		]);
+		expect(cards[1].bars.map((b) => [b.value, b.n])).toEqual([
+			['M', 2],
+			['S', 0],
+			['L', 0]
+		]);
+		// El puntaje, del 1 al 5 en orden.
+		expect(cards[2].bars.map((b) => [b.value, b.n])).toEqual([
+			['1', 0],
+			['2', 1],
+			['3', 0],
+			['4', 0],
+			['5', 1]
+		]);
+		expect(cards[3].entries.map((e) => e.value)).toEqual(['30,5']);
+		expect(cards[4].entries.map((e) => e.value)).toEqual(['09/03/2024']);
+	});
+
+	it('tocar una barra de «Varias opciones» filtra las compras que la eligieron entre otras', () => {
+		const ids = new Set(fields.map((f) => f.id));
+		const sogas = { key: 'f10', value: 'Sogas', label: '', multi: true };
+		expect(orders.map((o) => matchesAnswer(o, sogas, ids))).toEqual([true, false]);
+		const impacto = { ...sogas, value: 'Impacto' };
+		expect(orders.map((o) => matchesAnswer(o, impacto, ids))).toEqual([true, true]);
+		// Sin `multi`, la respuesta entera (lo de «ver quiénes respondieron igual»).
+		expect(orders.map((o) => matchesAnswer(o, { ...impacto, multi: false }, ids))).toEqual([
+			false,
+			true
+		]);
+	});
+
+	it('en la tarjeta de la compra, número y fecha como se leen; las de opciones se filtran', () => {
+		const g = orderAnswerGroups(orders[0], fields);
+		expect(g.order.map((a) => [a.value, a.choice])).toEqual([
+			['Sogas | Impacto', true],
+			['M', true],
+			['5', true],
+			['30,5', false],
+			['09/03/2024', false]
+		]);
+	});
+});

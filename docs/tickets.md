@@ -538,9 +538,10 @@ filtros son funciones puras en `src/lib/admin/ordersView.js` y las partes, compo
   filtros ni «Ordenar».
 - **Respuestas**: una tarjeta por pregunta de inscripción, en el orden del formulario
   (`fieldsForEvent`: las generales elegidas y después las del evento), con las compras aprobadas.
-  Las de opciones y casilla, con barras y todas sus opciones (las que nadie eligió, al final;
-  👥 si se pregunta por entrada, 🧾 si por compra): tocar una barra va a Compras filtrado por esa
-  respuesta, con un chip para sacarlo. Las de texto listan solo a quienes escribieron algo, con
+  Las de opciones, lista, varias opciones, casilla y puntaje, con barras y todas sus opciones (las
+  que nadie eligió, al final; el puntaje, del 1 al 5; 👥 si se pregunta por entrada, 🧾 si por
+  compra): tocar una barra va a Compras filtrado por esa respuesta (en «Varias opciones», las que
+  la eligieron entre otras), con un chip para sacarlo. Las de texto, número y fecha listan solo a quienes escribieron algo, con
   nombre (lleva a su compra), pronombres y «primera vez», y «Copiar para el equipo» copia
   «Nombre (pronombres): respuesta», una por línea. Las respuestas a preguntas que ya no están van
   al final, juntas por el texto con que se guardaron. Si la pregunta tiene un nombre corto, se usa
