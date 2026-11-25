@@ -18,6 +18,7 @@ import {
 	validateAnswers,
 	validateAnswer,
 	answerFormValue,
+	answerKindTag,
 	SHORT_LABEL_MAX,
 	validateFieldDef,
 	validateFieldScope
@@ -331,5 +332,156 @@ describe('answerFormValue y validateAnswer («Editar» de Órdenes)', () => {
 		expect(validateAnswer(choice, answerFormValue(choice, 'Vegana'))).toEqual({ value: 'Vegana' });
 		expect(validateAnswer(choice, 'Otra')).toEqual({ error: 'Elegí una de las opciones.' });
 		expect(validateAnswer(check, undefined)).toEqual({ error: 'Marcá esta casilla para seguir.' });
+	});
+});
+
+describe('los tipos de los formularios (menos «Foto»)', () => {
+	it('arma preguntas de todos los tipos, con lo propio de cada uno', () => {
+		const n = validateFieldDef({
+			label: 'Edad',
+			kind: 'number',
+			min: '18',
+			max: '',
+			help: 'En años',
+			shortLabel: 'Edad'
+		});
+		expect(n).toEqual({
+			ok: true,
+			field: {
+				label: 'Edad',
+				kind: 'number',
+				required: false,
+				options: [],
+				min: 18,
+				help: 'En años',
+				shortLabel: 'Edad'
+			}
+		});
+		const m = validateFieldDef({ label: 'Intereses', kind: 'multi', options: 'A\nB|C' });
+		expect(!m.ok && m.errors.options).toMatch(/«\|»/);
+		const r = validateFieldDef({ label: 'Puntaje', kind: 'rating' });
+		expect(r.ok && r.field).toMatchObject({ low: 'Mal', high: 'Re bien' });
+		expect(validateFieldDef({ label: 'Tu cara', kind: 'photo' }).ok).toBe(false);
+	});
+
+	it('las respuestas de los tipos nuevos se guardan con su tipo; las de siempre, igual que antes', () => {
+		/** @type {import('./signupFields.js').SignupField[]} */
+		const fields = [
+			{ id: 1, label: 'Fecha', kind: 'date', required: true, options: [] },
+			{
+				id: 2,
+				label: 'Gustos',
+				kind: 'multi',
+				required: true,
+				options: ['A', 'B'],
+				perTicket: true
+			},
+			{ id: 3, label: 'Dieta', kind: 'text', required: true, options: [] }
+		];
+		const n = fieldInputName;
+		const r = validateAnswers(
+			fields,
+			{ [n(1)]: '2024-03-09', [n(2, 0)]: ['B', 'A'], [n(2, 1)]: 'B', [n(3)]: 'Vegana' },
+			{ quantity: 2 }
+		);
+		expect(r).toEqual({
+			ok: true,
+			answers: [
+				{ id: 1, label: 'Fecha', value: '2024-03-09', kind: 'date' },
+				{ id: 2, label: 'Gustos', value: 'A | B', ticket: 1, kind: 'multi' },
+				{ id: 2, label: 'Gustos', value: 'B', ticket: 2, kind: 'multi' },
+				{ id: 3, label: 'Dieta', value: 'Vegana' }
+			]
+		});
+		const answers = r.ok ? r.answers : [];
+		expect(parseStoredAnswers(JSON.stringify(answers))).toEqual(answers);
+		// Un tipo que no es de inscripción no se lee como tipo.
+		expect(parseStoredAnswers('[{"id":1,"label":"P","value":"x","kind":"photo"}]')).toEqual([
+			{ id: 1, label: 'P', value: 'x' }
+		]);
+		// CSV: lo guardado; en «Varias opciones» por entrada, las entradas con « · ».
+		expect(answerFor(answers, 1)).toBe('2024-03-09');
+		expect(answerFor(answers, 1, { show: true })).toBe('09/03/2024');
+		expect(answerFor(answers, 2)).toBe('Entrada 1: A | B · Entrada 2: B');
+	});
+});
+
+describe('«Editar» de Órdenes con los tipos nuevos: lo mismo que la compra', () => {
+	/** @type {import('./signupFields.js').SignupField[]} */
+	const fields = [
+		{ id: 1, label: 'Gustos', kind: 'multi', required: true, options: ['A', 'B', 'C'] },
+		{ id: 2, label: 'Edad', kind: 'number', required: false, options: [], min: 18, max: 99 },
+		{ id: 3, label: 'Puntaje', kind: 'rating', required: true, options: [], low: 'Mal' }
+	];
+	const [multi, number, rating] = fields;
+
+	it('lo guardado vuelve al formulario como lo dibuja la compra y validarlo da lo mismo', () => {
+		// «Varias opciones»: la lista de las elegidas (una casilla por opción).
+		expect(answerFormValue(multi, 'A | C')).toEqual(['A', 'C']);
+		expect(answerFormValue(multi, undefined)).toEqual([]);
+		expect(validateAnswer(multi, answerFormValue(multi, 'A | C'))).toEqual({ value: 'A | C' });
+		// Número y puntaje: el texto guardado (lo que usan los campos nativos).
+		expect(answerFormValue(number, '30.5')).toBe('30.5');
+		expect(answerFormValue(number, undefined)).toBe('');
+		expect(validateAnswer(number, answerFormValue(number, '30.5'))).toEqual({ value: '30.5' });
+		expect(answerFormValue(rating, '4')).toBe('4');
+		expect(validateAnswer(rating, answerFormValue(rating, '4'))).toEqual({ value: '4' });
+	});
+
+	it('valida cada respuesta como validateAnswers (la compra)', () => {
+		/** @type {[import('./signupFields.js').SignupField, unknown][]} */
+		const cases = [
+			[multi, ['C', 'A', 'A']],
+			[multi, ['A', 'Z']],
+			[multi, undefined],
+			[number, '3,5'],
+			[number, '12'],
+			[number, 'doce'],
+			[number, ''],
+			[rating, '5'],
+			[rating, '7'],
+			[rating, undefined]
+		];
+		for (const [f, raw] of cases) {
+			const one = validateAnswer(f, raw);
+			const name = fieldInputName(f.id);
+			const all = validateAnswers([f], { [name]: raw });
+			if ('error' in one) expect(all).toEqual({ ok: false, errors: { [name]: one.error } });
+			else
+				expect(all).toEqual({
+					ok: true,
+					answers:
+						one.value === null ? [] : [{ id: f.id, label: f.label, value: one.value, kind: f.kind }]
+				});
+		}
+		expect(validateAnswer(multi, ['C', 'A', 'A'])).toEqual({ value: 'A | C' });
+		expect(validateAnswer(multi, ['A', 'Z'])).toEqual({
+			error: 'Elegí entre las opciones de la lista.'
+		});
+		expect(validateAnswer(number, '3,5')).toEqual({ error: 'Tiene que ser entre 18 y 99.' });
+		expect(validateAnswer(number, '')).toEqual({ value: null });
+		expect(validateAnswer(rating, '7')).toEqual({ error: 'Elegí un puntaje de 1 a 5.' });
+		// Un texto, hasta ANSWER_MAX letras, como en la compra.
+		const text = {
+			id: 9,
+			label: 'T',
+			kind: /** @type {const} */ ('text'),
+			required: false,
+			options: []
+		};
+		expect(validateAnswer(text, 'x'.repeat(ANSWER_MAX))).toEqual({ value: 'x'.repeat(ANSWER_MAX) });
+		expect(validateAnswer(text, 'x'.repeat(ANSWER_MAX + 1))).toEqual({
+			error: `Hasta ${ANSWER_MAX} letras.`
+		});
+	});
+
+	it('el tipo va con la respuesta solo en los tipos nuevos', () => {
+		expect(answerKindTag('multi')).toEqual({ kind: 'multi' });
+		expect(answerKindTag('number')).toEqual({ kind: 'number' });
+		expect(answerKindTag('rating')).toEqual({ kind: 'rating' });
+		expect(answerKindTag('text')).toEqual({});
+		expect(answerKindTag('checkbox')).toEqual({});
+		expect(answerKindTag('photo')).toEqual({});
+		expect(answerKindTag(undefined)).toEqual({});
 	});
 });

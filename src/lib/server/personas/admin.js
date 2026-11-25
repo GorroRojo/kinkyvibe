@@ -19,6 +19,7 @@ import {
 	setFieldPositions,
 	updateField
 } from '$lib/server/tickets/signupFields.js';
+import { questionSettings } from '$lib/utils/questions.js';
 import {
 	MAX_EVENT_FIELDS,
 	MAX_GENERAL_FIELDS,
@@ -99,7 +100,13 @@ export async function saveFieldsAction(event, eventSlug) {
 			shortLabel: typeof item.shortLabel === 'string' ? item.shortLabel.slice(0, 200) : '',
 			kind: item.kind,
 			required: item.required === true,
-			options: Array.isArray(item.options) ? item.options.slice(0, 50).map(String) : []
+			options: Array.isArray(item.options) ? item.options.slice(0, 50).map(String) : [],
+			// Lo propio de cada tipo (como en los formularios): ayuda, puntaje y número.
+			help: typeof item.help === 'string' ? item.help.slice(0, 500) : '',
+			low: typeof item.low === 'string' ? item.low.slice(0, 200) : '',
+			high: typeof item.high === 'string' ? item.high.slice(0, 200) : '',
+			min: typeof item.min === 'string' || typeof item.min === 'number' ? item.min : '',
+			max: typeof item.max === 'string' || typeof item.max === 'number' ? item.max : ''
 		});
 		const scope = validateFieldScope(
 			{
@@ -153,6 +160,7 @@ export async function saveFieldsAction(event, eventSlug) {
 					before.kind === w.field.kind &&
 					before.required === w.field.required &&
 					JSON.stringify(before.options) === JSON.stringify(w.field.options) &&
+					JSON.stringify(questionSettings(before)) === JSON.stringify(questionSettings(w.field)) &&
 					Boolean(before.perTicket) === Boolean(w.field.perTicket) &&
 					JSON.stringify(before.ticketTypes ?? []) ===
 						JSON.stringify(eventSlug === null ? [] : w.field.ticketTypes);

@@ -30,7 +30,7 @@
 	/** @type {import('$lib/utils/signupFields.js').SignupField[]} */
 	export let purchaseFields = [];
 	/** Respuestas que volvieron del servidor (por `name` del campo). */
-	/** @type {Record<string, string>} */
+	/** @type {Record<string, string | string[]>} */
 	export let answers = {};
 	/** @type {Record<string, string>} */
 	export let errors = {};

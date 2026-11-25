@@ -111,7 +111,8 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 
 /**
  * Las preguntas del formulario de compra, en su orden (las generales elegidas, después las del
- * evento). `shortLabel`, si la pregunta tiene un nombre corto. Con un error, ninguna: la página
+ * evento). `shortLabel`, si la pregunta tiene un nombre corto; la ayuda, los extremos del puntaje
+ * y el mínimo y máximo de un número, si tienen. Con un error, ninguna: la página
  * sigue andando y las respuestas se agrupan por el texto guardado.
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string} slug
@@ -127,7 +128,13 @@ async function signupFields(db, slug) {
 			required: f.required,
 			options: f.options,
 			perTicket: f.perTicket,
-			ticketTypes: f.ticketTypes
+			ticketTypes: f.ticketTypes,
+			// Lo propio de cada tipo, para dibujarlas en «Editar» como en la compra.
+			...(f.help ? { help: f.help } : {}),
+			...(f.low ? { low: f.low } : {}),
+			...(f.high ? { high: f.high } : {}),
+			...(f.min !== undefined ? { min: f.min } : {}),
+			...(f.max !== undefined ? { max: f.max } : {})
 		}));
 	} catch (error) {
 		logDBError('preguntas de inscripción (Órdenes)', error);

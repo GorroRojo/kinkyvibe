@@ -132,8 +132,11 @@ async function order({ approve = true, pronouns = 'elle' } = {}) {
 }
 
 /** El formulario como lo arma el editor: todo con lo que hay ahora, más `changes`. */
-function current(/** @type {string} */ id, /** @type {Record<string, string | null>} */ changes) {
-	/** @type {Record<string, string | null>} */
+function current(
+	/** @type {string} */ id,
+	/** @type {Record<string, string | string[] | null>} */ changes
+) {
+	/** @type {Record<string, string | string[] | null>} */
 	const base = {
 		order: id,
 		since: '0',
@@ -155,12 +158,16 @@ function current(/** @type {string} */ id, /** @type {Record<string, string | nu
 /**
  * Llama a la acción como SvelteKit; si tira (redirect / error), devuelve `{ thrown }`.
  * @param {'edit' | 'undoEdit'} name
- * @param {Record<string, string | null>} fields (`null`: el campo no va, como una casilla sin marcar)
+ * @param {Record<string, string | string[] | null>} fields (`null`: el campo no va, como una
+ *   casilla sin marcar; una lista: el mismo `name` repetido, como «Varias opciones»)
  * @param {{ locals?: any }} [o]
  */
 async function act(name, fields, { locals = admin } = {}) {
 	const body = new FormData();
-	for (const [k, v] of Object.entries(fields)) if (v !== null) body.set(k, v);
+	for (const [k, v] of Object.entries(fields)) {
+		if (Array.isArray(v)) for (const x of v) body.append(k, x);
+		else if (v !== null) body.set(k, v);
+	}
 	/** @type {any} */
 	const event = {
 		params: { slug: SLUG },
@@ -442,5 +449,141 @@ describe('Deshacer', () => {
 		const res = await act('undoEdit', { order: b.id, edit: String(edit.id) });
 		expect(res.status).toBe(404);
 		expect((await getOrder(t.db, a.id))?.buyer_name).toBe('Cambio De A');
+	});
+});
+
+describe('Editar las respuestas de todos los tipos', () => {
+	it('varias opciones, número y puntaje: se validan como en la compra y se guardan con su tipo', async () => {
+		/** @param {any} f */
+		const make = async (f) => {
+			const r = await createField(
+				t.db,
+				SLUG,
+				{ required: false, options: [], ...f },
+				{
+					by: 'prueba'
+				}
+			);
+			if (!r.ok) throw new Error(r.message);
+			return r.id;
+		};
+		const MULTI = await make({
+			label: 'Intereses',
+			kind: 'multi',
+			options: ['Sogas', 'Látex', 'Impacto'],
+			perTicket: true
+		});
+		const NUM = await make({ label: 'Edad', kind: 'number', min: 18, max: 99 });
+		const RATE = await make({ label: 'Puntaje', kind: 'rating', low: 'Mal', high: 'Re bien' });
+		const o = await order();
+		// Como las guarda la compra: los tipos nuevos con `kind`.
+		const plain = (await answersOf(o.id)) ?? [];
+		await t.db
+			.prepare('UPDATE order_answers SET answers = ?2 WHERE order_id = ?1')
+			.bind(
+				o.id,
+				JSON.stringify([
+					...plain,
+					{ id: MULTI, label: 'Intereses', value: 'Sogas | Impacto', ticket: 1, kind: 'multi' },
+					{ id: NUM, label: 'Edad', value: '30', kind: 'number' }
+				])
+			)
+			.run();
+
+		// Las mismas elegidas (en otro orden) y el mismo número no son un cambio.
+		const same = await act(
+			'edit',
+			current(o.id, { [`campo_${MULTI}_0`]: ['Impacto', 'Sogas'], [`campo_${NUM}`]: '30' })
+		);
+		expect(same.orderEdit).toMatchObject({ ok: true, message: 'No había nada para cambiar.' });
+
+		const bad = await act(
+			'edit',
+			current(o.id, {
+				[`campo_${MULTI}_0`]: ['Sogas', 'Otra'],
+				[`campo_${NUM}`]: '12',
+				[`campo_${RATE}`]: '7'
+			})
+		);
+		expect(bad.status).toBe(400);
+		expect(bad.data.orderEdit.errors).toEqual({
+			[`campo_${MULTI}_0`]: 'Elegí entre las opciones de la lista.',
+			[`campo_${NUM}`]: 'Tiene que ser entre 18 y 99.',
+			[`campo_${RATE}`]: 'Elegí un puntaje de 1 a 5.'
+		});
+		expect((await editsByOrder(t.db, SLUG)).get(o.id)).toBeUndefined();
+
+		const res = await act(
+			'edit',
+			current(o.id, {
+				[`campo_${MULTI}_0`]: ['Látex'],
+				[`campo_${MULTI}_1`]: ['Impacto', 'Sogas'],
+				[`campo_${NUM}`]: '30,5',
+				[`campo_${RATE}`]: '4'
+			})
+		);
+		expect(res.orderEdit).toMatchObject({ ok: true, order: o.id });
+		const answers = (await answersOf(o.id)) ?? [];
+		// Las de antes, sin tocar (sin `kind`); las nuevas, con el suyo, en el orden de la lista.
+		expect(answers.slice(0, plain.length)).toEqual(plain);
+		expect(answers.slice(plain.length)).toEqual([
+			{ id: MULTI, label: 'Intereses', value: 'Látex', ticket: 1, kind: 'multi' },
+			{ id: NUM, label: 'Edad', value: '30.5', kind: 'number' },
+			{ id: MULTI, label: 'Intereses', value: 'Sogas | Impacto', ticket: 2, kind: 'multi' },
+			{ id: RATE, label: 'Puntaje', value: '4', kind: 'rating' }
+		]);
+		const [edit] = /** @type {any[]} */ ((await editsByOrder(t.db, SLUG)).get(o.id));
+		expect(edit.changes).toEqual([
+			{
+				key: `answer.${MULTI}.1`,
+				label: 'Entrada 1: Intereses',
+				question: 'Intereses',
+				before: 'Sogas | Impacto',
+				after: 'Látex',
+				kind: 'multi'
+			},
+			{
+				key: `answer.${MULTI}.2`,
+				label: 'Entrada 2: Intereses',
+				question: 'Intereses',
+				before: '',
+				after: 'Sogas | Impacto',
+				kind: 'multi'
+			},
+			{
+				key: `answer.${NUM}`,
+				label: 'Edad',
+				question: 'Edad',
+				before: '30',
+				after: '30.5',
+				kind: 'number'
+			},
+			{
+				key: `answer.${RATE}`,
+				label: 'Puntaje',
+				question: 'Puntaje',
+				before: '',
+				after: '4',
+				kind: 'rating'
+			}
+		]);
+
+		// «Deshacer» vuelve a lo que había; deshacer el «Deshacer» las vuelve a sumar con su tipo.
+		const undo = await act('undoEdit', { order: o.id, edit: String(edit.id) });
+		expect(undo.orderEdit?.ok).toBe(true);
+		expect(((await answersOf(o.id)) ?? []).slice(plain.length)).toEqual([
+			{ id: MULTI, label: 'Intereses', value: 'Sogas | Impacto', ticket: 1, kind: 'multi' },
+			{ id: NUM, label: 'Edad', value: '30', kind: 'number' }
+		]);
+		const [undone] = /** @type {any[]} */ ((await editsByOrder(t.db, SLUG)).get(o.id));
+		expect((await act('undoEdit', { order: o.id, edit: String(undone.id) })).orderEdit?.ok).toBe(
+			true
+		);
+		expect(((await answersOf(o.id)) ?? []).slice(plain.length)).toEqual([
+			{ id: MULTI, label: 'Intereses', value: 'Látex', ticket: 1, kind: 'multi' },
+			{ id: NUM, label: 'Edad', value: '30.5', kind: 'number' },
+			{ id: MULTI, label: 'Intereses', value: 'Sogas | Impacto', ticket: 2, kind: 'multi' },
+			{ id: RATE, label: 'Puntaje', value: '4', kind: 'rating' }
+		]);
 	});
 });

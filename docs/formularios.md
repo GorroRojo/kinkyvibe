@@ -192,13 +192,15 @@ IP) y por cuenta (`FORM_RATE_LIMIT`).
 ### Tipos de pregunta
 
 Texto, «Texto corto», «Opciones (elegir una)», «Varias opciones (elegir las que quieras)», «Lista
-desplegable», «Casilla (sí / no)», «Puntaje de 1 a 5», «Número», «Fecha» y «Foto» (`QUESTION_KINDS`). Las
-de inscripción tienen solo texto, opciones y casilla. La ayuda de cada pregunta («Ayuda
+desplegable», «Casilla (sí / no)», «Puntaje de 1 a 5», «Número», «Fecha» y «Foto» (`QUESTION_KINDS`,
+en `src/lib/utils/questions.js`). Las de inscripción tienen todos menos «Foto», con la misma
+validación y el mismo componente (migración 0084, [personas-eventos.md](personas-eventos.md#preguntas)).
+La ayuda de cada pregunta («Ayuda
 (opcional)») va debajo de su título, antes de lo que se contesta (gorrite, 24/11), y describe el
 campo (`aria-describedby`, junto con el error si hay).
 
 **Texto corto, número, fecha y lista desplegable** (24/11, gorrite: «¿podemos sumar más tipos?»).
-Solo de los formularios; las preguntas van en el JSON de `forms.questions`, sin migración. Todos
+En los formularios, las preguntas van en el JSON de `forms.questions`, sin migración. Todos
 andan sin JavaScript (campos nativos):
 
 | Tipo     | En la página                       | Se guarda (`value`)                                 |
@@ -221,9 +223,8 @@ las elegidas en el orden de la lista, separadas por « | » (`MULTI_SEPARATOR`),
 respuesta» muestran ese texto. El servidor junta todas las casillas del mismo `name` (anda sin
 JavaScript), descarta repetidas y rechaza lo que no es una opción. En la página pública van en
 columnas en pantallas anchas (una o dos en el celu). En el resumen, cada respuesta cuenta en cada
-opción que eligió («n de m»). No es de las preguntas de inscripción: `signup_fields.kind` tiene un
-CHECK con los tres tipos (migración 0018) y las respuestas «una vez por entrada» ya se juntan con
-« | » en Órdenes.
+opción que eligió («n de m»). En las preguntas de inscripción, si se pregunta una vez por entrada,
+el CSV de Órdenes separa las entradas con « · » (« | » ya separa las elegidas).
 
 ### Foto
 
@@ -284,7 +285,7 @@ Actividad) y el orden va a `position` (las que ya había quedan en el orden que 
 
 | Qué                               | Dónde                                                                                                       |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Reglas puras                      | `src/lib/utils/formularios.js`, `src/lib/admin/questionEditor.js`                                           |
+| Reglas puras                      | `src/lib/utils/formularios.js`, `src/lib/utils/questions.js` (común), `src/lib/admin/questionEditor.js`     |
 | D1, plantillas, link, mail, envío | `src/lib/server/formularios/` (`store.js`, `templates.js`, `invite.js`, `email.js`, `send.js`)              |
 | Por defecto y mail en el panel    | `defaults.js`, `mailAdmin.js`, `…/comunidad/formularios/por-defecto`, `FormMailEditor.svelte`               |
 | Páginas públicas                  | `public.js`, `src/routes/(content)/formularios/[slug]`, `…/calendario/[event]/encuesta`                     |

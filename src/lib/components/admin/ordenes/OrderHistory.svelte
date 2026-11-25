@@ -10,6 +10,7 @@
 	import { announceResult } from '$lib/admin/announce.js';
 	import { shortTime } from '$lib/admin/orderFormat.js';
 	import { argDayMonth } from '$lib/utils/dates.js';
+	import { showAnswer } from '$lib/utils/questions.js';
 
 	export let orderId = '';
 	/** @type {import('$lib/server/admin/orderEdits.js').OrderEdit[]} */
@@ -18,6 +19,9 @@
 	$: last = edits[0];
 	/** «Dato:» (como AnswerList: «¿Qué comida?» no lleva los dos puntos). @param {string} label */
 	const withColon = (label) => (/[?:]$/.test(label) ? label : `${label}:`);
+	/** Un valor como se lee (un número con coma, una fecha dd/mm/aaaa); vacío, «—». */
+	const shown = (/** @type {{ kind?: string }} */ c, /** @type {string} */ v) =>
+		v ? showAnswer(c.kind, v) : '—';
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const undo =
@@ -50,7 +54,7 @@
 						{#each e.changes as c (c.key)}
 							<li>
 								<span class="label">{withColon(c.label)}</span>
-								<del>{c.before || '—'}</del> → <ins>{c.after || '—'}</ins>
+								<del>{shown(c, c.before)}</del> → <ins>{shown(c, c.after)}</ins>
 							</li>
 						{/each}
 					</ul>

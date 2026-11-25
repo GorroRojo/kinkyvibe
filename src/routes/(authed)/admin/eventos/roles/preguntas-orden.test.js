@@ -181,7 +181,7 @@ describe('?/saveFields de un evento', () => {
 				fakeEvent({
 					questions: [
 						{ id: null, kind: 'choice', label: 'Sin opciones', options: ['Sola'] },
-						{ id: null, kind: 'rating', label: 'Puntaje no va en inscripción' }
+						{ id: null, kind: 'photo', label: 'Foto no va en inscripción' }
 					]
 				})
 			)

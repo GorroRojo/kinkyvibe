@@ -14,7 +14,7 @@ export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const access = await requireOrganizer(event);
 	const [answers, forms] = await Promise.all([
-		organizerAnswers(access.db, access.event.slug),
+		organizerAnswers(access.db, access.event.slug, { show: true }),
 		// Los formularios de este evento (la encuesta, por ejemplo): con el interruptor `formularios`.
 		formsForOrganizer(event.platform, access.db, access.event.slug)
 	]);

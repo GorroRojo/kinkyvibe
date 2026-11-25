@@ -3,8 +3,9 @@
  * comprar, guardar las preguntas desde el panel), el formulario de compra y el panel.
  *
  * Una pregunta es de un evento (la pestaña Preguntas de su ficha) o general (Eventos › Roles
- * y preguntas: se define una vez y cada evento elige si la usa). Tipos: texto, opciones (una de
- * una lista) o casilla. Obligatoria u opcional.
+ * y preguntas: se define una vez y cada evento elige si la usa). Los tipos son los de los
+ * formularios menos «Foto» (`SIGNUP_KINDS`), con la misma validación y el mismo componente para
+ * responder (src/lib/utils/questions.js, en común). Obligatoria u opcional.
  *
  * Las respuestas son datos de quien compra: se guardan con la orden (tabla `order_answers`) y las
  * ven solo les admins (Órdenes y su CSV). Se guarda la pregunta como estaba al comprar.
@@ -14,29 +15,47 @@
  * (`perTicket`: si alguien compra 3, responde 3 veces). Una compra es de un solo tipo de entrada.
  */
 
-export const FIELD_KINDS = /** @type {const} */ (['text', 'choice', 'checkbox']);
-/** @typedef {typeof FIELD_KINDS[number]} FieldKind */
+import {
+	CHECKBOX_YES,
+	QUESTION_KIND_LABELS,
+	SIGNUP_KINDS,
+	oneLine,
+	showAnswer,
+	splitMulti,
+	validateAnswerValue,
+	validateQuestion
+} from './questions.js';
 
-/** Nombres para el panel. */
-export const FIELD_KIND_LABELS = Object.freeze({
-	text: 'Texto',
-	choice: 'Opciones (elegir una)',
-	checkbox: 'Casilla (sí / no)'
-});
+export {
+	CHECKBOX_YES,
+	LABEL_MAX,
+	LABEL_MIN,
+	MAX_OPTIONS,
+	OPTION_MAX,
+	parseOptions
+} from './questions.js';
 
-export const LABEL_MIN = 2;
-export const LABEL_MAX = 120;
+/** Los tipos de las preguntas de inscripción: los de los formularios menos «Foto». */
+export const FIELD_KINDS = SIGNUP_KINDS;
+/** @typedef {typeof SIGNUP_KINDS[number]} FieldKind */
+
+/** Nombres para el panel (los mismos que en los formularios). */
+export const FIELD_KIND_LABELS = QUESTION_KIND_LABELS;
+
+/**
+ * Los tipos de antes (migración 0018): sus respuestas se guardan sin `kind`, como siempre. Las de
+ * los demás tipos lo llevan, así cada lugar que las muestra (bot, Mi rincón, la ficha) sabe leer
+ * un número o una fecha aunque la pregunta ya no esté.
+ */
+const PLAIN_KINDS = ['text', 'choice', 'checkbox'];
+
 /** Etiqueta corta opcional (para el panel de Órdenes). */
 export const SHORT_LABEL_MAX = 24;
-export const OPTION_MAX = 80;
-export const MAX_OPTIONS = 12;
 /** Largo máximo de una respuesta de texto. */
 export const ANSWER_MAX = 500;
 /** Preguntas propias por evento (más las generales que elija). */
 export const MAX_EVENT_FIELDS = 10;
 export const MAX_GENERAL_FIELDS = 30;
-/** Lo que se guarda como respuesta de una casilla marcada. */
-export const CHECKBOX_YES = 'Sí';
 /** Tipos de entrada que puede nombrar una pregunta (y largo de cada id). */
 export const MAX_SCOPE_TYPES = 20;
 const TYPE_ID_MAX = 60;
@@ -46,11 +65,14 @@ const TYPE_ID_MAX = 60;
  * tipos (como antes de la migración 0026).
  *
  * @typedef {{ id: number, label: string, kind: FieldKind, required: boolean, options: string[],
- *   perTicket?: boolean, ticketTypes?: string[], shortLabel?: string }} SignupField
+ *   perTicket?: boolean, ticketTypes?: string[], shortLabel?: string, help?: string,
+ *   low?: string, high?: string, min?: number, max?: number }} SignupField
  *   `shortLabel`: etiqueta corta opcional (migración 0083) para el panel de Órdenes; sin ella se
- *   usa `label`. Quien compra siempre ve `label`.
- * @typedef {{ id: number, label: string, value: string, ticket?: number }} Answer
- *   `ticket`: en las preguntas "una vez por entrada", qué entrada de la compra (1, 2, 3…)
+ *   usa `label`. Quien compra siempre ve `label`. `help`, `low`/`high` (puntaje) y `min`/`max`
+ *   (número): como en los formularios (columna `settings`, migración 0084).
+ * @typedef {{ id: number, label: string, value: string, ticket?: number, kind?: string }} Answer
+ *   `ticket`: en las preguntas "una vez por entrada", qué entrada de la compra (1, 2, 3…).
+ *   `kind`: el tipo de la pregunta, solo en los tipos nuevos (no en texto, opciones ni casilla).
  */
 
 /**
@@ -171,97 +193,34 @@ export function scopeText(field, types = []) {
 	return `${which} · ${field.perTicket ? 'una vez por entrada' : 'una vez por compra'}`;
 }
 
-/**
- * Texto de una línea: sin caracteres de control, espacios de más afuera.
- * @param {unknown} raw
- */
-function line(raw) {
-	return typeof raw === 'string'
-		? raw
-				.normalize('NFC')
-				// eslint-disable-next-line no-control-regex -- sacar caracteres de control es la idea
-				.replace(/[\u0000-\u001f\u007f]+/g, ' ')
-				.replace(/\s+/g, ' ')
-				.trim()
-		: '';
-}
-
-/**
- * Texto de una respuesta: deja los saltos de línea (hasta dos seguidos), saca el resto de los
- * caracteres de control.
- * @param {unknown} raw
- */
-function answerText(raw) {
-	if (typeof raw !== 'string') return '';
-	return (
-		raw
-			.normalize('NFC')
-			.replace(/\r\n?/g, '\n')
-			// eslint-disable-next-line no-control-regex -- sacar caracteres de control es la idea
-			.replace(/[\u0000-\u0009\u000b-\u001f\u007f]+/g, ' ')
-			.replace(/[ \t]+/g, ' ')
-			.replace(/\n{3,}/g, '\n\n')
-			.trim()
-	);
-}
-
 /** @param {unknown} kind @returns {kind is FieldKind} */
 export function isFieldKind(kind) {
-	return /** @type {readonly unknown[]} */ (FIELD_KINDS).includes(kind);
+	return /** @type {readonly unknown[]} */ (SIGNUP_KINDS).includes(kind);
 }
 
 /**
- * Las opciones de una pregunta: una por renglón (lo que escribe le admin) o una lista. Sin
- * vacías ni repetidas.
- * @param {unknown} raw
- */
-export function parseOptions(raw) {
-	const list = Array.isArray(raw) ? raw : typeof raw === 'string' ? raw.split('\n') : [];
-	/** @type {string[]} */
-	const out = [];
-	for (const item of list) {
-		const o = line(item);
-		if (o && !out.includes(o)) out.push(o);
-	}
-	return out;
-}
-
-/**
- * Valida una pregunta que arma le admin.
+ * Valida una pregunta que arma le admin: lo de los formularios (`validateQuestion`, con los tipos
+ * de inscripción) más la etiqueta corta.
  *
- * @param {{ label?: unknown, shortLabel?: unknown, kind?: unknown, required?: unknown,
- *   options?: unknown }} raw
+ * @param {Record<string, unknown>} raw `label`, `shortLabel`, `kind`, `required`, `options` y,
+ *   según el tipo, `help`, `low`, `high`, `min` y `max`
  * @returns {{ ok: true, field: Omit<SignupField, 'id'> }
- *   | { ok: false, errors: { label?: string, shortLabel?: string, kind?: string, options?: string } }}
+ *   | { ok: false, errors: Record<string, string> }}
  */
 export function validateFieldDef(raw) {
-	/** @type {{ label?: string, shortLabel?: string, kind?: string, options?: string }} */
-	const errors = {};
-	const label = line(raw.label);
-	if (label.length < LABEL_MIN || label.length > LABEL_MAX) {
-		errors.label = `Escribí la pregunta (entre ${LABEL_MIN} y ${LABEL_MAX} letras).`;
-	}
-	const shortLabel = line(raw.shortLabel);
+	const r = validateQuestion(raw, SIGNUP_KINDS);
+	/** @type {Record<string, string>} */
+	const errors = r.ok ? {} : { ...r.errors };
+	const shortLabel = oneLine(raw.shortLabel);
 	if (shortLabel.length > SHORT_LABEL_MAX) {
 		errors.shortLabel = `La etiqueta corta, hasta ${SHORT_LABEL_MAX} letras.`;
 	}
-	const kind = raw.kind;
-	if (!isFieldKind(kind)) errors.kind = 'Elegí el tipo de pregunta.';
-	/** @type {string[]} */
-	let options = [];
-	if (kind === 'choice') {
-		options = parseOptions(raw.options);
-		if (options.length < 2) errors.options = 'Poné al menos dos opciones, una por renglón.';
-		else if (options.length > MAX_OPTIONS) errors.options = `Hasta ${MAX_OPTIONS} opciones.`;
-		else if (options.some((o) => o.length > OPTION_MAX))
-			errors.options = `Cada opción, hasta ${OPTION_MAX} letras.`;
-	}
-	const required = raw.required === true || raw.required === 'on' || raw.required === '1';
-	if (Object.keys(errors).length || !isFieldKind(kind)) return { ok: false, errors };
-	return {
-		ok: true,
-		field: { label, kind, required, options, ...(shortLabel ? { shortLabel } : {}) }
-	};
+	if (!r.ok || Object.keys(errors).length) return { ok: false, errors };
+	const field = /** @type {Omit<SignupField, 'id'>} */ ({
+		...r.question,
+		...(shortLabel ? { shortLabel } : {})
+	});
+	return { ok: true, field };
 }
 
 /**
@@ -287,13 +246,14 @@ export function validateAnswers(fields, raw, { typeId, quantity = 1 } = {}) {
 		for (const slot of answerSlots(f, quantity)) {
 			const name = fieldInputName(f.id, slot);
 			const r = validateAnswer(f, raw?.[name]);
-			if ('error' in r && r.error) errors[name] = r.error;
-			else if ('value' in r && r.value !== null) {
+			if ('error' in r) errors[name] = r.error;
+			else if (r.value !== null) {
 				answers.push({
 					id: f.id,
 					label: f.label,
 					value: r.value,
-					...(slot === null ? {} : { ticket: slot + 1 })
+					...(slot === null ? {} : { ticket: slot + 1 }),
+					...answerKindTag(f.kind)
 				});
 			}
 		}
@@ -302,39 +262,42 @@ export function validateAnswers(fields, raw, { typeId, quantity = 1 } = {}) {
 }
 
 /**
- * Una respuesta: `{ value }` (o `null` si quedó vacía y es opcional) o `{ error }`. La usan la
- * compra (por {@link validateAnswers}) y «Editar» de Órdenes, de a una.
- * @param {SignupField} f
- * @param {unknown} value lo que mandó el formulario para ese campo
+/**
+ * Una respuesta: `{ value }` (o `null` si quedó vacía y es opcional) o `{ error }`, con la
+ * validación de los formularios (`validateAnswerValue`) y el largo de las de inscripción. La usan
+ * la compra (por {@link validateAnswers}) y «Editar» de Órdenes, de a una: así se valida igual.
+ * @param {Pick<SignupField, 'kind' | 'required' | 'options' | 'min' | 'max'>} f
+ * @param {unknown} value lo que mandó el formulario para ese campo (en «Varias opciones», la lista
+ *   de las marcadas)
  * @returns {{ value: string | null } | { error: string }}
  */
 export function validateAnswer(f, value) {
-	if (f.kind === 'checkbox') {
-		const checked = value === 'on' || value === '1' || value === true;
-		if (f.required && !checked) return { error: 'Marcá esta casilla para seguir.' };
-		return { value: checked ? CHECKBOX_YES : null };
-	}
-	if (f.kind === 'choice') {
-		const chosen = line(value);
-		if (!chosen) return f.required ? { error: 'Elegí una opción.' } : { value: null };
-		if (!f.options.includes(chosen)) return { error: 'Elegí una de las opciones.' };
-		return { value: chosen };
-	}
-	const text = answerText(value);
-	if (!text) return f.required ? { error: 'Completá esta respuesta.' } : { value: null };
-	if (text.length > ANSWER_MAX) return { error: `Hasta ${ANSWER_MAX} letras.` };
-	return { value: text };
+	return validateAnswerValue(f, value, { textMax: ANSWER_MAX });
+}
+
+/**
+ * Lo que lleva una respuesta guardada de su tipo: `{ kind }` en los tipos nuevos, nada en los de
+ * antes (`PLAIN_KINDS`). La compra y «Editar» de Órdenes guardan igual.
+ * @param {unknown} kind
+ * @returns {{ kind?: FieldKind }}
+ */
+export function answerKindTag(kind) {
+	return isFieldKind(kind) && !PLAIN_KINDS.includes(kind) ? { kind } : {};
 }
 
 /**
  * Lo que va en el campo del formulario para una respuesta guardada (lo contrario de
- * {@link validateAnswer}): la casilla marcada es `on`; lo demás, el texto guardado. «Editar» de
- * Órdenes arranca el formulario con esto y lo usa para saber qué cambió.
+ * {@link validateAnswer}): la casilla marcada es `on`; en «Varias opciones», la lista de las
+ * elegidas (una casilla por opción); lo demás, el texto guardado (un número con punto, una fecha
+ * `aaaa-mm-dd`: lo que usan los campos nativos). «Editar» de Órdenes arranca el formulario con
+ * esto y lo usa para saber qué cambió.
  * @param {Pick<SignupField, 'kind'>} f
  * @param {string | undefined} stored
+ * @returns {string | string[]}
  */
 export function answerFormValue(f, stored) {
 	if (f.kind === 'checkbox') return stored === CHECKBOX_YES ? 'on' : '';
+	if (f.kind === 'multi') return splitMulti(stored ?? '');
 	return stored ?? '';
 }
 
@@ -357,7 +320,8 @@ export function parseStoredAnswers(json) {
 			id: Number(a.id),
 			label: String(a.label ?? ''),
 			value: String(a.value ?? ''),
-			...(Number.isSafeInteger(a.ticket) && a.ticket > 0 ? { ticket: Number(a.ticket) } : {})
+			...(Number.isSafeInteger(a.ticket) && a.ticket > 0 ? { ticket: Number(a.ticket) } : {}),
+			...answerKindTag(a.kind)
 		}));
 }
 
@@ -381,16 +345,23 @@ export function answerColumns(answerLists, fields = []) {
 
 /**
  * La respuesta a una pregunta, o `''`. Las de "una vez por entrada" van juntas, con su entrada:
- * "Entrada 1: Vegana | Entrada 2: Sin TACC".
+ * "Entrada 1: Vegana | Entrada 2: Sin TACC". En «Varias opciones» las elegidas ya van con « | »:
+ * ahí las entradas se separan con « · » ("Entrada 1: Soga | Látex · Entrada 2: Soga").
+ *
+ * Con `show`, cada respuesta como se lee (un número con coma, una fecha `dd/mm/aaaa`:
+ * `showAnswer`); sin él, lo guardado (los CSV).
  * @param {readonly Answer[] | undefined} answers
  * @param {number} id
+ * @param {{ show?: boolean }} [opts]
  */
-export function answerFor(answers, id) {
+export function answerFor(answers, id, { show = false } = {}) {
 	const found = answers?.filter((a) => a.id === id) ?? [];
-	if (found.length === 1 && !found[0].ticket) return found[0].value;
+	/** @param {Answer} a */
+	const value = (a) => (show ? showAnswer(a.kind, a.value) : a.value);
+	if (found.length === 1 && !found[0].ticket) return value(found[0]);
 	return found
-		.map((a) => (a.ticket ? `${answerTicketLabel(a.ticket)}: ${a.value}` : a.value))
-		.join(' | ');
+		.map((a) => (a.ticket ? `${answerTicketLabel(a.ticket)}: ${value(a)}` : value(a)))
+		.join(found.some((a) => a.kind === 'multi') ? ' · ' : ' | ');
 }
 
 /** "Entrada 2" (la de una respuesta "una vez por entrada"). @param {number} ticket */

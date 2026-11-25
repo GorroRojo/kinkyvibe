@@ -2,7 +2,8 @@
  * Preguntas de inscripción (B8): lecturas y escrituras en D1 (migración 0018). Las reglas de
  * forma (tipos, largos, opciones, validar respuestas) están en src/lib/utils/signupFields.js.
  *
- * - `signup_fields`: cada pregunta; `event_slug` NULL = general.
+ * - `signup_fields`: cada pregunta; `event_slug` NULL = general. Lo propio de cada tipo (ayuda,
+ *   mínimo y máximo, extremos del puntaje) va en `settings` (JSON, migración 0084).
  * - `event_signup_general`: qué generales usa cada evento (y, en ese evento, a qué tipos de
  *   entrada aplica cada una: `ticket_types`, migración 0026).
  * - `order_answers`: las respuestas de cada orden (datos de quien compra: admins y, de su evento,
@@ -17,6 +18,7 @@
  * interruptor `personas_eventos` quedó prendido para siempre).
  */
 import { logDBError } from '$lib/server/db';
+import { parseQuestionSettings, questionSettings } from '$lib/utils/questions.js';
 import {
 	MAX_EVENT_FIELDS,
 	MAX_GENERAL_FIELDS,
@@ -36,7 +38,7 @@ import { fieldDeletionPath, softDeletionStatement } from '$lib/server/admin/dele
 /** @typedef {SignupField & { eventSlug: string | null, position: number, updatedAt: number, updatedBy: string }} StoredField */
 
 const BASE_COLUMNS =
-	'f.id, f.event_slug, f.label, f.kind, f.required, f.options, f.position, f.updated_at, f.updated_by, f.per_ticket, f.short_label';
+	'f.id, f.event_slug, f.label, f.kind, f.required, f.options, f.position, f.updated_at, f.updated_by, f.per_ticket, f.short_label, f.settings';
 /** Las de la pregunta, con sus propios tipos de entrada. */
 const COLUMNS = `${BASE_COLUMNS}, f.ticket_types`;
 
@@ -52,12 +54,14 @@ function rowToField(r) {
 	} catch {
 		// JSON roto: sin opciones (la pregunta no se puede responder hasta que se arregle).
 	}
+	const kind = isFieldKind(r.kind) ? r.kind : 'text';
 	return {
 		id: Number(r.id),
 		eventSlug: r.event_slug == null ? null : String(r.event_slug),
 		label: String(r.label),
 		...(r.short_label ? { shortLabel: String(r.short_label) } : {}),
-		kind: isFieldKind(r.kind) ? r.kind : 'text',
+		kind,
+		...parseQuestionSettings(kind, r.settings ?? '{}'),
 		required: Number(r.required) === 1,
 		options,
 		perTicket: Number(r.per_ticket) === 1,
@@ -169,15 +173,8 @@ export async function eventSignupFields(db, slug) {
 	if (!db) return [];
 	try {
 		return (await fieldsForEvent(db, slug)).map(
-			({ id, label, kind, required, options, perTicket, ticketTypes }) => ({
-				id,
-				label,
-				kind,
-				required,
-				options,
-				perTicket,
-				ticketTypes
-			})
+			// Lo del panel (dónde va, quién la cambió, la etiqueta corta) no va al formulario de compra.
+			({ eventSlug, position, updatedAt, updatedBy, shortLabel, ...field }) => field
 		);
 	} catch (error) {
 		logDBError('preguntas de inscripción', error);
@@ -188,21 +185,27 @@ export async function eventSignupFields(db, slug) {
 /**
  * Las respuestas del formulario, por `name` (solo los campos de estas preguntas, recortadas).
  * Las de "una vez por entrada", una por entrada (hasta `quantity`, con el tope del formulario).
+ * Las de «Varias opciones» repiten el `name` (una casilla por opción): llegan como lista.
  *
  * @param {FormData} form
  * @param {readonly SignupField[]} fields
  * @param {unknown} [quantity] lo que mandó el formulario
- * @returns {Record<string, string>}
+ * @returns {Record<string, string | string[]>}
  */
 export function readAnswers(form, fields, quantity = 1) {
 	const n = Math.min(Math.max(1, Math.trunc(Number(quantity)) || 1), MAX_TICKETS_PER_FORM);
-	/** @type {Record<string, string>} */
+	/** @type {Record<string, string | string[]>} */
 	const out = {};
 	for (const f of fields) {
 		const names = f.perTicket
 			? Array.from({ length: n }, (_, i) => fieldInputName(f.id, i))
 			: [fieldInputName(f.id)];
 		for (const name of names) {
+			if (f.kind === 'multi') {
+				const all = form.getAll(name).filter((v) => typeof v === 'string');
+				if (all.length) out[name] = all.slice(0, 50).map((v) => String(v).slice(0, 200));
+				continue;
+			}
 			const v = form.get(name);
 			if (typeof v === 'string') out[name] = v.slice(0, 2000);
 		}
@@ -225,10 +228,10 @@ export async function createField(db, eventSlug, field, { by, now = Date.now() }
 	const row = await db
 		.prepare(
 			`INSERT INTO signup_fields (event_slug, label, kind, required, options, position,
-				created_at, updated_at, updated_by, per_ticket, ticket_types, short_label)
+				created_at, updated_at, updated_by, per_ticket, ticket_types, short_label, settings)
 			SELECT ?1, ?2, ?3, ?4, ?5,
 				(SELECT COALESCE(MAX(position), -1) + 1 FROM signup_fields WHERE event_slug IS ?1),
-				?6, ?6, ?7, ?9, ?10, ?11
+				?6, ?6, ?7, ?9, ?10, ?11, ?12
 			WHERE (SELECT COUNT(*) FROM signup_fields WHERE event_slug IS ?1 AND deleted_at IS NULL) < ?8
 			RETURNING id`
 		)
@@ -243,7 +246,8 @@ export async function createField(db, eventSlug, field, { by, now = Date.now() }
 			max,
 			field.perTicket ? 1 : 0,
 			JSON.stringify(eventSlug === null ? [] : (field.ticketTypes ?? [])),
-			field.shortLabel || null
+			field.shortLabel || null,
+			JSON.stringify(questionSettings(field))
 		)
 		.first();
 	if (!row) {
@@ -260,7 +264,7 @@ export async function createField(db, eventSlug, field, { by, now = Date.now() }
 
 /**
  * Edita una pregunta (de ese evento, o general con `eventSlug` null): texto, tipo, opciones,
- * obligatoria y alcance. Las respuestas ya guardadas no cambian (tienen la pregunta copiada como
+ * obligatoria, lo propio del tipo y alcance. Las respuestas ya guardadas no cambian (tienen la pregunta copiada como
  * estaba al comprar). Devuelve el texto anterior, o `null` si no existe.
  *
  * @param {D1Database} db
@@ -281,7 +285,8 @@ export async function updateField(db, id, eventSlug, field, { by, now = Date.now
 	const res = await db
 		.prepare(
 			`UPDATE signup_fields SET label = ?3, kind = ?4, required = ?5, options = ?6,
-				per_ticket = ?7, ticket_types = ?8, updated_at = ?9, updated_by = ?10, short_label = ?11
+				per_ticket = ?7, ticket_types = ?8, updated_at = ?9, updated_by = ?10, short_label = ?11,
+				settings = ?12
 			WHERE id = ?1 AND event_slug IS ?2 AND deleted_at IS NULL`
 		)
 		.bind(
@@ -295,7 +300,8 @@ export async function updateField(db, id, eventSlug, field, { by, now = Date.now
 			JSON.stringify(eventSlug === null ? [] : (field.ticketTypes ?? [])),
 			now,
 			by,
-			field.shortLabel || null
+			field.shortLabel || null,
+			JSON.stringify(questionSettings(field))
 		)
 		.run();
 	return res.meta.changes === 1 ? String(before.label) : null;
@@ -400,9 +406,13 @@ export function answersStatement(db, orderId, answers, now) {
 		.bind(
 			orderId,
 			JSON.stringify(
-				answers.map(({ id, label, value, ticket }) =>
-					ticket ? { id, label, value, ticket } : { id, label, value }
-				)
+				answers.map(({ id, label, value, ticket, kind }) => ({
+					id,
+					label,
+					value,
+					...(ticket ? { ticket } : {}),
+					...(kind ? { kind } : {})
+				}))
 			),
 			now
 		);
@@ -492,8 +502,9 @@ export async function copyEventSignupFields(db, fromSlug, toSlug, { by, now = Da
 		db
 			.prepare(
 				`INSERT INTO signup_fields (event_slug, label, kind, required, options, position, per_ticket,
-					ticket_types, short_label, created_at, updated_at, updated_by)
-				SELECT ?2, label, kind, required, options, position, per_ticket, ticket_types, short_label, ?3, ?3, ?4
+					ticket_types, short_label, settings, created_at, updated_at, updated_by)
+				SELECT ?2, label, kind, required, options, position, per_ticket, ticket_types, short_label,
+					settings, ?3, ?3, ?4
 				FROM signup_fields
 				WHERE event_slug = ?1 AND deleted_at IS NULL
 					AND NOT EXISTS (SELECT 1 FROM signup_fields WHERE event_slug = ?2)

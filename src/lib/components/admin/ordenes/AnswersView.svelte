@@ -3,10 +3,10 @@
 	 * Ventas › Órdenes, vista «Respuestas»: una tarjeta por pregunta de inscripción, en el orden
 	 * del formulario (cards de `questionCards`, $lib/admin/ordersView.js).
 	 *
-	 * - Opciones y casillas: barras con cuántas (👥 si se pregunta por entrada, 🧾 si por compra),
-	 *   con todas las opciones. Tocar una barra va a Compras filtrado por esa respuesta
-	 *   (`onFilter`).
-	 * - Texto: solo quienes escribieron algo, con su nombre (lleva a su compra, `onReveal`),
+	 * - Opciones, lista, varias opciones, casillas y puntaje: barras con cuántas (👥 si se pregunta
+	 *   por entrada, 🧾 si por compra), con todas las opciones. Tocar una barra va a Compras filtrado
+	 *   por esa respuesta (`onFilter`; en «Varias opciones», las que eligieron esa entre otras).
+	 * - Texto, número y fecha: solo quienes escribieron algo, con su nombre (lleva a su compra, `onReveal`),
 	 *   pronombres y «primera vez». «Copiar para el equipo» copia «Nombre (pronombres): respuesta»,
 	 *   una por línea, como texto común (sin permiso para el portapapeles, lo deja seleccionado).
 	 *

@@ -539,9 +539,10 @@ filtros son funciones puras en `src/lib/admin/ordersView.js` y las partes, compo
   filtros ni «Ordenar».
 - **Respuestas**: una tarjeta por pregunta de inscripción, en el orden del formulario
   (`fieldsForEvent`: las generales elegidas y después las del evento), con las compras aprobadas.
-  Las de opciones y casilla, con barras y todas sus opciones (las que nadie eligió, al final;
-  👥 si se pregunta por entrada, 🧾 si por compra): tocar una barra va a Compras filtrado por esa
-  respuesta, con un chip para sacarlo. Las de texto listan solo a quienes escribieron algo, con
+  Las de opciones, lista, varias opciones, casilla y puntaje, con barras y todas sus opciones (las
+  que nadie eligió, al final; el puntaje, del 1 al 5; 👥 si se pregunta por entrada, 🧾 si por
+  compra): tocar una barra va a Compras filtrado por esa respuesta (en «Varias opciones», las que
+  la eligieron entre otras), con un chip para sacarlo. Las de texto, número y fecha listan solo a quienes escribieron algo, con
   nombre (lleva a su compra), pronombres y «primera vez», y «Copiar para el equipo» copia
   «Nombre (pronombres): respuesta», una por línea. Las respuestas a preguntas que ya no están van
   al final, juntas por el texto con que se guardaron. Si la pregunta tiene un nombre corto, se usa
@@ -560,9 +561,11 @@ filtros son funciones puras en `src/lib/admin/ordersView.js` y las partes, compo
 «Editar» en cada tarjeta de Compras (solo admins, como todo Órdenes; plan `ordenes-editar`) abre
 en la misma tarjeta (`OrderEditor`) los datos de quien compró (nombre, pronombres, mail), de cada
 entrada (nombre y pronombres) y las respuestas a las preguntas que aplican a la compra, una vez o
-una por entrada. Las preguntas usan los mismos campos que la compra (`SignupFieldInputs`): cada
-tipo de pregunta se edita como se responde, y un tipo nuevo no necesita nada acá. Sirve en
-cualquier estado de la orden.
+una por entrada. Las preguntas usan los mismos campos que la compra (`SignupFieldInputs`, que
+dibuja `FormQuestions`): cada tipo de pregunta de inscripción se edita como se responde (en «Varias
+opciones», una casilla por opción, leídas con `getAll`), se valida con `validateAnswer` (la misma
+`validateAnswerValue` de la compra) y se guarda como en la compra, con `kind` en los tipos nuevos.
+Lo guardado vuelve al formulario con `answerFormValue`. Sirve en cualquier estado de la orden.
 
 - **Qué se valida** (A CONFIRMAR): solo lo que cambió, con las reglas de la compra (`checkName`,
   `checkPronouns`, `normalizeBuyerEmail` y `validateAnswer` por tipo). Un dato viejo que hoy no

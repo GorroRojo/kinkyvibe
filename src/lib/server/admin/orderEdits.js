@@ -11,8 +11,9 @@
  *   nunca se borra ni se cambia una fila vieja. Un cambio se deshace una sola vez (índice único).
  * - Solo se valida lo que cambió, con las mismas reglas que la compra (nombres y pronombres de
  *   $lib/utils/ticketBuyer.js, el mail con `normalizeBuyerEmail`, cada respuesta con
- *   `validateAnswer` según su tipo): un dato viejo que hoy no pasaría (una compra en la puerta sin
- *   pronombres, una pregunta obligatoria que se sumó después) no frena corregir otro.
+ *   `validateAnswer` según su tipo, todos los de las preguntas de inscripción): un dato viejo que
+ *   hoy no pasaría (una compra en la puerta sin pronombres, una pregunta obligatoria que se sumó
+ *   después) no frena corregir otro.
  * - No se manda ningún mail. Cambiar el mail no toca las entradas ni sus links (van por su token);
  *   los avisos que salgan después van a la dirección nueva.
  * - El registro de actividad (`order.edit`, `order.edit_undo`) dice qué se cambió, sin los
@@ -24,6 +25,7 @@ import { getOrderTickets, orderHolders } from '$lib/server/tickets/orders.js';
 import { orderAnswers } from '$lib/server/tickets/signupFields.js';
 import {
 	answerFormValue,
+	answerKindTag,
 	answerSlots,
 	answerTicketLabel,
 	fieldAppliesTo,
@@ -47,8 +49,11 @@ import {
  * Un dato cambiado. `key`: `buyer.name`, `buyer.pronouns`, `buyer.email`, `holder.<n>.name`,
  * `holder.<n>.pronouns` (n desde 0), `answer.<pregunta>` o `answer.<pregunta>.<entrada>` (desde
  * 1, como en `order_answers`). `label`: cómo se muestra en el historial. `question`: en una
- * respuesta, el texto de la pregunta (lo que se guarda con la respuesta). `''` es vacío.
- * @typedef {{ key: string, label: string, before: string, after: string, question?: string }} Change
+ * respuesta, el texto de la pregunta (lo que se guarda con la respuesta). `kind`: en una respuesta
+ * de los tipos nuevos, su tipo (se guarda con la respuesta, como en la compra, y el historial
+ * muestra un número o una fecha como se leen). `''` es vacío.
+ * @typedef {{ key: string, label: string, before: string, after: string, question?: string,
+ *   kind?: string }} Change
  */
 
 /**
@@ -68,7 +73,8 @@ import {
  * Lo que mandó el formulario de «Editar». `null`: ese campo no vino (no se cambia).
  * @typedef {{ name: string | null, pronouns: string | null, email: string | null,
  *   holders: { name: string | null, pronouns: string | null }[],
- *   answers: Record<string, string> }} EditInput
+ *   answers: Record<string, string | string[]> }} EditInput
+ *   `answers`: en «Varias opciones», la lista de las marcadas (como `readAnswers` de la compra).
  */
 
 /** Lo que dice cada dato de quien compró en el historial. */
@@ -114,11 +120,17 @@ export function readEditInput(form, quantity, fields) {
 		const v = form.get(name);
 		return typeof v === 'string' ? v.slice(0, max) : null;
 	};
-	/** @type {Record<string, string>} */
+	/** @type {Record<string, string | string[]>} */
 	const answers = {};
 	for (const f of fields) {
 		for (const slot of answerSlots(f, quantity)) {
 			const name = fieldInputName(f.id, slot);
+			if (f.kind === 'multi') {
+				// Una casilla por opción, todas con el mismo `name` (como `readAnswers` de la compra).
+				const all = form.getAll(name).filter((v) => typeof v === 'string');
+				if (all.length) answers[name] = all.slice(0, 50).map((v) => String(v).slice(0, 200));
+				continue;
+			}
 			const v = form.get(name);
 			if (typeof v === 'string') answers[name] = v.slice(0, 2000);
 		}
@@ -168,6 +180,20 @@ export function stateValue(state, key) {
 	if (kind === 'holder') return pick(state.holders[Number(a)], b);
 	const ak = answerKey(key);
 	return ak ? (findAnswer(state.answers, ak.id, ak.ticket)?.value ?? '') : '';
+}
+
+/**
+ * ¿Lo que mandó el formulario es lo que ya tenía el campo (`answerFormValue`)? En «Varias
+ * opciones» se comparan las elegidas, sin importar el orden; un campo que no vino es vacío.
+ * @param {string | string[] | undefined} sent
+ * @param {string | string[]} now
+ */
+function sameFormValue(sent, now) {
+	/** @param {string | string[] | undefined} v */
+	const list = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+	const a = list(sent);
+	const b = list(now);
+	return a.length === b.length && a.every((v) => b.includes(v));
 }
 
 /** ¿Dos valores de un dato son el mismo? (El mail, sin mayúsculas ni espacios.) */
@@ -263,7 +289,7 @@ export function diffEdit(state, input, fields, { typeId, quantity }) {
 			const ticket = slot === null ? undefined : slot + 1;
 			const stored = findAnswer(state.answers, f.id, ticket)?.value;
 			const raw = input.answers[name];
-			if ((raw ?? '') === answerFormValue(f, stored)) continue;
+			if (sameFormValue(raw, answerFormValue(f, stored))) continue;
 			const r = validateAnswer(f, raw);
 			if ('error' in r) {
 				errors[name] = r.error;
@@ -277,7 +303,8 @@ export function diffEdit(state, input, fields, { typeId, quantity }) {
 				label: ticket ? `${answerTicketLabel(ticket)}: ${shown}` : shown,
 				question: findAnswer(state.answers, f.id, ticket)?.label || f.label,
 				before: stored ?? '',
-				after
+				after,
+				...answerKindTag(f.kind)
 			});
 		}
 	}
@@ -367,13 +394,16 @@ function applyStatements(db, order, state, changes) {
 			if (!k) continue;
 			const found = findAnswer(answers, k.id, k.ticket);
 			if (!c.after) answers = answers.filter((a) => a !== found);
-			else if (found) found.value = c.after;
-			else
+			else if (found) {
+				found.value = c.after;
+				if (c.kind) found.kind = c.kind;
+			} else
 				answers.push({
 					id: k.id,
 					label: c.question || c.label,
 					value: c.after,
-					...(k.ticket ? { ticket: k.ticket } : {})
+					...(k.ticket ? { ticket: k.ticket } : {}),
+					...answerKindTag(c.kind)
 				});
 		}
 		out.push(
@@ -385,9 +415,14 @@ function applyStatements(db, order, state, changes) {
 				.bind(
 					order.id,
 					JSON.stringify(
-						answers.map(({ id, label, value, ticket }) =>
-							ticket ? { id, label, value, ticket } : { id, label, value }
-						)
+						// Como las guarda la compra: `ticket` y `kind` solo si hay.
+						answers.map(({ id, label, value, ticket, kind }) => ({
+							id,
+							label,
+							value,
+							...(ticket ? { ticket } : {}),
+							...answerKindTag(kind)
+						}))
 					),
 					order.created_at
 				)
@@ -531,7 +566,8 @@ export function parseChanges(json) {
 			label: String(c.label ?? c.key),
 			before: String(c.before ?? ''),
 			after: String(c.after ?? ''),
-			...(c.question ? { question: String(c.question) } : {})
+			...(c.question ? { question: String(c.question) } : {}),
+			...answerKindTag(c.kind)
 		}));
 }
 
