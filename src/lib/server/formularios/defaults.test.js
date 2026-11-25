@@ -132,6 +132,31 @@ describe('el mail con el link', () => {
 		expect(m.text).toContain(`Contestar la encuesta: ${base.url}`);
 	});
 
+	it('una sola entrada: el mail de siempre, con el botón', () => {
+		const plain = buildFormEmail({ ...base, survey: true });
+		const one = buildFormEmail({
+			...base,
+			survey: true,
+			tickets: [{ holder: 'Persona Demo', url: base.url }]
+		});
+		expect(one).toEqual(plain);
+		expect(plain.text).toContain('El link es solo tuyo');
+		expect(plain.html).toContain('Contestar la encuesta');
+	});
+
+	it('varias entradas: un link por entrada con su titular, sin el botón', () => {
+		const tickets = [
+			{ holder: 'Persona Uno', url: base.url },
+			{ holder: '', url: `${base.url.replace('#1.', '#1.2.')}` }
+		];
+		const m = buildFormEmail({ ...base, survey: true, tickets });
+		expect(m.text).toContain(`Entrada 1: Persona Uno\n${tickets[0].url}`);
+		expect(m.text).toContain(`Entrada 2\n${tickets[1].url}`);
+		expect(m.text).not.toContain('Contestar la encuesta');
+		expect(m.html).toContain(`href="${tickets[1].url}"`);
+		expect(m.html).not.toContain('Contestar la encuesta');
+	});
+
 	it('con textos propios: las variables se completan y el HTML no pasa', () => {
 		const m = buildFormEmail({
 			...base,

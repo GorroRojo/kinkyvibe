@@ -15,7 +15,14 @@ import { clearFlagCache } from '$lib/server/flags.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { clientOf } from '$lib/server/cuentas/web.js';
-import { createForm, getForm, saveForm, setFormOpen } from '$lib/server/formularios/store.js';
+import {
+	createForm,
+	getForm,
+	saveForm,
+	saveResponse,
+	setFormOpen
+} from '$lib/server/formularios/store.js';
+import { applyPayment, reserveOrder } from '$lib/server/tickets/orders.js';
 import { PHOTO_RATE_LIMIT } from '$lib/server/formularios/photos.js';
 import { solidPng } from '$lib/server/media/testing.js';
 import {
@@ -371,6 +378,83 @@ describe('la foto en el panel y en la API de Gancho', () => {
 		expect((await ganchoPhoto.GET(api(photo.value, { ...params, responseId: '999' }))).status).toBe(
 			404
 		);
+	});
+
+	it('la API: `ticket` dice de qué entrada de qué orden es la respuesta que llegó por un link', async () => {
+		const form = await openForm({ access: 'ticket', eventSlug: 'fiesta-de-prueba' });
+		const r = /** @type {any} */ (
+			await reserveOrder(t.db, {
+				eventSlug: 'fiesta-de-prueba',
+				type: { id: 'general', price: 8000, capacity: 10 },
+				quantity: 2,
+				holders: [
+					{ name: 'Titular Uno', pronouns: 'elle' },
+					{ name: 'Titular Dos', pronouns: 'ella' }
+				],
+				buyer: { name: 'Titular Uno', pronouns: 'elle', email: 'compra@example.com', dni: '1' }
+			})
+		);
+		const orderId = /** @type {string} */ (r.order.id);
+		await applyPayment(t.db, {
+			id: 1,
+			status: 'approved',
+			external_reference: orderId,
+			transaction_amount: 16000,
+			currency_id: 'ARS'
+		});
+		await t.db
+			.prepare(
+				"INSERT INTO form_sends (order_id, form_id, sent_at, status, attempts) VALUES (?1, ?2, 1, 'sent', 1)"
+			)
+			.bind(orderId, form.id)
+			.run();
+		const answers = [{ id: 'p1', label: 'Tu apodo', value: 'Demo' }];
+		const who = { email: 'compra@example.com', orderId };
+		await saveResponse(t.db, {
+			formId: form.id,
+			answers,
+			identity: { ...who, name: 'Titular Dos' },
+			invite: { orderId, ticket: 2 }
+		});
+		await saveResponse(t.db, {
+			formId: form.id,
+			answers,
+			identity: { ...who, name: 'Titular Uno' },
+			invite: { orderId }
+		});
+		// Una con nombre de antes de los links por entrada (con orden, sin número): la entrada 1.
+		await t.db
+			.prepare(
+				"INSERT INTO form_responses (form_id, answers, day, anonymous, name, order_id, created_at) VALUES (?1, '[]', '2099-01-01', 0, 'Titular Uno', ?2, 1)"
+			)
+			.bind(form.id, orderId)
+			.run();
+		// Sin link personal: `ticket` null.
+		await saveResponse(t.db, {
+			formId: form.id,
+			answers,
+			identity: { name: 'Persona Demo', email: 'demo@example.com' }
+		});
+		const res = await ganchoList.GET(
+			api(`/api/gancho/formularios/${form.slug}/respuestas`, { slug: form.slug })
+		);
+		const body = await res.json();
+		const ref = `KV-${orderId.slice(0, 8).toUpperCase()}`;
+		expect(body.responses.map((/** @type {any} */ x) => x.ticket)).toEqual([
+			{ order: ref, number: 2, holderName: 'Titular Dos' },
+			{ order: ref, number: 1, holderName: 'Titular Uno' },
+			{ order: ref, number: 1, holderName: 'Titular Uno' },
+			null
+		]);
+		expect(body.responses[0]).toMatchObject({ name: 'Titular Dos', email: 'compra@example.com' });
+		// Con la privacidad de hoy en «Anónimo», tampoco va la entrada.
+		await saveForm(t.db, form.id, { ...form, privacy: 'anonymous' }, { by: 'x' });
+		const hidden = await (
+			await ganchoList.GET(
+				api(`/api/gancho/formularios/${form.slug}/respuestas`, { slug: form.slug })
+			)
+		).json();
+		expect(hidden.responses.every((/** @type {any} */ x) => x.ticket === null)).toBe(true);
 	});
 
 	it('la API no sirve formularios sin «Foto»', async () => {

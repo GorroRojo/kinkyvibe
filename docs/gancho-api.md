@@ -67,6 +67,7 @@ Ejemplo (datos inventados):
 			"name": "Persona Demo",
 			"pronouns": "elle",
 			"email": "demo@example.com",
+			"ticket": null,
 			"answers": [
 				{ "id": "p1", "label": "¿Cómo te dicen?", "kind": "short", "value": "Demo" },
 				{
@@ -83,6 +84,14 @@ Ejemplo (datos inventados):
 ```
 
 - `id`: el id de la respuesta (número, estable).
+- `ticket`: de qué entrada es la respuesta, si llegó por el link personal de un formulario
+  «Quienes tenían entrada» (un link por entrada, [formularios.md](formularios.md#el-link-personal))
+  y quién respondió se ve: `{ "order": "KV-1A2B3C4D", "number": 2, "holderName": "Persona Demo" }`.
+  `order` es la referencia corta de la compra (la que ve quien compró), `number` el número de
+  entrada dentro de la compra (1, 2…; las de antes de los links por entrada son la 1) y
+  `holderName` el titular de hoy de esa entrada (`null` si la entrada ya no existe). En la entrada
+  1, `name` es el de quien compró; en las demás, el del titular; `email` es siempre el de la
+  compra. En cualquier otro caso, `null`.
 - `createdAt`: ISO 8601 en UTC, o `null` en una anónima (no se guarda la hora); `day`: el día en
   Argentina (`aaaa-mm-dd`), siempre.
 - `answers`: solo las preguntas respondidas, en el orden del formulario cuando se respondió. Cada

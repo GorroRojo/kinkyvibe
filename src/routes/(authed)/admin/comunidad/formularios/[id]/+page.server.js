@@ -1,7 +1,8 @@
 /**
  * Comunidad › Formularios › un formulario (docs/formularios.md): el editor (nombre, dirección,
  * quién responde, privacidad, quién ve las respuestas y las preguntas con el editor compartido),
- * abrirlo o cerrarlo y, en uno «quienes tenían entrada», mandar el link y su mail. Lo mismo para la
+ * abrirlo o cerrarlo y, en uno «quienes tenían entrada», mandar el link, su mail y los links por
+ * entrada (para copiar y pasar a mano). Lo mismo para la
  * encuesta de un evento y para las plantillas. Borrar (suave): vuelve desde Actividad. Solo admins
  * y con el interruptor `formularios`.
  */
@@ -17,6 +18,7 @@ import {
 import { delayText, getFormDefaults } from '$lib/server/formularios/defaults.js';
 import { mailTexts } from '$lib/server/formularios/email.js';
 import { mailAction, mailPreview } from '$lib/server/formularios/mailAdmin.js';
+import { inviteSigner, inviteUrl } from '$lib/server/formularios/invite.js';
 import { siteOrigin } from '$lib/server/tickets/index.js';
 import {
 	deleteForm,
@@ -24,20 +26,47 @@ import {
 	responseCount,
 	saveForm,
 	sendStats,
-	setFormOpen
+	setFormOpen,
+	ticketLinkRows
 } from '$lib/server/formularios/store.js';
 import { PRIVACY_LABELS, formPath } from '$lib/utils/formularios.js';
+import { orderReference } from '$lib/utils/tickets.js';
+
+/**
+ * Los links por entrada de las órdenes que ya recibieron el mail, armados con el origen de la página.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {import('$lib/server/formularios/store.js').Form} form
+ * @param {string} origin
+ */
+async function ticketLinks(db, form, origin) {
+	const rows = await ticketLinkRows(db, form.id);
+	if (!rows.length) return [];
+	const sign = await inviteSigner(db);
+	return Promise.all(
+		rows.map(async (r) => ({
+			key: `${r.orderId}.${r.ticket}`,
+			order: orderReference(r.orderId),
+			ticket: r.ticket,
+			holderName: r.holderName,
+			used: r.used,
+			url: inviteUrl(origin, form, await sign(form.id, r.orderId, r.ticket))
+		}))
+	);
+}
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
 	const { db } = await requireFormsAdmin(event);
 	event.setHeaders({ 'cache-control': 'private, no-store' });
 	const form = await formOr404(db, event.params.id);
-	const [responses, events, stats, defaults] = await Promise.all([
+	const invites = form.access === 'ticket' && form.kind !== 'template';
+	const [responses, events, stats, defaults, links] = await Promise.all([
 		responseCount(db, form.id),
 		ticketedEventChoices(),
-		form.access === 'ticket' && form.kind !== 'template' ? sendStats(db, form.id) : null,
-		getFormDefaults(db)
+		invites ? sendStats(db, form.id) : null,
+		getFormDefaults(db),
+		invites ? ticketLinks(db, form, event.url.origin) : null
 	]);
 	// El mail con el link personal: en la encuesta y en los «quienes tenían entrada».
 	const mails = form.kind === 'survey' || (form.kind === 'form' && form.access === 'ticket');
@@ -48,6 +77,7 @@ export async function load(event) {
 		responses,
 		events,
 		stats,
+		ticketLinks: links,
 		delayText: delayText(defaults.surveyDelayDays),
 		mail: mails
 			? {
