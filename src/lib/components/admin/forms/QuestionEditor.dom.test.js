@@ -75,7 +75,8 @@ describe('QuestionEditor', () => {
 			'checkbox',
 			'rating',
 			'number',
-			'date'
+			'date',
+			'photo'
 		]);
 		await fireEvent.change(kind, { target: { value: 'number' } });
 		await fireEvent.input(r.getByLabelText('Mínimo (opcional)'), { target: { value: '1' } });

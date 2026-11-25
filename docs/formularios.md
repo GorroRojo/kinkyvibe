@@ -303,7 +303,7 @@ npx vitest run src/lib/utils/formularios.test.js src/lib/admin/questionEditor.te
 ```
 
 La foto (subida, R2, metadatos, tope, panel y API de Gancho):
-`npx vitest run "src/routes/(content)/formularios/formularios-foto.test.js"`.
+`npx vitest run "src/routes/(content)/formularios/formularios-foto.test.js"`. E2E (editor → página pública → miniatura del panel; corre en la tanda nocturna de entradas): `npx playwright test -c playwright.tickets.config.js formularios-foto` (con `FOTO_SHOTS_DIR=<carpeta>` guarda capturas).
 
 A mano: `FORMULARIOS_ENABLED=1 npm run dev:admin`, Comunidad › Formularios.
 
