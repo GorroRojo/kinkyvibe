@@ -6,7 +6,7 @@
  * - Se cambia en el lugar de siempre (`orders`, `tickets` o, si todavía no se emitieron, el JSON
  *   `orders.holders`, y `order_answers`), así todo lo que ya lee esos datos (las dos vistas de
  *   Órdenes, el CSV, la puerta, la ficha de la persona) ve lo corregido sin tocar nada más.
- * - Cada guardado deja una fila en `order_edits` (migración 0084) con lo que había y lo que quedó,
+ * - Cada guardado deja una fila en `order_edits` (migración 0085) con lo que había y lo que quedó,
  *   en la MISMA tanda que el cambio. «Deshacer» vuelve a lo que había y deja otra fila (`undoes`):
  *   nunca se borra ni se cambia una fila vieja. Un cambio se deshace una sola vez (índice único).
  * - Solo se valida lo que cambió, con las mismas reglas que la compra (nombres y pronombres de

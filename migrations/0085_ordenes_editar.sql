@@ -1,4 +1,4 @@
--- Migration number: 0084 	 «Editar» una compra en Ventas › Órdenes (docs/tickets.md, «Editar una
+-- Migration number: 0085 	 «Editar» una compra en Ventas › Órdenes (docs/tickets.md, «Editar una
 -- compra»). Cada vez que une admin corrige los datos de una compra (quien compró, cada entrada o
 -- las respuestas) queda una fila acá con lo que había y lo que quedó; «Deshacer» agrega otra fila
 -- (con `undoes`), nunca borra ni cambia una vieja.

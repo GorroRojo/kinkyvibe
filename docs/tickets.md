@@ -579,7 +579,7 @@ cualquier estado de la orden.
   la transmisión) van a la dirección nueva. El código combo que salió de la compra sigue al mail.
   La compra aparece en Mi rincón de la cuenta con el mail nuevo (y sigue en la de antes si estaba
   atada a esa cuenta).
-- **Historial** (tabla `order_edits`, migración 0084): cada guardado deja una fila con quién,
+- **Historial** (tabla `order_edits`, migración 0085): cada guardado deja una fila con quién,
   cuándo y cada dato con lo que había y lo que quedó (`orderEdits.js`). La tarjeta dice «Editado
   por X el dd/mm» y, al tocarlo, la lista (`OrderHistory`). Va en una tabla propia y no en
   Actividad porque guarda datos de quien compró; Actividad anota `order.edit` y
