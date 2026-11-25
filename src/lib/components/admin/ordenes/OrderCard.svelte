@@ -9,7 +9,9 @@
 	 * estado: «Llegó la transferencia ✓» (la que toca ahora, resaltada) y «Cancelar» en una
 	 * transferencia por confirmar; «Reenviar mail» en una aprobada; «Deshacer rechazo» en una
 	 * transferencia cancelada por une admin; la casilla «Facturada» si la compra se factura; y en
-	 * «Más» lo raro: corregir el mail y reembolsar (con su paso de confirmación).
+	 * «Más» lo raro: corregir el mail y reembolsar (con su paso de confirmación). En todas,
+	 * «Editar» (OrderEditor: quien compró, cada entrada y las respuestas) y, si se editó, «Editado
+	 * por X el dd/mm» con el historial y «Deshacer» (OrderHistory).
 	 *
 	 * Props: `o` (la orden), `fields` (las preguntas, para las respuestas), `form` (el de la página),
 	 * `result` (lo que pasó al confirmar o cancelar, se muestra en la tarjeta), `busy`, `linked`
@@ -23,6 +25,8 @@
 	import ReopenTransferButton from '$lib/components/admin/panel/ReopenTransferButton.svelte';
 	import HolderRow from './HolderRow.svelte';
 	import AnswerList from './AnswerList.svelte';
+	import OrderEditor from './OrderEditor.svelte';
+	import OrderHistory from './OrderHistory.svelte';
 	import { announceResult } from '$lib/admin/announce.js';
 	import {
 		EMAIL_PROBLEM,
@@ -63,6 +67,10 @@
 	$: confirming = o.transferPending && !result?.ok;
 	// Sin JavaScript, «Corregir el mail» con error vuelve abierto.
 	$: emailFixFailed = form?.emailFix?.order === o.id && !form.emailFix.ok;
+	// «Editar»: lo que pasó al guardar o deshacer en esta orden; con error, el editor queda abierto.
+	$: edited = form?.orderEdit?.order === o.id ? form.orderEdit : null;
+	let editing = false;
+	$: if (edited && !edited.ok && edited.errors && Object.keys(edited.errors).length) editing = true;
 
 	/**
 	 * `use:enhance` que, al volver, lee en voz alta el mensaje de la acción (`form[key].message`).
@@ -162,8 +170,12 @@
 				: ' (desde Mercado Pago)'}
 		{/if}
 	</div>
+	<OrderHistory orderId={o.id} edits={o.edits ?? []} />
 	{#if result}
 		<p class="kv-flash row-flash" class:bad={!result.ok} role="status">{result.message}</p>
+	{/if}
+	{#if edited}
+		<p class="kv-flash row-flash" class:bad={!edited.ok} role="status">{edited.message}</p>
 	{/if}
 	<div class="actions">
 		{#if confirming}
@@ -191,6 +203,12 @@
 			<!-- Ya se facturó esta compra (solo admins). -->
 			<InvoicedCheck orderId={o.id} bind:invoicedAt={o.invoicedAt} bind:invoicedBy={o.invoicedBy} />
 		{/if}
+		<details class="more edit" bind:open={editing}>
+			<summary class="kv-btn ghost small">Editar</summary>
+			{#if editing}
+				<OrderEditor {o} {fields} {form} onDone={() => (editing = false)} />
+			{/if}
+		</details>
 		{#if o.status === 'approved'}
 			<details class="more" open={emailFixFailed}>
 				<summary class="kv-btn ghost small">Más</summary>

@@ -19,6 +19,8 @@ import { confirmLimits, reopenTransferFromPanel } from '$lib/server/admin/transf
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
 import { invoicedFromPanel } from '$lib/server/admin/invoiced.js';
+import { readEditInput, saveOrderEdit, undoOrderEdit } from '$lib/server/admin/orderEdits.js';
+import { fieldsForEvent } from '$lib/server/tickets/signupFields.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 import {
 	cancelTransfer,
@@ -851,6 +853,81 @@ export const eventTicketActions = {
 			}
 		};
 		return r.ok ? body : fail(r.status, body);
+	},
+
+	// «Editar» una compra (orderEdits.js): quien compró, cada entrada y las respuestas. Cualquier
+	// estado. Guarda el historial, no manda ningún mail y queda en Actividad sin los valores.
+	edit: async ({ locals, url, params, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { orderEdit: { ok: false, message: 'Sin base de datos.' } });
+		const form = await request.formData();
+		const orderId = String(form.get('order') ?? '').slice(0, 64);
+		const order = await getOrder(db, orderId);
+		if (!order || order.event_slug !== params.slug) {
+			return fail(400, {
+				orderEdit: { ok: false, order: orderId, message: 'No encontramos esa orden.' }
+			});
+		}
+		const fields = await fieldsForEvent(db, params.slug);
+		const r = await saveOrderEdit(db, {
+			order,
+			input: readEditInput(form, order.quantity, fields),
+			fields,
+			since: Number(form.get('since') ?? 0) || 0,
+			by: admin.login
+		});
+		const ref = orderReference(order.id);
+		if (!r.ok) {
+			return fail(r.status, {
+				orderEdit: { ok: false, order: order.id, message: r.message, errors: r.errors ?? {} }
+			});
+		}
+		if (r.id) {
+			await logAdminAction(db, locals, {
+				action: 'order.edit',
+				targetType: 'order',
+				targetId: order.id,
+				summary: `Editó ${ref}: ${r.changes.map((c) => c.label).join(', ')}`,
+				detail: { event: params.slug, edit: r.id, keys: r.changes.map((c) => c.key) }
+			});
+		}
+		return {
+			orderEdit: {
+				ok: true,
+				order: order.id,
+				message: r.id ? `Guardamos los cambios de ${ref}.` : 'No había nada para cambiar.'
+			}
+		};
+	},
+
+	// «Deshacer» un cambio de «Editar»: vuelve a lo que había y queda como otro cambio.
+	undoEdit: async ({ locals, url, params, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { orderEdit: { ok: false, message: 'Sin base de datos.' } });
+		const form = await request.formData();
+		const orderId = String(form.get('order') ?? '').slice(0, 64);
+		const order = await getOrder(db, orderId);
+		if (!order || order.event_slug !== params.slug) {
+			return fail(400, {
+				orderEdit: { ok: false, order: orderId, message: 'No encontramos esa orden.' }
+			});
+		}
+		const editId = Number(form.get('edit'));
+		const r = await undoOrderEdit(db, { order, editId, by: admin.login });
+		if (!r.ok) {
+			return fail(r.status, { orderEdit: { ok: false, order: order.id, message: r.message } });
+		}
+		const ref = orderReference(order.id);
+		await logAdminAction(db, locals, {
+			action: 'order.edit_undo',
+			targetType: 'order',
+			targetId: order.id,
+			summary: `Deshizo un cambio de ${ref}: ${r.changes.map((c) => c.label).join(', ')}`,
+			detail: { event: params.slug, edit: r.id, undoes: editId, keys: r.changes.map((c) => c.key) }
+		});
+		return { orderEdit: { ok: true, order: order.id, message: `Deshicimos el cambio de ${ref}.` } };
 	}
 };
 

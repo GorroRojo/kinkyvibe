@@ -9,6 +9,7 @@ import {
 	matchesStatus,
 	matchesToggle,
 	orderAnswerGroups,
+	orderEditForm,
 	orderSearchText,
 	questionCards,
 	statusFilterOf,
@@ -310,5 +311,62 @@ describe('Respuestas: una tarjeta por pregunta', () => {
 		expect(isLongAnswer('Sí')).toBe(false);
 		expect(isLongAnswer('a\nb')).toBe(true);
 		expect(isLongAnswer('x'.repeat(61))).toBe(true);
+	});
+});
+
+describe('orderEditForm («Editar»)', () => {
+	const fields = [
+		{ id: 1, label: 'Alergias', kind: /** @type {const} */ ('text'), options: [] },
+		{
+			id: 2,
+			label: 'Comida',
+			kind: /** @type {const} */ ('choice'),
+			options: ['Vegana', 'Carnívora'],
+			perTicket: true,
+			required: true
+		},
+		{ id: 3, label: 'Reglas', kind: /** @type {const} */ ('checkbox'), options: [] },
+		{
+			id: 4,
+			label: 'Solo VIP',
+			kind: /** @type {const} */ ('text'),
+			options: [],
+			ticketTypes: ['vip']
+		}
+	];
+	const o = {
+		name: 'Ana',
+		pronouns: 'ella',
+		email: 'ana@example.com',
+		quantity: 2,
+		typeId: 'general',
+		holders: [
+			{ name: 'Ana', pronouns: 'ella' },
+			{ name: 'Bruno', pronouns: '' }
+		],
+		answers: [
+			{ id: 2, label: 'Comida', value: 'Vegana', ticket: 2 },
+			{ id: 3, label: 'Reglas', value: 'Sí' }
+		]
+	};
+
+	it('arranca con lo guardado, con los mismos campos que la compra', () => {
+		const { values, orderFields, ticketFields } = orderEditForm(o, fields);
+		expect(values).toEqual({
+			name: 'Ana',
+			pronouns: 'ella',
+			email: 'ana@example.com',
+			holder_name_0: 'Ana',
+			holder_pronouns_0: 'ella',
+			holder_name_1: 'Bruno',
+			holder_pronouns_1: '',
+			campo_1: '',
+			campo_2_0: '',
+			campo_2_1: 'Vegana',
+			campo_3: 'on'
+		});
+		// Solo las que aplican al tipo de entrada de la compra.
+		expect(orderFields.map((f) => f.id)).toEqual([1, 3]);
+		expect(ticketFields.map((f) => [f.id, f.required])).toEqual([[2, true]]);
 	});
 });

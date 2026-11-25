@@ -286,7 +286,7 @@ export function validateAnswers(fields, raw, { typeId, quantity = 1 } = {}) {
 	for (const f of asked) {
 		for (const slot of answerSlots(f, quantity)) {
 			const name = fieldInputName(f.id, slot);
-			const r = validateOne(f, raw?.[name]);
+			const r = validateAnswer(f, raw?.[name]);
 			if ('error' in r && r.error) errors[name] = r.error;
 			else if ('value' in r && r.value !== null) {
 				answers.push({
@@ -302,12 +302,13 @@ export function validateAnswers(fields, raw, { typeId, quantity = 1 } = {}) {
 }
 
 /**
- * Una respuesta: `{ value }` (o `null` si quedó vacía y es opcional) o `{ error }`.
+ * Una respuesta: `{ value }` (o `null` si quedó vacía y es opcional) o `{ error }`. La usan la
+ * compra (por {@link validateAnswers}) y «Editar» de Órdenes, de a una.
  * @param {SignupField} f
- * @param {unknown} value
+ * @param {unknown} value lo que mandó el formulario para ese campo
  * @returns {{ value: string | null } | { error: string }}
  */
-function validateOne(f, value) {
+export function validateAnswer(f, value) {
 	if (f.kind === 'checkbox') {
 		const checked = value === 'on' || value === '1' || value === true;
 		if (f.required && !checked) return { error: 'Marcá esta casilla para seguir.' };
@@ -323,6 +324,18 @@ function validateOne(f, value) {
 	if (!text) return f.required ? { error: 'Completá esta respuesta.' } : { value: null };
 	if (text.length > ANSWER_MAX) return { error: `Hasta ${ANSWER_MAX} letras.` };
 	return { value: text };
+}
+
+/**
+ * Lo que va en el campo del formulario para una respuesta guardada (lo contrario de
+ * {@link validateAnswer}): la casilla marcada es `on`; lo demás, el texto guardado. «Editar» de
+ * Órdenes arranca el formulario con esto y lo usa para saber qué cambió.
+ * @param {Pick<SignupField, 'kind'>} f
+ * @param {string | undefined} stored
+ */
+export function answerFormValue(f, stored) {
+	if (f.kind === 'checkbox') return stored === CHECKBOX_YES ? 'on' : '';
+	return stored ?? '';
 }
 
 /**

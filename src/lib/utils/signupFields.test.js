@@ -16,6 +16,8 @@ import {
 	parseTicketTypes,
 	scopeText,
 	validateAnswers,
+	validateAnswer,
+	answerFormValue,
 	SHORT_LABEL_MAX,
 	validateFieldDef,
 	validateFieldScope
@@ -300,5 +302,34 @@ describe('alcance: a qué entradas aplica y cuántas veces se pregunta', () => {
 		);
 		expect(csv['se pregunta']).toBe('una vez por entrada');
 		expect(csv['tipos de entrada']).toBe('general');
+	});
+});
+
+describe('answerFormValue y validateAnswer («Editar» de Órdenes)', () => {
+	const check = {
+		id: 1,
+		label: 'Reglas',
+		kind: /** @type {const} */ ('checkbox'),
+		required: true,
+		options: []
+	};
+	const choice = {
+		id: 2,
+		label: 'Comida',
+		kind: /** @type {const} */ ('choice'),
+		required: false,
+		options: ['Vegana']
+	};
+
+	it('lo guardado vuelve al formulario como lo manda la compra, y validarlo da lo mismo', () => {
+		expect(answerFormValue(check, CHECKBOX_YES)).toBe('on');
+		expect(answerFormValue(check, undefined)).toBe('');
+		expect(answerFormValue(choice, 'Vegana')).toBe('Vegana');
+		expect(validateAnswer(check, answerFormValue(check, CHECKBOX_YES))).toEqual({
+			value: CHECKBOX_YES
+		});
+		expect(validateAnswer(choice, answerFormValue(choice, 'Vegana'))).toEqual({ value: 'Vegana' });
+		expect(validateAnswer(choice, 'Otra')).toEqual({ error: 'Elegí una de las opciones.' });
+		expect(validateAnswer(check, undefined)).toEqual({ error: 'Marcá esta casilla para seguir.' });
 	});
 });
