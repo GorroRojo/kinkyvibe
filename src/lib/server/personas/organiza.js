@@ -119,11 +119,15 @@ export async function requireOrganizer(event) {
  * tienen respuestas viejas) y una fila por orden confirmada con respuestas, con el nombre de
  * quien compró. Sin mail, teléfono ni DNI.
  *
+ * Con `show` (la página), cada respuesta como se lee (un número con coma, una fecha
+ * `dd/mm/aaaa`); sin él (el CSV), lo guardado.
+ *
  * @param {D1Database} db
  * @param {string} eventSlug
+ * @param {{ show?: boolean }} [opts]
  * @returns {Promise<{ columns: { id: number, label: string }[], rows: { name: string, values: string[] }[] }>}
  */
-export async function organizerAnswers(db, eventSlug) {
+export async function organizerAnswers(db, eventSlug, { show = false } = {}) {
 	const [{ results }, fields] = await Promise.all([
 		db
 			.prepare(
@@ -147,7 +151,7 @@ export async function organizerAnswers(db, eventSlug) {
 		columns,
 		rows: lists.map((l) => ({
 			name: l.name,
-			values: columns.map((c) => answerFor(l.answers, c.id))
+			values: columns.map((c) => answerFor(l.answers, c.id, { show }))
 		}))
 	};
 }

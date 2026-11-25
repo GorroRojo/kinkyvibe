@@ -56,6 +56,7 @@ import { orderAnswers } from '$lib/server/tickets/signupFields.js';
 import { orderPaid } from '$lib/utils/extras.js';
 import { orderMpFee } from '$lib/utils/salesGoal.js';
 import { answerTicketLabel } from '$lib/utils/signupFields.js';
+import { showAnswer } from '$lib/utils/questions.js';
 import { fondoOptionLabel } from '$lib/utils/tickets.js';
 import { PAYMENT_METHOD } from '$lib/admin/orderFormat.js';
 import { argDateLog } from '$lib/utils/dates.js';
@@ -265,7 +266,13 @@ export function saleDetail(order, type, { extras = [], answers = [] } = {}) {
 		surcharge: mp ? Number(order.surcharge_amount) || 0 : 0,
 		mpFee: orderMpFee(order),
 		mpFeeEstimated: fee && (order.mp_fee_amount === null || order.mp_fee_amount === undefined),
-		answers: answers.map((a) => ({ id: a.id, label: a.label, value: a.value, ticket: a.ticket }))
+		// Cada respuesta como se lee (un número con coma, una fecha dd/mm/aaaa).
+		answers: answers.map((a) => ({
+			id: a.id,
+			label: a.label,
+			value: showAnswer(a.kind, a.value),
+			ticket: a.ticket
+		}))
 	};
 }
 

@@ -3,125 +3,54 @@
  * servidor (guardar un formulario, validar una respuesta), la página pública, el editor compartido
  * de preguntas (también el de las preguntas de inscripción) y la página de respuestas del panel.
  *
- * Un formulario tiene una lista de preguntas en su orden. Los tipos son los de las preguntas de
- * inscripción (texto, opciones, casilla: src/lib/utils/signupFields.js) más los que son solo de
- * los formularios: «Texto corto», «Número», «Fecha», «Varias opciones», «Lista desplegable» y
- * «Puntaje de 1 a 5». Cada respuesta guarda la pregunta como estaba (`{ id, label, value }`), como
- * las de inscripción; la de «Varias opciones» es un solo texto con las elegidas en el orden de la
- * lista, separadas por « | » (`MULTI_SEPARATOR`); la de un número, el número con punto decimal; la
- * de una fecha, `aaaa-mm-dd`; la de una «Foto», la clave privada del archivo en R2
- * (`formularios/<formulario>/<sha-256>.<ext>`, {@link isPhotoKey}), nunca los bytes ni una
- * dirección pública.
+ * Un formulario tiene una lista de preguntas en su orden. Los tipos, sus nombres y cómo se valida
+ * cada pregunta y cada respuesta son los mismos que los de las preguntas de inscripción
+ * (src/lib/utils/questions.js, en común); lo único que es solo de los formularios es «Foto». Cada
+ * respuesta guarda la pregunta como estaba (`{ id, label, value }`), como las de inscripción; la de
+ * una «Foto», la clave privada del archivo en R2 (`formularios/<formulario>/<sha-256>.<ext>`,
+ * {@link isPhotoKey}), nunca los bytes ni una dirección pública.
  */
 import { slugify } from './text.js';
 import {
+	DEFAULT_HIGH,
+	DEFAULT_LOW,
+	QUESTION_KINDS,
+	isQuestionKind,
+	longText,
+	oneLine,
+	parseQuestionSettings,
+	tallyOptions,
+	validateAnswerValue,
+	validateQuestion
+} from './questions.js';
+
+export {
 	CHECKBOX_YES,
-	FIELD_KIND_LABELS,
+	DEFAULT_HIGH,
+	DEFAULT_LOW,
+	HELP_MAX,
 	LABEL_MAX,
-	LABEL_MIN,
+	MAX_MULTI_OPTIONS,
 	MAX_OPTIONS,
+	MULTI_SEPARATOR,
+	NUMBER_ABS_MAX,
 	OPTION_MAX,
-	parseOptions
-} from './signupFields.js';
-
-export { CHECKBOX_YES, LABEL_MAX, MAX_OPTIONS, OPTION_MAX };
-
-export const QUESTION_KINDS = /** @type {const} */ ([
-	'text',
-	'short',
-	'choice',
-	'multi',
-	'select',
-	'checkbox',
-	'rating',
-	'number',
-	'date',
-	'photo'
-]);
-/** @typedef {typeof QUESTION_KINDS[number]} QuestionKind */
-
-/** Nombres para el panel (los tres de inscripción y los que son solo de los formularios). */
-export const QUESTION_KIND_LABELS = Object.freeze({
-	text: FIELD_KIND_LABELS.text,
-	short: 'Texto corto',
-	choice: FIELD_KIND_LABELS.choice,
-	multi: 'Varias opciones (elegir las que quieras)',
-	select: 'Lista desplegable',
-	checkbox: FIELD_KIND_LABELS.checkbox,
-	rating: 'Puntaje de 1 a 5',
-	number: 'Número',
-	date: 'Fecha',
-	photo: 'Foto'
-});
-
-/**
- * Opciones de una pregunta de «Varias opciones» o «Lista desplegable» (las de «Opciones», hasta
- * `MAX_OPTIONS`).
- */
-export const MAX_MULTI_OPTIONS = 40;
-/**
- * Lo que separa las opciones elegidas en la respuesta guardada de «Varias opciones». Por eso
- * ninguna opción de esas preguntas puede tener «|»: así la respuesta se lee sin dudas.
- */
-export const MULTI_SEPARATOR = ' | ';
-
-/** ¿El tipo lleva una lista de opciones? @param {unknown} kind */
-export const hasOptions = (kind) => kind === 'choice' || kind === 'multi' || kind === 'select';
-
-/** Cuántas opciones acepta el tipo. @param {unknown} kind */
-export const maxOptionsFor = (kind) =>
-	kind === 'multi' || kind === 'select' ? MAX_MULTI_OPTIONS : MAX_OPTIONS;
-
-/** El mayor número (en valor absoluto) de una respuesta o un límite de «Número». */
-export const NUMBER_ABS_MAX = 1e12;
-
-/**
- * Un número escrito (acepta coma decimal): el número, `null` si está vacío o `NaN` si no es un
- * número válido.
- * @param {unknown} raw
- */
-export function parseNumber(raw) {
-	const v = oneLine(typeof raw === 'number' ? String(raw) : raw).replace(',', '.');
-	if (!v) return null;
-	if (!/^-?(\d+\.?\d*|\.\d+)$/.test(v)) return NaN;
-	const n = Number(v);
-	return Number.isFinite(n) && Math.abs(n) <= NUMBER_ABS_MAX ? n : NaN;
-}
-
-/** Un número como lo lee una persona (coma decimal). @param {number} n */
-export const showNumber = (n) => String(n).replace('.', ',');
-
-/**
- * Una respuesta guardada como se lee en el panel: un número con coma decimal, una fecha
- * `dd/mm/aaaa`; lo demás, igual. El CSV lleva lo guardado.
- * @param {string | undefined} kind @param {string} value
- */
-export function showAnswer(kind, value) {
-	if (kind === 'photo') return 'Foto';
-	if (kind === 'number' && /^-?[\d.e+-]+$/.test(value)) return value.replace('.', ',');
-	if (kind === 'date' && isIsoDate(value)) return value.split('-').reverse().join('/');
-	return value;
-}
-
-/**
- * ¿Es una fecha `aaaa-mm-dd` que existe (lo que manda `<input type="date">`)?
- * @param {string} v
- */
-export function isIsoDate(v) {
-	if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
-	const [y, m, d] = v.split('-').map(Number);
-	const t = new Date(Date.UTC(y, m - 1, d));
-	return y >= 1000 && t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
-}
-
-/**
- * Las opciones elegidas en una respuesta de «Varias opciones» (lo guardado).
- * @param {unknown} value
- * @returns {string[]}
- */
-export function splitMulti(value) {
-	return typeof value === 'string' && value ? value.split(MULTI_SEPARATOR) : [];
-}
+	QUESTION_KINDS,
+	QUESTION_KIND_LABELS,
+	SCALE_LABEL_MAX,
+	hasOptions,
+	isIsoDate,
+	isQuestionKind,
+	longText,
+	maxOptionsFor,
+	oneLine,
+	parseNumber,
+	showAnswer,
+	showNumber,
+	splitMulti,
+	validateQuestion
+} from './questions.js';
+/** @typedef {import('./questions.js').QuestionKind} QuestionKind */
 
 /**
  * «Foto»: la imagen va a R2 bajo {@link PHOTO_PREFIX}, que NO es la biblioteca pública (`img/`,
@@ -151,9 +80,6 @@ export const photoFile = (key) => key.slice(key.lastIndexOf('/') + 1);
 export const MAX_QUESTIONS = 30;
 /** Largo de una respuesta de texto. */
 export const FORM_ANSWER_MAX = 1000;
-/** Largo de la ayuda de una pregunta y de los extremos del puntaje. */
-export const HELP_MAX = 200;
-export const SCALE_LABEL_MAX = 30;
 export const TITLE_MAX = 120;
 export const INTRO_MAX = 1000;
 export const SLUG_MAX = 80;
@@ -202,10 +128,6 @@ export const AUDIENCE_LABELS = Object.freeze({
 	admins: 'Solo admins'
 });
 
-/** Extremos del puntaje si no se escriben otros. */
-export const DEFAULT_LOW = 'Mal';
-export const DEFAULT_HIGH = 'Re bien';
-
 /**
  * @typedef {{
  *   id: string,
@@ -222,49 +144,12 @@ export const DEFAULT_HIGH = 'Re bien';
  * @typedef {{ id: string, label: string, value: string }} FormAnswer
  */
 
-/** @param {unknown} kind @returns {kind is QuestionKind} */
-export function isQuestionKind(kind) {
-	return /** @type {readonly unknown[]} */ (QUESTION_KINDS).includes(kind);
-}
 /** @param {unknown} v @returns {v is Access} */
 export const isAccess = (v) => /** @type {readonly unknown[]} */ (ACCESS).includes(v);
 /** @param {unknown} v @returns {v is Privacy} */
 export const isPrivacy = (v) => /** @type {readonly unknown[]} */ (PRIVACY).includes(v);
 /** @param {unknown} v @returns {v is Audience} */
 export const isAudience = (v) => /** @type {readonly unknown[]} */ (AUDIENCE).includes(v);
-
-/**
- * Texto de una línea: sin caracteres de control ni espacios de más.
- * @param {unknown} raw
- */
-export function oneLine(raw) {
-	return typeof raw === 'string'
-		? raw
-				.normalize('NFC')
-				// eslint-disable-next-line no-control-regex -- sacar caracteres de control es la idea
-				.replace(/[\u0000-\u001f\u007f]+/g, ' ')
-				.replace(/\s+/g, ' ')
-				.trim()
-		: '';
-}
-
-/**
- * Texto largo: deja los saltos de línea (hasta dos seguidos).
- * @param {unknown} raw
- */
-export function longText(raw) {
-	if (typeof raw !== 'string') return '';
-	return (
-		raw
-			.normalize('NFC')
-			.replace(/\r\n?/g, '\n')
-			// eslint-disable-next-line no-control-regex -- sacar caracteres de control es la idea
-			.replace(/[\u0000-\u0009\u000b-\u001f\u007f]+/g, ' ')
-			.replace(/[ \t]+/g, ' ')
-			.replace(/\n{3,}/g, '\n\n')
-			.trim()
-	);
-}
 
 const QUESTION_ID = /^[a-z0-9]{1,12}$/;
 
@@ -277,60 +162,6 @@ export function newQuestionId(taken) {
 	let n = used.size + 1;
 	while (used.has(`p${n}`)) n++;
 	return `p${n}`;
-}
-
-/**
- * Valida una pregunta que arma le admin. `kinds`: los tipos que se aceptan (las preguntas de
- * inscripción no tienen puntaje).
- *
- * @param {Record<string, unknown>} raw
- * @param {readonly string[]} [kinds]
- * @returns {{ ok: true, question: Omit<Question, 'id'> } | { ok: false, errors: Record<string, string> }}
- */
-export function validateQuestion(raw, kinds = QUESTION_KINDS) {
-	/** @type {Record<string, string>} */
-	const errors = {};
-	const label = oneLine(raw?.label);
-	if (label.length < LABEL_MIN || label.length > LABEL_MAX) {
-		errors.label = `Escribí la pregunta (entre ${LABEL_MIN} y ${LABEL_MAX} letras).`;
-	}
-	const kind = raw?.kind;
-	if (!isQuestionKind(kind) || !kinds.includes(kind)) errors.kind = 'Elegí el tipo de pregunta.';
-	/** @type {string[]} */
-	let options = [];
-	if (hasOptions(kind)) {
-		options = parseOptions(raw?.options);
-		const max = maxOptionsFor(kind);
-		if (options.length < 2) errors.options = 'Poné al menos dos opciones.';
-		else if (options.length > max) errors.options = `Hasta ${max} opciones.`;
-		else if (options.some((o) => o.length > OPTION_MAX))
-			errors.options = `Cada opción, hasta ${OPTION_MAX} letras.`;
-		else if (kind === 'multi' && options.some((o) => o.includes('|')))
-			errors.options = 'Las opciones no pueden tener «|» (separa las elegidas en las respuestas).';
-	}
-	const help = oneLine(raw?.help);
-	if (help.length > HELP_MAX) errors.help = `La ayuda, hasta ${HELP_MAX} letras.`;
-	const low = oneLine(raw?.low);
-	const high = oneLine(raw?.high);
-	if (low.length > SCALE_LABEL_MAX || high.length > SCALE_LABEL_MAX)
-		errors.scale = `Cada extremo, hasta ${SCALE_LABEL_MAX} letras.`;
-	const min = kind === 'number' ? parseNumber(raw?.min) : null;
-	const max = kind === 'number' ? parseNumber(raw?.max) : null;
-	if (Number.isNaN(min) || Number.isNaN(max)) errors.range = 'El mínimo y el máximo, números.';
-	else if (min !== null && max !== null && min > max)
-		errors.range = 'El mínimo no puede ser más que el máximo.';
-	if (Object.keys(errors).length || !isQuestionKind(kind)) return { ok: false, errors };
-	const required = raw?.required === true || raw?.required === 'on' || raw?.required === '1';
-	/** @type {Omit<Question, 'id'>} */
-	const question = { kind, label, required, options };
-	if (help) question.help = help;
-	if (kind === 'rating') {
-		question.low = low || DEFAULT_LOW;
-		question.high = high || DEFAULT_HIGH;
-	}
-	if (min !== null) question.min = min;
-	if (max !== null) question.max = max;
-	return { ok: true, question };
 }
 
 /**
@@ -415,15 +246,7 @@ export function parseStoredQuestions(json) {
 			required: q.required === true,
 			options: Array.isArray(q.options) ? q.options.map(String) : []
 		};
-		if (typeof q.help === 'string' && q.help) item.help = q.help;
-		if (q.kind === 'rating') {
-			item.low = typeof q.low === 'string' && q.low ? q.low : DEFAULT_LOW;
-			item.high = typeof q.high === 'string' && q.high ? q.high : DEFAULT_HIGH;
-		}
-		if (q.kind === 'number') {
-			if (Number.isFinite(q.min)) item.min = q.min;
-			if (Number.isFinite(q.max)) item.max = q.max;
-		}
+		Object.assign(item, parseQuestionSettings(q.kind, q));
 		out.push(item);
 	}
 	return out;
@@ -464,72 +287,23 @@ export function validateFormAnswers(questions, form) {
 	/** @type {FormAnswer[]} */
 	const answers = [];
 	for (const q of questions) {
-		const raw = form.get(answerName(q.id));
+		const name = answerName(q.id);
 		/** @type {string | null} */
 		let value = null;
-		if (q.kind === 'checkbox') {
-			const checked = raw === 'on' || raw === '1' || raw === true;
-			if (q.required && !checked) errors[q.id] = 'Marcá esta casilla para seguir.';
-			value = checked ? CHECKBOX_YES : null;
-		} else if (q.kind === 'choice' || q.kind === 'select') {
-			const chosen = oneLine(raw);
-			if (!chosen) {
-				if (q.required) errors[q.id] = 'Elegí una opción.';
-			} else if (!q.options.includes(chosen)) errors[q.id] = 'Elegí una de las opciones.';
-			else value = chosen;
-		} else if (q.kind === 'multi') {
-			const chosen = new Set(allValues(form, answerName(q.id)).map(oneLine).filter(Boolean));
-			if (!chosen.size) {
-				if (q.required) errors[q.id] = 'Elegí al menos una opción.';
-			} else if ([...chosen].some((o) => !q.options.includes(o)))
-				errors[q.id] = 'Elegí entre las opciones de la lista.';
-			// En el orden de la lista, sin repetidas.
-			else value = q.options.filter((o) => chosen.has(o)).join(MULTI_SEPARATOR);
-		} else if (q.kind === 'rating') {
-			const v = oneLine(raw);
-			const n = Number(v);
-			if (!v) {
-				if (q.required) errors[q.id] = 'Elegí un puntaje.';
-			} else if (!Number.isInteger(n) || n < 1 || n > 5)
-				errors[q.id] = 'Elegí un puntaje de 1 a 5.';
-			else value = String(n);
-		} else if (q.kind === 'number') {
-			const n = parseNumber(raw);
-			if (n === null) {
-				if (q.required) errors[q.id] = 'Escribí un número.';
-			} else if (Number.isNaN(n)) errors[q.id] = 'Escribí solo un número (por ejemplo 12 o 3,5).';
-			else if (q.min !== undefined && q.max !== undefined && (n < q.min || n > q.max))
-				errors[q.id] = `Tiene que ser entre ${showNumber(q.min)} y ${showNumber(q.max)}.`;
-			else if (q.min !== undefined && n < q.min)
-				errors[q.id] = `Tiene que ser ${showNumber(q.min)} o más.`;
-			else if (q.max !== undefined && n > q.max)
-				errors[q.id] = `Tiene que ser ${showNumber(q.max)} o menos.`;
-			else value = String(n);
-		} else if (q.kind === 'date') {
-			const v = oneLine(raw);
-			if (!v) {
-				if (q.required) errors[q.id] = 'Elegí una fecha.';
-			} else if (!isIsoDate(v)) errors[q.id] = 'Elegí una fecha válida.';
-			else value = v;
-		} else if (q.kind === 'photo') {
+		if (q.kind === 'photo') {
 			// La subida ya pasó (public.js, `takePhotos`): acá llega la clave o nada.
+			const raw = form.get(name);
 			const key = typeof raw === 'string' ? raw : '';
 			if (!key) {
 				if (q.required) errors[q.id] = 'Subí una foto.';
 			} else if (!isPhotoKey(key)) errors[q.id] = 'Subí una foto.';
 			else value = key;
-		} else if (q.kind === 'short') {
-			const text = oneLine(raw);
-			if (!text) {
-				if (q.required) errors[q.id] = 'Completá esta respuesta.';
-			} else if (text.length > FORM_ANSWER_MAX) errors[q.id] = `Hasta ${FORM_ANSWER_MAX} letras.`;
-			else value = text;
 		} else {
-			const text = longText(raw);
-			if (!text) {
-				if (q.required) errors[q.id] = 'Completá esta respuesta.';
-			} else if (text.length > FORM_ANSWER_MAX) errors[q.id] = `Hasta ${FORM_ANSWER_MAX} letras.`;
-			else value = text;
+			// Las casillas de «Varias opciones» repiten el `name`: llegan todas.
+			const raw = q.kind === 'multi' ? allValues(form, name) : form.get(name);
+			const r = validateAnswerValue(q, raw, { textMax: FORM_ANSWER_MAX });
+			if ('error' in r) errors[q.id] = r.error;
+			else value = r.value;
 		}
 		if (value !== null && !errors[q.id]) answers.push({ id: q.id, label: q.label, value });
 	}
@@ -734,25 +508,14 @@ export function summarize(questions, responses) {
 				high: c.high || DEFAULT_HIGH
 			};
 		}
-		if (c.kind === 'multi') {
-			// Cada respuesta cuenta en cada opción que eligió.
-			const picks = values.map(splitMulti);
-			const options = [...c.options];
-			for (const p of picks) for (const o of p) if (!options.includes(o)) options.push(o);
+		if (c.kind === 'multi' || c.kind === 'choice' || c.kind === 'select' || c.kind === 'checkbox') {
+			// En «Varias opciones», cada respuesta cuenta en cada opción que eligió.
 			return {
 				...base,
-				counts: options.map((o) => ({
-					option: o,
-					count: picks.filter((p) => p.includes(o)).length
+				counts: tallyOptions(c, /** @type {string[]} */ (values)).map(({ option, count }) => ({
+					option,
+					count
 				}))
-			};
-		}
-		if (c.kind === 'choice' || c.kind === 'select' || c.kind === 'checkbox') {
-			const options = c.kind === 'checkbox' ? [CHECKBOX_YES] : [...c.options];
-			for (const v of values) if (!options.includes(String(v))) options.push(String(v));
-			return {
-				...base,
-				counts: options.map((o) => ({ option: o, count: values.filter((v) => v === o).length }))
 			};
 		}
 		return { ...base, texts: /** @type {string[]} */ (values) };

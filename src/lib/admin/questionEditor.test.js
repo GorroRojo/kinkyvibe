@@ -64,7 +64,7 @@ describe('lo que se manda', () => {
 		expect(p[0]).not.toHaveProperty('perTicket');
 	});
 
-	it('inscripción: con alcance y sin ayuda', () => {
+	it('inscripción: con alcance, etiqueta corta, ayuda y lo propio del tipo', () => {
 		const items = toEditorItems([
 			{
 				id: 4,
@@ -75,7 +75,8 @@ describe('lo que se manda', () => {
 				options: [],
 				perTicket: true,
 				ticketTypes: ['vip']
-			}
+			},
+			{ id: 5, kind: 'number', label: 'Edad', required: true, options: [], min: 18, help: 'Años' }
 		]);
 		expect(toPayload(items, { signup: true })).toEqual([
 			{
@@ -85,9 +86,24 @@ describe('lo que se manda', () => {
 				shortLabel: 'Comida',
 				required: false,
 				options: [],
+				help: '',
 				perTicket: true,
 				scope: 'some',
 				ticketTypes: ['vip']
+			},
+			{
+				id: 5,
+				kind: 'number',
+				label: 'Edad',
+				shortLabel: '',
+				required: true,
+				options: [],
+				help: 'Años',
+				min: '18',
+				max: '',
+				perTicket: false,
+				scope: 'all',
+				ticketTypes: []
 			}
 		]);
 	});

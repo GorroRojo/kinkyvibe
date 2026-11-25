@@ -448,7 +448,10 @@
 			scope={answersScope}
 			questionsHref={eventHref(e.slug, 'preguntas')}
 			onFilter={(card, value) =>
-				filterByAnswer({ key: card.key, value, label: `${card.label}: ${value}` }, true)}
+				filterByAnswer(
+					{ key: card.key, value, label: `${card.label}: ${value}`, multi: card.kind === 'multi' },
+					true
+				)}
 			onReveal={revealOrder}
 		/>
 	{:else}

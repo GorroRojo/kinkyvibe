@@ -10,9 +10,9 @@
 	 * campo `name` (las cuentas, en $lib/admin/questionEditor.js). Solo usa las piezas del panel
 	 * (`Field`, `Segmented`, `Checkbox`, `Button`), nunca inputs a mano.
 	 *
-	 * Props: `questions` (las guardadas), `kinds` (los tipos que se ofrecen; las de inscripción no
-	 * tienen puntaje), `signup` (preguntas de inscripción: «una vez por entrada» y a qué entradas
-	 * aplica), `types` (los tipos de entrada del evento), `errors` (por posición, lo que devolvió el
+	 * Props: `questions` (las guardadas), `kinds` (los tipos que se ofrecen; las de inscripción, todos
+	 * menos «Foto»), `signup` (preguntas de inscripción: etiqueta corta, «una vez por entrada» y a
+	 * qué entradas aplica), `types` (los tipos de entrada del evento), `errors` (por posición, lo que devolvió el
 	 * servidor), `name`, `max`, `dirty` (bind: hay cambios sin guardar), `removed` (bind: cuántas
 	 * preguntas guardadas se sacaron).
 	 */
@@ -265,14 +265,12 @@
 						</div>
 						{#if err.range}<small class="kv-error">{err.range}</small>{/if}
 					{/if}
-					{#if !signup}
-						<Field
-							label="Ayuda (opcional)"
-							help="Una línea gris debajo de la pregunta."
-							bind:value={q.help}
-							error={err.help ?? ''}
-						/>
-					{/if}
+					<Field
+						label="Ayuda (opcional)"
+						help="Una línea gris debajo de la pregunta."
+						bind:value={q.help}
+						error={err.help ?? ''}
+					/>
 					<div class="checks">
 						<Checkbox bind:checked={q.required} label="Obligatoria" />
 						{#if signup}

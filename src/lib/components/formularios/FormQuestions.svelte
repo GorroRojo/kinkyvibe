@@ -1,51 +1,69 @@
 <script>
 	/**
-	 * Las preguntas de un formulario como las ve quien responde (docs/formularios.md): la página
-	 * pública (/formularios/<dirección> y /calendario/<evento>/encuesta) y la vista previa del
-	 * editor del panel. Campos comunes (`name` = `answerName(id)`): andan sin JavaScript.
+	 * Las preguntas como las ve quien responde, en los dos sistemas (src/lib/utils/questions.js): los
+	 * formularios (docs/formularios.md: la página pública, /formularios/<dirección> y
+	 * /calendario/<evento>/encuesta), las preguntas de inscripción del flujo de compra
+	 * (SignupFieldInputs.svelte, que le pasa su `name` y sus valores) y la vista previa del editor
+	 * del panel. Campos comunes (`name` = `inputName(id)`, por defecto `answerName(id)`): andan sin
+	 * JavaScript. Genérico por tipo: cualquier lugar que pida respuestas lo puede usar.
 	 *
 	 * Piezas del sitio público: opciones con `ChoiceCard` (`.kv-choice`); «Varias opciones» con una
 	 * casilla por opción, todas con el mismo `name` (en columnas en pantallas anchas: pueden ser
 	 * hasta 40); el puntaje con cinco
 	 * botones iguales (radios nativos: las flechas recorren el grupo; gorrite, 5/11: «el 1 a 5 se ve
 	 * mal, como estirado») y los textos y casillas con el estilo de las preguntas
-	 * de inscripción del flujo de compra (SignupFieldInputs.svelte). «Texto corto», «Número» y
+	 * de inscripción del flujo de compra. «Texto corto», «Número» y
 	 * «Fecha» son inputs nativos (`text`, `number` con `step="any"`, `date`: manda `aaaa-mm-dd`) y
 	 * «Lista desplegable» un `<select>`; «Foto», `<input type="file" accept="image/*">` (el
 	 * formulario que la usa va `multipart`: PublicForm.svelte). La ayuda de cada pregunta va debajo de su título, antes de
 	 * lo que se contesta (gorrite, 24/11).
 	 *
-	 * Props: `questions` (Question[]), `values` (lo que se mandó, por id de pregunta), `errors` (por
-	 * id), `idPrefix`, `preview` (en el panel: sin `name`, así no se manda nada).
+	 * Props: `questions` (con `id`, `kind`, `label`, `required`, `options` y lo de su tipo),
+	 * `values` (lo que se mandó, por id de pregunta; en «Varias opciones», el texto con « | » o la
+	 * lista), `errors` (por id), `idPrefix`, `preview` (en el panel: sin `name`, así no se manda
+	 * nada), `inputName` (el `name` de cada pregunta), `textMax` (largo de un texto) y
+	 * `nativeRequired` (las obligatorias con `required` del navegador, para la compra sin
+	 * JavaScript; «Varias opciones» no: el navegador pediría todas las casillas).
 	 */
 	import ChoiceCard from '$lib/components/ui/ChoiceCard.svelte';
 	import { FORM_ANSWER_MAX, answerName, splitMulti } from '$lib/utils/formularios.js';
 
-	/** @type {import('$lib/utils/formularios.js').Question[]} */
+	/**
+	 * @type {(Pick<import('$lib/utils/formularios.js').Question, 'kind' | 'label' | 'required'
+	 *   | 'options' | 'help' | 'low' | 'high' | 'min' | 'max'> & { id: string | number })[]}
+	 */
 	export let questions = [];
-	/** @type {Record<string, string>} */
+	/** @type {Record<string, string | string[]>} */
 	export let values = {};
 	/** @type {Record<string, string>} */
 	export let errors = {};
 	export let idPrefix = 'form';
 	export let preview = false;
+	/** @type {(id: any) => string} */
+	export let inputName = answerName;
+	export let textMax = FORM_ANSWER_MAX;
+	export let nativeRequired = false;
 
 	/** @type {Record<string, string>} */
 	let chosen = {};
-	$: for (const q of questions) if (!(q.id in chosen)) chosen[q.id] = values[q.id] ?? '';
+	$: for (const q of questions) if (!(q.id in chosen)) chosen[q.id] = textOf(values[q.id]);
 
-	/** @param {string} id */
-	const nameOf = (id) => (preview ? undefined : answerName(id));
+	/** @param {string | number} id */
+	const nameOf = (id) => (preview ? undefined : inputName(id));
+	/** Lo que volvió, como texto (un campo que no es «Varias opciones»). @param {unknown} v */
+	const textOf = (v) => (Array.isArray(v) ? String(v[0] ?? '') : typeof v === 'string' ? v : '');
+	/** `required` del navegador, solo si se pidió. @param {{ required: boolean }} q */
+	const req = (q) => (nativeRequired && q.required ? { required: true } : {});
 	/*
 	 * Lo elegido vuelve solo después de un error (`values`): sin nada para devolver no se pasa
 	 * `checked`, así al hidratar no se borra lo que alguien eligió antes de que cargue el JavaScript.
 	 */
-	/** @param {string} id @param {string} v */
-	const picked = (id, v) => (values[id] === v ? { checked: true } : {});
+	/** @param {string | number} id @param {string} v */
+	const picked = (id, v) => (textOf(values[id]) === v ? { checked: true } : {});
 	/**
 	 * Lo mismo para «Varias opciones» (lo que volvió son las elegidas juntas, con « | »). Recibe
 	 * `values` para que la plantilla se actualice cuando cambia.
-	 * @param {Record<string, string>} vals @param {string} id @param {string} v
+	 * @param {Record<string, string | string[]>} vals @param {string | number} id @param {string} v
 	 */
 	const pickedMulti = (vals, id, v) => (splitMulti(vals[id]).includes(v) ? { checked: true } : {});
 	/**
@@ -80,6 +98,7 @@
 									name={nameOf(q.id) ?? `${id}-vista`}
 									value={String(n)}
 									{...picked(q.id, String(n))}
+									{...req(q)}
 								/><span>{n}</span></label
 							>
 						{/each}
@@ -101,6 +120,7 @@
 							name={nameOf(q.id) ?? `${id}-vista`}
 							value={o}
 							title={o}
+							required={nativeRequired && q.required}
 							bind:group={chosen[q.id]}
 						/>
 					{/each}
@@ -131,7 +151,8 @@
 					{id}
 					type="checkbox"
 					name={nameOf(q.id)}
-					{...values[q.id] === 'on' ? { checked: true } : {}}
+					{...textOf(values[q.id]) === 'on' ? { checked: true } : {}}
+					{...req(q)}
 					aria-invalid={err ? 'true' : undefined}
 					aria-describedby={describedBy(id, q, err)}
 				/>
@@ -149,12 +170,13 @@
 				<select
 					{id}
 					name={nameOf(q.id)}
+					{...req(q)}
 					aria-invalid={err ? 'true' : undefined}
 					aria-describedby={describedBy(id, q, err)}
 				>
 					<option value="">Elegí una opción</option>
 					{#each q.options as o (o)}
-						<option value={o} {...values[q.id] === o ? { selected: true } : {}}>{o}</option>
+						<option value={o} {...textOf(values[q.id]) === o ? { selected: true } : {}}>{o}</option>
 					{/each}
 				</select>
 			</label>
@@ -176,7 +198,8 @@
 						inputmode="decimal"
 						aria-invalid={err ? 'true' : undefined}
 						aria-describedby={describedBy(id, q, err)}
-						{...values[q.id] ? { value: values[q.id] } : {}}
+						{...req(q)}
+						{...textOf(values[q.id]) ? { value: textOf(values[q.id]) } : {}}
 					/>
 				{:else if q.kind === 'date'}
 					<input
@@ -186,17 +209,19 @@
 						name={nameOf(q.id)}
 						aria-invalid={err ? 'true' : undefined}
 						aria-describedby={describedBy(id, q, err)}
-						{...values[q.id] ? { value: values[q.id] } : {}}
+						{...req(q)}
+						{...textOf(values[q.id]) ? { value: textOf(values[q.id]) } : {}}
 					/>
 				{:else}
 					<input
 						{id}
 						type="text"
 						name={nameOf(q.id)}
-						maxlength={FORM_ANSWER_MAX}
+						maxlength={textMax}
 						aria-invalid={err ? 'true' : undefined}
 						aria-describedby={describedBy(id, q, err)}
-						{...values[q.id] ? { value: values[q.id] } : {}}
+						{...req(q)}
+						{...textOf(values[q.id]) ? { value: textOf(values[q.id]) } : {}}
 					/>
 				{/if}
 			</label>
@@ -226,10 +251,11 @@
 					{id}
 					name={nameOf(q.id)}
 					rows="3"
-					maxlength={FORM_ANSWER_MAX}
+					maxlength={textMax}
+					{...req(q)}
 					aria-invalid={err ? 'true' : undefined}
 					aria-describedby={describedBy(id, q, err)}
-					{...values[q.id] ? { value: values[q.id] } : {}}></textarea>
+					{...textOf(values[q.id]) ? { value: textOf(values[q.id]) } : {}}></textarea>
 			</label>
 		{/if}
 		{#if err}<span class="field-error" id="{id}-error">{err}</span>{/if}

@@ -7,11 +7,13 @@
  *   el filtro por una respuesta (tocar una barra de «Respuestas») y el buscador.
  * - «Respuestas»: una tarjeta por pregunta, en el orden del formulario, armada con las
  *   definiciones de las preguntas (las respuestas guardadas solo traen id, texto de la pregunta,
- *   valor y entrada). Las de opciones o casilla se cuentan con todas sus opciones (las que nadie
- *   eligió, al final); las de texto listan a quienes escribieron algo. Las respuestas a preguntas
+ *   valor y entrada). Las de opciones, lista, varias opciones, casilla o puntaje se cuentan con
+ *   todas sus opciones (las que nadie eligió, al final; el puntaje, del 1 al 5); las de texto,
+ *   número o fecha listan a quienes escribieron algo. Las respuestas a preguntas
  *   que ya no están en el formulario van al final, juntas por el texto con que se guardaron.
  */
-import { CHECKBOX_YES, fieldAppliesTo } from '$lib/utils/signupFields.js';
+import { fieldAppliesTo } from '$lib/utils/signupFields.js';
+import { isCountedKind, showAnswer, splitMulti, tallyOptions } from '$lib/utils/questions.js';
 import { foldText } from '$lib/utils/text.js';
 
 /**
@@ -25,7 +27,8 @@ import { foldText } from '$lib/utils/text.js';
  *   status: string, quantity: number, typeId?: string, note?: string, toInvoice?: boolean,
  *   invoicedAt?: number | null, fondo?: number | null, contribution?: number | null,
  *   transferPending?: boolean, holders: ViewHolder[], answers: Answer[] }} ViewOrder
- * @typedef {{ key: string, value: string, label: string }} AnswerFilter
+ * @typedef {{ key: string, value: string, label: string, multi?: boolean }} AnswerFilter
+ *   `multi`: de «Varias opciones» (una opción entre las elegidas, no la respuesta entera)
  */
 
 /** Hasta cuántas compras es un evento chico: sin filtros ni «Ordenar», se ven todas. */
@@ -154,7 +157,11 @@ export function answerKey(a, fieldIds) {
  * @param {ReadonlySet<number>} fieldIds
  */
 export function matchesAnswer(o, filter, fieldIds) {
-	return o.answers.some((a) => a.value === filter.value && answerKey(a, fieldIds) === filter.key);
+	return o.answers.some(
+		(a) =>
+			answerKey(a, fieldIds) === filter.key &&
+			(filter.multi ? splitMulti(a.value).includes(filter.value) : a.value === filter.value)
+	);
 }
 
 /**
@@ -202,8 +209,9 @@ export function filterOrders(
 /**
  * Las respuestas de una compra para la tarjeta: las de cada entrada (por persona, en el orden del
  * formulario) y las de la compra. Una respuesta de una entrada que no está en la lista de
- * personas va con las de la compra (con «Entrada N»). `choice`: es de opciones o casilla (se
- * puede filtrar por esa respuesta).
+ * personas va con las de la compra (con «Entrada N»). `choice`: se cuenta por opción (opciones,
+ * lista, varias opciones, casilla o puntaje: se puede filtrar por esa respuesta). `value` es como
+ * se lee (un número con coma, una fecha `dd/mm/aaaa`); en las que se cuentan es lo guardado.
  * @param {Pick<ViewOrder, 'answers' | 'holders'>} o
  * @param {readonly ViewField[]} fields
  * @returns {{ holders: ShownAnswer[][], order: ShownAnswer[] }}
@@ -225,8 +233,8 @@ export function orderAnswerGroups(o, fields) {
 			key: answerKey(a, ids),
 			label: f ? fieldLabel(f) : a.label,
 			fullLabel: f?.label ?? a.label,
-			value: a.value,
-			choice: f ? f.kind !== 'text' : false,
+			value: showAnswer(f?.kind ?? a.kind, a.value),
+			choice: f ? isCountedKind(f.kind) : false,
 			ticket: a.ticket ?? null
 		};
 		const slot = a.ticket ? holders[a.ticket - 1] : undefined;
@@ -239,9 +247,12 @@ export function orderAnswerGroups(o, fields) {
 /**
  * @typedef {{ orderId: string, name: string, pronouns: string, firstTime: boolean | null,
  *   value: string }} TextEntry
- * @typedef {{ key: string, label: string, fullLabel: string, kind: 'text' | 'choice' | 'checkbox',
+ * @typedef {{ key: string, label: string, fullLabel: string,
+ *   kind: 'text' | 'choice' | 'select' | 'multi' | 'checkbox' | 'rating',
  *   perTicket: boolean, answered: number, asked: number, removed: boolean,
  *   bars: { value: string, n: number, defined: boolean }[], entries: TextEntry[] }} QuestionCard
+ *   `kind`: cómo se muestra: `text` lista a quienes respondieron (texto, texto corto, número y
+ *   fecha); las demás, barras.
  */
 
 /**
@@ -263,9 +274,11 @@ function whoAnswered(o, a) {
 /**
  * Las tarjetas de «Respuestas», con las compras que se pasen (la página pasa las aprobadas).
  *
- * - Una por pregunta del formulario, en su orden; la de opciones con todas las opciones (más
- *   elegida primero, las que nadie eligió al final; un valor que ya no es una opción también
- *   cuenta); la casilla, con «Sí»; la de texto, con quienes escribieron.
+ * - Una por pregunta del formulario, en su orden; la de opciones (o lista, o varias opciones) con
+ *   todas las opciones (más elegida primero, las que nadie eligió al final; un valor que ya no es
+ *   una opción también cuenta; en «Varias opciones», cada respuesta cuenta en cada opción que
+ *   eligió); la casilla, con «Sí»; el puntaje, del 1 al 5 en orden; las de texto, número o fecha,
+ *   con quienes escribieron (el número con coma y la fecha `dd/mm/aaaa`).
  * - `answered`: cuántas respuestas (personas en las de por entrada, compras en las de por compra);
  *   `asked`: a cuántas se les preguntó (las compras de los tipos de entrada a los que aplica).
  * - Al final, las respuestas a preguntas que ya no están, juntas por el texto guardado (como
@@ -279,21 +292,26 @@ export function questionCards(fields, orders) {
 	const ids = new Set(fields.map((f) => f.id));
 	/** @type {Map<string, QuestionCard>} */
 	const cards = new Map();
+	/** @type {Map<string, ViewField>} */
+	const byKey = new Map();
+	/** @type {Map<string, string[]>} lo respondido, por tarjeta de barras */
+	const values = new Map();
 	for (const f of fields) {
-		const kind = f.kind;
-		const options = kind === 'checkbox' ? [CHECKBOX_YES] : kind === 'choice' ? f.options : [];
+		const counted = isCountedKind(f.kind);
+		byKey.set(`f${f.id}`, f);
+		if (counted) values.set(`f${f.id}`, []);
 		cards.set(`f${f.id}`, {
 			key: `f${f.id}`,
 			label: fieldLabel(f),
 			fullLabel: f.label,
-			kind,
+			kind: counted ? /** @type {QuestionCard['kind']} */ (f.kind) : 'text',
 			perTicket: Boolean(f.perTicket),
 			answered: 0,
 			asked: orders
 				.filter((o) => fieldAppliesTo(f, o.typeId ?? ''))
 				.reduce((n, o) => n + (f.perTicket ? Math.max(1, o.quantity) : 1), 0),
 			removed: false,
-			bars: options.map((value) => ({ value, n: 0, defined: true })),
+			bars: [],
 			entries: []
 		});
 	}
@@ -320,24 +338,42 @@ export function questionCards(fields, orders) {
 			}
 			card.answered++;
 			if (card.kind === 'text') {
-				card.entries.push({ orderId: o.id, ...whoAnswered(o, a), value: a.value });
+				const kind = byKey.get(key)?.kind ?? a.kind;
+				card.entries.push({
+					orderId: o.id,
+					...whoAnswered(o, a),
+					value: showAnswer(kind, a.value)
+				});
 				continue;
 			}
-			const bar = card.bars.find((b) => b.value === a.value);
-			if (bar) bar.n++;
-			else card.bars.push({ value: a.value, n: 1, defined: false });
+			values.get(key)?.push(a.value);
 		}
 	}
-	return [...cards.values()].map((c) => ({
-		...c,
-		asked: c.removed ? c.answered : c.asked,
-		// La más elegida primero; a igual cantidad, el orden del formulario (las que ya no son
-		// opciones, después). Las que nadie eligió quedan al final.
-		bars: c.bars
-			.map((b, i) => ({ b, i }))
-			.sort((x, y) => y.b.n - x.b.n || Number(y.b.defined) - Number(x.b.defined) || x.i - y.i)
-			.map(({ b }) => b)
-	}));
+	return [...cards.values()].map((c) => {
+		const f = byKey.get(c.key);
+		const bars = f
+			? tallyOptions(f, values.get(c.key) ?? []).map(({ option, count, defined }) => ({
+					value: option,
+					n: count,
+					defined
+				}))
+			: [];
+		return {
+			...c,
+			asked: c.removed ? c.answered : c.asked,
+			// La más elegida primero; a igual cantidad, el orden del formulario (las que ya no son
+			// opciones, después). Las que nadie eligió quedan al final. El puntaje, del 1 al 5.
+			bars:
+				c.kind === 'rating'
+					? bars
+					: bars
+							.map((b, i) => ({ b, i }))
+							.sort(
+								(x, y) => y.b.n - x.b.n || Number(y.b.defined) - Number(x.b.defined) || x.i - y.i
+							)
+							.map(({ b }) => b)
+		};
+	});
 }
 
 /**
