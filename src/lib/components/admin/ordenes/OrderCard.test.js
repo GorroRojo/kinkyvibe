@@ -146,7 +146,12 @@ describe('OrderCard', () => {
 			]
 		});
 		expect(body).toContain('Editado por admin-dos el 24/11');
-		const text = body.replace(/<[^>]+>/g, '');
+		// Saca las etiquetas hasta que no quede ninguna (CodeQL pide la vuelta).
+		let text = body;
+		for (let prev = ''; prev !== text;) {
+			prev = text;
+			text = text.replace(/<[^>]+>/g, '');
+		}
 		expect(text).toContain('Nombre: Persona Un → Persona Uno');
 		expect(text).toContain('Talle: — → M');
 		expect(body.match(/action="\?\/undoEdit"/g)).toHaveLength(1);
