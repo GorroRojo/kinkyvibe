@@ -168,3 +168,26 @@ describe('FormQuestions: texto corto, número, fecha y lista desplegable', () =>
 		expect(/** @type {HTMLSelectElement} */ (document.querySelector('select')).value).toBe('Dos');
 	});
 });
+
+describe('FormQuestions: la foto', () => {
+	const photo = {
+		id: 'f1',
+		kind: /** @type {const} */ ('photo'),
+		label: 'Tu cara',
+		required: true,
+		options: [],
+		help: 'Ayuda de prueba'
+	};
+
+	it('es un campo de archivo nativo que acepta imágenes, con su nombre y su ayuda', () => {
+		render(FormQuestions, { props: { questions: [photo], idPrefix: 'f' } });
+		const input = /** @type {HTMLInputElement} */ (document.getElementById('f-f1'));
+		expect([input.type, input.accept, input.name]).toEqual(['file', 'image/*', answerName('f1')]);
+		expect(input.getAttribute('aria-describedby')).toBe('f-f1-help');
+	});
+
+	it('en la vista previa del panel no tiene nombre (no se manda nada)', () => {
+		render(FormQuestions, { props: { questions: [photo], idPrefix: 'f', preview: true } });
+		expect(/** @type {HTMLInputElement} */ (document.getElementById('f-f1')).name).toBe('');
+	});
+});

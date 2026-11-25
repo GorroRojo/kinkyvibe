@@ -192,7 +192,7 @@ IP) y por cuenta (`FORM_RATE_LIMIT`).
 ### Tipos de pregunta
 
 Texto, «Texto corto», «Opciones (elegir una)», «Varias opciones (elegir las que quieras)», «Lista
-desplegable», «Casilla (sí / no)», «Puntaje de 1 a 5», «Número» y «Fecha» (`QUESTION_KINDS`). Las
+desplegable», «Casilla (sí / no)», «Puntaje de 1 a 5», «Número», «Fecha» y «Foto» (`QUESTION_KINDS`). Las
 de inscripción tienen solo texto, opciones y casilla. La ayuda de cada pregunta («Ayuda
 (opcional)») va debajo de su título, antes de lo que se contesta (gorrite, 24/11), y describe el
 campo (`aria-describedby`, junto con el error si hay).
@@ -225,6 +225,43 @@ opción que eligió («n de m»). No es de las preguntas de inscripción: `signu
 CHECK con los tres tipos (migración 0018) y las respuestas «una vez por entrada» ya se juntan con
 « | » en Órdenes.
 
+### Foto
+
+**Foto** (`photo`, 24/11, para el formulario de Gancho Fácil): la persona sube una imagen (por
+ejemplo, de su cara). La usa una app aparte, gancho.kinkyvibe.ar, que le muestra a cada persona las
+fotos de sus matches; qué ve cada quien lo decide esa app ([gancho-api.md](gancho-api.md)). Lo que
+decidió gorrite (24/11): **sin borrado automático** y **sin textos fijos en el código**: el aviso
+que haga falta lo escribe quien arma el formulario en la ayuda de la pregunta.
+
+- **En la página:** `<input type="file" accept="image/*">` (en el celu abre la cámara o la
+  galería). Con una pregunta «Foto», el formulario va `enctype="multipart/form-data"`: anda sin
+  JavaScript; con JavaScript, `use:enhance` manda el mismo FormData.
+- **Al recibirla** (`takePhotos` en `photos.js`, antes de validar las respuestas): el tipo por los
+  bytes (`sniffImage`: JPG, PNG, WEBP, GIF o AVIF; nunca el nombre ni lo que dice el navegador),
+  hasta 10 MB (`PHOTO_MAX_BYTES`), sin metadatos (GPS, fecha, modelo del celu:
+  `stripImageMetadata`, lo mismo que la biblioteca) y un tope de 60 MB de fotos por hora por
+  formulario y por conexión (hash, sin la IP; `PHOTO_RATE_LIMIT`, tabla `rate_limits`), además del
+  de respuestas. Un texto en el campo de la foto se ignora (nadie puede mandar la clave de otra).
+  Si falla otro campo, la foto no vuelve (el navegador no deja rellenar un archivo) y el campo
+  pide «Volvé a elegir la foto.».
+- **Dónde queda:** en el bucket `MEDIA`, bajo `formularios/<id del formulario>/<sha-256>.<ext>`
+  (`photoKey`), con `cache-control: private, no-store`. Se sube a R2 recién cuando todo lo demás
+  está bien. **No es la biblioteca**: /media solo sirve `img/` y `file/`, no hay dirección
+  pública, y la copia nocturna de la biblioteca (`MEDIA_COPIA`) no lleva este prefijo. La
+  respuesta guarda la clave (`{ id, label, value: "formularios/…" }`), nunca los bytes; sin
+  migración.
+- **En el panel:** «Cada respuesta» muestra una miniatura que abre la foto entera, servida por
+  `…/formularios/<id>/respuestas/fotos/<sha-256>.<ext>`: solo admins (`requireFormsAdmin`), solo
+  fotos de ese formulario, privada y sin caché. El resumen solo cuenta cuántas la mandaron. Les
+  organizadores (Mi rincón) ven «Foto», no la imagen. El CSV lleva «sí» o vacío
+  (`PHOTO_CSV_MARK`), nunca la foto ni su clave.
+- **Mails y conector:** ningún mail lleva respuestas. El conector de Claude puede crear o editar
+  una pregunta `foto`, pero nunca lee respuestas ni fotos.
+- **API para Gancho:** `GET /api/gancho/formularios/<dirección>/respuestas` y
+  `…/fotos/<respuesta>/<pregunta>`, con el header `x-gancho-secret` (`GANCHO_SECRET`). Solo
+  formularios comunes con al menos una «Foto». El contrato, con un ejemplo:
+  [gancho-api.md](gancho-api.md).
+
 ### El editor de preguntas compartido
 
 `QuestionEditor.svelte` (una tarjeta por pregunta, ↑ ↓ y arrastrar, «Duplicar», «Sacar», vista
@@ -254,6 +291,7 @@ Actividad) y el orden va a `position` (las que ya había quedan en el orden que 
 | Panel                             | `admin.js`, `responses.js`, `src/routes/(authed)/admin/comunidad/formularios/`, `…/eventos/[slug]/encuesta` |
 | Organizadores                     | `organiza.js`, `src/routes/(content)/mi-rincon/perfiles/[slug]/respuestas/[event]/formularios/`             |
 | Componentes                       | `src/lib/components/formularios/` (público), `src/lib/components/admin/forms/` (panel)                      |
+| Foto y API de Gancho              | `photos.js`, `…/respuestas/fotos/[file]`, `src/lib/server/gancho/api.js`, `src/routes/api/gancho/`          |
 
 ## Cómo probarlo
 
@@ -263,6 +301,9 @@ npx vitest run src/lib/utils/formularios.test.js src/lib/admin/questionEditor.te
   "src/routes/(authed)/admin/comunidad/formularios" "src/routes/(authed)/admin/eventos/roles" \
   "src/routes/(content)/formularios" "src/routes/(content)/mi-rincon/perfiles"
 ```
+
+La foto (subida, R2, metadatos, tope, panel y API de Gancho):
+`npx vitest run "src/routes/(content)/formularios/formularios-foto.test.js"`. E2E (editor → página pública → miniatura del panel; corre en la tanda nocturna de entradas): `npx playwright test -c playwright.tickets.config.js formularios-foto` (con `FOTO_SHOTS_DIR=<carpeta>` guarda capturas).
 
 A mano: `FORMULARIOS_ENABLED=1 npm run dev:admin`, Comunidad › Formularios.
 

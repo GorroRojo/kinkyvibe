@@ -341,6 +341,54 @@ describe('texto corto, número, fecha y lista', () => {
 	});
 });
 
+describe('foto', () => {
+	it('se crea y se edita por vista previa y aplicar; leer dice el tipo, nunca fotos ni direcciones', async () => {
+		const form = await createForm({
+			quien_responde: 'link',
+			preguntas: [
+				{ pregunta: 'Tu apodo', tipo: 'texto_corto', obligatoria: true },
+				{ pregunta: 'Tu cara', tipo: 'foto', obligatoria: true, ayuda: 'Ayuda inventada.' }
+			]
+		});
+		expect(form.questions.map((q) => [q.kind, q.label, q.required, q.help])).toEqual([
+			['short', 'Tu apodo', true, undefined],
+			['photo', 'Tu cara', true, 'Ayuda inventada.']
+		]);
+		const photoKey = `formularios/${form.id}/${'c'.repeat(64)}.png`;
+		await saveResponse(t.db, {
+			formId: form.id,
+			answers: [{ id: form.questions[1].id, label: 'Tu cara', value: photoKey }],
+			identity: { name: 'Persona Inventada', email: 'persona@example.com' }
+		});
+
+		const { applied } = await change({
+			operacion: 'editar_objeto',
+			tipo: 'formulario',
+			objeto: form.slug,
+			cambios: {
+				preguntas: [
+					{ id: form.questions[0].id, pregunta: 'Tu apodo', tipo: 'texto_corto' },
+					{ id: form.questions[1].id, pregunta: 'Tu foto', tipo: 'foto', obligatoria: false }
+				]
+			}
+		});
+		expect(applied.isError, applied.content[0].text).toBe(false);
+		const after = await getForm(t.db, form.id);
+		expect(after?.questions[1]).toMatchObject({ kind: 'photo', label: 'Tu foto', required: false });
+
+		const read = await call('leer', { nombre: form.slug, tipo: 'formulario' });
+		expect(read.structuredContent.preguntas[1]).toMatchObject({
+			tipo: 'foto',
+			pregunta: 'Tu foto'
+		});
+		expect(read.structuredContent.cantidad_de_respuestas).toBe(1);
+		const found = await call('buscar', { texto: 'taller' });
+		for (const text of [read.content[0].text, found.content[0].text]) {
+			expect(text).not.toMatch(/formularios\/\d+\/c{64}|\/fotos\/|cccc|Persona|example\.com/);
+		}
+	});
+});
+
 describe('editar', () => {
 	it('abrirlo es una edición; aplicar con otra huella o versión no guarda', async () => {
 		const form = await createForm();

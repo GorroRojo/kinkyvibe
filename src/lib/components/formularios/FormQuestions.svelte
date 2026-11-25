@@ -11,7 +11,8 @@
 	 * mal, como estirado») y los textos y casillas con el estilo de las preguntas
 	 * de inscripción del flujo de compra (SignupFieldInputs.svelte). «Texto corto», «Número» y
 	 * «Fecha» son inputs nativos (`text`, `number` con `step="any"`, `date`: manda `aaaa-mm-dd`) y
-	 * «Lista desplegable» un `<select>`. La ayuda de cada pregunta va debajo de su título, antes de
+	 * «Lista desplegable» un `<select>`; «Foto», `<input type="file" accept="image/*">` (el
+	 * formulario que la usa va `multipart`: PublicForm.svelte). La ayuda de cada pregunta va debajo de su título, antes de
 	 * lo que se contesta (gorrite, 24/11).
 	 *
 	 * Props: `questions` (Question[]), `values` (lo que se mandó, por id de pregunta), `errors` (por
@@ -199,6 +200,22 @@
 					/>
 				{/if}
 			</label>
+		{:else if q.kind === 'photo'}
+			<label class="field" for={id}>
+				<span
+					>{q.label || '…'}{#if !q.required}&nbsp;<small>(opcional)</small>{/if}</span
+				>
+				{#if q.help}<small class="help" id="{id}-help">{q.help}</small>{/if}
+				<input
+					{id}
+					class="photo"
+					type="file"
+					accept="image/*"
+					name={nameOf(q.id)}
+					aria-invalid={err ? 'true' : undefined}
+					aria-describedby={describedBy(id, q, err)}
+				/>
+			</label>
 		{:else}
 			<label class="field" for={id}>
 				<span
@@ -362,6 +379,16 @@
 	input.number,
 	input.date {
 		max-width: 14rem;
+	}
+	/* La foto: el botón nativo del navegador (en el celu abre la cámara o la galería). */
+	input.photo {
+		font: inherit;
+		max-width: 100%;
+		padding: 0.55em 0.7em;
+		border-radius: var(--radius-s);
+		border: 2px dashed color-mix(in srgb, var(--2) 45%, transparent);
+		background: var(--surface, white);
+		box-sizing: border-box;
 	}
 	.check-help {
 		margin-top: -0.6em;

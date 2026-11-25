@@ -543,6 +543,24 @@ export async function listResponses(db, formId) {
 }
 
 /**
+ * Una respuesta de un formulario por su id (la API de Gancho, para servir una foto), o `null` si
+ * no existe o es de otro formulario.
+ *
+ * @param {D1Database} db
+ * @param {number} formId
+ * @param {number} id
+ * @returns {Promise<{ id: number, answers: FormAnswer[] } | null>}
+ */
+export async function getResponse(db, formId, id) {
+	if (!Number.isSafeInteger(id) || id <= 0) return null;
+	const r = await db
+		.prepare('SELECT id, answers FROM form_responses WHERE id = ?1 AND form_id = ?2')
+		.bind(id, formId)
+		.first();
+	return r ? { id: Number(r.id), answers: parseFormAnswers(r.answers) } : null;
+}
+
+/**
  * Cuántas respuestas tiene un formulario.
  * @param {D1Database} db
  * @param {number} formId

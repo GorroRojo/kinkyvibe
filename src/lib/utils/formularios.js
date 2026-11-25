@@ -9,7 +9,9 @@
  * «Puntaje de 1 a 5». Cada respuesta guarda la pregunta como estaba (`{ id, label, value }`), como
  * las de inscripción; la de «Varias opciones» es un solo texto con las elegidas en el orden de la
  * lista, separadas por « | » (`MULTI_SEPARATOR`); la de un número, el número con punto decimal; la
- * de una fecha, `aaaa-mm-dd`.
+ * de una fecha, `aaaa-mm-dd`; la de una «Foto», la clave privada del archivo en R2
+ * (`formularios/<formulario>/<sha-256>.<ext>`, {@link isPhotoKey}), nunca los bytes ni una
+ * dirección pública.
  */
 import { slugify } from './text.js';
 import {
@@ -33,7 +35,8 @@ export const QUESTION_KINDS = /** @type {const} */ ([
 	'checkbox',
 	'rating',
 	'number',
-	'date'
+	'date',
+	'photo'
 ]);
 /** @typedef {typeof QUESTION_KINDS[number]} QuestionKind */
 
@@ -47,7 +50,8 @@ export const QUESTION_KIND_LABELS = Object.freeze({
 	checkbox: FIELD_KIND_LABELS.checkbox,
 	rating: 'Puntaje de 1 a 5',
 	number: 'Número',
-	date: 'Fecha'
+	date: 'Fecha',
+	photo: 'Foto'
 });
 
 /**
@@ -93,6 +97,7 @@ export const showNumber = (n) => String(n).replace('.', ',');
  * @param {string | undefined} kind @param {string} value
  */
 export function showAnswer(kind, value) {
+	if (kind === 'photo') return 'Foto';
 	if (kind === 'number' && /^-?[\d.e+-]+$/.test(value)) return value.replace('.', ',');
 	if (kind === 'date' && isIsoDate(value)) return value.split('-').reverse().join('/');
 	return value;
@@ -117,6 +122,30 @@ export function isIsoDate(v) {
 export function splitMulti(value) {
 	return typeof value === 'string' && value ? value.split(MULTI_SEPARATOR) : [];
 }
+
+/**
+ * «Foto»: la imagen va a R2 bajo {@link PHOTO_PREFIX}, que NO es la biblioteca pública (`img/`,
+ * servida en /media): solo la leen la página de respuestas del panel y la API de Gancho
+ * (docs/formularios.md, «Foto»). La respuesta guarda la clave.
+ */
+export const PHOTO_PREFIX = 'formularios/';
+/** Lo que más puede pesar una foto (como las imágenes de la biblioteca). */
+export const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+/** Lo que marca una respuesta con foto en el CSV (el CSV nunca lleva la foto ni una dirección). */
+export const PHOTO_CSV_MARK = 'sí';
+const PHOTO_KEY = /^formularios\/[1-9]\d{0,15}\/[0-9a-f]{64}\.(jpg|png|webp|gif|avif)$/;
+
+/**
+ * La clave en R2 de la foto de una respuesta: por formulario y por contenido.
+ * @param {number} formId @param {string} hash sha-256 en hex @param {string} ext
+ */
+export const photoKey = (formId, hash, ext) => `${PHOTO_PREFIX}${formId}/${hash}.${ext}`;
+
+/** ¿Es la clave de una foto de formulario? @param {unknown} v @returns {v is string} */
+export const isPhotoKey = (v) => typeof v === 'string' && PHOTO_KEY.test(v);
+
+/** El archivo de una clave de foto (`<sha-256>.<ext>`), para las direcciones. @param {string} key */
+export const photoFile = (key) => key.slice(key.lastIndexOf('/') + 1);
 
 /** Preguntas por formulario. */
 export const MAX_QUESTIONS = 30;
@@ -482,6 +511,13 @@ export function validateFormAnswers(questions, form) {
 				if (q.required) errors[q.id] = 'Elegí una fecha.';
 			} else if (!isIsoDate(v)) errors[q.id] = 'Elegí una fecha válida.';
 			else value = v;
+		} else if (q.kind === 'photo') {
+			// La subida ya pasó (public.js, `takePhotos`): acá llega la clave o nada.
+			const key = typeof raw === 'string' ? raw : '';
+			if (!key) {
+				if (q.required) errors[q.id] = 'Subí una foto.';
+			} else if (!isPhotoKey(key)) errors[q.id] = 'Subí una foto.';
+			else value = key;
 		} else if (q.kind === 'short') {
 			const text = oneLine(raw);
 			if (!text) {
@@ -669,7 +705,14 @@ export function summarize(questions, responses) {
 	);
 	for (const r of responses) {
 		for (const a of r.answers) {
-			if (!cols.has(a.id)) cols.set(a.id, { id: a.id, label: a.label, kind: 'text', options: [] });
+			// Una pregunta que ya no está: su tipo no se sabe, salvo una foto (por su clave).
+			if (!cols.has(a.id))
+				cols.set(a.id, {
+					id: a.id,
+					label: a.label,
+					kind: isPhotoKey(a.value) ? 'photo' : 'text',
+					options: []
+				});
 		}
 	}
 	return [...cols.values()].map((c) => {
@@ -677,6 +720,8 @@ export function summarize(questions, responses) {
 			.map((r) => r.answers.find((a) => a.id === c.id)?.value)
 			.filter((v) => v !== undefined && v !== '');
 		const base = { id: c.id, label: c.label, kind: c.kind, answered: values.length };
+		// Las fotos se ven en cada respuesta (solo en el panel), no en el resumen.
+		if (c.kind === 'photo') return base;
 		if (c.kind === 'rating') {
 			const nums = values.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 5);
 			return {
@@ -716,7 +761,8 @@ export function summarize(questions, responses) {
 
 /**
  * Las filas del CSV de respuestas: una columna por pregunta y, si el formulario hoy muestra
- * nombres, «nombre», «pronombres» y «mail» (vacías en las anónimas). Fecha: solo el día.
+ * nombres, «nombre», «pronombres» y «mail» (vacías en las anónimas). Fecha: solo el día. Una
+ * «Foto» va como {@link PHOTO_CSV_MARK} (o vacía): nunca la foto ni su clave.
  *
  * @param {readonly Question[]} questions
  * @param {readonly ResponseRow[]} responses ya en el orden en que van
@@ -724,7 +770,11 @@ export function summarize(questions, responses) {
  * @returns {string[][]} con la fila de títulos primero
  */
 export function responsesCsvRows(questions, responses, privacy) {
-	const cols = summarize(questions, responses).map((c) => ({ id: c.id, label: c.label }));
+	const cols = summarize(questions, responses).map((c) => ({
+		id: c.id,
+		label: c.label,
+		photo: c.kind === 'photo'
+	}));
 	const withNames = privacy !== 'anonymous';
 	const head = [
 		'día',
@@ -738,7 +788,10 @@ export function responsesCsvRows(questions, responses, privacy) {
 			...(withNames
 				? [show ? (r.name ?? '') : '', show ? (r.pronouns ?? '') : '', show ? (r.email ?? '') : '']
 				: []),
-			...cols.map((c) => r.answers.find((a) => a.id === c.id)?.value ?? '')
+			...cols.map((c) => {
+				const v = r.answers.find((a) => a.id === c.id)?.value ?? '';
+				return c.photo ? (v ? PHOTO_CSV_MARK : '') : v;
+			})
 		];
 	});
 	return [head, ...rows];

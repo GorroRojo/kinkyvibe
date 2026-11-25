@@ -12,6 +12,9 @@
  * - **Spam.** En los formularios sin link personal, un campo trampa invisible ({@link HONEYPOT_FIELD}:
  *   si llega lleno, se contesta «gracias» y no se guarda nada) y un límite por conexión (hash, sin
  *   la IP) y por cuenta.
+ * - **Fotos.** Las preguntas «Foto» llegan como archivo (el formulario va `multipart`): las lee
+ *   y limpia `takePhotos` (photos.js) y se guardan en R2 recién cuando todo lo demás está bien.
+ *   La respuesta guarda la clave privada; un texto en un campo de foto se ignora.
  */
 import { error, fail } from '@sveltejs/kit';
 import { sha256Hex } from '$lib/server/hash.js';
@@ -34,6 +37,7 @@ import {
 } from '$lib/utils/formularios.js';
 import { checkInviteToken } from './invite.js';
 import { inviteUsed, saveResponse } from './store.js';
+import { storePhotos, takePhotos } from './photos.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('./store.js').Form} Form */
@@ -165,9 +169,15 @@ export async function submitPublicForm(event, form) {
 		email: oneLine(data.get('mail')).slice(0, EMAIL_MAX).toLowerCase(),
 		anonymous: data.get(ANONYMOUS_FIELD) === 'on'
 	};
+	/**
+	 * Una foto que estaba bien no vuelve en el formulario (el navegador no deja rellenar un campo de
+	 * archivo): si algo más falla, se pide elegirla de nuevo.
+	 * @type {Record<string, string>}
+	 */
+	let repick = {};
 	/** @param {number} status @param {string} message @param {Record<string, string>} [errors] */
 	const failWith = (status, message, errors = {}) =>
-		fail(status, { error: message, errors, values, typed });
+		fail(status, { error: message, errors: { ...repick, ...errors }, values, typed });
 	if (!form.open) return failWith(409, 'Este formulario ya no recibe respuestas.');
 
 	/** @type {{ orderId: string } | null} */
@@ -193,8 +203,27 @@ export async function submitPublicForm(event, form) {
 		}
 	}
 
-	const checked = validateFormAnswers(form.questions, data);
-	if (!checked.ok) return failWith(400, checked.message, checked.errors);
+	const photos = await takePhotos(event, db, form, data);
+	if (!photos.ok) return failWith(photos.status, photos.message);
+	const photoKeys = photos.keys;
+	repick = Object.fromEntries(Object.keys(photoKeys).map((id) => [id, 'Volvé a elegir la foto.']));
+	const photoNames = new Map(
+		form.questions.filter((q) => q.kind === 'photo').map((q) => [answerName(q.id), q.id])
+	);
+	// Los campos de foto: solo la clave de lo que se subió recién (nunca lo que mandó el navegador).
+	const answersIn = {
+		/** @param {string} name */
+		get: (name) =>
+			photoNames.has(name) ? (photoKeys[photoNames.get(name) ?? ''] ?? '') : data.get(name),
+		/** @param {string} name */
+		getAll: (name) => data.getAll(name)
+	};
+	const checked = validateFormAnswers(form.questions, answersIn);
+	if (!checked.ok || Object.keys(photos.errors).length)
+		return failWith(400, checked.ok ? 'Revisá lo marcado.' : checked.message, {
+			...(checked.ok ? {} : checked.errors),
+			...photos.errors
+		});
 
 	const anonymous = isAnonymousResponse(form.privacy, data.get(ANONYMOUS_FIELD));
 	/** @type {import('./store.js').Identity | null} */
@@ -228,6 +257,8 @@ export async function submitPublicForm(event, form) {
 			};
 		}
 	}
+	if (photos.pending.length && event.platform?.env?.MEDIA)
+		await storePhotos(event.platform.env.MEDIA, photos.pending);
 	const saved = await saveResponse(db, {
 		formId: form.id,
 		answers: checked.answers,
