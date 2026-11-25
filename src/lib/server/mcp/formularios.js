@@ -93,7 +93,8 @@ const KIND_IN = /** @type {Record<string, string>} */ ({
 	casilla: 'checkbox',
 	puntaje: 'rating',
 	numero: 'number',
-	fecha: 'date'
+	fecha: 'date',
+	foto: 'photo'
 });
 const CLASS_OF = /** @type {Record<string, string>} */ ({
 	form: 'formulario',
@@ -124,7 +125,8 @@ const CAMBIOS_TEXT =
 	'(con_nombre, anonimo, que_elija), quien_ve (organizadores, admins), abierto (sí/no; uno nuevo ' +
 	'nace cerrado) y preguntas (la lista entera, en orden: `[{ id?, pregunta, tipo, obligatoria?, ' +
 	'opciones?, ayuda?, bajo?, alto?, minimo?, maximo? }]`; `tipo`: texto (largo), texto_corto, ' +
-	'opciones, varias_opciones, lista (desplegable, elegir una), casilla, puntaje, numero, fecha; ' +
+	'opciones, varias_opciones, lista (desplegable, elegir una), casilla, puntaje, numero, fecha, ' +
+	'foto (la persona sube una imagen; el conector nunca ve las fotos); ' +
 	'`id`: el que da `leer`, para mantener una pregunta; varias_opciones y lista llevan de 2 a 40 ' +
 	'opciones, varias_opciones ninguna con «|»; numero puede llevar minimo y maximo; fecha se ' +
 	'responde aaaa-mm-dd).';

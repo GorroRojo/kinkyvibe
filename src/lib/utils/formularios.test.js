@@ -14,11 +14,13 @@ import {
 	formPath,
 	formSlug,
 	isAnonymousResponse,
+	isPhotoKey,
 	isIsoDate,
 	newQuestionId,
 	organizersSee,
 	parseNumber,
 	parseStoredQuestions,
+	photoKey,
 	privacyChangeWarning,
 	responsesCsvRows,
 	showAnswer,
@@ -558,5 +560,61 @@ describe('texto corto, número, fecha y lista desplegable (24/11)', () => {
 		expect(showAnswer('number', '2.5')).toBe('2,5');
 		expect(showAnswer('date', '2026-03-01')).toBe('01/03/2026');
 		expect(showAnswer('text', '2.5')).toBe('2.5');
+	});
+});
+
+describe('«Foto»', () => {
+	const hash = 'ab'.repeat(32);
+	const key = photoKey(7, hash, 'png');
+	const q = /** @type {any} */ ({
+		id: 'f1',
+		kind: 'photo',
+		label: 'Tu cara',
+		required: true,
+		options: []
+	});
+
+	it('la clave es privada (formularios/<id>/<sha-256>.<ext>) y se reconoce', () => {
+		expect(key).toBe(`formularios/7/${hash}.png`);
+		expect(isPhotoKey(key)).toBe(true);
+		expect(isPhotoKey(`img/${hash}.png`)).toBe(false);
+		expect(isPhotoKey(`formularios/7/${hash}.svg`)).toBe(false);
+		expect(isPhotoKey(`formularios/7/../${hash}.png`)).toBe(false);
+	});
+
+	it('es un tipo de pregunta sin opciones', () => {
+		const r = validateQuestion({ kind: 'photo', label: 'Tu cara', options: 'a\nb' });
+		expect(r).toEqual({
+			ok: true,
+			question: { kind: 'photo', label: 'Tu cara', required: false, options: [] }
+		});
+		expect(parseStoredQuestions(JSON.stringify([{ ...q }]))[0].kind).toBe('photo');
+	});
+
+	it('la respuesta guarda solo una clave de foto; obligatoria sin foto, error', () => {
+		expect(validateFormAnswers([q], new Map([[answerName('f1'), key]]))).toEqual({
+			ok: true,
+			answers: [{ id: 'f1', label: 'Tu cara', value: key }]
+		});
+		const no = /** @type {any} */ (validateFormAnswers([q], new Map()));
+		expect(no.errors.f1).toBe('Subí una foto.');
+		const bad = /** @type {any} */ (validateFormAnswers([q], new Map([[answerName('f1'), 'x']])));
+		expect(bad.errors.f1).toBe('Subí una foto.');
+	});
+
+	it('el resumen solo cuenta; el CSV lleva «sí» y el panel «Foto», nunca la clave', () => {
+		const responses = [
+			{ answers: [{ id: 'f1', label: 'Tu cara', value: key }], anonymous: true, day: '2026-11-25' },
+			{ answers: [], anonymous: true, day: '2026-11-25' }
+		];
+		expect(summarize([q], responses)).toEqual([
+			{ id: 'f1', label: 'Tu cara', kind: 'photo', answered: 1 }
+		]);
+		// Una pregunta que ya no está sigue siendo una foto (por su clave).
+		expect(summarize([], responses)[0].kind).toBe('photo');
+		const [, a, b] = responsesCsvRows([q], responses, 'anonymous');
+		expect(a).toEqual(['2026-11-25', 'sí']);
+		expect(b).toEqual(['2026-11-25', '']);
+		expect(showAnswer('photo', key)).toBe('Foto');
 	});
 });

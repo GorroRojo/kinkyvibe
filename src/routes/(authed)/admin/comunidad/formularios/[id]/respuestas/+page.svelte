@@ -1,14 +1,15 @@
 <script>
 	/**
 	 * Respuestas de un formulario (docs/formularios.md): resumen por pregunta (promedio y barras
-	 * del puntaje, conteo de cada opción, lista de textos), cada respuesta y el CSV.
+	 * del puntaje, conteo de cada opción, lista de textos), cada respuesta y el CSV. Una «Foto» se
+	 * ve en miniatura en cada respuesta (servida solo a admins por `respuestas/fotos/…`).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { Download, Inbox, Shuffle } from '@lucide/svelte';
 	import BarList from '$lib/components/admin/panel/BarList.svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import { Badge, Button, Card, EmptyState } from '$lib/components/ui';
-	import { PRIVACY_LABELS, showAnswer } from '$lib/utils/formularios.js';
+	import { PRIVACY_LABELS, isPhotoKey, photoFile, showAnswer } from '$lib/utils/formularios.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -134,7 +135,14 @@
 						<dl>
 							{#each r.answers as a (a.id)}
 								<dt>{a.label}</dt>
-								<dd>{showAnswer(kindOf[a.id], a.value)}</dd>
+								<dd>
+									{#if isPhotoKey(a.value)}
+										{@const src = `/admin/comunidad/formularios/${f.id}/respuestas/fotos/${photoFile(a.value)}`}
+										<a class="photo" href={src} target="_blank" rel="noopener"
+											><img {src} alt="Foto de la respuesta" loading="lazy" /></a
+										>
+									{:else}{showAnswer(kindOf[a.id], a.value)}{/if}
+								</dd>
 							{/each}
 						</dl>
 					</li>
@@ -216,6 +224,14 @@
 		margin: 0;
 		white-space: pre-line;
 		overflow-wrap: anywhere;
+	}
+	.photo img {
+		display: block;
+		width: 6rem;
+		height: 6rem;
+		object-fit: cover;
+		border-radius: var(--radius-s, 0.4rem);
+		border: 1px solid var(--line);
 	}
 	@media (max-width: 600px) {
 		dl {

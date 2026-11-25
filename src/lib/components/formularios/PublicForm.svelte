@@ -79,6 +79,7 @@
 	$: values = form?.values ?? {};
 	$: errors = form?.errors ?? {};
 	$: typed = form?.typed ?? {};
+	$: withPhoto = data.questions.some((/** @type {any} */ q) => q.kind === 'photo');
 	$: needsName = data.privacy !== 'anonymous' && !ticket && data.access !== 'account';
 </script>
 
@@ -137,9 +138,11 @@
 			{/if}
 		</p>
 		{#if form?.error}<Notice tone="error" role="alert">{form.error}</Notice>{/if}
+		<!-- Con una «Foto», multipart: así la foto llega también sin JavaScript. -->
 		<form
 			method="POST"
 			action="?/send"
+			enctype={withPhoto ? 'multipart/form-data' : undefined}
 			use:enhance={() => {
 				sending = true;
 				return async ({ result }) => {
