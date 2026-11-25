@@ -38,6 +38,30 @@ export async function storedSecret(db, name) {
 }
 
 /**
+ * Un firmador con la clave `keyName` leída e importada una sola vez: para firmar muchos links
+ * seguidos sin una lectura de D1 por firma. Cada llamada da la firma de `message` en base64url,
+ * cortada a `length` caracteres.
+ *
+ * @param {D1Database} db
+ * @param {string} keyName
+ * @param {number} [length]
+ * @returns {Promise<(message: string) => Promise<string>>}
+ */
+export async function linkSigner(db, keyName, length = 32) {
+	const key = await crypto.subtle.importKey(
+		'raw',
+		new TextEncoder().encode(await storedSecret(db, keyName)),
+		{ name: 'HMAC', hash: 'SHA-256' },
+		false,
+		['sign']
+	);
+	return async (message) => {
+		const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+		return toBase64url(new Uint8Array(sig)).slice(0, length);
+	};
+}
+
+/**
  * Firma de `message` con la clave `keyName`, en base64url, cortada a `length` caracteres.
  *
  * @param {D1Database} db
@@ -46,15 +70,7 @@ export async function storedSecret(db, name) {
  * @param {number} [length]
  */
 export async function signLink(db, keyName, message, length = 32) {
-	const key = await crypto.subtle.importKey(
-		'raw',
-		new TextEncoder().encode(await storedSecret(db, keyName)),
-		{ name: 'HMAC', hash: 'SHA-256' },
-		false,
-		['sign']
-	);
-	const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
-	return toBase64url(new Uint8Array(sig)).slice(0, length);
+	return (await linkSigner(db, keyName, length))(message);
 }
 
 /**

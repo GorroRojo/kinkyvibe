@@ -2,7 +2,8 @@
  * Formularios contra un D1 de miniflare (migración 0079; docs/formularios.md): plantillas, copiar,
  * direcciones únicas, respuestas anónimas sin identidad (también «Que cada persona elija» con la
  * casilla marcada, y el CHECK de la tabla), el link personal que sirve una sola vez y la encuesta
- * de cada evento. Datos inventados (example.com).
+ * de cada evento; un link por entrada (la 1 con la clave de siempre, las demás aparte). Datos
+ * inventados (example.com).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -22,6 +23,7 @@ import {
 } from './store.js';
 import { FORM_TEMPLATES, ensureTemplates } from './templates.js';
 import { checkInviteToken, inviteToken } from './invite.js';
+import { signLink } from '$lib/server/signedLinks.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -172,7 +174,7 @@ describe('anonimato', () => {
 describe('link personal (quienes tenían entrada)', () => {
 	it('la clave es de ese formulario y esa orden', async () => {
 		const token = await inviteToken(t.db, 7, ORDER);
-		expect(await checkInviteToken(t.db, 7, token)).toBe(ORDER);
+		expect(await checkInviteToken(t.db, 7, token)).toEqual({ orderId: ORDER, ticket: 1 });
 		expect(await checkInviteToken(t.db, 8, token)).toBeNull();
 		expect(await checkInviteToken(t.db, 7, `${ORDER}.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`)).toBeNull();
 		expect(await checkInviteToken(t.db, 7, 'roto')).toBeNull();
@@ -199,6 +201,119 @@ describe('link personal (quienes tenían entrada)', () => {
 		// Sin link mandado (otra orden), no se guarda.
 		expect(await saveResponse(t.db, { ...answer, invite: { orderId: OTHER } })).toBe('used');
 		expect(await inviteUsed(t.db, id, OTHER)).toBeNull();
+	});
+});
+
+describe('un link por entrada', () => {
+	/** @param {number} formId */
+	const sent = (formId) =>
+		t.db
+			.prepare(
+				"INSERT INTO form_sends (order_id, form_id, sent_at, status, attempts) VALUES (?1, ?2, 1, 'sent', 1)"
+			)
+			.bind(ORDER, formId)
+			.run();
+
+	it('la entrada 1 es la clave de siempre (los links que ya salieron siguen andando)', async () => {
+		const token = await inviteToken(t.db, 7, ORDER);
+		// El mismo formato y el mismo mensaje firmado que antes de los links por entrada.
+		const sig = await signLink(t.db, 'form_link_key', `formulario:7:${ORDER}`);
+		expect(token).toBe(`${ORDER}.${sig}`);
+		expect(await inviteToken(t.db, 7, ORDER, 1)).toBe(token);
+		expect(await checkInviteToken(t.db, 7, token)).toEqual({ orderId: ORDER, ticket: 1 });
+	});
+
+	it('la entrada n: `<orden>.<n>.<firma>`; un número cambiado o mal escrito no sirve', async () => {
+		const two = await inviteToken(t.db, 7, ORDER, 2);
+		const [order, n, sig] = two.split('.');
+		expect([order, n]).toEqual([ORDER, '2']);
+		expect(await checkInviteToken(t.db, 7, two)).toEqual({ orderId: ORDER, ticket: 2 });
+		expect(await checkInviteToken(t.db, 8, two)).toBeNull();
+		// La firma de la 2 con otro número, o el número con ceros, signo o vacío: no.
+		for (const bad of ['3', '1', '02', '0', '-2', '+2', '2.0', '', ' 2', '2e0', '99999999'])
+			expect(await checkInviteToken(t.db, 7, `${order}.${bad}.${sig}`)).toBeNull();
+		// Sin el número (como si fuera la 1) tampoco, ni con partes de más.
+		expect(await checkInviteToken(t.db, 7, `${order}.${sig}`)).toBeNull();
+		expect(await checkInviteToken(t.db, 7, `${two}.x`)).toBeNull();
+		const ten = await inviteToken(t.db, 7, ORDER, 10);
+		expect(await checkInviteToken(t.db, 7, ten)).toEqual({ orderId: ORDER, ticket: 10 });
+	});
+
+	it('la entrada 2 sirve una vez, aparte de la 1, y guarda su número', async () => {
+		const id = await createForm(t.db, { title: 'Por entrada' }, by);
+		await sent(id);
+		const answer = { formId: id, answers: [{ id: 'p1', label: 'x', value: 'y' }] };
+		const who = { name: 'Titular Dos', email: 'demo@example.com', orderId: ORDER };
+		expect(await inviteUsed(t.db, id, ORDER, 2)).toBe(false);
+		expect(
+			await saveResponse(t.db, { ...answer, identity: who, invite: { orderId: ORDER, ticket: 2 } })
+		).toBe('ok');
+		expect(await inviteUsed(t.db, id, ORDER, 2)).toBe(true);
+		expect(await inviteUsed(t.db, id, ORDER, 3)).toBe(false);
+		// La 1 sigue libre.
+		expect(await inviteUsed(t.db, id, ORDER)).toBe(false);
+		expect(
+			await saveResponse(t.db, { ...answer, identity: who, invite: { orderId: ORDER, ticket: 2 } })
+		).toBe('used');
+		expect(
+			await saveResponse(t.db, { ...answer, identity: null, invite: { orderId: ORDER, ticket: 1 } })
+		).toBe('ok');
+		expect(await inviteUsed(t.db, id, ORDER)).toBe(true);
+		// Usar la 1 no gasta la 3.
+		expect(
+			await saveResponse(t.db, { ...answer, identity: null, invite: { orderId: ORDER, ticket: 3 } })
+		).toBe('ok');
+		const list = await listResponses(t.db, id);
+		expect(list.map((r) => r.ticket)).toEqual([2, null, null]);
+		expect(list[0]).toMatchObject({ name: 'Titular Dos', orderId: ORDER });
+		// Sin link mandado a la orden, la 2 no sirve.
+		expect(
+			await saveResponse(t.db, { ...answer, identity: null, invite: { orderId: OTHER, ticket: 2 } })
+		).toBe('used');
+		expect(await inviteUsed(t.db, id, OTHER, 2)).toBeNull();
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM form_ticket_uses').first())?.n).toBe(2);
+	});
+
+	it('dos envíos a la vez con el link de la entrada 2 guardan una sola respuesta', async () => {
+		const id = await createForm(t.db, { title: 'A la vez' }, by);
+		await sent(id);
+		const answer = {
+			formId: id,
+			answers: [{ id: 'p1', label: 'x', value: 'y' }],
+			identity: null,
+			invite: { orderId: ORDER, ticket: 2 }
+		};
+		const results = await Promise.all([saveResponse(t.db, answer), saveResponse(t.db, answer)]);
+		expect(results.sort()).toEqual(['ok', 'used']);
+		expect(await listResponses(t.db, id)).toHaveLength(1);
+	});
+
+	it('una respuesta con nombre de antes (con orden, sin número) cuenta como la entrada 1', async () => {
+		const id = await createForm(t.db, { title: 'Vieja' }, by);
+		await t.db
+			.prepare(
+				"INSERT INTO form_responses (form_id, answers, day, anonymous, name, order_id, created_at) VALUES (?1, '[]', '2099-01-01', 0, 'Persona Demo', ?2, 1)"
+			)
+			.bind(id, ORDER)
+			.run();
+		await saveResponse(t.db, {
+			formId: id,
+			answers: [],
+			identity: { name: 'Persona Demo', email: 'demo@example.com' }
+		});
+		expect((await listResponses(t.db, id)).map((r) => r.ticket)).toEqual([1, null]);
+	});
+
+	it('la tabla no deja guardar el número de entrada en una respuesta anónima', async () => {
+		const id = await createForm(t.db, { title: 'Check' }, by);
+		await expect(
+			t.db
+				.prepare(
+					"INSERT INTO form_responses (form_id, answers, day, anonymous, ticket) VALUES (?1, '[]', '2099-01-01', 1, 2)"
+				)
+				.bind(id)
+				.run()
+		).rejects.toThrow(/CHECK/);
 	});
 });
 

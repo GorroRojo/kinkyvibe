@@ -10,6 +10,9 @@
  * y variables: `{{evento}}`, `{{formulario}}`, `{{preguntas}}` y `{{link}}` (el link personal; el
  * botón va siempre).
  *
+ * Una orden con varias entradas recibe un solo mail con un link por entrada («Entrada 1: <nombre>»,
+ * «Entrada 2: <nombre>»…) en lugar del botón. Ahí `{{link}}` es el link de la entrada 1.
+ *
  * El asunto de siempre de la encuesta no lleva el título del evento (puede ser sensible y se ve en
  * la notificación del celu); el título va solo adentro.
  */
@@ -33,6 +36,7 @@ export const MAIL_VARS = Object.freeze(['evento', 'formulario', 'preguntas', 'li
 export const MAIL_TEXT_LIMITS = Object.freeze({ subject: 150, body: 2000 });
 
 const HELP = 'El link es solo tuyo y sirve para contestar una vez. Si no tenés ganas, ignoralo.';
+const HELP_TICKETS = 'Cada link sirve para contestar una vez. Pasale el suyo a cada persona.';
 const WHY = 'Te llega porque tenías entrada para este evento.';
 
 /** «Son 5 preguntas cortas» / «Es una pregunta corta». @param {number} n */
@@ -79,10 +83,20 @@ export function mailTexts(form, defaults = null) {
 }
 
 /**
+ * «Entrada 2: Nombre» (o «Entrada 2» si la entrada no tiene nombre).
+ * @param {number} n
+ * @param {string} holder
+ */
+export const ticketLinkLabel = (n, holder) =>
+	holder.trim() ? `Entrada ${n}: ${holder.trim()}` : `Entrada ${n}`;
+
+/**
  * @param {{ survey: boolean, formTitle: string, eventTitle: string, questions: number,
  *   anonymous: boolean, url: string, origin?: string, contactEmail?: string,
- *   subject?: string, body?: string }} input `subject` y `body`: los textos que valen
- *   ({@link mailTexts}); sin ellos, los de siempre
+ *   subject?: string, body?: string, tickets?: { holder: string, url: string }[] }} input
+ *   `subject` y `body`: los textos que valen ({@link mailTexts}); sin ellos, los de siempre.
+ *   `tickets`: con 2 o más, un link por entrada (en orden) en lugar del botón; `url` es el de la
+ *   entrada 1 (el de `{{link}}`).
  * @returns {{ subject: string, html: string, text: string }}
  */
 export function buildFormEmail({
@@ -95,7 +109,8 @@ export function buildFormEmail({
 	origin,
 	contactEmail,
 	subject,
-	body
+	body,
+	tickets = []
 }) {
 	const count = questionCountText(questions);
 	const privacy = anonymous ? ' y es anónima: no guardamos quién contestó qué' : '';
@@ -112,25 +127,36 @@ export function buildFormEmail({
 	).replace(/\s+/g, ' ');
 	const bodyText = body || (survey ? SURVEY_MAIL_BODY : FORM_MAIL_BODY);
 	const title = survey ? '¿Cómo la pasaste?' : formTitle;
+	const perTicket = tickets.length > 1;
+	const links = tickets.map((t, i) => ({ label: ticketLinkLabel(i + 1, t.holder), url: t.url }));
+	const help = perTicket ? HELP_TICKETS : HELP;
 	const text = [
 		title,
 		'',
 		renderPlain(bodyText, vars, { links: true }),
 		'',
-		`${button}: ${url}`,
-		'',
-		HELP,
+		...(perTicket ? links.flatMap((l) => [l.label, l.url, '']) : [`${button}: ${url}`, '']),
+		help,
 		'',
 		WHY
 	].join('\n');
+	const listHtml = perTicket
+		? links
+				.map(
+					(l) =>
+						`<p style="${MAIL_STYLES.p}"><a href="${escapeHtml(l.url)}" style="${MAIL_STYLES.link}"><strong>${escapeHtml(l.label)}</strong></a></p>`
+				)
+				.join('\n')
+		: '';
 	const html = mailLayout({
 		origin,
 		preheader: `${count}${anonymous ? ' y es anónima' : ''}`,
 		label: survey ? 'Encuesta' : 'Formulario',
 		titleHtml: escapeHtml(title),
-		contentHtml: renderBlockHtml(bodyText, vars).replace(/<p>/g, `<p style="${MAIL_STYLES.p}">`),
-		button: { href: url, label: button },
-		helpHtml: escapeHtml(HELP),
+		contentHtml:
+			renderBlockHtml(bodyText, vars).replace(/<p>/g, `<p style="${MAIL_STYLES.p}">`) + listHtml,
+		button: perTicket ? null : { href: url, label: button },
+		helpHtml: escapeHtml(help),
 		whyHtml: escapeHtml(WHY),
 		contactEmail
 	});

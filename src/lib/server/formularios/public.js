@@ -5,7 +5,8 @@
  * (`submitPublicForm`), con todas las reglas en el servidor:
  *
  * - **Quién responde.** «Cualquiera con el link»; «con cuenta» (sesión de cuenta); «quienes tenían
- *   entrada» (la clave del link personal: la orden aprobada de ese evento, una sola vez).
+ *   entrada» (la clave del link personal: una entrada de una orden aprobada de ese evento, una sola
+ *   vez; la entrada 1 responde con los datos de la compra, las demás con los de su titular).
  * - **Privacidad.** Anónima (o «Responder anónimamente» marcada en «Que cada persona elija"): se
  *   guarda sin nombre, mail, cuenta, orden ni hora. Con nombre: el de la orden o la cuenta, o el
  *   que escribe la persona en uno abierto a cualquiera.
@@ -20,7 +21,7 @@ import { error, fail } from '@sveltejs/kit';
 import { sha256Hex } from '$lib/server/hash.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { clientOf } from '$lib/server/cuentas/web.js';
-import { getOrder } from '$lib/server/tickets/orders.js';
+import { getOrder, getOrderTickets } from '$lib/server/tickets/orders.js';
 import { getDB } from '$lib/server/db';
 import { formulariosEnabled } from '$lib/server/flags.js';
 import {
@@ -87,23 +88,32 @@ export function publicFormData(form, { member, eventTitle = null }) {
 }
 
 /**
- * ¿Sirve esta clave? `invalid` (no es de este formulario o la orden no está confirmada), `used`
- * (ya se respondió) u `ok`.
+ * ¿Sirve esta clave? `invalid` (no es de este formulario, la orden no está confirmada o la orden no
+ * tiene esa entrada), `used` (ya se respondió con el link de esa entrada) u `ok`, con la orden, el
+ * número de entrada y su fila (`null` en la entrada 1 de una orden sin entradas: los links que ya
+ * salieron siguen andando).
  *
  * @param {D1Database} db
  * @param {Form} form
  * @param {unknown} token
- * @returns {Promise<{ state: 'invalid' | 'used' | 'ok', order?: import('$lib/server/tickets/orders.js').Order }>}
+ * @returns {Promise<{ state: 'invalid' | 'used' | 'ok',
+ *   order?: import('$lib/server/tickets/orders.js').Order, number?: number,
+ *   ticket?: import('$lib/server/tickets/orders.js').Ticket | null }>}
  */
 export async function checkInvite(db, form, token) {
-	const orderId = await checkInviteToken(db, form.id, token);
-	if (!orderId) return { state: 'invalid' };
-	const order = await getOrder(db, orderId);
+	const invite = await checkInviteToken(db, form.id, token);
+	if (!invite) return { state: 'invalid' };
+	const [order, tickets] = await Promise.all([
+		getOrder(db, invite.orderId),
+		getOrderTickets(db, invite.orderId)
+	]);
 	if (!order || order.status !== 'approved' || order.event_slug !== form.eventSlug)
 		return { state: 'invalid' };
-	const used = await inviteUsed(db, form.id, orderId);
+	const ticket = tickets[invite.ticket - 1] ?? null;
+	if (invite.ticket > 1 && !ticket) return { state: 'invalid' };
+	const used = await inviteUsed(db, form.id, invite.orderId, invite.ticket);
 	if (used === null) return { state: 'invalid' };
-	return used ? { state: 'used' } : { state: 'ok', order };
+	return used ? { state: 'used' } : { state: 'ok', order, number: invite.ticket, ticket };
 }
 
 /**
@@ -180,10 +190,12 @@ export async function submitPublicForm(event, form) {
 		fail(status, { error: message, errors: { ...repick, ...errors }, values, typed });
 	if (!form.open) return failWith(409, 'Este formulario ya no recibe respuestas.');
 
-	/** @type {{ orderId: string } | null} */
+	/** @type {{ orderId: string, ticket: number } | null} */
 	let invite = null;
 	/** @type {import('$lib/server/tickets/orders.js').Order | undefined} */
 	let order;
+	/** @type {import('$lib/server/tickets/orders.js').Ticket | null} */
+	let holder = null;
 	if (form.access === 'ticket') {
 		const r = await checkInvite(db, form, data.get('clave'));
 		if (r.state === 'used') return { sent: true, repeated: true };
@@ -191,7 +203,8 @@ export async function submitPublicForm(event, form) {
 			return failWith(400, 'Este link no es válido. Revisá que esté completo.');
 		}
 		order = r.order;
-		invite = { orderId: r.order.id };
+		invite = { orderId: r.order.id, ticket: r.number ?? 1 };
+		holder = r.ticket ?? null;
 	} else {
 		// La trampa: un robot llena todo. Se contesta como si hubiera salido bien.
 		if (oneLine(data.get(HONEYPOT_FIELD))) return { sent: true };
@@ -229,7 +242,15 @@ export async function submitPublicForm(event, form) {
 	/** @type {import('./store.js').Identity | null} */
 	let identity = null;
 	if (!anonymous) {
-		if (order) {
+		if (order && invite && invite.ticket > 1 && holder) {
+			// La entrada 2, 3…: su titular; el mail es el de la compra (el único que hay).
+			identity = {
+				name: holder.holder_name,
+				pronouns: holder.holder_pronouns || null,
+				email: order.buyer_email,
+				orderId: order.id
+			};
+		} else if (order) {
 			identity = {
 				name: order.buyer_name,
 				pronouns: order.buyer_pronouns || null,

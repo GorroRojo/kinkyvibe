@@ -15,13 +15,20 @@
  *    «Foto»: cualquier otro, 404. Así el secreto no abre los demás formularios del sitio.
  *
  * Quién respondió va solo si la privacidad de hoy lo deja ver (`showsIdentity`, lo mismo que el
- * panel): nombre, pronombres y mail; en una anónima, `null`. Pedido de servidor a servidor: sin
- * CORS, sin caché.
+ * panel): nombre, pronombres y mail; en una anónima, `null`. Si además llegó por un link personal
+ * (formulario «quienes tenían entrada»), `ticket` dice de qué entrada de qué orden (con el titular
+ * de hoy de esa entrada); si no, `null`. Pedido de servidor a servidor: sin CORS, sin caché.
  */
 import { sha256Hex, timingSafeEqual } from '$lib/server/hash.js';
-import { getFormBySlug, getResponse, listResponses } from '$lib/server/formularios/store.js';
+import {
+	getFormBySlug,
+	getResponse,
+	listResponses,
+	responseTicketHolders
+} from '$lib/server/formularios/store.js';
 import { hasPhotoQuestion, photoResponse } from '$lib/server/formularios/photos.js';
 import { isPhotoKey, showsIdentity } from '$lib/utils/formularios.js';
+import { orderReference } from '$lib/utils/tickets.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').R2Bucket} R2Bucket */
@@ -77,8 +84,13 @@ export async function handleGanchoResponses({ request, secret, db, slug }) {
 	const form = await ganchoForm(db, slug);
 	if (!form) return bare(404);
 	const kinds = new Map(form.questions.map((q) => [q.id, q.kind]));
-	const responses = (await listResponses(db, form.id)).map((r) => {
+	const [list, holders] = await Promise.all([
+		listResponses(db, form.id),
+		responseTicketHolders(db, form.id)
+	]);
+	const responses = list.map((r) => {
 		const show = showsIdentity(form.privacy, r);
+		const number = r.ticket ?? 1;
 		return {
 			id: r.id,
 			createdAt: r.createdAt === null ? null : new Date(r.createdAt).toISOString(),
@@ -87,6 +99,14 @@ export async function handleGanchoResponses({ request, secret, db, slug }) {
 			name: show ? r.name : null,
 			pronouns: show ? r.pronouns : null,
 			email: show ? r.email : null,
+			ticket:
+				show && r.orderId
+					? {
+							order: orderReference(r.orderId),
+							number,
+							holderName: holders.get(r.orderId)?.[number - 1] ?? null
+						}
+					: null,
 			answers: r.answers.map((a) => {
 				const photo = isPhotoKey(a.value);
 				return {

@@ -6,7 +6,8 @@
  * - `form_responses`: cada respuesta. Si es anónima, NO se escribe nombre, mail, cuenta, orden ni
  *   hora: {@link saveResponse} ni siquiera los manda (y un CHECK de la tabla lo controla igual).
  * - `form_sends`: el link personal de un formulario para quienes tenían entrada (send.js) y si ya
- *   se usó (sirve una vez).
+ *   se usó (sirve una vez). Es el de la entrada 1 de cada orden; los de las entradas 2, 3… se
+ *   marcan usados en `form_ticket_uses` (migración 0087).
  *
  * Borrar es suave (`deleted_at`, migración 0080, decisión 0033): lo borrado no se lista, no se
  * responde ni se manda, y vuelve con sus respuestas desde Actividad (`deleteForm`, `restoreForm`).
@@ -433,13 +434,29 @@ export async function requestFormSend(db, id, { by, now = Date.now() }) {
  */
 
 /**
+ * La condición de que el link personal sirve (para el INSERT … SELECT … WHERE de la respuesta):
+ * hay link mandado a esa orden y no se usó el de esa entrada (la 1 en `form_sends.used`, las demás
+ * en `form_ticket_uses`). Sin orden (`?order IS NULL`), siempre.
+ *
+ * @param {string} form el parámetro del formulario (`?1`)
+ * @param {string} order el de la orden
+ * @param {string} ticket el del número de entrada
+ */
+const inviteOpenSql = (form, order, ticket) =>
+	`(${order} IS NULL OR (EXISTS (SELECT 1 FROM form_sends s
+		WHERE s.form_id = ${form} AND s.order_id = ${order} AND (${ticket} > 1 OR s.used = 0))
+	AND NOT EXISTS (SELECT 1 FROM form_ticket_uses u
+		WHERE u.form_id = ${form} AND u.order_id = ${order} AND u.ticket = ${ticket})))`;
+
+/**
  * Guarda una respuesta. Con `identity: null` es anónima: solo las respuestas y el día (ni la
- * hora). Con `invite` (el link personal de quien tenía entrada) la guarda solo si ese link no se
- * usó, y lo marca usado en la MISMA tanda: dos envíos a la vez no guardan dos respuestas.
+ * hora). Con `invite` (el link personal de una entrada de quien tenía entrada; sin `ticket`, la 1)
+ * la guarda solo si ese link no se usó, y lo marca usado en la MISMA tanda: dos envíos a la vez no
+ * guardan dos respuestas. Una respuesta con nombre por un link guarda el número de entrada.
  *
  * @param {D1Database} db
  * @param {{ formId: number, answers: FormAnswer[], identity: Identity | null,
- *   invite?: { orderId: string } | null, now?: number }} input
+ *   invite?: { orderId: string, ticket?: number } | null, now?: number }} input
  * @returns {Promise<'ok' | 'used'>}
  */
 export async function saveResponse(
@@ -448,14 +465,16 @@ export async function saveResponse(
 ) {
 	const day = argDate(new Date(now));
 	const json = JSON.stringify(answers.map(({ id, label, value }) => ({ id, label, value })));
+	const ticket = invite ? (invite.ticket ?? 1) : null;
+	if (ticket !== null && (!Number.isSafeInteger(ticket) || ticket < 1))
+		throw new Error('entrada inválida');
 	const insert = identity
 		? db
 				.prepare(
 					`INSERT INTO form_responses (form_id, answers, day, anonymous, name, email, account_id,
-						order_id, created_at, pronouns)
-					SELECT ?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, ?8, ?10
-					WHERE ?9 IS NULL OR EXISTS (SELECT 1 FROM form_sends
-						WHERE form_id = ?1 AND order_id = ?9 AND used = 0)`
+						order_id, created_at, pronouns, ticket)
+					SELECT ?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, ?8, ?10, ?11
+					WHERE ${inviteOpenSql('?1', '?9', '?11')}`
 				)
 				.bind(
 					formId,
@@ -467,49 +486,133 @@ export async function saveResponse(
 					identity.orderId || null,
 					now,
 					invite?.orderId ?? null,
-					identity.pronouns?.slice(0, 60) || null
+					identity.pronouns?.slice(0, 60) || null,
+					ticket
 				)
 		: db
 				.prepare(
 					`INSERT INTO form_responses (form_id, answers, day, anonymous)
 					SELECT ?1, ?2, ?3, 1
-					WHERE ?4 IS NULL OR EXISTS (SELECT 1 FROM form_sends
-						WHERE form_id = ?1 AND order_id = ?4 AND used = 0)`
+					WHERE ${inviteOpenSql('?1', '?4', '?5')}`
 				)
-				.bind(formId, json, day, invite?.orderId ?? null);
+				.bind(formId, json, day, invite?.orderId ?? null, ticket);
 	if (!invite) {
 		await insert.run();
 		return 'ok';
 	}
-	const [inserted] = await db.batch([
-		insert,
-		db
-			.prepare('UPDATE form_sends SET used = 1 WHERE form_id = ?1 AND order_id = ?2 AND used = 0')
-			.bind(formId, invite.orderId)
-	]);
+	const mark =
+		ticket === 1
+			? db
+					.prepare(
+						'UPDATE form_sends SET used = 1 WHERE form_id = ?1 AND order_id = ?2 AND used = 0'
+					)
+					.bind(formId, invite.orderId)
+			: db
+					.prepare(
+						`INSERT OR IGNORE INTO form_ticket_uses (form_id, order_id, ticket)
+						SELECT ?1, ?2, ?3 WHERE EXISTS (SELECT 1 FROM form_sends
+							WHERE form_id = ?1 AND order_id = ?2)`
+					)
+					.bind(formId, invite.orderId, ticket);
+	const [inserted] = await db.batch([insert, mark]);
 	return inserted.meta.changes === 1 ? 'ok' : 'used';
 }
 
 /**
- * ¿Ya se usó el link personal de esta orden? `null` si no hay link (no se le mandó).
+ * ¿Ya se usó el link personal de esta entrada (sin `ticket`, la 1) de esta orden? `null` si no hay
+ * link (no se le mandó a la orden).
  *
  * @param {D1Database} db
  * @param {number} formId
  * @param {string} orderId
+ * @param {number} [ticket]
  * @returns {Promise<boolean | null>}
  */
-export async function inviteUsed(db, formId, orderId) {
+export async function inviteUsed(db, formId, orderId, ticket = 1) {
 	const r = await db
-		.prepare('SELECT used FROM form_sends WHERE form_id = ?1 AND order_id = ?2')
-		.bind(formId, orderId)
+		.prepare(
+			`SELECT s.used, EXISTS (SELECT 1 FROM form_ticket_uses u
+				WHERE u.form_id = ?1 AND u.order_id = ?2 AND u.ticket = ?3) AS ticket_used
+			FROM form_sends s WHERE s.form_id = ?1 AND s.order_id = ?2`
+		)
+		.bind(formId, orderId, ticket)
 		.first();
-	return r ? Number(r.used) === 1 : null;
+	if (!r) return null;
+	return ticket === 1 ? Number(r.used) === 1 : Number(r.ticket_used) === 1;
+}
+
+/**
+ * Los links por entrada de un formulario, para el panel: cada entrada (por `rowid` dentro de su
+ * orden) de cada orden aprobada que ya tiene su link mandado (`form_sends`), con su titular y si
+ * ya se respondió. En el orden en que salieron.
+ *
+ * @param {D1Database} db
+ * @param {number} formId
+ * @returns {Promise<{ orderId: string, ticket: number, holderName: string, used: boolean }[]>}
+ */
+export async function ticketLinkRows(db, formId) {
+	const { results } = await db
+		.prepare(
+			`SELECT s.order_id, s.used, t.holder_name,
+				ROW_NUMBER() OVER (PARTITION BY t.order_id ORDER BY t.rowid) AS n
+			FROM form_sends s
+			JOIN orders o ON o.id = s.order_id AND o.status = 'approved'
+			JOIN tickets t ON t.order_id = s.order_id
+			WHERE s.form_id = ?1
+			ORDER BY s.sent_at, s.order_id, t.rowid`
+		)
+		.bind(formId)
+		.all();
+	const { results: uses } = await db
+		.prepare('SELECT order_id, ticket FROM form_ticket_uses WHERE form_id = ?1')
+		.bind(formId)
+		.all();
+	const used = new Set(uses.map((u) => `${u.order_id}:${u.ticket}`));
+	return results.map((r) => {
+		const ticket = Number(r.n);
+		const orderId = String(r.order_id);
+		return {
+			orderId,
+			ticket,
+			holderName: String(r.holder_name ?? ''),
+			used: ticket === 1 ? Number(r.used) === 1 : used.has(`${orderId}:${ticket}`)
+		};
+	});
+}
+
+/**
+ * Los titulares de las entradas de las órdenes que respondieron un formulario (la API de Gancho):
+ * por orden, los nombres en el orden de las entradas (`rowid`), así la entrada n es `[n - 1]`.
+ *
+ * @param {D1Database} db
+ * @param {number} formId
+ * @returns {Promise<Map<string, string[]>>}
+ */
+export async function responseTicketHolders(db, formId) {
+	const { results } = await db
+		.prepare(
+			`SELECT t.order_id, t.holder_name FROM tickets t
+			WHERE t.order_id IN (SELECT order_id FROM form_responses
+				WHERE form_id = ?1 AND order_id IS NOT NULL)
+			ORDER BY t.order_id, t.rowid`
+		)
+		.bind(formId)
+		.all();
+	/** @type {Map<string, string[]>} */
+	const out = new Map();
+	for (const r of results) {
+		const id = String(r.order_id);
+		const list = out.get(id) ?? [];
+		list.push(String(r.holder_name ?? ''));
+		out.set(id, list);
+	}
+	return out;
 }
 
 /**
  * @typedef {{ id: number, answers: FormAnswer[], anonymous: boolean, name: string | null,
- *   pronouns: string | null, email: string | null, accountId: string | null, orderId: string | null, day: string,
- *   createdAt: number | null }} StoredResponse
+ *   pronouns: string | null, email: string | null, accountId: string | null, orderId: string | null,
+ *   ticket: number | null, day: string, createdAt: number | null }} StoredResponse
  */
 
 /**
@@ -523,7 +626,8 @@ export async function inviteUsed(db, formId, orderId) {
 export async function listResponses(db, formId) {
 	const { results } = await db
 		.prepare(
-			`SELECT id, answers, anonymous, name, pronouns, email, account_id, order_id, day, created_at
+			`SELECT id, answers, anonymous, name, pronouns, email, account_id, order_id, ticket, day,
+				created_at
 			FROM form_responses WHERE form_id = ?1 ORDER BY id`
 		)
 		.bind(formId)
@@ -537,6 +641,8 @@ export async function listResponses(db, formId) {
 		email: r.email == null ? null : String(r.email),
 		accountId: r.account_id == null ? null : String(r.account_id),
 		orderId: r.order_id == null ? null : String(r.order_id),
+		// Las de antes de 0087 (con orden, sin número) son de la entrada 1.
+		ticket: r.ticket != null ? Number(r.ticket) : r.order_id != null ? 1 : null,
 		day: String(r.day),
 		createdAt: r.created_at == null ? null : Number(r.created_at)
 	}));
@@ -575,7 +681,7 @@ export async function responseCount(db, formId) {
 
 /**
  * Cómo van los links personales de un formulario: mandados, fallados, pendientes de reintento y
- * usados.
+ * usados (los de todas las entradas: la 1 en `form_sends`, las demás en `form_ticket_uses`).
  *
  * @param {D1Database} db
  * @param {number} formId
@@ -587,7 +693,7 @@ export async function sendStats(db, formId) {
 				SUM(status = 'sent') AS sent,
 				SUM(status = 'failed') AS failed,
 				SUM(status IN ('sending', 'retry')) AS pending,
-				SUM(used) AS used
+				SUM(used) + (SELECT COUNT(*) FROM form_ticket_uses WHERE form_id = ?1) AS used
 			FROM form_sends WHERE form_id = ?1`
 		)
 		.bind(formId)
