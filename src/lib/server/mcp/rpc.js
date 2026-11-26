@@ -43,8 +43,12 @@ const EDIT_INSTRUCTIONS =
 	'entradas más el `hash` y la `version` que dio la vista previa. Nunca apliques algo distinto de ' +
 	'lo que se mostró. `editar_objeto` cambia lo que edita el panel (eventos, material, perfiles, ' +
 	'lugares, etiquetas y la Kinkipedia), `crear_borrador` crea uno sin publicar (o una etiqueta nueva) y `deshacer` vuelve ' +
-	'un objeto a una versión anterior (también un deshacer se deshace). Nada de plata ni mails: ' +
-	'cancelar un evento, ventas, reembolsos y envíos se hacen desde el panel. Para subir una imagen ' +
+	'un objeto a una versión anterior (también un deshacer se deshace). Nada de plata ni mails, con ' +
+	'una sola excepción: `confirmar_transferencia` confirma que llegó el pago de una transferencia ' +
+	'(como «Confirmar pago» del panel: emite las entradas y le manda el mail a quien compró), solo ' +
+	'después de mostrar su vista previa y de que la persona diga que sí, y nunca pasando un límite ' +
+	'(si hace falta pasar uno, se confirma en el panel). Todo lo demás de plata (cancelar un evento, ' +
+	'ventas, reembolsos, cambiar montos) y los envíos se hacen desde el panel. Para subir una imagen ' +
 	'o un archivo a la biblioteca: `subir_imagen` o `subir_archivo` (los bytes en base64, hasta 1 ' +
 	'MB) o, más grande, `pedir_subida` (un PUT) y `confirmar_subida`; solo suma a la biblioteca, y ' +
 	'usarla es un cambio más (`editar_objeto` con `imagen`). El sitio nunca baja nada de otra ' +

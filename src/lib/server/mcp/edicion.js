@@ -16,7 +16,9 @@
  *   les admins (./avisoCambios.js, lo dispara ./rpc.js después de anotarlo en Actividad). Guarda
  *   con las reglas de HTML de le admin que autorizó, como el panel (decisión 0004).
  * - Nada de plata ni mails: ni ventas, ni reembolsos, ni envíos, ni cancelar un evento
- *   (./editarEvento.js, `eventMailGuard`).
+ *   (./editarEvento.js, `eventMailGuard`). La única excepción (gorrite, 26/11):
+ *   `confirmar_transferencia`, confirmar que llegó el pago de una transferencia, por la misma
+ *   función que el panel y sin pasar nunca un límite (./confirmarTransferencia.js).
  * - Con los mismos permisos, subir imágenes y archivos a la biblioteca (`subir_imagen`,
  *   `subir_archivo`, `pedir_subida`, `confirmar_subida`; ./biblioteca.js).
  */
@@ -91,6 +93,13 @@ import { linksFor, planUndo } from './historial.js';
 import { EDIT_TYPES, LOG_TYPE, TYPE_TEXT, editType, findTarget } from './objetos.js';
 import { ToolInputError, resolveEvent } from './tools.js';
 import { FORM_TYPE, planFormCreate, planFormEdit } from './formularios.js';
+import {
+	TRANSFER_OPERATION,
+	applyTransferConfirm,
+	checkTransferPreview,
+	planTransferConfirm,
+	transferEarlyResult
+} from './confirmarTransferencia.js';
 
 /** @typedef {import('./tools.js').ToolContext} ToolContext */
 /** @typedef {import('./tools.js').ToolOutput} ToolOutput */
@@ -101,7 +110,8 @@ export const OPERATIONS = Object.freeze([
 	'editar_evento',
 	'crear_codigo',
 	'crear_borrador',
-	'deshacer'
+	'deshacer',
+	TRANSFER_OPERATION
 ]);
 
 const OPERATION_TEXT = /** @type {Record<string, string>} */ ({
@@ -112,7 +122,9 @@ const OPERATION_TEXT = /** @type {Record<string, string>} */ ({
 	crear_borrador:
 		'crear un borrador sin publicar de un evento, material, perfil o lugar, o una etiqueta nueva',
 	deshacer:
-		'volver un objeto a una versión anterior (la de antes del último guardado, o `a_version`, el número que muestra `historial`)'
+		'volver un objeto a una versión anterior (la de antes del último guardado, o `a_version`, el número que muestra `historial`)',
+	[TRANSFER_OPERATION]:
+		'confirmar que llegó el pago de una transferencia, como «Confirmar pago» del panel (`evento` y `orden`); solo una transferencia que espera el pago o vencida con lugar, nunca pasando un límite'
 });
 
 /** El esquema de entrada común (sin la huella). */
@@ -136,7 +148,12 @@ const BASE_PROPERTIES = {
 	evento: {
 		type: 'string',
 		description:
-			'En `editar_evento`, el evento (slug o nombre). En `crear_codigo`, el evento del código (sin `evento`, vale para todos).'
+			'En `editar_evento`, el evento (slug o nombre). En `crear_codigo`, el evento del código (sin `evento`, vale para todos). En `confirmar_transferencia`, el evento de la orden.'
+	},
+	orden: {
+		type: 'string',
+		description:
+			'En `confirmar_transferencia`: la referencia de la compra (KV- y 8 letras o números, la que muestra `ventas` y va en el mail) o el id de la orden.'
 	},
 	a_version: {
 		type: 'integer',
@@ -190,8 +207,10 @@ const BASE_PROPERTIES = {
  *   changes: Array<{ campo: string, antes: string, despues: string }>,
  *   warnings: string[],
  *   links: Record<string, string>,
- *   apply: (ctx: ToolContext) => Promise<ApplyResult>
+ *   apply: (ctx: ToolContext) => Promise<ApplyResult>,
+ *   transfer?: import('./confirmarTransferencia.js').TransferPlan
  * }} Plan
+ * `transfer`: solo en `confirmar_transferencia`, que `aplicar` atiende aparte.
  */
 
 /**
@@ -384,6 +403,7 @@ export async function planChange(ctx, args) {
 				'Los formularios no guardan versiones (no tienen historial): no se deshacen. Para volver atrás, cambialo con `editar_objeto`.'
 			);
 		if (operation === 'deshacer') return await planUndo(ctx, args);
+		if (operation === TRANSFER_OPERATION) return await planTransferConfirm(ctx, args);
 		// crear_codigo
 		/** Resuelve el evento por slug o nombre (como `ventas`). */
 		const findEvent = async () => {
@@ -458,6 +478,8 @@ function whatOf(p) {
 				: `un borrador de ${p.tipo} «${p.targetTitle}»`;
 		case 'deshacer':
 			return `volver atrás ${typeText(p)} «${p.targetTitle}»`;
+		case TRANSFER_OPERATION:
+			return `confirmar la transferencia ${p.targetTitle} de «${p.transfer?.eventTitle}»`;
 		default:
 			return `un cambio en ${typeText(p)} «${p.targetTitle}»`;
 	}
@@ -473,6 +495,8 @@ function doneOf(p) {
 			return p.tipo === 'etiqueta'
 				? `creó la etiqueta «${p.targetTitle}»`
 				: `creó un borrador de ${p.tipo} «${p.targetTitle}»`;
+		case TRANSFER_OPERATION:
+			return `confirmó la transferencia ${p.targetTitle} de «${p.transfer?.eventTitle}»`;
 		case 'deshacer':
 			return `volvió ${typeText(p)} «${p.targetTitle}» a la versión ${p.inputs.a_version} (${fieldsOf(p)})`;
 		default:
@@ -513,6 +537,7 @@ export const EDIT_TOOLS = {
 		async run(ctx, args) {
 			await requireEditing(ctx);
 			const p = await planChange(ctx, args);
+			if (p.transfer) checkTransferPreview(p.transfer);
 			const hash = await changeHash(ctx.db, p);
 			return {
 				result: {
@@ -524,7 +549,8 @@ export const EDIT_TOOLS = {
 					avisos: p.warnings,
 					hash,
 					version: p.base,
-					enlaces: p.links
+					enlaces: p.links,
+					...(p.transfer ? { transferencia: p.transfer.preview } : {})
 				},
 				log: {
 					summary: `Claude: vista previa de ${whatOf(p)} (${fieldsOf(p)})`,
@@ -580,15 +606,21 @@ export const EDIT_TOOLS = {
 			const who = claudeLabel(confirmedBy);
 			const p = await planChange(ctx, args);
 			const version = typeof args.version === 'string' ? args.version : '';
-			const refused = (/** @type {string} */ why, /** @type {string} */ message) => ({
+			/** @type {import('./confirmarTransferencia.js').Refuse} */
+			const refused = (why, message, extra = {}) => ({
 				isError: true,
-				result: { aplicado: false, motivo: why, mensaje: message },
+				result: { aplicado: false, motivo: why, mensaje: message, ...extra },
 				log: {
 					summary: `${who}: no se aplicó ${whatOf(p)} (${why})`,
 					...p.targetLog,
 					detail: { operacion: p.operation, motivo: why }
 				}
 			});
+			// Confirmar una transferencia: una ya confirmada («ya estaba») o que no se puede, antes que
+			// la huella (un `aplicar` repetido contesta «ya estaba» y no manda nada).
+			const early =
+				p.transfer && transferEarlyResult(p.transfer, { who, refused, log: p.targetLog });
+			if (early) return early;
 			if (version !== p.base) {
 				return refused(
 					'cambió',
@@ -599,6 +631,15 @@ export const EDIT_TOOLS = {
 				return refused(
 					'no coincide',
 					'Las entradas no son las de la vista previa (o el hash no es el que dio). No se guardó nada: hacé una vista previa nueva con lo que se quiere cambiar.'
+				);
+			}
+			if (p.transfer) {
+				return applyTransferConfirm(
+					ctx,
+					/** @type {Plan & { transfer: import('./confirmarTransferencia.js').TransferPlan }} */ (
+						p
+					),
+					{ confirmedBy, request, who, refused, summary: summaryText(p) }
 				);
 			}
 			// Como cuando le admin guarda en el panel: les admins son superadmins (HTML libre).

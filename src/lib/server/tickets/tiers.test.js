@@ -84,7 +84,7 @@ vi.mock('./events.js', async () => {
 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { listAudit } from '$lib/server/admin/audit.js';
-import { confirmTransferFromPanel } from '$lib/server/admin/transfers.js';
+import { confirmTransferPayment } from '$lib/server/admin/transfers.js';
 import { computePrice } from '$lib/utils/tickets.js';
 import { formatARS } from '$lib/utils/money.js';
 import { buyAction, getTicketsView, summarizeTickets, tierLeftMessage } from './checkout.js';
@@ -599,7 +599,7 @@ describe('panel: transferencia vencida con el tramo lleno', () => {
 		});
 		expect(plain.result).toBe('no-capacity');
 
-		const first = await confirmTransferFromPanel({
+		const first = await confirmTransferPayment({
 			db: t.db,
 			locals: ADMIN,
 			by: 'admin-de-prueba',
@@ -609,7 +609,7 @@ describe('panel: transferencia vencida con el tramo lleno', () => {
 		expect(first.needsConfirmation?.limits[0].message).toMatch(
 			/tramo «Preventa 1» de «General» ya está completo/
 		);
-		const done = await confirmTransferFromPanel({
+		const done = await confirmTransferPayment({
 			db: t.db,
 			locals: ADMIN,
 			by: 'admin-de-prueba',

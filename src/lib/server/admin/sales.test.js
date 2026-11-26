@@ -222,7 +222,7 @@ describe('listTransferInbox', () => {
 });
 
 describe('confirmar y cancelar desde la bandeja', async () => {
-	const { cancelTransferFromPanel, confirmTransferFromPanel, reopenTransferFromPanel } =
+	const { cancelTransferFromPanel, confirmTransferPayment, reopenTransferFromPanel } =
 		await import('./transfers.js');
 	const locals = /** @type {any} */ ({ user: { id: 1, login: 'admin-prueba' } });
 
@@ -234,7 +234,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 	it('confirma (una sola vez), emite las entradas, avisa por mail y queda en el registro', async () => {
 		const o = await reserve('fiesta-a', { method: 'transferencia', quantity: 2 });
 		const sendMail = vi.fn(async () => {});
-		const r = await confirmTransferFromPanel({
+		const r = await confirmTransferPayment({
 			db: t.db,
 			locals,
 			by: 'admin-prueba',
@@ -245,7 +245,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 		expect(r).toMatchObject({ ok: true, slug: 'fiesta-a' });
 		expect(r.tickets).toHaveLength(2);
 		expect(sendMail).toHaveBeenCalledTimes(1);
-		const again = await confirmTransferFromPanel({
+		const again = await confirmTransferPayment({
 			db: t.db,
 			locals,
 			by: 'admin-prueba',
@@ -266,18 +266,18 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 		await approve((await reserve('fiesta-a', { quantity: 3, now: after })).id);
 		const sendMail = vi.fn(async () => {});
 		const base = { db: t.db, locals, by: 'admin-prueba', orderId: late.id, sendMail, now: after };
-		const first = await confirmTransferFromPanel(base);
+		const first = await confirmTransferPayment(base);
 		expect(first).toMatchObject({ ok: false, status: 409 });
 		expect(first.needsConfirmation?.limits).toEqual([
 			expect.objectContaining({ kind: 'capacity', capacity: 3, before: 3, after: 5, over: 2 })
 		]);
 		expect(first.needsConfirmation?.limits[0].message).toContain('quedarían 5 / 3');
 		// Un "sí" cualquiera no alcanza.
-		expect((await confirmTransferFromPanel({ ...base, override: 'si' })).status).toBe(409);
+		expect((await confirmTransferPayment({ ...base, override: 'si' })).status).toBe(409);
 		expect(sendMail).not.toHaveBeenCalled();
 		expect(await audit()).toEqual([]);
 
-		const r = await confirmTransferFromPanel({
+		const r = await confirmTransferPayment({
 			...base,
 			override: first.needsConfirmation?.key
 		});
@@ -299,7 +299,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 
 	it('vencida con cupo: se confirma sin preguntar (como antes)', async () => {
 		const late = await reserve('fiesta-b', { method: 'transferencia', quantity: 1 });
-		const r = await confirmTransferFromPanel({
+		const r = await confirmTransferPayment({
 			db: t.db,
 			locals,
 			by: 'admin-prueba',
@@ -315,7 +315,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 		const o = await reserve('fiesta-cancelada', { method: 'transferencia' });
 		const sendMail = vi.fn(async () => {});
 		const base = { db: t.db, locals, by: 'admin-prueba', orderId: o.id, sendMail, now: NOW + 1000 };
-		const first = await confirmTransferFromPanel(base);
+		const first = await confirmTransferPayment(base);
 		expect(first).toMatchObject({ ok: false, status: 409 });
 		expect(first.needsConfirmation?.limits).toEqual([
 			{ kind: 'closed', reason: 'cancelled', message: 'El evento está cancelado.' }
@@ -325,7 +325,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 		expect(sendMail).not.toHaveBeenCalled();
 		expect(await audit()).toEqual([]);
 
-		const r = await confirmTransferFromPanel({ ...base, override: first.needsConfirmation?.key });
+		const r = await confirmTransferPayment({ ...base, override: first.needsConfirmation?.key });
 		expect(r).toMatchObject({ ok: true, slug: 'fiesta-cancelada' });
 		expect(sendMail).toHaveBeenCalledTimes(1);
 		expect(await audit()).toEqual([
@@ -333,7 +333,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 			{ action: 'tickets.override', target_id: o.id }
 		]);
 		// Un segundo click sobre la ya confirmada no vuelve a preguntar.
-		const again = await confirmTransferFromPanel({ ...base, now: NOW + 2000 });
+		const again = await confirmTransferPayment({ ...base, now: NOW + 2000 });
 		expect(again).toMatchObject({ ok: true });
 		expect(again.message).toMatch(/ya estaba confirmada/);
 	});
@@ -343,13 +343,13 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 		const after = NOW + TRANSFER_HOLD_MS + 1;
 		await approve((await reserve('fiesta-cancelada', { quantity: 3, now: after })).id);
 		const base = { db: t.db, locals, by: 'admin-prueba', orderId: late.id, now: after };
-		const first = await confirmTransferFromPanel(base);
+		const first = await confirmTransferPayment(base);
 		expect(first.needsConfirmation?.limits.map((l) => l.kind)).toEqual(['capacity', 'closed']);
 		// La clave de «evento cancelado» sola no alcanza: hay que confirmar también el cupo.
-		const onlyCancelled = await confirmTransferFromPanel({ ...base, override: 'closed:cancelled' });
+		const onlyCancelled = await confirmTransferPayment({ ...base, override: 'closed:cancelled' });
 		expect(onlyCancelled.status).toBe(409);
 		expect((await getOrder(t.db, late.id))?.status).not.toBe('approved');
-		const r = await confirmTransferFromPanel({ ...base, override: first.needsConfirmation?.key });
+		const r = await confirmTransferPayment({ ...base, override: first.needsConfirmation?.key });
 		expect(r).toMatchObject({ ok: true });
 	});
 
@@ -364,7 +364,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 			await cancelTransferFromPanel({ db: t.db, locals, by: 'x', orderId: mp.id })
 		).toMatchObject({ ok: false, status: 404 });
 		expect(
-			await confirmTransferFromPanel({ db: t.db, locals, by: 'x', orderId: 'no-es-un-id' })
+			await confirmTransferPayment({ db: t.db, locals, by: 'x', orderId: 'no-es-un-id' })
 		).toMatchObject({ ok: false, status: 404 });
 		expect(await audit()).toEqual([{ action: 'transfer.cancel', target_id: o.id }]);
 	});

@@ -446,7 +446,8 @@ CI) va en la fase 0.
 - `newsletter` · fase 5 · algún día · mails · Newsletter general y por combinación de etiquetas
 - `mails-colas` · fase 5 · algún día · infra · Queues para los mails y Email Workers para recibir
 - `bot-canal-anuncios` · fase 5 · algún día · bot · Canal de anuncios de Telegram: si va y qué publica
-- `proto-conector-claude` · fase 5 · sigue · panel · Conector de Claude, lo de plata (confirmar transferencias, reembolsos), para mirar y decidir; la lectura y la edición van antes (depende de: conector-claude-edicion)
+- `conector-confirmar-transferencia` · fase 5 · en curso · panel · Conector de Claude: la única excepción de plata, `confirmar_transferencia` (confirmar que llegó el pago de una transferencia, con vista previa y aplicar, por la misma función que «Confirmar pago» del panel, que ahora comparten la pestaña Órdenes, la bandeja y el conector; nunca pasa un límite: si hace falta, manda al panel; idempotente, un solo mail) y `ventas` con el monto exacto a transferir y el vencimiento de cada transferencia pendiente (gorrite, 26/11) (depende de: conector-claude-edicion) · [conector-claude.md](conector-claude.md#confirmar-una-transferencia)
+- `proto-conector-claude` · fase 5 · sigue · panel · Conector de Claude, el resto de lo de plata (reembolsos y demás), para mirar y decidir; confirmar transferencias va en `conector-confirmar-transferencia` (depende de: conector-claude-edicion)
 
 ## Fase 6
 

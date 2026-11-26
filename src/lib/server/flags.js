@@ -199,8 +199,9 @@ export const FLAGS = Object.freeze({
 			'siempre en dos pasos: primero muestra exactamente qué va a cambiar y después, con el OK, lo ' +
 			'guarda como el panel (con historial). Edita eventos, material, perfiles, lugares, etiquetas ' +
 			'y la Kinkipedia, crea borradores sin publicar y códigos de descuento, y puede deshacer ' +
-			'cualquier cambio (volver a una versión anterior). Nada de plata ni mails: cancelar un ' +
-			'evento, las ventas y los reembolsos se hacen desde el panel. Cada cambio ' +
+			'cualquier cambio (volver a una versión anterior). También puede confirmar que llegó el pago ' +
+			'de una transferencia, como «Confirmar pago» (sin pasar nunca un límite). Fuera de eso, nada ' +
+			'de plata ni mails: cancelar un evento, las ventas y los reembolsos se hacen desde el panel. Cada cambio ' +
 			'queda en Actividad, con quién lo confirmó; si hay muchos en una hora, les admins que lo ' +
 			'prendieron en «Mis avisos» reciben un aviso por Telegram. Apagado, Claude solo lee.',
 		tech:

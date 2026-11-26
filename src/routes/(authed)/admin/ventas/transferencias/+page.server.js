@@ -11,16 +11,14 @@ import { getDB } from '$lib/server/db';
 import { listTransferInbox } from '$lib/server/admin/sales.js';
 import {
 	cancelTransferFromPanel,
-	confirmTransferFromPanel,
+	confirmTransferPayment,
 	reopenTransferFromPanel
 } from '$lib/server/admin/transfers.js';
 import { getEventTickets, isValidEventSlug } from '$lib/server/tickets/events.js';
-import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
+import { siteOrigin } from '$lib/server/tickets/index.js';
 import { readOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { orderPaid } from '$lib/utils/extras.js';
-import { trackFunnel } from '$lib/server/analytics/track.js';
-import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -93,36 +91,19 @@ export const actions = {
 		const db = getDB(platform);
 		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
 		const form = await request.formData();
-		const r = await confirmTransferFromPanel({
+		// La misma función que la pestaña Órdenes del evento y el conector de Claude: también manda el
+		// mail, el embudo y el aviso por Telegram.
+		const r = await confirmTransferPayment({
 			db,
 			locals,
 			by: admin.login,
 			orderId: orderIdOf(form),
 			// Clave del diálogo "Esto pasa el cupo" (solo si le admin confirmó; ver overrides.js).
 			override: readOverride(form),
-			sendMail: (order, tickets) =>
-				inBackground(
-					sendOrderEmail({ db, order, tickets, origin: siteOrigin(url), fetch }),
-					platform
-				)
+			platform,
+			fetch,
+			origin: siteOrigin(url)
 		});
-		if (r.ok && r.order?.status === 'approved') {
-			// Embudo anónimo (docs/analiticas.md): solo el evento y el medio.
-			trackFunnel(platform?.env, {
-				slug: r.order.event_slug,
-				step: 'aprobada',
-				method: 'transferencia'
-			});
-			// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
-			await queueOrderNotice({
-				db,
-				platform,
-				kind: 'cada_venta',
-				order: r.order,
-				origin: siteOrigin(url),
-				fetch
-			});
-		}
 		const body = {
 			transfer: {
 				ok: r.ok,

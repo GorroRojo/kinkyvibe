@@ -1,4 +1,3 @@
-import { entradas } from '$lib/utils/plural.js';
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
@@ -15,7 +14,7 @@ import {
 	siteOrigin
 } from '$lib/server/tickets/index.js';
 import { getPaypalGateway } from '$lib/server/paypal/gateway.js';
-import { confirmLimits, reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
+import { confirmTransferPayment, reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
 import { invoicedFromPanel } from '$lib/server/admin/invoiced.js';
@@ -25,9 +24,7 @@ import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 import {
 	cancelTransfer,
 	clearReview,
-	confirmTransfer,
 	getOrder,
-	orderTier,
 	updateBuyerEmail
 } from '$lib/server/tickets/orders.js';
 import { isSuppressed } from '$lib/server/email/suppressions.js';
@@ -41,7 +38,7 @@ import {
 	refundFromPanel
 } from '$lib/server/admin/refunds.js';
 import { formatARS } from '$lib/utils/money.js';
-import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
+import { readOverride } from '$lib/server/tickets/overrides.js';
 import {
 	getStreamLink,
 	normalizeStreamLink,
@@ -55,8 +52,6 @@ import {
 	requestDateChangeSend
 } from '$lib/server/tickets/dateChange.js';
 import { orderReference } from '$lib/utils/tickets.js';
-import { trackFunnel } from '$lib/server/analytics/track.js';
-import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 import { MAILS_PAUSED_ADMIN_MESSAGE, logMailsPaused, mailsPaused } from '$lib/server/emergencia.js';
 
 /**
@@ -331,112 +326,39 @@ export const eventTicketActions = {
 	// Idempotente: un segundo click no emite ni manda nada de nuevo. Si llegó tarde y los lugares
 	// ya se ocuparon, pasa el cupo: contesta 409 con `needsConfirmation` y la página pregunta con
 	// un diálogo; si le admin confirma, reenvía con `override` (ver tickets/overrides.js).
+	// Todo pasa por `confirmTransferPayment` (admin/transfers.js), la misma función que la bandeja
+	// de transferencias y el conector de Claude: límites, `confirmTransfer`, Actividad, el mail, el
+	// embudo y el aviso por Telegram.
 	confirm: async ({ locals, url, params, platform, request, fetch }) => {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
-		const config = await getEventTickets(params.slug);
-		if (!config) return fail(404, { transfer: { ok: false, message: 'Evento no encontrado.' } });
 		const form = await request.formData();
 		const orderId = String(form.get('order') ?? '').slice(0, 60);
-		const order = await getOrder(db, orderId);
-		const type = config.types.find((t) => t.id === order?.ticket_type);
-		if (!order || !type || order.event_slug !== params.slug) {
-			return fail(404, { transfer: { ok: false, message: 'No encontramos esa orden.' } });
-		}
-		const ref = orderReference(orderId);
-		const now = Date.now();
-		/** @param {import('$lib/server/tickets/overrides.js').NeedsConfirmation} needsConfirmation */
-		const ask = (needsConfirmation) =>
-			fail(409, {
-				transfer: {
-					ok: false,
-					message: `Para confirmar ${ref} hay que pasar un límite: confirmalo en el aviso.`,
-					order: orderId,
-					needsConfirmation
-				}
-			});
-		// Cupo / tramo de una reserva vencida y, si el evento está cancelado, «El evento está
-		// cancelado.» (se puede confirmar igual; nunca se cancela ni reembolsa sola: decisión 0044).
-		const found = await confirmLimits(db, { order, type, config, now });
-		const check = checkOverride(found.all, readOverride(form));
-		if (!check.ok) return ask(check.needsConfirmation);
-		const r = await confirmTransfer(db, {
+		const r = await confirmTransferPayment({
+			db,
+			locals,
+			by: admin.login,
 			orderId,
 			eventSlug: params.slug,
-			capacity: type.capacity,
-			tierQuantity: orderTier(order, type)?.quantity ?? null,
-			by: admin.login,
-			// Pasar el cupo solo si lo confirmado incluía un límite de lugar.
-			override: check.override && found.place.length > 0,
-			now
+			// Clave del diálogo «hay que pasar un límite» (solo si le admin confirmó; overrides.js).
+			override: readOverride(form),
+			platform,
+			fetch,
+			origin: siteOrigin(url)
 		});
-		if (r.result === 'confirmed' && r.order) {
-			const confirmed = r.order;
-			trackFunnel(platform?.env, {
-				slug: params.slug,
-				step: 'aprobada',
-				method: 'transferencia'
-			});
-			await logAdminAction(db, locals, {
-				action: 'transfer.confirm',
-				targetType: 'order',
-				targetId: orderId,
-				summary: `Confirmó la transferencia ${ref} (${entradas(r.tickets.length)})`,
-				detail: {
-					event: params.slug,
-					tickets: r.tickets.length,
-					total: confirmed.total,
-					...(check.limits.length ? { overrides: check.limits } : {})
-				}
-			});
-			await logOverride(db, locals, {
-				event: params.slug,
-				what: 'confirmación de transferencia',
-				orderId,
-				limits: check.limits
-			});
-			await inBackground(
-				sendOrderEmail({
-					db,
-					order: confirmed,
-					tickets: r.tickets,
-					origin: siteOrigin(url),
-					fetch
-				}),
-				platform
-			);
-			// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
-			await queueOrderNotice({
-				db,
-				platform,
-				kind: 'cada_venta',
-				order: confirmed,
-				origin: siteOrigin(url),
-				fetch
-			});
-			return {
+		if (r.ok) return { transfer: { ok: true, message: r.message } };
+		if (r.needsConfirmation) {
+			return fail(409, {
 				transfer: {
-					ok: true,
-					message: `Pago de ${ref} confirmado: se emitieron ${entradas(r.tickets.length)} y se mandaron a ${confirmed.buyer_email}.`
+					ok: false,
+					message: r.message,
+					order: orderId,
+					needsConfirmation: r.needsConfirmation
 				}
-			};
+			});
 		}
-		/** @type {Record<string, string>} */
-		const messages = {
-			already: `${ref} ya estaba confirmada (no se emitió nada de nuevo).`,
-			'no-capacity': `No se pudo confirmar ${ref}: la reserva venció y ya no hay cupo para ${entradas(r.order?.quantity ?? 0)} ${type.name}.`,
-			'not-transfer': `${ref} no es una compra por transferencia.`,
-			'not-found': 'No encontramos esa orden.',
-			cancelled: `${ref} está cancelada: no se puede confirmar.`
-		};
-		if (r.result === 'already') return { transfer: { ok: true, message: messages.already } };
-		if (r.result === 'no-capacity') {
-			// Se ocupó el último lugar entre el control y la confirmación: se vuelve a preguntar.
-			const again = checkOverride((await confirmLimits(db, { order, type, config, now })).all, '');
-			if (!again.ok) return ask(again.needsConfirmation);
-		}
-		return fail(409, { transfer: { ok: false, message: messages[r.result] } });
+		return fail(r.status, { transfer: { ok: false, message: r.message } });
 	},
 
 	// "Link de la transmisión" (eventos online): guardar o borrar.
