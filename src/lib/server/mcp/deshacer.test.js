@@ -725,10 +725,19 @@ describe('nada que mande mails o mueva plata', () => {
 		expect(price.applied.isError, price.applied.content[0].text).toBe(false);
 	});
 
-	it('no hay operaciones de ventas, reembolsos ni mails', async () => {
+	// La única excepción de plata (gorrite, 26/11): confirmar que llegó una transferencia, sin pasar
+	// nunca un límite (./confirmarTransferencia.test.js). Ni reembolsos, ni cancelar, ni montos.
+	it('no hay operaciones de ventas, reembolsos ni mails, salvo confirmar una transferencia', async () => {
 		const { OPERATIONS } = await import('./edicion.js');
 		expect([...OPERATIONS].sort()).toEqual(
-			['crear_borrador', 'crear_codigo', 'deshacer', 'editar_evento', 'editar_objeto'].sort()
+			[
+				'confirmar_transferencia',
+				'crear_borrador',
+				'crear_codigo',
+				'deshacer',
+				'editar_evento',
+				'editar_objeto'
+			].sort()
 		);
 	});
 });

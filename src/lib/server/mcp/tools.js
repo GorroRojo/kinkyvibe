@@ -28,6 +28,8 @@ import {
 import { resolveFondoPercent } from '$lib/server/tickets/fondo.js';
 import { getCounts, foldText } from '$lib/server/tickets/orders.js';
 import { fondoOptionLabel } from '$lib/utils/tickets.js';
+import { orderPaid } from '$lib/utils/extras.js';
+import { argDeadline } from '$lib/utils/dates.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { runQuery } from '$lib/server/db/batch.js';
 import { profitsQuery } from '$lib/server/tickets/ganancia.js';
@@ -166,6 +168,13 @@ export function orderForClaude(o) {
 		estado: STATUS_LABEL[o.status] ?? o.status,
 		fecha: new Date(o.createdAt).toISOString(),
 		vence: transfer ? iso(o.expiresAt) : undefined,
+		// Lo que tiene que llegar (las entradas, con el aporte al Fondo y los recargos, más los
+		// extras: `orderPaid`), lo mismo que dice el mail «Datos para transferir»; y el vencimiento en
+		// palabras, como en ese mail. Para encontrar la orden de un comprobante.
+		a_transferir: transfer
+			? orderPaid({ total: o.total, extras_amount: o.extrasAmount })
+			: undefined,
+		vence_texto: transfer ? argDeadline(o.expiresAt) : undefined,
 		ingresaron: o.checkedIn,
 		pago_mp: o.paymentId || undefined,
 		[o.status === 'cancelled' ? 'cancelada_por' : 'confirmada_por']: o.confirmedBy || undefined,
@@ -465,7 +474,10 @@ export const TOOLS = {
 				'lista de sus órdenes (referencia, nombre, mail, ' +
 				'tipo, cantidad, total, medio de pago, estado, fecha, cuántes ingresaron y lo demás que ' +
 				'muestra la pestaña Órdenes del panel: últimos 3 del DNI, pago de Mercado Pago, entradas, ' +
-				'respuestas, nota). El evento va por slug o nombre.',
+				'respuestas, nota). Cada transferencia que espera el pago (o vencida) trae además ' +
+				'`a_transferir` (el monto exacto que se le pidió, con Fondo, recargos y extras) y `vence` / ' +
+				'`vence_texto` (hasta cuándo se guarda el lugar), para encontrar la orden de un comprobante. ' +
+				'El evento va por slug o nombre.',
 			inputSchema: {
 				type: 'object',
 				properties: {

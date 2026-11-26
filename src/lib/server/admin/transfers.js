@@ -1,8 +1,9 @@
 /**
- * Confirmar o cancelar una transferencia desde el panel, sin saber de antemano de qué evento es
- * (la bandeja `/admin/ventas/transferencias` junta todos). Usa las mismas funciones que la
- * página de cada evento (`confirmTransfer` y `cancelTransfer` de orders.js, idempotentes) y
- * deja el mismo registro de actividad (`transfer.confirm` / `transfer.cancel`).
+ * Confirmar o cancelar una transferencia desde el panel: la bandeja `/admin/ventas/transferencias`
+ * (junta todos los eventos) y la pestaña Órdenes de cada evento. «Confirmar pago» es una sola
+ * función para las dos y para el conector de Claude (`confirmTransferPayment`); cancelar usa
+ * `cancelTransfer` de orders.js (idempotente). Dejan el registro de actividad `transfer.confirm` /
+ * `transfer.cancel`.
  *
  * Quien llama ya hizo `requireAdmin`: acá se recibe el login de le admin.
  *
@@ -34,6 +35,9 @@ import {
 import { cancelledLimit, checkOverride, logOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
+import { inBackground, sendOrderEmail } from '$lib/server/tickets/index.js';
+import { trackFunnel } from '$lib/server/analytics/track.js';
+import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/tickets/orders.js').Order} Order */
@@ -42,8 +46,11 @@ import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 /**
  * @typedef {{ ok: boolean, status: number, message: string, order?: Order | null,
  *   tickets?: Ticket[], slug?: string,
- *   needsConfirmation?: import('$lib/server/tickets/overrides.js').NeedsConfirmation
+ *   needsConfirmation?: import('$lib/server/tickets/overrides.js').NeedsConfirmation,
+ *   outcome?: 'confirmed' | 'already' | 'limits' | 'refused'
  * }} TransferActionResult
+ * `outcome` (solo `confirmTransferPayment`): `confirmed` si esta llamada la aprobó (y mandó el
+ * mail), `already` si ya estaba, `limits` si hay que pasar un límite, `refused` si no se puede.
  */
 
 /**
@@ -52,7 +59,8 @@ import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
  * cancelado.» (`all` los junta, para `checkOverride`). El de cancelado solo si la orden todavía se
  * puede confirmar: un segundo click sobre una ya confirmada no vuelve a preguntar. Al confirmar,
  * `override` solo va a `confirmTransfer` si `place` no está vacío (confirmar «evento cancelado» no
- * saltea el control del cupo). La usan la bandeja y la pestaña Transferencias del evento.
+ * saltea el control del cupo). La usan `confirmTransferPayment` y la vista previa de
+ * `confirmar_transferencia` del conector de Claude (que muestra cada límite como aviso).
  *
  * @param {D1Database} db
  * @param {{ order: Order, type: Parameters<typeof transferLimits>[1]['type'],
@@ -66,48 +74,88 @@ export async function confirmLimits(db, { order, type, config, now }) {
 }
 
 /**
- * Confirma el pago de una transferencia: aprueba, emite las entradas y registra quién. Quien
- * llama manda el mail con `sendMail` (así los tests no dependen de Resend).
+ * «Confirmar pago» de una transferencia. Es la única función que lo hace, para la pestaña Órdenes
+ * del evento, la bandeja de transferencias y el conector de Claude (`confirmar_transferencia`,
+ * src/lib/server/mcp/confirmarTransferencia.js), así no se separan. En orden:
+ *
+ * 1. los límites (`confirmLimits`: cupo o tramo de una reserva vencida, evento cancelado); si hay
+ *    alguno y `override` no es la clave de exactamente esos, contesta `needsConfirmation` sin
+ *    tocar nada (el conector nunca manda `override`: no puede pasar un límite);
+ * 2. `confirmTransfer`: aprueba y emite las entradas en una transacción, con un UPDATE condicional
+ *    (dos confirmaciones a la vez: una sola cambia la fila; la otra da `already` y no hace nada);
+ * 3. solo si esta llamada la aprobó: el embudo (`trackFunnel`), Actividad (`transfer.confirm` y,
+ *    si se pasó un límite, `tickets.override`), el mail de las entradas y el aviso «Cada venta» por
+ *    Telegram (`queueOrderNotice`, nunca tira).
+ *
+ * El mail sale con `sendMail` si viene (los tests) o, si viene `origin`, con `sendOrderEmail` en
+ * segundo plano (`inBackground`). Sin ninguno de los dos (algunos tests), no sale mail.
  *
  * @param {{
  *   db: D1Database,
- *   locals: App.Locals,
+ *   locals: Parameters<typeof logAdminAction>[1],
  *   by: string,
  *   orderId: string,
- *   sendMail?: (order: Order, tickets: Ticket[]) => Promise<unknown>,
+ *   eventSlug?: string,
  *   override?: string,
- *   now?: number
- * }} input `override`: la clave que mandó el diálogo de confirmación (`readOverride`)
+ *   now?: number,
+ *   platform?: Readonly<App.Platform>,
+ *   fetch?: typeof fetch,
+ *   origin?: string,
+ *   sendMail?: (order: Order, tickets: Ticket[]) => Promise<unknown>,
+ *   via?: { summary: string, detail: Record<string, unknown> }
+ * }} input
+ *   `eventSlug`: desde la ficha de un evento, la orden tiene que ser de ese evento.
+ *   `override`: la clave que mandó el diálogo de confirmación (`readOverride`).
+ *   `via`: de dónde vino si no fue el panel (el conector): se suma al resumen y al detalle de
+ *   `transfer.confirm` en Actividad.
  * @returns {Promise<TransferActionResult>}
  */
-export async function confirmTransferFromPanel({
+export async function confirmTransferPayment({
 	db,
 	locals,
 	by,
 	orderId,
-	sendMail,
+	eventSlug,
 	override = '',
-	now
+	now,
+	platform,
+	fetch: fetchFn,
+	origin,
+	sendMail,
+	via
 }) {
 	const order = await getOrder(db, orderId);
-	if (!order || order.payment_method !== 'transferencia') {
-		return { ok: false, status: 404, message: 'No encontramos esa transferencia.' };
+	if (!order || (eventSlug && order.event_slug !== eventSlug)) {
+		return { ok: false, status: 404, outcome: 'refused', message: 'No encontramos esa orden.' };
 	}
 	const ref = orderReference(order.id);
+	if (order.payment_method !== 'transferencia') {
+		return {
+			ok: false,
+			status: 409,
+			outcome: 'refused',
+			message: `${ref} no es una compra por transferencia.`
+		};
+	}
 	const config = await getEventTickets(order.event_slug);
 	const type = config?.types.find((t) => t.id === order.ticket_type);
 	if (!type) {
 		return {
 			ok: false,
 			status: 404,
+			outcome: 'refused',
 			message: `No encontramos el tipo de entrada de ${ref} (¿el evento dejó de vender entradas?).`
 		};
 	}
 	const at = now ?? Date.now();
-	/** @param {import('$lib/server/tickets/overrides.js').NeedsConfirmation} needsConfirmation */
+	/**
+	 * @param {import('$lib/server/tickets/overrides.js').NeedsConfirmation} needsConfirmation
+	 * @returns {TransferActionResult}
+	 */
 	const ask = (needsConfirmation) => ({
 		ok: false,
 		status: 409,
+		outcome: 'limits',
 		message: `Para confirmar ${ref} hay que pasar un límite: confirmalo en el aviso.`,
 		needsConfirmation
 	});
@@ -127,16 +175,24 @@ export async function confirmTransferFromPanel({
 		now: at
 	});
 	if (r.result === 'confirmed' && r.order) {
+		const confirmed = r.order;
+		// Embudo anónimo (docs/analiticas.md): solo el evento y el medio.
+		trackFunnel(platform?.env, {
+			slug: order.event_slug,
+			step: 'aprobada',
+			method: 'transferencia'
+		});
 		await logAdminAction(db, locals, {
 			action: 'transfer.confirm',
 			targetType: 'order',
 			targetId: order.id,
-			summary: `Confirmó la transferencia ${ref} (${entradas(r.tickets.length)})`,
+			summary: `Confirmó la transferencia ${ref} (${entradas(r.tickets.length)})${via ? ` ${via.summary}` : ''}`,
 			detail: {
 				event: order.event_slug,
 				tickets: r.tickets.length,
-				total: r.order.total,
-				...(check.limits.length ? { overrides: check.limits } : {})
+				total: confirmed.total,
+				...(check.limits.length ? { overrides: check.limits } : {}),
+				...via?.detail
 			}
 		});
 		await logOverride(db, locals, {
@@ -145,20 +201,37 @@ export async function confirmTransferFromPanel({
 			orderId: order.id,
 			limits: check.limits
 		});
-		if (sendMail) await sendMail(r.order, r.tickets);
+		if (sendMail) await sendMail(confirmed, r.tickets);
+		else if (origin !== undefined) {
+			await inBackground(
+				sendOrderEmail({ db, order: confirmed, tickets: r.tickets, origin, fetch: fetchFn }),
+				platform
+			);
+		}
+		// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
+		await queueOrderNotice({
+			db,
+			platform,
+			kind: 'cada_venta',
+			order: confirmed,
+			origin: origin ?? '',
+			fetch: fetchFn
+		});
 		return {
 			ok: true,
 			status: 200,
+			outcome: 'confirmed',
 			slug: order.event_slug,
-			order: r.order,
+			order: confirmed,
 			tickets: r.tickets,
-			message: `Pago de ${ref} confirmado: se emitieron ${entradas(r.tickets.length)} y se mandaron a ${r.order.buyer_email}.`
+			message: `Pago de ${ref} confirmado: se emitieron ${entradas(r.tickets.length)} y se mandaron a ${confirmed.buyer_email}.`
 		};
 	}
 	if (r.result === 'already') {
 		return {
 			ok: true,
 			status: 200,
+			outcome: 'already',
 			message: `${ref} ya estaba confirmada (no se emitió nada de nuevo).`
 		};
 	}
@@ -174,7 +247,12 @@ export async function confirmTransferFromPanel({
 		'not-found': 'No encontramos esa orden.',
 		cancelled: `${ref} está cancelada: no se puede confirmar.`
 	};
-	return { ok: false, status: 409, message: messages[r.result] ?? `No se pudo confirmar ${ref}.` };
+	return {
+		ok: false,
+		status: 409,
+		outcome: 'refused',
+		message: messages[r.result] ?? `No se pudo confirmar ${ref}.`
+	};
 }
 
 /**

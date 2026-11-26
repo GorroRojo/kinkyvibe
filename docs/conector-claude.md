@@ -42,7 +42,10 @@ por la dirección (slug).
 - **Todo cambio se puede deshacer**: cada guardado deja una versión en el historial, con sus
   relaciones, y `deshacer` vuelve a cualquiera por el mismo guardado (ver [Deshacer](#deshacer)).
 - **Nada de plata ni mails**: ni ventas, ni reembolsos, ni envíos, ni cancelar un evento (ver
-  [Lo que no hace](#lo-que-no-hace)).
+  [Lo que no hace](#lo-que-no-hace)). **Una sola excepción** (gorrite, 26/11):
+  `confirmar_transferencia`, confirmar que llegó el pago de una transferencia, después de la
+  vista previa, por la misma función que «Confirmar pago» del panel y **sin pasar nunca un
+  límite** (ver [Confirmar una transferencia](#confirmar-una-transferencia)).
 - **Lo que se aplica es exactamente lo que se vio**: `aplicar` no guarda si lo que había cambió
   desde la vista previa o si las entradas no son las mismas.
 - **Sin SQL ni ids en las entradas.** Las herramientas reciben texto, un slug o un nombre; el
@@ -102,13 +105,13 @@ usa en 20 horas, también (el token de renovación vence).
 
 ## Las herramientas
 
-| Herramienta        | Qué recibe                                                                                                                            | Qué devuelve                                                                                                                                                                                                                                                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `buscar`           | `texto`; opcional `tipo` (evento, material, perfil, etiqueta, lugar) y `limite`                                                       | tipo, slug, título, visibilidad y enlaces (al sitio y al panel) de lo que coincide, también lo oculto. Usa el índice de búsqueda de la base (`searchObjects`, sin tildes, cada palabra como comienzo).                                                                                                                    |
-| `leer`             | `nombre` (slug o nombre); opcional `tipo`                                                                                             | todos los datos del objeto, como el editor del panel, quién y cuándo lo creó y editó, sus relaciones y sus enlaces; o las opciones si hay varios.                                                                                                                                                                         |
-| `ventas`           | `evento` (slug o nombre); opcional `estado` (todas, aprobadas, pendientes, reembolsadas, vencidas, canceladas) y `limite` (hasta 500) | el resumen de la pestaña Ventas (vendidas, reservadas, cupo, recaudado, neto sin la comisión de MP, Fondo, la ganancia con Gastos y reparto prendido, por tipo, órdenes por estado) y las órdenes como en la pestaña Órdenes: referencia, nombre, últimos 3 del DNI, mail, montos, su estado, pago MP, nota y respuestas. |
-| `eventos_proximos` | opcional `dias` (hasta 365) y `limite`                                                                                                | los eventos desde hoy: slug, título, fechas, lugar, si está oculto, sin publicar o es borrador, y si vende entradas, vendidas, reservadas y cupo.                                                                                                                                                                         |
-| `historial`        | `tipo` (evento, material, perfil, lugar, etiqueta, kinkipedia), `objeto` (slug o nombre); opcional `limite` (hasta 50)                | `version_actual` y `versiones`: `[{ version, cuando, quien, origen, cambios, es_la_actual?, deshacer_vuelve_aca?, sin_relaciones_guardadas? }]`. `cambios` son los nombres de los campos que cambiaron, no los valores.                                                                                                   |
+| Herramienta        | Qué recibe                                                                                                                            | Qué devuelve                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `buscar`           | `texto`; opcional `tipo` (evento, material, perfil, etiqueta, lugar) y `limite`                                                       | tipo, slug, título, visibilidad y enlaces (al sitio y al panel) de lo que coincide, también lo oculto. Usa el índice de búsqueda de la base (`searchObjects`, sin tildes, cada palabra como comienzo).                                                                                                                                                                                                                                                              |
+| `leer`             | `nombre` (slug o nombre); opcional `tipo`                                                                                             | todos los datos del objeto, como el editor del panel, quién y cuándo lo creó y editó, sus relaciones y sus enlaces; o las opciones si hay varios.                                                                                                                                                                                                                                                                                                                   |
+| `ventas`           | `evento` (slug o nombre); opcional `estado` (todas, aprobadas, pendientes, reembolsadas, vencidas, canceladas) y `limite` (hasta 500) | el resumen de la pestaña Ventas (vendidas, reservadas, cupo, recaudado, neto sin la comisión de MP, Fondo, la ganancia con Gastos y reparto prendido, por tipo, órdenes por estado) y las órdenes como en la pestaña Órdenes: referencia, nombre, últimos 3 del DNI, mail, montos, su estado, pago MP, nota y respuestas. Cada transferencia que espera el pago (o vencida) trae además `a_transferir` (el monto exacto que se le pidió) y `vence` / `vence_texto`. |
+| `eventos_proximos` | opcional `dias` (hasta 365) y `limite`                                                                                                | los eventos desde hoy: slug, título, fechas, lugar, si está oculto, sin publicar o es borrador, y si vende entradas, vendidas, reservadas y cupo.                                                                                                                                                                                                                                                                                                                   |
+| `historial`        | `tipo` (evento, material, perfil, lugar, etiqueta, kinkipedia), `objeto` (slug o nombre); opcional `limite` (hasta 50)                | `version_actual` y `versiones`: `[{ version, cuando, quien, origen, cambios, es_la_actual?, deshacer_vuelve_aca?, sin_relaciones_guardadas? }]`. `cambios` son los nombres de los campos que cambiaron, no los valores.                                                                                                                                                                                                                                             |
 
 Con el interruptor `formularios` prendido, `buscar` también encuentra formularios (sin `tipo` o con
 `tipo: formulario`) y `leer` con `tipo: formulario` da uno (ver [Formularios](#formularios)).
@@ -128,10 +131,10 @@ equipo muestra para pedir el ✅) y `aplicar` lo guarda, con las mismas entradas
 versión de la vista previa. En un chat con une admin pueden ir una atrás de la otra; lo que importa
 es que `aplicar` nunca guarda algo distinto de lo que alguien vio.
 
-| Herramienta    | Qué recibe                                                                                                       | Qué devuelve                                                                                                                                                                                                   |
-| -------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vista_previa` | `operacion` y, según la operación, `tipo`, `objeto`, `evento`, `a_version`, `cambios`                            | `resumen` (el antes y después en un texto corto), `cambios` (`[{ campo, antes, despues }]`), `avisos`, `hash`, `version`, `objetivo`, `titulo`, `enlaces`. No guarda nada.                                     |
-| `aplicar`      | lo mismo, más `hash` y `version` de la vista previa; opcional `confirmado_por` (hasta 40) y `pedido` (hasta 500) | `aplicado: true`, `resumen`, `avisos`, `confirmado_por`, `enlaces` (y `creado`, la dirección de un borrador); o `aplicado: false` con `motivo` (`cambió`, `no coincide`, `el panel no lo guardó`) y `mensaje`. |
+| Herramienta    | Qué recibe                                                                                                       | Qué devuelve                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vista_previa` | `operacion` y, según la operación, `tipo`, `objeto`, `evento`, `a_version`, `cambios`                            | `resumen` (el antes y después en un texto corto), `cambios` (`[{ campo, antes, despues }]`), `avisos`, `hash`, `version`, `objetivo`, `titulo`, `enlaces`. No guarda nada.                                                                                                                                                                                                                |
+| `aplicar`      | lo mismo, más `hash` y `version` de la vista previa; opcional `confirmado_por` (hasta 40) y `pedido` (hasta 500) | `aplicado: true`, `resumen`, `avisos`, `confirmado_por`, `enlaces` (y `creado`, la dirección de un borrador); o `aplicado: false` con `motivo` (`cambió`, `no coincide`, `el panel no lo guardó`; en `confirmar_transferencia`, también `ya estaba`, `hay que pasar un límite: confirmalo en el panel` y los de [Confirmar una transferencia](#confirmar-una-transferencia)) y `mensaje`. |
 
 Operaciones (`operacion`):
 
@@ -147,6 +150,8 @@ Operaciones (`operacion`):
 - **`crear_codigo`** (`evento` opcional: sin él, vale para todos). `cambios`: `codigo`, `tipo`
   (`porcentaje` o `monto`), `valor`, y si hace falta `desde`, `hasta` (`AAAA-MM-DDTHH:MM`),
   `usos_maximos`, `entradas_maximas`. Los mismos campos y la misma validación que el formulario.
+- **`confirmar_transferencia`**: `evento` (slug o nombre) y `orden` (la referencia `KV-XXXXXXXX`
+  o el id de la orden). Sin `cambios`. Ver [Confirmar una transferencia](#confirmar-una-transferencia).
 
 Los `cambios` de cada tipo (lo que no se manda queda como está; fechas `AAAA-MM-DDTHH:MM`, hora de
 Argentina):
@@ -193,6 +198,50 @@ Argentina):
   (Telegram falló), se suelta y el próximo cambio reintenta. Corre en segundo plano después de
   guardar (`waitUntil`): sin el bot, sin «Telegram para admins», sin `TELEGRAM_BOT_TOKEN` o con
   Telegram caído, el cambio se guarda igual y el problema solo queda en el log.
+
+## Confirmar una transferencia
+
+La única excepción de plata del conector (gorrite, 26/11): `confirmar_transferencia` confirma que
+llegó el pago de una transferencia, como el botón «Confirmar pago» del panel. Nada más: ni
+reembolsos, ni cancelar, ni cambiar montos, ni deshacer un rechazo, ni órdenes de Mercado Pago o
+PayPal. Código: `src/lib/server/mcp/confirmarTransferencia.js`.
+
+- **Encontrar la orden**: `ventas` con `estado: pendientes` (o `vencidas`) muestra de cada
+  transferencia su `referencia`, `a_transferir` (el monto exacto que se le pidió: las entradas con
+  el aporte al Fondo y los recargos, más los extras; `orderPaid`, lo mismo que el mail «Datos para
+  transferir» y la bandeja del panel) y `vence` / `vence_texto`, para compararlos con el
+  comprobante.
+- **`vista_previa`** (`operacion: confirmar_transferencia`, `evento`, `orden`): no guarda nada.
+  `orden` es la referencia (`KV-1A2B3C4D`, también sin `KV-`) o el id; se busca **solo en ese
+  evento**, y si la referencia coincide con más de una orden no adivina (manda al panel). Devuelve
+  el `resumen`, `transferencia` (`referencia`, `nombre`, `tipo`, `cantidad`,
+  `monto_a_transferir` y su texto, `vence`, `vence_texto`, `vencida`, `se_puede_confirmar`),
+  `hash` y `version` (el estado de la orden y cuándo cambió por última vez). Cada límite que
+  miraría el panel (`confirmLimits`: el cupo o el tramo de una reserva vencida, el evento
+  cancelado) vuelve como **aviso**, más uno que dice que así no se confirma desde el conector, con
+  el link a Órdenes del evento. Una ya confirmada, una de Mercado Pago o PayPal, una cancelada
+  (rechazada) o reembolsada da error, sin vista previa.
+- **`aplicar`** (lo mismo más `hash`, `version`, `confirmado_por` y `pedido`): corre
+  `confirmTransferPayment` (`src/lib/server/admin/transfers.js`), la **misma función** que usan la
+  pestaña Órdenes del evento y la bandeja de transferencias: `confirmTransfer` (aprueba y emite las
+  entradas en una transacción), Actividad, el mail de las entradas (`sendOrderEmail`), el embudo y
+  el aviso «Cada venta» por Telegram. La orden queda «confirmada por» `Claude, confirmado por Mel
+(@login)`.
+- **Nunca pasa un límite**: no hay entrada de `override`. Si hay que pasar uno (también si apareció
+  entre la vista previa y `aplicar`), contesta `aplicado: false`, `motivo: "hay que pasar un
+límite: confirmalo en el panel"` y `enlaces.panel` (Órdenes del evento), sin tocar nada.
+- **Solo transferencias** esperando el pago, o vencidas que todavía entran sin pasar un límite. Lo
+  demás se rechaza con su `motivo`: `no es transferencia`, `cancelada`, `reembolsada`,
+  `no está pendiente`.
+- **Idempotente**: una ya confirmada contesta `aplicado: false`, `motivo: "ya estaba"` (no es un
+  error) y no manda nada; también un `aplicar` repetido con la misma huella. Dos `aplicar` a la vez
+  mandan un solo mail: el UPDATE condicional de `confirmTransfer` deja que lo apruebe uno solo, y
+  solo esa llamada manda el mail.
+- **Actividad**: `transfer.confirm` (como desde el panel) con «… desde el conector (Claude,
+  confirmado por Mel)» y en el detalle `origen: conector`, `confirmado_por` y `pedido_largo` (el
+  texto del pedido no se guarda, como en los demás cambios); y `conector.aplicar` con «Claude,
+  confirmado por Mel: confirmó la transferencia KV-… de «…»», sin datos de quien compró. Cuenta
+  para el aviso de muchos cambios en una hora.
 
 ## Deshacer
 
@@ -366,7 +415,9 @@ Docs del área: [formularios.md](formularios.md).
 ## Lo que no hace
 
 Nada que mande mails ni mueva plata (gorrite, 3/11): ni ventas, ni reembolsos, ni envíos, ni
-confirmar transferencias (eso es `proto-conector-claude`, para mirar y decidir). En los eventos:
+cambiar montos. La única excepción es confirmar que llegó una transferencia, sin pasar nunca un
+límite (gorrite, 26/11; ver [Confirmar una transferencia](#confirmar-una-transferencia)). En los
+eventos:
 
 - **Cancelar**: `estado: cancelado` (y `propiedades.status`, y deshacer hasta una versión cancelada)
   se rechaza con «Cancelar un evento no se hace desde el conector…». En el panel, cancelar cierra
@@ -448,20 +499,21 @@ claude.ai ──POST /mcp/token (code + code_verifier)           ──▶ token
 
 ## Dónde está el código
 
-| Qué                                   | Dónde                                                                                                                                                                                           |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OAuth (tokens, PKCE, vueltas, cortes) | `src/lib/server/mcp/oauth.js`                                                                                                                                                                   |
-| Protocolo MCP (JSON-RPC)              | `src/lib/server/mcp/rpc.js`                                                                                                                                                                     |
-| Herramientas de lectura               | `src/lib/server/mcp/tools.js`                                                                                                                                                                   |
-| Cambios (vista previa y aplicar)      | `src/lib/server/mcp/edicion.js`, `cambios.js`, `objetos.js`, `editarPost.js`, `editarEvento.js`, `editarMaterial.js`, `editarPerfil.js`, `editarEtiqueta.js`, `borradores.js`, `crearCodigo.js` |
-| Formularios                           | `src/lib/server/mcp/formularios.js`; la validación, `checkFormSave` en `src/lib/server/formularios/admin.js`                                                                                    |
-| Historial y deshacer                  | `src/lib/server/mcp/historial.js`; la versión con relaciones en `src/lib/server/contenido/revisions.js`                                                                                         |
-| Llaves para rutinas                   | `src/lib/server/mcp/llaves.js`, Ajustes → Admins                                                                                                                                                |
-| Rutas                                 | `src/routes/mcp/` (`+server.js`, `token`, `registro`, `autorizar`) y `src/routes/.well-known/`                                                                                                  |
-| Interruptor, límites, respuestas      | `src/lib/server/mcp/http.js`, `conector_claude` en `src/lib/server/flags.js`                                                                                                                    |
-| Cortar conexiones                     | Ajustes → Admins (`src/routes/(authed)/admin/ajustes/admins/`)                                                                                                                                  |
-| POST de tokens sin `Origin`           | `src/lib/server/mcp/tokenPost.js`, `worker/index.js`                                                                                                                                            |
-| Subir a la biblioteca                 | `src/lib/server/mcp/biblioteca.js`, el PUT en `src/routes/mcp/subida/[token]/+server.js`; pruebas en `biblioteca.test.js`                                                                       |
+| Qué                                   | Dónde                                                                                                                                                                                            |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OAuth (tokens, PKCE, vueltas, cortes) | `src/lib/server/mcp/oauth.js`                                                                                                                                                                    |
+| Protocolo MCP (JSON-RPC)              | `src/lib/server/mcp/rpc.js`                                                                                                                                                                      |
+| Herramientas de lectura               | `src/lib/server/mcp/tools.js`                                                                                                                                                                    |
+| Cambios (vista previa y aplicar)      | `src/lib/server/mcp/edicion.js`, `cambios.js`, `objetos.js`, `editarPost.js`, `editarEvento.js`, `editarMaterial.js`, `editarPerfil.js`, `editarEtiqueta.js`, `borradores.js`, `crearCodigo.js`  |
+| Confirmar una transferencia           | `src/lib/server/mcp/confirmarTransferencia.js`; la función compartida con el panel, `confirmTransferPayment` en `src/lib/server/admin/transfers.js`; pruebas en `confirmarTransferencia.test.js` |
+| Formularios                           | `src/lib/server/mcp/formularios.js`; la validación, `checkFormSave` en `src/lib/server/formularios/admin.js`                                                                                     |
+| Historial y deshacer                  | `src/lib/server/mcp/historial.js`; la versión con relaciones en `src/lib/server/contenido/revisions.js`                                                                                          |
+| Llaves para rutinas                   | `src/lib/server/mcp/llaves.js`, Ajustes → Admins                                                                                                                                                 |
+| Rutas                                 | `src/routes/mcp/` (`+server.js`, `token`, `registro`, `autorizar`) y `src/routes/.well-known/`                                                                                                   |
+| Interruptor, límites, respuestas      | `src/lib/server/mcp/http.js`, `conector_claude` en `src/lib/server/flags.js`                                                                                                                     |
+| Cortar conexiones                     | Ajustes → Admins (`src/routes/(authed)/admin/ajustes/admins/`)                                                                                                                                   |
+| POST de tokens sin `Origin`           | `src/lib/server/mcp/tokenPost.js`, `worker/index.js`                                                                                                                                             |
+| Subir a la biblioteca                 | `src/lib/server/mcp/biblioteca.js`, el PUT en `src/routes/mcp/subida/[token]/+server.js`; pruebas en `biblioteca.test.js`                                                                        |
 
 ## Cómo probar
 
