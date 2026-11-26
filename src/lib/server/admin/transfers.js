@@ -204,7 +204,13 @@ export async function confirmTransferPayment({
 		if (sendMail) await sendMail(confirmed, r.tickets);
 		else if (origin !== undefined) {
 			await inBackground(
-				sendOrderEmail({ db, order: confirmed, tickets: r.tickets, origin, fetch: fetchFn }),
+				sendOrderEmail({
+					db,
+					order: confirmed,
+					tickets: r.tickets,
+					origin,
+					fetch: fetchFn ?? fetch
+				}),
 				platform
 			);
 		}
