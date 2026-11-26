@@ -200,3 +200,64 @@ test('elegir «Preventas» con errores a la vista muestra los tramos', async ({ 
 		await expect(second.locator('#edit-tier-1-name-1')).toBeVisible();
 	}
 });
+
+// 26/11: en un borrador duplicado, cambiar solo las fechas «Hasta» de las preventas no se guardaba:
+// el cambio de un tramo no llegaba al formulario y «Guardar» seguía en «No hay cambios para
+// guardar» (TicketTiersEditor.svelte). Las fechas de antes ya pasaron, como al duplicar un evento
+// viejo. Precios y fechas inventados.
+test('cambiar solo las fechas de las preventas se guarda', async ({ page }) => {
+	await page.goto('/admin/eventos/nuevo');
+	const slug = `preventas-fechas-${Date.now()}`;
+	const content = `---
+title: Preventas con fechas
+category: calendario
+layout: calendario
+published_date: 2026-11-20
+start: 2026-12-19T21:00-03:00
+tags:
+  - español
+  - AMBA
+tickets:
+  - id: general
+    name: General
+    tiers:
+      - id: preventa-1
+        name: Preventa 1
+        price: 14000
+        until: 2026-11-07T15:26-03:00
+      - id: preventa-2
+        name: Preventa 2
+        price: 16000
+        until: 2026-11-14T15:26-03:00
+      - id: general
+        name: General
+        price: 18000
+    door_price: 20000
+puerta: true
+---
+`;
+	const res = await page.request.post('/admin/eventos/nuevo?/publicar', {
+		multipart: { slug, mode: 'borrador', featuredMode: 'none', content },
+		headers: { origin: 'http://localhost:5371', 'x-sveltekit-action': 'true' }
+	});
+	expect(await res.text()).toContain('"type":"success"');
+
+	await page.goto(`/admin/eventos/${slug}/editar`, { waitUntil: 'networkidle' });
+	const edit = page.locator('#edit-tickets');
+	await expect(edit.locator('#edit-tier-0-until-0')).toHaveValue('2026-11-07T15:26');
+	await expect(page.locator('#save')).toBeDisabled();
+	await edit.locator('#edit-tier-0-until-0').fill('2026-12-05T23:59');
+	await edit.locator('#edit-tier-0-until-1').fill('2026-12-12T23:59');
+	await expect(page.locator('#save')).toBeEnabled();
+	await page.locator('#save').click();
+	await expect(page.locator('#save-result[role="status"]')).toContainText('Guardado');
+
+	const { meta } = await committed(page.request, slug);
+	expect(meta.tickets[0].tiers.map((/** @type {any} */ t) => t.until)).toEqual([
+		'2026-12-05T23:59-03:00',
+		'2026-12-12T23:59-03:00',
+		undefined
+	]);
+	await page.reload({ waitUntil: 'networkidle' });
+	await expect(edit.locator('#edit-tier-0-until-1')).toHaveValue('2026-12-12T23:59');
+});
