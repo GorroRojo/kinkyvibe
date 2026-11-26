@@ -69,6 +69,16 @@
 	/** @param {string | null} id */
 	const takenOf = (id) => (id ? (taken[id] ?? 0) : 0);
 
+	/**
+	 * Cada campo de un tramo (`bind:value={tr.…}`) cambia el tramo en su lugar. En el modo legacy
+	 * de Svelte 5 eso actualiza este componente, pero no llama al `bind:tiers` del padre: el editor
+	 * de afuera no se enteraba, «Guardar» seguía en «No hay cambios para guardar» y una fecha
+	 * «Hasta» nueva no se guardaba (26/11). Reasignar la lista sí avisa al padre (y de ahí al
+	 * formulario). Va en el `<ol>`: el `input` sube después de que el `bind:value` lo guardó.
+	 */
+	function changed() {
+		tiers = tiers;
+	}
 	function add() {
 		tiers = [...tiers, emptyTier(tiers.length)];
 	}
@@ -78,7 +88,7 @@
 	}
 </script>
 
-<ol class="tiers">
+<ol class="tiers" on:input={changed}>
 	{#each tiers as tr, j (tr.key)}
 		{@const sold = takenOf(tr.origId)}
 		<li class="tier" class:with-fondo={fondoPriceLine(tr.price, fondoPercent)}>
