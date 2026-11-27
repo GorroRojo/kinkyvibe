@@ -82,8 +82,8 @@ function text(s, max) {
  * Anota una acción de admin. Nunca tira error; devuelve `true` si quedó guardada.
  *
  * @param {D1Database | null | undefined} db
- * @param {Pick<App.Locals, 'user'> | { user?: { id?: number, login?: string } | null } | null | undefined} locals
- *   de acá sale quién fue (`locals.user`)
+ * @param {Pick<App.Locals, 'user'> | Pick<App.Locals, 'user' | 'organizer'> | { user?: { id?: number, login?: string } | null } | null | undefined} locals
+ *   de acá sale quién fue (`locals.user`, o `locals.organizer` en un pedido de une organizadore)
  * @param {{
  *   action: string,
  *   targetType?: string | null,
@@ -97,7 +97,9 @@ function text(s, max) {
 export async function logAdminAction(db, locals, entry, { now = Date.now() } = {}) {
 	if (!db) return false;
 	try {
-		const user = locals?.user;
+		// Une organizadore en el panel (sin `user`): su cuenta, `cuenta:<id>` (organizadore.js).
+		const organizer = locals && 'organizer' in locals ? locals.organizer : undefined;
+		const user = locals?.user ?? (organizer ? { login: organizer.login } : undefined);
 		const action = text(entry?.action, 80);
 		const summary = text(entry?.summary, MAX_SUMMARY);
 		if (!action || !summary) {

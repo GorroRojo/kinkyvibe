@@ -22,7 +22,7 @@
 		<!-- Talleres en varias partes (docs/talleres-partes.md): en la columna del formulario y en
 		el índice, pero se guarda por su cuenta (no manda el formulario del evento). -->
 		<svelte:fragment slot="extra">
-			<PartesEditor state={data.partes} slug={data.event.slug} />
+			{#if !data.organizer}<PartesEditor state={data.partes} slug={data.event.slug} />{/if}
 		</svelte:fragment>
 	</PostEditor>
 {/key}

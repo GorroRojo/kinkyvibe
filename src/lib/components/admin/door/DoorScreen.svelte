@@ -1511,7 +1511,7 @@
 						)}
 						on:undo={undo}
 						on:discard={(e) => discardSale(pendingSaleId(e.detail.ticketId))}
-						canReveal={!linkMode}
+						canReveal={!linkMode && !data.organizer}
 						{delivering}
 						on:deliver={deliver}
 						on:reveal={reveal}

@@ -18,6 +18,13 @@ y etiquetas (y cada sección por sus palabras: «pie de mail», «alias», «ree
   `getEventAdmin`) en el servidor. Las form actions **no** pasan por el layout: protegerlas en el
   layout no alcanza. Varias rutas tienen su prueba al lado (`*.test.js`); sumá una en cada ruta
   nueva.
+- **Organizadores en el panel** (interruptor `rol_organizadore`, [cuentas.md](cuentas.md),
+  «Organizadores en el panel»): una cuenta que organiza un evento entra solo a las rutas de
+  `ORGANIZER_ROUTES` (`src/lib/server/admin/organizadore.js`), con las acciones que dice ahí; lo
+  demás, 404 desde `hooks.server.js`. Esas rutas usan `requireAdminOrOrganizer` en lugar de
+  `requireAdmin`. Si sumás una ruta o una acción a la ficha de un evento, queda solo para admins
+  salvo que la agregues a esa lista a propósito (la prueba `organizadore.test.js` revisa cada
+  ruta del panel).
 - **Pasar un límite** (cupo, horario, "solo anticipadas"…) es siempre: cálculo en el servidor →
   `409 needsConfirmation` → diálogo en la página (`OverrideDialog`, nunca `window.confirm`) →
   reenvío con la clave → registro `tickets.override`. Nunca un parámetro que la compra pública

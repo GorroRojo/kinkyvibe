@@ -33,6 +33,11 @@ declare global {
 				readingSpeed?: number | null;
 				canHaveProfiles?: boolean;
 			};
+			/**
+			 * Une organizadore en el panel (interruptor `rol_organizadore`): lo pone hooks.server.js solo
+			 * en un pedido permitido (src/lib/server/admin/organizadore.js). Nunca junto con une admin.
+			 */
+			organizer?: import('$lib/server/admin/organizadore.js').OrganizerContext;
 			/** Código corto del error de este pedido (src/lib/server/errorLog.js), si hubo uno. */
 			errorId?: string;
 			/**

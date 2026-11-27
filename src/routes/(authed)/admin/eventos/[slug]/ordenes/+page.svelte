@@ -380,10 +380,12 @@
 						registrada con otro total que el que se cobró ({o.reviewDetail}). Se guardó igual;
 						decidí si queda así o se reembolsa.
 					{/if}
-					<form method="POST" action="?/reviewed" use:enhance={announced('review')}>
-						<input type="hidden" name="order" value={o.id} />
-						<button type="submit" class="kv-btn ghost small">Marcar como revisada</button>
-					</form>
+					{#if !data.organizer}
+						<form method="POST" action="?/reviewed" use:enhance={announced('review')}>
+							<input type="hidden" name="order" value={o.id} />
+							<button type="submit" class="kv-btn ghost small">Marcar como revisada</button>
+						</form>
+					{/if}
 				</li>
 			{/each}
 		</ul>
@@ -419,15 +421,20 @@
 	{/if}
 {/if}
 
-<RefundAllPanel ra={data.refundAll} {form} onReveal={revealOrder} />
+<!-- Une organizadore solo mira las órdenes (organizadore.js): sin reembolsos ni acciones. -->
+{#if !data.organizer}
+	<RefundAllPanel ra={data.refundAll} {form} onReveal={revealOrder} />
+{/if}
 
 <Card title="Órdenes">
 	<svelte:fragment slot="actions">
-		<!-- Invitaciones, cortesías o pagos por otro lado (la página es del modo puerta, #103). -->
-		<a class="kv-btn small" href="{eventHref(e.slug)}/ordenes/cargar"
-			><TicketPlus size={16} aria-hidden="true" /> Cargar entradas a mano</a
-		>
-		<CsvButton href="{eventHref(e.slug)}/ordenes.csv" label="CSV (una fila por entrada)" />
+		{#if !data.organizer}
+			<!-- Invitaciones, cortesías o pagos por otro lado (la página es del modo puerta, #103). -->
+			<a class="kv-btn small" href="{eventHref(e.slug)}/ordenes/cargar"
+				><TicketPlus size={16} aria-hidden="true" /> Cargar entradas a mano</a
+			>
+			<CsvButton href="{eventHref(e.slug)}/ordenes.csv" label="CSV (una fila por entrada)" />
+		{/if}
 	</svelte:fragment>
 	{#if hasQuestions}
 		<div class="view">
@@ -492,6 +499,7 @@
 				<OrderCard
 					{o}
 					{form}
+					readOnly={Boolean(data.organizer)}
 					{result}
 					fields={data.fields}
 					busy={busy === o.id}

@@ -111,9 +111,10 @@ describe('NAV', () => {
 		for (const i of NAV) expect(pages.has(i.href), i.href).toBe(!i.soon);
 	});
 	it('ninguna página del panel queda sin lugar en el mapa', () => {
-		// Cada página está en NAV o es parte de una sección (subpágina), salvo estas dos.
+		// Cada página está en NAV o es parte de una sección (subpágina), salvo estas.
 		const outside = [
 			'/admin/borrar/[kind]/[slug]', // botón "Borrar" de cada ficha; "Recuperar" está en Actividad
+			'/admin/organizo', // «Tus eventos» de une organizadore: fuera del menú de admins (404 para elles)
 			'/admin/[...section=soon]', // la página "Próximamente"
 			'/admin/[...rest]' // el 404 del panel (cualquier dirección que no es de ninguna página)
 		];

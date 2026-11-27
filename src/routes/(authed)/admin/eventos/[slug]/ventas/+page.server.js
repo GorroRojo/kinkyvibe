@@ -5,7 +5,7 @@
  */
 import { error, redirect } from '@sveltejs/kit';
 import { eventHref } from '$lib/admin/nav.js';
-import { requireAdmin } from '$lib/server/auth';
+import { requireAdminOrOrganizer } from '$lib/server/admin/organizadore.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { totalCapacity } from '$lib/admin/eventFormat.js';
 import { buildSalesChart } from '$lib/admin/salesChart.js';
@@ -29,7 +29,8 @@ import {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, setHeaders, fetch }) {
-	requireAdmin(locals, url);
+	// Admins, o quien organiza este evento (solo mira: las acciones siguen siendo de admins).
+	const who = requireAdminOrOrganizer(locals, url, params.slug);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	const fondo = await resolveFondoPercent({ db, fetch });
@@ -44,7 +45,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 	const [orders, counts, previous, extras, profits] = await Promise.all([
 		listOrders(db, params.slug),
 		getCounts(db, params.slug, now),
-		previousSales(db, params.slug, eventStart),
+		// La edición anterior de la serie es otro evento: une organizadore no la ve.
+		who.organizer ? null : previousSales(db, params.slug, eventStart),
 		// Extras de la compra (interruptor `extras`, decisión 0056): aparte de lo de las entradas.
 		extrasEnabled(platform).then((on) => (on ? extrasSummary(db, params.slug) : null)),
 		// La ganancia (Gastos y reparto): `null` con el interruptor apagado.

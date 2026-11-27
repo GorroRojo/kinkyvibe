@@ -484,6 +484,27 @@
 	<ConfirmDialog />
 	{#if bare}
 		<slot />
+	{:else if data.organizer}
+		<!-- Une organizadore (interruptor `rol_organizadore`): solo sus eventos, sin el menú, el
+		buscador ni los contadores del panel (src/lib/server/admin/organizadore.js). -->
+		<div class="org">
+			<header class="org-top">
+				<a class="brand" href="/admin/organizo">
+					<img src={logo} alt="Kinky Vibe" width="40" height="40" />
+					<span class="pill">Tus eventos</span>
+				</a>
+				<nav class="org-links" aria-label="Panel de organizadores">
+					<button type="button" class="org-theme" on:click={toggleTheme}
+						><svelte:component this={THEME_ICONS[theme]} size={18} aria-hidden="true" /><span
+							class="visually-hidden">{THEME_LABELS[theme].label}</span
+						></button
+					>
+					<a href="/mi-rincon">Mi rincón</a>
+					<a href="/" target="_blank" rel="noopener">Ver el sitio</a>
+				</nav>
+			</header>
+			<main class="org-main"><slot /></main>
+		</div>
 	{:else}
 		<div class="app" inert={sheetOpen || undefined}>
 			<aside
@@ -1526,5 +1547,45 @@
 		flex-wrap: wrap;
 		gap: var(--space-2xs);
 		margin-top: 1rem;
+	}
+	/* Marco de une organizadore (ver arriba). */
+	.org {
+		min-height: 100dvh;
+	}
+	.org-top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.5rem 16px;
+		border-bottom: 1px solid var(--line, rgb(128 128 128 / 0.3));
+	}
+	.org-top .brand {
+		flex-direction: row;
+		gap: 0.5rem;
+		padding: 0;
+		img {
+			width: 2.5rem;
+			height: 2.5rem;
+		}
+	}
+	.org-links {
+		display: flex;
+		align-items: center;
+		gap: 0.9rem;
+		font-size: 0.95rem;
+	}
+	.org-theme {
+		display: inline-flex;
+		background: none;
+		border: 0;
+		padding: 0.25rem;
+		color: inherit;
+		cursor: pointer;
+	}
+	.org-main {
+		max-width: 72rem;
+		margin-inline: auto;
+		padding: 1rem 16px 3rem;
 	}
 </style>

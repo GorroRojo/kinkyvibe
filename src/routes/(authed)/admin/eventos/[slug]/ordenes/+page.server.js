@@ -30,7 +30,7 @@
  * ("Picantearla"); vacío si el evento no tiene serie.
  */
 import { error } from '@sveltejs/kit';
-import { requireAdmin } from '$lib/server/auth';
+import { requireAdminOrOrganizer } from '$lib/server/admin/organizadore.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { pickActions } from '$lib/server/admin/eventActions.js';
 import { eventOrderRows, pendingTransfers } from '$lib/server/admin/eventOrders.js';
@@ -44,7 +44,8 @@ import { answeredFirstTime, isFirstTime } from '$lib/server/tickets/series.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, setHeaders }) {
-	requireAdmin(locals, url);
+	// Admins, o quien organiza este evento (solo mira: las acciones siguen siendo de admins).
+	requireAdminOrOrganizer(locals, url, params.slug);
 	// same-origin y no no-referrer: el «Sí, confirmar igual» de una transferencia sin JavaScript es
 	// un POST común, y con no-referrer sale con `Origin: null` y SvelteKit lo rechaza. Afuera no se
 	// manda nada (los links de afuera, como el mailto, no llevan la dirección).

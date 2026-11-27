@@ -8,6 +8,7 @@
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { isOrganizerRequest, requireAdminOrOrganizer } from '$lib/server/admin/organizadore.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { pickActions } from '$lib/server/admin/eventActions.js';
 import { salesState } from '$lib/server/tickets/config.js';
@@ -152,7 +153,8 @@ async function accountFor(db, platform, slug, sellsTickets) {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, parent, setHeaders }) {
-	requireAdmin(locals, url);
+	requireAdminOrOrganizer(locals, url, params.slug);
+	const organizer = isOrganizerRequest(locals);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	// Todo lo que se lee de la base sale a la par (cada lectura en fila es una ida). El evento, sin
@@ -282,9 +284,10 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		: [];
 	// Formularios de este evento (interruptor `formularios`, docs/formularios.md): la encuesta y los
 	// que lo eligieron, con links. `null` apagado (la tarjeta no se ve).
-	const forms = await formsFor(db, platform, params.slug);
+	// Une organizadore no ve los formularios ni los links de puerta (organizadore.js).
+	const forms = organizer ? null : await formsFor(db, platform, params.slug);
 	// Links de puerta (presenciales con entradas).
-	const doorLinks = await doorLinksFor(db, params.slug, config);
+	const doorLinks = organizer ? null : await doorLinksFor(db, params.slug, config);
 	// Etiqueta «Online» y además un lugar: un aviso arriba (no cambia nada).
 	const onlineMismatch = onlineTagMismatch(
 		{ tags: event.tags, location: event.location, location_name: event.locationName },
@@ -303,7 +306,7 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		stream,
 		sale,
 		online: Boolean(config?.online),
-		draft,
+		draft: draft && !organizer,
 		missing,
 		venue,
 		onlineMismatch,

@@ -44,7 +44,11 @@
 	/** @typedef {import('$lib/utils/venueChoice.js').VenueOption} VenueOption */
 	/** @typedef {import('$lib/utils/venueChoice.js').VenueChoice} VenueChoice */
 
-	/** @type {{ venues: VenueOption[], current: VenueChoice } | null} */
+	/**
+	 * `limited` (une organizadore, src/lib/server/admin/organizadore.js): sin «Crear lugar» ni
+	 * «Editar» el lugar (cambian algo de todo el sitio).
+	 * @type {{ venues: VenueOption[], current: VenueChoice, limited?: boolean } | null}
+	 */
 	export let picker = null;
 	/** @type {VenueChoice} */
 	export let choice = { ...NO_VENUE };
@@ -270,12 +274,14 @@
 						{#each venueOptionMarks(chosen) as mark}<span class="mark">{mark}</span>{/each}
 						{#if venueOptionPlace(chosen)}<small class="block">{venueOptionPlace(chosen)}</small
 							>{/if}
-						<button
-							type="button"
-							class="kv-link"
-							id="{idPrefix}-venue-edit-open"
-							on:click={startEdit}><Pencil size={16} aria-hidden="true" /> Editar</button
-						>
+						{#if !picker.limited}
+							<button
+								type="button"
+								class="kv-link"
+								id="{idPrefix}-venue-edit-open"
+								on:click={startEdit}><Pencil size={16} aria-hidden="true" /> Editar</button
+							>
+						{/if}
 					</p>
 				{/if}
 				<label class="field">
@@ -409,7 +415,7 @@
 							>
 						</div>
 					</div>
-				{:else}
+				{:else if !picker.limited}
 					<button
 						type="button"
 						class="kv-link"

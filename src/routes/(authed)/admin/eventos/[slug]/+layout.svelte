@@ -45,6 +45,8 @@
 	}
 	/** Pestañas que solo tienen sentido si el evento vende entradas. */
 	const SALES_TABS = ['ventas', 'ingreso', 'codigos', 'mails'];
+	/** Las pestañas de une organizadore (las demás le dan 404). */
+	const ORGANIZER_TABS = ['resumen', 'editar', 'ventas', 'ingreso', 'codigos'];
 
 	$: bare = $page.data?.bare === true;
 	$: editing = $page.url.pathname.replace(/\/+$/, '').endsWith('/editar');
@@ -60,6 +62,8 @@
 		.filter((t) => t.id !== 'preguntas' || data.signupFieldsTab)
 		// Los eventos online no tienen control de ingreso (las entradas llevan el link).
 		.filter((t) => !(t.id === 'ingreso' && e.online))
+		// Une organizadore: solo las pestañas que tiene (src/lib/server/admin/organizadore.js).
+		.filter((t) => !data.organizer || ORGANIZER_TABS.includes(t.id))
 		.map((t) => ({
 			href: eventHref(e.slug, t.views?.[0].id ?? t.id),
 			label: t.label,
@@ -106,7 +110,11 @@
 			</div>
 		{/if}
 		<div class="text">
-			<a class="back" href="/admin/eventos">← Eventos</a>
+			{#if data.organizer}
+				<a class="back" href="/admin/organizo">← Tus eventos</a>
+			{:else}
+				<a class="back" href="/admin/eventos">← Eventos</a>
+			{/if}
 			<h1>{e.title}</h1>
 			<p class="when">{when || 'Sin fecha'}</p>
 			{#if where || e.place}
@@ -141,9 +149,11 @@
 				><ExternalLink {...icon} /> Ver página
 				<span class="sr-only">(se abre en otra pestaña)</span></a
 			>
-			<a class="kv-btn ghost" href="/admin/eventos/nuevo?desde={encodeURIComponent(e.slug)}"
-				><Copy {...icon} /> Duplicar</a
-			>
+			{#if !data.organizer}
+				<a class="kv-btn ghost" href="/admin/eventos/nuevo?desde={encodeURIComponent(e.slug)}"
+					><Copy {...icon} /> Duplicar</a
+				>
+			{/if}
 			<a class="kv-btn ghost" href="/calendario/{e.slug}/compartir"
 				><ImageDown {...icon} /> Imagen para compartir</a
 			>
@@ -201,9 +211,11 @@
 					><ExternalLink {...icon} /> Ver página
 					<span class="sr-only">(se abre en otra pestaña)</span></a
 				>
-				<a href="/admin/eventos/nuevo?desde={encodeURIComponent(e.slug)}"
-					><Copy {...icon} /> Duplicar</a
-				>
+				{#if !data.organizer}
+					<a href="/admin/eventos/nuevo?desde={encodeURIComponent(e.slug)}"
+						><Copy {...icon} /> Duplicar</a
+					>
+				{/if}
 				<a href="/calendario/{e.slug}/compartir"><ImageDown {...icon} /> Imagen para compartir</a>
 			</div>
 		</details>

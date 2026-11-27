@@ -652,6 +652,40 @@ aprobar").
   límites, que invitar no cambia la versión de la persona, visibilidad), que ninguna lectura
   pública o de otra cuenta vincula perfiles ni muestra quién gestiona.
 
+## Organizadores en el panel
+
+Interruptor `rol_organizadore` (apagado; sin fila, apagado). Plan: `rol-organizadore`. Reemplaza
+al prototipo en Mi rincón (#557). Sin migración.
+
+- **Quién**: una cuenta con «puede tener perfiles» que gestiona (dueñe o gestore en
+  `profile_managers`) un perfil que un evento **publicado** lista con el rol «Organiza». Es la
+  misma regla que las respuestas de inscripción (decisión 0024). «Facilita», «Enseña» u otros
+  roles no cuentan; un evento oculto o borrado, tampoco. `canManageEvent` en
+  `src/lib/server/admin/organizadore.js` es la única regla.
+- **Dónde**: en el panel (`/admin`), con un marco propio sin menú, buscador ni contadores.
+  `/admin` lleva a «Tus eventos» (`/admin/organizo`). De cada evento suyo ve Resumen, Editar,
+  Ventas (Totales y Órdenes, con el Fondo y la plata como la ven les admins), Códigos (solo los
+  del evento) y la Puerta.
+- **Qué puede hacer**: guardar el evento desde Editar (el mismo guardado del panel, al toque, sin
+  aprobación; como `cuenta:<id>` y sin superadmin, así que el texto va con el HTML acotado,
+  decisión 0004) y marcar o deshacer ingresos y entregar extras en la Puerta. Cada guardado queda
+  en el historial del evento y en Actividad (`event.organizer_edit`); cada ingreso, como los de
+  admins, con su cuenta.
+- **Qué no** (404 aunque mande el POST a mano): reembolsar, confirmar o cancelar pagos, cargar
+  entradas, vender en la puerta, ver el DNI completo, crear o pausar códigos, mails a compradores
+  (Mails, el link de la transmisión, «Avisar a les compradores»), el CSV de órdenes, la lista de
+  espera, Preguntas, Gastos y reparto, los links de puerta, Partes, crear o editar lugares,
+  duplicar, borrar y todo el resto del panel. En «Lugar» solo elige entre los lugares públicos. Las
+  imágenes, como en Mi rincón: sube y elige las suyas o las públicas.
+- **Cómo se controla**: `hooks.server.js` llama a `organizerAccess` en cada pedido a `(authed)`
+  (páginas, acciones y `+server.js`): ruta, método y acción tienen que estar en
+  `ORGANIZER_ROUTES` y el evento tiene que ser suyo; si no, 404. Las rutas permitidas llaman a
+  `requireAdminOrOrganizer`, que vuelve a mirar el evento. Una cuenta que no organiza nada, o con
+  el interruptor apagado, ve el panel como siempre (sin sesión de admin, a `/login`).
+- **Probarlo**: `npx vitest run src/lib/server/admin/organizadore.test.js` (otro evento, evento
+  oculto, «Facilita», sin el permiso, slugs armados, POST directo a cada acción, cada ruta del
+  panel, interruptor apagado, el guardado con HTML acotado y la Puerta sin ventas).
+
 ## Dónde está el código
 
 - `src/lib/server/cuentas/`: `accounts.js` (cuentas, contraseña, borrado), `codes.js`,

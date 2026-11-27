@@ -271,6 +271,21 @@ export const FLAGS = Object.freeze({
 			'form_responses, form_sends) y 0080 (pronombres, mail editable, borrado suave). La encuesta sale con el cron de cada 15 minutos ' +
 			'(src/lib/server/formularios/send.js).',
 		envVar: 'FORMULARIOS_ENABLED'
+	},
+	rol_organizadore: {
+		label: 'Organizadores en el panel',
+		description:
+			'Les organizadores entran al panel y ven solo sus eventos: una cuenta con «puede tener ' +
+			'perfiles» que gestiona un perfil anotado con el rol «Organiza» en un evento publicado. De ' +
+			'ese evento ven el Resumen, Ventas (Totales y Órdenes, con el Fondo), los Códigos, la Puerta ' +
+			'(pueden marcar ingresos) y Editar (guardan al toque, con el HTML acotado). No reembolsan, ' +
+			'no confirman pagos, no venden en la puerta ni mandan mails. Cada cambio queda en Actividad ' +
+			'y en el historial con su cuenta. Todo lo demás del panel les da 404. Apagado, nada cambia.',
+		tech:
+			'docs/cuentas.md («Organizadores en el panel»), src/lib/server/admin/organizadore.js: la ' +
+			'lista de rutas y acciones permitidas se controla en hooks.server.js, antes de cada pedido ' +
+			'al panel. Sin migración.',
+		envVar: 'ROL_ORGANIZADORE_ENABLED'
 	}
 });
 
@@ -508,6 +523,15 @@ export function carruselPortadaEnabled(platform) {
  */
 export function formulariosEnabled(platform) {
 	return isFlagOn(getDB(platform), 'formularios');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendido el rol de organizadore en el panel? (docs/cuentas.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function rolOrganizadoreEnabled(platform) {
+	return isFlagOn(getDB(platform), 'rol_organizadore');
 }
 
 /**

@@ -51,14 +51,16 @@ import { toTime } from '$lib/server/tickets/config.js';
 /** @typedef {'puerta' | 'barra'} LinkScope */
 
 /**
- * Quién hace una acción del modo puerta: une admin (con su login de GitHub) o un link de puerta.
+ * Quién hace una acción del modo puerta: une admin (con su login de GitHub), une organizadore del
+ * evento (`cuenta:<id>`, src/lib/server/admin/organizadore.js: marca ingresos, no vende ni ve el DNI
+ * completo) o un link de puerta.
  *
  * - `by`: lo que queda en `checked_in_by` / `confirmed_by` (y se ve en la pantalla).
  * - `audit`: lo que recibe `logAdminAction` como `locals` (de ahí sale quién fue).
  * - `link`: el link, si es un link de puerta.
  *
  * @typedef {{
- *   kind: 'admin' | 'link',
+ *   kind: 'admin' | 'organizer' | 'link',
  *   by: string,
  *   audit: { user?: { id?: number, login?: string } | null },
  *   link: DoorLink | null
