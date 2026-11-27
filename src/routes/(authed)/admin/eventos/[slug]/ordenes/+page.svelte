@@ -10,7 +10,12 @@
 	 *   `?orden=`. Un evento chico (hasta 5 compras) las muestra todas, sin filtros ni «Ordenar».
 	 * - «Respuestas»: una tarjeta por pregunta, con las compras aprobadas (AnswersView).
 	 *
-	 * Lógica pura en $lib/admin/ordersView.js.
+	 * En «Compras», una casilla por compra y «Elegir todas las que se ven» (con los filtros de ese
+	 * momento): con alguna elegida aparece la barra de varias compras (OrderBulkBar). Mientras la
+	 * página está abierta pregunta cada tanto por compras nuevas (`ordenes/nuevas`) y, si hay,
+	 * avisa «2 compras nuevas · Mostrar» arriba en vez de meterlas en la lista (no salta).
+	 *
+	 * Lógica pura en $lib/admin/ordersView.js, orderBulk.js y newOrders.js.
 	 */
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { deserialize, enhance } from '$app/forms';
@@ -25,6 +30,9 @@
 	import OrderFilters from '$lib/components/admin/ordenes/OrderFilters.svelte';
 	import AnswersView from '$lib/components/admin/ordenes/AnswersView.svelte';
 	import RefundAllPanel from '$lib/components/admin/ordenes/RefundAllPanel.svelte';
+	import OrderBulkBar from '$lib/components/admin/ordenes/OrderBulkBar.svelte';
+	import { keepVisible } from '$lib/admin/orderBulk.js';
+	import { NEW_ORDERS_POLL_MS, countNewOrders, newOrdersText } from '$lib/admin/newOrders.js';
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { announceResult } from '$lib/admin/announce.js';
 	import { eventHref } from '$lib/admin/nav.js';
@@ -342,6 +350,71 @@
 	);
 	$: anyWaiting = rows.some(({ row }) => row.transferPending);
 
+	// Varias compras a la vez: los ids elegidos, siempre entre las que se ven (cambiar los filtros o
+	// que una compra deje de verse la saca). Volver a leer las órdenes no la pierde.
+	/** @type {string[]} */
+	let picked = [];
+	let bulkMessage = '';
+	$: visibleIds = new Set(view === 'compras' ? rows.map(({ row }) => row.id) : []);
+	$: picked = keepVisible(picked, visibleIds);
+	$: pickedSet = new Set(picked);
+	$: pickedOrders = rows.map(({ row }) => row).filter((o) => pickedSet.has(o.id));
+	$: allPicked = rows.length > 0 && picked.length === rows.length;
+	$: somePicked = picked.length > 0 && !allPicked;
+	/**
+	 * @param {string} id
+	 * @param {boolean} on
+	 */
+	function pick(id, on) {
+		bulkMessage = '';
+		picked = on ? [...picked.filter((x) => x !== id), id] : picked.filter((x) => x !== id);
+	}
+	/** @param {boolean} on */
+	function pickAll(on) {
+		bulkMessage = '';
+		picked = on ? rows.map(({ row }) => row.id) : [];
+	}
+
+	// «2 compras nuevas · Mostrar»: cada tanto (con la pestaña a la vista) se pregunta qué cambió
+	// desde que se leyeron las órdenes (`loadedAt`). No se meten solas: «Mostrar» las trae.
+	let newCount = 0;
+	let lastPoll = 0;
+	let showing = false;
+	$: (data.loadedAt, (newCount = 0));
+	async function pollNew() {
+		if (document.visibilityState !== 'visible' || !data.loadedAt) return;
+		lastPoll = Date.now();
+		const since = data.loadedAt;
+		try {
+			const res = await fetch(`${eventHref(e.slug)}/ordenes/nuevas?desde=${since}`);
+			if (!res.ok) return;
+			const body = await res.json();
+			if (since === data.loadedAt && Array.isArray(body?.orders)) {
+				newCount = countNewOrders(body.orders, data.orders);
+			}
+		} catch {
+			// Sin conexión: se prueba en la próxima vuelta.
+		}
+	}
+	async function showNew() {
+		showing = true;
+		await invalidateAll();
+		showing = false;
+	}
+	onMount(() => {
+		const timer = setInterval(pollNew, NEW_ORDERS_POLL_MS);
+		const onVisible = () => {
+			if (document.visibilityState === 'visible' && Date.now() - lastPoll > NEW_ORDERS_POLL_MS) {
+				pollNew();
+			}
+		};
+		document.addEventListener('visibilitychange', onVisible);
+		return () => {
+			clearInterval(timer);
+			document.removeEventListener('visibilitychange', onVisible);
+		};
+	});
+
 	/**
 	 * `use:enhance` que, al volver, lee en voz alta el mensaje de la acción (`form[key].message`).
 	 * @param {string} key
@@ -429,6 +502,14 @@
 		>
 		<CsvButton href="{eventHref(e.slug)}/ordenes.csv" label="CSV (una fila por entrada)" />
 	</svelte:fragment>
+	{#if newCount}
+		<p class="new-orders" role="status">
+			{newOrdersText(newCount)} ·
+			<button type="button" class="kv-btn small" disabled={showing} on:click={showNew}
+				>Mostrar</button
+			>
+		</p>
+	{/if}
 	{#if hasQuestions}
 		<div class="view">
 			<Segmented
@@ -487,9 +568,22 @@
 				</p>
 			{/if}
 		{/if}
+		{#if rows.length > 1}
+			<label class="pick-all">
+				<input
+					type="checkbox"
+					checked={allPicked}
+					indeterminate={somePicked}
+					on:change={(ev) => pickAll(ev.currentTarget.checked)}
+				/>
+				Elegir todas las que se ven
+			</label>
+		{/if}
 		<ul class="orders" id="lista-ordenes">
 			{#each rows as { row: o, result }, i (o.id)}
 				<OrderCard
+					selected={pickedSet.has(o.id)}
+					onSelect={(on) => pick(o.id, on)}
 					{o}
 					{form}
 					{result}
@@ -504,6 +598,13 @@
 				/>
 			{/each}
 		</ul>
+		<OrderBulkBar
+			selected={pickedOrders}
+			csvHref="{eventHref(e.slug)}/ordenes.csv"
+			bind:message={bulkMessage}
+			onDone={invalidateAll}
+			onClear={() => pickAll(false)}
+		/>
 	{/if}
 </Card>
 
@@ -561,6 +662,31 @@
 	.searching {
 		margin: var(--space-2xs) 0;
 		color: var(--muted);
+	}
+	.new-orders {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3xs) var(--space-2xs);
+		margin: 0 0 var(--space-2xs);
+		padding: var(--space-3xs) var(--space-xs);
+		border-radius: var(--radius-m);
+		background: var(--ok-bg);
+		font-weight: 600;
+	}
+	.pick-all {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-3xs);
+		margin: 0 0 var(--space-3xs);
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+	.pick-all input {
+		width: 1.15rem;
+		height: 1.15rem;
+		margin: 0;
+		accent-color: var(--link);
 	}
 	.orders {
 		list-style: none;

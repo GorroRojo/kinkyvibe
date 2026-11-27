@@ -115,16 +115,23 @@ export async function setOrderInvoiced(
 /**
  * La casilla «Facturada» del panel (acción `invoiced` de Ventas › Órdenes y de Compras para
  * facturar): marca o desmarca y lo deja en Actividad (`order.invoiced` / `order.uninvoiced`).
- * Con `eventSlug`, la orden tiene que ser de ese evento.
+ * Con `eventSlug`, la orden tiene que ser de ese evento. También la usa la barra de varias
+ * compras de Órdenes (orderActions.js, con `bulk`); `result` dice qué pasó.
  *
  * @param {D1Database} db
  * @param {App.Locals} locals
- * @param {{ orderId: string, invoiced: boolean, by: string, eventSlug?: string, now?: number }} input
+ * @param {{ orderId: string, invoiced: boolean, by: string, eventSlug?: string, now?: number,
+ *   bulk?: boolean }} input
  */
-export async function invoicedFromPanel(db, locals, { orderId, invoiced, by, eventSlug, now }) {
+export async function invoicedFromPanel(
+	db,
+	locals,
+	{ orderId, invoiced, by, eventSlug, now, bulk = false }
+) {
 	const r = await setOrderInvoiced(db, orderId, invoiced, by, { eventSlug, now });
 	if (!r.order) {
 		return {
+			result: r.result,
 			ok: false,
 			status: 404,
 			body: { invoiced: { ok: false, order: orderId, message: 'No encontramos esa orden.' } }
@@ -133,6 +140,7 @@ export async function invoicedFromPanel(db, locals, { orderId, invoiced, by, eve
 	const order = r.order;
 	if (r.result === 'not_eligible') {
 		return {
+			result: r.result,
 			ok: false,
 			status: 400,
 			body: {
@@ -153,7 +161,7 @@ export async function invoicedFromPanel(db, locals, { orderId, invoiced, by, eve
 			summary: invoiced
 				? `Marcó como facturada la orden ${reference}`
 				: `Desmarcó como facturada la orden ${reference}`,
-			detail: { event: order.event_slug, total: order.total }
+			detail: { event: order.event_slug, total: order.total, ...(bulk ? { bulk: true } : {}) }
 		});
 	}
 	const message =
@@ -165,6 +173,7 @@ export async function invoicedFromPanel(db, locals, { orderId, invoiced, by, eve
 				? 'Esa orden ya estaba facturada.'
 				: 'Esa orden ya estaba sin facturar.';
 	return {
+		result: r.result,
 		ok: true,
 		status: 200,
 		body: {

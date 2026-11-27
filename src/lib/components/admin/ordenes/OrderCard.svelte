@@ -16,7 +16,8 @@
 	 * Props: `o` (la orden), `fields` (las preguntas, para las respuestas), `form` (el de la página),
 	 * `result` (lo que pasó al confirmar o cancelar, se muestra en la tarjeta), `busy`, `linked`
 	 * (la del link `#orden-<id>`), `overrideDialog`, `confirmSubmit` y `cancelSubmit` (los
-	 * `use:enhance` de la página) y `onFilter` (filtrar por una respuesta).
+	 * `use:enhance` de la página), `onFilter` (filtrar por una respuesta) y, para la barra de
+	 * varias compras, `selected` y `onSelect` (la casilla al lado del nombre).
 	 */
 	import { enhance } from '$app/forms';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -58,6 +59,9 @@
 	export let cancelSubmit = undefined;
 	/** @type {(answer: import('$lib/admin/ordersView.js').ShownAnswer) => void} */
 	export let onFilter = () => {};
+	export let selected = false;
+	/** @type {((checked: boolean) => void) | null} sin esto, no hay casilla */
+	export let onSelect = null;
 
 	$: money = orderMoneyLines(o);
 	$: groups = orderAnswerGroups(o, fields);
@@ -100,10 +104,20 @@
 <li
 	class="order status-{o.status}"
 	class:waiting={o.transferPending}
+	class:selected
 	class:linked
 	id="orden-{o.id}"
 >
 	<div class="head">
+		{#if onSelect}
+			<input
+				class="pick"
+				type="checkbox"
+				checked={selected}
+				aria-label="Elegir {o.reference}"
+				on:change={(ev) => onSelect?.(ev.currentTarget.checked)}
+			/>
+		{/if}
 		<strong class="name">{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span
 			>{/if}
 		<a href="mailto:{o.email}">{o.email}</a>
@@ -307,6 +321,9 @@
 		gap: var(--space-3xs);
 		min-width: 0;
 	}
+	.order.selected {
+		background: color-mix(in srgb, var(--link) 7%, transparent);
+	}
 	.order:target,
 	.order.linked {
 		box-shadow: 0 0 0 3px var(--link);
@@ -331,6 +348,13 @@
 	}
 	.name {
 		font-size: var(--text-base);
+	}
+	.pick {
+		width: 1.15rem;
+		height: 1.15rem;
+		margin: 0;
+		accent-color: var(--link);
+		cursor: pointer;
 	}
 	.status {
 		margin-left: auto;
