@@ -243,7 +243,7 @@ describe('qué pedidos puede hacer (ruta, método y acción)', () => {
 			return;
 		}
 		if (!file.endsWith('+page.server.js')) return;
-		const mod = await vi.importActual(/* @vite-ignore */ file.replace(/^\/src/, '/src'));
+		const mod = await vi.importActual(/* @vite-ignore */ file);
 		const names = Object.keys(/** @type {any} */ (mod).actions ?? {});
 		for (const name of allowed.actions) expect(names, `${routeId} ?/${name}`).toContain(name);
 		for (const name of names) {
