@@ -18,13 +18,31 @@ import { extrasByOrder } from '$lib/server/tickets/extras.js';
 import { extrasCsvCells } from '$lib/utils/extras.js';
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({ locals, url, params, platform }) {
+export const GET = (event) => entriesCsv(event, null);
+
+/**
+ * «CSV» de la barra de varias compras de Órdenes: el mismo archivo, solo con las elegidas
+ * (`order`, una vez por compra). Va por POST porque la lista de ids puede ser larga para una URL.
+ * @type {import('./$types').RequestHandler}
+ */
+export async function POST(event) {
+	requireAdmin(event.locals, event.url);
+	const form = await event.request.formData();
+	const ids = new Set(form.getAll('order').map(String).slice(0, 2000));
+	return entriesCsv(event, ids);
+}
+
+/**
+ * @param {Parameters<import('./$types').RequestHandler>[0]} event
+ * @param {Set<string> | null} only con una lista, solo esas órdenes
+ */
+async function entriesCsv({ locals, url, params, platform }, only) {
 	requireAdmin(locals, url);
 	const config = await getEventTickets(params.slug);
 	if (!config) error(404, 'Ese evento no vende entradas.');
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const [orders, tickets, answers, fields, extras] = await Promise.all([
+	const [allOrders, tickets, answers, fields, extras] = await Promise.all([
 		listOrders(db, params.slug),
 		listEventTickets(db, params.slug),
 		answersByOrder(db, params.slug),
@@ -33,6 +51,7 @@ export async function GET({ locals, url, params, platform }) {
 		// Apagado, el CSV queda como siempre.
 		extrasEnabled(platform).then((on) => (on ? extrasByOrder(db, params.slug) : null))
 	]);
+	const orders = only ? allOrders.filter((o) => only.has(o.id)) : allOrders;
 	// Una columna por pregunta de inscripción (las de hoy y las que solo tienen respuestas viejas).
 	// Sin preguntas ni respuestas, el CSV queda como siempre.
 	const extra = answerColumns([...answers.values()], fields);
@@ -154,7 +173,7 @@ export async function GET({ locals, url, params, platform }) {
 		rows,
 		header.map((label, i) => ({ label, value: (/** @type {unknown[]} */ row) => row[i] }))
 	);
-	return csvResponse(csv, csvFilename('entradas', params.slug));
+	return csvResponse(csv, csvFilename(only ? 'entradas-elegidas' : 'entradas', params.slug));
 }
 
 /**

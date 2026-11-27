@@ -15,6 +15,10 @@
  * «Editar» (`edit`, `undoEdit`; $lib/server/admin/orderEdits.js): cada compra trae su historial
  * de cambios (`edits`).
  *
+ * Varias compras a la vez (`bulk`; $lib/server/admin/orderActions.js): la barra de «Compras»
+ * marca o desmarca facturadas, marca revisadas y reenvía el mail, de a tandas. `loadedAt` es
+ * cuándo se leyeron las órdenes: desde ahí pregunta `ordenes/nuevas` por compras nuevas.
+ *
  * DNI: la página solo trae los últimos 3 dígitos de cada orden. El completo sale de a uno con la
  * acción `dni` («Mostrar», queda en el registro de actividad) y el buscador encuentra órdenes por
  * DNI con `dniSearch` (devuelve solo ids). El CSV (`../ordenes.csv`) sí lleva el DNI completo: se
@@ -95,6 +99,8 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 				}
 			: null,
 		orders,
+		// Desde cuándo preguntar por compras nuevas (el aviso «2 compras nuevas · Mostrar»).
+		loadedAt: now,
 		// `firstTime` se puede usar (filtro y etiqueta) si hay alguna respuesta o historia.
 		firstKnown: anyKnown,
 		series: prior?.series?.label ?? '',
@@ -155,5 +161,6 @@ export const actions = pickActions(
 	'cancel',
 	'reopen',
 	'edit',
-	'undoEdit'
+	'undoEdit',
+	'bulk'
 );

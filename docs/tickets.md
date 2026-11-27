@@ -555,7 +555,8 @@ filtros son funciones puras en `src/lib/admin/ordersView.js` y las partes, compo
   una aprobada, «Deshacer rechazo» en una transferencia cancelada por une admin, la casilla
   «Facturada» si la compra se factura, «Editar» en todas (ver
   [Editar una compra](#editar-una-compra)) y, en «Más», «Corregir el mail…» y «Reembolsar…» (con
-  su paso de confirmación).
+  su paso de confirmación). Una casilla por compra elige varias para la barra (ver
+  [Varias compras a la vez](#varias-compras-a-la-vez)).
 - **Filtros**: el estado, una sola opción con «🧾 compras · 👥 personas» (Transferencias por
   confirmar, Aprobadas, Pendientes MP, Reembolsadas, Todas; en la URL, `?estado=`): arranca en
   las transferencias por confirmar si hay, si no en las aprobadas. «Filtros» suma interruptores
@@ -617,6 +618,41 @@ Lo guardado vuelve al formulario con `answerFormValue`. Sirve en cualquier estad
   había y queda como otro cambio (también se deshace). Si un dato cambió después, pide deshacer
   primero lo más nuevo; un cambio se deshace una sola vez. Si otre admin guardó en el medio,
   «Guardar» no lo pisa y pide volver a abrir «Editar».
+
+#### Varias compras a la vez
+
+En «Compras» cada tarjeta tiene una casilla y, arriba de la lista, «Elegir todas las que se ven»
+elige las que muestran los filtros y el buscador de ese momento (plan `ordenes-editar`; lo puro
+en `src/lib/admin/orderBulk.js`, el servidor en `src/lib/server/admin/orderActions.js`). La
+selección queda solo con las que se ven: cambiar un filtro saca las que se esconden; volver a
+leer las órdenes (después de una acción o de «Mostrar») no la pierde.
+
+Con alguna elegida aparece abajo, pegada, la barra (`OrderBulkBar`) con cuántas y solo las
+acciones que aplican a alguna (entre paréntesis, a cuántas, si no son todas):
+
+- **Marcar facturadas** / **Desmarcar facturadas**: la casilla «Facturada» (`invoicedFromPanel`).
+- **Marcar revisadas**: las que están en «Para revisar» (`reviewOrderFromPanel`).
+- **Reenviar mail**: el de las entradas, solo a las aprobadas (`resendOrderFromPanel`); pregunta
+  antes y dice cuántas se saltean. Va de a 5 por pedido; si Resend pide esperar (cupo o tasa),
+  corta y las que faltan quedan salteadas.
+- **CSV**: el mismo de «CSV (una fila por entrada)», solo con las elegidas (POST a
+  `ordenes.csv`, así la lista de ids no va en la URL).
+- **Copiar mails**: los de quienes compraron, sin repetir, separados por coma.
+
+Cada acción pasa por la misma función que su botón en la tarjeta (las reglas son las mismas) y
+deja en Actividad una línea por compra, como si se hubiera tocado su botón (con `bulk: true` en
+el detalle). La página manda tandas (`?/bulk`, 50 por pedido; 5 al reenviar) y al final dice
+«3 hechas, 2 salteadas (1 ya facturada; 1 sin pago para facturar)». **Nada de plata**: ni
+reembolsos, ni cancelar, ni confirmar transferencias (siguen de a una en su tarjeta).
+
+#### Compras nuevas sin que salte la lista
+
+Mientras la página está abierta y a la vista, cada 30 segundos (y al volver a la pestaña)
+pregunta a `ordenes/nuevas?desde=<ms>` qué compras aprobadas o transferencias reservadas
+cambiaron desde que se leyeron las órdenes (`loadedAt`; devuelve solo ids y estados). Las que la
+página no tiene así (nuevas, o una reserva que se pagó) no se meten en la lista: arriba aparece
+«2 compras nuevas · Mostrar» y «Mostrar» vuelve a leer las órdenes, sin perder la selección ni
+dónde estabas (`src/lib/admin/newOrders.js`).
 
 #### La plata de cada orden en Órdenes
 

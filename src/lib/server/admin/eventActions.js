@@ -6,7 +6,6 @@ import { getEventTickets } from '$lib/server/tickets/events.js';
 import {
 	getGateway,
 	inBackground,
-	sendOrderEmail,
 	sendOrderEmailResult,
 	sendDateChangeEmails,
 	sendRefundEmail,
@@ -18,15 +17,17 @@ import { confirmTransferPayment, reopenTransferFromPanel } from '$lib/server/adm
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
 import { invoicedFromPanel } from '$lib/server/admin/invoiced.js';
+import {
+	readBulkSelection,
+	resendOrderFromPanel,
+	reviewOrderFromPanel,
+	runBulkOrders
+} from '$lib/server/admin/orderActions.js';
+import { bulkMessage } from '$lib/admin/orderBulk.js';
 import { readEditInput, saveOrderEdit, undoOrderEdit } from '$lib/server/admin/orderEdits.js';
 import { fieldsForEvent } from '$lib/server/tickets/signupFields.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
-import {
-	cancelTransfer,
-	clearReview,
-	getOrder,
-	updateBuyerEmail
-} from '$lib/server/tickets/orders.js';
+import { cancelTransfer, getOrder, updateBuyerEmail } from '$lib/server/tickets/orders.js';
 import { isSuppressed } from '$lib/server/email/suppressions.js';
 import { normalizeBuyerEmail } from '$lib/utils/ticketBuyer.js';
 import {
@@ -144,37 +145,37 @@ export const eventTicketActions = {
 		const db = getDB(platform);
 		if (!db) return fail(503, { review: { ok: false, message: 'Sin base de datos.' } });
 		const orderId = String((await request.formData()).get('order') ?? '');
-		const order = await getOrder(db, orderId);
-		if (!order || order.event_slug !== params.slug) {
+		const r = await reviewOrderFromPanel(db, locals, { orderId, slug: params.slug });
+		if (r === 'not_found') {
 			return fail(400, { review: { ok: false, message: 'No encontramos esa orden.' } });
 		}
-		const done = await clearReview(db, order.id);
-		if (done) {
-			await logAdminAction(db, locals, {
-				action: 'order.reviewed',
-				targetType: 'order',
-				targetId: order.id,
-				summary:
-					order.needs_review === 'duplicate_payment' && order.review_detail
-						? `Marcó como revisada la orden ${orderReference(order.id)} (pago duplicado: Mercado Pago n.° ${order.review_detail})`
-						: `Marcó como revisada la orden ${orderReference(order.id)}`,
-				// Lo que decía la marca (en un pago duplicado, el número del otro pago) queda acá:
-				// clearReview lo borra de la orden.
-				detail: {
-					event: params.slug,
-					reason: order.needs_review ?? (order.offline_review ? 'door_offline' : null),
-					reviewDetail: order.review_detail ?? null,
-					offlineReview: order.offline_review ?? null,
-					total: order.total
-				}
-			});
-		}
+		const done = r === 'done';
 		return {
 			review: {
 				ok: done,
 				message: done ? 'Marcada como revisada.' : 'Esa orden ya estaba revisada.'
 			}
 		};
+	},
+	/**
+	 * La barra de varias compras de Órdenes (orderActions.js): una acción segura sobre una tanda
+	 * de compras, cada una con la misma función que su botón. La página manda las tandas y suma.
+	 */
+	bulk: async ({ locals, url, params, platform, request, fetch }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { bulk: { ok: false, message: 'Sin base de datos.' } });
+		const sel = readBulkSelection(await request.formData());
+		if (!sel.ok) return fail(400, { bulk: { ok: false, message: sel.message } });
+		const r = await runBulkOrders(db, locals, {
+			action: sel.action,
+			ids: sel.ids,
+			slug: params.slug,
+			by: admin.login,
+			origin: siteOrigin(url),
+			fetch
+		});
+		return { bulk: { ok: true, ...r, message: bulkMessage(r) } };
 	},
 	// «Mostrar» el DNI completo de una orden de este evento (en la página solo van los últimos 3
 	// dígitos). Como en la ficha de la persona: cada vez queda en Actividad, sin el DNI.
@@ -206,26 +207,16 @@ export const eventTicketActions = {
 		const db = getDB(platform);
 		if (!db) return fail(503, { resend: { ok: false, message: 'Sin base de datos.' } });
 		const orderId = String((await request.formData()).get('order') ?? '');
-		const order = await getOrder(db, orderId);
-		if (!order || order.event_slug !== params.slug || order.status !== 'approved') {
+		const { result, order } = await resendOrderFromPanel(db, locals, {
+			orderId,
+			slug: params.slug,
+			origin: siteOrigin(url),
+			fetch
+		});
+		if (!order) {
 			return fail(400, { resend: { ok: false, message: 'Esa orden no está aprobada.' } });
 		}
-		const sent = await sendOrderEmail({
-			db,
-			order,
-			origin: siteOrigin(url),
-			fetch,
-			idempotent: false
-		});
-		await logAdminAction(db, locals, {
-			action: 'order.resend',
-			targetType: 'order',
-			targetId: order.id,
-			summary: sent
-				? `Reenvió las entradas de ${orderReference(order.id)}`
-				: `Intentó reenviar las entradas de ${orderReference(order.id)} (el mail falló)`,
-			detail: { event: params.slug, sent }
-		});
+		const sent = result === 'sent';
 		return {
 			resend: {
 				ok: sent,
