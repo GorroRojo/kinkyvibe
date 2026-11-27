@@ -6,8 +6,9 @@
 	 * (con cuántas, si no son todas). Las que no aplican se saltean y el resultado lo dice:
 	 * «3 hechas, 2 salteadas (…)». Nada de plata: ni reembolsos, ni cancelar, ni transferencias.
 	 *
-	 * «CSV» es un formulario común (POST a `ordenes.csv` con las elegidas) y «Copiar mails» no
-	 * toca el servidor. `message` (bind) es el resultado de lo último; la página lo borra cuando se
+	 * «CSV» manda las elegidas con `fetch` (POST a `ordenes.csv`) y baja la respuesta: un formulario
+	 * común no sirve, porque el panel va con `no-referrer` y SvelteKit rechaza ese POST (Origin
+	 * `null`; ver `src/routes/referrer-forms.test.js`). «Copiar mails» no toca el servidor. `message` (bind) es el resultado de lo último; la página lo borra cuando se
 	 * elige otra cosa.
 	 */
 	import { deserialize } from '$app/forms';
@@ -98,6 +99,32 @@
 		await onDone();
 	}
 
+	async function downloadCsv() {
+		busy = true;
+		message = '';
+		try {
+			const body = new FormData();
+			for (const o of selected) body.append('order', o.id);
+			const res = await fetch(csvHref, { method: 'POST', body });
+			if (!res.ok) throw new Error(String(res.status));
+			const name =
+				/filename="?([^";]+)"?/.exec(res.headers.get('content-disposition') ?? '')?.[1] ??
+				'entradas.csv';
+			const url = URL.createObjectURL(await res.blob());
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = name;
+			document.body.append(a);
+			a.click();
+			a.remove();
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		} catch {
+			message = 'No se pudo bajar el CSV; probá de nuevo.';
+			announce(message, { force: true });
+		}
+		busy = false;
+	}
+
 	function copyMails() {
 		const list = mailList(selected).join(', ');
 		const count = mailList(selected).length;
@@ -125,10 +152,9 @@
 						>{a.label}{#if a.count < n}{' '}({a.count}){/if}</button
 					>
 				{/each}
-				<form method="POST" action={csvHref}>
-					{#each selected as o (o.id)}<input type="hidden" name="order" value={o.id} />{/each}
-					<button type="submit" class="kv-btn ghost small" disabled={busy}>CSV</button>
-				</form>
+				<button type="button" class="kv-btn ghost small" disabled={busy} on:click={downloadCsv}
+					>CSV</button
+				>
 				<button type="button" class="kv-btn ghost small" disabled={busy} on:click={copyMails}
 					>Copiar mails</button
 				>
