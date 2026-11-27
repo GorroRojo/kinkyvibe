@@ -58,6 +58,8 @@
 	export let cancelSubmit = undefined;
 	/** @type {(answer: import('$lib/admin/ordersView.js').ShownAnswer) => void} */
 	export let onFilter = () => {};
+	/** Solo mirar (une organizadore): sin el DNI completo ni las acciones de la orden. */
+	export let readOnly = false;
 
 	$: money = orderMoneyLines(o);
 	$: groups = orderAnswerGroups(o, fields);
@@ -107,7 +109,7 @@
 		<strong class="name">{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span
 			>{/if}
 		<a href="mailto:{o.email}">{o.email}</a>
-		<DniReveal orderId={o.id} tail={o.dniTail} {form} />
+		{#if !readOnly}<DniReveal orderId={o.id} tail={o.dniTail} {form} />{/if}
 		<span class="status"
 			><Badge tone={ORDER_STATUS_TONE[o.status] ?? 'neutral'}>{ORDER_STATUS[o.status]}</Badge></span
 		>
@@ -177,121 +179,128 @@
 	{#if edited}
 		<p class="kv-flash row-flash" class:bad={!edited.ok} role="status">{edited.message}</p>
 	{/if}
-	<div class="actions">
-		{#if confirming}
-			<form method="POST" action="?/confirm" use:enhance={confirmSubmit}>
-				<input type="hidden" name="order" value={o.id} />
-				<button type="submit" class="kv-btn small next" disabled={busy}
-					>Llegó la transferencia ✓</button
-				>
-			</form>
-			<form method="POST" action="?/cancel" use:enhance={cancelSubmit}>
-				<input type="hidden" name="order" value={o.id} />
-				<button type="submit" class="kv-btn ghost small danger" disabled={busy}>Cancelar</button>
-			</form>
-		{/if}
-		{#if o.status === 'approved'}
-			<form method="POST" action="?/resend" use:enhance={announced('resend')}>
-				<input type="hidden" name="order" value={o.id} />
-				<button type="submit" class="kv-btn ghost small">Reenviar mail</button>
-			</form>
-		{/if}
-		{#if canReopen}
-			<ReopenTransferButton id={o.id} reference={o.reference} dialog={overrideDialog} />
-		{/if}
-		{#if o.toInvoice || o.invoicedAt}
-			<!-- Ya se facturó esta compra (solo admins). -->
-			<InvoicedCheck orderId={o.id} bind:invoicedAt={o.invoicedAt} bind:invoicedBy={o.invoicedBy} />
-		{/if}
-		<details class="more edit" bind:open={editing}>
-			<summary class="kv-btn ghost small">Editar</summary>
-			{#if editing}
-				<OrderEditor {o} {fields} {form} onDone={() => (editing = false)} />
+	{#if !readOnly}
+		<div class="actions">
+			{#if confirming}
+				<form method="POST" action="?/confirm" use:enhance={confirmSubmit}>
+					<input type="hidden" name="order" value={o.id} />
+					<button type="submit" class="kv-btn small next" disabled={busy}
+						>Llegó la transferencia ✓</button
+					>
+				</form>
+				<form method="POST" action="?/cancel" use:enhance={cancelSubmit}>
+					<input type="hidden" name="order" value={o.id} />
+					<button type="submit" class="kv-btn ghost small danger" disabled={busy}>Cancelar</button>
+				</form>
 			{/if}
-		</details>
-		{#if o.status === 'approved'}
-			<details class="more" open={emailFixFailed}>
-				<summary class="kv-btn ghost small">Más</summary>
-				<div class="more-panel">
-					<!-- Quien compró escribió mal su mail: se corrige y las entradas salen a la nueva. -->
-					<details class="email-fix" open={emailFixFailed}>
-						<summary>Corregir el mail…</summary>
-						<form
-							method="POST"
-							action="?/email"
-							use:enhance={announced('emailFix')}
-							class="email-fix-form"
-						>
-							<input type="hidden" name="order" value={o.id} />
-							<label>
-								<span>Mail nuevo</span>
-								<input
-									class="kv-input"
-									type="email"
-									name="email"
-									required
-									maxlength="254"
-									autocomplete="off"
-									spellcheck="false"
-								/>
-							</label>
-							<button type="submit" class="kv-btn small">Corregir el mail y reenviar</button>
-						</form>
-						<p class="note">
-							Las entradas salen a la dirección nueva; a la anterior no le mandamos nada más.
-						</p>
-					</details>
-					<!-- Paso de confirmación: se abre, se revisa y recién ahí se reembolsa. -->
-					<details class="refund">
-						<summary>Reembolsar…</summary>
-						<div class="refund-panel">
-							<p>
-								<strong>{formatARS(left)}</strong> a
-								<strong>{o.name}</strong> ({o.email}) ·
-								{o.quantity}
-								{o.quantity === 1 ? 'entrada' : 'entradas'}{#if o.holders.length}:
-									{o.holders.map((/** @type {any} */ h) => h.name).join(', ')}{/if}.
-							</p>
-							<p class="note">
-								{#if o.method === 'mercadopago'}
-									Se pide a Mercado Pago el reembolso TOTAL del pago {o.paymentId} (tiene que haber saldo
-									en la cuenta; hasta 180 días desde el pago).
-								{:else if o.method === 'paypal'}
-									Se pide a PayPal el reembolso TOTAL del cobro {o.paymentId}{#if o.usdCents}{' '}({formatUSD(
-											o.usdCents
-										)}){/if} (tiene que haber saldo en la cuenta de PayPal; hasta 180 días desde el pago).
-								{:else if o.method === 'transferencia'}
-									No hay devolución automática: primero devolvé la transferencia a mano, después
-									marcala acá.
-								{:else}
-									Compra sin cargo: solo se anulan las entradas.
-								{/if}
-								Las entradas quedan anuladas (el control de ingreso las rechaza), se libera el cupo y
-								el uso del código, sale de los totales y le avisamos por mail.
-							</p>
-							<form method="POST" action="?/refund" use:enhance={submitRefund}>
-								<input type="hidden" name="order" value={o.id} />
-								<button
-									type="submit"
-									class="refund-confirm"
-									disabled={refunding}
-									aria-busy={refunding}
-								>
-									{refunding
-										? 'Reembolsando…'
-										: o.method === 'mercadopago' || o.method === 'paypal'
-											? `Confirmar reembolso de ${formatARS(left)}`
-											: o.method === 'transferencia'
-												? 'Marcar como reembolsada (transferencia devuelta a mano)'
-												: 'Anular las entradas'}
-								</button>
-							</form>
-						</div>
-					</details>
-				</div>
+			{#if o.status === 'approved'}
+				<form method="POST" action="?/resend" use:enhance={announced('resend')}>
+					<input type="hidden" name="order" value={o.id} />
+					<button type="submit" class="kv-btn ghost small">Reenviar mail</button>
+				</form>
+			{/if}
+			{#if canReopen}
+				<ReopenTransferButton id={o.id} reference={o.reference} dialog={overrideDialog} />
+			{/if}
+			{#if o.toInvoice || o.invoicedAt}
+				<!-- Ya se facturó esta compra (solo admins). -->
+				<InvoicedCheck
+					orderId={o.id}
+					bind:invoicedAt={o.invoicedAt}
+					bind:invoicedBy={o.invoicedBy}
+				/>
+			{/if}
+			<details class="more edit" bind:open={editing}>
+				<summary class="kv-btn ghost small">Editar</summary>
+				{#if editing}
+					<OrderEditor {o} {fields} {form} onDone={() => (editing = false)} />
+				{/if}
 			</details>
-		{/if}
-	</div>
+			{#if o.status === 'approved'}
+				<details class="more" open={emailFixFailed}>
+					<summary class="kv-btn ghost small">Más</summary>
+					<div class="more-panel">
+						<!-- Quien compró escribió mal su mail: se corrige y las entradas salen a la nueva. -->
+						<details class="email-fix" open={emailFixFailed}>
+							<summary>Corregir el mail…</summary>
+							<form
+								method="POST"
+								action="?/email"
+								use:enhance={announced('emailFix')}
+								class="email-fix-form"
+							>
+								<input type="hidden" name="order" value={o.id} />
+								<label>
+									<span>Mail nuevo</span>
+									<input
+										class="kv-input"
+										type="email"
+										name="email"
+										required
+										maxlength="254"
+										autocomplete="off"
+										spellcheck="false"
+									/>
+								</label>
+								<button type="submit" class="kv-btn small">Corregir el mail y reenviar</button>
+							</form>
+							<p class="note">
+								Las entradas salen a la dirección nueva; a la anterior no le mandamos nada más.
+							</p>
+						</details>
+						<!-- Paso de confirmación: se abre, se revisa y recién ahí se reembolsa. -->
+						<details class="refund">
+							<summary>Reembolsar…</summary>
+							<div class="refund-panel">
+								<p>
+									<strong>{formatARS(left)}</strong> a
+									<strong>{o.name}</strong> ({o.email}) ·
+									{o.quantity}
+									{o.quantity === 1 ? 'entrada' : 'entradas'}{#if o.holders.length}:
+										{o.holders.map((/** @type {any} */ h) => h.name).join(', ')}{/if}.
+								</p>
+								<p class="note">
+									{#if o.method === 'mercadopago'}
+										Se pide a Mercado Pago el reembolso TOTAL del pago {o.paymentId} (tiene que haber
+										saldo en la cuenta; hasta 180 días desde el pago).
+									{:else if o.method === 'paypal'}
+										Se pide a PayPal el reembolso TOTAL del cobro {o.paymentId}{#if o.usdCents}{' '}({formatUSD(
+												o.usdCents
+											)}){/if} (tiene que haber saldo en la cuenta de PayPal; hasta 180 días desde el
+										pago).
+									{:else if o.method === 'transferencia'}
+										No hay devolución automática: primero devolvé la transferencia a mano, después
+										marcala acá.
+									{:else}
+										Compra sin cargo: solo se anulan las entradas.
+									{/if}
+									Las entradas quedan anuladas (el control de ingreso las rechaza), se libera el cupo
+									y el uso del código, sale de los totales y le avisamos por mail.
+								</p>
+								<form method="POST" action="?/refund" use:enhance={submitRefund}>
+									<input type="hidden" name="order" value={o.id} />
+									<button
+										type="submit"
+										class="refund-confirm"
+										disabled={refunding}
+										aria-busy={refunding}
+									>
+										{refunding
+											? 'Reembolsando…'
+											: o.method === 'mercadopago' || o.method === 'paypal'
+												? `Confirmar reembolso de ${formatARS(left)}`
+												: o.method === 'transferencia'
+													? 'Marcar como reembolsada (transferencia devuelta a mano)'
+													: 'Anular las entradas'}
+									</button>
+								</form>
+							</div>
+						</details>
+					</div>
+				</details>
+			{/if}
+		</div>
+	{/if}
 </li>
 
 <style>

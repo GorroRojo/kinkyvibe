@@ -1,7 +1,12 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { withLineEnding } from '$lib/utils/lineEndings.js';
-import { requireAdmin } from '$lib/server/auth';
+import {
+	isOrganizerRequest,
+	organizerVenuePicker,
+	panelImageViewer,
+	requireAdminOrOrganizer
+} from '$lib/server/admin/organizadore.js';
 import { editorData } from '$lib/server/admin/content.js';
 import { featuredURL, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { findImage } from '$lib/server/media/library.js';
@@ -81,10 +86,12 @@ export async function load(event) {
  * @param {{ locals: App.Locals, params: {category: string, postID: string}, url: URL, platform?: App.Platform, fetch?: typeof fetch }} event
  */
 export async function _editLoad({ locals, params, url, platform, fetch: fetchFn }) {
-	// Server loads run in parallel with the layout load, so guard here too.
-	requireAdmin(locals, url);
-	const path = postPath(params);
+	// Server loads run in parallel with the layout load, so guard here too. Une organizadore
+	// (organizadore.js) solo llega acá por la pestaña Editar de un evento suyo.
 	const isEvent = params.category === 'calendario';
+	requireAdminOrOrganizer(locals, url, isEvent ? params.postID : '');
+	const organizer = isOrganizerRequest(locals);
+	const path = postPath(params);
 	const db = getDB(platform);
 	// Todo sale a la par (cada lectura en fila es una ida a la base): la publicación y lo demás. Se
 	// espera en el orden de antes, así que el 404 de la publicación (y después cada error) es el
@@ -139,7 +146,8 @@ export async function _editLoad({ locals, params, url, platform, fetch: fetchFn 
 		extrasEnabled,
 		extrasSales,
 		profitGoal,
-		venuePicker,
+		// Une organizadore: solo los lugares públicos, sin crear ni editar lugares.
+		venuePicker: organizer ? organizerVenuePicker(venuePicker) : venuePicker,
 		salesUnavailable: isEvent && sales === null,
 		transferReady: transfer,
 		fondoPercent,
@@ -162,7 +170,7 @@ export async function _editLoad({ locals, params, url, platform, fetch: fetchFn 
  * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
  */
 function eventLibraryImage(db, locals, slug) {
-	return libraryCoverOf(db, EVENT_CATEGORY, slug, adminViewer(locals));
+	return libraryCoverOf(db, EVENT_CATEGORY, slug, panelImageViewer(locals));
 }
 
 /**
@@ -193,13 +201,6 @@ function eventImageInfo(slug, raw, current) {
 	};
 }
 
-/** @param {App.Locals} locals */
-const adminViewer = (locals) =>
-	/** @type {import('$lib/server/objects/visibility.js').Viewer} */ ({
-		role: 'admin',
-		id: locals.user?.login ?? 'panel'
-	});
-
 /**
  * Las acciones del editor, para cualquier categoría (también las usa la pestaña Editar del panel).
  * @type {Record<string, (event: any) => Promise<any>>}
@@ -207,7 +208,11 @@ const adminViewer = (locals) =>
 export const _editActions = {
 	// Form actions do not run the (authed) layout load: each one must check auth.
 	save: async ({ params, locals, request, url, platform }) => {
-		const user = requireAdmin(locals, url);
+		const user = requireAdminOrOrganizer(
+			locals,
+			url,
+			params.category === 'calendario' ? params.postID : ''
+		);
 		const data = await request.formData();
 		const rawContent = data.get('content');
 		const sha = data.get('sha');
@@ -256,6 +261,13 @@ export const _editActions = {
 		const venue = params.category === 'calendario' ? readVenueChoice(data) : null;
 		const venueCheck = await checkVenueChoice(getDB(platform), venue);
 		if (!venueCheck.ok) return fail(400, { error: venueCheck.message });
+		// Une organizadore elige solo entre los lugares que le muestra el formulario.
+		if (venue?.venueId != null && user.organizer) {
+			const allowed = organizerVenuePicker(await venuePickerData(getDB(platform), params.postID));
+			if (!allowed?.venues.some((v) => v.id === venue.venueId)) {
+				return fail(400, { error: 'Lugar: ese lugar ya no existe.' });
+			}
+		}
 		/** @param {any} result lo que devuelve guardar el archivo (o un fail) */
 		const withVenue = async (result) => {
 			if (!venue || !result || !('save' in result)) return result;
@@ -279,7 +291,7 @@ export const _editActions = {
 			if (choice.action === 'remove') edges = { portada: [] };
 			if (choice.action === 'set') {
 				const db = getDB(platform);
-				const image = db ? await findImage(db, choice.id, adminViewer(locals)) : null;
+				const image = db ? await findImage(db, choice.id, panelImageViewer(locals)) : null;
 				if (!image)
 					return fail(400, {
 						error: 'La imagen elegida ya no está en la biblioteca. Elegí otra.'

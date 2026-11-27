@@ -47,7 +47,7 @@
  * entero y se vende en el modo puerta del taller.
  */
 import { error, fail, json } from '@sveltejs/kit';
-import { requireAdmin } from '$lib/server/auth';
+import { requireAdminOrOrganizer } from '$lib/server/admin/organizadore.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { safeWaitlistSummary } from '$lib/server/tickets/waitlistAdmin.js';
@@ -172,14 +172,29 @@ async function doorCard(actor, full, { typeNames, prior, notices, scanCard = fal
 }
 
 /**
- * Une admin del panel como actor de la puerta (`requireAdmin`: redirige o da 403 si no).
+ * Une admin del panel como actor de la puerta (`requireAdmin`: redirige o da 403 si no), o une
+ * organizadore de **este** evento (interruptor `rol_organizadore`, organizadore.js): marca y
+ * deshace ingresos y entrega extras, pero no vende en la puerta ni ve el DNI completo.
  *
- * @param {{ locals: App.Locals, url: URL }} event
+ * @param {{ locals: App.Locals, url: URL, params?: Record<string, string> }} event
  * @returns {DoorActor}
  */
 export function adminActor(event) {
-	const admin = requireAdmin(event.locals, event.url);
-	return { kind: 'admin', by: admin.login, audit: event.locals, link: null };
+	const who = requireAdminOrOrganizer(event.locals, event.url, event.params?.slug ?? '');
+	if (who.organizer) {
+		return { kind: 'organizer', by: who.login, audit: { user: { login: who.login } }, link: null };
+	}
+	return { kind: 'admin', by: who.login, audit: event.locals, link: null };
+}
+
+/**
+ * Vender en la puerta (con o sin conexión) mueve plata: une organizadore no (404, como el resto de
+ * lo que no tiene; hooks.server.js ya lo frena antes).
+ *
+ * @param {DoorActor} actor
+ */
+function refuseOrganizerSale(actor) {
+	if (actor.kind === 'organizer') error(404, 'Not found');
 }
 
 /**
@@ -275,8 +290,10 @@ export async function doorLoad(event, actor) {
 		part,
 		series,
 		// Se abrió solo desde /admin/checkin (era el único evento de hoy): muestra «Otro evento».
-		autoOpened: !actor.link && event.url.searchParams.has(DOOR_AUTO_PARAM),
+		autoOpened: actor.kind === 'admin' && event.url.searchParams.has(DOOR_AUTO_PARAM),
 		login: actor.by,
+		// Une organizadore (organizadore.js): sin «Ver DNI completo» ni «Vender en puerta».
+		organizer: actor.kind === 'organizer',
 		counts,
 		waitlist,
 		fondoEnabled: config.fondoEnabled,
@@ -295,7 +312,7 @@ export async function doorLoad(event, actor) {
 		noteMax: ORDER_NOTE_MAX,
 		// "Vender en puerta" salvo que el evento diga que no hay (`puerta: false`). En una parte de
 		// un taller, nunca (la entrada es del taller entero).
-		doorSales: !part && doorSalesOpen(config),
+		doorSales: !part && actor.kind !== 'organizer' && doorSalesOpen(config),
 		doorPrice: config.door?.price ?? '',
 		// Tope técnico de una venta (el máximo por venta, MAX_DOOR_SALE, se puede pasar confirmando).
 		maxOrder: PANEL_ORDER_HARD_MAX,
@@ -523,6 +540,7 @@ export function doorActions(getActor) {
 		/** @param {any} event */
 		syncSales: async (event) => {
 			const actor = await getActor(event);
+			refuseOrganizerSale(actor);
 			const { db, config, part } = await doorContext(event, { fondo: true });
 			const slug = event.params.slug;
 			let raw;
@@ -582,6 +600,7 @@ export function doorActions(getActor) {
 		/** @param {any} event */
 		sell: async (event) => {
 			const actor = await getActor(event);
+			refuseOrganizerSale(actor);
 			const { db, config, typeNames, part } = await doorContext(event, { fondo: true });
 			const slug = event.params.slug;
 			if (part) {

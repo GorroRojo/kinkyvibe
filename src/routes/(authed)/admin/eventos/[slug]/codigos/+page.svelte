@@ -99,13 +99,15 @@
 									<Badge tone={codeState(c) === 'Activo' ? 'ok' : 'neutral'}>{codeState(c)}</Badge>
 								</td>
 								<td class="r">
-									<form method="POST" action="?/toggle" use:enhance>
-										<input type="hidden" name="code" value={c.code} />
-										<input type="hidden" name="active" value={c.active ? '0' : '1'} />
-										<button type="submit" class="kv-btn ghost small">
-											{c.active ? 'Apagar' : 'Prender'}
-										</button>
-									</form>
+									{#if !data.organizer}
+										<form method="POST" action="?/toggle" use:enhance>
+											<input type="hidden" name="code" value={c.code} />
+											<input type="hidden" name="active" value={c.active ? '0' : '1'} />
+											<button type="submit" class="kv-btn ghost small">
+												{c.active ? 'Apagar' : 'Prender'}
+											</button>
+										</form>
+									{/if}
 								</td>
 							</tr>
 						{/each}
@@ -123,105 +125,108 @@
 		{/if}
 	</Card>
 
-	<Card title="Nuevo código para este evento">
-		{#if form?.create && 'ok' in form.create}
-			<p class="flash" role="status">{form.create.message}</p>
-		{:else if form?.create && 'error' in form.create}
-			<p class="flash error" role="alert">{form.create.error}</p>
-		{/if}
-		<form method="POST" action="?/create" use:enhance class="new">
-			<label class="field">
-				<span>Código</span>
-				<input
-					name="code"
-					required
-					maxlength="32"
-					autocomplete="off"
-					autocapitalize="characters"
-					placeholder="Ej.: AMIGUES20"
-					value={values.code ?? ''}
-				/>
-				<small>3 a 32 letras, números, - o _. No distingue mayúsculas.</small>
-				{#if errors.code}<small class="error">{errors.code}</small>{/if}
-			</label>
-			<fieldset class="field">
-				<legend>Tipo de descuento</legend>
-				<label class="radio">
-					<input type="radio" name="kind" value="percent" bind:group={kind} /> Porcentaje del total
-				</label>
-				<label class="radio">
-					<input type="radio" name="kind" value="fixed" bind:group={kind} /> Monto fijo en pesos (por
-					compra)
-				</label>
-				{#if errors.kind}<small class="error">{errors.kind}</small>{/if}
-			</fieldset>
-			<label class="field">
-				<span>{kind === 'percent' ? 'Porcentaje (1 a 100)' : 'Monto a descontar ($)'}</span>
-				<input
-					name="value"
-					type="number"
-					required
-					min="1"
-					max={kind === 'percent' ? 100 : undefined}
-					step="1"
-					inputmode="numeric"
-					value={values.value ?? ''}
-				/>
-				{#if kind === 'percent'}<small
-						>100 = compra sin cargo (todas las entradas de esa compra).</small
-					>{/if}
-				{#if errors.value}<small class="error">{errors.value}</small>{/if}
-			</label>
-			<div class="row">
+	<!-- Une organizadore solo mira los códigos (crearlos o pausarlos es de admins). -->
+	{#if !data.organizer}
+		<Card title="Nuevo código para este evento">
+			{#if form?.create && 'ok' in form.create}
+				<p class="flash" role="status">{form.create.message}</p>
+			{:else if form?.create && 'error' in form.create}
+				<p class="flash error" role="alert">{form.create.error}</p>
+			{/if}
+			<form method="POST" action="?/create" use:enhance class="new">
 				<label class="field">
-					<span>Válido desde (opcional)</span>
-					<input name="starts_at" type="datetime-local" value={values.starts_at ?? ''} />
-					{#if errors.starts_at}<small class="error">{errors.starts_at}</small>{/if}
+					<span>Código</span>
+					<input
+						name="code"
+						required
+						maxlength="32"
+						autocomplete="off"
+						autocapitalize="characters"
+						placeholder="Ej.: AMIGUES20"
+						value={values.code ?? ''}
+					/>
+					<small>3 a 32 letras, números, - o _. No distingue mayúsculas.</small>
+					{#if errors.code}<small class="error">{errors.code}</small>{/if}
+				</label>
+				<fieldset class="field">
+					<legend>Tipo de descuento</legend>
+					<label class="radio">
+						<input type="radio" name="kind" value="percent" bind:group={kind} /> Porcentaje del total
+					</label>
+					<label class="radio">
+						<input type="radio" name="kind" value="fixed" bind:group={kind} /> Monto fijo en pesos (por
+						compra)
+					</label>
+					{#if errors.kind}<small class="error">{errors.kind}</small>{/if}
+				</fieldset>
+				<label class="field">
+					<span>{kind === 'percent' ? 'Porcentaje (1 a 100)' : 'Monto a descontar ($)'}</span>
+					<input
+						name="value"
+						type="number"
+						required
+						min="1"
+						max={kind === 'percent' ? 100 : undefined}
+						step="1"
+						inputmode="numeric"
+						value={values.value ?? ''}
+					/>
+					{#if kind === 'percent'}<small
+							>100 = compra sin cargo (todas las entradas de esa compra).</small
+						>{/if}
+					{#if errors.value}<small class="error">{errors.value}</small>{/if}
+				</label>
+				<div class="row">
+					<label class="field">
+						<span>Válido desde (opcional)</span>
+						<input name="starts_at" type="datetime-local" value={values.starts_at ?? ''} />
+						{#if errors.starts_at}<small class="error">{errors.starts_at}</small>{/if}
+					</label>
+					<label class="field">
+						<span>Válido hasta (opcional)</span>
+						<input name="ends_at" type="datetime-local" value={values.ends_at ?? ''} />
+						{#if errors.ends_at}<small class="error">{errors.ends_at}</small>{/if}
+					</label>
+				</div>
+				<label class="field">
+					<span>Usos máximos (opcional)</span>
+					<input
+						name="max_uses"
+						type="number"
+						min="1"
+						step="1"
+						inputmode="numeric"
+						value={values.max_uses ?? ''}
+					/>
+					<small>Un uso es una compra (no una entrada). Vacío: sin límite.</small>
+					{#if errors.max_uses}<small class="error">{errors.max_uses}</small>{/if}
 				</label>
 				<label class="field">
-					<span>Válido hasta (opcional)</span>
-					<input name="ends_at" type="datetime-local" value={values.ends_at ?? ''} />
-					{#if errors.ends_at}<small class="error">{errors.ends_at}</small>{/if}
+					<span>Entradas por compra (opcional)</span>
+					<input
+						name="max_tickets"
+						type="number"
+						min="1"
+						step="1"
+						inputmode="numeric"
+						value={values.max_tickets ?? ''}
+					/>
+					<small>Cuántas entradas puede cubrir el código en una compra. Vacío: sin límite.</small>
+					{#if errors.max_tickets}<small class="error">{errors.max_tickets}</small>{/if}
 				</label>
-			</div>
-			<label class="field">
-				<span>Usos máximos (opcional)</span>
-				<input
-					name="max_uses"
-					type="number"
-					min="1"
-					step="1"
-					inputmode="numeric"
-					value={values.max_uses ?? ''}
-				/>
-				<small>Un uso es una compra (no una entrada). Vacío: sin límite.</small>
-				{#if errors.max_uses}<small class="error">{errors.max_uses}</small>{/if}
-			</label>
-			<label class="field">
-				<span>Entradas por compra (opcional)</span>
-				<input
-					name="max_tickets"
-					type="number"
-					min="1"
-					step="1"
-					inputmode="numeric"
-					value={values.max_tickets ?? ''}
-				/>
-				<small>Cuántas entradas puede cubrir el código en una compra. Vacío: sin límite.</small>
-				{#if errors.max_tickets}<small class="error">{errors.max_tickets}</small>{/if}
-			</label>
-			<button type="submit" class="kv-btn">Crear código</button>
-		</form>
-	</Card>
+				<button type="submit" class="kv-btn">Crear código</button>
+			</form>
+		</Card>
 
-	{#if data.combos}
-		<ComboCodes
-			eventTitle={e.title}
-			combos={data.combos}
-			targets={data.comboTargets}
-			result={form?.combo}
-			toggleResult={form?.comboToggle}
-		/>
+		{#if data.combos}
+			<ComboCodes
+				eventTitle={e.title}
+				combos={data.combos}
+				targets={data.comboTargets}
+				result={form?.combo}
+				toggleResult={form?.comboToggle}
+			/>
+		{/if}
 	{/if}
 </div>
 

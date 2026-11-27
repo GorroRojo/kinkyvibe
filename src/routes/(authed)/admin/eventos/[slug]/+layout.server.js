@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { requireAdmin } from '$lib/server/auth';
+import { isOrganizerRequest, requireAdminOrOrganizer } from '$lib/server/admin/organizadore.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { parseDocument } from 'yaml';
 import { POSTS_DIR, getEventAdmin, getRepoClient } from '$lib/server/eventos';
@@ -127,7 +127,9 @@ async function eventFromRepo(locals, slug) {
  * @type {import('./$types').LayoutServerLoad}
  */
 export async function load({ locals, url, params, platform }) {
-	requireAdmin(locals, url);
+	// Admins, o quien organiza este evento (organizadore.js; el resto, 404).
+	requireAdminOrOrganizer(locals, url, params.slug);
+	const organizer = isOrganizerRequest(locals);
 	// Las dos lecturas a la vez (cada una es una ida a la base).
 	const [found, config] = await Promise.all([
 		getPanelEvent(params.slug),
@@ -169,12 +171,14 @@ export async function load({ locals, url, params, platform }) {
 		workshop,
 		venue,
 		tabCounts: counts,
-		dateChange,
+		// Une organizadore no ve lo que manda mails ni las pestañas que no tiene (organizadore.js).
+		dateChange: organizer ? null : dateChange,
 		dbAvailable: Boolean(db),
 		// Pestaña Preguntas (preguntas de inscripción).
-		signupFieldsTab: Boolean(db && config),
-		waitlistTab,
-		surveyTab: Boolean(db && surveyOn),
-		gastosTab
+		signupFieldsTab: Boolean(db && config) && !organizer,
+		waitlistTab: waitlistTab && !organizer,
+		surveyTab: Boolean(db && surveyOn) && !organizer,
+		gastosTab: gastosTab && !organizer,
+		organizer
 	};
 }

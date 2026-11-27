@@ -79,7 +79,7 @@
 	</div>
 {/if}
 
-{#if data.tabCounts?.waitlist}
+{#if data.tabCounts?.waitlist && !data.organizer}
 	<!-- Lista de espera (docs/tickets.md): las anotaciones vivas, con link a su pestaña. -->
 	<p class="waitlist-chip">
 		<a href={eventHref(e.slug, 'lista-espera')}
@@ -116,7 +116,9 @@
 			<dt>Lugar</dt>
 			{#if data.venue}
 				<dd id="venue-row">
-					<a href="/admin/comunidad/perfiles/{data.venue.slug}">{data.venue.title}</a>
+					{#if data.organizer}{data.venue.title}{:else}<a
+							href="/admin/comunidad/perfiles/{data.venue.slug}">{data.venue.title}</a
+						>{/if}
 					<small class="muted block">Se muestra: {data.venue.privacy}</small>
 					<a class="small-link" href="{eventHref(e.slug, 'editar')}#sec-lugar">Cambiar</a>
 				</dd>
@@ -164,7 +166,7 @@
 					: data.account.state === 'open'
 						? 'Estimada: la cuenta está empezada pero sin cerrar. No incluye el recargo de Mercado Pago.'
 						: `Estimada: todavía nadie empezó la cuenta de este evento (${data.account.venueDefault ? 'con la regla del lugar' : 'sin gastos cargados'}).`}
-				<a href={eventHref(e.slug, 'gastos')}>Gastos y reparto</a>
+				{#if !data.organizer}<a href={eventHref(e.slug, 'gastos')}>Gastos y reparto</a>{/if}
 			</p>
 		</Card>
 	{/if}
@@ -172,7 +174,7 @@
 	<!-- Visitas de la página del evento (docs/analiticas.md, «Visitas de una página»). -->
 	<PageVisitsCard visits={data.visits} />
 
-	{#if data.online && e.sellsTickets}
+	{#if data.online && e.sellsTickets && !data.organizer}
 		<section class="stream" aria-label="Link de la transmisión">
 			<Card title="Link de la transmisión" tag="div">
 				<p class="muted small">
@@ -290,7 +292,9 @@
 	{/if}
 </div>
 
-<DeleteLink kind="calendario" slug={e.slug} label="Borrar evento…" />
+{#if !data.organizer}
+	<DeleteLink kind="calendario" slug={e.slug} label="Borrar evento…" />
+{/if}
 
 <style>
 	.forms {

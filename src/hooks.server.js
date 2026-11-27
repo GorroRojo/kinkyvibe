@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { ghGet } from '$lib/external/github';
 import { TOKEN_COOKIE, adminByLogin, authCookieOptions } from '$lib/server/auth';
@@ -9,7 +10,8 @@ import { DEMO_COOKIE, DEMO_TOKEN, demoUser } from '$lib/server/demo/identity.js'
 import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 import { loadMember } from '$lib/server/cuentas/web.js';
 import { setContentDB } from '$lib/server/contenido/repo.js';
-import { resolveAsPanelAuthor } from '$lib/server/contenido/author.js';
+import { resolveAsPanelAuthor, runAsPanelAuthor } from '$lib/server/contenido/author.js';
+import { organizerAccess } from '$lib/server/admin/organizadore.js';
 import { startRequest } from '$lib/server/adelantarPedido.js';
 import { withPreload } from '$lib/server/preload.js';
 import { withoutBeacon } from '$lib/server/analyticsBeacon.js';
@@ -88,6 +90,16 @@ async function siteHandle({ event, resolve: resolvePage }) {
 		}
 	}
 
+	// Organizadores en el panel (interruptor `rol_organizadore`): una cuenta que organiza eventos
+	// ve solo lo suyo; lo demás del panel, 404 (src/lib/server/admin/organizadore.js).
+	const organizer = await organizerAccess(event);
+	if (organizer === 'deny') error(404, 'Not found');
+	if (organizer) {
+		event.locals.organizer = organizer;
+		// Guarda con su cuenta y sin superadmin: el texto va con el HTML acotado (decisión 0004).
+		const author = { login: organizer.login, name: organizer.name, superadmin: false };
+		return withSecurityHeaders(event.url, await runAsPanelAuthor(author, () => resolve(event)));
+	}
 	return withSecurityHeaders(event.url, await resolveAsPanelAuthor(event, resolve));
 }
 

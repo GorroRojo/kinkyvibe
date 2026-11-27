@@ -13,6 +13,11 @@
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import {
+	isOrganizerRequest,
+	logOrganizerEdit,
+	requireAdminOrOrganizer
+} from '$lib/server/admin/organizadore.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB } from '$lib/server/db';
 import {
@@ -67,14 +72,18 @@ async function lastEdit(db, slug) {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load(event) {
-	requireAdmin(event.locals, event.url);
+	requireAdminOrOrganizer(event.locals, event.url, event.params.slug);
 	const db = getDB(event.platform);
+	// Partes (talleres) cambia otros eventos: une organizadore no la ve (organizadore.js).
+	const organizer = isOrganizerRequest(event.locals);
 	const [base, partes, edited] = await Promise.all([
 		_editLoad(asEventEdit(event)),
-		panelParts(db, event.params.slug).catch((e) => {
-			console.error('[partes] no se pudieron leer las partes:', e);
-			return null;
-		}),
+		organizer
+			? null
+			: panelParts(db, event.params.slug).catch((e) => {
+					console.error('[partes] no se pudieron leer las partes:', e);
+					return null;
+				}),
 		lastEdit(db, event.params.slug)
 	]);
 	return { ...base, partes, lastEdit: edited };
@@ -146,11 +155,18 @@ async function savedSchedule(slug) {
  * @param {import('./$types').RequestEvent} event
  */
 async function saveWithDateChange(event) {
-	const user = requireAdmin(event.locals, event.url);
+	const user = requireAdminOrOrganizer(event.locals, event.url, event.params.slug);
 	const db = getDB(event.platform);
 	const content = db ? (await event.request.clone().formData()).get('content') : null;
 	const before = typeof content === 'string' ? await savedSchedule(event.params.slug) : null;
 	const result = await _editActions.save(asEventEdit(event));
+	// Lo que guarda une organizadore queda también en Actividad (el historial ya lo anota).
+	if (user.organizer && result && 'save' in result) {
+		await logOrganizerEdit(db, user.organizer, {
+			slug: event.params.slug,
+			title: user.organizer.event?.title ?? event.params.slug
+		});
+	}
 	// Más cupo, un tipo o un tramo nuevo, dejó de estar agotado, otra fecha de cierre o se
 	// canceló: la lista de espera se mueve (en segundo plano; sin gente en la lista, nada).
 	if (db && result && 'save' in result) {

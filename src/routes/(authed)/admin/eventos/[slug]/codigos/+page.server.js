@@ -9,6 +9,7 @@
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { requireAdminOrOrganizer } from '$lib/server/admin/organizadore.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB, logDBError } from '$lib/server/db';
 import {
@@ -47,7 +48,8 @@ async function comboTargets(slug, now) {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, setHeaders }) {
-	requireAdmin(locals, url);
+	// Admins, o quien organiza este evento (solo mira: las acciones siguen siendo de admins).
+	const who = requireAdminOrOrganizer(locals, url, params.slug);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	if (!(await getEventTickets(params.slug))) error(404, 'Ese evento no vende entradas.');
 	const db = getDB(platform);
@@ -65,7 +67,7 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	let combos = null;
 	/** @type {{ slug: string, title: string }[]} */
 	let targets = [];
-	if (db && (await comboCodigosEnabled(platform))) {
+	if (db && !who.organizer && (await comboCodigosEnabled(platform))) {
 		try {
 			targets = await comboTargets(params.slug, now);
 			const titles = new Map(
@@ -89,7 +91,8 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	}
 	return {
 		codes: codes.filter((c) => c.event_slug === params.slug),
-		global: codes.filter((c) => c.event_slug === null),
+		// Los generales valen para todos los eventos: une organizadore no los ve (organizadore.js).
+		global: who.organizer ? [] : codes.filter((c) => c.event_slug === null),
 		combos,
 		comboTargets: targets,
 		dbAvailable: Boolean(db),

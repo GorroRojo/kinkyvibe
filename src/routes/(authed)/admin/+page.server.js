@@ -1,5 +1,6 @@
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
+import { isOrganizerRequest } from '$lib/server/admin/organizadore.js';
 import { getDB } from '$lib/server/db';
 import { runQueries } from '$lib/server/db/batch.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
@@ -55,6 +56,8 @@ import { navItem, navLink } from '$lib/admin/nav.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, fetch, setHeaders }) {
+	// Une organizadore no tiene Inicio: va a «Tus eventos» (organizadore.js).
+	if (isOrganizerRequest(locals)) redirect(303, '/admin/organizo');
 	// Los loads corren en paralelo con el del layout: se controla acá también.
 	const user = requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
